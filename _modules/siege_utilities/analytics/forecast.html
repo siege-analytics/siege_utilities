@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.files.validation &mdash; Siege Utilities 3.23.0 documentation</title>
+  <title>siege_utilities.analytics.forecast &mdash; Siege Utilities 3.23.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
@@ -8984,8 +8984,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
-          <li class="breadcrumb-item"><a href="../files.html">siege_utilities.files</a></li>
-      <li class="breadcrumb-item active">siege_utilities.files.validation</li>
+      <li class="breadcrumb-item active">siege_utilities.analytics.forecast</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -8994,400 +8993,300 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <h1>Source code for siege_utilities.files.validation</h1><div class="highlight"><pre>
+  <h1>Source code for siege_utilities.analytics.forecast</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Path validation and sanitization utilities for siege_utilities.</span>
+<span class="sd">Forecast accuracy measurement.</span>
 
-<span class="sd">This module provides security-focused path validation to prevent:</span>
-<span class="sd">- Path traversal attacks (../, ~/../, etc.)</span>
-<span class="sd">- Access to sensitive system files and directories</span>
-<span class="sd">- Symlink-based attacks</span>
-<span class="sd">- Null byte injection</span>
-
-<span class="sd">Use these validators in all file operations to ensure secure path handling.</span>
+<span class="sd">MAPE calculation with per-category breakdown, bias detection, and</span>
+<span class="sd">accuracy trend analysis.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
 
-<span class="c1"># Get logger for this module</span>
-<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-
-<span class="c1"># Type aliases</span>
-<span class="n">FilePath</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="PathSecurityError">
-<a class="viewcode-back" href="../../../packages/files.html#siege_utilities.files.validation.PathSecurityError">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">PathSecurityError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when a path fails security validation.&quot;&quot;&quot;</span>
-    <span class="k">pass</span></div>
+<div class="viewcode-block" id="ForecastAccuracy">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ForecastAccuracy">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ForecastAccuracy</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of a forecast accuracy calculation.&quot;&quot;&quot;</span>
+
+    <span class="n">mape</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">bias</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">bias_direction</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">grade</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">n_observations</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">n_excluded</span><span class="p">:</span> <span class="nb">int</span></div>
 
 
 
-<span class="c1"># Sensitive system paths that should never be accessed</span>
-<span class="n">SENSITIVE_PATHS</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="c1"># Unix/Linux sensitive files</span>
-    <span class="s1">&#39;/etc/passwd&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;/etc/shadow&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;/etc/sudoers&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;/etc/ssh&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;/root&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;/var/log/auth.log&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;/var/log/secure&#39;</span><span class="p">,</span>
+<div class="viewcode-block" id="CategoryBreakdown">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.CategoryBreakdown">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CategoryBreakdown</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Per-category forecast accuracy.&quot;&quot;&quot;</span>
 
-    <span class="c1"># SSH keys</span>
-    <span class="s1">&#39;/.ssh&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;/root/.ssh&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;~/.ssh&#39;</span><span class="p">,</span>
-
-    <span class="c1"># System binaries</span>
-    <span class="s1">&#39;/bin&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;/sbin&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;/usr/bin&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;/usr/sbin&#39;</span><span class="p">,</span>
-
-    <span class="c1"># Kernel and system</span>
-    <span class="s1">&#39;/proc&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;/sys&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;/dev&#39;</span><span class="p">,</span>
-
-    <span class="c1"># macOS specific</span>
-    <span class="s1">&#39;/System&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;/private/etc&#39;</span><span class="p">,</span>
-
-    <span class="c1"># Windows sensitive (for cross-platform)</span>
-    <span class="s1">&#39;C:</span><span class="se">\\</span><span class="s1">Windows</span><span class="se">\\</span><span class="s1">System32&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;C:</span><span class="se">\\</span><span class="s1">Windows</span><span class="se">\\</span><span class="s1">SysWOW64&#39;</span><span class="p">,</span>
-<span class="p">}</span>
+    <span class="n">category</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">accuracy</span><span class="p">:</span> <span class="n">ForecastAccuracy</span></div>
 
 
-<span class="c1"># Path traversal patterns to block</span>
-<span class="n">TRAVERSAL_PATTERNS</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s1">&#39;..&#39;</span><span class="p">,</span>      <span class="c1"># Parent directory</span>
-    <span class="s1">&#39;~/&#39;</span><span class="p">,</span>      <span class="c1"># Home directory expansion</span>
-    <span class="s1">&#39;~</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span>     <span class="c1"># Windows home directory</span>
-<span class="p">]</span>
+
+<div class="viewcode-block" id="TrendPoint">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.TrendPoint">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TrendPoint</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Accuracy at a single time period.&quot;&quot;&quot;</span>
+
+    <span class="n">period</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">mape</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">bias</span><span class="p">:</span> <span class="nb">float</span></div>
 
 
-<div class="viewcode-block" id="is_path_traversal_attempt">
-<a class="viewcode-back" href="../../../packages/files.html#siege_utilities.files.validation.is_path_traversal_attempt">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">is_path_traversal_attempt</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">FilePath</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Check if a path contains traversal patterns.</span>
 
-<span class="sd">    Args:</span>
-<span class="sd">        path: Path to check</span>
+<div class="viewcode-block" id="ForecastReport">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ForecastReport">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ForecastReport</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Complete forecast accuracy report.&quot;&quot;&quot;</span>
 
-<span class="sd">    Returns:</span>
-<span class="sd">        True if path contains traversal patterns</span>
+    <span class="n">overall</span><span class="p">:</span> <span class="n">ForecastAccuracy</span>
+    <span class="n">by_category</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">CategoryBreakdown</span><span class="p">]</span>
+    <span class="n">trend</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">TrendPoint</span><span class="p">]</span>
+    <span class="n">trend_direction</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span></div>
 
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; is_path_traversal_attempt(&quot;../../../etc/passwd&quot;)</span>
-<span class="sd">        True</span>
-<span class="sd">        &gt;&gt;&gt; is_path_traversal_attempt(&quot;data/file.txt&quot;)</span>
-<span class="sd">        False</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_grade_mape</span><span class="p">(</span><span class="n">mape</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">mape</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;Excellent&quot;</span>
+    <span class="k">if</span> <span class="n">mape</span> <span class="o">&lt;</span> <span class="mi">15</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;Good&quot;</span>
+    <span class="k">if</span> <span class="n">mape</span> <span class="o">&lt;</span> <span class="mi">25</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;Fair&quot;</span>
+    <span class="k">return</span> <span class="s2">&quot;Poor&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_compute_accuracy</span><span class="p">(</span>
+    <span class="n">actuals</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span>
+    <span class="n">forecasts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ForecastAccuracy</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute MAPE and bias from parallel lists.</span>
+
+<span class="sd">    Observations where actual == 0 are excluded from MAPE</span>
+<span class="sd">    (division by zero) but counted in n_excluded.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">path_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">actuals</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;actuals and forecasts must have same length, &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">actuals</span><span class="p">)</span><span class="si">}</span><span class="s2"> and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">actuals</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one observation is required&quot;</span><span class="p">)</span>
 
-    <span class="c1"># Check for common traversal patterns</span>
-    <span class="k">for</span> <span class="n">pattern</span> <span class="ow">in</span> <span class="n">TRAVERSAL_PATTERNS</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">pattern</span> <span class="ow">in</span> <span class="n">path_str</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">True</span>
+    <span class="n">errors</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">biases</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">excluded</span> <span class="o">=</span> <span class="mi">0</span>
 
-    <span class="c1"># Check for URL-encoded traversal</span>
-    <span class="k">if</span> <span class="s1">&#39;</span><span class="si">%2e%2e</span><span class="s1">&#39;</span> <span class="ow">in</span> <span class="n">path_str</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">or</span> <span class="s1">&#39;</span><span class="si">%2f</span><span class="s1">&#39;</span> <span class="ow">in</span> <span class="n">path_str</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
-        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">for</span> <span class="n">actual</span><span class="p">,</span> <span class="n">forecast</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">actuals</span><span class="p">,</span> <span class="n">forecasts</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">actual</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">excluded</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">continue</span>
+        <span class="n">pct_error</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">actual</span> <span class="o">-</span> <span class="n">forecast</span><span class="p">)</span> <span class="o">/</span> <span class="nb">abs</span><span class="p">(</span><span class="n">actual</span><span class="p">)</span>
+        <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pct_error</span><span class="p">)</span>
+        <span class="n">biases</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">forecast</span> <span class="o">-</span> <span class="n">actual</span><span class="p">)</span> <span class="o">/</span> <span class="nb">abs</span><span class="p">(</span><span class="n">actual</span><span class="p">))</span>
 
-    <span class="c1"># Check for null bytes</span>
-    <span class="k">if</span> <span class="s1">&#39;</span><span class="se">\x00</span><span class="s1">&#39;</span> <span class="ow">in</span> <span class="n">path_str</span><span class="p">:</span>
-        <span class="k">return</span> <span class="kc">True</span>
-
-    <span class="k">return</span> <span class="kc">False</span></div>
-
-
-
-<div class="viewcode-block" id="is_sensitive_path">
-<a class="viewcode-back" href="../../../packages/files.html#siege_utilities.files.validation.is_sensitive_path">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">is_sensitive_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">FilePath</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Check if a path points to or contains a sensitive system location.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        path: Path to check</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        True if path is sensitive</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; is_sensitive_path(&quot;/etc/passwd&quot;)</span>
-<span class="sd">        True</span>
-<span class="sd">        &gt;&gt;&gt; is_sensitive_path(&quot;/tmp/data.txt&quot;)</span>
-<span class="sd">        False</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="c1"># Resolve to absolute path</span>
-        <span class="n">path_obj</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
-        <span class="n">path_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">path_obj</span><span class="p">)</span>
-
-        <span class="c1"># Check against sensitive paths</span>
-        <span class="k">for</span> <span class="n">sensitive</span> <span class="ow">in</span> <span class="n">SENSITIVE_PATHS</span><span class="p">:</span>
-            <span class="n">sensitive_resolved</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">sensitive</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">())</span>
-
-            <span class="c1"># Exact match or parent directory</span>
-            <span class="k">if</span> <span class="n">path_str</span> <span class="o">==</span> <span class="n">sensitive_resolved</span> <span class="ow">or</span> <span class="n">path_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">sensitive_resolved</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="p">):</span>
-                <span class="k">return</span> <span class="kc">True</span>
-
-        <span class="c1"># Check for .ssh anywhere in path</span>
-        <span class="k">if</span> <span class="s1">&#39;/.ssh/&#39;</span> <span class="ow">in</span> <span class="n">path_str</span> <span class="ow">or</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">.ssh</span><span class="se">\\</span><span class="s1">&#39;</span> <span class="ow">in</span> <span class="n">path_str</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">True</span>
-
-        <span class="c1"># Check for private keys</span>
-        <span class="k">if</span> <span class="n">path_str</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;id_rsa&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">path_str</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;id_dsa&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">path_str</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;id_ecdsa&#39;</span><span class="p">):</span>
-            <span class="k">return</span> <span class="kc">True</span>
-
-        <span class="k">return</span> <span class="kc">False</span>
-
-    <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
-        <span class="c1"># If we can&#39;t resolve, assume it&#39;s potentially dangerous</span>
-        <span class="k">return</span> <span class="kc">True</span></div>
-
-
-
-<div class="viewcode-block" id="validate_safe_path">
-<a class="viewcode-back" href="../../../packages/files.html#siege_utilities.files.validation.validate_safe_path">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">validate_safe_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">FilePath</span><span class="p">,</span>
-                       <span class="n">allow_absolute</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-                       <span class="n">base_directory</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">FilePath</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Validate that a path is safe to access.</span>
-
-<span class="sd">    Performs comprehensive security checks:</span>
-<span class="sd">    1. Blocks path traversal attempts</span>
-<span class="sd">    2. Blocks access to sensitive system paths</span>
-<span class="sd">    3. Optionally restricts to a base directory</span>
-<span class="sd">    4. Blocks null byte injection</span>
-<span class="sd">    5. Resolves symlinks and checks final destination</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        path: Path to validate</span>
-<span class="sd">        allow_absolute: Whether to allow absolute paths</span>
-<span class="sd">        base_directory: If provided, path must be within this directory</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Validated Path object</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        PathSecurityError: If path fails security validation</span>
-<span class="sd">        ValueError: If path is invalid</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; # Safe path</span>
-<span class="sd">        &gt;&gt;&gt; validated = validate_safe_path(&quot;data/file.txt&quot;)</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; try:</span>
-<span class="sd">        ...     validate_safe_path(&quot;../../../etc/passwd&quot;)</span>
-<span class="sd">        ... except PathSecurityError as e:</span>
-<span class="sd">        ...     pass  # raises PathSecurityError</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; validated = validate_safe_path(&quot;subdir/file.txt&quot;, base_directory=&quot;/safe/dir&quot;)  # doctest: +SKIP</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Path cannot be empty&quot;</span><span class="p">)</span>
-
-    <span class="n">path_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-
-    <span class="c1"># Check for null bytes</span>
-    <span class="k">if</span> <span class="s1">&#39;</span><span class="se">\x00</span><span class="s1">&#39;</span> <span class="ow">in</span> <span class="n">path_str</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">PathSecurityError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Null byte detected in path: </span><span class="si">{</span><span class="n">path_str</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-    <span class="c1"># Check for path traversal</span>
-    <span class="k">if</span> <span class="n">is_path_traversal_attempt</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="n">PathSecurityError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Path traversal attempt blocked: </span><span class="si">{</span><span class="n">path_str</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">errors</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;All observations have actual=0; MAPE is undefined&quot;</span>
         <span class="p">)</span>
 
-    <span class="k">try</span><span class="p">:</span>
-        <span class="c1"># Convert to Path object</span>
-        <span class="n">path_obj</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">mape</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">errors</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">errors</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span>
+    <span class="n">bias</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">biases</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">biases</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span>
 
-        <span class="c1"># Check if absolute when not allowed</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">allow_absolute</span> <span class="ow">and</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">is_absolute</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="n">PathSecurityError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Absolute paths not allowed: </span><span class="si">{</span><span class="n">path_str</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="k">if</span> <span class="n">bias</span> <span class="o">&gt;</span> <span class="mf">1.0</span><span class="p">:</span>
+        <span class="n">bias_direction</span> <span class="o">=</span> <span class="s2">&quot;over-forecasting&quot;</span>
+    <span class="k">elif</span> <span class="n">bias</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">:</span>
+        <span class="n">bias_direction</span> <span class="o">=</span> <span class="s2">&quot;under-forecasting&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">bias_direction</span> <span class="o">=</span> <span class="s2">&quot;neutral&quot;</span>
+
+    <span class="k">return</span> <span class="n">ForecastAccuracy</span><span class="p">(</span>
+        <span class="n">mape</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="n">mape</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="n">bias</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="n">bias</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="n">bias_direction</span><span class="o">=</span><span class="n">bias_direction</span><span class="p">,</span>
+        <span class="n">grade</span><span class="o">=</span><span class="n">_grade_mape</span><span class="p">(</span><span class="n">mape</span><span class="p">),</span>
+        <span class="n">n_observations</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">actuals</span><span class="p">),</span>
+        <span class="n">n_excluded</span><span class="o">=</span><span class="n">excluded</span><span class="p">,</span>
+    <span class="p">)</span>
+
+
+<div class="viewcode-block" id="ForecastAnalyzer">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ForecastAnalyzer">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ForecastAnalyzer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Forecast accuracy engine.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    actuals : list[float]</span>
+<span class="sd">        Actual observed values.</span>
+<span class="sd">    forecasts : list[float]</span>
+<span class="sd">        Forecasted values (same length as actuals).</span>
+<span class="sd">    categories : list[str] | None</span>
+<span class="sd">        Optional category labels for per-category breakdown.</span>
+<span class="sd">    periods : list[str] | None</span>
+<span class="sd">        Optional time period labels for trend analysis.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If inputs have mismatched lengths or are empty.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ForecastAnalyzer.__init__">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ForecastAnalyzer.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">actuals</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span>
+        <span class="n">forecasts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span>
+        <span class="n">categories</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">periods</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">actuals</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;actuals and forecasts must have same length, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">actuals</span><span class="p">)</span><span class="si">}</span><span class="s2"> and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">forecasts</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">actuals</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one observation is required&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">categories</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">categories</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">actuals</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;categories must have same length as actuals, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">categories</span><span class="p">)</span><span class="si">}</span><span class="s2"> and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">actuals</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">periods</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">periods</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">actuals</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;periods must have same length as actuals, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">periods</span><span class="p">)</span><span class="si">}</span><span class="s2"> and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">actuals</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="p">)</span>
 
-        <span class="c1"># Resolve to absolute path (follows symlinks)</span>
-        <span class="n">resolved_path</span> <span class="o">=</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_actuals</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">actuals</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_forecasts</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">forecasts</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_categories</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">categories</span><span class="p">)</span> <span class="k">if</span> <span class="n">categories</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_periods</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">periods</span><span class="p">)</span> <span class="k">if</span> <span class="n">periods</span> <span class="k">else</span> <span class="kc">None</span>
 
-        <span class="c1"># Check if resolved path is sensitive</span>
-        <span class="k">if</span> <span class="n">is_sensitive_path</span><span class="p">(</span><span class="n">resolved_path</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">PathSecurityError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Access to sensitive path blocked: </span><span class="si">{</span><span class="n">resolved_path</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;ForecastAnalyzer initialized with </span><span class="si">%d</span><span class="s2"> observations&quot;</span><span class="p">,</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_actuals</span><span class="p">),</span>
+        <span class="p">)</span></div>
 
-        <span class="c1"># If base directory specified, ensure path is within it</span>
-        <span class="k">if</span> <span class="n">base_directory</span><span class="p">:</span>
-            <span class="n">base_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">base_directory</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
 
+<div class="viewcode-block" id="ForecastAnalyzer.analyze">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ForecastAnalyzer.analyze">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">analyze</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ForecastReport</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run full forecast accuracy analysis.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ForecastReport</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">overall</span> <span class="o">=</span> <span class="n">_compute_accuracy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_actuals</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_forecasts</span><span class="p">)</span>
+
+        <span class="n">by_category</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_category_breakdown</span><span class="p">()</span>
+        <span class="n">trend</span><span class="p">,</span> <span class="n">trend_direction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_trend_analysis</span><span class="p">()</span>
+
+        <span class="n">report</span> <span class="o">=</span> <span class="n">ForecastReport</span><span class="p">(</span>
+            <span class="n">overall</span><span class="o">=</span><span class="n">overall</span><span class="p">,</span>
+            <span class="n">by_category</span><span class="o">=</span><span class="n">by_category</span><span class="p">,</span>
+            <span class="n">trend</span><span class="o">=</span><span class="n">trend</span><span class="p">,</span>
+            <span class="n">trend_direction</span><span class="o">=</span><span class="n">trend_direction</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Forecast analysis: MAPE=</span><span class="si">%.1f%%</span><span class="s2"> (</span><span class="si">%s</span><span class="s2">), bias=</span><span class="si">%.1f%%</span><span class="s2"> (</span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span>
+            <span class="n">overall</span><span class="o">.</span><span class="n">mape</span><span class="p">,</span>
+            <span class="n">overall</span><span class="o">.</span><span class="n">grade</span><span class="p">,</span>
+            <span class="n">overall</span><span class="o">.</span><span class="n">bias</span><span class="p">,</span>
+            <span class="n">overall</span><span class="o">.</span><span class="n">bias_direction</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">report</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_category_breakdown</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">CategoryBreakdown</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_categories</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="n">groups</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">actual</span><span class="p">,</span> <span class="n">forecast</span><span class="p">,</span> <span class="n">cat</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_actuals</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_forecasts</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_categories</span>
+        <span class="p">):</span>
+            <span class="k">if</span> <span class="n">cat</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
+                <span class="n">groups</span><span class="p">[</span><span class="n">cat</span><span class="p">]</span> <span class="o">=</span> <span class="p">([],</span> <span class="p">[])</span>
+            <span class="n">groups</span><span class="p">[</span><span class="n">cat</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">actual</span><span class="p">)</span>
+            <span class="n">groups</span><span class="p">[</span><span class="n">cat</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">forecast</span><span class="p">)</span>
+
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">cat</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">groups</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="n">cat_actuals</span><span class="p">,</span> <span class="n">cat_forecasts</span> <span class="o">=</span> <span class="n">groups</span><span class="p">[</span><span class="n">cat</span><span class="p">]</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="c1"># This raises ValueError if resolved_path is not relative to base_path</span>
-                <span class="n">resolved_path</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">base_path</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">PathSecurityError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Path </span><span class="si">{</span><span class="n">resolved_path</span><span class="si">}</span><span class="s2"> is outside base directory </span><span class="si">{</span><span class="n">base_path</span><span class="si">}</span><span class="s2">&quot;</span>
-                <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+                <span class="n">accuracy</span> <span class="o">=</span> <span class="n">_compute_accuracy</span><span class="p">(</span><span class="n">cat_actuals</span><span class="p">,</span> <span class="n">cat_forecasts</span><span class="p">)</span>
+                <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">CategoryBreakdown</span><span class="p">(</span><span class="n">category</span><span class="o">=</span><span class="n">cat</span><span class="p">,</span> <span class="n">accuracy</span><span class="o">=</span><span class="n">accuracy</span><span class="p">))</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;Category </span><span class="si">%r</span><span class="s2"> skipped: all actuals are zero&quot;</span><span class="p">,</span> <span class="n">cat</span>
+                <span class="p">)</span>
 
-        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Path validation passed: </span><span class="si">{</span><span class="n">path_str</span><span class="si">}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="n">resolved_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">resolved_path</span>
+        <span class="k">return</span> <span class="n">results</span>
 
-    <span class="k">except</span> <span class="n">PathSecurityError</span><span class="p">:</span>
-        <span class="c1"># Re-raise our security errors</span>
-        <span class="k">raise</span>
-    <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="c1"># Other errors during validation</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid path: </span><span class="si">{</span><span class="n">path_str</span><span class="si">}</span><span class="s2"> - </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span></div>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_trend_analysis</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">TrendPoint</span><span class="p">],</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_periods</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[],</span> <span class="kc">None</span>
 
+        <span class="n">groups</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">period_order</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">actual</span><span class="p">,</span> <span class="n">forecast</span><span class="p">,</span> <span class="n">period</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_actuals</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_forecasts</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_periods</span>
+        <span class="p">):</span>
+            <span class="k">if</span> <span class="n">period</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
+                <span class="n">groups</span><span class="p">[</span><span class="n">period</span><span class="p">]</span> <span class="o">=</span> <span class="p">([],</span> <span class="p">[])</span>
+                <span class="n">period_order</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">period</span><span class="p">)</span>
+            <span class="n">groups</span><span class="p">[</span><span class="n">period</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">actual</span><span class="p">)</span>
+            <span class="n">groups</span><span class="p">[</span><span class="n">period</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">forecast</span><span class="p">)</span>
 
+        <span class="n">points</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">period</span> <span class="ow">in</span> <span class="n">period_order</span><span class="p">:</span>
+            <span class="n">p_actuals</span><span class="p">,</span> <span class="n">p_forecasts</span> <span class="o">=</span> <span class="n">groups</span><span class="p">[</span><span class="n">period</span><span class="p">]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">acc</span> <span class="o">=</span> <span class="n">_compute_accuracy</span><span class="p">(</span><span class="n">p_actuals</span><span class="p">,</span> <span class="n">p_forecasts</span><span class="p">)</span>
+                <span class="n">points</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">TrendPoint</span><span class="p">(</span>
+                    <span class="n">period</span><span class="o">=</span><span class="n">period</span><span class="p">,</span>
+                    <span class="n">mape</span><span class="o">=</span><span class="n">acc</span><span class="o">.</span><span class="n">mape</span><span class="p">,</span>
+                    <span class="n">bias</span><span class="o">=</span><span class="n">acc</span><span class="o">.</span><span class="n">bias</span><span class="p">,</span>
+                <span class="p">))</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;Period </span><span class="si">%r</span><span class="s2"> skipped: all actuals are zero&quot;</span><span class="p">,</span> <span class="n">period</span>
+                <span class="p">)</span>
 
-<div class="viewcode-block" id="validate_file_path">
-<a class="viewcode-back" href="../../../packages/files.html#siege_utilities.files.validation.validate_file_path">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">validate_file_path</span><span class="p">(</span><span class="n">file_path</span><span class="p">:</span> <span class="n">FilePath</span><span class="p">,</span>
-                       <span class="n">must_exist</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-                       <span class="n">base_directory</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">FilePath</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Validate a file path for read/write operations.</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">points</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">points</span><span class="p">,</span> <span class="kc">None</span>
 
-<span class="sd">    Args:</span>
-<span class="sd">        file_path: Path to validate</span>
-<span class="sd">        must_exist: If True, path must exist</span>
-<span class="sd">        base_directory: If provided, path must be within this directory</span>
+        <span class="n">first_mape</span> <span class="o">=</span> <span class="n">points</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">mape</span>
+        <span class="n">last_mape</span> <span class="o">=</span> <span class="n">points</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">mape</span>
+        <span class="k">if</span> <span class="n">last_mape</span> <span class="o">&lt;</span> <span class="n">first_mape</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">:</span>
+            <span class="n">direction</span> <span class="o">=</span> <span class="s2">&quot;improving&quot;</span>
+        <span class="k">elif</span> <span class="n">last_mape</span> <span class="o">&gt;</span> <span class="n">first_mape</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">:</span>
+            <span class="n">direction</span> <span class="o">=</span> <span class="s2">&quot;degrading&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">direction</span> <span class="o">=</span> <span class="s2">&quot;stable&quot;</span>
 
-<span class="sd">    Returns:</span>
-<span class="sd">        Validated Path object</span>
+        <span class="k">return</span> <span class="n">points</span><span class="p">,</span> <span class="n">direction</span></div>
 
-<span class="sd">    Raises:</span>
-<span class="sd">        PathSecurityError: If path fails security validation</span>
-<span class="sd">        FileNotFoundError: If must_exist=True and file doesn&#39;t exist</span>
-<span class="sd">        ValueError: If path is invalid</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; path = validate_file_path(&quot;data.csv&quot;, must_exist=True)  # doctest: +SKIP</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; path = validate_file_path(&quot;output.txt&quot;, must_exist=False)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">validated_path</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span>
-        <span class="n">file_path</span><span class="p">,</span>
-        <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">base_directory</span><span class="o">=</span><span class="n">base_directory</span>
-    <span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">must_exist</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">validated_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File does not exist: </span><span class="si">{</span><span class="n">validated_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">validated_path</span></div>
-
-
-
-<div class="viewcode-block" id="validate_directory_path">
-<a class="viewcode-back" href="../../../packages/files.html#siege_utilities.files.validation.validate_directory_path">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">validate_directory_path</span><span class="p">(</span><span class="n">dir_path</span><span class="p">:</span> <span class="n">FilePath</span><span class="p">,</span>
-                           <span class="n">must_exist</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-                           <span class="n">base_directory</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">FilePath</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Validate a directory path.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        dir_path: Path to validate</span>
-<span class="sd">        must_exist: If True, directory must exist</span>
-<span class="sd">        base_directory: If provided, path must be within this directory</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Validated Path object</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        PathSecurityError: If path fails security validation</span>
-<span class="sd">        FileNotFoundError: If must_exist=True and directory doesn&#39;t exist</span>
-<span class="sd">        ValueError: If path is invalid or not a directory</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; # Validate directory</span>
-<span class="sd">        &gt;&gt;&gt; path = validate_directory_path(&quot;logs&quot;, must_exist=True)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">validated_path</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span>
-        <span class="n">dir_path</span><span class="p">,</span>
-        <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">base_directory</span><span class="o">=</span><span class="n">base_directory</span>
-    <span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">must_exist</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">validated_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Directory does not exist: </span><span class="si">{</span><span class="n">validated_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">validated_path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Path is not a directory: </span><span class="si">{</span><span class="n">validated_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">validated_path</span></div>
-
-
-
-<div class="viewcode-block" id="safe_join_paths">
-<a class="viewcode-back" href="../../../packages/files.html#siege_utilities.files.validation.safe_join_paths">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">safe_join_paths</span><span class="p">(</span><span class="o">*</span><span class="n">paths</span><span class="p">:</span> <span class="n">FilePath</span><span class="p">,</span> <span class="n">base_directory</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">FilePath</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Safely join multiple path components with security validation.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        *paths: Path components to join</span>
-<span class="sd">        base_directory: If provided, result must be within this directory</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Validated joined Path object</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        PathSecurityError: If any component or result fails security validation</span>
-<span class="sd">        ValueError: If components are invalid</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; # Safe join</span>
-<span class="sd">        &gt;&gt;&gt; path = safe_join_paths(&quot;data&quot;, &quot;2024&quot;, &quot;file.txt&quot;)</span>
-<span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; path = safe_join_paths(&quot;subdir&quot;, &quot;file.txt&quot;, base_directory=&quot;/safe/dir&quot;)  # doctest: +SKIP</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">paths</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one path component required&quot;</span><span class="p">)</span>
-
-    <span class="c1"># Validate each component</span>
-    <span class="k">for</span> <span class="n">component</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">is_path_traversal_attempt</span><span class="p">(</span><span class="n">component</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">PathSecurityError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Path traversal in component: </span><span class="si">{</span><span class="n">component</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span>
-
-    <span class="c1"># Join paths</span>
-    <span class="n">joined</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">paths</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-    <span class="k">for</span> <span class="n">component</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
-        <span class="n">joined</span> <span class="o">=</span> <span class="n">joined</span> <span class="o">/</span> <span class="n">component</span>
-
-    <span class="c1"># Validate final result</span>
-    <span class="k">return</span> <span class="n">validate_safe_path</span><span class="p">(</span>
-        <span class="n">joined</span><span class="p">,</span>
-        <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">base_directory</span><span class="o">=</span><span class="n">base_directory</span>
-    <span class="p">)</span></div>
-
-
-
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s1">&#39;PathSecurityError&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;is_path_traversal_attempt&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;is_sensitive_path&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;validate_safe_path&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;validate_file_path&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;validate_directory_path&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;safe_join_paths&#39;</span><span class="p">,</span>
-<span class="p">]</span>
 </pre></div>
 
            </div>
