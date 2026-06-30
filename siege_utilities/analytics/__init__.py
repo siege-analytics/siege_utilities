@@ -97,6 +97,11 @@ _register([
     'Dimension', 'ThresholdConfig', 'EntityScore', 'HealthScorer',
 ], '.scoring')
 
+_register([
+    'SignalType', 'RiskTier', 'RiskSignal', 'RiskTierConfig',
+    'RiskAssessment', 'RiskAnalyzer',
+], '.risk')
+
 __all__ = list(_LAZY_IMPORTS.keys())
 
 
