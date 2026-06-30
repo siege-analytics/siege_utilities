@@ -107,6 +107,11 @@ _register([
     'ComparativeAnalyzer',
 ], '.comparison')
 
+_register([
+    'ForecastAccuracy', 'CategoryBreakdown', 'TrendPoint',
+    'ForecastReport', 'ForecastAnalyzer',
+], '.forecast')
+
 __all__ = list(_LAZY_IMPORTS.keys())
 
 
