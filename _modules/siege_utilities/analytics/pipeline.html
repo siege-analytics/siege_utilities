@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.geo.isochrones &mdash; Siege Utilities 3.23.0 documentation</title>
+  <title>siege_utilities.analytics.pipeline &mdash; Siege Utilities 3.23.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
@@ -9041,7 +9041,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
-      <li class="breadcrumb-item active">siege_utilities.geo.isochrones</li>
+      <li class="breadcrumb-item active">siege_utilities.analytics.pipeline</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -9050,634 +9050,369 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <h1>Source code for siege_utilities.geo.isochrones</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Isochrone utilities with open-source-first providers and custom server support.</span>
+  <h1>Source code for siege_utilities.analytics.pipeline</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Pipeline coverage and velocity metrics.</span>
 
-<span class="sd">This module provides both a function-based API (backward-compatible) and a</span>
-<span class="sd">provider-based OOP architecture via :class:`IsochroneProvider` and its concrete</span>
-<span class="sd">subclasses :class:`OpenRouteServiceProvider` and :class:`ValhallaProvider`.</span>
-
-<span class="sd">Use :func:`get_provider` to obtain a configured provider instance by name.</span>
+<span class="sd">Composable pipeline health metrics: coverage ratio, stage conversion</span>
+<span class="sd">rates, velocity, aging alerts, and concentration risk.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">abc</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">,</span> <span class="n">Optional</span>
-
-<span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
-
-<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.geo.crs</span><span class="w"> </span><span class="kn">import</span> <span class="n">reproject_if_needed</span>
-
-<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
-    <span class="kn">import</span><span class="w"> </span><span class="nn">geopandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">gpd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s2">&quot;DEFAULT_ORS_BASE_URL&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;DEFAULT_VALHALLA_BASE_URL&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;ISOCHRONE_DEFAULT_RETRIES&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;IsochroneError&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;IsochroneNetworkError&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;IsochroneProvider&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;IsochroneProviderError&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;IsochroneRequest&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;OpenRouteServiceProvider&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;ValhallaProvider&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;build_isochrone_request&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;get_isochrone&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;get_provider&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;isochrone_to_geodataframe&quot;</span><span class="p">,</span>
-<span class="p">]</span>
 
-<span class="n">DEFAULT_ORS_BASE_URL</span> <span class="o">=</span> <span class="s2">&quot;https://api.openrouteservice.org&quot;</span>
-<span class="n">DEFAULT_VALHALLA_BASE_URL</span> <span class="o">=</span> <span class="s2">&quot;http://localhost:8002&quot;</span>
+<div class="viewcode-block" id="StageMetrics">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.StageMetrics">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">StageMetrics</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Metrics for a single pipeline stage.&quot;&quot;&quot;</span>
 
-<span class="n">ISOCHRONE_DEFAULT_RETRIES</span> <span class="o">=</span> <span class="mi">3</span>
-<span class="n">ISOCHRONE_RETRY_BACKOFF_BASE</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># seconds</span>
+    <span class="n">stage</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">total_value</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">avg_value</span><span class="p">:</span> <span class="nb">float</span></div>
 
-<span class="n">_PROVIDER_ORS</span> <span class="o">=</span> <span class="s2">&quot;openrouteservice&quot;</span>
-<span class="n">_PROVIDER_VALHALLA</span> <span class="o">=</span> <span class="s2">&quot;valhalla&quot;</span>
 
-<span class="n">_RETRYABLE_STATUS_CODES</span> <span class="o">=</span> <span class="p">{</span><span class="mi">429</span><span class="p">,</span> <span class="mi">502</span><span class="p">,</span> <span class="mi">503</span><span class="p">,</span> <span class="mi">504</span><span class="p">}</span>
 
+<div class="viewcode-block" id="ConversionRate">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ConversionRate">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ConversionRate</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Conversion rate between consecutive stages.&quot;&quot;&quot;</span>
 
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># Exceptions</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
-
-
-<div class="viewcode-block" id="IsochroneError">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.IsochroneError">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">IsochroneError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base exception for isochrone operations.&quot;&quot;&quot;</span></div>
-
-
-
-<div class="viewcode-block" id="IsochroneNetworkError">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.IsochroneNetworkError">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">IsochroneNetworkError</span><span class="p">(</span><span class="n">IsochroneError</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Network failure (timeout, connection refused, DNS resolution).&quot;&quot;&quot;</span></div>
-
-
-
-<div class="viewcode-block" id="IsochroneProviderError">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.IsochroneProviderError">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">IsochroneProviderError</span><span class="p">(</span><span class="n">IsochroneError</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Provider returned an HTTP error or an unparseable response.&quot;&quot;&quot;</span></div>
-
-
-
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># TypedDict for the request definition</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
-
-<span class="k">try</span><span class="p">:</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TypedDict</span>
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>  <span class="c1"># Python &lt;3.8 fallback; not expected on 3.11+</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">typing_extensions</span><span class="w"> </span><span class="kn">import</span> <span class="n">TypedDict</span>
-
-
-<div class="viewcode-block" id="IsochroneRequest">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.IsochroneRequest">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">IsochroneRequest</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Structured request definition returned by :func:`build_isochrone_request`.&quot;&quot;&quot;</span>
-
-    <span class="n">provider</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;openrouteservice&quot;</span><span class="p">,</span> <span class="s2">&quot;valhalla&quot;</span><span class="p">]</span>
-    <span class="n">method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span> <span class="s2">&quot;GET&quot;</span><span class="p">]</span>
-    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">headers</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
-    <span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
-    <span class="n">json</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span></div>
-
-
-
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># Internal helpers</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_normalize_provider</span><span class="p">(</span><span class="n">provider</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="n">normalized</span> <span class="o">=</span> <span class="p">(</span><span class="n">provider</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">normalized</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;ors&quot;</span><span class="p">,</span> <span class="s2">&quot;openrouteservice&quot;</span><span class="p">}:</span>
-        <span class="k">return</span> <span class="n">_PROVIDER_ORS</span>
-    <span class="k">if</span> <span class="n">normalized</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;valhalla&quot;</span><span class="p">}:</span>
-        <span class="k">return</span> <span class="n">_PROVIDER_VALHALLA</span>
-    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-        <span class="s2">&quot;provider must be one of: openrouteservice (ors), valhalla&quot;</span>
-    <span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_validate_inputs</span><span class="p">(</span><span class="n">latitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">longitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">travel_time_minutes</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="o">-</span><span class="mi">90</span> <span class="o">&lt;=</span> <span class="n">latitude</span> <span class="o">&lt;=</span> <span class="mi">90</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;latitude must be between -90 and 90&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="o">-</span><span class="mi">180</span> <span class="o">&lt;=</span> <span class="n">longitude</span> <span class="o">&lt;=</span> <span class="mi">180</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;longitude must be between -180 and 180&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">travel_time_minutes</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;travel_time_minutes must be &gt; 0&quot;</span><span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_valhalla_costing</span><span class="p">(</span><span class="n">profile</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="n">profile_norm</span> <span class="o">=</span> <span class="p">(</span><span class="n">profile</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-    <span class="n">mapping</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;driving-car&quot;</span><span class="p">:</span> <span class="s2">&quot;auto&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;driving-hgv&quot;</span><span class="p">:</span> <span class="s2">&quot;truck&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;cycling-regular&quot;</span><span class="p">:</span> <span class="s2">&quot;bicycle&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;foot-walking&quot;</span><span class="p">:</span> <span class="s2">&quot;pedestrian&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;auto&quot;</span><span class="p">:</span> <span class="s2">&quot;auto&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;truck&quot;</span><span class="p">:</span> <span class="s2">&quot;truck&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;bicycle&quot;</span><span class="p">:</span> <span class="s2">&quot;bicycle&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;pedestrian&quot;</span><span class="p">:</span> <span class="s2">&quot;pedestrian&quot;</span><span class="p">,</span>
-    <span class="p">}</span>
-    <span class="k">return</span> <span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">profile_norm</span><span class="p">,</span> <span class="s2">&quot;auto&quot;</span><span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_dispatch_request</span><span class="p">(</span>
-    <span class="n">request_def</span><span class="p">:</span> <span class="n">IsochroneRequest</span><span class="p">,</span>
-    <span class="n">timeout_seconds</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Send the HTTP request described by *request_def*.&quot;&quot;&quot;</span>
-    <span class="n">method</span> <span class="o">=</span> <span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;method&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;POST&quot;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
-            <span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;url&quot;</span><span class="p">],</span>
-            <span class="n">headers</span><span class="o">=</span><span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;headers&quot;</span><span class="p">],</span>
-            <span class="n">params</span><span class="o">=</span><span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">],</span>
-            <span class="n">json</span><span class="o">=</span><span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;json&quot;</span><span class="p">],</span>
-            <span class="n">timeout</span><span class="o">=</span><span class="n">timeout_seconds</span><span class="p">,</span>
-        <span class="p">)</span>
-    <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;GET&quot;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-            <span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;url&quot;</span><span class="p">],</span>
-            <span class="n">headers</span><span class="o">=</span><span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;headers&quot;</span><span class="p">],</span>
-            <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="o">**</span><span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;json&quot;</span><span class="p">]},</span>
-            <span class="n">timeout</span><span class="o">=</span><span class="n">timeout_seconds</span><span class="p">,</span>
-        <span class="p">)</span>
-    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported HTTP method in request definition: </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># Public API</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
-
-
-<div class="viewcode-block" id="build_isochrone_request">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.build_isochrone_request">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">build_isochrone_request</span><span class="p">(</span>
-    <span class="n">latitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-    <span class="n">longitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-    <span class="n">travel_time_minutes</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">provider</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">_PROVIDER_ORS</span><span class="p">,</span>
-    <span class="n">base_url</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">profile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;driving-car&quot;</span><span class="p">,</span>
-    <span class="n">api_key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">extra_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">IsochroneRequest</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a provider-specific HTTP request definition for an isochrone call.</span>
-
-<span class="sd">    This supports open-source providers and self-hosted/custom endpoints.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        latitude: Center latitude (-90 to 90).</span>
-<span class="sd">        longitude: Center longitude (-180 to 180).</span>
-<span class="sd">        travel_time_minutes: Travel-time contour in minutes (must be &gt; 0).</span>
-<span class="sd">        provider: ``&quot;openrouteservice&quot;`` (or ``&quot;ors&quot;``) or ``&quot;valhalla&quot;``.</span>
-<span class="sd">        base_url: Custom server root for self-hosted providers.</span>
-<span class="sd">        profile: Travel profile (``&quot;driving-car&quot;``, ``&quot;cycling-regular&quot;``,</span>
-<span class="sd">            ``&quot;foot-walking&quot;``, etc.).</span>
-<span class="sd">        api_key: Optional API key (commonly used for hosted ORS).</span>
-<span class="sd">        extra_params: Provider-specific extra request fields merged into the</span>
-<span class="sd">            JSON body (Valhalla) or query params (ORS).</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        An :class:`IsochroneRequest` dict with ``provider``, ``method``,</span>
-<span class="sd">        ``url``, ``headers``, ``params``, and ``json`` keys.</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        ValueError: If inputs are out of range or provider is unknown.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">_validate_inputs</span><span class="p">(</span><span class="n">latitude</span><span class="p">,</span> <span class="n">longitude</span><span class="p">,</span> <span class="n">travel_time_minutes</span><span class="p">)</span>
-    <span class="n">provider_norm</span> <span class="o">=</span> <span class="n">_normalize_provider</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">provider_norm</span> <span class="o">==</span> <span class="n">_PROVIDER_ORS</span><span class="p">:</span>
-        <span class="n">root</span> <span class="o">=</span> <span class="p">(</span><span class="n">base_url</span> <span class="ow">or</span> <span class="n">DEFAULT_ORS_BASE_URL</span><span class="p">)</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
-        <span class="n">headers</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">&quot;Accept&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;Content-Type&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
-        <span class="p">}</span>
-        <span class="k">if</span> <span class="n">api_key</span><span class="p">:</span>
-            <span class="n">headers</span><span class="p">[</span><span class="s2">&quot;Authorization&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">api_key</span>
-        <span class="k">return</span> <span class="n">IsochroneRequest</span><span class="p">(</span>
-            <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openrouteservice&quot;</span><span class="p">,</span>
-            <span class="n">method</span><span class="o">=</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span>
-            <span class="n">url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">/v2/isochrones/</span><span class="si">{</span><span class="n">profile</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-            <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span>
-            <span class="n">params</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">extra_params</span> <span class="ow">or</span> <span class="p">{}),</span>
-            <span class="n">json</span><span class="o">=</span><span class="p">{</span>
-                <span class="s2">&quot;locations&quot;</span><span class="p">:</span> <span class="p">[[</span><span class="nb">float</span><span class="p">(</span><span class="n">longitude</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">latitude</span><span class="p">)]],</span>
-                <span class="s2">&quot;range&quot;</span><span class="p">:</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">travel_time_minutes</span><span class="p">)</span> <span class="o">*</span> <span class="mi">60</span><span class="p">],</span>
-            <span class="p">},</span>
-        <span class="p">)</span>
-
-    <span class="c1"># Valhalla</span>
-    <span class="n">root</span> <span class="o">=</span> <span class="p">(</span><span class="n">base_url</span> <span class="ow">or</span> <span class="n">DEFAULT_VALHALLA_BASE_URL</span><span class="p">)</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
-    <span class="n">payload</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;locations&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;lat&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">latitude</span><span class="p">),</span> <span class="s2">&quot;lon&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">longitude</span><span class="p">)}],</span>
-        <span class="s2">&quot;costing&quot;</span><span class="p">:</span> <span class="n">_valhalla_costing</span><span class="p">(</span><span class="n">profile</span><span class="p">),</span>
-        <span class="s2">&quot;contours&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">travel_time_minutes</span><span class="p">)}],</span>
-        <span class="s2">&quot;polygons&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
-    <span class="p">}</span>
-    <span class="k">if</span> <span class="n">extra_params</span><span class="p">:</span>
-        <span class="n">payload</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">extra_params</span><span class="p">))</span>
-    <span class="k">return</span> <span class="n">IsochroneRequest</span><span class="p">(</span>
-        <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;valhalla&quot;</span><span class="p">,</span>
-        <span class="n">method</span><span class="o">=</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span>
-        <span class="n">url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">/isochrone&quot;</span><span class="p">,</span>
-        <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Accept&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span> <span class="s2">&quot;Content-Type&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">},</span>
-        <span class="n">params</span><span class="o">=</span><span class="p">{},</span>
-        <span class="n">json</span><span class="o">=</span><span class="n">payload</span><span class="p">,</span>
-    <span class="p">)</span></div>
-
-
-
-<div class="viewcode-block" id="get_isochrone">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.get_isochrone">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">get_isochrone</span><span class="p">(</span>
-    <span class="n">latitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-    <span class="n">longitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-    <span class="n">travel_time_minutes</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">provider</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">_PROVIDER_ORS</span><span class="p">,</span>
-    <span class="n">base_url</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">profile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;driving-car&quot;</span><span class="p">,</span>
-    <span class="n">api_key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">timeout_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
-    <span class="n">extra_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">max_retries</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">ISOCHRONE_DEFAULT_RETRIES</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fetch an isochrone GeoJSON response.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        latitude: Center latitude.</span>
-<span class="sd">        longitude: Center longitude.</span>
-<span class="sd">        travel_time_minutes: Travel-time contour in minutes.</span>
-<span class="sd">        provider: ``&quot;openrouteservice&quot;`` (default) or ``&quot;valhalla&quot;``.</span>
-<span class="sd">        base_url: Custom server root for self-hosted providers.</span>
-<span class="sd">        profile: Travel profile (``&quot;driving-car&quot;``, ``&quot;cycling-regular&quot;``,</span>
-<span class="sd">            ``&quot;foot-walking&quot;``, etc.).</span>
-<span class="sd">        api_key: Optional API key (commonly used for hosted ORS).</span>
-<span class="sd">        timeout_seconds: HTTP timeout in seconds (default 30).</span>
-<span class="sd">        extra_params: Provider-specific extra request fields.</span>
-<span class="sd">        max_retries: Maximum number of attempts for transient failures</span>
-<span class="sd">            (default 3). Set to 1 to disable retries.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Provider response parsed as JSON (typically a GeoJSON</span>
-<span class="sd">        FeatureCollection).</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        IsochroneNetworkError: On timeout, connection, or DNS failure.</span>
-<span class="sd">        IsochroneProviderError: On HTTP error or unparseable response.</span>
-<span class="sd">        ValueError: If inputs are out of range or provider is unknown.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">request_def</span> <span class="o">=</span> <span class="n">build_isochrone_request</span><span class="p">(</span>
-        <span class="n">latitude</span><span class="p">,</span>
-        <span class="n">longitude</span><span class="p">,</span>
-        <span class="n">travel_time_minutes</span><span class="p">,</span>
-        <span class="n">provider</span><span class="o">=</span><span class="n">provider</span><span class="p">,</span>
-        <span class="n">base_url</span><span class="o">=</span><span class="n">base_url</span><span class="p">,</span>
-        <span class="n">profile</span><span class="o">=</span><span class="n">profile</span><span class="p">,</span>
-        <span class="n">api_key</span><span class="o">=</span><span class="n">api_key</span><span class="p">,</span>
-        <span class="n">extra_params</span><span class="o">=</span><span class="n">extra_params</span><span class="p">,</span>
-    <span class="p">)</span>
-
-    <span class="n">last_exc</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="ne">Exception</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">attempts</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_retries</span><span class="p">)</span>
-
-    <span class="k">for</span> <span class="n">attempt</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">attempts</span><span class="p">):</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">response</span> <span class="o">=</span> <span class="n">_dispatch_request</span><span class="p">(</span><span class="n">request_def</span><span class="p">,</span> <span class="n">timeout_seconds</span><span class="p">)</span>
-        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">Timeout</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="n">last_exc</span> <span class="o">=</span> <span class="n">IsochroneNetworkError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Isochrone request to </span><span class="si">{</span><span class="n">request_def</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> timed out &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;after </span><span class="si">{</span><span class="n">timeout_seconds</span><span class="si">}</span><span class="s2">s (attempt </span><span class="si">{</span><span class="n">attempt</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">attempts</span><span class="si">}</span><span class="s2">)&quot;</span>
-            <span class="p">)</span>
-            <span class="n">last_exc</span><span class="o">.</span><span class="n">__cause__</span> <span class="o">=</span> <span class="n">exc</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">last_exc</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">attempt</span> <span class="o">&lt;</span> <span class="n">attempts</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">ISOCHRONE_RETRY_BACKOFF_BASE</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="n">attempt</span><span class="p">))</span>
-            <span class="k">continue</span>
-        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ConnectionError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="n">last_exc</span> <span class="o">=</span> <span class="n">IsochroneNetworkError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Connection to </span><span class="si">{</span><span class="n">request_def</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> failed &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;(attempt </span><span class="si">{</span><span class="n">attempt</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">attempts</span><span class="si">}</span><span class="s2">): </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span>
-            <span class="n">last_exc</span><span class="o">.</span><span class="n">__cause__</span> <span class="o">=</span> <span class="n">exc</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">last_exc</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">attempt</span> <span class="o">&lt;</span> <span class="n">attempts</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">ISOCHRONE_RETRY_BACKOFF_BASE</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="n">attempt</span><span class="p">))</span>
-            <span class="k">continue</span>
-        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">RequestException</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">IsochroneNetworkError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Isochrone request failed: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-
-        <span class="c1"># Retry on transient HTTP status codes</span>
-        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="ow">in</span> <span class="n">_RETRYABLE_STATUS_CODES</span> <span class="ow">and</span> <span class="n">attempt</span> <span class="o">&lt;</span> <span class="n">attempts</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                <span class="s2">&quot;Isochrone provider returned </span><span class="si">%d</span><span class="s2"> (attempt </span><span class="si">%d</span><span class="s2">/</span><span class="si">%d</span><span class="s2">), retrying&quot;</span><span class="p">,</span>
-                <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="n">attempt</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">attempts</span><span class="p">,</span>
-            <span class="p">)</span>
-            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">ISOCHRONE_RETRY_BACKOFF_BASE</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="n">attempt</span><span class="p">))</span>
-            <span class="k">continue</span>
-
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
-        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">HTTPError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">IsochroneProviderError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Provider </span><span class="si">{</span><span class="n">request_def</span><span class="p">[</span><span class="s1">&#39;provider&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> returned HTTP &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">[:</span><span class="mi">200</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
-        <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">IsochroneProviderError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Provider returned non-JSON response: &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">[:</span><span class="mi">200</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">IsochroneProviderError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Isochrone response must be a JSON object, &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span>
-        <span class="k">return</span> <span class="n">data</span>
-
-    <span class="c1"># All retries exhausted</span>
-    <span class="k">if</span> <span class="n">last_exc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">last_exc</span>
-    <span class="k">raise</span> <span class="n">IsochroneNetworkError</span><span class="p">(</span><span class="s2">&quot;Isochrone request failed after all retry attempts&quot;</span><span class="p">)</span></div>
-
-
-
-<div class="viewcode-block" id="isochrone_to_geodataframe">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.isochrone_to_geodataframe">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">isochrone_to_geodataframe</span><span class="p">(</span>
-    <span class="n">isochrone_geojson</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">crs</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;gpd.GeoDataFrame&quot;</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert an isochrone GeoJSON object to a GeoDataFrame.</span>
-
-<span class="sd">    Requires ``geopandas``. Install with ``pip install siege_utilities[geo]``.</span>
-
-<span class="sd">    GeoJSON is always ingested as EPSG:4326 (the GeoJSON spec mandates WGS 84).</span>
-<span class="sd">    If *crs* differs from EPSG:4326 the result is reprojected to the</span>
-<span class="sd">    requested CRS before returning.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        isochrone_geojson: A GeoJSON dict (typically a FeatureCollection</span>
-<span class="sd">            returned by :func:`get_isochrone`).</span>
-<span class="sd">        crs: Target coordinate reference system. Defaults to</span>
-<span class="sd">            :func:`~siege_utilities.geo.crs.get_default_crs` (initially</span>
-<span class="sd">            ``&quot;EPSG:4326&quot;``).  Pass any string accepted by ``pyproj``.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        A GeoDataFrame with one row per feature in the requested *crs*.</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        ImportError: If geopandas is not installed.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="kn">import</span><span class="w"> </span><span class="nn">geopandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_gpd</span>
-    <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
-            <span class="s2">&quot;geopandas is required for isochrone_to_geodataframe. &quot;</span>
-            <span class="s2">&quot;Install with: pip install siege_utilities[geo]&quot;</span>
-        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-
-    <span class="c1"># GeoJSON is always WGS 84 per RFC 7946</span>
-    <span class="n">features</span> <span class="o">=</span> <span class="n">isochrone_geojson</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;features&quot;</span><span class="p">,</span> <span class="p">[])</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">features</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">_gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">()</span>
-    <span class="n">gdf</span> <span class="o">=</span> <span class="n">_gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="o">.</span><span class="n">from_features</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="s2">&quot;EPSG:4326&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">reproject_if_needed</span><span class="p">(</span><span class="n">gdf</span><span class="p">,</span> <span class="n">crs</span><span class="p">)</span></div>
-
-
-
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># Provider architecture (ABC + concrete implementations)</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
-
-
-<div class="viewcode-block" id="IsochroneProvider">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.IsochroneProvider">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">IsochroneProvider</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Abstract base class for isochrone providers.</span>
-
-<span class="sd">    Subclasses must implement :meth:`fetch`, :meth:`validate_config`, and the</span>
-<span class="sd">    :attr:`provider_name` property.</span>
+    <span class="n">from_stage</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">to_stage</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">rate</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">from_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">to_count</span><span class="p">:</span> <span class="nb">int</span></div>
+
+
+
+<div class="viewcode-block" id="VelocityMetrics">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.VelocityMetrics">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">VelocityMetrics</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Time-in-stage metrics.&quot;&quot;&quot;</span>
+
+    <span class="n">stage</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">avg_days</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">max_days</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">aging_items</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="ConcentrationAlert">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ConcentrationAlert">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ConcentrationAlert</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Alert when a single item dominates the pipeline.&quot;&quot;&quot;</span>
+
+    <span class="n">item_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">share</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">stage</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">value</span><span class="p">:</span> <span class="nb">float</span></div>
+
+
+
+<div class="viewcode-block" id="PipelineReport">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.PipelineReport">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">PipelineReport</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Complete pipeline health report.&quot;&quot;&quot;</span>
+
+    <span class="n">coverage_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">stage_metrics</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">StageMetrics</span><span class="p">]</span>
+    <span class="n">conversions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ConversionRate</span><span class="p">]</span>
+    <span class="n">velocity</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">VelocityMetrics</span><span class="p">]</span>
+    <span class="n">concentration_alerts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ConcentrationAlert</span><span class="p">]</span>
+    <span class="n">total_value</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">target</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="PipelineItem">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.PipelineItem">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">PipelineItem</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A single item in the pipeline.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    item_id : str</span>
+<span class="sd">        Unique identifier.</span>
+<span class="sd">    stage : str</span>
+<span class="sd">        Current pipeline stage.</span>
+<span class="sd">    value : float</span>
+<span class="sd">        Item value (dollars, record count, etc.).</span>
+<span class="sd">    entered_stage : datetime | None</span>
+<span class="sd">        When the item entered this stage. Required for velocity metrics.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="IsochroneProvider.fetch">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.IsochroneProvider.fetch">[docs]</a>
-    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">fetch</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">lat</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-        <span class="n">lon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-        <span class="n">time_minutes</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">profile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;driving-car&quot;</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fetch an isochrone as a GeoJSON dict.</span>
+    <span class="n">item_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">stage</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">value</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">entered_stage</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
 
-<span class="sd">        Args:</span>
-<span class="sd">            lat: Center latitude (-90 to 90).</span>
-<span class="sd">            lon: Center longitude (-180 to 180).</span>
-<span class="sd">            time_minutes: Travel-time contour in minutes (must be &gt; 0).</span>
-<span class="sd">            profile: Travel profile (e.g. ``&quot;driving-car&quot;``).</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            A GeoJSON dict (typically a FeatureCollection).</span>
-<span class="sd">        &quot;&quot;&quot;</span></div>
-
-
-<div class="viewcode-block" id="IsochroneProvider.validate_config">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.IsochroneProvider.validate_config">[docs]</a>
-    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">validate_config</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether this provider is properly configured.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            ``True`` if the provider configuration is valid, ``False`` otherwise.</span>
-<span class="sd">        &quot;&quot;&quot;</span></div>
-
-
-    <span class="nd">@property</span>
-    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">provider_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the canonical name of this provider.&quot;&quot;&quot;</span></div>
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">item_id</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;item_id must not be empty&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">stage</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;stage must not be empty&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;value must be non-negative, got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span></div>
 
 
 
-<div class="viewcode-block" id="OpenRouteServiceProvider">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.OpenRouteServiceProvider">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">OpenRouteServiceProvider</span><span class="p">(</span><span class="n">IsochroneProvider</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Concrete :class:`IsochroneProvider` wrapping the OpenRouteService API.</span>
+<div class="viewcode-block" id="PipelineAnalyzer">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.PipelineAnalyzer">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PipelineAnalyzer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Pipeline health metrics engine.</span>
 
-<span class="sd">    Args:</span>
-<span class="sd">        api_key: ORS API key. Required for the hosted service; optional for</span>
-<span class="sd">            self-hosted instances.</span>
-<span class="sd">        base_url: Root URL of the ORS server. Defaults to</span>
-<span class="sd">            ``DEFAULT_ORS_BASE_URL``.</span>
-<span class="sd">        timeout_seconds: HTTP timeout in seconds (default 30).</span>
-<span class="sd">        max_retries: Maximum retry attempts for transient failures (default 3).</span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    stages : list[str]</span>
+<span class="sd">        Ordered stage names (first = entry, last = exit).</span>
+<span class="sd">    target : float | None</span>
+<span class="sd">        Target pipeline value for coverage ratio calculation.</span>
+<span class="sd">    aging_threshold : float</span>
+<span class="sd">        Multiplier for aging alerts (default 2.0 = alert at 2x average).</span>
+<span class="sd">    concentration_threshold : float</span>
+<span class="sd">        Maximum single-item share before alert (default 0.40 = 40%).</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If stages is empty or thresholds are invalid.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="OpenRouteServiceProvider.__init__">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.OpenRouteServiceProvider.__init__">[docs]</a>
+<div class="viewcode-block" id="PipelineAnalyzer.__init__">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.PipelineAnalyzer.__init__">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">api_key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">base_url</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">timeout_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
-        <span class="n">max_retries</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">ISOCHRONE_DEFAULT_RETRIES</span><span class="p">,</span>
+        <span class="n">stages</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">target</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">aging_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
+        <span class="n">concentration_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.40</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">api_key</span> <span class="o">=</span> <span class="n">api_key</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="n">base_url</span> <span class="ow">or</span> <span class="n">DEFAULT_ORS_BASE_URL</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">timeout_seconds</span> <span class="o">=</span> <span class="n">timeout_seconds</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">max_retries</span> <span class="o">=</span> <span class="n">max_retries</span></div>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">stages</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one stage is required&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">stages</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">stages</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Stage names must be unique&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">aging_threshold</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;aging_threshold must be positive, got </span><span class="si">{</span><span class="n">aging_threshold</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;</span> <span class="n">concentration_threshold</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;concentration_threshold must be in (0, 1], &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="n">concentration_threshold</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stages</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">stages</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_target</span> <span class="o">=</span> <span class="n">target</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_aging_threshold</span> <span class="o">=</span> <span class="n">aging_threshold</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_concentration_threshold</span> <span class="o">=</span> <span class="n">concentration_threshold</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;PipelineAnalyzer initialized with </span><span class="si">%d</span><span class="s2"> stages: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_stages</span><span class="p">),</span>
+            <span class="s2">&quot; → &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_stages</span><span class="p">),</span>
+        <span class="p">)</span></div>
 
 
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">provider_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="k">return</span> <span class="s2">&quot;openrouteservice&quot;</span>
+<div class="viewcode-block" id="PipelineAnalyzer.analyze">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.PipelineAnalyzer.analyze">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">analyze</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">items</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">PipelineItem</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">as_of</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PipelineReport</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Analyze pipeline health.</span>
 
-<div class="viewcode-block" id="OpenRouteServiceProvider.validate_config">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.OpenRouteServiceProvider.validate_config">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">validate_config</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check that the provider is configured.</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        items : list[PipelineItem]</span>
+<span class="sd">            Items currently in the pipeline.</span>
+<span class="sd">        as_of : datetime, optional</span>
+<span class="sd">            Reference time for velocity calculation.</span>
+<span class="sd">            Defaults to datetime.now().</span>
 
-<span class="sd">        For the hosted ORS service (default URL), an API key is required.</span>
-<span class="sd">        For self-hosted instances, the base URL must be non-empty.</span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        PipelineReport</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If items is empty or contains unknown stages.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">==</span> <span class="n">DEFAULT_ORS_BASE_URL</span><span class="p">:</span>
-            <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">api_key</span><span class="p">)</span>
-        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">)</span></div>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">items</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one pipeline item is required&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">items</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">stage</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stages</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Unknown stage </span><span class="si">{</span><span class="n">item</span><span class="o">.</span><span class="n">stage</span><span class="si">!r}</span><span class="s2"> for item </span><span class="si">{</span><span class="n">item</span><span class="o">.</span><span class="n">item_id</span><span class="si">!r}</span><span class="s2">. &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;Valid stages: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_stages</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">as_of</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">as_of</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+
+        <span class="n">stage_metrics</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_stage_metrics</span><span class="p">(</span><span class="n">items</span><span class="p">)</span>
+        <span class="n">conversions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_conversions</span><span class="p">(</span><span class="n">stage_metrics</span><span class="p">)</span>
+        <span class="n">velocity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_velocity</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">as_of</span><span class="p">)</span>
+        <span class="n">concentration_alerts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_concentration</span><span class="p">(</span><span class="n">items</span><span class="p">)</span>
+        <span class="n">total_value</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">items</span><span class="p">)</span>
+
+        <span class="n">coverage_ratio</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">coverage_ratio</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">total_value</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">report</span> <span class="o">=</span> <span class="n">PipelineReport</span><span class="p">(</span>
+            <span class="n">coverage_ratio</span><span class="o">=</span><span class="n">coverage_ratio</span><span class="p">,</span>
+            <span class="n">stage_metrics</span><span class="o">=</span><span class="n">stage_metrics</span><span class="p">,</span>
+            <span class="n">conversions</span><span class="o">=</span><span class="n">conversions</span><span class="p">,</span>
+            <span class="n">velocity</span><span class="o">=</span><span class="n">velocity</span><span class="p">,</span>
+            <span class="n">concentration_alerts</span><span class="o">=</span><span class="n">concentration_alerts</span><span class="p">,</span>
+            <span class="n">total_value</span><span class="o">=</span><span class="n">total_value</span><span class="p">,</span>
+            <span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_target</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Pipeline analysis: </span><span class="si">%d</span><span class="s2"> items, total=</span><span class="si">%.0f%s</span><span class="s2">, </span><span class="si">%d</span><span class="s2"> concentration alerts&quot;</span><span class="p">,</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">items</span><span class="p">),</span>
+            <span class="n">total_value</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;, coverage=</span><span class="si">{</span><span class="n">coverage_ratio</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">x&quot;</span> <span class="k">if</span> <span class="n">coverage_ratio</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">concentration_alerts</span><span class="p">),</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">report</span></div>
 
 
-<div class="viewcode-block" id="OpenRouteServiceProvider.fetch">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.OpenRouteServiceProvider.fetch">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">fetch</span><span class="p">(</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_stage_metrics</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">lat</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-        <span class="n">lon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-        <span class="n">time_minutes</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">profile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;driving-car&quot;</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="n">get_isochrone</span><span class="p">(</span>
-            <span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span>
-            <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span>
-            <span class="n">travel_time_minutes</span><span class="o">=</span><span class="n">time_minutes</span><span class="p">,</span>
-            <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openrouteservice&quot;</span><span class="p">,</span>
-            <span class="n">base_url</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">,</span>
-            <span class="n">profile</span><span class="o">=</span><span class="n">profile</span><span class="p">,</span>
-            <span class="n">api_key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">api_key</span><span class="p">,</span>
-            <span class="n">timeout_seconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">timeout_seconds</span><span class="p">,</span>
-            <span class="n">max_retries</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_retries</span><span class="p">,</span>
-        <span class="p">)</span></div>
-</div>
+        <span class="n">items</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">PipelineItem</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">StageMetrics</span><span class="p">]:</span>
+        <span class="n">stage_items</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">PipelineItem</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">s</span><span class="p">:</span> <span class="p">[]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stages</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">items</span><span class="p">:</span>
+            <span class="n">stage_items</span><span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">stage</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
 
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">stage</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stages</span><span class="p">:</span>
+            <span class="n">items_in_stage</span> <span class="o">=</span> <span class="n">stage_items</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span>
+            <span class="n">count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">items_in_stage</span><span class="p">)</span>
+            <span class="n">total</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">items_in_stage</span><span class="p">)</span>
+            <span class="n">avg</span> <span class="o">=</span> <span class="n">total</span> <span class="o">/</span> <span class="n">count</span> <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mf">0.0</span>
+            <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">StageMetrics</span><span class="p">(</span>
+                <span class="n">stage</span><span class="o">=</span><span class="n">stage</span><span class="p">,</span>
+                <span class="n">count</span><span class="o">=</span><span class="n">count</span><span class="p">,</span>
+                <span class="n">total_value</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="n">total</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+                <span class="n">avg_value</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="n">avg</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+            <span class="p">))</span>
 
+        <span class="k">return</span> <span class="n">results</span>
 
-<div class="viewcode-block" id="ValhallaProvider">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.ValhallaProvider">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">ValhallaProvider</span><span class="p">(</span><span class="n">IsochroneProvider</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Concrete :class:`IsochroneProvider` wrapping a Valhalla server.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        base_url: Root URL of the Valhalla server. Defaults to</span>
-<span class="sd">            ``DEFAULT_VALHALLA_BASE_URL``.</span>
-<span class="sd">        timeout_seconds: HTTP timeout in seconds (default 30).</span>
-<span class="sd">        max_retries: Maximum retry attempts for transient failures (default 3).</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-<div class="viewcode-block" id="ValhallaProvider.__init__">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.ValhallaProvider.__init__">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_conversions</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">base_url</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">timeout_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
-        <span class="n">max_retries</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">ISOCHRONE_DEFAULT_RETRIES</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="n">base_url</span> <span class="ow">or</span> <span class="n">DEFAULT_VALHALLA_BASE_URL</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">timeout_seconds</span> <span class="o">=</span> <span class="n">timeout_seconds</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">max_retries</span> <span class="o">=</span> <span class="n">max_retries</span></div>
+        <span class="n">stage_metrics</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">StageMetrics</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">ConversionRate</span><span class="p">]:</span>
+        <span class="n">conversions</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">stage_metrics</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">from_stage</span> <span class="o">=</span> <span class="n">stage_metrics</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">to_stage</span> <span class="o">=</span> <span class="n">stage_metrics</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">from_stage</span><span class="o">.</span><span class="n">count</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">rate</span> <span class="o">=</span> <span class="n">to_stage</span><span class="o">.</span><span class="n">count</span> <span class="o">/</span> <span class="n">from_stage</span><span class="o">.</span><span class="n">count</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">rate</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="n">conversions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ConversionRate</span><span class="p">(</span>
+                <span class="n">from_stage</span><span class="o">=</span><span class="n">from_stage</span><span class="o">.</span><span class="n">stage</span><span class="p">,</span>
+                <span class="n">to_stage</span><span class="o">=</span><span class="n">to_stage</span><span class="o">.</span><span class="n">stage</span><span class="p">,</span>
+                <span class="n">rate</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="n">rate</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+                <span class="n">from_count</span><span class="o">=</span><span class="n">from_stage</span><span class="o">.</span><span class="n">count</span><span class="p">,</span>
+                <span class="n">to_count</span><span class="o">=</span><span class="n">to_stage</span><span class="o">.</span><span class="n">count</span><span class="p">,</span>
+            <span class="p">))</span>
+        <span class="k">return</span> <span class="n">conversions</span>
 
-
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">provider_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="k">return</span> <span class="s2">&quot;valhalla&quot;</span>
-
-<div class="viewcode-block" id="ValhallaProvider.validate_config">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.ValhallaProvider.validate_config">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">validate_config</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check that the base URL is configured.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="ValhallaProvider.fetch">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.ValhallaProvider.fetch">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">fetch</span><span class="p">(</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_velocity</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">lat</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-        <span class="n">lon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-        <span class="n">time_minutes</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">profile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;driving-car&quot;</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="n">get_isochrone</span><span class="p">(</span>
-            <span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span>
-            <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span>
-            <span class="n">travel_time_minutes</span><span class="o">=</span><span class="n">time_minutes</span><span class="p">,</span>
-            <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;valhalla&quot;</span><span class="p">,</span>
-            <span class="n">base_url</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">,</span>
-            <span class="n">profile</span><span class="o">=</span><span class="n">profile</span><span class="p">,</span>
-            <span class="n">timeout_seconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">timeout_seconds</span><span class="p">,</span>
-            <span class="n">max_retries</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_retries</span><span class="p">,</span>
-        <span class="p">)</span></div>
-</div>
+        <span class="n">items</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">PipelineItem</span><span class="p">],</span>
+        <span class="n">as_of</span><span class="p">:</span> <span class="n">datetime</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">VelocityMetrics</span><span class="p">]:</span>
+        <span class="n">has_timestamps</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">entered_stage</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">items</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">has_timestamps</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;No items have entered_stage timestamps; &quot;</span>
+                <span class="s2">&quot;velocity metrics skipped. Provide entered_stage &quot;</span>
+                <span class="s2">&quot;for time-in-stage analysis.&quot;</span><span class="p">,</span>
+                <span class="ne">UserWarning</span><span class="p">,</span>
+                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="p">[]</span>
 
+        <span class="n">stage_durations</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">s</span><span class="p">:</span> <span class="p">[]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stages</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">items</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">entered_stage</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">days</span> <span class="o">=</span> <span class="p">(</span><span class="n">as_of</span> <span class="o">-</span> <span class="n">item</span><span class="o">.</span><span class="n">entered_stage</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span> <span class="o">/</span> <span class="mi">86400</span>
+            <span class="n">stage_durations</span><span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">stage</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">item</span><span class="o">.</span><span class="n">item_id</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">days</span><span class="p">,</span> <span class="mi">0</span><span class="p">)))</span>
 
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">stage</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stages</span><span class="p">:</span>
+            <span class="n">durations</span> <span class="o">=</span> <span class="n">stage_durations</span><span class="p">[</span><span class="n">stage</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">durations</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">days_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">durations</span><span class="p">]</span>
+            <span class="n">avg</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">days_list</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">days_list</span><span class="p">)</span>
+            <span class="n">max_d</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">days_list</span><span class="p">)</span>
+            <span class="n">threshold</span> <span class="o">=</span> <span class="n">avg</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aging_threshold</span>
+            <span class="n">aging</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">item_id</span> <span class="k">for</span> <span class="n">item_id</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">durations</span> <span class="k">if</span> <span class="n">d</span> <span class="o">&gt;</span> <span class="n">threshold</span>
+            <span class="p">]</span>
+            <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">VelocityMetrics</span><span class="p">(</span>
+                <span class="n">stage</span><span class="o">=</span><span class="n">stage</span><span class="p">,</span>
+                <span class="n">avg_days</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="n">avg</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                <span class="n">max_days</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="n">max_d</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                <span class="n">aging_items</span><span class="o">=</span><span class="n">aging</span><span class="p">,</span>
+            <span class="p">))</span>
 
-<div class="viewcode-block" id="get_provider">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.get_provider">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">get_provider</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;ors&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">IsochroneProvider</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Factory function returning a configured :class:`IsochroneProvider`.</span>
+        <span class="k">return</span> <span class="n">results</span>
 
-<span class="sd">    Args:</span>
-<span class="sd">        name: Provider name — ``&quot;ors&quot;`` / ``&quot;openrouteservice&quot;`` or</span>
-<span class="sd">            ``&quot;valhalla&quot;``.</span>
-<span class="sd">        **kwargs: Passed through to the provider constructor (e.g.</span>
-<span class="sd">            ``api_key``, ``base_url``, ``timeout_seconds``).</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_concentration</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">items</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">PipelineItem</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">ConcentrationAlert</span><span class="p">]:</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">items</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">total</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
 
-<span class="sd">    Returns:</span>
-<span class="sd">        A configured provider instance.</span>
+        <span class="n">alerts</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">items</span><span class="p">:</span>
+            <span class="n">share</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">value</span> <span class="o">/</span> <span class="n">total</span>
+            <span class="k">if</span> <span class="n">share</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_concentration_threshold</span><span class="p">:</span>
+                <span class="n">alerts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ConcentrationAlert</span><span class="p">(</span>
+                    <span class="n">item_id</span><span class="o">=</span><span class="n">item</span><span class="o">.</span><span class="n">item_id</span><span class="p">,</span>
+                    <span class="n">share</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="n">share</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+                    <span class="n">stage</span><span class="o">=</span><span class="n">item</span><span class="o">.</span><span class="n">stage</span><span class="p">,</span>
+                    <span class="n">value</span><span class="o">=</span><span class="n">item</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                <span class="p">))</span>
 
-<span class="sd">    Raises:</span>
-<span class="sd">        ValueError: If *name* is not a recognised provider.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">normalized</span> <span class="o">=</span> <span class="n">_normalize_provider</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">normalized</span> <span class="o">==</span> <span class="n">_PROVIDER_ORS</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">OpenRouteServiceProvider</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">normalized</span> <span class="o">==</span> <span class="n">_PROVIDER_VALHALLA</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">ValhallaProvider</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-    <span class="c1"># _normalize_provider already raises, but guard just in case</span>
-    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown isochrone provider: </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">alerts</span></div>
 
 </pre></div>
 
