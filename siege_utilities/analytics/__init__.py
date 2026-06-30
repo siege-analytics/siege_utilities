@@ -118,6 +118,11 @@ _register([
     'PipelineReport', 'PipelineAnalyzer',
 ], '.pipeline')
 
+_register([
+    'MappingRule', 'Outcome', 'EffectivenessReport',
+    'InterventionMapper',
+], '.intervention')
+
 __all__ = list(_LAZY_IMPORTS.keys())
 
 
