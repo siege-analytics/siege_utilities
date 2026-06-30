@@ -112,6 +112,12 @@ _register([
     'ForecastReport', 'ForecastAnalyzer',
 ], '.forecast')
 
+_register([
+    'PipelineItem', 'StageMetrics', 'ConversionRate',
+    'VelocityMetrics', 'ConcentrationAlert',
+    'PipelineReport', 'PipelineAnalyzer',
+], '.pipeline')
+
 __all__ = list(_LAZY_IMPORTS.keys())
 
 
