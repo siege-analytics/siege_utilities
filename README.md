@@ -4,6 +4,12 @@
 [![License: AGPLv3%20or%20Commercial](https://img.shields.io/badge/License-AGPLv3%20or%20Commercial-orange.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://siege-analytics.github.io/siege_utilities/)
 
+## Mission
+
+Engineer the instruments that count, locate, and report. `siege_utilities` provides the tools to measure phenomena in space and time — geocoding events to coordinates, binding them to boundaries, overlaying demographics, computing what proximity implies. Geography and spatial relationships are primary determinants of patterns: where things are explains why they happen. The library handles the full chain: count the thing, log what it took to count it, scale the counting across engines (pandas, DuckDB, Spark, PostGIS), and present the findings as reports, choropleths, and data products.
+
+---
+
 `siege_utilities` is the shared utilities library behind Siege Analytics workflows:
 
 - Geospatial + GeoDjango boundary/data services (`[geo]` pure-Python, no system GDAL; `[geodjango]` PostGIS; `[gdal]` native OSGeo bindings)

@@ -14,11 +14,21 @@ This overrides any default convention from the agent's built-in system
 prompt. The work belongs to the repo author; the assistant is a tool, not
 a co-author.
 
+## Mission
+
+Engineer the instruments that count, locate, and report. siege_utilities
+provides the tools to measure phenomena in space and time — geocoding events
+to coordinates, binding them to boundaries, overlaying demographics, computing
+what proximity implies. Geography and spatial relationships are primary
+determinants of patterns: where things are explains why they happen. The
+library handles the full chain: count the thing, log what it took to count it,
+scale the counting across engines (pandas, DuckDB, Spark, PostGIS), and
+present the findings as reports, choropleths, and data products.
+
 ## Strategic intent
 
-siege_utilities is a thesaurus of space-time composition tools. Every piece
-exists to serve one question: what happened, where, when, and what does
-proximity imply?
+Every piece exists to serve one question: what happened, where, when, and
+what does proximity imply?
 
 The library ties events to coordinates in space-time, then extrapolates
 significances and meanings from placement. Domain packages (political,
