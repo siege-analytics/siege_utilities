@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.survey.crosstab &mdash; Siege Utilities 3.23.0 documentation</title>
+  <title>siege_utilities.analytics.risk &mdash; Siege Utilities 3.23.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
@@ -8919,7 +8919,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
-      <li class="breadcrumb-item active">siege_utilities.survey.crosstab</li>
+      <li class="breadcrumb-item active">siege_utilities.analytics.risk</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -8928,381 +8928,286 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <h1>Source code for siege_utilities.survey.crosstab</h1><div class="highlight"><pre>
+  <h1>Source code for siege_utilities.analytics.risk</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Chain builder -- converts a respondent/donor-level DataFrame into a Chain.</span>
+<span class="sd">Multi-signal risk stacking.</span>
 
-<span class="sd">Delegates chi-square to siege_utilities.data.cross_tabulation (not reimplemented here).</span>
+<span class="sd">Composable risk assessment that stacks N weighted signals into a</span>
+<span class="sd">composite risk score with tier classification and optional</span>
+<span class="sd">intervention mapping.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">enum</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-
-<span class="kn">from</span><span class="w"> </span><span class="nn">..reporting.pages.page_models</span><span class="w"> </span><span class="kn">import</span> <span class="n">TableType</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">Chain</span><span class="p">,</span> <span class="n">View</span>
-
-<span class="n">DEFAULT_Z_VALUE</span> <span class="o">=</span> <span class="mf">1.96</span>
-
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;CrosstabInputError&quot;</span><span class="p">,</span> <span class="s2">&quot;build_chain&quot;</span><span class="p">]</span>
-
-<span class="k">try</span><span class="p">:</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">t</span> <span class="k">as</span> <span class="n">_scipy_t</span>
-    <span class="n">_SCIPY_T_AVAILABLE</span> <span class="o">=</span> <span class="kc">True</span>
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-    <span class="n">_scipy_t</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">_SCIPY_T_AVAILABLE</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_critical_value</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">confidence</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the appropriate critical value: t for n&lt;30, z otherwise.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">30</span> <span class="ow">and</span> <span class="n">_SCIPY_T_AVAILABLE</span><span class="p">:</span>
-        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">_scipy_t</span><span class="o">.</span><span class="n">ppf</span><span class="p">((</span><span class="mi">1</span> <span class="o">+</span> <span class="n">confidence</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">df</span><span class="o">=</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
-    <span class="k">return</span> <span class="n">DEFAULT_Z_VALUE</span>
+<div class="viewcode-block" id="SignalType">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.SignalType">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SignalType</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Types of risk signals.&quot;&quot;&quot;</span>
 
-
-<div class="viewcode-block" id="CrosstabInputError">
-<a class="viewcode-back" href="../../../packages/survey.html#siege_utilities.survey.crosstab.CrosstabInputError">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">CrosstabInputError</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when build_chain receives an empty or schema-incompatible DataFrame.</span>
-
-<span class="sd">    Distinct from a successful Chain that happens to contain no rows</span>
-<span class="sd">    (e.g., every category was filtered out downstream). This signals</span>
-<span class="sd">    the caller fed in something the builder cannot work with at all --</span>
-<span class="sd">    typically an upstream filter that returned nothing, or a column</span>
-<span class="sd">    name typo.</span>
-<span class="sd">    &quot;&quot;&quot;</span></div>
+    <span class="n">DECLINE</span> <span class="o">=</span> <span class="s2">&quot;decline&quot;</span>
+    <span class="n">THRESHOLD</span> <span class="o">=</span> <span class="s2">&quot;threshold&quot;</span>
+    <span class="n">ABSENCE</span> <span class="o">=</span> <span class="s2">&quot;absence&quot;</span>
+    <span class="n">ANOMALY</span> <span class="o">=</span> <span class="s2">&quot;anomaly&quot;</span></div>
 
 
 
-<div class="viewcode-block" id="build_chain">
-<a class="viewcode-back" href="../../../packages/survey.html#siege_utilities.survey.crosstab.build_chain">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">build_chain</span><span class="p">(</span>
-    <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
-    <span class="n">row_var</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">break_vars</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
-    <span class="n">metric</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;value&quot;</span><span class="p">,</span>
-    <span class="n">weight_var</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">table_type</span><span class="p">:</span> <span class="n">TableType</span> <span class="o">=</span> <span class="n">TableType</span><span class="o">.</span><span class="n">CROSS_TAB</span><span class="p">,</span>
-    <span class="n">top_n</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">geo_column</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Chain</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a Chain from a respondent/donor-level DataFrame.</span>
+<div class="viewcode-block" id="RiskTier">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.RiskTier">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RiskTier</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Risk classification tiers, ordered by severity.&quot;&quot;&quot;</span>
+
+    <span class="n">CRITICAL</span> <span class="o">=</span> <span class="s2">&quot;Critical&quot;</span>
+    <span class="n">HIGH</span> <span class="o">=</span> <span class="s2">&quot;High&quot;</span>
+    <span class="n">MEDIUM</span> <span class="o">=</span> <span class="s2">&quot;Medium&quot;</span>
+    <span class="n">LOW</span> <span class="o">=</span> <span class="s2">&quot;Low&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="RiskSignal">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.RiskSignal">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RiskSignal</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A named risk signal with type and weight.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    df:</span>
-<span class="sd">        Input DataFrame; one row per respondent.</span>
-<span class="sd">    row_var:</span>
-<span class="sd">        Column whose distinct values become row categories.</span>
-<span class="sd">    break_vars:</span>
-<span class="sd">        Columns to cross-tab against (become column groups).</span>
-<span class="sd">    metric:</span>
-<span class="sd">        Numeric column to aggregate (default &quot;value&quot;; use column count if absent).</span>
-<span class="sd">    weight_var:</span>
-<span class="sd">        Optional weight column name.</span>
-<span class="sd">    table_type:</span>
-<span class="sd">        Drives cell computation, chart type, and base note.</span>
-<span class="sd">    top_n:</span>
-<span class="sd">        If set, keep only the top N row categories by total volume.</span>
-<span class="sd">    geo_column:</span>
-<span class="sd">        If set, attached to Chain to signal map generation.</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    Chain</span>
+<span class="sd">    name : str</span>
+<span class="sd">        Signal identifier.</span>
+<span class="sd">    signal_type : SignalType</span>
+<span class="sd">        Category of risk this signal measures.</span>
+<span class="sd">    weight : float</span>
+<span class="sd">        Relative weight (0, 100]. All signals&#39; weights must sum to 100.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># Up-front shape check. The dispatchers downstream assume `df` has</span>
-    <span class="c1"># rows and that `row_var` / `break_vars` / `metric` / `weight_var`</span>
-    <span class="c1"># are real columns; without this guard an empty input produces a</span>
-    <span class="c1"># silent blank Chain that callers can&#39;t distinguish from &quot;no</span>
-    <span class="c1"># significant results.&quot;</span>
-    <span class="k">if</span> <span class="n">df</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">CrosstabInputError</span><span class="p">(</span>
-            <span class="s2">&quot;build_chain: empty DataFrame. The upstream filter / query &quot;</span>
-            <span class="s2">&quot;returned nothing; a Chain built from an empty frame would &quot;</span>
-            <span class="s2">&quot;be indistinguishable from one where every category was &quot;</span>
-            <span class="s2">&quot;filtered out by downstream logic.&quot;</span>
-        <span class="p">)</span>
-    <span class="k">if</span> <span class="n">row_var</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">CrosstabInputError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;build_chain: row_var </span><span class="si">{</span><span class="n">row_var</span><span class="si">!r}</span><span class="s2"> not in df.columns &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)[:</span><span class="mi">10</span><span class="p">]</span><span class="si">}{</span><span class="s1">&#39;...&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="si">}</span><span class="s2">)&quot;</span>
-        <span class="p">)</span>
-    <span class="n">missing_breaks</span> <span class="o">=</span> <span class="p">[</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">break_vars</span> <span class="k">if</span> <span class="n">b</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
-    <span class="k">if</span> <span class="n">missing_breaks</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">CrosstabInputError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;build_chain: break_vars </span><span class="si">{</span><span class="n">missing_breaks</span><span class="si">!r}</span><span class="s2"> not in df.columns&quot;</span>
-        <span class="p">)</span>
-    <span class="k">if</span> <span class="n">weight_var</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">weight_var</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">CrosstabInputError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;build_chain: weight_var </span><span class="si">{</span><span class="n">weight_var</span><span class="si">!r}</span><span class="s2"> not in df.columns&quot;</span>
-        <span class="p">)</span>
 
-    <span class="n">dispatchers</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="n">TableType</span><span class="o">.</span><span class="n">SINGLE_RESPONSE</span><span class="p">:</span>   <span class="n">_build_single_response</span><span class="p">,</span>
-        <span class="n">TableType</span><span class="o">.</span><span class="n">MULTIPLE_RESPONSE</span><span class="p">:</span> <span class="n">_build_multiple_response</span><span class="p">,</span>
-        <span class="n">TableType</span><span class="o">.</span><span class="n">CROSS_TAB</span><span class="p">:</span>         <span class="n">_build_cross_tab</span><span class="p">,</span>
-        <span class="n">TableType</span><span class="o">.</span><span class="n">LONGITUDINAL</span><span class="p">:</span>      <span class="n">_build_longitudinal</span><span class="p">,</span>
-        <span class="n">TableType</span><span class="o">.</span><span class="n">RANKING</span><span class="p">:</span>           <span class="n">_build_ranking</span><span class="p">,</span>
-        <span class="n">TableType</span><span class="o">.</span><span class="n">MEAN_SCALE</span><span class="p">:</span>        <span class="n">_build_mean_scale</span><span class="p">,</span>
-        <span class="n">TableType</span><span class="o">.</span><span class="n">BANNER</span><span class="p">:</span>            <span class="n">_build_banner</span><span class="p">,</span>
-    <span class="p">}</span>
-    <span class="n">fn</span> <span class="o">=</span> <span class="n">dispatchers</span><span class="p">[</span><span class="n">table_type</span><span class="p">]</span>
-    <span class="k">return</span> <span class="n">fn</span><span class="p">(</span>
-        <span class="n">df</span><span class="o">=</span><span class="n">df</span><span class="p">,</span>
-        <span class="n">row_var</span><span class="o">=</span><span class="n">row_var</span><span class="p">,</span>
-        <span class="n">break_vars</span><span class="o">=</span><span class="n">break_vars</span><span class="p">,</span>
-        <span class="n">metric</span><span class="o">=</span><span class="n">metric</span><span class="p">,</span>
-        <span class="n">weight_var</span><span class="o">=</span><span class="n">weight_var</span><span class="p">,</span>
-        <span class="n">top_n</span><span class="o">=</span><span class="n">top_n</span><span class="p">,</span>
-        <span class="n">geo_column</span><span class="o">=</span><span class="n">geo_column</span><span class="p">,</span>
-    <span class="p">)</span></div>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">signal_type</span><span class="p">:</span> <span class="n">SignalType</span>
+    <span class="n">weight</span><span class="p">:</span> <span class="nb">float</span>
 
-
-
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># Helpers</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_weighted_counts</span><span class="p">(</span>
-    <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
-    <span class="n">group_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">metric</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">weight_var</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return weighted sum (or unweighted count if metric absent).&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">metric</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">weight_var</span> <span class="ow">and</span> <span class="n">weight_var</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">group_col</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
-                <span class="k">lambda</span> <span class="n">g</span><span class="p">:</span> <span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="n">metric</span><span class="p">]</span> <span class="o">*</span> <span class="n">g</span><span class="p">[</span><span class="n">weight_var</span><span class="p">])</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span> <span class="n">include_groups</span><span class="o">=</span><span class="kc">False</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Signal name must not be empty&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">signal_type</span><span class="p">,</span> <span class="n">SignalType</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;signal_type must be a SignalType enum, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">signal_type</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="p">)</span>
-        <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">group_col</span><span class="p">)[</span><span class="n">metric</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
-    <span class="c1"># Fall back to respondent count</span>
-    <span class="k">if</span> <span class="n">weight_var</span> <span class="ow">and</span> <span class="n">weight_var</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">group_col</span><span class="p">)[</span><span class="n">weight_var</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">group_col</span><span class="p">)</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">&lt;=</span> <span class="mi">100</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Signal weight must be in (0, 100], got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span></div>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_base_respondents</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the effective respondent base -- weighted sum or unweighted count.</span>
 
-<span class="sd">    Returns a float so fractional weighted bases (e.g. ``1234.7``) are not</span>
-<span class="sd">    silently truncated. Callers that need an integer for display should</span>
-<span class="sd">    cast explicitly; downstream math (significance tests, CI bounds) now</span>
-<span class="sd">    uses the full-precision value.</span>
+<div class="viewcode-block" id="RiskTierConfig">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.RiskTierConfig">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RiskTierConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Thresholds for risk tier classification.</span>
+
+<span class="sd">    Scores &gt;= critical_min are Critical, &gt;= high_min are High, etc.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">weight_var</span> <span class="ow">and</span> <span class="n">weight_var</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">weight_var</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
-    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">))</span>
 
+    <span class="n">critical_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">80.0</span>
+    <span class="n">high_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">60.0</span>
+    <span class="n">medium_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">40.0</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_views_from_counts</span><span class="p">(</span>
-    <span class="n">counts</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
-    <span class="n">base</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-    <span class="n">pct_base</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">View</span><span class="p">]:</span>
-    <span class="n">total</span> <span class="o">=</span> <span class="n">pct_base</span> <span class="k">if</span> <span class="n">pct_base</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">counts</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
-    <span class="n">views</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">cat</span><span class="p">,</span> <span class="n">cnt</span> <span class="ow">in</span> <span class="n">counts</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-        <span class="n">pct</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">cnt</span><span class="p">)</span> <span class="o">/</span> <span class="n">total</span> <span class="k">if</span> <span class="n">total</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mf">0.0</span>
-        <span class="n">views</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">View</span><span class="p">(</span><span class="n">metric</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">cat</span><span class="p">),</span> <span class="n">base</span><span class="o">=</span><span class="n">base</span><span class="p">,</span> <span class="n">count</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">cnt</span><span class="p">),</span> <span class="n">pct</span><span class="o">=</span><span class="n">pct</span><span class="p">))</span>
-    <span class="k">return</span> <span class="n">views</span>
-
-
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># Per-type builders</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_grouped_counts_views</span><span class="p">(</span>
-    <span class="n">df</span><span class="p">,</span> <span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="p">,</span> <span class="n">metric</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">,</span> <span class="n">top_n</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">View</span><span class="p">]]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Shared loop: for each (break_var, break_value) subset, compute weighted</span>
-<span class="sd">    counts of row_var and wrap as Views keyed ``&quot;{bv}={bval}&quot;``.</span>
-
-<span class="sd">    Used by SINGLE_RESPONSE, CROSS_TAB, and BANNER builders (identical body).</span>
-<span class="sd">    Separate helper keeps the three type-tagged wrappers honest -- a change</span>
-<span class="sd">    here ripples to all three without drift.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">views</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">View</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">for</span> <span class="n">bv</span> <span class="ow">in</span> <span class="n">break_vars</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">bval</span> <span class="ow">in</span> <span class="n">df</span><span class="p">[</span><span class="n">bv</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">unique</span><span class="p">():</span>
-            <span class="n">subset</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="n">bv</span><span class="p">]</span> <span class="o">==</span> <span class="n">bval</span><span class="p">]</span>
-            <span class="n">base</span> <span class="o">=</span> <span class="n">_base_respondents</span><span class="p">(</span><span class="n">subset</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">)</span>
-            <span class="n">counts</span> <span class="o">=</span> <span class="n">_weighted_counts</span><span class="p">(</span><span class="n">subset</span><span class="p">,</span> <span class="n">row_var</span><span class="p">,</span> <span class="n">metric</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">top_n</span><span class="p">:</span>
-                <span class="n">counts</span> <span class="o">=</span> <span class="n">counts</span><span class="o">.</span><span class="n">nlargest</span><span class="p">(</span><span class="n">top_n</span><span class="p">)</span>
-            <span class="n">views</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">bv</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">bval</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_views_from_counts</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">base</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">views</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_build_single_response</span><span class="p">(</span>
-    <span class="n">df</span><span class="p">,</span> <span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="p">,</span> <span class="n">metric</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">,</span> <span class="n">top_n</span><span class="p">,</span> <span class="n">geo_column</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Chain</span><span class="p">:</span>
-    <span class="k">return</span> <span class="n">Chain</span><span class="p">(</span>
-        <span class="n">row_var</span><span class="o">=</span><span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="o">=</span><span class="n">break_vars</span><span class="p">,</span>
-        <span class="n">views</span><span class="o">=</span><span class="n">_grouped_counts_views</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="p">,</span> <span class="n">metric</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">,</span> <span class="n">top_n</span><span class="p">),</span>
-        <span class="n">table_type</span><span class="o">=</span><span class="n">TableType</span><span class="o">.</span><span class="n">SINGLE_RESPONSE</span><span class="p">,</span> <span class="n">geo_column</span><span class="o">=</span><span class="n">geo_column</span><span class="p">,</span>
-    <span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_build_multiple_response</span><span class="p">(</span>
-    <span class="n">df</span><span class="p">,</span> <span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="p">,</span> <span class="n">metric</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">,</span> <span class="n">top_n</span><span class="p">,</span> <span class="n">geo_column</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Chain</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Percents are per-respondent (sum can exceed 100%); auto-sets base_note.</span>
-
-<span class="sd">    Distinct from ``_grouped_counts_views`` because MULTIPLE_RESPONSE uses</span>
-<span class="sd">    ``pct_base=n_respondents`` -- items that sum to &gt;100% are the whole point.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">views</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">View</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">for</span> <span class="n">bv</span> <span class="ow">in</span> <span class="n">break_vars</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">bval</span> <span class="ow">in</span> <span class="n">df</span><span class="p">[</span><span class="n">bv</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">unique</span><span class="p">():</span>
-            <span class="n">subset</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="n">bv</span><span class="p">]</span> <span class="o">==</span> <span class="n">bval</span><span class="p">]</span>
-            <span class="n">n_respondents</span> <span class="o">=</span> <span class="n">_base_respondents</span><span class="p">(</span><span class="n">subset</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">)</span>
-            <span class="n">counts</span> <span class="o">=</span> <span class="n">_weighted_counts</span><span class="p">(</span><span class="n">subset</span><span class="p">,</span> <span class="n">row_var</span><span class="p">,</span> <span class="n">metric</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">top_n</span><span class="p">:</span>
-                <span class="n">counts</span> <span class="o">=</span> <span class="n">counts</span><span class="o">.</span><span class="n">nlargest</span><span class="p">(</span><span class="n">top_n</span><span class="p">)</span>
-            <span class="n">key</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">bv</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">bval</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="n">views</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">_views_from_counts</span><span class="p">(</span>
-                <span class="n">counts</span><span class="p">,</span> <span class="n">base</span><span class="o">=</span><span class="n">n_respondents</span><span class="p">,</span> <span class="n">pct_base</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">n_respondents</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">medium_min</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">high_min</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">critical_min</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Thresholds must be ordered: medium_min (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">medium_min</span><span class="si">}</span><span class="s2">) &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;&lt; high_min (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">high_min</span><span class="si">}</span><span class="s2">) &lt; critical_min (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">critical_min</span><span class="si">}</span><span class="s2">)&quot;</span>
             <span class="p">)</span>
-    <span class="n">n_total</span> <span class="o">=</span> <span class="n">_base_respondents</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">)</span>
-    <span class="c1"># Display-only: round for the base_note; downstream math keeps full precision.</span>
-    <span class="n">base_note</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="sa">f</span><span class="s2">&quot;n=</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">n_total</span><span class="p">))</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> respondents; multiple responses permitted; &quot;</span>
-        <span class="s2">&quot;percentages sum to more than 100%&quot;</span>
-    <span class="p">)</span>
-    <span class="k">return</span> <span class="n">Chain</span><span class="p">(</span>
-        <span class="n">row_var</span><span class="o">=</span><span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="o">=</span><span class="n">break_vars</span><span class="p">,</span> <span class="n">views</span><span class="o">=</span><span class="n">views</span><span class="p">,</span>
-        <span class="n">table_type</span><span class="o">=</span><span class="n">TableType</span><span class="o">.</span><span class="n">MULTIPLE_RESPONSE</span><span class="p">,</span>
-        <span class="n">base_note</span><span class="o">=</span><span class="n">base_note</span><span class="p">,</span> <span class="n">geo_column</span><span class="o">=</span><span class="n">geo_column</span><span class="p">,</span>
-    <span class="p">)</span>
+
+<div class="viewcode-block" id="RiskTierConfig.classify">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.RiskTierConfig.classify">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">classify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">score</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RiskTier</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">score</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">critical_min</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">RiskTier</span><span class="o">.</span><span class="n">CRITICAL</span>
+        <span class="k">if</span> <span class="n">score</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">high_min</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">RiskTier</span><span class="o">.</span><span class="n">HIGH</span>
+        <span class="k">if</span> <span class="n">score</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">medium_min</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">RiskTier</span><span class="o">.</span><span class="n">MEDIUM</span>
+        <span class="k">return</span> <span class="n">RiskTier</span><span class="o">.</span><span class="n">LOW</span></div>
+</div>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_build_cross_tab</span><span class="p">(</span>
-    <span class="n">df</span><span class="p">,</span> <span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="p">,</span> <span class="n">metric</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">,</span> <span class="n">top_n</span><span class="p">,</span> <span class="n">geo_column</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Chain</span><span class="p">:</span>
-    <span class="k">return</span> <span class="n">Chain</span><span class="p">(</span>
-        <span class="n">row_var</span><span class="o">=</span><span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="o">=</span><span class="n">break_vars</span><span class="p">,</span>
-        <span class="n">views</span><span class="o">=</span><span class="n">_grouped_counts_views</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="p">,</span> <span class="n">metric</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">,</span> <span class="n">top_n</span><span class="p">),</span>
-        <span class="n">table_type</span><span class="o">=</span><span class="n">TableType</span><span class="o">.</span><span class="n">CROSS_TAB</span><span class="p">,</span> <span class="n">geo_column</span><span class="o">=</span><span class="n">geo_column</span><span class="p">,</span>
-    <span class="p">)</span>
+
+<div class="viewcode-block" id="RiskAssessment">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.RiskAssessment">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RiskAssessment</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of a risk assessment.&quot;&quot;&quot;</span>
+
+    <span class="n">entity_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">composite_score</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">tier</span><span class="p">:</span> <span class="n">RiskTier</span>
+    <span class="n">signal_scores</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+    <span class="n">signal_types</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">SignalType</span><span class="p">]</span>
+    <span class="n">intervention</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></div>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_build_longitudinal</span><span class="p">(</span>
-    <span class="n">df</span><span class="p">,</span> <span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="p">,</span> <span class="n">metric</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">,</span> <span class="n">top_n</span><span class="p">,</span> <span class="n">geo_column</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Chain</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Time periods become columns; adds a delta column (last − first period).&quot;&quot;&quot;</span>
-    <span class="n">views</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">View</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="n">time_col</span> <span class="o">=</span> <span class="n">break_vars</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">break_vars</span> <span class="k">else</span> <span class="n">row_var</span>
-    <span class="n">periods</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">time_col</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
 
-    <span class="k">for</span> <span class="n">period</span> <span class="ow">in</span> <span class="n">periods</span><span class="p">:</span>
-        <span class="n">subset</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="n">time_col</span><span class="p">]</span> <span class="o">==</span> <span class="n">period</span><span class="p">]</span>
-        <span class="n">base</span> <span class="o">=</span> <span class="n">_base_respondents</span><span class="p">(</span><span class="n">subset</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">)</span>
-        <span class="n">counts</span> <span class="o">=</span> <span class="n">_weighted_counts</span><span class="p">(</span><span class="n">subset</span><span class="p">,</span> <span class="n">row_var</span><span class="p">,</span> <span class="n">metric</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">top_n</span><span class="p">:</span>
-            <span class="n">counts</span> <span class="o">=</span> <span class="n">counts</span><span class="o">.</span><span class="n">nlargest</span><span class="p">(</span><span class="n">top_n</span><span class="p">)</span>
-        <span class="n">key</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">period</span><span class="p">)</span>
-        <span class="n">views</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">_views_from_counts</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">base</span><span class="p">)</span>
+<div class="viewcode-block" id="RiskAnalyzer">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.RiskAnalyzer">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RiskAnalyzer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Multi-signal risk stacking engine.</span>
 
-    <span class="c1"># Compute delta: last period − first period</span>
-    <span class="n">delta_col</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">periods</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
-        <span class="n">first_key</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">periods</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-        <span class="n">last_key</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">periods</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-        <span class="n">first_map</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="o">.</span><span class="n">metric</span><span class="p">:</span> <span class="n">v</span><span class="o">.</span><span class="n">count</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">views</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">first_key</span><span class="p">,</span> <span class="p">[])}</span>
-        <span class="n">last_map</span>  <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="o">.</span><span class="n">metric</span><span class="p">:</span> <span class="n">v</span><span class="o">.</span><span class="n">count</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">views</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">last_key</span><span class="p">,</span> <span class="p">[])}</span>
-        <span class="n">all_cats</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">first_map</span><span class="p">)</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="n">last_map</span><span class="p">)</span>
-        <span class="n">base</span> <span class="o">=</span> <span class="n">_base_respondents</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">)</span>
-        <span class="n">delta_views</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">cat</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">all_cats</span><span class="p">):</span>
-            <span class="n">d</span> <span class="o">=</span> <span class="n">last_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">cat</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="o">-</span> <span class="n">first_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">cat</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
-            <span class="n">delta_views</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">View</span><span class="p">(</span><span class="n">metric</span><span class="o">=</span><span class="n">cat</span><span class="p">,</span> <span class="n">base</span><span class="o">=</span><span class="n">base</span><span class="p">,</span> <span class="n">count</span><span class="o">=</span><span class="n">d</span><span class="p">,</span> <span class="n">pct</span><span class="o">=</span><span class="kc">None</span><span class="p">))</span>
-        <span class="n">delta_col</span> <span class="o">=</span> <span class="s2">&quot;Δ (change)&quot;</span>
-        <span class="n">views</span><span class="p">[</span><span class="n">delta_col</span><span class="p">]</span> <span class="o">=</span> <span class="n">delta_views</span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    signals : list[RiskSignal]</span>
+<span class="sd">        Risk signals to evaluate. Weights must sum to 100.</span>
+<span class="sd">    tier_config : RiskTierConfig, optional</span>
+<span class="sd">        Tier classification thresholds.</span>
+<span class="sd">    interventions : dict[RiskTier, str], optional</span>
+<span class="sd">        Mapping from risk tier to recommended intervention.</span>
 
-    <span class="k">return</span> <span class="n">Chain</span><span class="p">(</span>
-        <span class="n">row_var</span><span class="o">=</span><span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="o">=</span><span class="n">break_vars</span><span class="p">,</span> <span class="n">views</span><span class="o">=</span><span class="n">views</span><span class="p">,</span>
-        <span class="n">table_type</span><span class="o">=</span><span class="n">TableType</span><span class="o">.</span><span class="n">LONGITUDINAL</span><span class="p">,</span>
-        <span class="n">delta_column</span><span class="o">=</span><span class="n">delta_col</span><span class="p">,</span> <span class="n">geo_column</span><span class="o">=</span><span class="n">geo_column</span><span class="p">,</span>
-    <span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_build_ranking</span><span class="p">(</span>
-    <span class="n">df</span><span class="p">,</span> <span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="p">,</span> <span class="n">metric</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">,</span> <span class="n">top_n</span><span class="p">,</span> <span class="n">geo_column</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Chain</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sorted descending; includes rank and share columns.&quot;&quot;&quot;</span>
-    <span class="n">views</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">View</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
-    <span class="k">for</span> <span class="n">bv</span> <span class="ow">in</span> <span class="n">break_vars</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">bval</span> <span class="ow">in</span> <span class="n">df</span><span class="p">[</span><span class="n">bv</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">unique</span><span class="p">():</span>
-            <span class="n">subset</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="n">bv</span><span class="p">]</span> <span class="o">==</span> <span class="n">bval</span><span class="p">]</span>
-            <span class="n">base</span> <span class="o">=</span> <span class="n">_base_respondents</span><span class="p">(</span><span class="n">subset</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">)</span>
-            <span class="n">counts</span> <span class="o">=</span> <span class="n">_weighted_counts</span><span class="p">(</span><span class="n">subset</span><span class="p">,</span> <span class="n">row_var</span><span class="p">,</span> <span class="n">metric</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">)</span>
-            <span class="n">counts</span> <span class="o">=</span> <span class="n">counts</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">top_n</span><span class="p">:</span>
-                <span class="n">counts</span> <span class="o">=</span> <span class="n">counts</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="n">top_n</span><span class="p">)</span>
-            <span class="n">key</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">bv</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">bval</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="n">views</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">_views_from_counts</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">base</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">Chain</span><span class="p">(</span>
-        <span class="n">row_var</span><span class="o">=</span><span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="o">=</span><span class="n">break_vars</span><span class="p">,</span> <span class="n">views</span><span class="o">=</span><span class="n">views</span><span class="p">,</span>
-        <span class="n">table_type</span><span class="o">=</span><span class="n">TableType</span><span class="o">.</span><span class="n">RANKING</span><span class="p">,</span> <span class="n">geo_column</span><span class="o">=</span><span class="n">geo_column</span><span class="p">,</span>
-    <span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_build_mean_scale</span><span class="p">(</span>
-    <span class="n">df</span><span class="p">,</span> <span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="p">,</span> <span class="n">metric</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">,</span> <span class="n">top_n</span><span class="p">,</span> <span class="n">geo_column</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Chain</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Computes mean + 95% CI per break variable value.</span>
-
-<span class="sd">    MEAN_SCALE requires the ``metric`` column -- unlike count-based types,</span>
-<span class="sd">    there is no fallback to row counts. Missing metric raises so callers</span>
-<span class="sd">    don&#39;t receive a silently-empty chain that&#39;d render as a blank page</span>
-<span class="sd">    with no diagnostic.</span>
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If signals is empty or weights don&#39;t sum to 100.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">metric</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;MEAN_SCALE requires numeric metric column </span><span class="si">{</span><span class="n">metric</span><span class="si">!r}</span><span class="s2">; &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;available columns: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+
+<div class="viewcode-block" id="RiskAnalyzer.__init__">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.RiskAnalyzer.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">signals</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">RiskSignal</span><span class="p">],</span>
+        <span class="n">tier_config</span><span class="p">:</span> <span class="n">RiskTierConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">interventions</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">RiskTier</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">signals</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one risk signal is required&quot;</span><span class="p">)</span>
+
+        <span class="n">total_weight</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">weight</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">signals</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">math</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">total_weight</span><span class="p">,</span> <span class="mf">100.0</span><span class="p">,</span> <span class="n">abs_tol</span><span class="o">=</span><span class="mf">0.01</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Signal weights must sum to 100, got </span><span class="si">{</span><span class="n">total_weight</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_signals</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">signals</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tier_config</span> <span class="o">=</span> <span class="n">tier_config</span> <span class="ow">or</span> <span class="n">RiskTierConfig</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_interventions</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">interventions</span> <span class="ow">or</span> <span class="p">{})</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;RiskAnalyzer initialized with </span><span class="si">%d</span><span class="s2"> signals: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_signals</span><span class="p">),</span>
+            <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">(</span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">signal_type</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">weight</span><span class="si">}</span><span class="s2">%)&quot;</span>
+                <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_signals</span>
+            <span class="p">),</span>
+        <span class="p">)</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">signal_names</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_signals</span><span class="p">]</span>
+
+<div class="viewcode-block" id="RiskAnalyzer.assess">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.RiskAnalyzer.assess">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">assess</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">entity_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">scores</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RiskAssessment</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Assess risk for an entity.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        entity_id : str</span>
+<span class="sd">            Identifier for the entity.</span>
+<span class="sd">        scores : dict[str, float]</span>
+<span class="sd">            Per-signal risk scores (0-100). Higher = more risk.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        RiskAssessment</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If scores dict is missing signals or values are out of range.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">missing</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">signal_names</span><span class="p">)</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">scores</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing scores for signals: </span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">scores</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_names</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown signal: </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">value</span> <span class="o">&lt;=</span> <span class="mi">100</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Score for </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> must be in [0, 100], got </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+
+        <span class="n">composite</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+            <span class="n">scores</span><span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">*</span> <span class="n">s</span><span class="o">.</span><span class="n">weight</span> <span class="o">/</span> <span class="mf">100.0</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_signals</span>
         <span class="p">)</span>
 
-    <span class="n">views</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">View</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">tier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tier_config</span><span class="o">.</span><span class="n">classify</span><span class="p">(</span><span class="n">composite</span><span class="p">)</span>
+        <span class="n">intervention</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interventions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">tier</span><span class="p">)</span>
 
-    <span class="k">for</span> <span class="n">bv</span> <span class="ow">in</span> <span class="n">break_vars</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">bval</span> <span class="ow">in</span> <span class="n">df</span><span class="p">[</span><span class="n">bv</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">unique</span><span class="p">():</span>
-            <span class="n">subset</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="n">bv</span><span class="p">]</span> <span class="o">==</span> <span class="n">bval</span><span class="p">]</span>
-            <span class="n">base</span> <span class="o">=</span> <span class="n">_base_respondents</span><span class="p">(</span><span class="n">subset</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">)</span>
-            <span class="n">key</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">bv</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">bval</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="n">cell_views</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">cat</span> <span class="ow">in</span> <span class="n">df</span><span class="p">[</span><span class="n">row_var</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">unique</span><span class="p">():</span>
-                <span class="n">cat_vals</span> <span class="o">=</span> <span class="n">subset</span><span class="p">[</span><span class="n">subset</span><span class="p">[</span><span class="n">row_var</span><span class="p">]</span> <span class="o">==</span> <span class="n">cat</span><span class="p">][</span><span class="n">metric</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span>
-                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cat_vals</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                    <span class="k">continue</span>
-                <span class="n">mean</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">cat_vals</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span>
-                <span class="n">ci</span> <span class="o">=</span> <span class="n">_critical_value</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cat_vals</span><span class="p">))</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">cat_vals</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cat_vals</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span><span class="p">)</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cat_vals</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="mf">0.0</span>
-                <span class="n">v</span> <span class="o">=</span> <span class="n">View</span><span class="p">(</span><span class="n">metric</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">cat</span><span class="p">),</span> <span class="n">base</span><span class="o">=</span><span class="n">base</span><span class="p">,</span> <span class="n">count</span><span class="o">=</span><span class="n">mean</span><span class="p">,</span> <span class="n">pct</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ci</span><span class="o">=</span><span class="n">ci</span><span class="p">)</span>
-                <span class="n">cell_views</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">top_n</span><span class="p">:</span>
-                <span class="n">cell_views</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">cell_views</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">v</span><span class="o">.</span><span class="n">count</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)[:</span><span class="n">top_n</span><span class="p">]</span>
-            <span class="n">views</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">cell_views</span>
+        <span class="n">signal_scores</span> <span class="o">=</span> <span class="p">{</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">scores</span><span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_signals</span><span class="p">}</span>
+        <span class="n">signal_types</span> <span class="o">=</span> <span class="p">{</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">signal_type</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_signals</span><span class="p">}</span>
 
-    <span class="k">return</span> <span class="n">Chain</span><span class="p">(</span>
-        <span class="n">row_var</span><span class="o">=</span><span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="o">=</span><span class="n">break_vars</span><span class="p">,</span> <span class="n">views</span><span class="o">=</span><span class="n">views</span><span class="p">,</span>
-        <span class="n">table_type</span><span class="o">=</span><span class="n">TableType</span><span class="o">.</span><span class="n">MEAN_SCALE</span><span class="p">,</span> <span class="n">geo_column</span><span class="o">=</span><span class="n">geo_column</span><span class="p">,</span>
-    <span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">RiskAssessment</span><span class="p">(</span>
+            <span class="n">entity_id</span><span class="o">=</span><span class="n">entity_id</span><span class="p">,</span>
+            <span class="n">composite_score</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="n">composite</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+            <span class="n">tier</span><span class="o">=</span><span class="n">tier</span><span class="p">,</span>
+            <span class="n">signal_scores</span><span class="o">=</span><span class="n">signal_scores</span><span class="p">,</span>
+            <span class="n">signal_types</span><span class="o">=</span><span class="n">signal_types</span><span class="p">,</span>
+            <span class="n">intervention</span><span class="o">=</span><span class="n">intervention</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Risk assessed </span><span class="si">%s</span><span class="s2">: </span><span class="si">%.1f</span><span class="s2"> (</span><span class="si">%s</span><span class="s2">)</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">entity_id</span><span class="p">,</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">composite_score</span><span class="p">,</span>
+            <span class="n">tier</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot; → </span><span class="si">{</span><span class="n">intervention</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">intervention</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_build_banner</span><span class="p">(</span>
-    <span class="n">df</span><span class="p">,</span> <span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="p">,</span> <span class="n">metric</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">,</span> <span class="n">top_n</span><span class="p">,</span> <span class="n">geo_column</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Chain</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Multi-column cross-tab (OSCAR-style): each break var is a banner column.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">Chain</span><span class="p">(</span>
-        <span class="n">row_var</span><span class="o">=</span><span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="o">=</span><span class="n">break_vars</span><span class="p">,</span>
-        <span class="n">views</span><span class="o">=</span><span class="n">_grouped_counts_views</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">row_var</span><span class="p">,</span> <span class="n">break_vars</span><span class="p">,</span> <span class="n">metric</span><span class="p">,</span> <span class="n">weight_var</span><span class="p">,</span> <span class="n">top_n</span><span class="p">),</span>
-        <span class="n">table_type</span><span class="o">=</span><span class="n">TableType</span><span class="o">.</span><span class="n">BANNER</span><span class="p">,</span> <span class="n">geo_column</span><span class="o">=</span><span class="n">geo_column</span><span class="p">,</span>
-    <span class="p">)</span>
+<div class="viewcode-block" id="RiskAnalyzer.assess_batch">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.RiskAnalyzer.assess_batch">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">assess_batch</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">entities</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">RiskAssessment</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Assess risk for multiple entities.</span>
+
+<span class="sd">        Each dict must have &#39;entity_id&#39; and &#39;scores&#39; keys.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list[RiskAssessment]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">entities</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;entity_id&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">entity</span> <span class="ow">or</span> <span class="s2">&quot;scores&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">entity</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Each entity dict must have &#39;entity_id&#39; and &#39;scores&#39; keys&quot;</span>
+                <span class="p">)</span>
+            <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assess</span><span class="p">(</span>
+                    <span class="n">entity_id</span><span class="o">=</span><span class="n">entity</span><span class="p">[</span><span class="s2">&quot;entity_id&quot;</span><span class="p">],</span>
+                    <span class="n">scores</span><span class="o">=</span><span class="n">entity</span><span class="p">[</span><span class="s2">&quot;scores&quot;</span><span class="p">],</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Assessed risk for </span><span class="si">%d</span><span class="s2"> entities in batch&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">results</span></div>
+</div>
+
 </pre></div>
 
            </div>
