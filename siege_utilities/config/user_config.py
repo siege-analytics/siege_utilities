@@ -106,20 +106,43 @@ class UserConfigManager:
     def __init__(self, config_dir: Optional[Path] = None):
         """
         Initialize the user configuration manager.
-        
+
         Args:
             config_dir: Directory containing user configuration files
         """
-        self.config_dir = config_dir or Path.home() / ".siege_utilities" / "config"
-        self.config_dir.mkdir(parents=True, exist_ok=True)
-        
+        self._read_only = False
+        self.config_dir = config_dir or self._resolve_config_dir()
+        try:
+            self.config_dir.mkdir(parents=True, exist_ok=True)
+        except (PermissionError, OSError) as exc:
+            fallback = Path(os.environ.get("TMPDIR", "/tmp")) / "siege_utilities" / "config"
+            log.warning(
+                "Cannot create config dir %s (%s); falling back to %s",
+                self.config_dir, exc, fallback,
+            )
+            self.config_dir = fallback
+            try:
+                self.config_dir.mkdir(parents=True, exist_ok=True)
+            except (PermissionError, OSError):
+                log.warning("Fallback config dir %s also unwritable; running read-only", fallback)
+                self._read_only = True
+
         self.user_config_file = self.config_dir / "user_config.yaml"
         self.user_profile = self._load_user_profile()
-        
-        # Set default download directory if not specified
+
         if not self.user_profile.preferred_download_directory:
             self.user_profile.preferred_download_directory = str(_default_download_directory())
             self._save_user_profile()
+
+    @staticmethod
+    def _resolve_config_dir() -> Path:
+        env_override = os.environ.get("SIEGE_USER_CONFIG_DIR")
+        if env_override:
+            return Path(env_override)
+        try:
+            return Path.home() / ".siege_utilities" / "config"
+        except (RuntimeError, KeyError):
+            return Path(os.environ.get("TMPDIR", "/tmp")) / "siege_utilities" / "config"
     
     def _load_user_profile(self) -> UserProfile:
         """Load user profile from configuration file."""
@@ -140,6 +163,8 @@ class UserConfigManager:
     
     def _save_user_profile(self):
         """Save user profile to configuration file."""
+        if self._read_only:
+            return
         try:
             config_dict = asdict(self.user_profile)
             # Convert tuples to lists for YAML compatibility
