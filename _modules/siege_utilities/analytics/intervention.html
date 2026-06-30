@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.analytics.comparison &mdash; Siege Utilities 3.23.0 documentation</title>
+  <title>siege_utilities.analytics.intervention &mdash; Siege Utilities 3.23.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
@@ -9073,7 +9073,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
-      <li class="breadcrumb-item active">siege_utilities.analytics.comparison</li>
+      <li class="breadcrumb-item active">siege_utilities.analytics.intervention</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -9082,272 +9082,300 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <h1>Source code for siege_utilities.analytics.comparison</h1><div class="highlight"><pre>
+  <h1>Source code for siege_utilities.analytics.intervention</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Evidence-based comparative analysis.</span>
+<span class="sd">Deterministic intervention mapping.</span>
 
-<span class="sd">Structured comparison framework for scoring and comparing N entities</span>
-<span class="sd">across M dimensions with mandatory evidence citation, feature matrix</span>
-<span class="sd">construction, and gap analysis.</span>
+<span class="sd">Rule-based signal-to-action mapping with priority ordering,</span>
+<span class="sd">effectiveness tracking, and override support.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">statistics</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="DimensionScore">
-<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.DimensionScore">[docs]</a>
+<div class="viewcode-block" id="MappingRule">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.MappingRule">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">DimensionScore</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;A score for one entity on one dimension.</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MappingRule</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A signal-to-action mapping rule.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    score : int</span>
-<span class="sd">        Score on a 1-5 scale.</span>
-<span class="sd">    evidence : str</span>
-<span class="sd">        Citation supporting the score (URL, doc reference, test result).</span>
+<span class="sd">    signal : str</span>
+<span class="sd">        The categorical input signal.</span>
+<span class="sd">    action : str</span>
+<span class="sd">        The recommended action.</span>
+<span class="sd">    priority : int</span>
+<span class="sd">        Lower number = higher priority. Used when multiple rules match.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">score</span><span class="p">:</span> <span class="nb">int</span>
-    <span class="n">evidence</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">signal</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">action</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">priority</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">score</span> <span class="o">&lt;=</span> <span class="mi">5</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Score must be an integer in [1, 5], got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">score</span><span class="si">!r}</span><span class="s2">&quot;</span>
-            <span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">evidence</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">evidence</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Evidence citation must not be empty&quot;</span><span class="p">)</span></div>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Signal must not be empty&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">action</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">action</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Action must not be empty&quot;</span><span class="p">)</span></div>
 
 
 
-<div class="viewcode-block" id="ComparisonResult">
-<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ComparisonResult">[docs]</a>
+<div class="viewcode-block" id="Outcome">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.Outcome">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Outcome</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Recorded outcome for an intervention.&quot;&quot;&quot;</span>
+
+    <span class="n">signal</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">action</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">success</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">overridden</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">override_reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="EffectivenessReport">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.EffectivenessReport">[docs]</a>
 <span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">ComparisonResult</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of comparing entities across dimensions.&quot;&quot;&quot;</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">EffectivenessReport</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Effectiveness statistics for one action.&quot;&quot;&quot;</span>
 
-    <span class="n">dimensions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
-    <span class="n">entities</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
-    <span class="n">scores</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">DimensionScore</span><span class="p">]]</span>
-    <span class="n">weighted_totals</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
-    <span class="n">gap_analysis</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span></div>
-
-
-
-<div class="viewcode-block" id="FeatureMatrix">
-<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.FeatureMatrix">[docs]</a>
-<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">FeatureMatrix</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Boolean feature support matrix with coverage scoring.&quot;&quot;&quot;</span>
-
-    <span class="n">entities</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
-    <span class="n">features</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
-    <span class="n">matrix</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]]</span>
-    <span class="n">coverage</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span></div>
+    <span class="n">action</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">total</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">successes</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">success_rate</span><span class="p">:</span> <span class="nb">float</span></div>
 
 
 
-<div class="viewcode-block" id="ComparativeAnalyzer">
-<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ComparativeAnalyzer">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">ComparativeAnalyzer</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;N-entity x M-dimension comparison engine.</span>
+<div class="viewcode-block" id="InterventionMapper">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.InterventionMapper">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">InterventionMapper</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Rule-based intervention mapping engine.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    dimensions : list[str]</span>
-<span class="sd">        Dimension names for comparison.</span>
-<span class="sd">    weights : dict[str, float] | None</span>
-<span class="sd">        Optional dimension weights. If provided, must cover all</span>
-<span class="sd">        dimensions. If omitted, equal weights are used.</span>
+<span class="sd">    rules : list[MappingRule]</span>
+<span class="sd">        Signal-to-action mapping rules.</span>
+<span class="sd">    default_action : str | None</span>
+<span class="sd">        Action for unmapped signals. If None, unmapped signals raise.</span>
+<span class="sd">    strict : bool</span>
+<span class="sd">        If True, unmapped signals raise ValueError. If False, warn</span>
+<span class="sd">        and return default_action.</span>
 
 <span class="sd">    Raises</span>
 <span class="sd">    ------</span>
 <span class="sd">    ValueError</span>
-<span class="sd">        If dimensions is empty or weights don&#39;t match dimensions.</span>
+<span class="sd">        If rules is empty or strict=False without default_action.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="ComparativeAnalyzer.__init__">
-<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ComparativeAnalyzer.__init__">[docs]</a>
+<div class="viewcode-block" id="InterventionMapper.__init__">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.InterventionMapper.__init__">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">dimensions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
-        <span class="n">weights</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">rules</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">MappingRule</span><span class="p">],</span>
+        <span class="n">default_action</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">strict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">dimensions</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one dimension is required&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">rules</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one mapping rule is required&quot;</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Dimension names must be unique&quot;</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">missing</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">weights</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-            <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing weights for dimensions: </span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="n">extra</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">weights</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">extra</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Weights for unknown dimensions: </span><span class="si">{</span><span class="n">extra</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">equal_weight</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span> <span class="o">=</span> <span class="p">{</span><span class="n">d</span><span class="p">:</span> <span class="n">equal_weight</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dimensions</span><span class="p">}</span>
-
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-            <span class="s2">&quot;ComparativeAnalyzer initialized with </span><span class="si">%d</span><span class="s2"> dimensions: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
-            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">),</span>
-            <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">),</span>
-        <span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="ComparativeAnalyzer.compare">
-<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ComparativeAnalyzer.compare">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">compare</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">entity_scores</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">DimensionScore</span><span class="p">]],</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ComparisonResult</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compare entities across all dimensions.</span>
-
-<span class="sd">        Parameters</span>
-<span class="sd">        ----------</span>
-<span class="sd">        entity_scores : dict[str, dict[str, DimensionScore]]</span>
-<span class="sd">            Outer key = entity name, inner key = dimension name.</span>
-
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        ComparisonResult</span>
-
-<span class="sd">        Raises</span>
-<span class="sd">        ------</span>
-<span class="sd">        ValueError</span>
-<span class="sd">            If any entity is missing a dimension score.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">entity_scores</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one entity is required&quot;</span><span class="p">)</span>
-
-        <span class="k">for</span> <span class="n">entity</span><span class="p">,</span> <span class="n">scores</span> <span class="ow">in</span> <span class="n">entity_scores</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="n">missing</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">)</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">scores</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-            <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Entity </span><span class="si">{</span><span class="n">entity</span><span class="si">!r}</span><span class="s2"> missing scores for: </span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">&quot;</span>
-                <span class="p">)</span>
-
-        <span class="n">weighted_totals</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="n">entity</span><span class="p">,</span> <span class="n">scores</span> <span class="ow">in</span> <span class="n">entity_scores</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="n">total</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
-                <span class="n">scores</span><span class="p">[</span><span class="n">d</span><span class="p">]</span><span class="o">.</span><span class="n">score</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_weights</span><span class="p">[</span><span class="n">d</span><span class="p">]</span>
-                <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">strict</span> <span class="ow">and</span> <span class="n">default_action</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;default_action is required when strict=False&quot;</span>
             <span class="p">)</span>
-            <span class="n">weighted_totals</span><span class="p">[</span><span class="n">entity</span><span class="p">]</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">total</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
 
-        <span class="n">gap_analysis</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_gap_analysis</span><span class="p">(</span><span class="n">entity_scores</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">default_action</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">default_action</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;default_action must not be empty&quot;</span><span class="p">)</span>
 
-        <span class="n">entities</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">entity_scores</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">sorted_rules</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">rules</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">r</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">priority</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rule_map</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">rule</span> <span class="ow">in</span> <span class="n">sorted_rules</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">rule</span><span class="o">.</span><span class="n">signal</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rule_map</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_rule_map</span><span class="p">[</span><span class="n">rule</span><span class="o">.</span><span class="n">signal</span><span class="p">]</span> <span class="o">=</span> <span class="n">rule</span><span class="o">.</span><span class="n">action</span>
 
-        <span class="n">result</span> <span class="o">=</span> <span class="n">ComparisonResult</span><span class="p">(</span>
-            <span class="n">dimensions</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">),</span>
-            <span class="n">entities</span><span class="o">=</span><span class="n">entities</span><span class="p">,</span>
-            <span class="n">scores</span><span class="o">=</span><span class="n">entity_scores</span><span class="p">,</span>
-            <span class="n">weighted_totals</span><span class="o">=</span><span class="n">weighted_totals</span><span class="p">,</span>
-            <span class="n">gap_analysis</span><span class="o">=</span><span class="n">gap_analysis</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_default_action</span> <span class="o">=</span> <span class="n">default_action</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_strict</span> <span class="o">=</span> <span class="n">strict</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_outcomes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Outcome</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-            <span class="s2">&quot;Compared </span><span class="si">%d</span><span class="s2"> entities across </span><span class="si">%d</span><span class="s2"> dimensions. &quot;</span>
-            <span class="s2">&quot;Highest variance: </span><span class="si">%s</span><span class="s2"> (</span><span class="si">%.2f</span><span class="s2">)&quot;</span><span class="p">,</span>
-            <span class="nb">len</span><span class="p">(</span><span class="n">entities</span><span class="p">),</span>
-            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">),</span>
-            <span class="n">gap_analysis</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">gap_analysis</span> <span class="k">else</span> <span class="s2">&quot;N/A&quot;</span><span class="p">,</span>
-            <span class="n">gap_analysis</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">gap_analysis</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">,</span>
-        <span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">result</span></div>
+            <span class="s2">&quot;InterventionMapper initialized with </span><span class="si">%d</span><span class="s2"> rules (</span><span class="si">%d</span><span class="s2"> unique signals)&quot;</span><span class="p">,</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">rules</span><span class="p">),</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rule_map</span><span class="p">),</span>
+        <span class="p">)</span></div>
 
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_gap_analysis</span><span class="p">(</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">signals</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rule_map</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+<div class="viewcode-block" id="InterventionMapper.map">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.InterventionMapper.map">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">map</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">entity_scores</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">DimensionScore</span><span class="p">]],</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Identify dimensions with largest score variance across entities.&quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">entity_scores</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
-            <span class="k">return</span> <span class="p">[(</span><span class="n">d</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">]</span>
-
-        <span class="n">variances</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dimensions</span><span class="p">:</span>
-            <span class="n">dim_scores</span> <span class="o">=</span> <span class="p">[</span>
-                <span class="n">scores</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span><span class="o">.</span><span class="n">score</span> <span class="k">for</span> <span class="n">scores</span> <span class="ow">in</span> <span class="n">entity_scores</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
-            <span class="p">]</span>
-            <span class="n">variance</span> <span class="o">=</span> <span class="n">statistics</span><span class="o">.</span><span class="n">variance</span><span class="p">(</span><span class="n">dim_scores</span><span class="p">)</span>
-            <span class="n">variances</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">dim</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">variance</span><span class="p">,</span> <span class="mi">4</span><span class="p">)))</span>
-
-        <span class="n">variances</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">variances</span>
-
-<div class="viewcode-block" id="ComparativeAnalyzer.build_feature_matrix">
-<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.ComparativeAnalyzer.build_feature_matrix">[docs]</a>
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">build_feature_matrix</span><span class="p">(</span>
-        <span class="n">entity_features</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]],</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FeatureMatrix</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build a boolean feature support matrix with coverage scores.</span>
+        <span class="n">signal</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">override_action</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">override_reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Map a signal to an action.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        entity_features : dict[str, dict[str, bool]]</span>
-<span class="sd">            Outer key = entity name, inner key = feature name.</span>
+<span class="sd">        signal : str</span>
+<span class="sd">            The categorical input signal.</span>
+<span class="sd">        override_action : str, optional</span>
+<span class="sd">            Override the mapped action. Must include override_reason.</span>
+<span class="sd">        override_reason : str, optional</span>
+<span class="sd">            Reason for the override (mandatory when overriding).</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        FeatureMatrix</span>
+<span class="sd">        str</span>
+<span class="sd">            The recommended action.</span>
 
 <span class="sd">        Raises</span>
 <span class="sd">        ------</span>
 <span class="sd">        ValueError</span>
-<span class="sd">            If no entities or no features are provided.</span>
+<span class="sd">            If signal is unmapped and strict=True, or if override</span>
+<span class="sd">            is given without a reason.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">entity_features</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one entity is required&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">override_action</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span>
+            <span class="ow">not</span> <span class="n">override_reason</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">override_reason</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;override_reason is required when providing override_action&quot;</span>
+            <span class="p">)</span>
 
-        <span class="n">all_features</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">features</span> <span class="ow">in</span> <span class="n">entity_features</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
-            <span class="n">all_features</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">features</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">override_action</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mapped_action</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rule_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">signal</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Override for signal </span><span class="si">%r</span><span class="s2">: </span><span class="si">%r</span><span class="s2"> → </span><span class="si">%r</span><span class="s2"> (reason: </span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span>
+                <span class="n">signal</span><span class="p">,</span>
+                <span class="n">mapped_action</span><span class="p">,</span>
+                <span class="n">override_action</span><span class="p">,</span>
+                <span class="n">override_reason</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">override_action</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">all_features</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one feature is required&quot;</span><span class="p">)</span>
+        <span class="n">mapped_action</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rule_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">signal</span><span class="p">)</span>
 
-        <span class="n">sorted_features</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">all_features</span><span class="p">)</span>
-        <span class="n">entities</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">entity_features</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">mapped_action</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_strict</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Unmapped signal: </span><span class="si">{</span><span class="n">signal</span><span class="si">!r}</span><span class="s2">. &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;Known signals: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">signals</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Unmapped signal </span><span class="si">{</span><span class="n">signal</span><span class="si">!r}</span><span class="s2">; using default action &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_default_action</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="ne">UserWarning</span><span class="p">,</span>
+                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">mapped_action</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_action</span>
 
-        <span class="n">normalized</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="n">coverage</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="n">mapped_action</span></div>
 
-        <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">entities</span><span class="p">:</span>
-            <span class="n">features</span> <span class="o">=</span> <span class="n">entity_features</span><span class="p">[</span><span class="n">entity</span><span class="p">]</span>
-            <span class="n">row</span> <span class="o">=</span> <span class="p">{</span><span class="n">f</span><span class="p">:</span> <span class="n">features</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">sorted_features</span><span class="p">}</span>
-            <span class="n">normalized</span><span class="p">[</span><span class="n">entity</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span>
-            <span class="n">supported</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">row</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span><span class="p">)</span>
-            <span class="n">coverage</span><span class="p">[</span><span class="n">entity</span><span class="p">]</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">supported</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">sorted_features</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+<div class="viewcode-block" id="InterventionMapper.record_outcome">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.InterventionMapper.record_outcome">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">record_outcome</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">signal</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">action</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">success</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">overridden</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">override_reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Record the outcome of an intervention.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        signal : str</span>
+<span class="sd">            The signal that triggered the intervention.</span>
+<span class="sd">        action : str</span>
+<span class="sd">            The action taken.</span>
+<span class="sd">        success : bool</span>
+<span class="sd">            Whether the intervention succeeded.</span>
+<span class="sd">        overridden : bool</span>
+<span class="sd">            Whether the action was an override.</span>
+<span class="sd">        override_reason : str, optional</span>
+<span class="sd">            Reason for override (required if overridden=True).</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If overridden=True without override_reason.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">overridden</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">override_reason</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">override_reason</span><span class="o">.</span><span class="n">strip</span><span class="p">()):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;override_reason is required when overridden=True&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">outcome</span> <span class="o">=</span> <span class="n">Outcome</span><span class="p">(</span>
+            <span class="n">signal</span><span class="o">=</span><span class="n">signal</span><span class="p">,</span>
+            <span class="n">action</span><span class="o">=</span><span class="n">action</span><span class="p">,</span>
+            <span class="n">success</span><span class="o">=</span><span class="n">success</span><span class="p">,</span>
+            <span class="n">overridden</span><span class="o">=</span><span class="n">overridden</span><span class="p">,</span>
+            <span class="n">override_reason</span><span class="o">=</span><span class="n">override_reason</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_outcomes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">outcome</span><span class="p">)</span>
 
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-            <span class="s2">&quot;Feature matrix: </span><span class="si">%d</span><span class="s2"> entities × </span><span class="si">%d</span><span class="s2"> features&quot;</span><span class="p">,</span>
-            <span class="nb">len</span><span class="p">(</span><span class="n">entities</span><span class="p">),</span>
-            <span class="nb">len</span><span class="p">(</span><span class="n">sorted_features</span><span class="p">),</span>
-        <span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">FeatureMatrix</span><span class="p">(</span>
-            <span class="n">entities</span><span class="o">=</span><span class="n">entities</span><span class="p">,</span>
-            <span class="n">features</span><span class="o">=</span><span class="n">sorted_features</span><span class="p">,</span>
-            <span class="n">matrix</span><span class="o">=</span><span class="n">normalized</span><span class="p">,</span>
-            <span class="n">coverage</span><span class="o">=</span><span class="n">coverage</span><span class="p">,</span>
+            <span class="s2">&quot;Outcome recorded: signal=</span><span class="si">%r</span><span class="s2"> action=</span><span class="si">%r</span><span class="s2"> success=</span><span class="si">%s%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">signal</span><span class="p">,</span>
+            <span class="n">action</span><span class="p">,</span>
+            <span class="n">success</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot; (override: </span><span class="si">{</span><span class="n">override_reason</span><span class="si">}</span><span class="s2">)&quot;</span> <span class="k">if</span> <span class="n">overridden</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
         <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="InterventionMapper.effectiveness">
+<a class="viewcode-back" href="../../../packages/analytics.html#siege_utilities.analytics.InterventionMapper.effectiveness">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">effectiveness</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">EffectivenessReport</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute effectiveness per action.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list[EffectivenessReport]</span>
+<span class="sd">            One entry per distinct action, sorted by success rate ascending.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If no outcomes have been recorded.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outcomes</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No outcomes recorded yet&quot;</span><span class="p">)</span>
+
+        <span class="n">action_stats</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">outcome</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outcomes</span><span class="p">:</span>
+            <span class="n">total</span><span class="p">,</span> <span class="n">successes</span> <span class="o">=</span> <span class="n">action_stats</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">outcome</span><span class="o">.</span><span class="n">action</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+            <span class="n">total</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">outcome</span><span class="o">.</span><span class="n">success</span><span class="p">:</span>
+                <span class="n">successes</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">action_stats</span><span class="p">[</span><span class="n">outcome</span><span class="o">.</span><span class="n">action</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">total</span><span class="p">,</span> <span class="n">successes</span><span class="p">)</span>
+
+        <span class="n">reports</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">action</span><span class="p">,</span> <span class="p">(</span><span class="n">total</span><span class="p">,</span> <span class="n">successes</span><span class="p">)</span> <span class="ow">in</span> <span class="n">action_stats</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">rate</span> <span class="o">=</span> <span class="n">successes</span> <span class="o">/</span> <span class="n">total</span> <span class="k">if</span> <span class="n">total</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mf">0.0</span>
+            <span class="n">reports</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">EffectivenessReport</span><span class="p">(</span>
+                <span class="n">action</span><span class="o">=</span><span class="n">action</span><span class="p">,</span>
+                <span class="n">total</span><span class="o">=</span><span class="n">total</span><span class="p">,</span>
+                <span class="n">successes</span><span class="o">=</span><span class="n">successes</span><span class="p">,</span>
+                <span class="n">success_rate</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="n">rate</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+            <span class="p">))</span>
+
+        <span class="n">reports</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">r</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">success_rate</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">reports</span></div>
 </div>
 
 </pre></div>

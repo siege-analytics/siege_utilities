@@ -5708,6 +5708,38 @@
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.PipelineAnalyzer.analyze"><code class="docutils literal notranslate"><span class="pre">PipelineAnalyzer.analyze()</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#siege_utilities.analytics.MappingRule"><code class="docutils literal notranslate"><span class="pre">MappingRule</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.MappingRule.signal"><code class="docutils literal notranslate"><span class="pre">MappingRule.signal</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.MappingRule.action"><code class="docutils literal notranslate"><span class="pre">MappingRule.action</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.MappingRule.priority"><code class="docutils literal notranslate"><span class="pre">MappingRule.priority</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.MappingRule.__init__"><code class="docutils literal notranslate"><span class="pre">MappingRule.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#siege_utilities.analytics.Outcome"><code class="docutils literal notranslate"><span class="pre">Outcome</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.Outcome.signal"><code class="docutils literal notranslate"><span class="pre">Outcome.signal</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.Outcome.action"><code class="docutils literal notranslate"><span class="pre">Outcome.action</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.Outcome.success"><code class="docutils literal notranslate"><span class="pre">Outcome.success</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.Outcome.overridden"><code class="docutils literal notranslate"><span class="pre">Outcome.overridden</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.Outcome.override_reason"><code class="docutils literal notranslate"><span class="pre">Outcome.override_reason</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.Outcome.__init__"><code class="docutils literal notranslate"><span class="pre">Outcome.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#siege_utilities.analytics.EffectivenessReport"><code class="docutils literal notranslate"><span class="pre">EffectivenessReport</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.EffectivenessReport.action"><code class="docutils literal notranslate"><span class="pre">EffectivenessReport.action</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.EffectivenessReport.total"><code class="docutils literal notranslate"><span class="pre">EffectivenessReport.total</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.EffectivenessReport.successes"><code class="docutils literal notranslate"><span class="pre">EffectivenessReport.successes</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.EffectivenessReport.success_rate"><code class="docutils literal notranslate"><span class="pre">EffectivenessReport.success_rate</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.EffectivenessReport.__init__"><code class="docutils literal notranslate"><span class="pre">EffectivenessReport.__init__()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#siege_utilities.analytics.InterventionMapper"><code class="docutils literal notranslate"><span class="pre">InterventionMapper</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.InterventionMapper.__init__"><code class="docutils literal notranslate"><span class="pre">InterventionMapper.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.InterventionMapper.signals"><code class="docutils literal notranslate"><span class="pre">InterventionMapper.signals</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.InterventionMapper.map"><code class="docutils literal notranslate"><span class="pre">InterventionMapper.map()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.InterventionMapper.record_outcome"><code class="docutils literal notranslate"><span class="pre">InterventionMapper.record_outcome()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.InterventionMapper.effectiveness"><code class="docutils literal notranslate"><span class="pre">InterventionMapper.effectiveness()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#module-siege_utilities.analytics.google_analytics">Submodules</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.analytics.google_analytics.GoogleAnalyticsConnector"><code class="docutils literal notranslate"><span class="pre">GoogleAnalyticsConnector</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.analytics.google_analytics.GoogleAnalyticsConnector.__init__"><code class="docutils literal notranslate"><span class="pre">GoogleAnalyticsConnector.__init__()</span></code></a></li>
@@ -12660,6 +12692,257 @@ Defaults to datetime.now().</p></li>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If items is empty or contains unknown stages.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="siege_utilities.analytics.MappingRule">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.analytics.</span></span><span class="sig-name descname"><span class="pre">MappingRule</span></span><a class="reference internal" href="../_modules/siege_utilities/analytics/intervention.html#MappingRule"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.analytics.MappingRule" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>A signal-to-action mapping rule.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>signal</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The categorical input signal.</p></li>
+<li><p><strong>action</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The recommended action.</p></li>
+<li><p><strong>priority</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Lower number = higher priority. Used when multiple rules match.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.analytics.MappingRule.signal">
+<span class="sig-name descname"><span class="pre">signal</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.analytics.MappingRule.signal" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.analytics.MappingRule.action">
+<span class="sig-name descname"><span class="pre">action</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.analytics.MappingRule.action" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.analytics.MappingRule.priority">
+<span class="sig-name descname"><span class="pre">priority</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></span><a class="headerlink" href="#siege_utilities.analytics.MappingRule.priority" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.analytics.MappingRule.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">signal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">action</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">priority</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.analytics.MappingRule.__init__" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>signal</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>action</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>priority</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="siege_utilities.analytics.Outcome">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.analytics.</span></span><span class="sig-name descname"><span class="pre">Outcome</span></span><a class="reference internal" href="../_modules/siege_utilities/analytics/intervention.html#Outcome"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.analytics.Outcome" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Recorded outcome for an intervention.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.analytics.Outcome.signal">
+<span class="sig-name descname"><span class="pre">signal</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.analytics.Outcome.signal" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.analytics.Outcome.action">
+<span class="sig-name descname"><span class="pre">action</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.analytics.Outcome.action" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.analytics.Outcome.success">
+<span class="sig-name descname"><span class="pre">success</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><a class="headerlink" href="#siege_utilities.analytics.Outcome.success" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.analytics.Outcome.overridden">
+<span class="sig-name descname"><span class="pre">overridden</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></span><a class="headerlink" href="#siege_utilities.analytics.Outcome.overridden" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.analytics.Outcome.override_reason">
+<span class="sig-name descname"><span class="pre">override_reason</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#siege_utilities.analytics.Outcome.override_reason" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.analytics.Outcome.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">signal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">action</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">success</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overridden</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">override_reason</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.analytics.Outcome.__init__" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>signal</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>action</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>success</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>overridden</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>override_reason</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="siege_utilities.analytics.EffectivenessReport">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.analytics.</span></span><span class="sig-name descname"><span class="pre">EffectivenessReport</span></span><a class="reference internal" href="../_modules/siege_utilities/analytics/intervention.html#EffectivenessReport"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.analytics.EffectivenessReport" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Effectiveness statistics for one action.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.analytics.EffectivenessReport.action">
+<span class="sig-name descname"><span class="pre">action</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.analytics.EffectivenessReport.action" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.analytics.EffectivenessReport.total">
+<span class="sig-name descname"><span class="pre">total</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><a class="headerlink" href="#siege_utilities.analytics.EffectivenessReport.total" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.analytics.EffectivenessReport.successes">
+<span class="sig-name descname"><span class="pre">successes</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><a class="headerlink" href="#siege_utilities.analytics.EffectivenessReport.successes" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.analytics.EffectivenessReport.success_rate">
+<span class="sig-name descname"><span class="pre">success_rate</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><a class="headerlink" href="#siege_utilities.analytics.EffectivenessReport.success_rate" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.analytics.EffectivenessReport.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">action</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">successes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">success_rate</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.analytics.EffectivenessReport.__init__" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>action</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>total</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>successes</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>success_rate</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="siege_utilities.analytics.InterventionMapper">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.analytics.</span></span><span class="sig-name descname"><span class="pre">InterventionMapper</span></span><a class="reference internal" href="../_modules/siege_utilities/analytics/intervention.html#InterventionMapper"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.analytics.InterventionMapper" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Rule-based intervention mapping engine.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rules</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference internal" href="#siege_utilities.analytics.MappingRule" title="siege_utilities.analytics.MappingRule"><em>MappingRule</em></a><em>]</em>) – Signal-to-action mapping rules.</p></li>
+<li><p><strong>default_action</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – Action for unmapped signals. If None, unmapped signals raise.</p></li>
+<li><p><strong>strict</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, unmapped signals raise ValueError. If False, warn
+and return default_action.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If rules is empty or strict=False without default_action.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.analytics.InterventionMapper.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rules</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_action</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/analytics/intervention.html#InterventionMapper.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.analytics.InterventionMapper.__init__" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rules</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference internal" href="#siege_utilities.analytics.MappingRule" title="siege_utilities.analytics.intervention.MappingRule"><em>MappingRule</em></a><em>]</em>)</p></li>
+<li><p><strong>default_action</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>strict</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="siege_utilities.analytics.InterventionMapper.signals">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">signals</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#siege_utilities.analytics.InterventionMapper.signals" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.analytics.InterventionMapper.map">
+<span class="sig-name descname"><span class="pre">map</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">signal</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">override_action</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">override_reason</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/analytics/intervention.html#InterventionMapper.map"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.analytics.InterventionMapper.map" title="Link to this definition"></a></dt>
+<dd><p>Map a signal to an action.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>signal</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The categorical input signal.</p></li>
+<li><p><strong>override_action</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – Override the mapped action. Must include override_reason.</p></li>
+<li><p><strong>override_reason</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – Reason for the override (mandatory when overriding).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The recommended action.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If signal is unmapped and strict=True, or if override
+    is given without a reason.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.analytics.InterventionMapper.record_outcome">
+<span class="sig-name descname"><span class="pre">record_outcome</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">signal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">action</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">success</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">overridden</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">override_reason</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/analytics/intervention.html#InterventionMapper.record_outcome"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.analytics.InterventionMapper.record_outcome" title="Link to this definition"></a></dt>
+<dd><p>Record the outcome of an intervention.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>signal</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The signal that triggered the intervention.</p></li>
+<li><p><strong>action</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The action taken.</p></li>
+<li><p><strong>success</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether the intervention succeeded.</p></li>
+<li><p><strong>overridden</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether the action was an override.</p></li>
+<li><p><strong>override_reason</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – Reason for override (required if overridden=True).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If overridden=True without override_reason.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.analytics.InterventionMapper.effectiveness">
+<span class="sig-name descname"><span class="pre">effectiveness</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/analytics/intervention.html#InterventionMapper.effectiveness"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.analytics.InterventionMapper.effectiveness" title="Link to this definition"></a></dt>
+<dd><p>Compute effectiveness per action.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>One entry per distinct action, sorted by success rate ascending.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.analytics.EffectivenessReport" title="siege_utilities.analytics.EffectivenessReport">EffectivenessReport</a>]</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If no outcomes have been recorded.</p>
 </dd>
 </dl>
 </dd></dl>
