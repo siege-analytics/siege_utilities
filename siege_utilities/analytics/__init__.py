@@ -123,6 +123,11 @@ _register([
     'InterventionMapper',
 ], '.intervention')
 
+_register([
+    'PricePoint', 'PricingCorridor',
+    'analyze_price_sensitivity',
+], '.pricing')
+
 __all__ = list(_LAZY_IMPORTS.keys())
 
 
