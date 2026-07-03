@@ -92,6 +92,42 @@ _register([
     'load_x_account_profile',
 ], '.x_twitter')
 
+# Scoring and analytics primitives
+_register([
+    'Dimension', 'ThresholdConfig', 'EntityScore', 'HealthScorer',
+], '.scoring')
+
+_register([
+    'SignalType', 'RiskTier', 'RiskSignal', 'RiskTierConfig',
+    'RiskAssessment', 'RiskAnalyzer',
+], '.risk')
+
+_register([
+    'DimensionScore', 'ComparisonResult', 'FeatureMatrix',
+    'ComparativeAnalyzer',
+], '.comparison')
+
+_register([
+    'ForecastAccuracy', 'CategoryBreakdown', 'TrendPoint',
+    'ForecastReport', 'ForecastAnalyzer',
+], '.forecast')
+
+_register([
+    'PipelineItem', 'StageMetrics', 'ConversionRate',
+    'VelocityMetrics', 'ConcentrationAlert',
+    'PipelineReport', 'PipelineAnalyzer',
+], '.pipeline')
+
+_register([
+    'MappingRule', 'Outcome', 'EffectivenessReport',
+    'InterventionMapper',
+], '.intervention')
+
+_register([
+    'PricePoint', 'PricingCorridor',
+    'analyze_price_sensitivity',
+], '.pricing')
+
 __all__ = list(_LAZY_IMPORTS.keys())
 
 
