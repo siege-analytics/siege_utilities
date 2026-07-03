@@ -1,11 +1,9 @@
 """Tests for UserConfigManager resilience to unwritable HOME. Ref: #1117."""
 
 import os
-import tempfile
 from pathlib import Path
 from unittest import mock
 
-import pytest
 
 from siege_utilities.config.user_config import UserConfigManager
 
