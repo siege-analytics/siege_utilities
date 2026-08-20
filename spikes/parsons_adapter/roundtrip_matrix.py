@@ -187,6 +187,19 @@ def roundtrip_via_table(df: pd.DataFrame) -> tuple[bool, str, dict[str, Any]]:
     }
 
 
+def _truncate_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
+    """Cap any row-list to 3 elements so RESULTS.md is reviewable."""
+    if not isinstance(artifact, dict):
+        return artifact
+    out = {}
+    for k, v in artifact.items():
+        if isinstance(v, list) and len(v) > 3:
+            out[k] = v[:3] + [f"... ({len(v)-3} more elided; rerun spike for full)"]
+        else:
+            out[k] = v
+    return out
+
+
 def _stringify(obj: Any) -> Any:
     """Best-effort JSON-serializable rendering for report artifacts."""
     try:
@@ -235,9 +248,12 @@ def run() -> int:
         detail_sections.append(f"- **DF→Table→DF:** {df2t_notes}\n")
         detail_sections.append(f"<details><summary>Artifacts</summary>\n\n")
         detail_sections.append("```json")
+        # Truncate row lists to first 3 entries per case so RESULTS.md
+        # stays reviewable — full artifacts are reproducible by re-running
+        # the spike locally without the truncation guard.
         detail_sections.append(json.dumps({
-            "table_to_df": t2df_artifacts,
-            "df_to_table": df2t_artifacts,
+            "table_to_df": _truncate_artifact(t2df_artifacts),
+            "df_to_table": _truncate_artifact(df2t_artifacts),
         }, indent=2, default=str))
         detail_sections.append("```\n\n</details>\n\n")
 
