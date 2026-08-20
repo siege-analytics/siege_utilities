@@ -27,6 +27,8 @@ from __future__ import annotations
 from ._adapter import dataframe_to_parsons_table, parsons_table_to_dataframe
 from ._auth import CONNECTOR_KWARG_MAPS, ConnectorKwargSpec, bridge_credentials
 from ._errors import map_parsons_exception, translate_errors
+from .van import SUPPORTED_OBJECT_TYPES as VAN_SUPPORTED_OBJECT_TYPES
+from .van import SiegeEveryAction, SiegeVAN
 
 __all__ = [
     # Adapter
@@ -39,4 +41,8 @@ __all__ = [
     "bridge_credentials",
     "CONNECTOR_KWARG_MAPS",
     "ConnectorKwargSpec",
+    # Connectors
+    "SiegeVAN",
+    "SiegeEveryAction",
+    "VAN_SUPPORTED_OBJECT_TYPES",
 ]
