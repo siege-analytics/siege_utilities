@@ -241,6 +241,62 @@ survey = [
     "pandas>=2.0.0",
     "scipy>=1.11.0",
 ]
+# ---------------------------------------------------------------------------
+# TMC Parsons integration extras (epic #1148, P0-2 dep matrix)
+# Full mapping in docs/PARSONS_DEP_MATRIX.md.
+# ---------------------------------------------------------------------------
+
+# Core adapter + parsons with pandas support. Every parsons-* extra
+# transitively includes parsons[pandas] because our _adapter.py routes
+# every wrapper through Table.to_dataframe() / from_dataframe().
+parsons-core = [
+    "parsons[pandas]>=6.1.0,<7.0",
+]
+
+# VAN (and EveryAction — same class, db='EveryAction')
+parsons-van = [
+    "parsons[ngpvan,pandas]>=6.1.0,<7.0",
+]
+
+# ActionKit / Mobilize America / ActBlue are in Parsons core; no extra
+# beyond parsons[pandas]. Kept as separate entries so users can install
+# only what they need and the extras graph is legible.
+parsons-action-kit = [
+    "parsons[pandas]>=6.1.0,<7.0",
+]
+
+parsons-mobilize = [
+    "parsons[pandas]>=6.1.0,<7.0",
+]
+
+parsons-actblue = [
+    "parsons[pandas]>=6.1.0,<7.0",
+]
+
+# Redshift needs sqlalchemy + psycopg2 + boto3 via parsons[redshift].
+parsons-redshift = [
+    "parsons[redshift,pandas]>=6.1.0,<7.0",
+]
+
+parsons-postgres = [
+    "parsons[postgres,pandas]>=6.1.0,<7.0",
+]
+
+# NOTE: parsons-salesforce and parsons-google are intentionally NOT
+# declared in v1 pending the ship-both work from
+# docs/parsons_overlap_decision.md — the new wrapper classes must exist
+# and be behavior-tested first. Add here when the wrappers ship.
+
+# ElectInfo-persona meta-extra: the six advocacy connectors for the
+# canonical "campaign / civic data pipeline" workflow.
+parsons-advocacy = [
+    "siege-utilities[parsons-van]",
+    "siege-utilities[parsons-action-kit]",
+    "siege-utilities[parsons-mobilize]",
+    "siege-utilities[parsons-actblue]",
+    "siege-utilities[parsons-redshift]",
+]
+
 # Everything — convenience meta-extra for full installs
 all = [
     # data
