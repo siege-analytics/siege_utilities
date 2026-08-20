@@ -204,3 +204,7 @@ uv.lock
 
 # Local offline copy of the GitHub Wiki (canonical home is the wiki repo).
 /wiki/
+
+# Spikes (throwaway) — commit only the results/analysis, not the venvs/caches
+spikes/**/__pycache__/
+spikes/**/venv/
