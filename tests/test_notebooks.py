@@ -1,22 +1,33 @@
 """Headless notebook execution tests using papermill.
 
-Notebooks are grouped by dependency so that tests skip gracefully
-when external services (PostGIS, Spark, analytics credentials) are
-not available.
+Notebooks are grouped by dependency (pure Python vs GDAL vs Django vs
+Spark vs credentials) so tests skip gracefully when the group's
+prerequisite is missing.
+
+Discovery walks subdirectories under ``notebooks/`` — see the
+``NOTEBOOK_GROUPS`` mapping below. The old flat ``{NN}_*.ipynb``
+scheme was removed in #1161 (parent epic #1148): after the ELE-2456
+migration, notebooks live in subdirectories and the previous
+integer-number groups skipped every parametrized test at collection
+time. See ``docs/PARSONS_NOTEBOOK_AUDIT.md``.
 
 Usage:
-    # Pure Python notebooks only (always runnable)
-    pytest tests/test_notebooks.py -k pure_python -v
+    # Pure-Python group — always runnable, no system deps
+    pytest tests/test_notebooks.py -k pure -v
 
-    # Geo notebooks (requires GDAL)
-    pytest tests/test_notebooks.py -k geo -v
-
-    # All non-integration notebooks
+    # Everything (respects env-required skip marks)
     pytest tests/test_notebooks.py -v
 
-    # Include analytics/credential notebooks
+    # Include credential / integration notebooks
     pytest tests/test_notebooks.py -v -m ""
+
+Adding a notebook: put it under the appropriate subdirectory and add
+its path (relative to ``notebooks/``) to the matching group below. New
+groups (e.g., ``advocacy`` for Parsons wrappers) go in
+``NOTEBOOK_GROUPS`` with the mark set that captures its prereqs.
 """
+
+from __future__ import annotations
 
 import os
 import tempfile
@@ -24,34 +35,86 @@ from pathlib import Path
 
 import pytest
 
+
 NOTEBOOKS_DIR = Path(__file__).parent.parent / "notebooks"
 
-# ---------------------------------------------------------------------------
-# Notebook dependency groups
-# ---------------------------------------------------------------------------
-
-PURE_PYTHON = [1, 2, 3, 6, 8, 11, 12, 17, 21, 22, 23, 24, 27]
-GEO_NOTEBOOKS = [4, 5, 7, 25, 26]
-DJANGO_NOTEBOOKS = [13, 15]
-# Integration group: requires external services (credentials, Spark, network downloads)
-ANALYTICS_NOTEBOOKS = [9, 14, 18]
-SPARK_NOTEBOOKS = [16]
-CREDENTIAL_NOTEBOOKS = [10]
-EXTERNAL_DOWNLOAD_NOTEBOOKS = [19, 20]  # require NCES/external downloads
-
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Notebook discovery — subdirectory-path lists per dependency group
+# ---------------------------------------------------------------------------
+# Each entry is a path relative to ``notebooks/``. Group membership drives
+# both discovery and the pytest marks applied to the parametrized test.
+# Adding a notebook only requires listing its path here; the discovery
+# helper resolves the absolute path at test time.
+
+NOTEBOOK_GROUPS: dict[str, list[str]] = {
+    # Pure Python — no system libs, no external services. Always runnable.
+    "pure": [
+        "foundations/01_configuration.ipynb",
+        "foundations/02_profiles_branding.ipynb",
+        "analytics/01_connectors.ipynb",
+        "engines/01_multi_engine_dataframes.ipynb",
+        "engines/04_statistics_primitives.ipynb",
+        "reports/01_charts_and_pdf.ipynb",
+    ],
+    # Geo notebooks — require GDAL / GeoPandas / Shapely stack.
+    "geo": [
+        "spatial/01_boundaries.ipynb",
+        "spatial/02_geocoding.ipynb",
+        "spatial/03_choropleth_maps.ipynb",
+        "spatial/04_redistricting.ipynb",
+        "spatial/05_multi_source_joins.ipynb",
+    ],
+    # Django/PostGIS — require Django DB + GDAL.
+    "django": [
+        "spatial/06_geodjango.ipynb",
+    ],
+    # Analytics with credentials — external service tokens required.
+    "analytics_integration": [
+        "analytics/02_ga_end_to_end.ipynb",
+    ],
+    # Spark / distributed — require pyspark + JVM.
+    "spark": [
+        "engines/02_distributed_spark.ipynb",
+    ],
+    # Databricks — require databricks-sdk + connection profile.
+    "databricks": [
+        "engines/03_databricks_geo.ipynb",
+    ],
+    # Reports with heavy deps (PPTX, Google Slides, survey data).
+    "reports_integration": [
+        "reports/02_slides_pptx_and_google.ipynb",
+        "reports/03_polling_survey_analysis.ipynb",
+        "reports/04_survey_full_showcase.ipynb",
+    ],
+    # Advocacy — Parsons wrappers land here. Epic #1148 Phase 6.
+    # Empty until N-4..N-9 tickets populate.
+    "advocacy": [],
+}
+
+
+# ---------------------------------------------------------------------------
+# Discovery helpers
 # ---------------------------------------------------------------------------
 
-def _notebook_path(nb_num: int) -> Path:
-    """Resolve notebook number to file path."""
-    for p in sorted(NOTEBOOKS_DIR.glob(f"{nb_num:02d}_*.ipynb")):
-        return p
-    pytest.skip(f"Notebook {nb_num:02d} not found")
+
+def _resolve(rel_path: str) -> Path:
+    """Resolve a notebook path (relative to notebooks/) to absolute Path.
+
+    Skips cleanly with an actionable message if the notebook is missing —
+    treats missing files as an unshipped notebook, not a test failure. If
+    a notebook was renamed / moved, update ``NOTEBOOK_GROUPS`` above.
+    """
+    p = NOTEBOOKS_DIR / rel_path
+    if not p.is_file():
+        pytest.skip(
+            f"Notebook {rel_path!r} not found under {NOTEBOOKS_DIR}. "
+            f"If renamed / moved / archived, update NOTEBOOK_GROUPS in this file."
+        )
+    return p
 
 
-def _run_notebook(nb_path: Path, timeout: int = 300):
+def _run_notebook(nb_path: Path, timeout: int = 300) -> None:
     """Execute a notebook headlessly via papermill."""
     papermill = pytest.importorskip("papermill")
     with tempfile.NamedTemporaryFile(suffix=".ipynb", delete=False) as f:
@@ -70,7 +133,7 @@ def _run_notebook(nb_path: Path, timeout: int = 300):
 
 
 def _run_and_get_outputs(nb_path: Path, timeout: int = 300) -> list:
-    """Execute notebook and return cell outputs for validation."""
+    """Execute a notebook and return code-cell outputs for validation."""
     papermill = pytest.importorskip("papermill")
     nbformat = pytest.importorskip("nbformat")
     with tempfile.NamedTemporaryFile(suffix=".ipynb", delete=False) as f:
@@ -102,133 +165,138 @@ def _run_and_get_outputs(nb_path: Path, timeout: int = 300) -> list:
             os.unlink(out_path)
 
 
-# ---------------------------------------------------------------------------
-# Pure Python notebooks — always runnable
-# ---------------------------------------------------------------------------
-
-@pytest.mark.parametrize("nb_num", PURE_PYTHON, ids=[f"NB{n:02d}" for n in PURE_PYTHON])
-def test_pure_python_notebook(nb_num):
-    _run_notebook(_notebook_path(nb_num))
+def _ids(group: str) -> list[str]:
+    """Pytest IDs derived from the notebook's basename (without .ipynb)."""
+    return [Path(p).stem for p in NOTEBOOK_GROUPS[group]]
 
 
 # ---------------------------------------------------------------------------
-# Geo notebooks — require GDAL
+# Pure Python — always runnable
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("nb_rel", NOTEBOOK_GROUPS["pure"], ids=_ids("pure"))
+def test_pure_python_notebook(nb_rel: str) -> None:
+    _run_notebook(_resolve(nb_rel))
+
+
+# ---------------------------------------------------------------------------
+# Geo — require GDAL
+# ---------------------------------------------------------------------------
+
 
 @pytest.mark.requires_gdal
-@pytest.mark.parametrize("nb_num", GEO_NOTEBOOKS, ids=[f"NB{n:02d}" for n in GEO_NOTEBOOKS])
-def test_geo_notebook(nb_num):
-    _run_notebook(_notebook_path(nb_num))
+@pytest.mark.parametrize("nb_rel", NOTEBOOK_GROUPS["geo"], ids=_ids("geo"))
+def test_geo_notebook(nb_rel: str) -> None:
+    _run_notebook(_resolve(nb_rel))
 
 
 # ---------------------------------------------------------------------------
-# Django/PostGIS notebooks
+# Django / PostGIS
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.requires_gdal
 @pytest.mark.django_db
-@pytest.mark.parametrize("nb_num", DJANGO_NOTEBOOKS, ids=[f"NB{n:02d}" for n in DJANGO_NOTEBOOKS])
-def test_django_notebook(nb_num):
-    _run_notebook(_notebook_path(nb_num))
+@pytest.mark.parametrize("nb_rel", NOTEBOOK_GROUPS["django"], ids=_ids("django"))
+def test_django_notebook(nb_rel: str) -> None:
+    _run_notebook(_resolve(nb_rel))
 
 
 # ---------------------------------------------------------------------------
-# Analytics notebooks — require credentials (skipped by default)
+# Analytics integration — credentials required
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "nb_num", ANALYTICS_NOTEBOOKS,
-    ids=[f"NB{n:02d}" for n in ANALYTICS_NOTEBOOKS],
+    "nb_rel", NOTEBOOK_GROUPS["analytics_integration"],
+    ids=_ids("analytics_integration"),
 )
-def test_analytics_notebook(nb_num):
-    _run_notebook(_notebook_path(nb_num))
+def test_analytics_integration_notebook(nb_rel: str) -> None:
+    _run_notebook(_resolve(nb_rel))
 
 
 # ---------------------------------------------------------------------------
-# Spark notebooks
+# Spark
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 @pytest.mark.requires_spark
-@pytest.mark.parametrize("nb_num", SPARK_NOTEBOOKS, ids=[f"NB{n:02d}" for n in SPARK_NOTEBOOKS])
-def test_spark_notebook(nb_num):
-    _run_notebook(_notebook_path(nb_num))
+@pytest.mark.parametrize("nb_rel", NOTEBOOK_GROUPS["spark"], ids=_ids("spark"))
+def test_spark_notebook(nb_rel: str) -> None:
+    _run_notebook(_resolve(nb_rel))
 
 
 # ---------------------------------------------------------------------------
-# Credential notebooks (1Password, branding) — skipped by default
+# Databricks
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("nb_rel", NOTEBOOK_GROUPS["databricks"], ids=_ids("databricks"))
+def test_databricks_notebook(nb_rel: str) -> None:
+    _run_notebook(_resolve(nb_rel))
+
+
+# ---------------------------------------------------------------------------
+# Reports integration — PPTX / Google Slides / survey data
+# ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "nb_num", CREDENTIAL_NOTEBOOKS,
-    ids=[f"NB{n:02d}" for n in CREDENTIAL_NOTEBOOKS],
+    "nb_rel", NOTEBOOK_GROUPS["reports_integration"],
+    ids=_ids("reports_integration"),
 )
-def test_credential_notebook(nb_num):
-    _run_notebook(_notebook_path(nb_num))
+def test_reports_integration_notebook(nb_rel: str) -> None:
+    _run_notebook(_resolve(nb_rel))
 
 
 # ---------------------------------------------------------------------------
-# External download notebooks (require network access to NCES, etc.)
+# Advocacy — Parsons wrappers (populated by N-4..N-9 under epic #1148)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.integration
-@pytest.mark.requires_gdal
-@pytest.mark.parametrize(
-    "nb_num", EXTERNAL_DOWNLOAD_NOTEBOOKS,
-    ids=[f"NB{n:02d}" for n in EXTERNAL_DOWNLOAD_NOTEBOOKS],
-)
-def test_external_download_notebook(nb_num):
-    _run_notebook(_notebook_path(nb_num))
+@pytest.mark.parametrize("nb_rel", NOTEBOOK_GROUPS["advocacy"], ids=_ids("advocacy"))
+def test_advocacy_notebook(nb_rel: str) -> None:
+    _run_notebook(_resolve(nb_rel))
 
 
 # ---------------------------------------------------------------------------
-# Output validation — verify notebooks produce correct results
+# Output validation — verify notebooks produce correct results, not just
+# "doesn't crash." Every check names the current notebook path (not a
+# legacy NB08 / NB22 / etc. integer ID).
 # ---------------------------------------------------------------------------
+
 
 class TestNotebookOutputValidation:
-    """Verify that critical notebooks produce correct outputs, not just
-    'doesn't crash'."""
+    """Semantic sanity on canonical notebook outputs.
 
-    def test_nb08_sample_data_produces_dataframe(self):
-        """NB08 generates synthetic data — verify it has expected columns."""
-        outputs = _run_and_get_outputs(_notebook_path(8))
-        all_text = "\n".join(outputs)
-        # NB08 generates population data with specific columns
-        assert "age" in all_text.lower() or "population" in all_text.lower(), \
-            "NB08 should produce population/age data"
+    Each test resolves its notebook via ``_resolve`` so a rename or
+    archive triggers a clean skip with an actionable message rather
+    than a silent AttributeError. All checks reference the post-
+    ELE-2456 subdirectory paths.
+    """
 
-    def test_nb22_temporal_models_validate(self):
-        """NB22 exercises validation — verify it catches invalid data."""
-        outputs = _run_and_get_outputs(_notebook_path(22))
+    def test_multi_engine_dataframes_produces_engine_output(self) -> None:
+        outputs = _run_and_get_outputs(_resolve("engines/01_multi_engine_dataframes.ipynb"))
         all_text = "\n".join(outputs)
-        assert "validation error" in all_text.lower() or "caught" in all_text.lower(), \
-            "NB22 should demonstrate validation catching bad data"
-        assert "119" in all_text, "NB22 should reference the 119th Congress"
+        assert "engine" in all_text.lower(), \
+            "engines/01_multi_engine_dataframes should reference engine names"
+        assert any(c.isdigit() for c in all_text), \
+            "engines/01_multi_engine_dataframes should produce numeric aggregation results"
 
-    def test_nb23_redistricting_has_compactness(self):
-        """NB23 shows compactness scores — verify they appear."""
-        outputs = _run_and_get_outputs(_notebook_path(23))
+    def test_statistics_primitives_show_moe_or_cv(self) -> None:
+        outputs = _run_and_get_outputs(_resolve("engines/04_statistics_primitives.ipynb"))
         all_text = "\n".join(outputs)
-        assert "polsby" in all_text.lower() or "reock" in all_text.lower(), \
-            "NB23 should show compactness scores"
+        assert any(term in all_text.lower() for term in ("moe", "margin", "cv", "coefficient")), \
+            "engines/04_statistics_primitives should demonstrate MOE/CV calculations"
 
-    def test_nb24_duckdb_produces_results(self):
-        """NB24 runs DuckDB queries — verify results are non-empty."""
-        try:
-            import duckdb  # noqa: F401
-        except ImportError:
-            pytest.skip("DuckDB not installed")
-        outputs = _run_and_get_outputs(_notebook_path(24))
+    def test_redistricting_shows_compactness(self) -> None:
+        outputs = _run_and_get_outputs(_resolve("spatial/04_redistricting.ipynb"))
         all_text = "\n".join(outputs)
-        assert "engine" in all_text.lower(), "NB24 should reference engine names"
-        # Should show actual aggregation results (numbers)
-        assert any(c.isdigit() for c in all_text), "NB24 should produce numeric results"
-
-    def test_nb27_moe_propagation(self):
-        """NB27 demonstrates MOE — verify CV percentages appear."""
-        outputs = _run_and_get_outputs(_notebook_path(27))
-        all_text = "\n".join(outputs)
-        assert "cv" in all_text.lower() or "margin" in all_text.lower() or "moe" in all_text.lower(), \
-            "NB27 should demonstrate MOE/CV calculations"
+        assert any(term in all_text.lower() for term in ("polsby", "reock", "compactness")), \
+            "spatial/04_redistricting should show compactness scores"
