@@ -31,25 +31,31 @@ from siege_utilities.connectors.salesforce import (
 
 class _FakeResp:
     def __init__(
-        self, status_code, *, json_body=None, text="", json_raises=False, headers=None
-    ):
+        self,
+        status_code: int,
+        *,
+        json_body: dict | None = None,
+        text: str = "",
+        json_raises: bool = False,
+        headers: dict | None = None,
+    ) -> None:
         self.status_code = status_code
         self._json_body = json_body
         self.text = text
         self._json_raises = json_raises
         self.headers = headers or {}
 
-    def json(self):
+    def json(self) -> dict:
         if self._json_raises:
             raise ValueError("not json")
         return self._json_body if self._json_body is not None else {}
 
 
-def _connector():
+def _connector() -> SalesforceConnector:
     return SalesforceConnector(client_id="id", client_secret="secret", retry_attempts=1)
 
 
-def _authed_connector(retry_attempts=1, retry_backoff=0.01):
+def _authed_connector(retry_attempts: int = 1, retry_backoff: float = 0.01) -> SalesforceConnector:
     """Return a connector wired past _ensure_connected without live auth.
 
     Bypasses the OAuth handshake by seeding the connector's private auth
@@ -74,13 +80,13 @@ def _authed_connector(retry_attempts=1, retry_backoff=0.01):
     "client_id,client_secret",
     [("", "secret"), ("id", ""), ("", "")],
 )
-def test_constructor_requires_client_id_and_secret(client_id, client_secret):
+def test_constructor_requires_client_id_and_secret(client_id: str, client_secret: str) -> None:
     with pytest.raises(ValueError) as exc_info:
         SalesforceConnector(client_id=client_id, client_secret=client_secret)
     assert "client_id and client_secret are required" in str(exc_info.value)
 
 
-def test_ensure_connected_raises_when_not_authenticated():
+def test_ensure_connected_raises_when_not_authenticated() -> None:
     c = _connector()
     with pytest.raises(ConnectorAuthError) as exc_info:
         c._ensure_connected()
@@ -93,30 +99,30 @@ def test_ensure_connected_raises_when_not_authenticated():
 # _ensure_connected(), so on an unauthenticated connector each raises
 # ConnectorAuthError. Tests rewritten to assert the new contract (auth is
 # enforced before any data call) and renamed to match; coverage preserved.
-def test_list_object_types_requires_authentication():
+def test_list_object_types_requires_authentication() -> None:
     with pytest.raises(ConnectorAuthError):
         _connector().list_object_types()
 
 
-def test_get_objects_requires_authentication():
+def test_get_objects_requires_authentication() -> None:
     with pytest.raises(ConnectorAuthError):
         _connector().get_objects("Account")
 
 
-def test_create_record_requires_authentication():
+def test_create_record_requires_authentication() -> None:
     with pytest.raises(ConnectorAuthError):
         _connector().create_record("Account", {"Name": "Acme"})
 
 
-def test_update_record_requires_authentication():
+def test_update_record_requires_authentication() -> None:
     with pytest.raises(ConnectorAuthError):
         _connector().update_record("Account", "001", {"Name": "Acme"})
 
 
-def test_exchange_token_wraps_transport_error(monkeypatch):
+def test_exchange_token_wraps_transport_error(monkeypatch: pytest.MonkeyPatch) -> None:
     c = _connector()
 
-    def boom(*a, **k):
+    def boom(*a: object, **k: object) -> None:
         raise requests.exceptions.ConnectionError("network down")
 
     monkeypatch.setattr(c._session, "post", boom)
@@ -137,7 +143,7 @@ def test_exchange_token_raises_on_non_200(monkeypatch):
     assert "auth failed (400)" in str(exc_info.value)
 
 
-def test_ensure_connected_raises_when_access_token_expired():
+def test_ensure_connected_raises_when_access_token_expired() -> None:
     """_ensure_connected raises ConnectorAuthError when the token expired
     and there's no refresh_token — the alternative branch to the refresh
     path at line 1147."""
@@ -156,14 +162,14 @@ def test_ensure_connected_raises_when_access_token_expired():
 # ---------------------------------------------------------------------------
 
 
-def test_soql_query_build_requires_from():
+def test_soql_query_build_requires_from() -> None:
     q = SOQLQuery().select("Id", "Name")
     with pytest.raises(ValueError) as exc_info:
         q.build()
     assert "from_()" in str(exc_info.value)
 
 
-def test_soql_query_build_requires_at_least_one_field():
+def test_soql_query_build_requires_at_least_one_field() -> None:
     q = SOQLQuery().from_("Account")
     with pytest.raises(ValueError) as exc_info:
         q.build()
@@ -227,7 +233,7 @@ def test_request_5xx_retries_then_raises(monkeypatch):
     c = _authed_connector(retry_attempts=2, retry_backoff=0.0)
     calls = []
 
-    def _resp(*a, **k):
+    def _resp(*a: object, **k: object) -> "_FakeResp":
         calls.append(1)
         return _FakeResp(503)
 
@@ -278,13 +284,13 @@ def test_request_2xx_non_json_raises_connector_error(monkeypatch):
     assert "non-JSON" in str(exc_info.value)
 
 
-def test_request_transport_error_exhausted_raises_connector_error(monkeypatch):
+def test_request_transport_error_exhausted_raises_connector_error(monkeypatch: pytest.MonkeyPatch) -> None:
     """All attempts raise a RequestException — after retry_attempts the
     final `raise ConnectorError(... "failed after ... attempts")` fires."""
     c = _authed_connector(retry_attempts=3, retry_backoff=0.0)
     calls = []
 
-    def _boom(*a, **k):
+    def _boom(*a: object, **k: object) -> None:
         calls.append(1)
         raise requests.exceptions.ConnectionError("network down")
 
@@ -295,7 +301,7 @@ def test_request_transport_error_exhausted_raises_connector_error(monkeypatch):
     assert "failed after 3 attempts" in str(exc_info.value)
 
 
-def test_extract_error_falls_back_to_text_on_non_json(monkeypatch):
+def test_extract_error_falls_back_to_text_on_non_json(monkeypatch: pytest.MonkeyPatch) -> None:
     """_extract_error's ValueError branch when resp.json() raises returns
     resp.text[:200]. Exercised through the 4xx-other path with
     json_raises."""
