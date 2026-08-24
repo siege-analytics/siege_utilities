@@ -48,8 +48,14 @@ def parsons_table_to_dataframe(table: "Table") -> "pd.DataFrame":
     """
     try:
         return table.to_dataframe()
-    except Exception as exc:  # noqa: BLE001 — we deliberately map every raise
-        raise map_parsons_exception(exc, connector="_adapter") from exc
+    except (ImportError, ValueError, TypeError, KeyError, AttributeError,
+            RuntimeError) as exc:
+        # Narrow: MemoryError / RecursionError / SystemExit /
+        # KeyboardInterrupt / GeneratorExit / StopIteration are NOT
+        # domain errors and should propagate unmodified. (Opus hostile-
+        # review 2026-08-24 #2.) The listed classes cover petl / pandas
+        # conversion failures and the deferred-pandas-import case.
+        raise map_parsons_exception(exc, connector="parsons-adapter") from exc
 
 
 def dataframe_to_parsons_table(df: "pd.DataFrame") -> "Table":
@@ -64,9 +70,15 @@ def dataframe_to_parsons_table(df: "pd.DataFrame") -> "Table":
     try:
         from parsons import Table
     except ImportError as exc:
-        raise map_parsons_exception(exc, connector="_adapter") from exc
+        raise map_parsons_exception(exc, connector="parsons-adapter") from exc
 
     try:
         return Table.from_dataframe(df)
-    except Exception as exc:  # noqa: BLE001
-        raise map_parsons_exception(exc, connector="_adapter") from exc
+    except (ImportError, ValueError, TypeError, KeyError, AttributeError,
+            RuntimeError) as exc:
+        # Same narrowing as parsons_table_to_dataframe: don't swallow
+        # system-level exceptions (MemoryError, RecursionError, etc.).
+        # ImportError included because petl.fromdataframe may lazily
+        # import pandas mid-call and fail if pandas got uninstalled
+        # after this module was imported.
+        raise map_parsons_exception(exc, connector="parsons-adapter") from exc

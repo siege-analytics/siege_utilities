@@ -94,10 +94,39 @@ class TestMapParsonsException:
         assert isinstance(mapped, ConnectorRateLimitError)
         assert mapped.retry_after is None
 
-    def test_429_with_unparseable_retry_after(self) -> None:
-        mapped = map_parsons_exception(_http_error(429, retry_after="Mon, 01 Jan 2027 00:00:00 GMT"), connector="van")
+    def test_429_http_date_retry_after_is_parsed(self) -> None:
+        """HTTP-date form of Retry-After is parsed (per Opus review
+        finding #1 fix). A far-future date yields a large positive
+        delta-seconds value; a past date yields 0.0 (clamped)."""
+        # Far-future date parses to positive delta.
+        mapped = map_parsons_exception(
+            _http_error(429, retry_after="Wed, 01 Jan 2099 00:00:00 GMT"),
+            connector="van",
+        )
         assert isinstance(mapped, ConnectorRateLimitError)
-        # HTTP-date form is not parsed; retry_after is None rather than raising.
+        assert mapped.retry_after is not None
+        assert mapped.retry_after > 0
+
+    def test_429_past_http_date_retry_after_clamps_to_zero(self) -> None:
+        """A Retry-After in the past means 'you may retry now'; clamp
+        the negative delta to 0.0 rather than surface a nonsense
+        negative sleep."""
+        mapped = map_parsons_exception(
+            _http_error(429, retry_after="Thu, 01 Jan 1970 00:00:00 GMT"),
+            connector="van",
+        )
+        assert isinstance(mapped, ConnectorRateLimitError)
+        assert mapped.retry_after == 0.0
+
+    def test_429_garbage_retry_after_returns_none_with_warn(self) -> None:
+        """Genuinely unparseable Retry-After (neither integer seconds
+        nor a valid HTTP-date) returns None so callers know the header
+        was uninterpretable. The _retry_after helper logs a warning."""
+        mapped = map_parsons_exception(
+            _http_error(429, retry_after="not-a-date-or-number"),
+            connector="van",
+        )
+        assert isinstance(mapped, ConnectorRateLimitError)
         assert mapped.retry_after is None
 
     def test_500_maps_to_generic_connector_error(self) -> None:

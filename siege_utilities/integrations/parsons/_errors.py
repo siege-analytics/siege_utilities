@@ -59,9 +59,11 @@ def _status_code(exc: BaseException) -> int | None:
 def _retry_after(exc: BaseException) -> float | None:
     """Extract Retry-After header seconds if present.
 
-    RFC 7231 allows either an integer seconds value or an HTTP-date. We only
-    parse the integer form here — the HTTP-date form is rare in practice for
-    the Parsons connector surface (VAN, ActionKit, Mobilize, ActBlue).
+    RFC 7231 allows either an integer seconds value OR an HTTP-date. Both
+    forms are parsed here — silently returning None on an HTTP-date would
+    under-throttle callers who rely on ``exc.retry_after`` to choose sleep
+    duration, converting a present-but-unparsed value into a "no signal"
+    (per Opus hostile-review 2026-08-24 finding #1).
     """
     response = getattr(exc, "response", None)
     if response is None:
@@ -72,9 +74,34 @@ def _retry_after(exc: BaseException) -> float | None:
     raw = headers.get("Retry-After")
     if raw is None:
         return None
+    # Integer-seconds form.
     try:
         return float(raw)
     except (TypeError, ValueError):
+        pass
+    # HTTP-date form. Delegate parsing to stdlib; if that also fails,
+    # log a diagnostic (the header was present but unparseable) so the
+    # missing signal is observable, then return None.
+    try:
+        from email.utils import parsedate_to_datetime
+        from datetime import datetime, timezone
+        parsed = parsedate_to_datetime(raw)
+        if parsed is None:
+            raise ValueError("parsedate_to_datetime returned None")
+        # Normalise to aware UTC (RFC 7231 permits naive local, per RFC
+        # 5322; treat as UTC in that case for a conservative estimate).
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        now = datetime.now(tz=timezone.utc)
+        delta = (parsed - now).total_seconds()
+        return max(delta, 0.0)
+    except Exception:  # noqa: BLE001 — return None on any parse failure
+        import logging as _lg
+        _lg.getLogger(__name__).warning(
+            "Retry-After header present but unparseable (%r); "
+            "returning None — caller will not throttle correctly.",
+            raw,
+        )
         return None
 
 

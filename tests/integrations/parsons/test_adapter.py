@@ -160,7 +160,7 @@ class TestAdapterErrorPaths:
             parsons_table_to_dataframe(broken)
 
         assert isinstance(exc_info.value.__cause__, ValueError)
-        assert "_adapter" in str(exc_info.value)
+        assert "parsons-adapter" in str(exc_info.value)
 
     def test_table_to_dataframe_wraps_import_error(self) -> None:
         broken = mock.MagicMock(spec=Table)
@@ -180,7 +180,7 @@ class TestAdapterErrorPaths:
                 dataframe_to_parsons_table(df)
 
         assert isinstance(exc_info.value.__cause__, RuntimeError)
-        assert "_adapter" in str(exc_info.value)
+        assert "parsons-adapter" in str(exc_info.value)
 
     def test_dataframe_to_table_wraps_missing_parsons(self) -> None:
         """If Parsons import fails inside dataframe_to_parsons_table, we

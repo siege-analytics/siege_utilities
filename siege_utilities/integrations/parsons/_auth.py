@@ -258,7 +258,13 @@ def bridge_credentials(
             )
             continue
 
-        if value is None or value == "":
+        # Treat None or an empty STRING as "missing" — but not the
+        # numeric literal 0 (a legitimate port number, retry count, or
+        # `db=0` selector). Prior `value == ""` was overly broad: 0 == ""
+        # is False in Python but 0 == "" via `==` was the risk if either
+        # side changed shape. Explicit isinstance narrows the check to
+        # string emptiness only. (Opus hostile-review 2026-08-24 #4.)
+        if value is None or (isinstance(value, str) and value == ""):
             if cred.required:
                 raise ConnectorAuthError(
                     f"Required credential "
