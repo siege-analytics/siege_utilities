@@ -55,6 +55,22 @@ class TestMapParsonsException:
         assert "parsons-*" in str(mapped)
         assert "[van]" in str(mapped)
 
+    def test_message_does_not_leak_backend_exception_text(self) -> None:
+        """Backend messages may contain secrets (URLs, tokens, resolved
+        values); the public ConnectorError message must not echo them."""
+        marker = "SECRET-MARKER-abc123-do-not-leak"
+        for status in (401, 403, 404, 429, 500, None):
+            if status is None:
+                exc = RuntimeError(f"connection to {marker}")
+            else:
+                exc = _http_error(status)
+                exc.args = (f"payload contained {marker}",)
+            mapped = map_parsons_exception(exc, connector="van")
+            assert marker not in str(mapped), (
+                f"status={status}: sanitizer leaked backend text into "
+                f"{type(mapped).__name__}: {mapped!s}"
+            )
+
     def test_401_maps_to_auth_error(self) -> None:
         mapped = map_parsons_exception(_http_error(401), connector="van")
         assert isinstance(mapped, ConnectorAuthError)
@@ -89,11 +105,15 @@ class TestMapParsonsException:
         assert isinstance(mapped, ConnectorError)
         assert not isinstance(mapped, (ConnectorAuthError, ConnectorNotFoundError, ConnectorRateLimitError))
 
-    def test_generic_exception_without_response_attr(self) -> None:
-        mapped = map_parsons_exception(ValueError("bad input"), connector="action_kit")
+    def test_generic_exception_records_class_name_only(self) -> None:
+        """Sanitizer names the exception CLASS, not the message text."""
+        mapped = map_parsons_exception(
+            ValueError("secret-shaped: 12345"), connector="action_kit"
+        )
         assert isinstance(mapped, ConnectorError)
         assert "ValueError" in str(mapped)
         assert "[action_kit]" in str(mapped)
+        assert "secret-shaped" not in str(mapped)
 
     def test_message_without_connector_name_has_no_prefix(self) -> None:
         mapped = map_parsons_exception(RuntimeError("boom"))
@@ -149,3 +169,18 @@ class TestTranslateErrorsDecorator:
 
         assert documented.__name__ == "documented"
         assert documented.__doc__ == "Sum of squares."
+
+    def test_rejects_coroutine_functions(self) -> None:
+        """The sync wrapper cannot translate exceptions raised in an
+        ``await``; applying it to a coroutine function is refused at
+        decoration time so the failure surfaces immediately rather than
+        as a mysterious skipped-translation at first call."""
+
+        async def coro() -> int:
+            return 1
+
+        with pytest.raises(TypeError) as exc_info:
+            translate_errors("van")(coro)
+
+        assert "coroutine" in str(exc_info.value).lower()
+        assert "van" in str(exc_info.value)

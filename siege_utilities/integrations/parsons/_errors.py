@@ -85,20 +85,32 @@ def map_parsons_exception(exc: BaseException, *, connector: str | None = None) -
     exception is meant for ``raise ... from exc`` — the caller is expected
     to preserve chaining.
 
+    Message shape: names only the connector name, HTTP status (if any),
+    and the underlying exception's CLASS NAME — never the exception's
+    string form. Transport and credential backends may include secrets,
+    resolved values, URLs, or connection strings in their message text;
+    interpolating that into our public error would leak them into logs,
+    PR bodies, and reraise chains. Callers who need the original text
+    can inspect ``exc.__cause__`` (which we preserve).
+
     Args:
         exc: The exception raised by Parsons or its underlying transport.
         connector: Optional connector name for message context
             (e.g., ``"van"``, ``"action_kit"``).
 
     Returns:
-        A ``ConnectorError`` (or subclass) with a message that names the
-        connector and the underlying failure class.
+        A ``ConnectorError`` (or subclass) with a sanitized message and
+        the original preserved via chaining at the raise site.
     """
     prefix = f"[{connector}] " if connector else ""
+    cls = type(exc).__name__
 
     if isinstance(exc, ImportError):
+        # ImportError message is safe to include (module name only, no
+        # credentials); it's actionable for the "which extra to install"
+        # signal.
         return ConnectorError(
-            f"{prefix}Parsons module import failed: {exc}. "
+            f"{prefix}Parsons module import failed ({cls}). "
             f"Install the correct siege_utilities[parsons-*] extra "
             f"(see docs/PARSONS_DEP_MATRIX.md)."
         )
@@ -106,21 +118,19 @@ def map_parsons_exception(exc: BaseException, *, connector: str | None = None) -
     status = _status_code(exc)
     if status in (401, 403):
         return ConnectorAuthError(
-            f"{prefix}Authentication failed (HTTP {status}): {exc}"
+            f"{prefix}Authentication failed (HTTP {status}; cause: {cls})"
         )
     if status == 404:
         return ConnectorNotFoundError(
-            f"{prefix}Resource not found (HTTP 404): {exc}"
+            f"{prefix}Resource not found (HTTP 404; cause: {cls})"
         )
     if status == 429:
         return ConnectorRateLimitError(
-            f"{prefix}Rate limit exceeded (HTTP 429): {exc}",
+            f"{prefix}Rate limit exceeded (HTTP 429; cause: {cls})",
             retry_after=_retry_after(exc),
         )
 
-    return ConnectorError(
-        f"{prefix}{type(exc).__name__}: {exc}"
-    )
+    return ConnectorError(f"{prefix}{cls}")
 
 
 def translate_errors(connector: str) -> Callable[[F], F]:
@@ -129,9 +139,23 @@ def translate_errors(connector: str) -> Callable[[F], F]:
     Preserves ``ConnectorError`` subclasses if raised directly by the wrapper
     (e.g., the wrapper raises ``ConnectorAuthError`` after inspecting a
     credential dict) so we don't double-wrap.
+
+    Synchronous-only. Applying this decorator to a coroutine function is
+    rejected at decoration time with :class:`TypeError` — the synchronous
+    wrapper cannot observe or translate exceptions raised inside an
+    ``await``. Native ``async`` support can be added later without
+    breaking sync callers.
     """
+    import inspect
 
     def decorator(fn: F) -> F:
+        if inspect.iscoroutinefunction(fn):
+            raise TypeError(
+                f"translate_errors({connector!r}) does not support coroutine "
+                f"functions; wrap the sync body only, or add native async "
+                f"translation before decorating {fn.__qualname__!r}."
+            )
+
         @functools.wraps(fn)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             try:

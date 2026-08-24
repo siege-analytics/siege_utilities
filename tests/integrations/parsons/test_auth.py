@@ -109,6 +109,75 @@ class TestBridgeCredentialsHappyPath:
         result = bridge_credentials("actblue", manager=manager)
         assert result["actblue_uri"] == "https://example.test/api"
 
+    def test_mobilize_america(self) -> None:
+        manager = FakeCredentialManager({
+            ("mobilize", "mobilize", "api_key"): "mob-key",
+        })
+        result = bridge_credentials("mobilize_america", manager=manager)
+        assert result == {"api_key": "mob-key"}
+
+    def test_redshift_required_fields_only(self) -> None:
+        pw_field = "password"
+        base = {
+            ("redshift", "redshift", "username"): "svc",
+            ("redshift", "redshift", pw_field): "REDACTED-TEST-PW-abc123",
+            ("redshift", "redshift", "host"): "rs.example.test",
+            ("redshift", "redshift", "db"): "analytics",
+        }
+        result = bridge_credentials("redshift", manager=FakeCredentialManager(base))
+        assert result == {
+            "username": "svc",
+            pw_field: "REDACTED-TEST-PW-abc123",
+            "host": "rs.example.test",
+            "db": "analytics",
+        }
+        # Optional fields absent → omitted from kwargs, not set to None.
+        assert "port" not in result
+        assert "s3_temp_bucket" not in result
+
+    def test_redshift_optional_fields_present(self) -> None:
+        pw_field = "password"
+        full = {
+            ("redshift", "redshift", "username"): "svc",
+            ("redshift", "redshift", pw_field): "REDACTED-TEST-PW-abc123",
+            ("redshift", "redshift", "host"): "rs.example.test",
+            ("redshift", "redshift", "db"): "analytics",
+            ("redshift", "redshift", "port"): 5439,
+            ("redshift", "redshift", "s3_temp_bucket"): "s3://bucket",
+        }
+        result = bridge_credentials("redshift", manager=FakeCredentialManager(full))
+        assert result["port"] == 5439
+        assert result["s3_temp_bucket"] == "s3://bucket"
+
+    def test_van_optional_db_field(self) -> None:
+        """VAN's `db` selector is optional; present → passed, absent → omitted."""
+        # Absent
+        manager = FakeCredentialManager({
+            ("van", "van", "api_key"): "abc",
+        })
+        result = bridge_credentials("van", manager=manager)
+        assert result == {"api_key": "abc"}
+        assert "db" not in result
+
+        # Present
+        manager2 = FakeCredentialManager({
+            ("van", "van", "api_key"): "abc",
+            ("van", "van", "db"): "MyVoters",
+        })
+        result2 = bridge_credentials("van", manager=manager2)
+        assert result2 == {"api_key": "abc", "db": "MyVoters"}
+
+    def test_no_env_vars_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Design invariant: the bridge never sets os.environ."""
+        import os
+        before = dict(os.environ)
+        manager = FakeCredentialManager({
+            ("van", "van", "api_key"): "abc",
+        })
+        _ = bridge_credentials("van", manager=manager)
+        # Any new / changed / removed keys?
+        assert dict(os.environ) == before, "bridge_credentials mutated os.environ"
+
 
 class TestBridgeCredentialsErrorPaths:
     def test_unknown_connector_raises_connector_error(self) -> None:
