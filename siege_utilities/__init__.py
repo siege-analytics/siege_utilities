@@ -420,9 +420,14 @@ def __getattr__(name):
             return val
         except ImportError:
             if deps and _is_dep_missing(deps):
-                wrapper = _create_dependency_wrapper(attr_name, deps)
-                setattr(sys.modules[__name__], name, wrapper)
-                return wrapper
+                # Don't cache the dependency-wrapper stub. Caching would
+                # break the recovery path where a user installs the missing
+                # dep and expects the next attribute access to load the
+                # real symbol. Recreating the wrapper on each access is
+                # cheap relative to the ImportError it fronts.
+                # (SU-1 / CLAUDE.md rule 6: caching a failure stub silently
+                # degrades the documented "install X" contract.)
+                return _create_dependency_wrapper(attr_name, deps)
             raise
 
     # 2. Fallback: try the distributed module for PySpark re-exports
