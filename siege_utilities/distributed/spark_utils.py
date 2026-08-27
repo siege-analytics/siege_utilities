@@ -175,7 +175,22 @@ def move_column_to_front_of_dataframe(df: "DataFrame", column_name: str
     left-to-right. Moving the join key / identifier to the front makes
     the rest of the pipeline more readable without changing semantics.
 
-    The original *df* is unchanged.
+    Parameters
+    ----------
+    df : pyspark.sql.DataFrame
+        Input DataFrame. Not mutated.
+    column_name : str
+        Name of the column to move to position 0. Must be present in
+        ``df.columns`` (raises ``AnalysisException`` from the underlying
+        ``select`` otherwise).
+
+    Returns
+    -------
+    pyspark.sql.DataFrame
+        New DataFrame with the same rows and columns as ``df`` but
+        ``column_name`` in the first position. The original ``df`` is
+        unchanged. The new schema is printed via ``.printSchema()`` as
+        a side effect (for interactive inspection).
     """
     columns = list(df.columns)
     new_column_order = [column_name] + [c for c in columns if c != column_name]
@@ -454,11 +469,34 @@ def mark_valid_geocode_data(df, lat_col_name: str, lon_col_name: str,
 
 
 def clean_and_reorder_bbox(df, bbox_col):
-    """Removes brackets from bounding box strings and reorders coordinates for Sedona.
+    """Normalize a bracketed bounding-box string column into Sedona array form.
 
-    Assumes input is a comma separated list in the order:
-      min latitude, max latitude, min longitude, max longitude
-    Produces an array in the order: [min_lon, min_lat, max_lon, max_lat]
+    Parameters
+    ----------
+    df : pyspark.sql.DataFrame
+        Input DataFrame containing a bounding-box string column.
+    bbox_col : str
+        Name of the string column holding the bbox. Each value is
+        expected to be a comma-separated list optionally wrapped in
+        ``[...]``, in the order:
+        ``min_latitude, max_latitude, min_longitude, max_longitude``.
+
+    Returns
+    -------
+    pyspark.sql.DataFrame
+        The input DataFrame extended with several derived columns
+        (``{bbox_col}_cleaned``, ``_split``, ``_min_lat``, ``_max_lat``,
+        ``_min_lon``, ``_max_lon``) and a final
+        ``{bbox_col}_reordered`` column containing an array in the
+        Sedona-canonical ``[min_lon, min_lat, max_lon, max_lat]`` order.
+        The original column is preserved.
+
+    Notes
+    -----
+    Sedona spatial predicates expect coordinates in ``(lon, lat)``
+    order, but many upstream data sources emit ``(lat, lon)`` first —
+    this helper adapts the input to what Sedona will accept without
+    manual reordering per pipeline.
     """
     cleaned_bbox_col_name = f'{bbox_col}_cleaned'
     split_bbox_col_name = f'{bbox_col}_split'
@@ -771,9 +809,31 @@ def export_prepared_df_as_csv_to_path_using_delimiter(df: "DataFrame",
 
 
 def print_debug_table(spark_df, title):
-    """
-    Helper function to convert a Spark DataFrame into a Pandas DataFrame,
-    format it using tabulate, and print the result with a title.
+    """Log a Spark DataFrame as a formatted table for interactive debugging.
+
+    Converts ``spark_df`` to pandas, formats it with ``tabulate`` in
+    ``psql`` grid style, and logs it via :func:`log_info` under the
+    given ``title``.
+
+    Parameters
+    ----------
+    spark_df : pyspark.sql.DataFrame
+        DataFrame to display. Should be small enough to fit in driver
+        memory (calls ``.toPandas()`` internally).
+    title : str
+        Header line printed before the table.
+
+    Returns
+    -------
+    None
+        Side effect only — writes to the configured logger.
+
+    Raises
+    ------
+    ImportError
+        If the optional ``tabulate`` dependency is not installed. The
+        error message names the ``pip install`` command that unblocks
+        the call site.
     """
     if tabulate is None:
         raise ImportError("tabulate is required for print_debug_table: pip install tabulate")
@@ -843,15 +903,30 @@ def validate_geometry(df, geom_col, step_name):
 
 
 def backup_full_dataframe(df, step_name: str) -> None:
-    """Persist *df* to ``DEBUG_SUBDIRECTORY/{step_name}_full_persisted``.
+    """Persist an intermediate DataFrame snapshot for post-run inspection.
 
     A debug-mode helper: long Spark pipelines occasionally need an
     out-of-band snapshot of an intermediate frame (the canonical
     ``.cache()`` lives in memory and dies with the job). This writes
-    the snapshot to the configured debug directory in the project's
-    standard output format so it can be inspected after the run.
+    the snapshot to ``DEBUG_SUBDIRECTORY/{step_name}_full_persisted``
+    in the project's standard results output format (see
+    ``RESULTS_OUTPUT_FORMAT`` / ``RESULTS_OUTPUT_DELIMITER``) so it can
+    be inspected after the run.
 
-    No return value — purely a side-effect (write + log line).
+    Parameters
+    ----------
+    df : pyspark.sql.DataFrame
+        DataFrame to snapshot. Wide/deep frames are written in full —
+        do not use on frames larger than debug-storage budget.
+    step_name : str
+        Human-readable label used to build the output directory name.
+        Ensure uniqueness across steps in the same run.
+
+    Returns
+    -------
+    None
+        Side effect only — writes to ``DEBUG_SUBDIRECTORY`` and emits a
+        confirming INFO log line.
     """
     backup_path = DEBUG_SUBDIRECTORY / f'{step_name}_full_persisted'
     df.write.format(RESULTS_OUTPUT_FORMAT).option('header', 'true').option(
@@ -862,8 +937,49 @@ def backup_full_dataframe(df, step_name: str) -> None:
 def atomic_write_with_staging(df: "DataFrame", final_destination: str,
     staging_directory: str, file_format: str='csv', delimiter: str=',',
     header: bool=True, mode: str='overwrite') -> None:
-    """
-    Performs atomic write operations using a staging directory to prevent partial/corrupted files.
+    """Write a DataFrame atomically via a staging directory.
+
+    Writes ``df`` to ``staging_directory`` first, then moves the result
+    into ``final_destination``. If any step raises, the staging
+    directory is cleaned up and ``final_destination`` remains
+    untouched — no partial/corrupted files ever appear at the target.
+
+    Parameters
+    ----------
+    df : pyspark.sql.DataFrame
+        DataFrame to write.
+    final_destination : str
+        Target path where the completed output should live. Must be
+        empty or absent (unless ``mode='overwrite'``).
+    staging_directory : str
+        Working directory where the write happens before the atomic
+        move. Recommended: build via
+        :func:`create_unique_staging_directory` to avoid concurrent
+        collisions. Removed on success and on failure.
+    file_format : str
+        Output format. Currently supports ``'csv'`` and ``'parquet'``;
+        defaults to ``'csv'``.
+    delimiter : str
+        Field delimiter for CSV output. Ignored for parquet. Defaults
+        to ``','``.
+    header : bool
+        Include header row in CSV output. Ignored for parquet.
+        Defaults to ``True``.
+    mode : str
+        Spark write mode passed to ``df.write.mode(...)``. Defaults to
+        ``'overwrite'``.
+
+    Returns
+    -------
+    None
+        Side effect only — writes to ``final_destination``.
+
+    Raises
+    ------
+    RuntimeError
+        Wrapped from any exception during the staging write or the
+        atomic move. Original cause is preserved via ``raise ... from
+        e``.
     """
     try:
         log_info(f'Starting atomic write operation to {final_destination}')
@@ -918,8 +1034,30 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
 
 
 def create_unique_staging_directory(base_path, operation_name: str = 'operation') -> str:
-    """
-    Creates a unique staging directory for atomic operations.
+    """Create a unique staging directory for atomic write operations.
+
+    Parameters
+    ----------
+    base_path : str or pathlib.Path
+        Parent directory under which the staging directory is created.
+        Must be writable.
+    operation_name : str
+        Human-readable label included in the directory name so concurrent
+        operations remain distinguishable in logs. Defaults to
+        ``'operation'``.
+
+    Returns
+    -------
+    str
+        Absolute path to the newly created staging directory. The name
+        has the shape ``{base_path}/staging_{operation_name}_{uuid4hex}``
+        and is guaranteed unique.
+
+    Notes
+    -----
+    Used by :func:`atomic_write_with_staging` to isolate in-progress
+    writes from the final destination so partial or failed writes never
+    leave a corrupt file at the target path.
     """
     staging_dir = Path(base_path
         ) / f'staging_{operation_name}_{uuid.uuid4().hex}'
