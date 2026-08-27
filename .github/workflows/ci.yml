@@ -384,6 +384,48 @@ jobs:
           --ignore=tests/test_events_overlay.py \
           --ignore=tests/test_demographics_overlay.py
 
+  makemigrations-check:
+    runs-on: ubuntu-latest
+    name: "django models match migrations (siege_geo)"
+    # Model-vs-migration drift is invisible to every other test job — a
+    # model can declare Meta.indexes / fields without a companion
+    # migration and every test still passes. `makemigrations --check`
+    # is the canonical gate. Closes #1110 by making the drift visible.
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install system geospatial libraries
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          gdal-bin libgdal-dev libgeos-dev libproj-dev
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install UV
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install geo + geodjango + dev
+      run: |
+        sed -i "s/\"gdal>=3.6,<4\"/\"gdal==$(gdal-config --version)\"/g" pyproject.toml
+        grep -qE '"gdal==[0-9]' pyproject.toml || { echo "gdal pin rewrite failed"; exit 1; }
+        uv sync --extra geo --extra gdal --extra geodjango --extra dev
+
+    - name: Check for un-migrated model changes
+      env:
+        DJANGO_SETTINGS_MODULE: tests.django_project.settings
+      run: |
+        # --dry-run so no migration file is written; --check makes the
+        # command exit non-zero if there ARE pending changes. Any
+        # Meta.indexes / model field drift surfaces here.
+        uv run python -m django makemigrations siege_geo --check --dry-run
+
   test-smoke:
     runs-on: ubuntu-latest
     name: "smoke tests (fast, no GDAL)"
