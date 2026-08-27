@@ -38,7 +38,31 @@ def _ensure_directory_exists(path: str):
 
 
 class AbstractHDFSOperations:
-    """Abstract HDFS Operations class that can be configured for any project"""
+    """Configurable HDFS operations for distributed pipelines.
+
+    Wraps the small set of HDFS interactions the library needs — status
+    check, Spark session construction, distributed dependency staging —
+    behind a single class parameterized by project-specific settings
+    (cache locations, Hadoop timeout, hash functions).
+
+    Parameters
+    ----------
+    config : HDFSConfig
+        Project-specific configuration object. Must expose a
+        ``cache_directory`` path, ``get_cache_path`` method,
+        ``hdfs_timeout``, and optional ``hash_func`` /
+        ``quick_signature_func`` overrides. See
+        :func:`create_hdfs_operations` and
+        :func:`setup_distributed_environment` for common construction
+        patterns.
+
+    Notes
+    -----
+    Instantiation eagerly creates ``config.cache_directory`` if absent.
+    All HDFS interactions log through ``config.log_info`` /
+    ``config.log_error`` rather than raising, matching the pre-check
+    convention used elsewhere in the distributed module.
+    """
 
     def __init__(self, config):
         """Initialize with HDFSConfig"""
@@ -258,11 +282,57 @@ class AbstractHDFSOperations:
 
 def setup_distributed_environment(config, data_path: Optional[str]=None,
     dependency_paths: Optional[List[str]]=None):
-    """Convenience function to set up distributed environment"""
+    """One-shot helper to construct HDFS ops + stage data + build a Spark session.
+
+    Equivalent to
+    ``AbstractHDFSOperations(config).setup_distributed_environment(...)``
+    — provided as a top-level convenience so callers who only need a
+    single distributed-setup call don't have to instantiate the class
+    explicitly.
+
+    Parameters
+    ----------
+    config : HDFSConfig
+        Project-specific HDFS config (see
+        :class:`AbstractHDFSOperations`).
+    data_path : str, optional
+        Local path to a data payload that should be staged onto HDFS
+        before the Spark session starts. When ``None``, no staging
+        happens.
+    dependency_paths : list of str, optional
+        Additional local paths (e.g. Python source directories) to zip
+        and stage as PySpark dependencies. When ``None``, only the
+        library's own default dependency bundle is staged.
+
+    Returns
+    -------
+    tuple
+        ``(spark_session, staged_data_url, dependency_zip_url)`` —
+        matching the tuple returned by
+        :meth:`AbstractHDFSOperations.setup_distributed_environment`.
+        Both URLs are ``None`` when their corresponding argument was
+        omitted.
+    """
     hdfs_ops = AbstractHDFSOperations(config)
     return hdfs_ops.setup_distributed_environment(data_path, dependency_paths)
 
 
 def create_hdfs_operations(config):
-    """Factory function to create HDFS operations instance"""
+    """Factory for :class:`AbstractHDFSOperations` instances.
+
+    Wraps the constructor so callers can request an HDFS operations
+    object without importing the class name directly — useful for
+    keeping consumer code decoupled from the concrete implementation.
+
+    Parameters
+    ----------
+    config : HDFSConfig
+        Project-specific HDFS config (see
+        :class:`AbstractHDFSOperations`).
+
+    Returns
+    -------
+    AbstractHDFSOperations
+        A ready-to-use HDFS operations instance.
+    """
     return AbstractHDFSOperations(config)
