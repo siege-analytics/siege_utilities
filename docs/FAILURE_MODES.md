@@ -2,7 +2,9 @@
 
 **Goal:** classify every public-function failure path. Silent swallows become visible; category-(b) sites get a target fix.
 
-**Scope:** ELE-2418 (audit sub-issue 3/6). Rubric: `coding/python-exceptions/SKILL.md` + `_data-trust-rules.md`. Snapshot: 2026-04-22.
+**Scope:** ELE-2418 (audit sub-issue 3/6). Rubric: `coding/python-exceptions/SKILL.md` + `_data-trust-rules.md`.
+
+**Snapshot:** 2026-08-27 (refreshed from the 2026-04-22 initial snapshot per #1182). Previous snapshot's numbers were 16–136% below current state — see the "Historical: 2026-04-22 snapshot" section below for the pre-refresh baseline.
 
 ## Categories
 
@@ -12,7 +14,34 @@
 | (b) | Silent swallow — broad catch + sentinel return (`None`/`False`/`{}`/`[]`) with no way to distinguish success from hidden error |
 | (c) | Not handled — raises opaque `KeyError` / `ValueError` / `AttributeError` without domain context |
 
-## Library-wide density
+## Library-wide density (2026-08-27)
+
+Counts are raw `grep -rn 'except '` (across all handler shapes, including narrow `except X:` — the growth in narrow catches from the 2018-2026 sweep pushes the total up faster than the sentinel-return count) and `grep -rnE 'return (None|False|\[\]|\{\})'`.
+
+| Module | `except X:` | Sentinel returns | (b) density |
+|---|---:|---:|---|
+| `reporting/` | 188 | 11 | Medium |
+| `geo/` | 309 | 182 | Very high |
+| `config/` | 101 | 79 | Medium |
+| `files/` | 84 | 6 | Medium |
+| `analytics/` | 77 | 16 | Medium |
+| `distributed/` | 21 | 7 | Low |
+| `git/` | 35 | 1 | Medium (raises dominate) |
+| `hygiene/` | 4 | 0 | Very low |
+| `testing/` | 15 | 15 | Low |
+| `data/` | 1 | 0 | Very low |
+| `admin/` | 6 | 2 | Very low |
+| `databricks/` | 7 | 0 | Very low |
+| `survey/` | 13 | 5 | Low (excepts fixed #391) |
+| `core/` | 1 | 1 | Very low |
+
+**Priority order (refreshed):** `geo/` is now the dominant target — 309 except handlers + 182 sentinel returns dwarfs every other module. Recommended sweep order: `geo/` → `config/` → `reporting/` → `analytics/` → `files/`.
+
+The 4-month growth vs. the 2026-04-22 snapshot (below): reporting +35%, geo +136%, config +16%, files +83%, analytics +67%. The direction is clear — except-handler count is growing faster than the sweep is reducing it. See #1182 for the underlying audit that surfaced the staleness.
+
+### Historical: 2026-04-22 snapshot
+
+Retained for continuity; do not use for prioritization. See snapshot above for current state.
 
 | Module | `except X:` | Sentinel returns | (b) density |
 |---|---:|---:|---|
@@ -30,8 +59,6 @@
 | `databricks/` | 3 | 1 | Low |
 | `survey/` | 0 | 10 | Low (excepts fixed #391) |
 | `core/` | 1 | 2 | Very low |
-
-Starting order for per-module sweep: `reporting/` → `geo/` → `config/` → `files/` → `analytics/`.
 
 ## Cross-cutting patterns
 
