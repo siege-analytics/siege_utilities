@@ -12,8 +12,19 @@ Canonical runnable examples are kept with package code.
 
 ## Primary Notebooks
 
-- `notebooks/06_Report_Generation.ipynb` includes an explicit `create_3d_map` demonstration (Section 5, 3D Visualization).
-- `notebooks/07_Geocoding_Address_Processing.ipynb` includes public and custom `server_url` Nominatim usage.
+The notebooks are organized into topical subdirectories under `notebooks/`.
+Canonical entry points by capability:
+
+- **Reporting / charts / PDF:** `notebooks/reports/01_charts_and_pdf.ipynb`
+- **Slides + Google Workspace:** `notebooks/reports/02_slides_pptx_and_google.ipynb`
+- **Geocoding (public + configurable Nominatim `server_url`):** `notebooks/spatial/02_geocoding.ipynb`
+- **Boundary retrieval + choropleth:** `notebooks/spatial/01_boundaries.ipynb`, `notebooks/spatial/03_choropleth_maps.ipynb`
+- **Multi-source spatial joins:** `notebooks/spatial/05_multi_source_joins.ipynb`
+- **Natural-language geometry parsing:** `notebooks/spatial/07_natural_language_to_geometry.ipynb`
+- **Analytics connectors (GA, Facebook, Snowflake):** `notebooks/analytics/01_connectors.ipynb` and siblings
+- **Configuration + credentials:** `notebooks/foundations/01_configuration.ipynb`, `notebooks/config/credential_management.ipynb`
+
+See `notebooks/README.md` for the full index.
 
 ## Execution
 
