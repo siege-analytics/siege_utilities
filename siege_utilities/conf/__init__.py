@@ -84,28 +84,35 @@ class Settings:
         raise AttributeError(f"siege_utilities has no setting '{name}'")
 
     def _coerce(self, name: str, val: str):
-        """Coerce env var string to the type of the default."""
+        """Coerce env var string to the type of the default.
+
+        Raises:
+            ValueError: If the env var value cannot be parsed into the
+                default's type. Silently falling back to the default (as
+                earlier versions did) hid deployment-config bugs; per SU-1
+                a bad env var should fail loud rather than silently accept.
+        """
         default = DEFAULTS.get(name)
         if isinstance(default, bool):
             return val.lower() in ("true", "1", "yes")
         if isinstance(default, int):
             try:
                 return int(val)
-            except (ValueError, TypeError):
-                _logger.warning(
-                    "Invalid int for setting %s=%r; falling back to default %r",
-                    name, val, default,
-                )
-                return default
+            except (ValueError, TypeError) as exc:
+                raise ValueError(
+                    f"SIEGE_{name} must be an integer; got {val!r}. "
+                    f"Either fix the env var or unset it to use the "
+                    f"library default {default!r}."
+                ) from exc
         if isinstance(default, float):
             try:
                 return float(val)
-            except (ValueError, TypeError):
-                _logger.warning(
-                    "Invalid float for setting %s=%r; falling back to default %r",
-                    name, val, default,
-                )
-                return default
+            except (ValueError, TypeError) as exc:
+                raise ValueError(
+                    f"SIEGE_{name} must be a number; got {val!r}. "
+                    f"Either fix the env var or unset it to use the "
+                    f"library default {default!r}."
+                ) from exc
         return val
 
     def _load_yaml(self) -> dict | None:
