@@ -254,7 +254,11 @@ jobs:
 
     - name: Test pydantic v1 compatibility
       run: |
-        uv run pytest tests/test_pydantic_v1_compat.py -v --no-cov
+        # --no-sync: `uv run` would otherwise re-sync the env to the
+        # pydantic>=2.0 core pin and silently revert the v1 downgrade above,
+        # making the v1-fallback tests SKIP (the hollow gate, #1118). Keep
+        # the pinned pydantic 1.x the previous step installed.
+        uv run --no-sync pytest tests/test_pydantic_v1_compat.py -v --no-cov
 
   test-core:
     runs-on: ubuntu-latest
