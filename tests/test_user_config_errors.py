@@ -22,14 +22,12 @@ remaining eight handlers plus a complementary L117 permutation.
 from __future__ import annotations
 
 import logging
-import os
 import stat
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 import pytest
-import yaml
 
 from siege_utilities.config.user_config import (
     UserConfigManager,
@@ -217,15 +215,10 @@ def test_line_174_save_type_error_logged_not_raised(
     monkeypatch.setenv("SIEGE_USER_CONFIG_DIR", str(tmp_path))
     mgr = UserConfigManager()
 
-    def raise_type_error(*args: Any, **kwargs: Any) -> None:
-        raise TypeError("unserialisable object")
-
-    monkeypatch.setattr(
+    with patch(
         "siege_utilities.config.user_config.yaml.dump",
-        raise_type_error,
-    )
-
-    with caplog.at_level(logging.ERROR, logger="siege_utilities.config.user_config"):
+        side_effect=TypeError("unserialisable object"),
+    ), caplog.at_level(logging.ERROR, logger="siege_utilities.config.user_config"):
         mgr._save_user_profile()
 
     assert any("Failed to save user config" in r.message for r in caplog.records)
