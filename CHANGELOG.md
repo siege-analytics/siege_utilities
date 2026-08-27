@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING (packaging):** the `[streamlit]` extra (streamlit + altair + bokeh
+  + pydeck + ipywidgets + jupyter + notebook) is removed. No library code ever
+  imported streamlit, altair, bokeh, or ipywidgets — the extra added 7 packages
+  of ecosystem infrastructure without any siege_utilities-specific consumer.
+  Users needing streamlit can `pip install streamlit altair bokeh` directly.
+  Verified: `grep -rn "import streamlit\|from streamlit" siege_utilities/
+  --include="*.py"` returns 0 matches. Closes #1180.
+- **BREAKING (packaging):** the `[export]` extra (openpyxl + xlsxwriter + psutil
+  + memory-profiler) is removed. No library code imported any of these — pandas
+  reaches openpyxl transitively when needed, and xlsxwriter / psutil /
+  memory-profiler had zero library-side consumers. Verified: `grep -rn
+  "import xlsxwriter\|import psutil\|import memory_profiler"
+  siege_utilities/ --include="*.py"` returns 0 matches. Closes #1179.
+
 ### Changed
 
 - **BREAKING (packaging):** the native GDAL/OGR Python bindings (`gdal`) are now
