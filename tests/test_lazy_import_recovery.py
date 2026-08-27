@@ -26,17 +26,23 @@ def test_dependency_wrapper_is_not_cached_when_dep_missing(
     Second access must go back through __getattr__ (not hit the module
     namespace as a cached attribute).
     """
-    # Pick a symbol from _LAZY_IMPORTS whose deps are checked at import time.
-    # Fall through to a synthetic entry if the registry shape changed.
+    # Pick a symbol from _LAZY_IMPORTS whose deps are checked at import time
+    # AND that has not already been loaded by a prior test (which would have
+    # cached the real object in the package __dict__ — __getattr__ never fires
+    # for cached attributes, so the test would not exercise the fix's code
+    # path).
     lazy = getattr(siege_utilities, "_LAZY_IMPORTS", {})
-    # Find one that declares deps
+    pkg_dict = sys.modules["siege_utilities"].__dict__
     candidate = None
     for name, entry in lazy.items():
-        if len(entry) >= 3 and entry[2]:
+        if len(entry) >= 3 and entry[2] and name not in pkg_dict:
             candidate = name
             break
     if candidate is None:
-        pytest.skip("No lazy entries with declared deps to exercise")
+        pytest.skip(
+            "No uncached lazy entries with declared deps to exercise; "
+            "the test suite may have preloaded all such symbols."
+        )
 
     # Force the ImportError branch by patching the target module import
     # to raise ImportError.
