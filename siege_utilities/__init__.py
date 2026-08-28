@@ -112,6 +112,15 @@ def _register_lazy(names, module, deps=None, renames=None):
     renames = renames or {}
     for name in names:
         source_name = renames.get(name, name)
+        # #1176 hostile-review F1: raise on duplicate registration so a
+        # future promotion batch cannot silently pick a collision winner.
+        if name in _LAZY_IMPORTS and _LAZY_IMPORTS[name][0] != module:
+            existing_module = _LAZY_IMPORTS[name][0]
+            raise RuntimeError(
+                f"_register_lazy: duplicate registration for {name!r}: "
+                f"already bound to {existing_module!r}, would rebind to {module!r}. "
+                "Rename the losing definition or delete the stale copy before promotion."
+            )
         _LAZY_IMPORTS[name] = (module, source_name, deps or [])
 
 
@@ -450,6 +459,80 @@ def __getattr__(name):
 
 def __dir__():
     return sorted(set(list(globals().keys()) + list(_LAZY_IMPORTS.keys())))
+
+
+# ── Explicit public API surface (#1176) ──────────────────────────────
+# Canonical public API — symbols documented in README / notebooks / release
+# notes that consumers may import directly from `siege_utilities`. Additions
+# happen per-subpackage via promotion PRs; each candidate is classified by
+# `scripts/audit_public_api_surface.py` before landing here.
+#
+# Anything in `_LAZY_IMPORTS` but NOT in `__all__` remains addressable via
+# `__getattr__` for backward compatibility but is not part of the declared
+# public contract.
+#
+# Backward-compat note: prior to #1176, `siege_utilities.__all__` resolved
+# implicitly to `.distributed.__all__` via the __getattr__ fallback. The
+# `.distributed` block below preserves that surface so `from siege_utilities
+# import *` behaviour is unchanged for existing consumers.
+
+__all__ = [
+    # Eagerly-imported core (available without hitting __getattr__)
+    'settings',
+    'log_info', 'log_warning', 'log_error', 'log_debug', 'log_critical',
+    'init_logger', 'get_logger', 'configure_shared_logging',
+    'remove_wrapping_quotes_and_trim',
+    # Package metadata
+    '__version__', '__author__', '__description__',
+    # ── Preserved: prior implicit surface via .distributed fallback ──
+    'AbstractHDFSOperations', 'HDFSConfig', 'PYSPARK_AVAILABLE',
+    'atomic_write_with_staging', 'backup_full_dataframe',
+    'clean_and_reorder_bbox', 'compute_walkability',
+    'create_census_analysis_config', 'create_cluster_config',
+    'create_geocoding_config', 'create_hdfs_config',
+    'create_hdfs_operations', 'create_local_config',
+    'create_unique_staging_directory', 'create_yarn_config',
+    'ensure_literal', 'export_prepared_df_as_csv_to_path_using_delimiter',
+    'export_pyspark_df_to_excel', 'flatten_json_column_and_join_back_to_df',
+    'get_row_count', 'mark_valid_geocode_data',
+    'move_column_to_front_of_dataframe', 'pivot_summary_table_for_bools',
+    'pivot_summary_with_metrics', 'prepare_dataframe_for_export',
+    'prepare_summary_dataframe', 'print_debug_table', 'py_round',
+    'read_parquet_to_df', 'register_temp_table', 'repartition_and_cache',
+    'reproject_geom_columns', 'sanitise_dataframe_column_names',
+    'setup_distributed_environment', 'tabulate_null_vs_not_null',
+    'validate_geocode_data', 'validate_geometry', 'walkability_config',
+    'write_df_to_parquet',
+    # ── Promoted canonicals (per #1176 audit) ────────────────────────
+    # geo.spatial_data (27 symbols, batch 1)
+    'discover_boundary_types',
+    'download_data',
+    'download_dataset',
+    'download_osm_data',
+    'get_available_state_fips',
+    'get_available_years',
+    'get_census_boundaries',
+    'get_census_data',
+    'get_geographic_boundaries',
+    'get_optimal_year',
+    'get_state_abbreviations',
+    'get_state_by_abbreviation',
+    'normalize_fips_code',
+    'normalize_state_abbreviation',
+    'normalize_state_input',
+    'normalize_state_name',
+    'construct_download_url',
+    'get_available_boundary_types',
+    'get_comprehensive_state_info',
+    'get_state_abbreviation',
+    'get_state_by_name',
+    'get_state_name',
+    'get_unified_fips_data',
+    'get_year_directory_contents',
+    'refresh_discovery_cache',
+    'validate_download_url',
+    'validate_state_fips',
+]
 
 
 # ── Introspection functions (defined here, always available) ─────────
