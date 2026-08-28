@@ -162,6 +162,44 @@ class TestBatch2Promotions:
         )
 
 
+class TestBatch3Promotions:
+    """Verify #1176 batch 3 (databricks, 18 canonicals) shipped correctly.
+
+    Batch 3 spans multiple `.databricks` submodules (runtime, secrets,
+    urls, sql, spark_interop, etc.) but all resolve under
+    `siege_utilities.databricks.*`. Uses the same tightened prefix check
+    as batch 2 (per hostile-review-1176-batch2.md F2).
+    """
+
+    BATCH_3 = [
+        "build_databricks_run_url", "build_foreign_table_sql",
+        "build_jdbc_url", "build_lakebase_psql_command",
+        "build_pgpass_entry", "build_schema_and_table_sync_sql",
+        "ensure_secret_scope", "geopandas_to_spark",
+        "get_active_spark_session", "get_dbutils",
+        "get_runtime_secret", "get_workspace_client",
+        "pandas_to_spark", "parse_conninfo", "put_secret",
+        "runtime_secret_exists", "spark_to_geopandas", "spark_to_pandas",
+    ]
+
+    @pytest.mark.parametrize("name", BATCH_3)
+    def test_batch_3_symbol_in_all(self, name):
+        assert name in siege_utilities.__all__, (
+            f"{name!r} promoted per #1176 batch 3 but missing from __all__"
+        )
+
+    @pytest.mark.parametrize("name", BATCH_3)
+    def test_batch_3_symbol_resolves_under_databricks(self, name):
+        obj = getattr(siege_utilities, name)
+        module = getattr(obj, "__module__", "")
+        is_databricks_root = module == "siege_utilities.databricks"
+        is_databricks_submodule = module.startswith("siege_utilities.databricks.")
+        assert is_databricks_root or is_databricks_submodule, (
+            f"{name!r} resolves to {module!r}, expected exactly "
+            "'siege_utilities.databricks' or a strict '.databricks.*' submodule"
+        )
+
+
 class TestLazyRegistrationGuard:
     """Verify _register_lazy raises on duplicate registration (hostile
     review F1 mechanical guard)."""
