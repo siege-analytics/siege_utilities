@@ -14,7 +14,7 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any, Dict, Literal, Mapping, Optional
 
-import requests
+import httpx
 
 from siege_utilities.geo.crs import reproject_if_needed
 
@@ -133,11 +133,11 @@ def _valhalla_costing(profile: str) -> str:
 def _dispatch_request(
     request_def: IsochroneRequest,
     timeout_seconds: int,
-) -> requests.Response:
+) -> httpx.Response:
     """Send the HTTP request described by *request_def*."""
     method = request_def["method"].upper()
     if method == "POST":
-        return requests.post(
+        return httpx.post(
             request_def["url"],
             headers=request_def["headers"],
             params=request_def["params"],
@@ -145,7 +145,7 @@ def _dispatch_request(
             timeout=timeout_seconds,
         )
     if method == "GET":
-        return requests.get(
+        return httpx.get(
             request_def["url"],
             headers=request_def["headers"],
             params={**request_def["params"], **request_def["json"]},
@@ -291,7 +291,7 @@ def get_isochrone(
     for attempt in range(attempts):
         try:
             response = _dispatch_request(request_def, timeout_seconds)
-        except requests.exceptions.Timeout as exc:
+        except httpx.TimeoutException as exc:
             last_exc = IsochroneNetworkError(
                 f"Isochrone request to {request_def['url']} timed out "
                 f"after {timeout_seconds}s (attempt {attempt + 1}/{attempts})"
@@ -301,7 +301,7 @@ def get_isochrone(
             if attempt < attempts - 1:
                 time.sleep(ISOCHRONE_RETRY_BACKOFF_BASE * (2 ** attempt))
             continue
-        except requests.exceptions.ConnectionError as exc:
+        except httpx.ConnectError as exc:
             last_exc = IsochroneNetworkError(
                 f"Connection to {request_def['url']} failed "
                 f"(attempt {attempt + 1}/{attempts}): {exc}"
@@ -311,7 +311,7 @@ def get_isochrone(
             if attempt < attempts - 1:
                 time.sleep(ISOCHRONE_RETRY_BACKOFF_BASE * (2 ** attempt))
             continue
-        except requests.exceptions.RequestException as exc:
+        except httpx.RequestError as exc:
             raise IsochroneNetworkError(
                 f"Isochrone request failed: {exc}"
             ) from exc
@@ -327,7 +327,7 @@ def get_isochrone(
 
         try:
             response.raise_for_status()
-        except requests.exceptions.HTTPError as exc:
+        except httpx.HTTPStatusError as exc:
             raise IsochroneProviderError(
                 f"Provider {request_def['provider']} returned HTTP "
                 f"{response.status_code}: {response.text[:200]}"
