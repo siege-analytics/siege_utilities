@@ -124,7 +124,7 @@ def grep_consumer(import_name: str) -> bool:
              f"(^|[[:space:]])from {candidate}([[:space:]]|\\.)",
              "siege_utilities/",
              "--include=*.py"],
-            capture_output=True, text=True,
+            capture_output=True, text=True, timeout=30,  # writing-code:15
         )
         if result.stdout.strip():
             return True

@@ -76,7 +76,7 @@ def grep_public_references(name: str) -> int:
         # Word-boundary grep to avoid substring matches
         result = subprocess.run(
             ["grep", "-rc", f"\\b{name}\\b", str(target)],
-            capture_output=True, text=True,
+            capture_output=True, text=True, timeout=30,  # writing-code:15
         )
         for line in result.stdout.splitlines():
             if ":" in line:
