@@ -116,6 +116,52 @@ class TestBatch1Promotions:
         )
 
 
+class TestBatch2Promotions:
+    """Verify #1176 batch 2 (reporting, 26 canonicals) shipped correctly.
+
+    Batch 2 spans multiple `.reporting.*` submodules (chart_generator,
+    chart_types, analytics.polling_analyzer, plus top-level `.reporting`
+    for classes re-exported from `reporting/__init__.py`). Assertion is
+    weaker than batch 1: each symbol must resolve to SOME module under
+    `siege_utilities.reporting.*`, not a single specific one.
+    """
+
+    BATCH_2 = [
+        "AnalyticsReportGenerator", "BaseReportTemplate", "ChartGenerator",
+        "ChartTypeRegistry", "ClientBrandingManager", "PollingAnalyzer",
+        "PowerPointGenerator", "ReportGenerator",
+        "create_bar_chart", "create_bivariate_choropleth",
+        "create_choropleth_map", "create_dashboard",
+        "create_dataframe_summary_charts", "create_flow_map",
+        "create_heatmap", "create_line_chart", "create_marker_map",
+        "create_pie_chart", "create_powerpoint_generator",
+        "create_report_generator", "create_scatter_plot",
+        "export_branding_config", "export_chart_type_config",
+        "generate_chart_from_dataframe", "get_report_output_directory",
+        "import_branding_config",
+    ]
+
+    @pytest.mark.parametrize("name", BATCH_2)
+    def test_batch_2_symbol_in_all(self, name):
+        assert name in siege_utilities.__all__, (
+            f"{name!r} promoted per #1176 batch 2 but missing from __all__"
+        )
+
+    @pytest.mark.parametrize("name", BATCH_2)
+    def test_batch_2_symbol_resolves_under_reporting(self, name):
+        obj = getattr(siege_utilities, name)
+        module = getattr(obj, "__module__", "")
+        # Tightened per hostile-review F2: exact-match on `siege_utilities.reporting`
+        # (for symbols defined in reporting/__init__.py) OR strict `.reporting.`
+        # prefix (submodules). Rejects sibling packages like `reporting_v2`.
+        is_reporting_root = module == "siege_utilities.reporting"
+        is_reporting_submodule = module.startswith("siege_utilities.reporting.")
+        assert is_reporting_root or is_reporting_submodule, (
+            f"{name!r} resolves to {module!r}, expected exactly "
+            "'siege_utilities.reporting' or a strict '.reporting.*' submodule"
+        )
+
+
 class TestLazyRegistrationGuard:
     """Verify _register_lazy raises on duplicate registration (hostile
     review F1 mechanical guard)."""
