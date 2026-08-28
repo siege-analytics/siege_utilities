@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Shelf alignment (2026-08-27 modernization session)
+
+- **CI job `griffe api-diff (writing-releases:1)` (added in PR #1191) is now the reference implementation** cited by `claude-configs-public` writing-releases:1 as the tool-agnostic optional mechanical assist for signature-level BREAKING detection (see claude-configs-public#646). Behavior changes that preserve signatures (e.g., a validator becoming stricter) remain operator-judgment per the rule; a green griffe run is not evidence of non-BREAKING.
+- **CRS round-trip property tests (added in PR #1193)** are consistent with the strengthened `_property-testing-rules.md` guidance for data-heavy libraries (claude-configs-public#646), which now flags "hypothesis-in-dev-extras-but-few-property-tests" as a coverage-debt signal. siege_utilities' `tests/property/` directory has 8 files post-#1193 covering grid, join, filter, read, spatial-join, to-geodataframe, engine-invariants, and CRS round-trip.
+
 ### Removed
 
 - **BREAKING (packaging):** the `[streamlit]` extra (streamlit + altair + bokeh
