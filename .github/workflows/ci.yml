@@ -430,6 +430,27 @@ jobs:
         # Meta.indexes / model field drift surfaces here.
         uv run python -m django makemigrations siege_geo --check --dry-run
 
+  extras-coherence:
+    runs-on: ubuntu-latest
+    name: "extras coherence"
+    # Verify that every pyproject.toml extra has at least one library
+    # consumer and that cross-extra version specs are consistent. Catches
+    # future recurrences of the #1179 / #1180 shape (extras that advertise
+    # capability the library doesn't deliver). Fast: no deps installed;
+    # just grep over the tree.
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Run extras coherence check
+      run: |
+        python scripts/validate_extras_coherence.py
+
   test-smoke:
     runs-on: ubuntu-latest
     name: "smoke tests (fast, no GDAL)"
