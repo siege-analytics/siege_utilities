@@ -451,6 +451,47 @@ jobs:
       run: |
         python scripts/validate_extras_coherence.py
 
+  griffe-api-diff:
+    runs-on: ubuntu-latest
+    name: "griffe api-diff (writing-releases:1)"
+    # Griffe diffs the current public API against the baseline branch and
+    # reports breaking changes at the symbol level (removed/renamed/
+    # incompatible-signature). Direct mechanical enforcement of the
+    # writing-releases:1 rule ("BREAKING in CHANGELOG when public
+    # surface changes incompatibly"). Advisory (`continue-on-error`)
+    # for now — the ratchet moves to blocking after one release cycle
+    # of confirming the diff signal is trustworthy on this codebase.
+    #
+    # See also: `api-contract-regression` job which owns the JSON-based
+    # contract check we already run; griffe is the symbol-level Python
+    # differ that catches shape changes the contract JSON misses.
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # need base branch for the diff
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install griffe
+      run: pip install "griffe>=1.0.0"
+
+    - name: Fetch base branch
+      run: git fetch origin ${{ github.base_ref || 'develop' }}
+
+    - name: Run griffe check
+      continue-on-error: true  # advisory; ratchet to blocking after 1 release cycle
+      run: |
+        # `griffe check` diffs the current tree against the base branch's
+        # commit. Non-zero exit means a breaking change was detected;
+        # reviewer decides whether the CHANGELOG needs a BREAKING entry.
+        griffe check siege_utilities \
+          --against origin/${{ github.base_ref || 'develop' }} \
+          || echo "::warning::griffe found API changes vs base branch — review whether BREAKING changelog entry is needed (writing-releases:1)"
+
   test-smoke:
     runs-on: ubuntu-latest
     name: "smoke tests (fast, no GDAL)"
