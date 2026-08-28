@@ -563,6 +563,30 @@ __all__ = [
     'generate_chart_from_dataframe',
     'get_report_output_directory',
     'import_branding_config',
+    # databricks (18 symbols, batch 3)
+    # NOTE: `quote_ident` is a peer helper in
+    # `.databricks.lakehouse_federation` used by the two SQL builders
+    # below. Not promoted here because it is not currently in
+    # `_LAZY_IMPORTS` (audit only classifies lazy-registered symbols).
+    # Promotion decision deferred to #1210.
+    'build_databricks_run_url',
+    'build_foreign_table_sql',
+    'build_jdbc_url',
+    'build_lakebase_psql_command',
+    'build_pgpass_entry',
+    'build_schema_and_table_sync_sql',
+    'ensure_secret_scope',
+    'geopandas_to_spark',
+    'get_active_spark_session',
+    'get_dbutils',
+    'get_runtime_secret',
+    'get_workspace_client',
+    'pandas_to_spark',
+    'parse_conninfo',
+    'put_secret',
+    'runtime_secret_exists',
+    'spark_to_geopandas',
+    'spark_to_pandas',
 ]
 
 
