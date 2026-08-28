@@ -46,7 +46,6 @@ import sys
 import tomllib
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -145,7 +144,7 @@ def main() -> int:
     total = sum(len(v) for v in tiers.values())
 
     if args.markdown:
-        print(f"# Public API surface audit (#1176)")
+        print("# Public API surface audit (#1176)")
         print()
         print(f"**Total lazy symbols not in `__all__`:** {total}")
         print(f"**Symbols in `__all__`:** {len(all_)}")
