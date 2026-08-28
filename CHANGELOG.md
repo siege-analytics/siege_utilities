@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **CI job `griffe api-diff (writing-releases:1)` (added in PR #1191) is now the reference implementation** cited by `claude-configs-public` writing-releases:1 as the tool-agnostic optional mechanical assist for signature-level BREAKING detection (see claude-configs-public#646). Behavior changes that preserve signatures (e.g., a validator becoming stricter) remain operator-judgment per the rule; a green griffe run is not evidence of non-BREAKING.
 - **CRS round-trip property tests (added in PR #1193)** are consistent with the strengthened `_property-testing-rules.md` guidance for data-heavy libraries (claude-configs-public#646), which now flags "hypothesis-in-dev-extras-but-few-property-tests" as a coverage-debt signal. siege_utilities' `tests/property/` directory has 8 files post-#1193 covering grid, join, filter, read, spatial-join, to-geodataframe, engine-invariants, and CRS round-trip.
+- **DRF serializers audited against the new `_django-rest-framework-rules.md` shelf (claude-configs-public#651, merged to main via #652).** `siege_utilities/geo/django/serializers/boundary_serializers.py` — the library's only DRF surface — is already compliant: every serializer uses an explicit `fields = [...]` allowlist (never `"__all__"`), `read_only_fields` is used for immutable timestamps, no `Meta.depth` (which the shelf forbids for real APIs), and `rest_framework_gis.GeoFeatureModelSerializer` is used with a graceful fallback to `ModelSerializer` when the extra is absent. Zero new violations introduced by the new shelf; documented here so future contributors know the DRF rules apply.
+
+### Shelf additions (2026-08-28)
+
+- `_react-rules.md` + `skills/react/` — new shelf domain, currently no library consumers (siege_utilities has no React frontend). Referenced here for future contributors who add browser-facing surfaces (e.g., embedded Streamlit alternatives, notebook widgets).
+- `_django-rest-framework-rules.md` + `skills/django-rest-framework/` — new shelf domain, applies to `siege_utilities/geo/django/serializers/boundary_serializers.py` and any future DRF work.
 
 ### Removed
 
