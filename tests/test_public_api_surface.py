@@ -386,6 +386,39 @@ class TestBatch6Promotions:
         assert "siege_utilities.data.sample_data" not in sys.modules
 
 
+class TestBatch7Promotions:
+    """Verify #1176 batch 7 (geo.geocoding public API) shipped correctly."""
+
+    GEOCODING_SYMBOLS = [
+        "GeocodingError", "concatenate_addresses", "get_coordinates",
+        "get_country_code", "get_country_name", "list_countries",
+        "use_nominatim_geocoder",
+    ]
+
+    @pytest.mark.parametrize("name", GEOCODING_SYMBOLS)
+    def test_batch_7_symbol_in_all(self, name):
+        assert name in siege_utilities.__all__, (
+            f"{name!r} promoted per #1176 batch 7 but missing from __all__"
+        )
+
+    @pytest.mark.parametrize("name", GEOCODING_SYMBOLS)
+    def test_batch_7_lazy_metadata_requires_actual_geocoding_deps(self, name):
+        from siege_utilities import _LAZY_IMPORTS
+
+        module, _source_name, deps = _LAZY_IMPORTS[name]
+        assert module == ".geo.geocoding"
+        assert deps == ["pandas", "geopy"]
+
+    @pytest.mark.parametrize("name", GEOCODING_SYMBOLS)
+    def test_batch_7_symbol_resolves_to_geo_geocoding(self, name):
+        obj = getattr(siege_utilities, name)
+        module = getattr(obj, "__module__", "")
+        assert module == "siege_utilities.geo.geocoding", (
+            f"{name!r} resolves to {module!r}, expected "
+            "'siege_utilities.geo.geocoding' — cross-module collision"
+        )
+
+
 class TestLazyDependencyMetadata:
     """Verify lazy dependency metadata tracks migrated implementations."""
 
