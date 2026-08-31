@@ -253,12 +253,20 @@ jobs:
         uv pip install 'pydantic>=1.10,<2.0' --force-reinstall
 
     - name: Test pydantic v1 compatibility
+      env:
+        # #1216: keep unrelated third-party pytest plugins from auto-loading
+        # after this job intentionally downgrades the environment to
+        # pydantic 1.x. The job is testing siege_utilities' fallback surface,
+        # not plugins pulled in by broad optional extras.
+        PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
       run: |
         # --no-sync: `uv run` would otherwise re-sync the env to the
         # pydantic>=2.0 core pin and silently revert the v1 downgrade above,
         # making the v1-fallback tests SKIP (the hollow gate, #1118). Keep
         # the pinned pydantic 1.x the previous step installed.
-        uv run --no-sync pytest tests/test_pydantic_v1_compat.py -v --no-cov
+        # -o addopts=: plugin autoload is disabled below, so pytest-cov's
+        # options from pytest.ini are intentionally unavailable in this job.
+        uv run --no-sync pytest -o addopts= tests/test_pydantic_v1_compat.py -v
 
   test-core:
     runs-on: ubuntu-latest
