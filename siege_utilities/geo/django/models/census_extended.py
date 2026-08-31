@@ -154,8 +154,14 @@ class PUMA(CensusTIGERBoundary):
         verbose_name_plural = "PUMAs"
         unique_together = [("geoid", "vintage_year")]
         indexes = [
-            models.Index(fields=["state_fips", "puma_code"]),
-            models.Index(fields=["state_fips", "vintage_year"]),
+            models.Index(
+                fields=["state_fips", "puma_code"],
+                name="siege_geo_puma_st_pc_idx",
+            ),
+            models.Index(
+                fields=["state_fips", "vintage_year"],
+                name="siege_geo_puma_st_vy_idx",
+            ),
         ]
         constraints = [
             models.CheckConstraint(
@@ -210,8 +216,8 @@ class TribalArea(CensusTIGERBoundary):
         verbose_name_plural = "Tribal Areas"
         unique_together = [("geoid", "vintage_year")]
         indexes = [
-            models.Index(fields=["aiannhce"]),
-            models.Index(fields=["vintage_year"]),
+            models.Index(fields=["aiannhce"], name="siege_geo_tribal_ce_idx"),
+            models.Index(fields=["vintage_year"], name="siege_geo_tribal_vy_idx"),
         ]
 
     @classmethod
@@ -275,8 +281,14 @@ class CountySubdivision(CensusTIGERBoundary):
         verbose_name_plural = "County Subdivisions"
         unique_together = [("geoid", "vintage_year")]
         indexes = [
-            models.Index(fields=["state_fips", "county_fips", "cousub_fips"]),
-            models.Index(fields=["state_fips", "vintage_year"]),
+            models.Index(
+                fields=["state_fips", "county_fips", "cousub_fips"],
+                name="siege_geo_cousub_fips_idx",
+            ),
+            models.Index(
+                fields=["state_fips", "vintage_year"],
+                name="siege_geo_cousub_st_vy_idx",
+            ),
         ]
         constraints = [
             models.CheckConstraint(
