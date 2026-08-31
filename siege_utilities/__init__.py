@@ -246,7 +246,7 @@ _register_lazy([
     'concatenate_addresses', 'use_nominatim_geocoder',
     'get_country_name', 'get_country_code', 'list_countries', 'get_coordinates',
     'GeocodingError',
-], '.geo.geocoding', deps=['geopandas'])
+], '.geo.geocoding', deps=['pandas', 'geopy'])
 
 _register_lazy([
     'DEFAULT_ORS_BASE_URL', 'DEFAULT_VALHALLA_BASE_URL',
@@ -628,6 +628,14 @@ __all__ = [
     'generate_synthetic_population',
     'list_available_datasets',
     'load_sample_data',
+    # geocoding (6 canonical + 1 extension symbol, batch 7)
+    'GeocodingError',
+    'concatenate_addresses',
+    'get_coordinates',
+    'get_country_code',
+    'get_country_name',
+    'list_countries',
+    'use_nominatim_geocoder',
 ]
 
 
