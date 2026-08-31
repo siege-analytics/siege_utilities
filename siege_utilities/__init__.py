@@ -251,7 +251,7 @@ _register_lazy([
 _register_lazy([
     'DEFAULT_ORS_BASE_URL', 'DEFAULT_VALHALLA_BASE_URL',
     'build_isochrone_request', 'get_isochrone', 'isochrone_to_geodataframe',
-], '.geo.isochrones', deps=['requests'])
+], '.geo.isochrones', deps=['httpx'])
 
 _register_lazy([
     'get_census_data_selector', 'select_census_datasets', 'get_analysis_approach',
@@ -305,7 +305,7 @@ _register_lazy([
     'generate_synthetic_population', 'generate_synthetic_businesses',
     'generate_synthetic_housing',
     'SAMPLE_DATASETS', 'CENSUS_SAMPLES', 'SYNTHETIC_SAMPLES',
-], '.data.sample_data', deps=['pandas'],
+], '.reference.sample_data', deps=['pandas'],
 )
 
 # ── Analytics ────────────────────────────────────────────────────────
@@ -587,6 +587,47 @@ __all__ = [
     'runtime_secret_exists',
     'spark_to_geopandas',
     'spark_to_pandas',
+    # config profiles (17 symbols, batch 4)
+    'associate_client_with_project',
+    'cleanup_old_connections',
+    'create_client_profile',
+    'create_connection_profile',
+    'find_connection_by_name',
+    'get_client_project_associations',
+    'get_connection_status',
+    'list_client_profiles',
+    'list_connection_profiles',
+    'load_client_profile',
+    'load_connection_profile',
+    'save_client_profile',
+    'save_connection_profile',
+    'search_client_profiles',
+    'update_client_profile',
+    'update_connection_profile',
+    'validate_client_profile',
+    # file utilities (14 symbols, batch 5)
+    'calculate_file_hash',
+    'copy_file',
+    'download_file',
+    'download_file_with_retry',
+    'ensure_path_exists',
+    'file_exists',
+    'generate_sha256_hash_for_file',
+    'get_file_hash',
+    'get_file_info',
+    'get_quick_file_signature',
+    'is_downloadable',
+    'move_file',
+    'verify_file_integrity',
+    # sample data (8 symbols, batch 6 / #1213)
+    'CENSUS_SAMPLES',
+    'SAMPLE_DATASETS',
+    'SYNTHETIC_SAMPLES',
+    'generate_synthetic_businesses',
+    'generate_synthetic_housing',
+    'generate_synthetic_population',
+    'list_available_datasets',
+    'load_sample_data',
 ]
 
 

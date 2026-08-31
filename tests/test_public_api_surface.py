@@ -11,6 +11,9 @@ hostile-review-1176-batch1.md F2.
 
 from __future__ import annotations
 
+import sys
+import warnings
+
 import pytest
 
 import siege_utilities
@@ -198,6 +201,210 @@ class TestBatch3Promotions:
             f"{name!r} resolves to {module!r}, expected exactly "
             "'siege_utilities.databricks' or a strict '.databricks.*' submodule"
         )
+
+
+class TestBatch4Promotions:
+    """Verify #1176 batch 4 (config profile canonicals) shipped correctly.
+
+    Batch 4 covers the stdlib-backed client and connection profile helpers.
+    It intentionally excludes pydantic-backed enhanced config aliases and
+    connection verification helpers that the audit did not classify as
+    canonical in this batch.
+    """
+
+    CLIENT_SYMBOLS = [
+        "associate_client_with_project", "create_client_profile",
+        "get_client_project_associations", "list_client_profiles",
+        "load_client_profile", "save_client_profile",
+        "search_client_profiles", "update_client_profile",
+        "validate_client_profile",
+    ]
+
+    CONNECTION_SYMBOLS = [
+        "cleanup_old_connections", "create_connection_profile",
+        "find_connection_by_name", "get_connection_status",
+        "list_connection_profiles", "load_connection_profile",
+        "save_connection_profile", "update_connection_profile",
+    ]
+
+    BATCH_4 = CLIENT_SYMBOLS + CONNECTION_SYMBOLS
+
+    @pytest.mark.parametrize("name", BATCH_4)
+    def test_batch_4_symbol_in_all(self, name):
+        assert name in siege_utilities.__all__, (
+            f"{name!r} promoted per #1176 batch 4 but missing from __all__"
+        )
+
+    @pytest.mark.parametrize("name", CLIENT_SYMBOLS)
+    def test_batch_4_client_symbol_resolves_to_config_clients(self, name):
+        obj = getattr(siege_utilities, name)
+        module = getattr(obj, "__module__", "")
+        assert module == "siege_utilities.config.clients", (
+            f"{name!r} resolves to {module!r}, expected "
+            "'siege_utilities.config.clients' — cross-module collision"
+        )
+
+    @pytest.mark.parametrize("name", CONNECTION_SYMBOLS)
+    def test_batch_4_connection_symbol_resolves_to_config_connections(self, name):
+        obj = getattr(siege_utilities, name)
+        module = getattr(obj, "__module__", "")
+        assert module == "siege_utilities.config.connections", (
+            f"{name!r} resolves to {module!r}, expected "
+            "'siege_utilities.config.connections' — cross-module collision"
+        )
+
+
+class TestBatch5Promotions:
+    """Verify #1176 batch 5 (file utility canonicals) shipped correctly.
+
+    Batch 5 covers small, stdlib-backed file helpers across hashing,
+    operations, remote metadata/download helpers, and path creation.
+    """
+
+    HASHING_SYMBOLS = [
+        "calculate_file_hash", "generate_sha256_hash_for_file",
+        "get_file_hash", "get_quick_file_signature", "verify_file_integrity",
+    ]
+
+    OPERATIONS_SYMBOLS = [
+        "copy_file", "file_exists", "move_file",
+    ]
+
+    REMOTE_SYMBOLS = [
+        "download_file", "download_file_with_retry",
+        "get_file_info", "is_downloadable",
+    ]
+
+    PATH_SYMBOLS = ["ensure_path_exists"]
+
+    BATCH_5 = HASHING_SYMBOLS + OPERATIONS_SYMBOLS + REMOTE_SYMBOLS + PATH_SYMBOLS
+
+    @pytest.mark.parametrize("name", BATCH_5)
+    def test_batch_5_symbol_in_all(self, name):
+        assert name in siege_utilities.__all__, (
+            f"{name!r} promoted per #1176 batch 5 but missing from __all__"
+        )
+
+    @pytest.mark.parametrize("name", HASHING_SYMBOLS)
+    def test_batch_5_hashing_symbol_resolves_to_files_hashing(self, name):
+        obj = getattr(siege_utilities, name)
+        module = getattr(obj, "__module__", "")
+        assert module == "siege_utilities.files.hashing", (
+            f"{name!r} resolves to {module!r}, expected "
+            "'siege_utilities.files.hashing' — cross-module collision"
+        )
+
+    @pytest.mark.parametrize("name", OPERATIONS_SYMBOLS)
+    def test_batch_5_operation_symbol_resolves_to_files_operations(self, name):
+        obj = getattr(siege_utilities, name)
+        module = getattr(obj, "__module__", "")
+        assert module == "siege_utilities.files.operations", (
+            f"{name!r} resolves to {module!r}, expected "
+            "'siege_utilities.files.operations' — cross-module collision"
+        )
+
+    @pytest.mark.parametrize("name", REMOTE_SYMBOLS)
+    def test_batch_5_remote_symbol_resolves_to_files_remote(self, name):
+        obj = getattr(siege_utilities, name)
+        module = getattr(obj, "__module__", "")
+        assert module == "siege_utilities.files.remote", (
+            f"{name!r} resolves to {module!r}, expected "
+            "'siege_utilities.files.remote' — cross-module collision"
+        )
+
+    @pytest.mark.parametrize("name", PATH_SYMBOLS)
+    def test_batch_5_path_symbol_resolves_to_files_paths(self, name):
+        obj = getattr(siege_utilities, name)
+        module = getattr(obj, "__module__", "")
+        assert module == "siege_utilities.files.paths", (
+            f"{name!r} resolves to {module!r}, expected "
+            "'siege_utilities.files.paths' — cross-module collision"
+        )
+
+    def test_run_command_lazy_but_not_canonical_pending_collision_decision(self):
+        """#1215 tracks files.operations vs testing.runner run_command ambiguity."""
+        from siege_utilities import _LAZY_IMPORTS
+
+        assert "run_command" not in siege_utilities.__all__
+        assert _LAZY_IMPORTS["run_command"][0] == ".files.operations"
+
+
+class TestBatch6Promotions:
+    """Verify #1176 batch 6 / #1213 sample-data canonicals.
+
+    Batch 6 retargets root lazy loading away from the deprecated
+    `siege_utilities.data.sample_data` shim and promotes only the safe
+    sample-data constants and synthetic/loading helpers.
+    """
+
+    FUNCTION_SYMBOLS = [
+        "generate_synthetic_businesses", "generate_synthetic_housing",
+        "generate_synthetic_population", "list_available_datasets",
+        "load_sample_data",
+    ]
+
+    CONSTANT_SYMBOLS = ["CENSUS_SAMPLES", "SAMPLE_DATASETS", "SYNTHETIC_SAMPLES"]
+
+    BATCH_6 = CONSTANT_SYMBOLS + FUNCTION_SYMBOLS
+
+    @pytest.mark.parametrize("name", BATCH_6)
+    def test_batch_6_symbol_in_all(self, name):
+        assert name in siege_utilities.__all__, (
+            f"{name!r} promoted per #1176 batch 6 / #1213 but missing from __all__"
+        )
+
+    @pytest.mark.parametrize("name", BATCH_6)
+    def test_batch_6_lazy_metadata_targets_reference_sample_data(self, name):
+        from siege_utilities import _LAZY_IMPORTS
+
+        module, _source_name, deps = _LAZY_IMPORTS[name]
+        assert module == ".reference.sample_data"
+        assert deps == ["pandas"]
+
+    @pytest.mark.parametrize("name", FUNCTION_SYMBOLS)
+    def test_batch_6_function_resolves_to_reference_sample_data(self, name):
+        obj = getattr(siege_utilities, name)
+        module = getattr(obj, "__module__", "")
+        assert module == "siege_utilities.reference.sample_data", (
+            f"{name!r} resolves to {module!r}, expected "
+            "'siege_utilities.reference.sample_data' — deprecated shim collision"
+        )
+
+    @pytest.mark.parametrize("name", BATCH_6)
+    def test_batch_6_access_does_not_import_deprecated_data_sample_shim(self, name):
+        sys.modules.pop("siege_utilities.data.sample_data", None)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            getattr(siege_utilities, name)
+
+        shim_warnings = [
+            warning for warning in caught
+            if isinstance(warning.message, DeprecationWarning)
+            and "siege_utilities.data.sample_data has moved" in str(warning.message)
+        ]
+        assert not shim_warnings
+        assert "siege_utilities.data.sample_data" not in sys.modules
+
+
+class TestLazyDependencyMetadata:
+    """Verify lazy dependency metadata tracks migrated implementations."""
+
+    @pytest.mark.parametrize(
+        "name",
+        ["build_isochrone_request", "get_isochrone", "isochrone_to_geodataframe"],
+    )
+    def test_isochrones_lazy_metadata_requires_httpx(self, name):
+        """#1190 migrated geo.isochrones from requests to httpx.
+
+        If the lazy metadata still says requests, a missing-local-httpx
+        environment leaks ModuleNotFoundError instead of the package's
+        dependency wrapper.
+        """
+        from siege_utilities import _LAZY_IMPORTS
+
+        module, _source_name, deps = _LAZY_IMPORTS[name]
+        assert module == ".geo.isochrones"
+        assert deps == ["httpx"]
 
 
 class TestLazyRegistrationGuard:
