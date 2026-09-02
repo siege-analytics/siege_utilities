@@ -36,6 +36,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hidden a real Django/GIS misconfiguration. The guards now catch exactly
   `(ImproperlyConfigured, ImportError, OSError)` (plus `RuntimeError` in the test
   guards), so a real misconfig surfaces loudly (writing-code:7).
+- **RDHClient silently returned zero datasets on an auth failure** (#1115,
+  fixed by #1121). `list_datasets` now raises on the HTTP-200 `{code,
+  message}` error envelope RDH's WordPress REST API returns for an
+  unauthenticated or failed request, instead of extracting the error body's
+  `data` object and reporting an empty catalog with no indication anything
+  went wrong. `validate_credentials` is renamed to the more honest
+  `credentials_present` (kept as a backward-compatible alias) since it only
+  ever checked that the username/password strings were non-empty.
+
+- **`UserConfigManager` no longer crashes at import time when `HOME` is
+  unwritable** (#1117). The config-dir `mkdir` in `UserConfigManager.__init__`
+  raised `PermissionError` under `HOME=/nonexistent` — the default for
+  non-root Spark/Kubernetes pods and many hardened containers — which
+  aborted import of any geo/census submodule. Config-dir resolution now
+  falls back through `SIEGE_USER_CONFIG_DIR`, then `Path.home()`, then
+  `TMPDIR`; if all three are unwritable, the manager runs read-only instead
+  of raising.
 
 ## [3.17.2] - 2026-05-14
 
