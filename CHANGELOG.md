@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Scope note (2026-09-02): this section now covers everything merged to
+`main` since the `v3.23.0` tag (2026-06-20), not just the two fixes that
+originally motivated this changelog pass (#1115/#1121, #1117). Sourced
+from the nine `main`-targeting "promote" PRs (#1127, #1130, #1132, #1134,
+#1136, #1138, #1140, #1142, #1144) plus the direct #1117 promotion
+commit. Entries summarizing multi-commit promote PRs are sourced from the
+PR body / CodeRabbit review summary, not independently re-reviewed
+against the underlying diffs -- flagged below where that matters. See
+issue #1222 for the open release-scope/CI-fix checklist.
+
+### Added
+
+- **CRM connector suite** (#1012, #1015-#1019, #1020-#1022, #1023-#1025,
+  #1026-#1028, #1029-#1033): Salesforce (OAuth, SOQL builder, read ops,
+  Composite-API write-back, Bulk API v2), HubSpot (OAuth, CRM v3
+  operations, associations, batch upsert), Zoho (multi-datacenter OAuth,
+  COQL queries, batch upsert), and Dynamics 365 (MSAL auth, OData,
+  `$batch` upsert) connectors, on shared Pydantic
+  `Contact`/`Account`/`Opportunity`/`Activity` models with DataFrame
+  integration. The reporting pipeline adds DataFrame adapters, a
+  `sales_pipeline` chart, cross-CRM dedup, and two demo notebooks
+  (`04_crm_pipeline`, `05_crm_sales_reports`).
+- **Social media connector suite** (#1067-#1071): a shared
+  `SocialMediaProtocol`, Instagram (Graph API v22.0) and X/Twitter
+  (API v2, with cost tracking) connectors, a cross-platform PDF report
+  generator, and a demo notebook.
+- **Seven new analytics modules**, each promoted to `main` independently
+  (#1132, #1134, #1136, #1138, #1140, #1142, #1144): entity health
+  scoring (`HealthScorer`, #401, 26 tests), risk stacking (`RiskAnalyzer`,
+  #402, 23 tests), comparative analysis (`ComparativeAnalyzer` with
+  evidence citation, #403, 20 tests), forecast accuracy (MAPE / bias /
+  trend, #404, 23 tests), pipeline metrics (coverage / velocity /
+  concentration risk, #405, 19 tests), rule-based intervention mapping
+  with overrides (#406), and a Van Westendorp four-question
+  pricing-corridor analysis with linear interpolation (#407).
+
 ### Changed
 
 - **BREAKING (packaging):** the native GDAL/OGR Python bindings (`gdal`) are now
@@ -24,6 +60,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pip install siege-utilities[geo]
   pip install "gdal==$(gdal-config --version)"
   ```
+- **`connectors/__init__.py` lazy-loaded** (#1013): CRM/social connector
+  imports deferred to first access, consistent with the rest of the
+  package's PEP 562 lazy-import convention.
+- **113 phase4 lint violations cleaned up** (#1111): unused imports,
+  unused variables, and related flake8 findings across the source tree.
+- **VTD GEOID handling updated to 11-digit identifiers** (per #1064 and
+  the CodeRabbit summary on #1127; was 8-digit).
 
 ### Fixed
 
@@ -36,6 +79,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hidden a real Django/GIS misconfiguration. The guards now catch exactly
   `(ImproperlyConfigured, ImportError, OSError)` (plus `RuntimeError` in the test
   guards), so a real misconfig surfaces loudly (writing-code:7).
+- **RDHClient silently returned zero datasets on an auth failure** (#1115,
+  fixed by #1121). `list_datasets` now raises on the HTTP-200 `{code,
+  message}` error envelope RDH's WordPress REST API returns for an
+  unauthenticated or failed request, instead of extracting the error body's
+  `data` object and reporting an empty catalog with no indication anything
+  went wrong. `validate_credentials` is renamed to the more honest
+  `credentials_present` (kept as a backward-compatible alias) since it only
+  ever checked that the username/password strings were non-empty.
+
+- **`UserConfigManager` no longer crashes at import time when `HOME` is
+  unwritable** (#1117). The config-dir `mkdir` in `UserConfigManager.__init__`
+  raised `PermissionError` under `HOME=/nonexistent` — the default for
+  non-root Spark/Kubernetes pods and many hardened containers — which
+  aborted import of any geo/census submodule. Config-dir resolution now
+  falls back through `SIEGE_USER_CONFIG_DIR`, then `Path.home()`, then
+  `TMPDIR`; if all three are unwritable, the manager runs read-only instead
+  of raising.
+
+- **ReportLab-absent guards** (#1125, #1126, #1127, #1128): the reporting
+  module and `legend_manager` now raise a clear `ImportError` naming the
+  missing package when `reportlab` is absent, instead of silently
+  returning `None` (SU-1 compliance).
+
+- **130 previously-masked test failures unmasked and fixed** (#1064): a
+  suite-abort bug that was hiding failures behind it, a Fisher-Jenks
+  classification bug, a ReportLab-version-specific failure, and the
+  VTD GEOID digit-width fix noted above.
+
+- **191 new error-path coverage tests added** (#1087, SU-4b compliance):
+  tests that force each `except`/`raise` site to fire, across 57 files.
+
+### Known gaps in this changelog pass
+
+- **CI is not fully green on the commits this section describes.** As of
+  this changelog pass, `main`'s HEAD (`ebb32280`) has three failing
+  checks that predate this work: `geo without GDAL`, `lint ratchet
+  phases2-4`, and `error-path test coverage (SU-4b)`. The same three
+  failed on the 2026-06-30 CI run for that same commit, so they are not a
+  regression introduced by this changelog pass — but they need triage
+  before any tag is cut. Tracked on issue #1222.
+- The 26-commit / 128-file diff in #1127 is summarized here from its PR
+  body and CodeRabbit review, not independently re-verified line-by-line
+  against the diff.
 
 ## [3.17.2] - 2026-05-14
 
