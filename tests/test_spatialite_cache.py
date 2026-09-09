@@ -2,7 +2,8 @@
 
 import pytest
 
-from siege_utilities.geo.geocoding import SpatiaLiteCache, _address_hash
+import siege_utilities.geo.geocoding as geocoding
+from siege_utilities.geo.geocoding import GeocodingError, SpatiaLiteCache, _address_hash
 
 
 @pytest.fixture
@@ -70,6 +71,21 @@ class TestGeocodeCache:
 
         result = cache.get_geocode(addr)
         assert result["raw_response"] == raw
+
+    def test_put_geocode_rejects_invalid_coordinates(self, cache):
+        with pytest.raises(ValueError, match="WGS84 bounds"):
+            cache.put_geocode("bad latitude", 999, 0)
+        assert cache.get_geocode("bad latitude") is None
+
+    def test_get_geocode_or_fetch_wraps_invalid_coordinates(self, cache, monkeypatch):
+        monkeypatch.setattr(
+            geocoding,
+            "use_nominatim_geocoder",
+            lambda *a, **k: '{"nominatim_lat":"bad","nominatim_lng":"1"}',
+        )
+        with pytest.raises(GeocodingError, match="invalid lat/lng"):
+            cache.get_geocode_or_fetch("bad fetched payload", server_url="http://x")
+        assert cache.get_geocode("bad fetched payload") is None
 
 
 class TestBboxQuery:
