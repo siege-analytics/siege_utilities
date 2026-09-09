@@ -67,7 +67,12 @@
     "normalize_state_name",
     "refresh_discovery_cache",
     "validate_download_url",
-    "validate_state_fips"
+    "validate_state_fips",
+    "GeocodingError",
+    "concatenate_addresses",
+    "get_country_code",
+    "get_country_name",
+    "list_countries"
   ],
   "kind_changes": [
     "BaseReportTemplate",
@@ -84,6 +89,7 @@
     "create_marker_map",
     "create_pie_chart",
     "create_scatter_plot",
-    "generate_chart_from_dataframe"
+    "generate_chart_from_dataframe",
+    "GeocodingError"
   ]
 }

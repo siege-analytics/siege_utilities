@@ -243,9 +243,12 @@ _register_lazy([
 ], '.geo', deps=['geopandas'])
 
 _register_lazy([
-    'concatenate_addresses', 'use_nominatim_geocoder',
-    'get_country_name', 'get_country_code', 'list_countries', 'get_coordinates',
-    'GeocodingError',
+    'GeocodingError', 'concatenate_addresses',
+    'get_country_name', 'get_country_code', 'list_countries',
+], '.geo.geocoding_core')
+
+_register_lazy([
+    'use_nominatim_geocoder', 'get_coordinates',
 ], '.geo.geocoding', deps=['pandas', 'geopy'])
 
 _register_lazy([

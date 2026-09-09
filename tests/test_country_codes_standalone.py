@@ -1,18 +1,19 @@
 """Country-code lookups loaded via importlib, bypassing package __init__.
 
 Companion to `test_country_codes.py`. The import-via-spec path catches
-regressions where the geocoding module breaks under the package import
-chain (e.g. an unrelated optional dep at `siege_utilities/__init__.py`
-fails) but the module itself still works in isolation.
+regressions where stdlib-only geocoding helpers accidentally become tied
+to the package import chain or optional geocoding dependencies.
 """
 
 import importlib.util
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-GEOCODING_PATH = REPO_ROOT / "siege_utilities" / "geo" / "geocoding.py"
+GEOCODING_CORE_PATH = REPO_ROOT / "siege_utilities" / "geo" / "geocoding_core.py"
 
-_spec = importlib.util.spec_from_file_location("_geocoding_isolated", GEOCODING_PATH)
+_spec = importlib.util.spec_from_file_location(
+    "siege_utilities.geo.geocoding_core", GEOCODING_CORE_PATH
+)
 geocoding = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(geocoding)
 
