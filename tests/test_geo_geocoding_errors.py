@@ -38,33 +38,3 @@ def test_get_coordinates_raises_on_missing_latlng(monkeypatch):
     with pytest.raises(GeocodingError) as exc_info:
         get_coordinates("123 Main St")
     assert "missing lat/lng" in str(exc_info.value)
-
-
-def test_get_coordinates_wraps_invalid_numeric_latlng(monkeypatch):
-    monkeypatch.setattr(
-        geocoding,
-        "use_nominatim_geocoder",
-        lambda *a, **k: '{"nominatim_lat":"not-a-float","nominatim_lng":"1"}',
-    )
-    with pytest.raises(GeocodingError) as exc_info:
-        get_coordinates("123 Main St")
-    assert "invalid lat/lng" in str(exc_info.value)
-    assert isinstance(exc_info.value.__cause__, ValueError)
-
-
-def test_get_coordinates_wraps_out_of_bounds_latlng(monkeypatch):
-    monkeypatch.setattr(
-        geocoding,
-        "use_nominatim_geocoder",
-        lambda *a, **k: '{"nominatim_lat":999,"nominatim_lng":1}',
-    )
-    with pytest.raises(GeocodingError) as exc_info:
-        get_coordinates("123 Main St")
-    assert "invalid lat/lng" in str(exc_info.value)
-    assert isinstance(exc_info.value.__cause__, ValueError)
-
-
-def test_use_nominatim_geocoder_rejects_bad_max_retries():
-    for bad_value in (0, -1, "3", True):
-        with pytest.raises(ValueError, match="max_retries"):
-            use_nominatim_geocoder("123 Main St", max_retries=bad_value)

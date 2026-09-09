@@ -340,12 +340,9 @@ def get_country_name(country_code):
         country_code: Two-letter country code (e.g., 'us', 'gb', 'ca')
         
     Returns:
-        Full country name, the original input if not found, or ``None`` when
-        ``country_code`` is ``None``.
+        str: Full country name or the code if not found
     """
-    if country_code is None:
-        return None
-    return COUNTRY_CODES.get(str(country_code).lower(), country_code)
+    return COUNTRY_CODES.get(country_code.lower(), country_code)
 
 
 def get_country_code(country_name) -> Optional[str]:
@@ -358,11 +355,8 @@ def get_country_code(country_name) -> Optional[str]:
     Returns:
         Two-letter country code, or None if not found.
     """
-    if country_name is None:
-        return None
-    normalized = str(country_name).lower()
     for code, name in COUNTRY_CODES.items():
-        if name.lower() == normalized:
+        if name.lower() == country_name.lower():
             return code
     return None
 
@@ -377,79 +371,24 @@ def list_countries():
     return COUNTRY_CODES.copy()
 
 
-def _address_component_text(value) -> Optional[str]:
-    """Normalize one address component for public address concatenation."""
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text or None
-
-
 def concatenate_addresses(street=None, city=None, state_province_area=None,
     postal_code=None, country=None):
     """
     Concatenate address components into a single string suitable for geocoding.
-
-    Args:
-        street: Street address component.
-        city: City component.
-        state_province_area: State, province, or equivalent area component.
-        postal_code: Postal/ZIP code component. Numeric values are accepted.
-        country: Country component.
-
-    Returns:
-        A comma-separated address string. Non-``None`` components are
-        stringified and blank components are skipped.
+    Returns a properly formatted address string.
     """
     components = []
-    for component in (street, city, state_province_area, postal_code, country):
-        text = _address_component_text(component)
-        if text:
-            components.append(text)
+    if street:
+        components.append(street)
+    if city:
+        components.append(city)
+    if state_province_area:
+        components.append(state_province_area)
+    if postal_code:
+        components.append(postal_code)
+    if country:
+        components.append(country)
     return ', '.join(components)
-
-
-def _coerce_wgs84_coordinates(latitude, longitude, *, context: str) -> Tuple[float, float]:
-    """Coerce and validate a latitude/longitude pair in WGS84 bounds."""
-    try:
-        lat = float(latitude)
-        lon = float(longitude)
-    except (TypeError, ValueError) as exc:
-        raise ValueError(
-            f"{context} latitude/longitude must be numeric: "
-            f"latitude={latitude!r}, longitude={longitude!r}"
-        ) from exc
-
-    if not (-90.0 <= lat <= 90.0) or not (-180.0 <= lon <= 180.0):
-        raise ValueError(
-            f"{context} latitude/longitude out of WGS84 bounds: "
-            f"latitude={latitude!r}, longitude={longitude!r}"
-        )
-    return lat, lon
-
-
-def _coordinates_from_nominatim_json(result_json: str, query_address: str) -> Tuple[float, float]:
-    """Parse a Nominatim JSON payload and raise GeocodingError on bad data."""
-    try:
-        data = json.loads(result_json)
-    except json.JSONDecodeError as e:
-        raise GeocodingError(
-            f"Could not parse Nominatim response for {query_address!r}"
-        ) from e
-    lat = data.get('nominatim_lat')
-    lng = data.get('nominatim_lng')
-    if lat is None or lng is None:
-        raise GeocodingError(
-            f"Nominatim response for {query_address!r} missing lat/lng fields"
-        )
-    try:
-        return _coerce_wgs84_coordinates(
-            lat, lng, context=f"Nominatim response for {query_address!r}"
-        )
-    except ValueError as e:
-        raise GeocodingError(
-            f"Nominatim response for {query_address!r} has invalid lat/lng fields"
-        ) from e
 
 
 def get_coordinates(query_address, country_codes=None, max_retries=3, server_url=None):
@@ -480,7 +419,19 @@ def get_coordinates(query_address, country_codes=None, max_retries=3, server_url
     )
     if result_json is None:
         return None
-    return _coordinates_from_nominatim_json(result_json, query_address)
+    try:
+        data = json.loads(result_json)
+    except json.JSONDecodeError as e:
+        raise GeocodingError(
+            f"Could not parse Nominatim response for {query_address!r}"
+        ) from e
+    lat = data.get('nominatim_lat')
+    lng = data.get('nominatim_lng')
+    if lat is None or lng is None:
+        raise GeocodingError(
+            f"Nominatim response for {query_address!r} missing lat/lng fields"
+        )
+    return (float(lat), float(lng))
 
 
 def use_nominatim_geocoder(query_address, id=None, country_codes=None,
@@ -514,12 +465,6 @@ def use_nominatim_geocoder(query_address, id=None, country_codes=None,
     log_debug(f'Geocoding address: {query_address}')
     if not query_address:
         raise ValueError('query_address must be a non-empty string')
-    if (
-        not isinstance(max_retries, int)
-        or isinstance(max_retries, bool)
-        or max_retries < 1
-    ):
-        raise ValueError('max_retries must be a positive integer')
     log_info(f'Geocoding {query_address}')
     if not country_codes:
         country_codes = GEOCODER_CONFIG.get('country_codes')
@@ -725,35 +670,11 @@ class NominatimGeoClassifier:
         ``importance_dict`` in place. Unknown top-level keys are
         ignored; missing keys leave the corresponding table empty
         rather than raising, so a partial payload doesn't poison the
-        classifier. Malformed JSON or malformed lookup-table key types
-        raise ``ValueError`` with the original exception attached as
-        ``__cause__``.
+        classifier.
         """
-        try:
-            data = json.loads(json_string)
-        except json.JSONDecodeError as exc:
-            raise ValueError("Nominatim classifier JSON must be valid JSON") from exc
-        if not isinstance(data, dict):
-            raise ValueError("Nominatim classifier JSON must decode to an object")
-
-        place_ranks = data.get('place_ranks', {})
-        importance_thresholds = data.get('importance_thresholds', {})
-        if not isinstance(place_ranks, dict):
-            raise ValueError("Nominatim classifier place_ranks must be an object")
-        if not isinstance(importance_thresholds, dict):
-            raise ValueError(
-                "Nominatim classifier importance_thresholds must be an object"
-            )
-
-        try:
-            self.place_rank_dict = {int(k): v for k, v in place_ranks.items()}
-            self.importance_dict = {
-                float(k): v for k, v in importance_thresholds.items()
-            }
-        except (TypeError, ValueError) as exc:
-            raise ValueError(
-                "Nominatim classifier lookup-table keys must be numeric"
-            ) from exc
+        data = json.loads(json_string)
+        self.place_rank_dict = {int(k): v for k, v in data.get('place_ranks', {}).items()}
+        self.importance_dict = {float(k): v for k, v in data.get('importance_thresholds', {}).items()}
         return self
 
 
@@ -782,7 +703,7 @@ def _get_crs_bounds(crs) -> Tuple[float, float, float, float]:
         aou = crs.area_of_use
         if aou is not None:
             return (aou.south, aou.north, aou.west, aou.east)
-    except (ImportError, ValueError, TypeError, RuntimeError, AttributeError) as exc:
+    except (ValueError, TypeError, RuntimeError, AttributeError) as exc:
         logger.warning(
             "Could not derive bounds from CRS %r, falling back to world bounds: %s",
             crs, exc,
@@ -812,13 +733,11 @@ def validate_geocode_data_pandas(
         DataFrame with only rows whose coordinates fall within the valid range.
     """
     lat_min, lat_max, lon_min, lon_max = _get_crs_bounds(crs) if crs else (-90, 90, -180, 180)
-    lat = pd.to_numeric(df[lat_col], errors="coerce")
-    lon = pd.to_numeric(df[lon_col], errors="coerce")
     mask = (
-        lat.notna()
-        & lon.notna()
-        & lat.between(lat_min, lat_max)
-        & lon.between(lon_min, lon_max)
+        df[lat_col].notna()
+        & df[lon_col].notna()
+        & df[lat_col].between(lat_min, lat_max)
+        & df[lon_col].between(lon_min, lon_max)
     )
     return df[mask].reset_index(drop=True)
 
@@ -848,13 +767,11 @@ def mark_valid_geocode_data_pandas(
     """
     lat_min, lat_max, lon_min, lon_max = _get_crs_bounds(crs) if crs else (-90, 90, -180, 180)
     result = df.copy()
-    lat = pd.to_numeric(result[lat_col], errors="coerce")
-    lon = pd.to_numeric(result[lon_col], errors="coerce")
     result[output_col] = (
-        lat.notna()
-        & lon.notna()
-        & lat.between(lat_min, lat_max)
-        & lon.between(lon_min, lon_max)
+        result[lat_col].notna()
+        & result[lon_col].notna()
+        & result[lat_col].between(lat_min, lat_max)
+        & result[lon_col].between(lon_min, lon_max)
     )
     return result
 
@@ -994,15 +911,7 @@ class SpatiaLiteCache:
         source: str = "nominatim",
         raw_response: Optional[str] = None,
     ) -> str:
-        """Store a geocoding result. Returns the address hash.
-
-        Coordinates are WGS84 latitude/longitude values. Invalid or
-        non-numeric coordinates are caller precondition errors and raise
-        ``ValueError`` instead of poisoning the cache.
-        """
-        latitude, longitude = _coerce_wgs84_coordinates(
-            latitude, longitude, context="geocode cache entry"
-        )
+        """Store a geocoding result. Returns the address hash."""
         addr_hash = _address_hash(address)
         point_wkt = f"POINT({longitude} {latitude})"
         now = datetime.now(timezone.utc).isoformat()
@@ -1072,10 +981,21 @@ class SpatiaLiteCache:
         if result_json is None:
             return None
 
-        lat, lon = _coordinates_from_nominatim_json(result_json, address)
+        try:
+            data = json.loads(result_json)
+        except json.JSONDecodeError as e:
+            raise GeocodingError(
+                f"Could not parse Nominatim response for {address!r}"
+            ) from e
+        lat = data.get("nominatim_lat")
+        lon = data.get("nominatim_lng")
+        if lat is None or lon is None:
+            raise GeocodingError(
+                f"Nominatim response for {address!r} missing lat/lng fields"
+            )
 
         self.put_geocode(
-            address, lat, lon,
+            address, float(lat), float(lon),
             source="nominatim", raw_response=result_json,
         )
         return self.get_geocode(address)

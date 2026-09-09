@@ -5,10 +5,11 @@ functions but loads the geocoding module directly via importlib. Both
 should agree on the round-trip.
 """
 
-from siege_utilities.geo.geocoding import concatenate_addresses
-from siege_utilities.geo.geocoding import get_country_code
-from siege_utilities.geo.geocoding import get_country_name
-from siege_utilities.geo.geocoding import list_countries
+from siege_utilities.geo.geocoding import (
+    get_country_name,
+    get_country_code,
+    list_countries,
+)
 
 CODE_TO_NAME = {
     "us": "United States",
@@ -60,25 +61,5 @@ def test_unknown_inputs_have_documented_fallbacks():
     # API change and should fail this test.
     assert get_country_name("zz") == "zz"
     assert get_country_name("") == ""
-    assert get_country_name(None) is None
     assert get_country_code("Atlantis") is None
     assert get_country_code("") is None
-    assert get_country_code(None) is None
-
-
-def test_concatenate_addresses_stringifies_numeric_components():
-    assert concatenate_addresses(
-        city="Austin",
-        state_province_area="TX",
-        postal_code=78701,
-    ) == "Austin, TX, 78701"
-
-
-def test_concatenate_addresses_skips_blank_components():
-    assert concatenate_addresses(
-        street="  ",
-        city="Austin",
-        state_province_area=None,
-        postal_code="",
-        country="US",
-    ) == "Austin, US"
