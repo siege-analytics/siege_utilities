@@ -285,16 +285,22 @@ DEFAULT_COUNTRY_CODE = 'us'
 # Internal Kubernetes service URL for self-hosted Nominatim (elect.info cluster)
 NOMINATIM_INTERNAL_URL = 'http://nominatim.nominatim.svc.cluster.local:80'
 
-def get_country_name(country_code):
+def get_country_name(country_code) -> Optional[str]:
     """
     Get the full country name from a country code.
 
     Args:
-        country_code: Two-letter country code (e.g., 'us', 'gb', 'ca')
+        country_code: Two-letter country code (e.g., 'us', 'gb', 'ca'), or
+            ``None`` for missing data.
 
     Returns:
-        str: Full country name or the code if not found
+        Full country name, the original unknown string, or ``None`` when the
+        input is ``None``.
     """
+    if country_code is None:
+        return None
+    if not isinstance(country_code, str):
+        raise TypeError("country_code must be a string or None")
     return COUNTRY_CODES.get(country_code.lower(), country_code)
 
 
@@ -303,11 +309,16 @@ def get_country_code(country_name) -> Optional[str]:
     Get the country code from a country name.
 
     Args:
-        country_name: Full country name (e.g., 'United States', 'Canada')
+        country_name: Full country name (e.g., 'United States', 'Canada'), or
+            ``None`` for missing data.
 
     Returns:
-        Two-letter country code, or None if not found.
+        Two-letter country code, or None if not found/missing.
     """
+    if country_name is None:
+        return None
+    if not isinstance(country_name, str):
+        raise TypeError("country_name must be a string or None")
     for code, name in COUNTRY_CODES.items():
         if name.lower() == country_name.lower():
             return code
@@ -331,14 +342,10 @@ def concatenate_addresses(street=None, city=None, state_province_area=None,
     Returns a properly formatted address string.
     """
     components = []
-    if street:
-        components.append(street)
-    if city:
-        components.append(city)
-    if state_province_area:
-        components.append(state_province_area)
-    if postal_code:
-        components.append(postal_code)
-    if country:
-        components.append(country)
+    for component in (street, city, state_province_area, postal_code, country):
+        if component is None:
+            continue
+        value = str(component).strip()
+        if value:
+            components.append(value)
     return ', '.join(components)

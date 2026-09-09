@@ -5,6 +5,8 @@ functions but loads the geocoding module directly via importlib. Both
 should agree on the round-trip.
 """
 
+import pytest
+
 from siege_utilities.geo.geocoding import (
     get_country_name,
     get_country_code,
@@ -63,3 +65,22 @@ def test_unknown_inputs_have_documented_fallbacks():
     assert get_country_name("") == ""
     assert get_country_code("Atlantis") is None
     assert get_country_code("") is None
+
+
+def test_country_helpers_handle_missing_data_but_reject_other_non_strings():
+    assert get_country_name(None) is None
+    assert get_country_code(None) is None
+    with pytest.raises(TypeError):
+        get_country_name(840)
+    with pytest.raises(TypeError):
+        get_country_code(840)
+
+
+def test_concatenate_addresses_coerces_realistic_components():
+    from siege_utilities.geo.geocoding import concatenate_addresses
+
+    assert concatenate_addresses(
+        street=" 123 Main St ", city="Austin", state_province_area="TX", postal_code=78701, country="US"
+    ) == "123 Main St, Austin, TX, 78701, US"
+    assert concatenate_addresses(postal_code=0) == "0"
+    assert concatenate_addresses(street="", city="   ", postal_code=None) == ""

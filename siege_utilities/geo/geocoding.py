@@ -4,6 +4,7 @@ import sqlite3
 import time
 import json
 import logging
+import math
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -74,6 +75,55 @@ GEOCODER_CONFIG = {
 }
 
 
+def _validate_max_retries(max_retries: int) -> int:
+    """Validate caller retry preconditions before geocoder construction."""
+    if isinstance(max_retries, bool) or not isinstance(max_retries, int) or max_retries < 1:
+        raise ValueError("max_retries must be a positive integer")
+    return max_retries
+
+
+def _coerce_float(value, field_name: str, *, context: str) -> float:
+    """Coerce a coordinate component and reject NaN/inf values."""
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{context} has invalid {field_name}: {value!r}") from exc
+    if not math.isfinite(parsed):
+        raise ValueError(f"{context} has non-finite {field_name}: {value!r}")
+    return parsed
+
+
+def _validate_wgs84_coordinates(lat, lon, *, context: str) -> Tuple[float, float]:
+    """Return normalized WGS84 coordinates or raise ``ValueError``."""
+    latitude = _coerce_float(lat, "latitude", context=context)
+    longitude = _coerce_float(lon, "longitude", context=context)
+    if not -90 <= latitude <= 90:
+        raise ValueError(f"{context} latitude out of WGS84 range: {latitude!r}")
+    if not -180 <= longitude <= 180:
+        raise ValueError(f"{context} longitude out of WGS84 range: {longitude!r}")
+    return latitude, longitude
+
+
+def _validate_provider_coordinates(lat, lon, *, context: str) -> Tuple[float, float]:
+    """Validate provider-supplied coordinates and wrap failures."""
+    try:
+        return _validate_wgs84_coordinates(lat, lon, context=context)
+    except ValueError as exc:
+        raise GeocodingError(str(exc)) from exc
+
+
+def _pandas_coordinate_mask(df: pd.DataFrame, lat_col: str, lon_col: str, crs=None):
+    lat_min, lat_max, lon_min, lon_max = _get_crs_bounds(crs) if crs else (-90, 90, -180, 180)
+    lat_values = pd.to_numeric(df[lat_col], errors="coerce")
+    lon_values = pd.to_numeric(df[lon_col], errors="coerce")
+    return (
+        lat_values.notna()
+        & lon_values.notna()
+        & lat_values.between(lat_min, lat_max)
+        & lon_values.between(lon_min, lon_max)
+    )
+
+
 def get_coordinates(query_address, country_codes=None, max_retries=3, server_url=None):
     """
     Get coordinates (latitude, longitude) for an address using Nominatim.
@@ -108,13 +158,19 @@ def get_coordinates(query_address, country_codes=None, max_retries=3, server_url
         raise GeocodingError(
             f"Could not parse Nominatim response for {query_address!r}"
         ) from e
+    if not isinstance(data, dict):
+        raise GeocodingError(
+            f"Nominatim response for {query_address!r} must be an object"
+        )
     lat = data.get('nominatim_lat')
     lng = data.get('nominatim_lng')
     if lat is None or lng is None:
         raise GeocodingError(
             f"Nominatim response for {query_address!r} missing lat/lng fields"
         )
-    return (float(lat), float(lng))
+    return _validate_provider_coordinates(
+        lat, lng, context=f"Nominatim response for {query_address!r}"
+    )
 
 
 def use_nominatim_geocoder(query_address, id=None, country_codes=None,
@@ -145,6 +201,7 @@ def use_nominatim_geocoder(query_address, id=None, country_codes=None,
             attempt to match). Wraps the underlying geopy exception via
             ``__cause__``.
     """
+    max_retries = _validate_max_retries(max_retries)
     log_debug(f'Geocoding address: {query_address}')
     if not query_address:
         raise ValueError('query_address must be a non-empty string')
@@ -355,9 +412,31 @@ class NominatimGeoClassifier:
         rather than raising, so a partial payload doesn't poison the
         classifier.
         """
-        data = json.loads(json_string)
-        self.place_rank_dict = {int(k): v for k, v in data.get('place_ranks', {}).items()}
-        self.importance_dict = {float(k): v for k, v in data.get('importance_thresholds', {}).items()}
+        try:
+            data = json.loads(json_string)
+        except (json.JSONDecodeError, TypeError) as exc:
+            raise ValueError("Invalid NominatimGeoClassifier JSON") from exc
+        if not isinstance(data, dict):
+            raise ValueError("NominatimGeoClassifier JSON must be an object")
+
+        place_ranks_raw = data.get('place_ranks', {})
+        importance_raw = data.get('importance_thresholds', {})
+        if not isinstance(place_ranks_raw, dict):
+            raise ValueError("place_ranks must be an object")
+        if not isinstance(importance_raw, dict):
+            raise ValueError("importance_thresholds must be an object")
+
+        try:
+            place_ranks = {int(k): v for k, v in place_ranks_raw.items()}
+        except (TypeError, ValueError) as exc:
+            raise ValueError("place_ranks keys must be integers") from exc
+        try:
+            importance = {float(k): v for k, v in importance_raw.items()}
+        except (TypeError, ValueError) as exc:
+            raise ValueError("importance_thresholds keys must be floats") from exc
+
+        self.place_rank_dict = place_ranks
+        self.importance_dict = importance
         return self
 
 
@@ -415,13 +494,7 @@ def validate_geocode_data_pandas(
     Returns:
         DataFrame with only rows whose coordinates fall within the valid range.
     """
-    lat_min, lat_max, lon_min, lon_max = _get_crs_bounds(crs) if crs else (-90, 90, -180, 180)
-    mask = (
-        df[lat_col].notna()
-        & df[lon_col].notna()
-        & df[lat_col].between(lat_min, lat_max)
-        & df[lon_col].between(lon_min, lon_max)
-    )
+    mask = _pandas_coordinate_mask(df, lat_col, lon_col, crs=crs)
     return df[mask].reset_index(drop=True)
 
 
@@ -448,14 +521,8 @@ def mark_valid_geocode_data_pandas(
     Returns:
         Copy of *df* with *output_col* appended.
     """
-    lat_min, lat_max, lon_min, lon_max = _get_crs_bounds(crs) if crs else (-90, 90, -180, 180)
     result = df.copy()
-    result[output_col] = (
-        result[lat_col].notna()
-        & result[lon_col].notna()
-        & result[lat_col].between(lat_min, lat_max)
-        & result[lon_col].between(lon_min, lon_max)
-    )
+    result[output_col] = _pandas_coordinate_mask(result, lat_col, lon_col, crs=crs)
     return result
 
 
@@ -594,7 +661,10 @@ class SpatiaLiteCache:
         source: str = "nominatim",
         raw_response: Optional[str] = None,
     ) -> str:
-        """Store a geocoding result. Returns the address hash."""
+        """Store a WGS84 geocoding result. Returns the address hash."""
+        latitude, longitude = _validate_wgs84_coordinates(
+            latitude, longitude, context=f"cache entry for {address!r}"
+        )
         addr_hash = _address_hash(address)
         point_wkt = f"POINT({longitude} {latitude})"
         now = datetime.now(timezone.utc).isoformat()
@@ -670,15 +740,22 @@ class SpatiaLiteCache:
             raise GeocodingError(
                 f"Could not parse Nominatim response for {address!r}"
             ) from e
+        if not isinstance(data, dict):
+            raise GeocodingError(
+                f"Nominatim response for {address!r} must be an object"
+            )
         lat = data.get("nominatim_lat")
         lon = data.get("nominatim_lng")
         if lat is None or lon is None:
             raise GeocodingError(
                 f"Nominatim response for {address!r} missing lat/lng fields"
             )
+        lat, lon = _validate_provider_coordinates(
+            lat, lon, context=f"Nominatim response for {address!r}"
+        )
 
         self.put_geocode(
-            address, float(lat), float(lon),
+            address, lat, lon,
             source="nominatim", raw_response=result_json,
         )
         return self.get_geocode(address)

@@ -545,3 +545,14 @@ class TestLazyRegistrationGuard:
             assert _LAZY_IMPORTS[sentinel][0] == ".geo.spatial_data"
         finally:
             _LAZY_IMPORTS.pop(sentinel, None)
+
+
+def test_geocoding_country_helpers_have_direct_canonical_coverage():
+    """Keep canonical scanner coverage honest for promoted no-dep helpers."""
+    from siege_utilities import get_country_code
+    from siege_utilities import get_country_name
+    from siege_utilities import list_countries
+
+    assert get_country_name("us") == "United States"
+    assert get_country_code("United States") == "us"
+    assert "us" in list_countries()

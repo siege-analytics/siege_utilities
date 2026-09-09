@@ -8,6 +8,8 @@ to the package import chain or optional geocoding dependencies.
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 GEOCODING_CORE_PATH = REPO_ROOT / "siege_utilities" / "geo" / "geocoding_core.py"
 
@@ -67,3 +69,24 @@ def test_unknown_inputs_have_documented_fallbacks():
     assert geocoding.get_country_name("") == ""
     assert geocoding.get_country_code("Atlantis") is None
     assert geocoding.get_country_code("") is None
+
+
+def test_standalone_country_helpers_handle_missing_data_and_reject_non_strings():
+    assert geocoding.get_country_name(None) is None
+    assert geocoding.get_country_code(None) is None
+    with pytest.raises(TypeError):
+        geocoding.get_country_name(840)
+    with pytest.raises(TypeError):
+        geocoding.get_country_code(840)
+
+
+def test_standalone_concatenate_addresses_coerces_realistic_components():
+    assert geocoding.concatenate_addresses(
+        street=" 123 Main St ",
+        city="Austin",
+        state_province_area="TX",
+        postal_code=78701,
+        country="US",
+    ) == "123 Main St, Austin, TX, 78701, US"
+    assert geocoding.concatenate_addresses(postal_code=0) == "0"
+    assert geocoding.concatenate_addresses(street="", city="   ", postal_code=None) == ""
