@@ -4,9 +4,9 @@
 
 ## Shape
 
-39 notebooks are present: 27 live notebooks and 12 archived notebooks. 21 live
+39 notebooks are present: 27 live notebooks and 12 archived notebooks. 22 live
 notebooks are currently canonical/governed by `tests/test_notebook_hygiene.py`
-and `tests/test_notebooks.py`; 6 legacy live notebooks are pending rewrite,
+and `tests/test_notebooks.py`; 5 legacy live notebooks are pending rewrite,
 promotion into governance, or archive/removal under #1227. Canonical notebooks
 remain capability showcases, not API tours: one user intent, coherent cells,
 and one deliverable.
@@ -49,6 +49,7 @@ introduces both and proves the wire-up by rendering the same chart under each br
 | analytics | 01 | Three connectors, one call-shape pattern | Masai |
 | analytics | 02 | Weekly GA digest PDF | Masai |
 | config | credential_management | Credential backend discovery and missing-credential handling without real secrets | Both |
+| git | repo_analysis | Repository status, branch, and commit analysis against a temporary fixture repo | Both |
 | engines | 01 | Same ranking, pandas vs DuckDB | ElectInfo |
 | engines | 02 | Scale to Spark (call shape) | ElectInfo |
 | engines | 03 | Azure Databricks — no Sedona workaround | ElectInfo |
@@ -121,7 +122,7 @@ python3 scripts/check_notebook_inventory.py --check
 ```
 
 The strict all-live-governed gate is intentionally separate until #1227 rewrites,
-promotes, archives, or removes the 6 legacy live notebooks:
+promotes, archives, or removes the 5 legacy live notebooks:
 
 ```bash
 python3 scripts/check_notebook_inventory.py --check --require-all-live-governed

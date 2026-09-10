@@ -33,6 +33,7 @@ RE_WRITTEN: list[str] = [
     "foundations/entity_identification.ipynb",
     "foundations/file_operations_and_security.ipynb",
     "config/credential_management.ipynb",
+    "git/repo_analysis.ipynb",
     "spatial/01_boundaries.ipynb",
     "spatial/02_geocoding.ipynb",
     "spatial/03_choropleth_maps.ipynb",
