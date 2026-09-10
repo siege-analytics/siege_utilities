@@ -4,9 +4,9 @@
 
 ## Shape
 
-39 notebooks are present: 27 live notebooks and 12 archived notebooks. 23 live
+39 notebooks are present: 27 live notebooks and 12 archived notebooks. 24 live
 notebooks are currently canonical/governed by `tests/test_notebook_hygiene.py`
-and `tests/test_notebooks.py`; 4 legacy live notebooks are pending rewrite,
+and `tests/test_notebooks.py`; 3 legacy live notebooks are pending rewrite,
 promotion into governance, or archive/removal under #1227. Canonical notebooks
 remain capability showcases, not API tours: one user intent, coherent cells,
 and one deliverable.
@@ -46,6 +46,7 @@ introduces both and proves the wire-up by rendering the same chart under each br
 | spatial | 04 | Redistricting diff — 116th vs 118th TX-32 | ElectInfo |
 | spatial | 05 | Unify 3 polling vendors onto TX-32 precincts | ElectInfo |
 | spatial | 06 | GeoDjango API for TX-32 precincts | ElectInfo |
+| spatial | 07 | Natural-language spatial filters resolved to fixture geometry and GeoPandas handoff | ElectInfo |
 | analytics | 01 | Three connectors, one call-shape pattern | Masai |
 | analytics | 02 | Weekly GA digest PDF | Masai |
 | config | credential_management | Credential backend discovery and missing-credential handling without real secrets | Both |
@@ -123,7 +124,7 @@ python3 scripts/check_notebook_inventory.py --check
 ```
 
 The strict all-live-governed gate is intentionally separate until #1227 rewrites,
-promotes, archives, or removes the 4 legacy live notebooks:
+promotes, archives, or removes the 3 legacy live notebooks:
 
 ```bash
 python3 scripts/check_notebook_inventory.py --check --require-all-live-governed
