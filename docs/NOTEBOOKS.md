@@ -4,9 +4,9 @@
 
 ## Shape
 
-39 notebooks are present: 27 live notebooks and 12 archived notebooks. 18 live
+39 notebooks are present: 27 live notebooks and 12 archived notebooks. 20 live
 notebooks are currently canonical/governed by `tests/test_notebook_hygiene.py`
-and `tests/test_notebooks.py`; 9 legacy live notebooks are pending rewrite,
+and `tests/test_notebooks.py`; 7 legacy live notebooks are pending rewrite,
 promotion into governance, or archive/removal under #1227. Canonical notebooks
 remain capability showcases, not API tours: one user intent, coherent cells,
 and one deliverable.
@@ -38,6 +38,8 @@ introduces both and proves the wire-up by rendering the same chart under each br
 |---|---|---|---|
 | foundations | 01 | Bootstrap reporting env — Hydra + Pydantic config | ElectInfo |
 | foundations | 02 | Onboard two clients as branded profiles | Both |
+| foundations | entity_identification | Deduplicate donor/customer records with normalized names and UUID5 IDs | ElectInfo |
+| foundations | file_operations_and_security | Safe local project workspace, atomic writes, path checks, safe shell handling | ElectInfo |
 | spatial | 01 | Pull TX boundaries (TIGER + ACS demographics + GADM) | ElectInfo |
 | spatial | 02 | Resolve donor list to FIPS (Census batch geocoder) | ElectInfo |
 | spatial | 03 | Bivariate choropleth (dem share × turnout) | ElectInfo |
@@ -118,7 +120,7 @@ python3 scripts/check_notebook_inventory.py --check
 ```
 
 The strict all-live-governed gate is intentionally separate until #1227 rewrites,
-promotes, archives, or removes the 9 legacy live notebooks:
+promotes, archives, or removes the 7 legacy live notebooks:
 
 ```bash
 python3 scripts/check_notebook_inventory.py --check --require-all-live-governed
