@@ -69,6 +69,7 @@ NOTEBOOK_GROUPS: dict[str, list[str]] = {
         "spatial/03_choropleth_maps.ipynb",
         "spatial/04_redistricting.ipynb",
         "spatial/05_multi_source_joins.ipynb",
+        "spatial/07_natural_language_to_geometry.ipynb",
     ],
     # Django/PostGIS — require Django DB + GDAL.
     "django": [

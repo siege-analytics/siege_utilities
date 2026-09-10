@@ -9,8 +9,8 @@ at source, tests, and architectural decisions.
 
 The notebooks tell a single story threaded through two partner firms of Siege
 Analytics. A first-time reader sees how the library's modules compose end-to-end
-for realistic work. The current repository has 27 live notebooks: 23 governed
-canonical notebooks plus 4 legacy live notebooks pending rewrite/archive routing.
+for realistic work. The current repository has 27 live notebooks: 24 governed
+canonical notebooks plus 3 legacy live notebooks pending rewrite/archive routing.
 
 - **ElectInfo** ([elect.info](https://elect.info)) — political / civic analytics. Owns the spatial,
   redistricting, survey, FEC / campaign-finance, engine-scaling, PDF reporting,
@@ -60,6 +60,7 @@ notebooks/
 | [`04_redistricting.ipynb`](./spatial/04_redistricting.ipynb) | RDH + VTD routing |
 | [`05_multi_source_joins.ipynb`](./spatial/05_multi_source_joins.ipynb) | Cross-source spatial joins (dirty-data canonical) |
 | [`06_geodjango.ipynb`](./spatial/06_geodjango.ipynb) | GeoDjango + PostGIS |
+| [`07_natural_language_to_geometry.ipynb`](./spatial/07_natural_language_to_geometry.ipynb) | Natural-language spatial filters resolved to fixture geometry and GeoPandas handoff |
 
 ### `reports/`
 | File | Capability |
@@ -135,14 +136,13 @@ If you have a bookmark or external link pointing at the old flat numbering, this
 
 ## Legacy live notebooks pending governance
 
-These 4 live notebooks are intentionally not counted as canonical until #1227
+These 3 live notebooks are intentionally not counted as canonical until #1227
 rewrites/promotes them into hygiene + execution governance or archives/removes
 them:
 
 - `analytics/03_social_media_analytics.ipynb`
 - `analytics/04_crm_pipeline.ipynb`
 - `analytics/05_crm_sales_reports.ipynb`
-- `spatial/07_natural_language_to_geometry.ipynb`
 
 Run `python3 scripts/check_notebook_inventory.py --json` for the current
 machine-readable inventory and `--check` to guard missing references and local
