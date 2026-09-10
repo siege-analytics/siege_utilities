@@ -172,6 +172,47 @@ class TestCredentialManagerInit:
         manager = CredentialManager(credential_paths=[str(extra)])
         assert extra in manager.credential_paths
 
+    def test_offline_mode_does_not_probe_external_backends_or_default_paths(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        home = tmp_path / "home"
+        home.mkdir()
+        monkeypatch.setenv("HOME", str(home))
+        with patch('siege_utilities.config.credential_manager.subprocess.run') as mock_run:
+            manager = CredentialManager(
+                backend_priority=['files', 'env'],
+                credential_paths=[],
+                detect_backends=False,
+                include_default_paths=False,
+                create_default_paths=False,
+            )
+
+        mock_run.assert_not_called()
+        assert manager.credential_paths == []
+        assert manager.available_backends['files'] is True
+        assert manager.available_backends['env'] is True
+        assert manager.available_backends['1password'] is False
+        assert manager.available_backends['keychain'] is False
+        assert not (tmp_path / "credentials").exists()
+        assert not (home / ".siege_utilities" / "credentials").exists()
+
+    def test_can_disable_default_path_creation_without_disabling_paths(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        home = tmp_path / "home"
+        home.mkdir()
+        monkeypatch.setenv("HOME", str(home))
+        manager = CredentialManager(
+            backend_priority=['files', 'env'],
+            credential_paths=[],
+            detect_backends=False,
+            include_default_paths=True,
+            create_default_paths=False,
+        )
+
+        assert tmp_path / "credentials" in manager.credential_paths
+        assert home / ".siege_utilities" / "credentials" in manager.credential_paths
+        assert not (tmp_path / "credentials").exists()
+        assert not (home / ".siege_utilities" / "credentials").exists()
+
 
 # =============================================================================
 # BACKEND DETECTION TESTS
