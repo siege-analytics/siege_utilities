@@ -9,8 +9,8 @@ at source, tests, and architectural decisions.
 
 The notebooks tell a single story threaded through two partner firms of Siege
 Analytics. A first-time reader sees how the library's modules compose end-to-end
-for realistic work. The current repository has 27 live notebooks: 20 governed
-canonical notebooks plus 7 legacy live notebooks pending rewrite/archive routing.
+for realistic work. The current repository has 27 live notebooks: 21 governed
+canonical notebooks plus 6 legacy live notebooks pending rewrite/archive routing.
 
 - **ElectInfo** ([elect.info](https://elect.info)) — political / civic analytics. Owns the spatial,
   redistricting, survey, FEC / campaign-finance, engine-scaling, PDF reporting,
@@ -69,6 +69,11 @@ notebooks/
 | [`03_polling_survey_analysis.ipynb`](./reports/03_polling_survey_analysis.ipynb) | Survey pipeline end-to-end incl. `WaveSet.compare_chain` |
 | [`04_survey_full_showcase.ipynb`](./reports/04_survey_full_showcase.ipynb) | Survey TableTypes and branded multi-section PDF showcase |
 
+### `config/`
+| File | Capability |
+|---|---|
+| [`credential_management.ipynb`](./config/credential_management.ipynb) | Credential backend discovery and missing-credential handling without real secrets |
+
 ### `analytics/`
 | File | Capability |
 |---|---|
@@ -120,14 +125,13 @@ If you have a bookmark or external link pointing at the old flat numbering, this
 
 ## Legacy live notebooks pending governance
 
-These 7 live notebooks are intentionally not counted as canonical until #1227
+These 6 live notebooks are intentionally not counted as canonical until #1227
 rewrites/promotes them into hygiene + execution governance or archives/removes
 them:
 
 - `analytics/03_social_media_analytics.ipynb`
 - `analytics/04_crm_pipeline.ipynb`
 - `analytics/05_crm_sales_reports.ipynb`
-- `config/credential_management.ipynb`
 - `economic/economic_data_irs_bls.ipynb`
 - `git/repo_analysis.ipynb`
 - `spatial/07_natural_language_to_geometry.ipynb`
