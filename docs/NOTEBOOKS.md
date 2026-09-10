@@ -4,9 +4,9 @@
 
 ## Shape
 
-39 notebooks are present: 27 live notebooks and 12 archived notebooks. 24 live
+39 notebooks are present: 27 live notebooks and 12 archived notebooks. 25 live
 notebooks are currently canonical/governed by `tests/test_notebook_hygiene.py`
-and `tests/test_notebooks.py`; 3 legacy live notebooks are pending rewrite,
+and `tests/test_notebooks.py`; 2 legacy live notebooks are pending rewrite,
 promotion into governance, or archive/removal under #1227. Canonical notebooks
 remain capability showcases, not API tours: one user intent, coherent cells,
 and one deliverable.
@@ -124,7 +124,7 @@ python3 scripts/check_notebook_inventory.py --check
 ```
 
 The strict all-live-governed gate is intentionally separate until #1227 rewrites,
-promotes, archives, or removes the 3 legacy live notebooks:
+promotes, archives, or removes the 2 legacy live notebooks:
 
 ```bash
 python3 scripts/check_notebook_inventory.py --check --require-all-live-governed
