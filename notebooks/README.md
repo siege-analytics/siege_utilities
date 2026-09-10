@@ -9,8 +9,8 @@ at source, tests, and architectural decisions.
 
 The notebooks tell a single story threaded through two partner firms of Siege
 Analytics. A first-time reader sees how the library's modules compose end-to-end
-for realistic work. The current repository has 27 live notebooks: 18 governed
-canonical notebooks plus 9 legacy live notebooks pending rewrite/archive routing.
+for realistic work. The current repository has 27 live notebooks: 20 governed
+canonical notebooks plus 7 legacy live notebooks pending rewrite/archive routing.
 
 - **ElectInfo** ([elect.info](https://elect.info)) — political / civic analytics. Owns the spatial,
   redistricting, survey, FEC / campaign-finance, engine-scaling, PDF reporting,
@@ -48,6 +48,8 @@ notebooks/
 |---|---|
 | [`01_configuration.ipynb`](./foundations/01_configuration.ipynb) | Hydra + Pydantic config, env handling |
 | [`02_profiles_branding.ipynb`](./foundations/02_profiles_branding.ipynb) | Users, clients, Actor model, branding (consolidates Person/Actor + branding deep-dive) |
+| [`entity_identification.ipynb`](./foundations/entity_identification.ipynb) | Deterministic donor/customer deduplication with normalized names and UUID5 identifiers |
+| [`file_operations_and_security.ipynb`](./foundations/file_operations_and_security.ipynb) | Atomic writes, path traversal checks, and safe shell-command handling |
 
 ### `spatial/`
 | File | Capability |
@@ -118,7 +120,7 @@ If you have a bookmark or external link pointing at the old flat numbering, this
 
 ## Legacy live notebooks pending governance
 
-These 9 live notebooks are intentionally not counted as canonical until #1227
+These 7 live notebooks are intentionally not counted as canonical until #1227
 rewrites/promotes them into hygiene + execution governance or archives/removes
 them:
 
@@ -127,8 +129,6 @@ them:
 - `analytics/05_crm_sales_reports.ipynb`
 - `config/credential_management.ipynb`
 - `economic/economic_data_irs_bls.ipynb`
-- `foundations/entity_identification.ipynb`
-- `foundations/file_operations_and_security.ipynb`
 - `git/repo_analysis.ipynb`
 - `spatial/07_natural_language_to_geometry.ipynb`
 
