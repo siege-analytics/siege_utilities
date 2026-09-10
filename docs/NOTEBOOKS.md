@@ -1,13 +1,13 @@
 # siege_utilities — Notebook system
 
-**Status:** Mixed/governed. ELE-2456 established the canonical notebook template, but the repository currently contains additional legacy live notebooks that still need rewrite/archive disposition.
+**Status:** Governed. ELE-2456 established the canonical notebook template, and #1227 brought every live notebook into hygiene + execution governance or archived/removed the legacy backlog.
 
 ## Shape
 
-39 notebooks are present: 27 live notebooks and 12 archived notebooks. 26 live
+39 notebooks are present: 27 live notebooks and 12 archived notebooks. 27 live
 notebooks are currently canonical/governed by `tests/test_notebook_hygiene.py`
-and `tests/test_notebooks.py`; 1 legacy live notebook is pending rewrite,
-promotion into governance, or archive/removal under #1227. Canonical notebooks
+and `tests/test_notebooks.py`; #1227 has no remaining legacy live notebook rewrite,
+promotion, or archive/removal backlog. Canonical notebooks
 remain capability showcases, not API tours: one user intent, coherent cells,
 and one deliverable.
 
@@ -123,8 +123,8 @@ python3 scripts/check_notebook_inventory.py --json
 python3 scripts/check_notebook_inventory.py --check
 ```
 
-The strict all-live-governed gate is intentionally separate until #1227 rewrites,
-promotes, archives, or removes the 1 legacy live notebook:
+The strict all-live-governed gate now enforces that every live notebook is listed
+in both governance files:
 
 ```bash
 python3 scripts/check_notebook_inventory.py --check --require-all-live-governed

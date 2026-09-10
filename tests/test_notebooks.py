@@ -60,6 +60,7 @@ NOTEBOOK_GROUPS: dict[str, list[str]] = {
         "analytics/01_connectors.ipynb",
         "analytics/03_social_media_analytics.ipynb",
         "analytics/04_crm_pipeline.ipynb",
+        "analytics/05_crm_sales_reports.ipynb",
         "engines/01_multi_engine_dataframes.ipynb",
         "engines/04_statistics_primitives.ipynb",
         "reports/01_charts_and_pdf.ipynb",
