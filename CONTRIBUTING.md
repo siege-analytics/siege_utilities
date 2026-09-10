@@ -145,9 +145,12 @@ Notebooks in `notebooks/` demonstrate real-world usage. If your change affects u
 # Validate notebook output policy
 python -m pytest -q --no-cov tests/test_notebooks_output_policy.py
 
-# Run a specific notebook headlessly (requires papermill)
+# Run notebook inventory and local path-leak checks
+python3 scripts/check_notebook_inventory.py --check
+
+# Run a specific current notebook headlessly (requires papermill)
 pip install papermill
-papermill notebooks/01_Getting_Started.ipynb /tmp/nb01_output.ipynb --execution-timeout 300
+papermill notebooks/reports/03_polling_survey_analysis.ipynb /tmp/reports03_output.ipynb --execution-timeout 300
 ```
 
 ## CI Pipeline
@@ -219,7 +222,7 @@ scripts/
 └── check_*.py           # Lint and hygiene validation scripts
 
 tests/                   # 3058+ tests across all modules
-notebooks/               # 20 Jupyter notebooks demonstrating features
+notebooks/               # 39 notebooks: 27 live, 12 archived; 18 governed/canonical, 9 legacy live pending #1227
 docs/                    # Sphinx documentation + policy docs
 ```
 

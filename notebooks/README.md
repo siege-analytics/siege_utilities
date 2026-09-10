@@ -9,14 +9,15 @@ at source, tests, and architectural decisions.
 
 The notebooks tell a single story threaded through two partner firms of Siege
 Analytics. A first-time reader sees how the library's modules compose end-to-end
-for realistic work, not 17 disconnected demos.
+for realistic work. The current repository has 27 live notebooks: 18 governed
+canonical notebooks plus 9 legacy live notebooks pending rewrite/archive routing.
 
 - **ElectInfo** ([elect.info](https://elect.info)) — political / civic analytics. Owns the spatial,
   redistricting, survey, FEC / campaign-finance, engine-scaling, PDF reporting,
-  and statistics-primitives notebooks (roughly 13 of 17).
+  and statistics-primitives notebooks.
 - **Masai Interactive** ([masaiinteractive.com](https://masaiinteractive.com)) — web / social analytics.
   Owns the external-connector, GA end-to-end, and slides / Google Workspace
-  delivery notebooks (3 of 17).
+  delivery notebooks.
 
 Both firms ship as predefined branding templates in
 `siege_utilities/reporting/client_branding.py` (`elect_info` and
@@ -64,6 +65,7 @@ notebooks/
 | [`01_charts_and_pdf.ipynb`](./reports/01_charts_and_pdf.ipynb) | ChartGenerator gallery + ReportLab PDF (consolidates PDF features) |
 | [`02_slides_pptx_and_google.ipynb`](./reports/02_slides_pptx_and_google.ipynb) | `Argument` → PowerPoint + Google Slides (consolidates Workspace notebook) |
 | [`03_polling_survey_analysis.ipynb`](./reports/03_polling_survey_analysis.ipynb) | Survey pipeline end-to-end incl. `WaveSet.compare_chain` |
+| [`04_survey_full_showcase.ipynb`](./reports/04_survey_full_showcase.ipynb) | Survey TableTypes and branded multi-section PDF showcase |
 
 ### `analytics/`
 | File | Capability |
@@ -113,6 +115,26 @@ If you have a bookmark or external link pointing at the old flat numbering, this
 | `26_International_Boundaries_GADM` | merged into `spatial/01_boundaries` |
 | `27_Advanced_Census_MOE_NAICS` | `engines/04_statistics_primitives` |
 | `28_Polling_Survey_Analysis` | `reports/03_polling_survey_analysis` |
+
+## Legacy live notebooks pending governance
+
+These 9 live notebooks are intentionally not counted as canonical until #1227
+rewrites/promotes them into hygiene + execution governance or archives/removes
+them:
+
+- `analytics/03_social_media_analytics.ipynb`
+- `analytics/04_crm_pipeline.ipynb`
+- `analytics/05_crm_sales_reports.ipynb`
+- `config/credential_management.ipynb`
+- `economic/economic_data_irs_bls.ipynb`
+- `foundations/entity_identification.ipynb`
+- `foundations/file_operations_and_security.ipynb`
+- `git/repo_analysis.ipynb`
+- `spatial/07_natural_language_to_geometry.ipynb`
+
+Run `python3 scripts/check_notebook_inventory.py --json` for the current
+machine-readable inventory and `--check` to guard missing references and local
+home-path leaks.
 
 ## Running notebooks
 
