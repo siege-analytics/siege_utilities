@@ -35,6 +35,7 @@ RE_WRITTEN: list[str] = [
     "config/credential_management.ipynb",
     "git/repo_analysis.ipynb",
     "economic/economic_data_irs_bls.ipynb",
+    "analytics/03_social_media_analytics.ipynb",
     "spatial/07_natural_language_to_geometry.ipynb",
     "spatial/01_boundaries.ipynb",
     "spatial/02_geocoding.ipynb",
