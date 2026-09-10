@@ -477,7 +477,7 @@ siege_utilities/
 ## Documentation
 
 - **Sphinx Docs**: [siege-analytics.github.io/siege_utilities](https://siege-analytics.github.io/siege_utilities/)
-- **Notebooks**: 39 notebooks in `notebooks/` — 27 live, 12 archived. 22 live notebooks are currently governed/canonical; 5 legacy live notebooks are pending rewrite/archive routing under #1227.
+- **Notebooks**: 39 notebooks in `notebooks/` — 27 live, 12 archived. 23 live notebooks are currently governed/canonical; 4 legacy live notebooks are pending rewrite/archive routing under #1227.
 
 ## Contributing
 
