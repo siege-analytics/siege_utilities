@@ -4,6 +4,7 @@ import sqlite3
 import time
 import json
 import logging
+import math
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -11,6 +12,17 @@ from typing import Dict, List, Optional, Tuple
 import pandas as pd
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
+
+from .geocoding_core import (
+    COUNTRY_CODES,
+    DEFAULT_COUNTRY_CODE,
+    NOMINATIM_INTERNAL_URL,
+    GeocodingError,
+    concatenate_addresses,
+    get_country_code,
+    get_country_name,
+    list_countries,
+)
 
 __all__ = [
     'GeocodingError',
@@ -55,340 +67,61 @@ def log_error(message: str) -> None:
     logger.error(message)
 
 
-class GeocodingError(RuntimeError):
-    """Raised when Nominatim geocoding fails for reasons other than 'no match'.
-
-    Covers network timeouts (after retries exhausted), service errors,
-    parse errors, and other unexpected failures from the geocoder.
-    Distinct from a legitimate "no result found" outcome, which still
-    returns ``None``. Use ``__cause__`` to inspect the underlying
-    exception.
-
-    Mirrors
-    :class:`siege_utilities.geo.providers.census_geocoder.CensusGeocodeError`.
-    """
-
-
-# Country code mapping for Nominatim geocoding
-COUNTRY_CODES = {
-    # North America
-    'us': 'United States',
-    'ca': 'Canada',
-    'mx': 'Mexico',
-    'gt': 'Guatemala',
-    'bz': 'Belize',
-    'sv': 'El Salvador',
-    'hn': 'Honduras',
-    'ni': 'Nicaragua',
-    'cr': 'Costa Rica',
-    'pa': 'Panama',
-    'cu': 'Cuba',
-    'jm': 'Jamaica',
-    'ht': 'Haiti',
-    'do': 'Dominican Republic',
-    'pr': 'Puerto Rico',
-    'tt': 'Trinidad and Tobago',
-    'bb': 'Barbados',
-    'lc': 'Saint Lucia',
-    'vc': 'Saint Vincent and the Grenadines',
-    'gd': 'Grenada',
-    'ag': 'Antigua and Barbuda',
-    'kn': 'Saint Kitts and Nevis',
-    'dm': 'Dominica',
-    'bs': 'Bahamas',
-    'tc': 'Turks and Caicos Islands',
-    'ky': 'Cayman Islands',
-    'bm': 'Bermuda',
-    'gl': 'Greenland',
-    'as': 'American Samoa',
-    'gu': 'Guam',
-    'mp': 'Northern Mariana Islands',
-    'vi': 'U.S. Virgin Islands',
-    
-    # South America
-    'br': 'Brazil',
-    'ar': 'Argentina',
-    'cl': 'Chile',
-    'co': 'Colombia',
-    'pe': 'Peru',
-    've': 'Venezuela',
-    'uy': 'Uruguay',
-    'py': 'Paraguay',
-    'bo': 'Bolivia',
-    'ec': 'Ecuador',
-    'gy': 'Guyana',
-    'sr': 'Suriname',
-    'gf': 'French Guiana',
-    'fk': 'Falkland Islands',
-    'gs': 'South Georgia and the South Sandwich Islands',
-    
-    # Europe
-    'gb': 'United Kingdom',
-    'ie': 'Ireland',
-    'fr': 'France',
-    'de': 'Germany',
-    'it': 'Italy',
-    'es': 'Spain',
-    'pt': 'Portugal',
-    'nl': 'Netherlands',
-    'be': 'Belgium',
-    'ch': 'Switzerland',
-    'at': 'Austria',
-    'se': 'Sweden',
-    'no': 'Norway',
-    'dk': 'Denmark',
-    'fi': 'Finland',
-    'is': 'Iceland',
-    'pl': 'Poland',
-    'cz': 'Czech Republic',
-    'hu': 'Hungary',
-    'sk': 'Slovakia',
-    'si': 'Slovenia',
-    'hr': 'Croatia',
-    'bg': 'Bulgaria',
-    'ro': 'Romania',
-    'gr': 'Greece',
-    'cy': 'Cyprus',
-    'mt': 'Malta',
-    'lu': 'Luxembourg',
-    'ee': 'Estonia',
-    'lv': 'Latvia',
-    'lt': 'Lithuania',
-    'ad': 'Andorra',
-    'mc': 'Monaco',
-    'sm': 'San Marino',
-    'va': 'Vatican City',
-    'li': 'Liechtenstein',
-    'gi': 'Gibraltar',
-    'ax': 'Åland Islands',
-    'fo': 'Faroe Islands',
-    'sj': 'Svalbard and Jan Mayen',
-    'bq': 'Bonaire, Sint Eustatius and Saba',
-    'cw': 'Curaçao',
-    'sx': 'Sint Maarten',
-    'aw': 'Aruba',
-    
-    # Asia
-    'ru': 'Russia',
-    'kz': 'Kazakhstan',
-    'uz': 'Uzbekistan',
-    'kg': 'Kyrgyzstan',
-    'tj': 'Tajikistan',
-    'tm': 'Turkmenistan',
-    'af': 'Afghanistan',
-    'pk': 'Pakistan',
-    'in': 'India',
-    'bd': 'Bangladesh',
-    'bt': 'Bhutan',
-    'np': 'Nepal',
-    'lk': 'Sri Lanka',
-    'mv': 'Maldives',
-    'cn': 'China',
-    'tw': 'Taiwan',
-    'hk': 'Hong Kong',
-    'mo': 'Macau',
-    'mn': 'Mongolia',
-    'jp': 'Japan',
-    'kr': 'South Korea',
-    'kp': 'North Korea',
-    'th': 'Thailand',
-    'vn': 'Vietnam',
-    'la': 'Laos',
-    'kh': 'Cambodia',
-    'my': 'Malaysia',
-    'sg': 'Singapore',
-    'id': 'Indonesia',
-    'ph': 'Philippines',
-    'bn': 'Brunei',
-    'tl': 'East Timor',
-    'mm': 'Myanmar',
-    
-    # Middle East
-    'tr': 'Turkey',
-    'ge': 'Georgia',
-    'am': 'Armenia',
-    'az': 'Azerbaijan',
-    'sa': 'Saudi Arabia',
-    'ye': 'Yemen',
-    'om': 'Oman',
-    'ae': 'United Arab Emirates',
-    'qa': 'Qatar',
-    'bh': 'Bahrain',
-    'kw': 'Kuwait',
-    'iq': 'Iraq',
-    'sy': 'Syria',
-    'lb': 'Lebanon',
-    'jo': 'Jordan',
-    'il': 'Israel',
-    'ps': 'Palestine',
-    'ir': 'Iran',
-    
-    # Africa
-    'eg': 'Egypt',
-    'ly': 'Libya',
-    'tn': 'Tunisia',
-    'dz': 'Algeria',
-    'ma': 'Morocco',
-    'eh': 'Western Sahara',
-    'mr': 'Mauritania',
-    'ml': 'Mali',
-    'ne': 'Niger',
-    'td': 'Chad',
-    'sd': 'Sudan',
-    'ss': 'South Sudan',
-    'et': 'Ethiopia',
-    'er': 'Eritrea',
-    'dj': 'Djibouti',
-    'so': 'Somalia',
-    'ke': 'Kenya',
-    'ug': 'Uganda',
-    'rw': 'Rwanda',
-    'bi': 'Burundi',
-    'tz': 'Tanzania',
-    'mw': 'Malawi',
-    'zm': 'Zambia',
-    'zw': 'Zimbabwe',
-    'bw': 'Botswana',
-    'na': 'Namibia',
-    'za': 'South Africa',
-    'sz': 'Eswatini',
-    'ls': 'Lesotho',
-    'mg': 'Madagascar',
-    'mu': 'Mauritius',
-    'sc': 'Seychelles',
-    'km': 'Comoros',
-    're': 'Réunion',
-    'yt': 'Mayotte',
-    'mz': 'Mozambique',
-    'ao': 'Angola',
-    'cd': 'Democratic Republic of the Congo',
-    'cg': 'Republic of the Congo',
-    'cf': 'Central African Republic',
-    'cm': 'Cameroon',
-    'gq': 'Equatorial Guinea',
-    'ga': 'Gabon',
-    'st': 'São Tomé and Príncipe',
-    'gh': 'Ghana',
-    'tg': 'Togo',
-    'bj': 'Benin',
-    'bf': 'Burkina Faso',
-    'sn': 'Senegal',
-    'gm': 'Gambia',
-    'gw': 'Guinea-Bissau',
-    'gn': 'Guinea',
-    'sl': 'Sierra Leone',
-    'lr': 'Liberia',
-    'ci': 'Ivory Coast',
-    'ng': 'Nigeria',
-    
-    # Oceania
-    'au': 'Australia',
-    'nz': 'New Zealand',
-    'fj': 'Fiji',
-    'pg': 'Papua New Guinea',
-    'sb': 'Solomon Islands',
-    'vu': 'Vanuatu',
-    'nc': 'New Caledonia',
-    'pf': 'French Polynesia',
-    'ws': 'Samoa',
-    'to': 'Tonga',
-    'ki': 'Kiribati',
-    'tv': 'Tuvalu',
-    'nr': 'Nauru',
-    'pw': 'Palau',
-    'fm': 'Micronesia',
-    'mh': 'Marshall Islands',
-    'nf': 'Norfolk Island',
-    'pn': 'Pitcairn Islands',
-    'cc': 'Cocos (Keeling) Islands',
-    'cx': 'Christmas Island',
-    'ck': 'Cook Islands',
-    'nu': 'Niue',
-    'tk': 'Tokelau',
-    'wf': 'Wallis and Futuna',
-    'sh': 'Saint Helena, Ascension and Tristan da Cunha',
-    'ac': 'Ascension Island',
-    'ta': 'Tristan da Cunha',
-    
-    # Other territories
-    'io': 'British Indian Ocean Territory',
-    'bv': 'Bouvet Island',
-    'hm': 'Heard Island and McDonald Islands',
-    'tf': 'French Southern Territories',
-    'aq': 'Antarctica'
-}
-
-# Default country code (US)
-DEFAULT_COUNTRY_CODE = 'us'
-
-# Internal Kubernetes service URL for self-hosted Nominatim (elect.info cluster)
-NOMINATIM_INTERNAL_URL = 'http://nominatim.nominatim.svc.cluster.local:80'
-
 GEOCODER_CONFIG = {
-    'user_agent': 'geocoding_application_v1.0', 
-    'timeout': 10, 
-    'country_codes': DEFAULT_COUNTRY_CODE, 
-    'rate_limit_seconds': 1
+    'user_agent': 'geocoding_application_v1.0',
+    'timeout': 10,
+    'country_codes': DEFAULT_COUNTRY_CODE,
+    'rate_limit_seconds': 1,
 }
 
 
-def get_country_name(country_code):
-    """
-    Get the full country name from a country code.
-    
-    Args:
-        country_code: Two-letter country code (e.g., 'us', 'gb', 'ca')
-        
-    Returns:
-        str: Full country name or the code if not found
-    """
-    return COUNTRY_CODES.get(country_code.lower(), country_code)
+def _validate_max_retries(max_retries: int) -> int:
+    """Validate caller retry preconditions before geocoder construction."""
+    if isinstance(max_retries, bool) or not isinstance(max_retries, int) or max_retries < 1:
+        raise ValueError("max_retries must be a positive integer")
+    return max_retries
 
 
-def get_country_code(country_name) -> Optional[str]:
-    """
-    Get the country code from a country name.
-
-    Args:
-        country_name: Full country name (e.g., 'United States', 'Canada')
-
-    Returns:
-        Two-letter country code, or None if not found.
-    """
-    for code, name in COUNTRY_CODES.items():
-        if name.lower() == country_name.lower():
-            return code
-    return None
+def _coerce_float(value, field_name: str, *, context: str) -> float:
+    """Coerce a coordinate component and reject NaN/inf values."""
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{context} has invalid {field_name}: {value!r}") from exc
+    if not math.isfinite(parsed):
+        raise ValueError(f"{context} has non-finite {field_name}: {value!r}")
+    return parsed
 
 
-def list_countries():
-    """
-    Get a list of all available countries with their codes.
-    
-    Returns:
-        dict: Dictionary mapping country codes to country names
-    """
-    return COUNTRY_CODES.copy()
+def _validate_wgs84_coordinates(lat, lon, *, context: str) -> Tuple[float, float]:
+    """Return normalized WGS84 coordinates or raise ``ValueError``."""
+    latitude = _coerce_float(lat, "latitude", context=context)
+    longitude = _coerce_float(lon, "longitude", context=context)
+    if not -90 <= latitude <= 90:
+        raise ValueError(f"{context} latitude out of WGS84 range: {latitude!r}")
+    if not -180 <= longitude <= 180:
+        raise ValueError(f"{context} longitude out of WGS84 range: {longitude!r}")
+    return latitude, longitude
 
 
-def concatenate_addresses(street=None, city=None, state_province_area=None,
-    postal_code=None, country=None):
-    """
-    Concatenate address components into a single string suitable for geocoding.
-    Returns a properly formatted address string.
-    """
-    components = []
-    if street:
-        components.append(street)
-    if city:
-        components.append(city)
-    if state_province_area:
-        components.append(state_province_area)
-    if postal_code:
-        components.append(postal_code)
-    if country:
-        components.append(country)
-    return ', '.join(components)
+def _validate_provider_coordinates(lat, lon, *, context: str) -> Tuple[float, float]:
+    """Validate provider-supplied coordinates and wrap failures."""
+    try:
+        return _validate_wgs84_coordinates(lat, lon, context=context)
+    except ValueError as exc:
+        raise GeocodingError(str(exc)) from exc
+
+
+def _pandas_coordinate_mask(df: pd.DataFrame, lat_col: str, lon_col: str, crs=None):
+    lat_min, lat_max, lon_min, lon_max = _get_crs_bounds(crs) if crs else (-90, 90, -180, 180)
+    lat_values = pd.to_numeric(df[lat_col], errors="coerce")
+    lon_values = pd.to_numeric(df[lon_col], errors="coerce")
+    return (
+        lat_values.notna()
+        & lon_values.notna()
+        & lat_values.between(lat_min, lat_max)
+        & lon_values.between(lon_min, lon_max)
+    )
 
 
 def get_coordinates(query_address, country_codes=None, max_retries=3, server_url=None):
@@ -425,13 +158,19 @@ def get_coordinates(query_address, country_codes=None, max_retries=3, server_url
         raise GeocodingError(
             f"Could not parse Nominatim response for {query_address!r}"
         ) from e
+    if not isinstance(data, dict):
+        raise GeocodingError(
+            f"Nominatim response for {query_address!r} must be an object"
+        )
     lat = data.get('nominatim_lat')
     lng = data.get('nominatim_lng')
     if lat is None or lng is None:
         raise GeocodingError(
             f"Nominatim response for {query_address!r} missing lat/lng fields"
         )
-    return (float(lat), float(lng))
+    return _validate_provider_coordinates(
+        lat, lng, context=f"Nominatim response for {query_address!r}"
+    )
 
 
 def use_nominatim_geocoder(query_address, id=None, country_codes=None,
@@ -462,6 +201,7 @@ def use_nominatim_geocoder(query_address, id=None, country_codes=None,
             attempt to match). Wraps the underlying geopy exception via
             ``__cause__``.
     """
+    max_retries = _validate_max_retries(max_retries)
     log_debug(f'Geocoding address: {query_address}')
     if not query_address:
         raise ValueError('query_address must be a non-empty string')
@@ -672,9 +412,31 @@ class NominatimGeoClassifier:
         rather than raising, so a partial payload doesn't poison the
         classifier.
         """
-        data = json.loads(json_string)
-        self.place_rank_dict = {int(k): v for k, v in data.get('place_ranks', {}).items()}
-        self.importance_dict = {float(k): v for k, v in data.get('importance_thresholds', {}).items()}
+        try:
+            data = json.loads(json_string)
+        except (json.JSONDecodeError, TypeError) as exc:
+            raise ValueError("Invalid NominatimGeoClassifier JSON") from exc
+        if not isinstance(data, dict):
+            raise ValueError("NominatimGeoClassifier JSON must be an object")
+
+        place_ranks_raw = data.get('place_ranks', {})
+        importance_raw = data.get('importance_thresholds', {})
+        if not isinstance(place_ranks_raw, dict):
+            raise ValueError("place_ranks must be an object")
+        if not isinstance(importance_raw, dict):
+            raise ValueError("importance_thresholds must be an object")
+
+        try:
+            place_ranks = {int(k): v for k, v in place_ranks_raw.items()}
+        except (TypeError, ValueError) as exc:
+            raise ValueError("place_ranks keys must be integers") from exc
+        try:
+            importance = {float(k): v for k, v in importance_raw.items()}
+        except (TypeError, ValueError) as exc:
+            raise ValueError("importance_thresholds keys must be floats") from exc
+
+        self.place_rank_dict = place_ranks
+        self.importance_dict = importance
         return self
 
 
@@ -732,13 +494,7 @@ def validate_geocode_data_pandas(
     Returns:
         DataFrame with only rows whose coordinates fall within the valid range.
     """
-    lat_min, lat_max, lon_min, lon_max = _get_crs_bounds(crs) if crs else (-90, 90, -180, 180)
-    mask = (
-        df[lat_col].notna()
-        & df[lon_col].notna()
-        & df[lat_col].between(lat_min, lat_max)
-        & df[lon_col].between(lon_min, lon_max)
-    )
+    mask = _pandas_coordinate_mask(df, lat_col, lon_col, crs=crs)
     return df[mask].reset_index(drop=True)
 
 
@@ -765,14 +521,8 @@ def mark_valid_geocode_data_pandas(
     Returns:
         Copy of *df* with *output_col* appended.
     """
-    lat_min, lat_max, lon_min, lon_max = _get_crs_bounds(crs) if crs else (-90, 90, -180, 180)
     result = df.copy()
-    result[output_col] = (
-        result[lat_col].notna()
-        & result[lon_col].notna()
-        & result[lat_col].between(lat_min, lat_max)
-        & result[lon_col].between(lon_min, lon_max)
-    )
+    result[output_col] = _pandas_coordinate_mask(result, lat_col, lon_col, crs=crs)
     return result
 
 
@@ -911,7 +661,10 @@ class SpatiaLiteCache:
         source: str = "nominatim",
         raw_response: Optional[str] = None,
     ) -> str:
-        """Store a geocoding result. Returns the address hash."""
+        """Store a WGS84 geocoding result. Returns the address hash."""
+        latitude, longitude = _validate_wgs84_coordinates(
+            latitude, longitude, context=f"cache entry for {address!r}"
+        )
         addr_hash = _address_hash(address)
         point_wkt = f"POINT({longitude} {latitude})"
         now = datetime.now(timezone.utc).isoformat()
@@ -987,15 +740,22 @@ class SpatiaLiteCache:
             raise GeocodingError(
                 f"Could not parse Nominatim response for {address!r}"
             ) from e
+        if not isinstance(data, dict):
+            raise GeocodingError(
+                f"Nominatim response for {address!r} must be an object"
+            )
         lat = data.get("nominatim_lat")
         lon = data.get("nominatim_lng")
         if lat is None or lon is None:
             raise GeocodingError(
                 f"Nominatim response for {address!r} missing lat/lng fields"
             )
+        lat, lon = _validate_provider_coordinates(
+            lat, lon, context=f"Nominatim response for {address!r}"
+        )
 
         self.put_geocode(
-            address, float(lat), float(lon),
+            address, lat, lon,
             source="nominatim", raw_response=result_json,
         )
         return self.get_geocode(address)

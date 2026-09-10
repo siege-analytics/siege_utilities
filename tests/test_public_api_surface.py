@@ -11,6 +11,7 @@ hostile-review-1176-batch1.md F2.
 
 from __future__ import annotations
 
+import importlib
 import sys
 import warnings
 
@@ -386,6 +387,112 @@ class TestBatch6Promotions:
         assert "siege_utilities.data.sample_data" not in sys.modules
 
 
+class TestBatch7Promotions:
+    """Verify #1176 batch 7 (geo.geocoding public API) shipped correctly."""
+
+    GEOCODING_CORE_SYMBOLS = [
+        "GeocodingError", "concatenate_addresses",
+        "get_country_code", "get_country_name", "list_countries",
+    ]
+    GEOCODING_DEPENDENCY_SYMBOLS = [
+        "get_coordinates", "use_nominatim_geocoder",
+    ]
+    GEOCODING_SYMBOLS = GEOCODING_CORE_SYMBOLS + GEOCODING_DEPENDENCY_SYMBOLS
+
+    @pytest.mark.parametrize("name", GEOCODING_SYMBOLS)
+    def test_batch_7_symbol_in_all(self, name):
+        assert name in siege_utilities.__all__, (
+            f"{name!r} promoted per #1176 batch 7 but missing from __all__"
+        )
+
+    def test_batch_7_geocoding_error_is_no_dep_exception_contract(self):
+        from siege_utilities import _LAZY_IMPORTS
+        from siege_utilities.geo.geocoding import GeocodingError as deep_error
+        import siege_utilities.geo as geo
+
+        module, _source_name, deps = _LAZY_IMPORTS["GeocodingError"]
+        assert module == ".geo.geocoding_core"
+        assert deps == []
+        assert issubclass(siege_utilities.GeocodingError, RuntimeError)
+        assert siege_utilities.GeocodingError is geo.GeocodingError is deep_error
+
+    @pytest.mark.parametrize("name", GEOCODING_CORE_SYMBOLS)
+    def test_batch_7_core_lazy_metadata_has_no_geocoding_deps(self, name):
+        from siege_utilities import _LAZY_IMPORTS
+
+        module, _source_name, deps = _LAZY_IMPORTS[name]
+        assert module == ".geo.geocoding_core"
+        assert deps == []
+
+    @pytest.mark.parametrize("name", GEOCODING_DEPENDENCY_SYMBOLS)
+    def test_batch_7_lazy_metadata_requires_actual_geocoding_deps(self, name):
+        from siege_utilities import _LAZY_IMPORTS
+
+        module, _source_name, deps = _LAZY_IMPORTS[name]
+        assert module == ".geo.geocoding"
+        assert deps == ["pandas", "geopy"]
+
+    @pytest.mark.parametrize("name", GEOCODING_CORE_SYMBOLS)
+    def test_batch_7_core_symbol_resolves_to_geocoding_core(self, name):
+        obj = getattr(siege_utilities, name)
+        module = getattr(obj, "__module__", "")
+        assert module == "siege_utilities.geo.geocoding_core", (
+            f"{name!r} resolves to {module!r}, expected "
+            "'siege_utilities.geo.geocoding_core'"
+        )
+
+    @pytest.mark.parametrize("name", GEOCODING_DEPENDENCY_SYMBOLS)
+    def test_batch_7_symbol_resolves_to_geo_geocoding(self, name):
+        obj = getattr(siege_utilities, name)
+        module = getattr(obj, "__module__", "")
+        assert module == "siege_utilities.geo.geocoding", (
+            f"{name!r} resolves to {module!r}, expected "
+            "'siege_utilities.geo.geocoding' — cross-module collision"
+        )
+
+    def test_batch_7_geocoding_error_is_catchable_when_geopy_missing(self, monkeypatch):
+        import siege_utilities as root
+
+        import siege_utilities.geo as geo
+
+        for name in self.GEOCODING_CORE_SYMBOLS + self.GEOCODING_DEPENDENCY_SYMBOLS:
+            root.__dict__.pop(name, None)
+            geo.__dict__.pop(name, None)
+
+        real_import_module = importlib.import_module
+
+        def fake_import_module(name, package=None):
+            if name in {"geopy", "pandas"}:
+                raise ImportError(f"No module named {name!r}")
+            if name == ".geo.geocoding" and package == "siege_utilities":
+                raise ImportError("No module named 'geopy'")
+            return real_import_module(name, package)
+
+        monkeypatch.setattr(importlib, "import_module", fake_import_module)
+
+        error_type = root.GeocodingError
+        assert issubclass(error_type, RuntimeError)
+        assert geo.GeocodingError is error_type
+        try:
+            raise error_type("boom")
+        except root.GeocodingError:
+            pass
+        try:
+            raise geo.GeocodingError("boom")
+        except geo.GeocodingError:
+            pass
+
+        assert root.get_country_name("US") == "United States"
+        assert geo.get_country_code("United States") == "us"
+        assert "us" in root.list_countries()
+        assert root.concatenate_addresses("1 Main", "Austin", "TX") == "1 Main, Austin, TX"
+
+        with pytest.raises(ImportError) as exc_info:
+            root.get_coordinates("123 Main St")
+        assert "get_coordinates" in str(exc_info.value)
+        assert "geopy" in str(exc_info.value)
+
+
 class TestLazyDependencyMetadata:
     """Verify lazy dependency metadata tracks migrated implementations."""
 
@@ -438,3 +545,14 @@ class TestLazyRegistrationGuard:
             assert _LAZY_IMPORTS[sentinel][0] == ".geo.spatial_data"
         finally:
             _LAZY_IMPORTS.pop(sentinel, None)
+
+
+def test_geocoding_country_helpers_have_direct_canonical_coverage():
+    """Keep canonical scanner coverage honest for promoted no-dep helpers."""
+    from siege_utilities import get_country_code
+    from siege_utilities import get_country_name
+    from siege_utilities import list_countries
+
+    assert get_country_name("us") == "United States"
+    assert get_country_code("United States") == "us"
+    assert "us" in list_countries()

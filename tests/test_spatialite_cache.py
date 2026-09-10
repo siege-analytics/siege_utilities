@@ -163,3 +163,53 @@ class TestCacheUtility:
         with SpatiaLiteCache(db_path=db_path) as cache:
             cache.put_geocode("test", 40.0, -89.0)
             assert cache.stats()["geocodes"] == 1
+
+
+class TestGeocodeCacheValidation:
+
+    @pytest.mark.parametrize(
+        "latitude,longitude",
+        [
+            (91, 0),
+            (-91, 0),
+            (0, 181),
+            (0, -181),
+            ("bad", 0),
+            (0, "bad"),
+            (float("nan"), 0),
+        ],
+    )
+    def test_put_geocode_rejects_invalid_wgs84_coordinates(self, cache, latitude, longitude):
+        with pytest.raises(ValueError):
+            cache.put_geocode("bad", latitude, longitude)
+        assert cache.stats()["geocodes"] == 0
+
+    def test_get_geocode_or_fetch_rejects_invalid_provider_payload_without_poisoning_cache(self, cache, monkeypatch):
+        import siege_utilities.geo.geocoding as geocoding
+        from siege_utilities.geo.geocoding import GeocodingError
+
+        monkeypatch.setattr(
+            geocoding,
+            "use_nominatim_geocoder",
+            lambda *a, **k: '{"nominatim_lat": 999, "nominatim_lng": 0}',
+        )
+
+        with pytest.raises(GeocodingError):
+            cache.get_geocode_or_fetch("bad provider point")
+
+        assert cache.stats()["geocodes"] == 0
+        assert cache.get_geocode("bad provider point") is None
+
+
+@pytest.mark.parametrize("payload", ["[]", '"string"', "123"])
+def test_get_geocode_or_fetch_wraps_non_object_json_without_poisoning(cache, monkeypatch, payload):
+    import siege_utilities.geo.geocoding as geocoding
+    from siege_utilities.geo.geocoding import GeocodingError
+
+    monkeypatch.setattr(geocoding, "use_nominatim_geocoder", lambda *a, **k: payload)
+
+    with pytest.raises(GeocodingError, match="must be an object"):
+        cache.get_geocode_or_fetch("bad json shape")
+
+    assert cache.stats()["geocodes"] == 0
+    assert cache.get_geocode("bad json shape") is None
