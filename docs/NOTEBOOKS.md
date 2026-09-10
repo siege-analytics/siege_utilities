@@ -1,13 +1,15 @@
 # siege_utilities — Notebook system
 
-**Status:** Complete (ELE-2456 shipped 2026-04-24 across PRs #418 / #419 / #420 / #421).
+**Status:** Mixed/governed. ELE-2456 established the canonical notebook template, but the repository currently contains additional legacy live notebooks that still need rewrite/archive disposition.
 
 ## Shape
 
-17 canonical notebooks across 5 themed folders. Every notebook is a capability
-showcase, not an API tour: one user intent, 10–15 cells, one coherent
-deliverable. Structural rules are enforced by `tests/test_notebook_hygiene.py`
-(102 checks at time of writing).
+39 notebooks are present: 27 live notebooks and 12 archived notebooks. 18 live
+notebooks are currently canonical/governed by `tests/test_notebook_hygiene.py`
+and `tests/test_notebooks.py`; 9 legacy live notebooks are pending rewrite,
+promotion into governance, or archive/removal under #1227. Canonical notebooks
+remain capability showcases, not API tours: one user intent, coherent cells,
+and one deliverable.
 
 ```
 notebooks/
@@ -21,10 +23,10 @@ notebooks/
 
 ## Running example — two Siege Analytics partner firms
 
-- **ElectInfo** — political / civic analytics. 13 of 17 notebooks: foundations,
+- **ElectInfo** — political / civic analytics. Most governed notebooks: foundations,
   all spatial, engines, statistics, PDF reports, polling waves.
-- **Masai Interactive** — web / social analytics. 3 notebooks: external
-  connectors, GA end-to-end, slides/Google Workspace delivery.
+- **Masai Interactive** — web / social analytics. Governed notebooks include
+  external connectors, GA end-to-end, and slides/Google Workspace delivery.
 
 Both firms ship as branding templates in `siege_utilities/reporting/client_branding.py`
 (`elect_info` and `masai_interactive`). `foundations/02_profiles_branding.ipynb`
@@ -51,6 +53,7 @@ introduces both and proves the wire-up by rendering the same chart under each br
 | reports | 01 | Assemble Q1 PDF for Acme Campaign | ElectInfo |
 | reports | 02 | Same data as branded deck (PPTX + Google Slides) | Masai |
 | reports | 03 | 3-wave TX-32 party-ID tracker | ElectInfo |
+| reports | 04 | Survey TableTypes and branded multi-section PDF showcase | ElectInfo |
 
 ## Data policy
 
@@ -105,7 +108,23 @@ notebook is unsafe to provision from CI. Both notebooks ship complete,
 copy-pasteable call shapes rather than fake execution. The analysis pattern
 is the point; provisioning is out-of-band.
 
-## CI (follow-up)
+## Inventory and CI truth checks
+
+Run the scriptable inventory before changing notebook docs or governance:
+
+```bash
+python3 scripts/check_notebook_inventory.py --json
+python3 scripts/check_notebook_inventory.py --check
+```
+
+The strict all-live-governed gate is intentionally separate until #1227 rewrites,
+promotes, archives, or removes the 9 legacy live notebooks:
+
+```bash
+python3 scripts/check_notebook_inventory.py --check --require-all-live-governed
+```
+
+## CI (current and follow-up)
 
 ```yaml
 - name: Structural hygiene
@@ -126,9 +145,11 @@ is the point; provisioning is out-of-band.
       notebooks/spatial/05_multi_source_joins.ipynb
 ```
 
-`nbmake` gating is the explicit next step. Notebooks that need external
-credentials (`spatial/01` for ACS, `analytics/02` for GA, etc.) are excluded
-until secrets are wired in CI.
+Notebook execution gating must become tier-complete, not decorative smoke.
+Every live notebook needs an assigned execution tier and command; PRs touching
+notebooks or public APIs used by notebooks must run the impacted tier or expose
+an explicit tracked external-service skip with a fixture-backed offline path.
+See #1224 and #1227.
 
 ## See also
 
