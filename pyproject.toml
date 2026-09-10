@@ -201,7 +201,9 @@ s3 = [
 # Notebook headless execution
 notebooks = [
     "papermill>=2.4.0",
+    "nbclient>=0.8.0",
     "nbformat>=5.7.0",
+    "ipykernel>=6.0.0",
 ]
 # Databricks SDK integration
 databricks = [
@@ -222,7 +224,9 @@ dev = [
     "hypothesis>=6.100.0",
     "nbmake>=1.5.0",
     "papermill>=2.4.0",
+    "nbclient>=0.8.0",
     "nbformat>=5.7.0",
+    "ipykernel>=6.0.0",
     "black>=21.0.0",
     "flake8>=3.8.0",
     "bandit>=1.7.0",
@@ -246,6 +250,7 @@ all = [
     "openpyxl>=3.1.0",
     "pyarrow>=14.0.0",
     "faker>=35.2.2",
+    "scipy>=1.11.0",
     # geo
     "geopandas>=0.13.2",
     "shapely>=2.0.0,<3.0",
