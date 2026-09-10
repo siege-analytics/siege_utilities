@@ -30,6 +30,8 @@ NOTEBOOK_ROOT = REPO_ROOT / "notebooks"
 RE_WRITTEN: list[str] = [
     "foundations/01_configuration.ipynb",
     "foundations/02_profiles_branding.ipynb",
+    "foundations/entity_identification.ipynb",
+    "foundations/file_operations_and_security.ipynb",
     "spatial/01_boundaries.ipynb",
     "spatial/02_geocoding.ipynb",
     "spatial/03_choropleth_maps.ipynb",
