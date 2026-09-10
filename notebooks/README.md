@@ -9,8 +9,8 @@ at source, tests, and architectural decisions.
 
 The notebooks tell a single story threaded through two partner firms of Siege
 Analytics. A first-time reader sees how the library's modules compose end-to-end
-for realistic work. The current repository has 27 live notebooks: 25 governed
-canonical notebooks plus 2 legacy live notebooks pending rewrite/archive routing.
+for realistic work. The current repository has 27 live notebooks: 26 governed
+canonical notebooks plus 1 legacy live notebook pending rewrite/archive routing.
 
 - **ElectInfo** ([elect.info](https://elect.info)) — political / civic analytics. Owns the spatial,
   redistricting, survey, FEC / campaign-finance, engine-scaling, PDF reporting,
@@ -136,11 +136,10 @@ If you have a bookmark or external link pointing at the old flat numbering, this
 
 ## Legacy live notebooks pending governance
 
-These 2 live notebooks are intentionally not counted as canonical until #1227
+This remaining live notebook is intentionally not counted as canonical until #1227
 rewrites/promotes them into hygiene + execution governance or archives/removes
 them:
 
-- `analytics/04_crm_pipeline.ipynb`
 - `analytics/05_crm_sales_reports.ipynb`
 
 Run `python3 scripts/check_notebook_inventory.py --json` for the current

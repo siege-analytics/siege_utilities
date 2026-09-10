@@ -59,6 +59,7 @@ NOTEBOOK_GROUPS: dict[str, list[str]] = {
         "economic/economic_data_irs_bls.ipynb",
         "analytics/01_connectors.ipynb",
         "analytics/03_social_media_analytics.ipynb",
+        "analytics/04_crm_pipeline.ipynb",
         "engines/01_multi_engine_dataframes.ipynb",
         "engines/04_statistics_primitives.ipynb",
         "reports/01_charts_and_pdf.ipynb",
