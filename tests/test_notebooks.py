@@ -54,6 +54,7 @@ NOTEBOOK_GROUPS: dict[str, list[str]] = {
         "foundations/02_profiles_branding.ipynb",
         "foundations/entity_identification.ipynb",
         "foundations/file_operations_and_security.ipynb",
+        "config/credential_management.ipynb",
         "analytics/01_connectors.ipynb",
         "engines/01_multi_engine_dataframes.ipynb",
         "engines/04_statistics_primitives.ipynb",
