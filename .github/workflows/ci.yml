@@ -43,6 +43,49 @@ jobs:
       run: |
         python scripts/check_no_stub_docstrings.py
 
+
+  notebook-governance:
+    runs-on: ubuntu-latest
+    name: "notebook governance + pure execution"
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install system geospatial libraries
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          gdal-bin libgdal-dev libgeos-dev libproj-dev
+
+    - name: Install UV
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install notebook execution dependencies
+      run: |
+        sed -i "s/\"gdal>=3.6,<4\"/\"gdal==$(gdal-config --version)\"/g" pyproject.toml
+        uv sync --extra all --extra gdal --extra dev --extra notebooks
+
+    - name: Register CI notebook kernel
+      run: |
+        uv run python -m ipykernel install --user --name siege-notebook-ci --display-name "Siege Notebook CI"
+
+    - name: Enforce notebook inventory truth
+      run: |
+        uv run python scripts/check_notebook_inventory.py --check --require-all-live-governed
+
+    - name: Execute pure/offline governed notebooks
+      env:
+        NOTEBOOK_KERNEL_NAME: siege-notebook-ci
+      run: |
+        uv run pytest -o addopts='' -p no:cacheprovider tests/test_notebooks.py -q -k pure -m "not integration"
+
   lazy-import-integrity:
     runs-on: ubuntu-latest
     name: "lazy import integrity"

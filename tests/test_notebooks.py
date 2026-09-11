@@ -36,7 +36,9 @@ from pathlib import Path
 import pytest
 
 
-NOTEBOOKS_DIR = Path(__file__).parent.parent / "notebooks"
+REPO_ROOT = Path(__file__).parent.parent
+NOTEBOOKS_DIR = REPO_ROOT / "notebooks"
+NOTEBOOK_KERNEL_NAME = os.environ.get("NOTEBOOK_KERNEL_NAME", "python3")
 
 
 # ---------------------------------------------------------------------------
@@ -123,55 +125,92 @@ def _resolve(rel_path: str) -> Path:
     return p
 
 
-def _run_notebook(nb_path: Path, timeout: int = 300) -> None:
-    """Execute a notebook headlessly via papermill."""
-    papermill = pytest.importorskip("papermill")
-    with tempfile.NamedTemporaryFile(suffix=".ipynb", delete=False) as f:
-        out_path = f.name
+def _set_kernel_pythonpath() -> str | None:
+    old = os.environ.get("PYTHONPATH")
+    # Keep the notebook kernel pointed at the checked-out repo without
+    # inheriting developer-machine site-packages that can mask the CI venv.
+    os.environ["PYTHONPATH"] = str(REPO_ROOT)
+    return old
+
+
+def _restore_pythonpath(old: str | None) -> None:
+    if old is None:
+        os.environ.pop("PYTHONPATH", None)
+    else:
+        os.environ["PYTHONPATH"] = old
+
+
+def _execute_with_nbclient(nb_path: Path, timeout: int, cwd: Path):
+    """Execute with nbclient when papermill is unavailable.
+
+    This keeps notebook execution tests honest in environments that have the
+    Jupyter runtime but not papermill. Missing execution dependencies should be
+    explicit failures in CI, not silent skips of the whole notebook suite.
+    """
+    import nbclient
+    import nbformat
+
+    nb = nbformat.read(nb_path, as_version=4)
+    nbclient.NotebookClient(
+        nb,
+        timeout=timeout,
+        kernel_name=NOTEBOOK_KERNEL_NAME,
+        resources={"metadata": {"path": str(cwd)}},
+    ).execute()
+    return nb
+
+
+def _execute_notebook(nb_path: Path, timeout: int = 300):
+    """Execute a notebook headlessly from an isolated temp cwd."""
+    old_pythonpath = _set_kernel_pythonpath()
     try:
-        papermill.execute_notebook(
-            str(nb_path),
-            out_path,
-            kernel_name="python3",
-            cwd=str(NOTEBOOKS_DIR),
-            request_save_on_cell_execute=True,
-        )
+        with tempfile.TemporaryDirectory() as cwd:
+            with tempfile.NamedTemporaryFile(suffix=".ipynb", delete=False) as f:
+                out_path = f.name
+            try:
+                try:
+                    import papermill  # type: ignore[import-not-found]
+                except ImportError:
+                    return _execute_with_nbclient(nb_path, timeout, Path(cwd))
+
+                import nbformat
+
+                papermill.execute_notebook(
+                    str(nb_path),
+                    out_path,
+                    kernel_name=NOTEBOOK_KERNEL_NAME,
+                    cwd=cwd,
+                    request_save_on_cell_execute=True,
+                )
+                return nbformat.read(out_path, as_version=4)
+            finally:
+                if os.path.exists(out_path):
+                    os.unlink(out_path)
     finally:
-        if os.path.exists(out_path):
-            os.unlink(out_path)
+        _restore_pythonpath(old_pythonpath)
+
+
+def _run_notebook(nb_path: Path, timeout: int = 300) -> None:
+    """Execute a notebook headlessly."""
+    _execute_notebook(nb_path, timeout)
 
 
 def _run_and_get_outputs(nb_path: Path, timeout: int = 300) -> list:
     """Execute a notebook and return code-cell outputs for validation."""
-    papermill = pytest.importorskip("papermill")
-    nbformat = pytest.importorskip("nbformat")
-    with tempfile.NamedTemporaryFile(suffix=".ipynb", delete=False) as f:
-        out_path = f.name
-    try:
-        papermill.execute_notebook(
-            str(nb_path),
-            out_path,
-            kernel_name="python3",
-            cwd=str(NOTEBOOKS_DIR),
-            request_save_on_cell_execute=True,
-        )
-        nb = nbformat.read(out_path, as_version=4)
-        outputs = []
-        for cell in nb.cells:
-            if cell.cell_type == "code" and cell.outputs:
-                text = ""
-                for out in cell.outputs:
-                    if "text" in out:
-                        text += out["text"]
-                    elif "data" in out and "text/plain" in out["data"]:
-                        text += out["data"]["text/plain"]
-                outputs.append(text)
-            elif cell.cell_type == "code":
-                outputs.append("")
-        return outputs
-    finally:
-        if os.path.exists(out_path):
-            os.unlink(out_path)
+    nb = _execute_notebook(nb_path, timeout)
+    outputs = []
+    for cell in nb.cells:
+        if cell.cell_type == "code" and cell.outputs:
+            text = ""
+            for out in cell.outputs:
+                if "text" in out:
+                    text += out["text"]
+                elif "data" in out and "text/plain" in out["data"]:
+                    text += out["data"]["text/plain"]
+            outputs.append(text)
+        elif cell.cell_type == "code":
+            outputs.append("")
+    return outputs
 
 
 def _ids(group: str) -> list[str]:
