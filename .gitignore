@@ -208,3 +208,10 @@ uv.lock
 # Spikes (throwaway) — commit only the results/analysis, not the venvs/caches
 spikes/**/__pycache__/
 spikes/**/venv/
+
+# Local notebook execution artifacts retained only for failed developer runs.
+.notebook-artifacts/
+*.failed.ipynb
+*.executed.ipynb
+*.stdout.log
+*.stderr.log

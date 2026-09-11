@@ -29,8 +29,11 @@ groups (e.g., ``advocacy`` for Parsons wrappers) go in
 
 from __future__ import annotations
 
+import json
 import os
+import shutil
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -39,6 +42,17 @@ import pytest
 REPO_ROOT = Path(__file__).parent.parent
 NOTEBOOKS_DIR = REPO_ROOT / "notebooks"
 NOTEBOOK_KERNEL_NAME = os.environ.get("NOTEBOOK_KERNEL_NAME", "python3")
+_NOTEBOOK_ENV_KEYS = [
+    "JUPYTER_PATH",
+    "SIEGE_UTILITIES_CACHE_DIR",
+    "SIEGE_CACHE",
+    "SPARK_CACHE",
+    "SIEGE_OUTPUT",
+    "SIEGE_REPORTS",
+    "SIEGE_CHARTS",
+    "SIEGE_MAPS",
+    "REPORT_OUTPUT_DIR",
+]
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +154,98 @@ def _restore_pythonpath(old: str | None) -> None:
         os.environ["PYTHONPATH"] = old
 
 
-def _execute_with_nbclient(nb_path: Path, timeout: int, cwd: Path):
+def _artifact_dir() -> Path:
+    root = os.environ.get("NOTEBOOK_ARTIFACT_DIR")
+    if root:
+        path = Path(root)
+    else:
+        path = REPO_ROOT / ".notebook-artifacts"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _artifact_stem(nb_path: Path) -> str:
+    return nb_path.relative_to(NOTEBOOKS_DIR).as_posix().replace("/", "__").replace(".ipynb", "")
+
+
+def _cleanup_success_artifacts(artifacts: Path, *paths: Path) -> None:
+    for path in paths:
+        path.unlink(missing_ok=True)
+    if artifacts.exists():
+        try:
+            next(artifacts.iterdir())
+        except StopIteration:
+            shutil.rmtree(artifacts, ignore_errors=True)
+
+
+def _prepare_notebook_env(cwd: Path) -> dict[str, str | None]:
+    old = {key: os.environ.get(key) for key in _NOTEBOOK_ENV_KEYS}
+    cache = cwd / "cache"
+    output = cwd / "output"
+    paths = {
+        "SIEGE_UTILITIES_CACHE_DIR": cache / "siege_utilities",
+        "SIEGE_CACHE": cache / "siege",
+        "SPARK_CACHE": cache / "spark",
+        "SIEGE_OUTPUT": output,
+        "SIEGE_REPORTS": output / "reports",
+        "SIEGE_CHARTS": output / "charts",
+        "SIEGE_MAPS": output / "maps",
+        "REPORT_OUTPUT_DIR": output / "reports",
+    }
+    for key, path in paths.items():
+        os.environ[key] = str(path)
+    return old
+
+
+def _restore_notebook_env(old: dict[str, str | None]) -> None:
+    for key, value in old.items():
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
+
+
+@contextmanager
+def _isolated_kernel(nb_path: Path, cwd: Path):
+    """Expose a per-notebook kernelspec with kernel HOME under ``cwd``.
+
+    Changing parent ``HOME`` before Papermill runs breaks Jupyter kernelspec
+    discovery. Instead, copy the requested kernelspec into a temporary Jupyter
+    data directory, add an ``env`` override for the spawned kernel process, and
+    point ``JUPYTER_PATH`` at that temporary directory for this notebook only.
+    """
+    from jupyter_client.kernelspec import KernelSpecManager
+
+    spec = KernelSpecManager().get_kernel_spec(NOTEBOOK_KERNEL_NAME)
+    kernel_name = f"{NOTEBOOK_KERNEL_NAME}-isolated-{_artifact_stem(nb_path).replace('_', '-')}"
+    kernels_dir = cwd / "jupyter" / "kernels" / kernel_name
+    kernels_dir.mkdir(parents=True, exist_ok=True)
+
+    kernel_home = cwd / "home"
+    kernel_home.mkdir(parents=True, exist_ok=True)
+    env = dict(spec.env or {})
+    env["HOME"] = str(kernel_home)
+    kernel_json = {
+        "argv": spec.argv,
+        "display_name": f"{spec.display_name} (isolated)",
+        "language": spec.language,
+        "metadata": spec.metadata,
+        "env": env,
+    }
+    (kernels_dir / "kernel.json").write_text(json.dumps(kernel_json, indent=2), encoding="utf-8")
+
+    old_jupyter_path = os.environ.get("JUPYTER_PATH")
+    os.environ["JUPYTER_PATH"] = str(cwd / "jupyter")
+    try:
+        yield kernel_name
+    finally:
+        if old_jupyter_path is None:
+            os.environ.pop("JUPYTER_PATH", None)
+        else:
+            os.environ["JUPYTER_PATH"] = old_jupyter_path
+
+
+def _execute_with_nbclient(nb_path: Path, timeout: int, cwd: Path, kernel_name: str):
     """Execute with nbclient when papermill is unavailable.
 
     This keeps notebook execution tests honest in environments that have the
@@ -151,12 +256,18 @@ def _execute_with_nbclient(nb_path: Path, timeout: int, cwd: Path):
     import nbformat
 
     nb = nbformat.read(nb_path, as_version=4)
-    nbclient.NotebookClient(
-        nb,
-        timeout=timeout,
-        kernel_name=NOTEBOOK_KERNEL_NAME,
-        resources={"metadata": {"path": str(cwd)}},
-    ).execute()
+    try:
+        nbclient.NotebookClient(
+            nb,
+            timeout=timeout,
+            kernel_name=kernel_name,
+            resources={"metadata": {"path": str(cwd)}},
+        ).execute()
+        _cleanup_success_artifacts(_artifact_dir())
+    except Exception:
+        out_path = _artifact_dir() / f"{_artifact_stem(nb_path)}.failed.ipynb"
+        nbformat.write(nb, out_path)
+        raise
     return nb
 
 
@@ -164,28 +275,41 @@ def _execute_notebook(nb_path: Path, timeout: int = 300):
     """Execute a notebook headlessly from an isolated temp cwd."""
     old_pythonpath = _set_kernel_pythonpath()
     try:
-        with tempfile.TemporaryDirectory() as cwd:
-            with tempfile.NamedTemporaryFile(suffix=".ipynb", delete=False) as f:
-                out_path = f.name
+        with tempfile.TemporaryDirectory() as cwd_str:
+            cwd = Path(cwd_str)
+            old_env = _prepare_notebook_env(cwd)
+            stem = _artifact_stem(nb_path)
+            artifacts = _artifact_dir()
+            out_path = artifacts / f"{stem}.executed.ipynb"
+            stdout_path = artifacts / f"{stem}.stdout.log"
+            stderr_path = artifacts / f"{stem}.stderr.log"
             try:
-                try:
-                    import papermill  # type: ignore[import-not-found]
-                except ImportError:
-                    return _execute_with_nbclient(nb_path, timeout, Path(cwd))
+                with _isolated_kernel(nb_path, cwd) as kernel_name:
+                    try:
+                        import papermill  # type: ignore[import-not-found]
+                    except ImportError:
+                        return _execute_with_nbclient(nb_path, timeout, cwd, kernel_name)
 
-                import nbformat
+                    import nbformat
 
-                papermill.execute_notebook(
-                    str(nb_path),
-                    out_path,
-                    kernel_name=NOTEBOOK_KERNEL_NAME,
-                    cwd=cwd,
-                    request_save_on_cell_execute=True,
-                )
-                return nbformat.read(out_path, as_version=4)
+                    with stdout_path.open("w", encoding="utf-8") as stdout_file, \
+                        stderr_path.open("w", encoding="utf-8") as stderr_file:
+                        papermill.execute_notebook(
+                            str(nb_path),
+                            str(out_path),
+                            kernel_name=kernel_name,
+                            cwd=str(cwd),
+                            request_save_on_cell_execute=True,
+                            stdout_file=stdout_file,
+                            stderr_file=stderr_file,
+                            start_timeout=timeout,
+                            execution_timeout=timeout,
+                        )
+                nb = nbformat.read(out_path, as_version=4)
+                _cleanup_success_artifacts(artifacts, out_path, stdout_path, stderr_path)
+                return nb
             finally:
-                if os.path.exists(out_path):
-                    os.unlink(out_path)
+                _restore_notebook_env(old_env)
     finally:
         _restore_pythonpath(old_pythonpath)
 
@@ -228,6 +352,48 @@ def test_pure_python_notebook(nb_rel: str) -> None:
     _run_notebook(_resolve(nb_rel))
 
 
+def test_pure_notebook_timeout_is_enforced(tmp_path, monkeypatch) -> None:
+    """Synthetic hang fixture proves notebook timeout wiring is real."""
+    import sys
+
+    import nbformat
+    from nbclient.exceptions import CellTimeoutError
+
+    notebook_root = tmp_path / "notebooks"
+    notebook_root.mkdir()
+    nb_path = notebook_root / "timeout_probe.ipynb"
+    nb = nbformat.v4.new_notebook(
+        cells=[nbformat.v4.new_code_cell("import time\ntime.sleep(5)\n")]
+    )
+    nbformat.write(nb, nb_path)
+
+    kernel_name = "timeout-proof-kernel"
+    kernel_dir = tmp_path / "jupyter" / "kernels" / kernel_name
+    kernel_dir.mkdir(parents=True)
+    (kernel_dir / "kernel.json").write_text(
+        json.dumps(
+            {
+                "argv": [sys.executable, "-m", "ipykernel_launcher", "-f", "{connection_file}"],
+                "display_name": "Timeout proof kernel",
+                "language": "python",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    artifact_dir = tmp_path / "artifacts"
+    monkeypatch.setenv("JUPYTER_PATH", str(tmp_path / "jupyter"))
+    monkeypatch.setenv("NOTEBOOK_ARTIFACT_DIR", str(artifact_dir))
+    monkeypatch.setattr(sys.modules[__name__], "NOTEBOOKS_DIR", notebook_root)
+    monkeypatch.setattr(sys.modules[__name__], "NOTEBOOK_KERNEL_NAME", kernel_name)
+
+    with pytest.raises(CellTimeoutError):
+        _execute_notebook(nb_path, timeout=1)
+
+    retained = artifact_dir / "timeout_probe.executed.ipynb"
+    assert retained.exists(), "timeout failures should retain the executed notebook artifact"
+
+
 # ---------------------------------------------------------------------------
 # Geo — require GDAL
 # ---------------------------------------------------------------------------
@@ -244,10 +410,14 @@ def test_geo_notebook(nb_rel: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.integration
 @pytest.mark.requires_gdal
-@pytest.mark.django_db
 @pytest.mark.parametrize("nb_rel", NOTEBOOK_GROUPS["django"], ids=_ids("django"))
 def test_django_notebook(nb_rel: str) -> None:
+    # The current GeoDjango notebook is conceptual/docs-only. Do not let
+    # pytest-django create a local Postgres database before notebook execution;
+    # a future operational PostGIS notebook should add its own explicit fixture
+    # or environment-gated integration test.
     _run_notebook(_resolve(nb_rel))
 
 
