@@ -117,7 +117,7 @@ notebook is unsafe to provision from CI. Both notebooks ship complete,
 copy-pasteable call shapes rather than fake execution. The analysis pattern
 is the point; provisioning is out-of-band.
 
-## Inventory and CI truth checks
+## Inventory, capability coverage, and CI truth checks
 
 Run the scriptable inventory before changing notebook docs or governance:
 
@@ -131,6 +131,25 @@ in both governance files:
 
 ```bash
 python3 scripts/check_notebook_inventory.py --check --require-all-live-governed
+```
+
+Notebook capability coverage is also explicit and machine-readable in
+`notebooks/capability_coverage.json`. Every top-level `siege_utilities/*`
+package directory must have one entry classified as:
+
+- `demonstrated` — a user-facing package exercised or instantiated in one or
+  more live governed notebooks;
+- `support` — internal/support surface that is intentionally not a standalone
+  notebook capability, with rationale;
+- `docs_tests` — package covered by docs/tests rather than notebooks, with
+  rationale.
+
+The coverage checker fails when a new top-level package lacks an explicit entry,
+when entries cite missing or ungoverned notebooks, or when non-notebook surfaces
+lack rationale:
+
+```bash
+python3 scripts/check_notebook_capability_coverage.py --check
 ```
 
 ## CI (current and follow-up)

@@ -79,12 +79,22 @@ jobs:
     - name: Enforce notebook inventory truth
       run: |
         uv run python scripts/check_notebook_inventory.py --check --require-all-live-governed
+        uv run python scripts/check_notebook_capability_coverage.py --check
 
     - name: Execute pure/offline governed notebooks
       env:
         NOTEBOOK_KERNEL_NAME: siege-notebook-ci
+        NOTEBOOK_ARTIFACT_DIR: ${{ runner.temp }}/notebook-artifacts
       run: |
         uv run pytest -o addopts='' -p no:cacheprovider tests/test_notebooks.py -q -k pure -m "not integration"
+
+    - name: Upload notebook failure artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: notebook-failure-artifacts
+        path: ${{ runner.temp }}/notebook-artifacts
+        if-no-files-found: ignore
 
   lazy-import-integrity:
     runs-on: ubuntu-latest

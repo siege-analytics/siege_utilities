@@ -149,3 +149,38 @@ class TestCanonicalHygiene:
             f"{rel}: cells {offenders} use `if HAS_X:` guards — "
             "inline the capability and let missing extras raise at import"
         )
+
+    def test_no_saved_execution_state(self, rel):
+        nb = _load(rel)
+        offenders = []
+        for i, c in enumerate(nb["cells"]):
+            if c["cell_type"] != "code":
+                continue
+            has_count = c.get("execution_count") is not None
+            has_outputs = bool(c.get("outputs"))
+            if has_count or has_outputs:
+                offenders.append(
+                    f"cell {i}: execution_count={c.get('execution_count')!r}, "
+                    f"outputs={len(c.get('outputs', []))}"
+                )
+        assert not offenders, (
+            f"{rel}: governed notebooks must be committed source-clean; "
+            f"clear execution counts/outputs: {offenders}"
+        )
+
+    def test_all_cells_have_ids(self, rel):
+        nb = _load(rel)
+        pat = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+        offenders = []
+        seen = set()
+        for i, c in enumerate(nb["cells"]):
+            cell_id = c.get("id")
+            if not isinstance(cell_id, str) or not cell_id or not pat.match(cell_id):
+                offenders.append(f"cell {i}: missing/invalid id {cell_id!r}")
+            elif cell_id in seen:
+                offenders.append(f"cell {i}: duplicate id {cell_id!r}")
+            seen.add(cell_id)
+        assert not offenders, (
+            f"{rel}: governed notebooks must have stable nbformat cell ids; "
+            f"normalize missing/invalid/duplicate ids: {offenders}"
+        )
