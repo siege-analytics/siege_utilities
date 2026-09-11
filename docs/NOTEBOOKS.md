@@ -1,13 +1,13 @@
 # siege_utilities — Notebook system
 
-**Status:** Mixed/governed. ELE-2456 established the canonical notebook template, but the repository currently contains additional legacy live notebooks that still need rewrite/archive disposition.
+**Status:** Governed. ELE-2456 established the canonical notebook template, and #1227 brought every live notebook into hygiene + execution governance or archived/removed the legacy backlog.
 
 ## Shape
 
-39 notebooks are present: 27 live notebooks and 12 archived notebooks. 26 live
+39 notebooks are present: 27 live notebooks and 12 archived notebooks. 27 live
 notebooks are currently canonical/governed by `tests/test_notebook_hygiene.py`
-and `tests/test_notebooks.py`; 1 legacy live notebook is pending rewrite,
-promotion into governance, or archive/removal under #1227. Canonical notebooks
+and `tests/test_notebooks.py`; #1227 has no remaining legacy live notebook rewrite,
+promotion, or archive/removal backlog. Canonical notebooks
 remain capability showcases, not API tours: one user intent, coherent cells,
 and one deliverable.
 
@@ -49,6 +49,9 @@ introduces both and proves the wire-up by rendering the same chart under each br
 | spatial | 07 | Natural-language spatial filters resolved to fixture geometry and GeoPandas handoff | ElectInfo |
 | analytics | 01 | Three connectors, one call-shape pattern | Masai |
 | analytics | 02 | Weekly GA digest PDF | Masai |
+| analytics | 03 | Social media fixture analytics and report payload assembly | Masai |
+| analytics | 04 | CRM pipeline deduplication, geographic preparation, and write-back planning | Masai |
+| analytics | 05 | CRM sales reporting fixtures, charts, and report planning | Masai |
 | config | credential_management | Credential backend discovery and missing-credential handling without real secrets | Both |
 | git | repo_analysis | Repository status, branch, and commit analysis against a temporary fixture repo | Both |
 | economic | economic_data_irs_bls | IRS SOI and BLS QCEW parsing with deterministic fixture data and provenance/grain notes | ElectInfo |
@@ -123,8 +126,8 @@ python3 scripts/check_notebook_inventory.py --json
 python3 scripts/check_notebook_inventory.py --check
 ```
 
-The strict all-live-governed gate is intentionally separate until #1227 rewrites,
-promotes, archives, or removes the 1 legacy live notebook:
+The strict all-live-governed gate now enforces that every live notebook is listed
+in both governance files:
 
 ```bash
 python3 scripts/check_notebook_inventory.py --check --require-all-live-governed
