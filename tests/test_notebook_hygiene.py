@@ -30,6 +30,15 @@ NOTEBOOK_ROOT = REPO_ROOT / "notebooks"
 RE_WRITTEN: list[str] = [
     "foundations/01_configuration.ipynb",
     "foundations/02_profiles_branding.ipynb",
+    "foundations/entity_identification.ipynb",
+    "foundations/file_operations_and_security.ipynb",
+    "config/credential_management.ipynb",
+    "git/repo_analysis.ipynb",
+    "economic/economic_data_irs_bls.ipynb",
+    "analytics/03_social_media_analytics.ipynb",
+    "analytics/04_crm_pipeline.ipynb",
+    "analytics/05_crm_sales_reports.ipynb",
+    "spatial/07_natural_language_to_geometry.ipynb",
     "spatial/01_boundaries.ipynb",
     "spatial/02_geocoding.ipynb",
     "spatial/03_choropleth_maps.ipynb",
@@ -46,6 +55,8 @@ RE_WRITTEN: list[str] = [
     "reports/02_slides_pptx_and_google.ipynb",
     "reports/03_polling_survey_analysis.ipynb",
     "reports/04_survey_full_showcase.ipynb",
+    "playground/00_public_api_contracts.ipynb",
+    "playground/01_geocoding_data_quality.ipynb",
 ]
 
 
@@ -139,4 +150,39 @@ class TestCanonicalHygiene:
         assert not offenders, (
             f"{rel}: cells {offenders} use `if HAS_X:` guards — "
             "inline the capability and let missing extras raise at import"
+        )
+
+    def test_no_saved_execution_state(self, rel):
+        nb = _load(rel)
+        offenders = []
+        for i, c in enumerate(nb["cells"]):
+            if c["cell_type"] != "code":
+                continue
+            has_count = c.get("execution_count") is not None
+            has_outputs = bool(c.get("outputs"))
+            if has_count or has_outputs:
+                offenders.append(
+                    f"cell {i}: execution_count={c.get('execution_count')!r}, "
+                    f"outputs={len(c.get('outputs', []))}"
+                )
+        assert not offenders, (
+            f"{rel}: governed notebooks must be committed source-clean; "
+            f"clear execution counts/outputs: {offenders}"
+        )
+
+    def test_all_cells_have_ids(self, rel):
+        nb = _load(rel)
+        pat = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+        offenders = []
+        seen = set()
+        for i, c in enumerate(nb["cells"]):
+            cell_id = c.get("id")
+            if not isinstance(cell_id, str) or not cell_id or not pat.match(cell_id):
+                offenders.append(f"cell {i}: missing/invalid id {cell_id!r}")
+            elif cell_id in seen:
+                offenders.append(f"cell {i}: duplicate id {cell_id!r}")
+            seen.add(cell_id)
+        assert not offenders, (
+            f"{rel}: governed notebooks must have stable nbformat cell ids; "
+            f"normalize missing/invalid/duplicate ids: {offenders}"
         )

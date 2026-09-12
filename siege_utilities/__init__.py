@@ -40,20 +40,70 @@ __description__ = "Comprehensive utilities for data engineering, analytics, and 
 import re as _re
 
 _DEP_NAME_RE = _re.compile(r'^([A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?)')
+_DEP_FLOOR_RE = _re.compile(r'>=\s*(\d+)')
+
+
+def _installed_major(mod) -> int:
+    """Best-effort major version of an imported module (VERSION or __version__)."""
+    raw = getattr(mod, 'VERSION', None) or getattr(mod, '__version__', '') or ''
+    try:
+        return int(str(raw).split('.', 1)[0])
+    except (ValueError, IndexError):
+        return -1  # unknown — treat as satisfying (don't false-positive)
+
+
+_DEPENDENCY_IMPORT_MODULES = {
+    'google-analytics-data': 'google.analytics.data_v1beta',
+    'snowflake-connector-python': 'snowflake.connector',
+}
+
+
+def _dependency_name(spec: str) -> str | None:
+    match = _DEP_NAME_RE.match(spec)
+    return match.group(1) if match else None
+
+
+def _dependency_is_installed(dep_name: str) -> bool:
+    import_name = _DEPENDENCY_IMPORT_MODULES.get(dep_name, dep_name.replace('-', '_'))
+    try:
+        importlib.import_module(import_name)
+        return True
+    except ImportError:
+        return False
+
+
+def _missing_dependencies(deps: list) -> list[str]:
+    """Return dependency specs that are unavailable or below a major-version floor.
+
+    A package counts as missing when it is uninstalled OR installed below a
+    declared major-version floor (e.g. ``pydantic>=2.0`` under pydantic v1).
+    Dependency specs are distribution names, not always import-module names,
+    so known mismatches are resolved through ``_DEPENDENCY_IMPORT_MODULES`` and
+    then checked against installed distributions before being marked missing.
+    """
+    missing = []
+    for spec in deps:
+        dep_name = _dependency_name(spec)
+        if not dep_name:
+            continue
+        if not _dependency_is_installed(dep_name):
+            missing.append(spec)
+            continue
+        floor = _DEP_FLOOR_RE.search(spec)
+        if floor:
+            import_name = _DEPENDENCY_IMPORT_MODULES.get(dep_name, dep_name.replace('-', '_'))
+            try:
+                mod = importlib.import_module(import_name)
+            except ImportError:
+                continue
+            major = _installed_major(mod)
+            if major != -1 and major < int(floor.group(1)):
+                missing.append(spec)
+    return missing
 
 
 def _is_dep_missing(deps: list) -> bool:
-    """Return True only when a root dependency package is genuinely uninstalled."""
-    for spec in deps:
-        m = _DEP_NAME_RE.match(spec)
-        if not m:
-            continue
-        pkg = m.group(1).replace('-', '_')
-        try:
-            importlib.import_module(pkg)
-        except ImportError:
-            return True
-    return False
+    return bool(_missing_dependencies(deps))
 
 
 def _create_dependency_wrapper(func_name: str, required_deps: list):
@@ -65,7 +115,12 @@ def _create_dependency_wrapper(func_name: str, required_deps: list):
             f"Install with: pip install {' '.join(required_deps)}"
         )
     wrapper.__name__ = func_name
+    wrapper.__qualname__ = func_name
     wrapper.__doc__ = f"Function requires dependencies: {', '.join(required_deps)}"
+    wrapper.__siege_optional_dependency_wrapper__ = True
+    wrapper.__siege_required_dependencies__ = tuple(required_deps)
+    wrapper.__siege_missing_dependencies__ = tuple(required_deps)
+    wrapper.__siege_available__ = False
     return wrapper
 
 
@@ -90,6 +145,15 @@ def _register_lazy(names, module, deps=None, renames=None):
     renames = renames or {}
     for name in names:
         source_name = renames.get(name, name)
+        # #1176 hostile-review F1: raise on duplicate registration so a
+        # future promotion batch cannot silently pick a collision winner.
+        if name in _LAZY_IMPORTS and _LAZY_IMPORTS[name][0] != module:
+            existing_module = _LAZY_IMPORTS[name][0]
+            raise RuntimeError(
+                f"_register_lazy: duplicate registration for {name!r}: "
+                f"already bound to {existing_module!r}, would rebind to {module!r}. "
+                "Rename the losing definition or delete the stale copy before promotion."
+            )
         _LAZY_IMPORTS[name] = (module, source_name, deps or [])
 
 
@@ -212,15 +276,18 @@ _register_lazy([
 ], '.geo', deps=['geopandas'])
 
 _register_lazy([
-    'concatenate_addresses', 'use_nominatim_geocoder',
-    'get_country_name', 'get_country_code', 'list_countries', 'get_coordinates',
-    'GeocodingError',
-], '.geo.geocoding', deps=['geopandas'])
+    'GeocodingError', 'concatenate_addresses',
+    'get_country_name', 'get_country_code', 'list_countries',
+], '.geo.geocoding_core')
+
+_register_lazy([
+    'use_nominatim_geocoder', 'get_coordinates',
+], '.geo.geocoding', deps=['pandas', 'geopy'])
 
 _register_lazy([
     'DEFAULT_ORS_BASE_URL', 'DEFAULT_VALHALLA_BASE_URL',
     'build_isochrone_request', 'get_isochrone', 'isochrone_to_geodataframe',
-], '.geo.isochrones', deps=['requests'])
+], '.geo.isochrones', deps=['httpx'])
 
 _register_lazy([
     'get_census_data_selector', 'select_census_datasets', 'get_analysis_approach',
@@ -274,7 +341,7 @@ _register_lazy([
     'generate_synthetic_population', 'generate_synthetic_businesses',
     'generate_synthetic_housing',
     'SAMPLE_DATASETS', 'CENSUS_SAMPLES', 'SYNTHETIC_SAMPLES',
-], '.data.sample_data', deps=['pandas'],
+], '.reference.sample_data', deps=['pandas'],
 )
 
 # ── Analytics ────────────────────────────────────────────────────────
@@ -398,9 +465,14 @@ def __getattr__(name):
             return val
         except ImportError:
             if deps and _is_dep_missing(deps):
-                wrapper = _create_dependency_wrapper(attr_name, deps)
-                setattr(sys.modules[__name__], name, wrapper)
-                return wrapper
+                # Don't cache the dependency-wrapper stub. Caching would
+                # break the recovery path where a user installs the missing
+                # dep and expects the next attribute access to load the
+                # real symbol. Recreating the wrapper on each access is
+                # cheap relative to the ImportError it fronts.
+                # (SU-1 / CLAUDE.md rule 6: caching a failure stub silently
+                # degrades the documented "install X" contract.)
+                return _create_dependency_wrapper(attr_name, deps)
             raise
 
     # 2. Fallback: try the distributed module for PySpark re-exports
@@ -425,20 +497,251 @@ def __dir__():
     return sorted(set(list(globals().keys()) + list(_LAZY_IMPORTS.keys())))
 
 
+# ── Explicit public API surface (#1176) ──────────────────────────────
+# Canonical public API — symbols documented in README / notebooks / release
+# notes that consumers may import directly from `siege_utilities`. Additions
+# happen per-subpackage via promotion PRs; each candidate is classified by
+# `scripts/audit_public_api_surface.py` before landing here.
+#
+# Anything in `_LAZY_IMPORTS` but NOT in `__all__` remains addressable via
+# `__getattr__` for backward compatibility but is not part of the declared
+# public contract.
+#
+# Backward-compat note: prior to #1176, `siege_utilities.__all__` resolved
+# implicitly to `.distributed.__all__` via the __getattr__ fallback. The
+# `.distributed` block below preserves that surface so `from siege_utilities
+# import *` behaviour is unchanged for existing consumers.
+
+__all__ = [
+    # Eagerly-imported core (available without hitting __getattr__)
+    'settings',
+    'log_info', 'log_warning', 'log_error', 'log_debug', 'log_critical',
+    'init_logger', 'get_logger', 'configure_shared_logging',
+    'remove_wrapping_quotes_and_trim',
+    # Package metadata
+    '__version__', '__author__', '__description__',
+    # ── Preserved: prior implicit surface via .distributed fallback ──
+    'AbstractHDFSOperations', 'HDFSConfig', 'PYSPARK_AVAILABLE',
+    'atomic_write_with_staging', 'backup_full_dataframe',
+    'clean_and_reorder_bbox', 'compute_walkability',
+    'create_census_analysis_config', 'create_cluster_config',
+    'create_geocoding_config', 'create_hdfs_config',
+    'create_hdfs_operations', 'create_local_config',
+    'create_unique_staging_directory', 'create_yarn_config',
+    'ensure_literal', 'export_prepared_df_as_csv_to_path_using_delimiter',
+    'export_pyspark_df_to_excel', 'flatten_json_column_and_join_back_to_df',
+    'get_row_count', 'mark_valid_geocode_data',
+    'move_column_to_front_of_dataframe', 'pivot_summary_table_for_bools',
+    'pivot_summary_with_metrics', 'prepare_dataframe_for_export',
+    'prepare_summary_dataframe', 'print_debug_table', 'py_round',
+    'read_parquet_to_df', 'register_temp_table', 'repartition_and_cache',
+    'reproject_geom_columns', 'sanitise_dataframe_column_names',
+    'setup_distributed_environment', 'tabulate_null_vs_not_null',
+    'validate_geocode_data', 'validate_geometry', 'walkability_config',
+    'write_df_to_parquet',
+    # ── Promoted canonicals (per #1176 audit) ────────────────────────
+    # geo.spatial_data (27 symbols, batch 1)
+    'discover_boundary_types',
+    'download_data',
+    'download_dataset',
+    'download_osm_data',
+    'get_available_state_fips',
+    'get_available_years',
+    'get_census_boundaries',
+    'get_census_data',
+    'get_geographic_boundaries',
+    'get_optimal_year',
+    'get_state_abbreviations',
+    'get_state_by_abbreviation',
+    'normalize_fips_code',
+    'normalize_state_abbreviation',
+    'normalize_state_input',
+    'normalize_state_name',
+    'construct_download_url',
+    'get_available_boundary_types',
+    'get_comprehensive_state_info',
+    'get_state_abbreviation',
+    'get_state_by_name',
+    'get_state_name',
+    'get_unified_fips_data',
+    'get_year_directory_contents',
+    'refresh_discovery_cache',
+    'validate_download_url',
+    'validate_state_fips',
+    # reporting (26 symbols, batch 2)
+    # NOTE: `create_bivariate_choropleth` also exists in
+    # `siege_utilities.geo.choropleth` with a different (GeoDataFrame-based)
+    # signature. Top-level resolves to the reporting variant per
+    # `_LAZY_IMPORTS`. Reconciliation tracked at #1208.
+    'AnalyticsReportGenerator',
+    'BaseReportTemplate',
+    'ChartGenerator',
+    'ChartTypeRegistry',
+    'ClientBrandingManager',
+    'PollingAnalyzer',
+    'PowerPointGenerator',
+    'ReportGenerator',
+    'create_bar_chart',
+    'create_bivariate_choropleth',
+    'create_choropleth_map',
+    'create_dashboard',
+    'create_dataframe_summary_charts',
+    'create_flow_map',
+    'create_heatmap',
+    'create_line_chart',
+    'create_marker_map',
+    'create_pie_chart',
+    'create_powerpoint_generator',
+    'create_report_generator',
+    'create_scatter_plot',
+    'export_branding_config',
+    'export_chart_type_config',
+    'generate_chart_from_dataframe',
+    'get_report_output_directory',
+    'import_branding_config',
+    # databricks (18 symbols, batch 3)
+    # NOTE: `quote_ident` is a peer helper in
+    # `.databricks.lakehouse_federation` used by the two SQL builders
+    # below. Not promoted here because it is not currently in
+    # `_LAZY_IMPORTS` (audit only classifies lazy-registered symbols).
+    # Promotion decision deferred to #1210.
+    'build_databricks_run_url',
+    'build_foreign_table_sql',
+    'build_jdbc_url',
+    'build_lakebase_psql_command',
+    'build_pgpass_entry',
+    'build_schema_and_table_sync_sql',
+    'ensure_secret_scope',
+    'geopandas_to_spark',
+    'get_active_spark_session',
+    'get_dbutils',
+    'get_runtime_secret',
+    'get_workspace_client',
+    'pandas_to_spark',
+    'parse_conninfo',
+    'put_secret',
+    'runtime_secret_exists',
+    'spark_to_geopandas',
+    'spark_to_pandas',
+    # config profiles (17 symbols, batch 4)
+    'associate_client_with_project',
+    'cleanup_old_connections',
+    'create_client_profile',
+    'create_connection_profile',
+    'find_connection_by_name',
+    'get_client_project_associations',
+    'get_connection_status',
+    'list_client_profiles',
+    'list_connection_profiles',
+    'load_client_profile',
+    'load_connection_profile',
+    'save_client_profile',
+    'save_connection_profile',
+    'search_client_profiles',
+    'update_client_profile',
+    'update_connection_profile',
+    'validate_client_profile',
+    # file utilities (14 symbols, batch 5)
+    'calculate_file_hash',
+    'copy_file',
+    'download_file',
+    'download_file_with_retry',
+    'ensure_path_exists',
+    'file_exists',
+    'generate_sha256_hash_for_file',
+    'get_file_hash',
+    'get_file_info',
+    'get_quick_file_signature',
+    'is_downloadable',
+    'move_file',
+    'verify_file_integrity',
+    # sample data (8 symbols, batch 6 / #1213)
+    'CENSUS_SAMPLES',
+    'SAMPLE_DATASETS',
+    'SYNTHETIC_SAMPLES',
+    'generate_synthetic_businesses',
+    'generate_synthetic_housing',
+    'generate_synthetic_population',
+    'list_available_datasets',
+    'load_sample_data',
+    # geocoding (6 canonical + 1 extension symbol, batch 7)
+    'GeocodingError',
+    'concatenate_addresses',
+    'get_coordinates',
+    'get_country_code',
+    'get_country_name',
+    'list_countries',
+    'use_nominatim_geocoder',
+]
+
+
 # ── Introspection functions (defined here, always available) ─────────
 
-def get_package_info() -> Dict[str, Any]:
-    """
-    Get comprehensive information about the siege_utilities package.
-    Uses DYNAMIC discovery to report only actually available functions.
+_CATEGORY_NAMES = (
+    'core', 'files', 'config', 'admin', 'distributed', 'geo', 'hygiene',
+    'development', 'git', 'testing', 'data', 'analytics', 'reporting',
+)
 
-    Returns:
-        Dictionary containing package information, available functions, and module status
+_EAGER_CATEGORIES = {
+    'configure_shared_logging': 'core',
+    'get_logger': 'core',
+    'init_logger': 'core',
+    'log_critical': 'core',
+    'log_debug': 'core',
+    'log_error': 'core',
+    'log_info': 'core',
+    'log_warning': 'core',
+    'remove_wrapping_quotes_and_trim': 'core',
+}
+
+
+def _category_from_module_path(module_path: str) -> str | None:
+    if module_path.startswith('siege_utilities.'):
+        parts = module_path.split('.')[1:]
+    else:
+        parts = module_path.lstrip('.').split('.')
+    if not parts or not parts[0]:
+        return None
+    first = parts[0]
+    if first == 'reference':
+        return 'data'
+    if first in _CATEGORY_NAMES:
+        return first
+    return None
+
+
+def _lazy_category(name: str) -> str | None:
+    entry = _LAZY_IMPORTS.get(name)
+    if not entry:
+        return _EAGER_CATEGORIES.get(name)
+    return _category_from_module_path(entry[0])
+
+
+def _lazy_entry_metadata(name: str) -> dict[str, Any]:
+    module_path, attr_name, deps = _LAZY_IMPORTS[name]
+    missing = _missing_dependencies(deps)
+    return {
+        'name': name,
+        'module': module_path,
+        'attribute': attr_name,
+        'category': _lazy_category(name),
+        'required_dependencies': list(deps),
+        'missing_dependencies': missing,
+        'available': not missing,
+    }
+
+
+def get_package_info() -> Dict[str, Any]:
+    """Get comprehensive package information.
+
+    Lazy public symbols are classified from the lazy-import registry without
+    first resolving optional-dependency wrappers. Symbols whose declared
+    dependencies are missing appear in ``unavailable_functions`` and
+    ``optional_dependency_symbols`` with machine-readable dependency metadata.
     """
     import inspect as _inspect
 
     current_module = sys.modules[__name__]
-
     package_info = {
         'package_name': 'siege_utilities',
         'version': __version__,
@@ -449,157 +752,58 @@ def get_package_info() -> Dict[str, Any]:
         'available_modules': [],
         'unavailable_functions': [],
         'failed_imports': [],
-        'subpackages': [],
-        'categories': {
-            'core': [], 'files': [], 'distributed': [], 'geo': [],
-            'config': [], 'admin': [], 'hygiene': [], 'testing': [],
-            'data': [], 'analytics': [], 'reporting': [], 'git': [],
-            'development': [],
-        }
+        'optional_dependency_symbols': {},
+        'categories': {category: [] for category in _CATEGORY_NAMES},
     }
 
-    # Function name to category mapping
-    function_categories = {
-        'log_info': 'core', 'log_warning': 'core', 'log_error': 'core',
-        'log_debug': 'core', 'log_critical': 'core',
-        'init_logger': 'core', 'get_logger': 'core', 'configure_shared_logging': 'core',
-        'remove_wrapping_quotes_and_trim': 'core',
-        'check_if_file_exists_at_path': 'files', 'calculate_file_hash': 'files',
-        'ensure_path_exists': 'files', 'generate_sha256_hash_for_file': 'files',
-        'get_file_hash': 'files', 'get_quick_file_signature': 'files',
-        'verify_file_integrity': 'files', 'unzip_file_to_directory': 'files',
-        'file_exists': 'files', 'touch_file': 'files', 'count_lines': 'files',
-        'copy_file': 'files', 'move_file': 'files', 'get_file_size': 'files',
-        'list_directory': 'files', 'run_command': 'files', 'remove_tree': 'files',
-        'generate_local_path_from_url': 'files', 'download_file': 'files',
-        'download_file_with_retry': 'files', 'get_file_info': 'files',
-        'is_downloadable': 'files', 'run_subprocess': 'files',
-        'get_row_count': 'distributed', 'repartition_and_cache': 'distributed',
-        'register_temp_table': 'distributed',
-        'move_column_to_front_of_dataframe': 'distributed',
-        'write_df_to_parquet': 'distributed', 'read_parquet_to_df': 'distributed',
-        'create_database_config': 'config', 'save_database_config': 'config',
-        'load_database_config': 'config', 'get_spark_database_options': 'config',
-        'test_database_connection': 'config', 'list_database_configs': 'config',
-        'create_spark_session_with_databases': 'config',
-        'create_project_config': 'config', 'save_project_config': 'config',
-        'load_project_config': 'config', 'setup_project_directories': 'config',
-        'get_project_path': 'config', 'list_projects': 'config',
-        'update_project_config': 'config',
-        'create_directory_structure': 'config',
-        'create_standard_project_structure': 'config',
-        'save_directory_config': 'config', 'load_directory_config': 'config',
-        'ensure_directories_exist': 'config', 'get_directory_info': 'config',
-        'clean_empty_directories': 'config', 'list_directory_configs': 'config',
-        'create_client_profile': 'config', 'save_client_profile': 'config',
-        'load_client_profile': 'config', 'update_client_profile': 'config',
-        'list_client_profiles': 'config', 'search_client_profiles': 'config',
-        'associate_client_with_project': 'config',
-        'get_client_project_associations': 'config',
-        'validate_client_profile': 'config',
-        'create_connection_profile': 'config', 'save_connection_profile': 'config',
-        'load_connection_profile': 'config', 'find_connection_by_name': 'config',
-        'list_connection_profiles': 'config', 'update_connection_profile': 'config',
-        'verify_connection_profile': 'config', 'get_connection_status': 'config',
-        'cleanup_old_connections': 'config',
-        'get_user_config': 'config', 'get_download_directory': 'config',
-        'load_user_profile': 'config', 'save_user_profile': 'config',
-        'export_config_yaml': 'config', 'import_config_yaml': 'config',
-        'get_default_profile_location': 'admin', 'set_profile_location': 'admin',
-        'get_profile_location': 'admin', 'list_profile_locations': 'admin',
-        'migrate_profiles': 'admin', 'create_default_profiles': 'admin',
-        'validate_profile_location': 'admin', 'get_profile_summary': 'admin',
-        'concatenate_addresses': 'geo', 'use_nominatim_geocoder': 'geo',
-        'get_census_intelligence': 'geo', 'quick_census_selection': 'geo',
-        'get_census_data_selector': 'geo', 'select_census_datasets': 'geo',
-        'get_analysis_approach': 'geo', 'select_datasets_for_analysis': 'geo',
-        'get_dataset_compatibility_matrix': 'geo', 'suggest_analysis_approach': 'geo',
-        'get_census_dataset_mapper': 'geo', 'get_best_dataset_for_analysis': 'geo',
-        'compare_census_datasets': 'geo', 'get_dataset_info': 'geo',
-        'list_datasets_by_type': 'geo', 'list_datasets_by_geography': 'geo',
-        'get_best_dataset_for_use_case': 'geo', 'get_dataset_relationships': 'geo',
-        'compare_datasets': 'geo', 'get_data_selection_guide': 'geo',
-        'export_dataset_catalog': 'geo',
-        'get_census_data': 'geo', 'get_census_boundaries': 'geo',
-        'download_osm_data': 'geo', 'get_available_years': 'geo',
-        'get_year_directory_contents': 'geo', 'discover_boundary_types': 'geo',
-        'construct_download_url': 'geo', 'validate_download_url': 'geo',
-        'get_optimal_year': 'geo', 'download_data': 'geo',
-        'get_geographic_boundaries': 'geo', 'get_available_boundary_types': 'geo',
-        'refresh_discovery_cache': 'geo', 'get_available_state_fips': 'geo',
-        'get_state_abbreviations': 'geo', 'get_comprehensive_state_info': 'geo',
-        'get_state_by_abbreviation': 'geo', 'get_state_by_name': 'geo',
-        'validate_state_fips': 'geo', 'get_state_name': 'geo',
-        'get_state_abbreviation': 'geo', 'download_dataset': 'geo',
-        'get_unified_fips_data': 'geo', 'normalize_state_identifier': 'config',
-        'generate_docstring_template': 'hygiene',
-        'analyze_function_signature': 'hygiene',
-        'generate_architecture_diagram': 'development',
-        'analyze_package_structure': 'development',
-        'analyze_branch_status': 'git', 'generate_branch_report': 'git',
-        'create_feature_branch': 'git', 'switch_branch': 'git',
-        'merge_branch': 'git', 'get_repository_status': 'git',
-        'get_branch_info': 'git', 'start_feature_workflow': 'git',
-        'validate_branch_naming': 'git',
-        'setup_spark_environment': 'testing', 'get_system_info': 'testing',
-        'load_sample_data': 'data', 'list_available_datasets': 'data',
-        'join_boundaries_and_data': 'data',
-        'create_sample_dataset': 'data', 'generate_synthetic_population': 'data',
-        'generate_synthetic_businesses': 'data', 'generate_synthetic_housing': 'data',
-        'create_ga_account_profile': 'analytics', 'save_ga_account_profile': 'analytics',
-        'load_ga_account_profile': 'analytics', 'list_ga_accounts_for_client': 'analytics',
-        'batch_retrieve_ga_data': 'analytics',
-        'create_facebook_account_profile': 'analytics',
-        'save_facebook_account_profile': 'analytics',
-        'load_facebook_account_profile': 'analytics',
-        'list_facebook_accounts_for_client': 'analytics',
-        'batch_retrieve_facebook_data': 'analytics',
-        'get_datadotworld_connector': 'analytics',
-        'search_datadotworld_datasets': 'analytics',
-        'load_datadotworld_dataset': 'analytics',
-        'query_datadotworld_dataset': 'analytics',
-        'search_datasets': 'analytics', 'list_datasets': 'analytics',
-        'get_snowflake_connector': 'analytics', 'upload_to_snowflake': 'analytics',
-        'download_from_snowflake': 'analytics', 'execute_snowflake_query': 'analytics',
-        'BaseReportTemplate': 'reporting', 'ReportGenerator': 'reporting',
-        'ChartGenerator': 'reporting', 'ClientBrandingManager': 'reporting',
-        'AnalyticsReportGenerator': 'reporting', 'PowerPointGenerator': 'reporting',
-        'get_report_output_directory': 'reporting',
-        'create_report_generator': 'reporting',
-        'create_powerpoint_generator': 'reporting',
-        'export_branding_config': 'reporting', 'import_branding_config': 'reporting',
-        'export_chart_type_config': 'reporting', 'PollingAnalyzer': 'reporting',
-        'create_bar_chart': 'reporting', 'create_line_chart': 'reporting',
-        'create_pie_chart': 'reporting', 'create_scatter_plot': 'reporting',
-        'create_heatmap': 'reporting', 'create_choropleth_map': 'reporting',
-        'create_bivariate_choropleth': 'reporting', 'create_marker_map': 'reporting',
-        'create_flow_map': 'reporting', 'create_dashboard': 'reporting',
-        'create_dataframe_summary_charts': 'reporting',
-        'generate_chart_from_dataframe': 'reporting',
-    }
+    public_names = sorted(set(__all__) | set(_LAZY_IMPORTS))
 
-    for name in dir(current_module):
-        if name.startswith('_') or name in ('sys', 'json', 'pathlib', 'logging', 'importlib', 'inspect'):
+    for name in public_names:
+        if name.startswith('_'):
             continue
-        obj = getattr(current_module, name)
-        if name in function_categories:
-            if obj is None:
+        if name in _LAZY_IMPORTS:
+            metadata = _lazy_entry_metadata(name)
+            if metadata['required_dependencies']:
+                package_info['optional_dependency_symbols'][name] = metadata
+            category = metadata['category']
+            if metadata['missing_dependencies']:
                 package_info['unavailable_functions'].append(name)
-            elif callable(obj) or _inspect.isclass(obj):
-                package_info['available_functions'].append(name)
-                package_info['categories'][function_categories[name]].append(name)
-                package_info['total_functions'] += 1
-        elif callable(obj) or _inspect.isclass(obj):
+                continue
+            try:
+                obj = getattr(current_module, name)
+            except ImportError as exc:
+                metadata = dict(metadata)
+                metadata['available'] = False
+                metadata['missing_dependencies'] = metadata['missing_dependencies'] or list(metadata['required_dependencies'])
+                metadata['error'] = str(exc)
+                package_info['optional_dependency_symbols'][name] = metadata
+                package_info['unavailable_functions'].append(name)
+                package_info['failed_imports'].append({'name': name, 'error': str(exc)})
+                continue
+        else:
+            try:
+                obj = getattr(current_module, name)
+            except AttributeError:
+                continue
+            category = _EAGER_CATEGORIES.get(name)
+
+        if callable(obj) or _inspect.isclass(obj):
             package_info['available_functions'].append(name)
             package_info['total_functions'] += 1
+            if category:
+                package_info['categories'][category].append(name)
+        elif _inspect.ismodule(obj):
+            package_info['available_modules'].append(name)
 
-    package_info['total_modules'] = len([
-        n for n in dir(current_module)
-        if _inspect.ismodule(getattr(current_module, n, None))
-    ])
-
+    package_info['total_modules'] = len(package_info['available_modules'])
     package_info['available_functions'].sort()
     package_info['unavailable_functions'].sort()
+    package_info['available_modules'].sort()
+    package_info['failed_imports'].sort(key=lambda item: item['name'])
+    package_info['optional_dependency_symbols'] = {
+        name: package_info['optional_dependency_symbols'][name]
+        for name in sorted(package_info['optional_dependency_symbols'])
+    }
     for cat in package_info['categories']:
         package_info['categories'][cat].sort()
 
@@ -609,7 +813,6 @@ def get_package_info() -> Dict[str, Any]:
         f"{len(package_info['unavailable_functions'])} unavailable"
     )
     return package_info
-
 
 def check_dependencies() -> Dict[str, bool]:
     """

@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 import pytest
 
 from siege_utilities.analytics.pipeline import (
-    ConcentrationAlert,
     PipelineAnalyzer,
     PipelineItem,
     PipelineReport,

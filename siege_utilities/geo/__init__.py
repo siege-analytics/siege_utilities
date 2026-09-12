@@ -96,10 +96,14 @@ _register([
 
 # --- geocoding ---
 _register([
-    'concatenate_addresses', 'use_nominatim_geocoder', 'NominatimGeoClassifier',
-    'get_country_name', 'get_country_code', 'list_countries', 'get_coordinates',
+    'GeocodingError', 'COUNTRY_CODES', 'DEFAULT_COUNTRY_CODE',
+    'NOMINATIM_INTERNAL_URL', 'concatenate_addresses',
+    'get_country_name', 'get_country_code', 'list_countries',
+], '.geocoding_core')
+
+_register([
+    'use_nominatim_geocoder', 'NominatimGeoClassifier', 'get_coordinates',
     'geocode_with_nominatim_public', 'geocode_addresses_with_nominatim',
-    'NOMINATIM_INTERNAL_URL', 'GeocodingError',
     'validate_geocode_data_pandas', 'mark_valid_geocode_data_pandas',
 ], '.geocoding')
 

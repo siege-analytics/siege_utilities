@@ -39,12 +39,15 @@ uv add siege-utilities[geo]
 ```python
 import siege_utilities as su
 
-# All 260+ functions are immediately available
+# Core functions are immediately available; optional-dependency surfaces
+# are reported separately when their extras are not installed.
 su.log_info("Package loaded successfully!")
 
 # Get package information
 info = su.get_package_info()
 print(f"Available: {info['total_functions']} functions")
+print(f"Unavailable optional functions: {len(info['unavailable_functions'])}")
+# Machine-readable details live in info['optional_dependency_symbols'].
 
 # Core utilities work immediately
 hash_value = su.get_file_hash("myfile.txt")

@@ -5,7 +5,6 @@ import warnings
 import pytest
 
 from siege_utilities.analytics.intervention import (
-    EffectivenessReport,
     InterventionMapper,
     MappingRule,
 )

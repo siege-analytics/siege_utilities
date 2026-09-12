@@ -125,7 +125,7 @@ def _redact(text: str, *, max_len: int = 300) -> str:
 class CredentialManager:
     """
     Unified credential management system with fallback hierarchy.
-    
+
     Fallback priority (mirrors Zsh system):
     1. Local files (JSON, tokens, etc.)
     2. Environment variables (for existing workflows)
@@ -133,12 +133,15 @@ class CredentialManager:
     4. Apple Keychain (macOS only)
     5. Interactive prompts (fallback)
     """
-    
+
     def __init__(self,
                  backend_priority: List[str] = None,
                  default_vault: str = "Private",
                  default_account: Optional[str] = None,
-                 credential_paths: List[Union[str, Path]] = None):
+                 credential_paths: List[Union[str, Path]] = None,
+                 detect_backends: bool = True,
+                 include_default_paths: bool = True,
+                 create_default_paths: bool = True):
         """
         Initialize credential manager.
 
@@ -147,37 +150,64 @@ class CredentialManager:
                             ['files', 'env', '1password', 'keychain', 'prompt']
             default_vault: Default 1Password vault to use
             default_account: Default 1Password account shorthand or UUID
-            credential_paths: Additional paths to search for credential files
+            credential_paths: Additional paths to search for credential files.
+            detect_backends: When False, do not probe external secret-manager
+                tools such as 1Password or Keychain during construction.
+            include_default_paths: When False, do not add the current working
+                directory or home credential directories to the file search path.
+            create_default_paths: When False, do not create credential
+                directories during construction.
         """
         self.backend_priority = backend_priority or ['files', 'env', '1password', 'keychain', 'prompt']
         self.default_vault = default_vault
         self.default_account = default_account
-        self.credential_paths = self._setup_credential_paths(credential_paths)
-        self.available_backends = self._detect_available_backends()
-        
+        self.credential_paths = self._setup_credential_paths(
+            credential_paths,
+            include_default_paths=include_default_paths,
+            create_default_paths=create_default_paths,
+        )
+        self.available_backends = self._detect_available_backends(
+            detect_external=detect_backends
+        )
+
         log_info(f"Credential manager initialized with backends: {self.available_backends}")
         log_info(f"Credential search paths: {self.credential_paths}")
-    
-    def _setup_credential_paths(self, additional_paths: Optional[List[Union[str, Path]]]) -> List[Path]:
+
+    def _setup_credential_paths(
+        self,
+        additional_paths: Optional[List[Union[str, Path]]],
+        *,
+        include_default_paths: bool = True,
+        create_default_paths: bool = True,
+    ) -> List[Path]:
         """Setup credential file search paths."""
         paths = []
-        
-        # Current working directory credentials folder
-        paths.append(Path.cwd() / "credentials")
-        
-        # User's siege utilities credentials directory
-        home_creds = Path.home() / ".siege_utilities" / "credentials"
-        paths.append(home_creds)
-        
-        # Ensure directories exist
-        for path in paths:
-            path.mkdir(parents=True, exist_ok=True)
-        
-        # Add user-configured paths
+
+        if include_default_paths:
+            # Current working directory credentials folder
+            paths.append(Path.cwd() / "credentials")
+
+            # User's siege utilities credentials directory
+            home_creds = Path.home() / ".siege_utilities" / "credentials"
+            paths.append(home_creds)
+
+            # Ensure directories exist only when caller allows construction
+            # side effects. Notebooks/CI can disable this for offline demos.
+            if create_default_paths:
+                for path in paths:
+                    path.mkdir(parents=True, exist_ok=True)
+
+        # Add user-configured paths. An explicit [] means exactly no extra paths.
         if additional_paths:
             for path in additional_paths:
                 paths.append(Path(path))
-        
+
+        # Try to get paths from user config only when default/user paths are in
+        # scope. Offline demos can set include_default_paths=False to avoid
+        # reading machine-local credential path configuration.
+        if not include_default_paths:
+            return paths
+
         # Try to get paths from user config. Narrow except to the two
         # legitimate "config not available" failure modes (the module
         # isn't importable, or the function exists but the attribute
@@ -194,23 +224,26 @@ class CredentialManager:
             if user_config is not None and hasattr(user_config, 'credential_paths'):
                 for path in user_config.credential_paths:
                     paths.append(Path(path))
-        
+
         return paths
-    
-    def _detect_available_backends(self) -> Dict[str, bool]:
+
+    def _detect_available_backends(self, *, detect_external: bool = True) -> Dict[str, bool]:
         """Detect which credential backends are available."""
         backends = {
             'files': True,  # Always available
             'env': True,  # Always available
             'prompt': True,  # Always available
-            '1password': self._check_1password_available(),
-            'keychain': self._check_keychain_available()
+            '1password': False,
+            'keychain': False,
         }
-        
+        if detect_external:
+            backends['1password'] = self._check_1password_available()
+            backends['keychain'] = self._check_keychain_available()
+
         available = [k for k, v in backends.items() if v]
         log_info(f"Available credential backends: {available}")
         return backends
-    
+
     def _check_1password_available(self) -> bool:
         """Check if 1Password CLI is available and authenticated."""
         try:
@@ -232,7 +265,7 @@ class CredentialManager:
             return result.returncode == 0
         except FileNotFoundError:
             return False
-    
+
     def _build_op_flags(self, vault: Optional[str] = None,
                         account: Optional[str] = None) -> List[str]:
         """Build common op CLI flags for vault and account targeting.
@@ -323,14 +356,14 @@ class CredentialManager:
 
         log_warning(f"Could not retrieve {field} for {service} from any backend")
         raise CredentialNotFoundError(service, field, attempts)
-    
-    def _get_from_files(self, service: str, username: str, field: str, 
+
+    def _get_from_files(self, service: str, username: str, field: str,
                        additional_paths: Optional[List[Path]] = None) -> Optional[str]:
         """Get credential from local files."""
         search_paths = self.credential_paths.copy()
         if additional_paths:
             search_paths.extend(additional_paths)
-        
+
         # Common file patterns to look for
         patterns = [
             f"{service}_{field}.txt",
@@ -342,11 +375,11 @@ class CredentialManager:
             f"{field}.txt",
             "credentials.json"
         ]
-        
+
         for path in search_paths:
             if not path.exists():
                 continue
-                
+
             for pattern in patterns:
                 if '*' in pattern:
                     # Handle wildcard patterns
@@ -361,16 +394,16 @@ class CredentialManager:
                         value = self._extract_from_file(file_path, service, field)
                         if value:
                             return value
-        
+
         return None
-    
+
     def _extract_from_file(self, file_path: Path, service: str, field: str) -> Optional[str]:
         """Extract credential from a specific file."""
         try:
             if file_path.suffix.lower() == '.json':
                 with open(file_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                
+
                 # Handle different JSON structures
                 if 'installed' in data:  # Google OAuth format
                     return data['installed'].get(field)
@@ -385,12 +418,12 @@ class CredentialManager:
                 else:
                     # Try to find field in nested structure
                     return self._find_field_in_dict(data, field)
-            
+
             else:  # Plain text file
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read().strip()
                     return content if content else None
-                    
+
         except KeyError:
             # Field not present in the file's structure -- legitimate "not found".
             return None
@@ -398,7 +431,7 @@ class CredentialManager:
             raise SiegeConfigError(
                 f"Failed to read credential file {file_path}: {e}"
             ) from e
-    
+
     def _find_field_in_dict(self, data: Dict[str, Any], field: str) -> Optional[str]:
         """Recursively search for field in nested dictionary."""
         if isinstance(data, dict):
@@ -410,7 +443,7 @@ class CredentialManager:
                     if result:
                         return result
         return None
-    
+
     def _get_from_env(self, service: str, username: str, field: str) -> Optional[str]:
         """Get credential from environment variables."""
         # Try multiple environment variable patterns
@@ -419,13 +452,13 @@ class CredentialManager:
             f"{service.upper()}_{username.upper()}_{field.upper()}",
             f"{field.upper()}_{service.upper()}",
         ]
-        
+
         for pattern in patterns:
             value = os.getenv(pattern.replace('-', '_'))
             if value:
                 return value
         return None
-    
+
     def _get_from_1password(self, service: str, field: str,
                             vault: Optional[str] = None,
                             account: Optional[str] = None) -> Optional[str]:
@@ -482,7 +515,7 @@ class CredentialManager:
                 f"to other backends."
             )
         return None
-    
+
     def _get_from_keychain(self, service: str, username: str) -> Optional[str]:
         """Get credential from Apple Keychain.
 
@@ -513,16 +546,16 @@ class CredentialManager:
         # Only prompt in interactive shells
         if not (os.isatty(0) and os.isatty(1)):
             return None
-            
+
         try:
             import getpass
             prompt = f"Enter {field} for {service} ({username}): "
-            
+
             if field.lower() in ['password', 'secret', 'token', 'key']:
                 return getpass.getpass(prompt)
             else:
                 return input(prompt)
-                
+
         except KeyboardInterrupt:
             # User deliberately cancelled — propagate so the caller does
             # not silently fall through to a less-trusted backend.
@@ -532,7 +565,7 @@ class CredentialManager:
                 f"Interactive credential prompt for {service}/{field} "
                 f"received EOF — stdin may not be connected"
             ) from e
-    
+
     def store_credential(self, service: str, username: str, value: str,
                         field: str = "password", backend: str = "1password",
                         vault: Optional[str] = None,
@@ -562,7 +595,7 @@ class CredentialManager:
         else:
             log_error(f"Backend '{backend}' not available")
             return False
-    
+
     def _store_in_1password(self, service: str, username: str, value: str, field: str,
                             vault: Optional[str] = None,
                             account: Optional[str] = None) -> bool:
@@ -590,18 +623,18 @@ class CredentialManager:
                 result = subprocess.run(
                     cmd, input=value, capture_output=True, text=True, timeout=60,
                 )
-            
+
             if result.returncode == 0:
                 log_info(f"Stored {field} for {service} in 1Password")
                 return True
             else:
                 log_error(f"Failed to store in 1Password: {_redact(result.stderr)}")
                 return False
-                
+
         except (subprocess.SubprocessError, OSError, KeyError) as e:
             log_error(f"Error storing in 1Password: {e}")
             return False
-    
+
     def _store_in_keychain(self, service: str, username: str, value: str) -> bool:
         """Store credential in Apple Keychain."""
         try:
@@ -612,56 +645,56 @@ class CredentialManager:
                 '-w', value,
                 '-U'  # Update if exists
             ], capture_output=True, text=True, timeout=60)
-            
+
             if result.returncode == 0:
                 log_info(f"Stored credential for {service} in Keychain")
                 return True
             else:
                 log_error(f"Failed to store in Keychain: {_redact(result.stderr)}")
                 return False
-                
+
         except (subprocess.SubprocessError, OSError) as e:
             log_error(f"Error storing in Keychain: {e}")
             return False
-    
+
     def _store_in_env(self, service: str, username: str, value: str, field: str) -> bool:
         """Store credential as environment variable (session only)."""
         env_var = f"{service.upper()}_{field.upper()}".replace('-', '_')
         os.environ[env_var] = value
         log_info(f"Stored {field} for {service} as environment variable {env_var}")
         return True
-    
+
     def store_google_analytics_credentials(self, credentials_data: Dict[str, Any],
                                          item_title: str = "Google Analytics API",
                                          vault: Optional[str] = None) -> bool:
         """
         Store Google Analytics OAuth credentials.
-        
+
         Args:
             credentials_data: OAuth2 credentials from Google Cloud Console
             item_title: Title for the credential item
             vault: 1Password vault (uses default if not specified)
-            
+
         Returns:
             True if successful, False otherwise
         """
         if not self.available_backends.get('1password'):
             log_error("1Password not available for storing GA credentials")
             return False
-        
+
         vault = vault or self.default_vault
-        
+
         try:
             if 'installed' not in credentials_data:
                 log_error("Invalid Google Analytics credentials format")
                 return False
-            
+
             creds = credentials_data['installed']
-            
+
             # Create comprehensive 1Password item with both individual fields and raw JSON
             import json
             raw_json = json.dumps(credentials_data, indent=2)
-            
+
             cmd = [
                 'op', 'item', 'create',
                 '--category=API Credential',
@@ -674,14 +707,14 @@ class CredentialManager:
                 f'raw_json[text]={raw_json}',
                 '--tags=google-analytics,api,oauth2,siege-utilities'
             ]
-            
+
             # Add redirect URIs if present
             if 'redirect_uris' in creds:
                 redirect_uris = ','.join(creds['redirect_uris'])
                 cmd.append(f'redirect_uris={redirect_uris}')
-            
+
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-            
+
             if result.returncode == 0:
                 log_info(f"Stored Google Analytics credentials: '{item_title}'")
 
@@ -702,11 +735,11 @@ class CredentialManager:
             else:
                 log_error(f"Failed to store GA credentials: {_redact(result.stderr)}")
                 return False
-                
+
         except (subprocess.SubprocessError, OSError, KeyError, TypeError) as e:
             log_error(f"Error storing Google Analytics credentials: {e}")
             return False
-    
+
     def get_google_analytics_credentials(self, item_title: str = "Google Analytics API") -> Tuple[str, str]:
         """
         Get Google Analytics credentials for GoogleAnalyticsConnector.
@@ -739,7 +772,7 @@ class CredentialManager:
         client_id = self.get_credential('google-analytics', 'api', 'client_id')
         client_secret = self.get_credential('google-analytics', 'api', 'client_secret')
         return client_id, client_secret
-    
+
     def list_stored_credentials(self, service_filter: Optional[str] = None,
                                 vault: Optional[str] = None,
                                 account: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -795,7 +828,7 @@ class CredentialManager:
                     )
             except (subprocess.SubprocessError, OSError, json.JSONDecodeError) as e:
                 log_warning(f"Error listing 1Password credentials: {e}")
-        
+
         # List environment variables (siege-utilities related)
         env_credentials = []
         for key, value in os.environ.items():
@@ -807,23 +840,23 @@ class CredentialManager:
                         'variable': key,
                         'has_value': bool(value)
                     })
-        
+
         credentials.extend(env_credentials)
-        
+
         log_info(f"Found {len(credentials)} stored credentials")
         return credentials
-    
+
     def backend_status(self) -> Dict[str, Dict[str, Any]]:
         """Get detailed status of all credential backends."""
         status = {}
-        
+
         # Environment variables
         status['env'] = {
             'available': True,
             'status': 'Always available',
             'description': 'Environment variables'
         }
-        
+
         # 1Password CLI
         if self.available_backends.get('1password'):
             try:
@@ -853,7 +886,7 @@ class CredentialManager:
                 'status': 'Not installed',
                 'description': '1Password CLI (install: brew install 1password-cli)'
             }
-        
+
         # Apple Keychain
         if self.available_backends.get('keychain'):
             status['keychain'] = {
@@ -867,14 +900,14 @@ class CredentialManager:
                 'status': 'Not available',
                 'description': 'Apple Keychain (requires macOS)'
             }
-        
+
         # Interactive prompts
         status['prompt'] = {
             'available': True,
             'status': 'Available (fallback)',
             'description': 'Interactive prompts'
         }
-        
+
         return status
 
 
@@ -955,23 +988,23 @@ def store_ga_credentials_from_file(credentials_file: Union[str, Path],
                                  delete_file: bool = True) -> bool:
     """
     Store Google Analytics credentials from JSON file.
-    
+
     Args:
         credentials_file: Path to OAuth2 JSON file
         item_title: Title for 1Password item
         vault: 1Password vault
         delete_file: Whether to delete source file
-        
+
     Returns:
         True if successful
     """
     try:
         credentials_file = Path(credentials_file)
-        
+
         if not credentials_file.exists():
             log_error(f"Credentials file not found: {credentials_file}")
             return False
-        
+
         with open(credentials_file, 'r', encoding='utf-8') as f:
             credentials_data = json.load(f)
 
@@ -979,13 +1012,13 @@ def store_ga_credentials_from_file(credentials_file: Union[str, Path],
         success = manager.store_google_analytics_credentials(
             credentials_data, item_title, vault
         )
-        
+
         if success and delete_file:
             credentials_file.unlink()
             log_info(f"Deleted source credentials file: {credentials_file}")
-        
+
         return success
-        
+
     except (OSError, json.JSONDecodeError, KeyError, subprocess.SubprocessError) as e:
         log_error(f"Error storing GA credentials from file: {e}")
         return False
@@ -1015,45 +1048,45 @@ def credential_status() -> Dict[str, Dict[str, Any]]:
 
 
 def store_ga_service_account_from_file(credentials_file: Union[str, Path],
-                                      item_title: str = "Google Analytics Service Account", 
+                                      item_title: str = "Google Analytics Service Account",
                                       vault: str = "Private",
                                       delete_file: bool = False) -> bool:
     """
     Store Google Analytics service account credentials in 1Password.
-    
+
     Args:
         credentials_file: Path to service account JSON file
         item_title: Title for 1Password item
         vault: 1Password vault name
         delete_file: Whether to delete file after storing
-        
+
     Returns:
         True if successful
     """
     try:
         credentials_file = Path(credentials_file)
-        
+
         if not credentials_file.exists():
             log_error(f"Service account file not found: {credentials_file}")
             return False
-        
+
         # Read service account JSON
         with open(credentials_file, 'r', encoding='utf-8') as f:
             service_account_data = json.load(f)
-        
+
         # Validate service account format
         required_fields = ['type', 'project_id', 'private_key_id', 'private_key', 'client_email']
         if not all(field in service_account_data for field in required_fields):
             log_error("Invalid service account credentials format")
             return False
-        
+
         if service_account_data.get('type') != 'service_account':
             log_error("Not a service account credentials file")
             return False
-        
+
         # Create comprehensive 1Password item with service account data
         raw_json = json.dumps(service_account_data, indent=2)
-        
+
         cmd = [
             'op', 'item', 'create',
             '--category=API Credential',
@@ -1066,7 +1099,7 @@ def store_ga_service_account_from_file(credentials_file: Union[str, Path],
             f'raw_json[text]={raw_json}',
             '--tags=google-analytics,service-account,ga4,siege-utilities'
         ]
-        
+
         # Add optional fields if present
         if 'client_id' in service_account_data:
             cmd.append(f'client_id={service_account_data["client_id"]}')
@@ -1074,7 +1107,7 @@ def store_ga_service_account_from_file(credentials_file: Union[str, Path],
             cmd.append(f'auth_uri={service_account_data["auth_uri"]}')
         if 'token_uri' in service_account_data:
             cmd.append(f'token_uri={service_account_data["token_uri"]}')
-        
+
         # Execute 1Password command — check=True raises on non-zero so
         # we don't need to bind the result to a name.
         subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=60)
@@ -1087,7 +1120,7 @@ def store_ga_service_account_from_file(credentials_file: Union[str, Path],
             log_info(f"Deleted original file: {credentials_file}")
 
         return True
-            
+
     except subprocess.CalledProcessError as e:
         log_error(f"Failed to store service account credentials: {e.stderr}")
         return False

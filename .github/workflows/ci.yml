@@ -43,6 +43,59 @@ jobs:
       run: |
         python scripts/check_no_stub_docstrings.py
 
+
+  notebook-governance:
+    runs-on: ubuntu-latest
+    name: "notebook governance + pure execution"
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install system geospatial libraries
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          gdal-bin libgdal-dev libgeos-dev libproj-dev
+
+    - name: Install UV
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install notebook execution dependencies
+      run: |
+        sed -i "s/\"gdal>=3.6,<4\"/\"gdal==$(gdal-config --version)\"/g" pyproject.toml
+        uv sync --extra all --extra gdal --extra dev --extra notebooks
+
+    - name: Register CI notebook kernel
+      run: |
+        uv run python -m ipykernel install --user --name siege-notebook-ci --display-name "Siege Notebook CI"
+
+    - name: Enforce notebook inventory truth
+      run: |
+        uv run python scripts/check_notebook_inventory.py --check --require-all-live-governed
+        uv run python scripts/check_notebook_capability_coverage.py --check
+
+    - name: Execute pure/offline governed notebooks
+      env:
+        NOTEBOOK_KERNEL_NAME: siege-notebook-ci
+        NOTEBOOK_ARTIFACT_DIR: ${{ runner.temp }}/notebook-artifacts
+      run: |
+        uv run pytest -o addopts='' -p no:cacheprovider tests/test_notebooks.py -q -k pure -m "not integration"
+
+    - name: Upload notebook failure artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: notebook-failure-artifacts
+        path: ${{ runner.temp }}/notebook-artifacts
+        if-no-files-found: ignore
+
   lazy-import-integrity:
     runs-on: ubuntu-latest
     name: "lazy import integrity"
@@ -253,8 +306,20 @@ jobs:
         uv pip install 'pydantic>=1.10,<2.0' --force-reinstall
 
     - name: Test pydantic v1 compatibility
+      env:
+        # #1216: keep unrelated third-party pytest plugins from auto-loading
+        # after this job intentionally downgrades the environment to
+        # pydantic 1.x. The job is testing siege_utilities' fallback surface,
+        # not plugins pulled in by broad optional extras.
+        PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
       run: |
-        uv run pytest tests/test_pydantic_v1_compat.py -v --no-cov
+        # --no-sync: `uv run` would otherwise re-sync the env to the
+        # pydantic>=2.0 core pin and silently revert the v1 downgrade above,
+        # making the v1-fallback tests SKIP (the hollow gate, #1118). Keep
+        # the pinned pydantic 1.x the previous step installed.
+        # -o addopts=: plugin autoload is disabled below, so pytest-cov's
+        # options from pytest.ini are intentionally unavailable in this job.
+        uv run --no-sync pytest -o addopts= tests/test_pydantic_v1_compat.py -v
 
   test-core:
     runs-on: ubuntu-latest
@@ -383,6 +448,110 @@ jobs:
           --ignore=tests/test_place_history.py \
           --ignore=tests/test_events_overlay.py \
           --ignore=tests/test_demographics_overlay.py
+
+  makemigrations-check:
+    runs-on: ubuntu-latest
+    name: "django models match migrations (siege_geo)"
+    # Model-vs-migration drift is invisible to every other test job — a
+    # model can declare Meta.indexes / fields without a companion
+    # migration and every test still passes. `makemigrations --check`
+    # is the canonical gate. Closes #1110 by making the drift visible.
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install system geospatial libraries
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          gdal-bin libgdal-dev libgeos-dev libproj-dev
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install UV
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install geo + geodjango + dev
+      run: |
+        sed -i "s/\"gdal>=3.6,<4\"/\"gdal==$(gdal-config --version)\"/g" pyproject.toml
+        grep -qE '"gdal==[0-9]' pyproject.toml || { echo "gdal pin rewrite failed"; exit 1; }
+        uv sync --extra geo --extra gdal --extra geodjango --extra dev
+
+    - name: Check for un-migrated model changes
+      env:
+        DJANGO_SETTINGS_MODULE: tests.django_project.settings
+      run: |
+        # --dry-run so no migration file is written; --check makes the
+        # command exit non-zero if there ARE pending changes. Any
+        # Meta.indexes / model field drift surfaces here.
+        uv run python -m django makemigrations siege_geo --check --dry-run
+
+  extras-coherence:
+    runs-on: ubuntu-latest
+    name: "extras coherence"
+    # Verify that every pyproject.toml extra has at least one library
+    # consumer and that cross-extra version specs are consistent. Catches
+    # future recurrences of the #1179 / #1180 shape (extras that advertise
+    # capability the library doesn't deliver). Fast: no deps installed;
+    # just grep over the tree.
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Run extras coherence check
+      run: |
+        python scripts/validate_extras_coherence.py
+
+  griffe-api-diff:
+    runs-on: ubuntu-latest
+    name: "griffe api-diff (writing-releases:1)"
+    # Griffe diffs the current public API against the baseline branch and
+    # reports breaking changes at the symbol level (removed/renamed/
+    # incompatible-signature). Direct mechanical enforcement of the
+    # writing-releases:1 rule ("BREAKING in CHANGELOG when public
+    # surface changes incompatibly"). Advisory (`continue-on-error`)
+    # for now — the ratchet moves to blocking after one release cycle
+    # of confirming the diff signal is trustworthy on this codebase.
+    #
+    # See also: `api-contract-regression` job which owns the JSON-based
+    # contract check we already run; griffe is the symbol-level Python
+    # differ that catches shape changes the contract JSON misses.
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # need base branch for the diff
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install griffe
+      run: pip install "griffe>=1.0.0"
+
+    - name: Fetch base branch
+      run: git fetch origin ${{ github.base_ref || 'develop' }}
+
+    - name: Run griffe check
+      continue-on-error: true  # advisory; ratchet to blocking after 1 release cycle
+      run: |
+        # `griffe check` diffs the current tree against the base branch's
+        # commit. Non-zero exit means a breaking change was detected;
+        # reviewer decides whether the CHANGELOG needs a BREAKING entry.
+        griffe check siege_utilities \
+          --against origin/${{ github.base_ref || 'develop' }} \
+          || echo "::warning::griffe found API changes vs base branch — review whether BREAKING changelog entry is needed (writing-releases:1)"
 
   test-smoke:
     runs-on: ubuntu-latest

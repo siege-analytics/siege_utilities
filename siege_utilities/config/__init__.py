@@ -265,12 +265,24 @@ def _config_dependency_wrapper(func_name, required_deps):
 
 
 def _is_pkg_missing(pkg_name: str) -> bool:
-    """Return True when *pkg_name* is genuinely uninstalled."""
+    """Return True when *pkg_name* is unavailable.
+
+    For ``pydantic`` the config system requires v2+, so a pydantic v1 install
+    (which lacks ``field_validator`` and other v2 APIs the config models use)
+    counts as missing — otherwise the raw v2-only ImportError leaks instead of
+    the helpful dependency wrapper (see #1118).
+    """
     try:
-        importlib.import_module(pkg_name.replace('-', '_'))
-        return False
+        mod = importlib.import_module(pkg_name.replace('-', '_'))
     except ImportError:
         return True
+    if pkg_name == 'pydantic':
+        raw = getattr(mod, 'VERSION', None) or getattr(mod, '__version__', '') or ''
+        try:
+            return int(str(raw).split('.', 1)[0]) < 2
+        except (ValueError, IndexError):
+            return False
+    return False
 
 
 def _resolve_with_fallback(mod_path, attr_name, public_name):

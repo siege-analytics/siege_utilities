@@ -245,8 +245,14 @@ class RedistrictingPlan(models.Model):
         verbose_name_plural = "Redistricting Plans"
         unique_together = [("state_fips", "chamber", "cycle_year", "plan_name")]
         indexes = [
-            models.Index(fields=["state_fips", "chamber"]),
-            models.Index(fields=["cycle_year", "plan_type"]),
+            models.Index(
+                fields=["state_fips", "chamber"],
+                name="siege_geo_r_state_f_2cd692_idx",
+            ),
+            models.Index(
+                fields=["cycle_year", "plan_type"],
+                name="siege_geo_r_cycle_y_be1e6c_idx",
+            ),
             models.Index(fields=["state_fips", "chamber", "effective_from"]),
             models.Index(fields=["effective_from", "effective_to"]),
         ]
