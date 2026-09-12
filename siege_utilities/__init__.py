@@ -52,30 +52,58 @@ def _installed_major(mod) -> int:
         return -1  # unknown — treat as satisfying (don't false-positive)
 
 
-def _is_dep_missing(deps: list) -> bool:
-    """Return True when a required dependency is unavailable.
+_DEPENDENCY_IMPORT_MODULES = {
+    'google-analytics-data': 'google.analytics.data_v1beta',
+    'snowflake-connector-python': 'snowflake.connector',
+}
+
+
+def _dependency_name(spec: str) -> str | None:
+    match = _DEP_NAME_RE.match(spec)
+    return match.group(1) if match else None
+
+
+def _dependency_is_installed(dep_name: str) -> bool:
+    import_name = _DEPENDENCY_IMPORT_MODULES.get(dep_name, dep_name.replace('-', '_'))
+    try:
+        importlib.import_module(import_name)
+        return True
+    except ImportError:
+        return False
+
+
+def _missing_dependencies(deps: list) -> list[str]:
+    """Return dependency specs that are unavailable or below a major-version floor.
 
     A package counts as missing when it is uninstalled OR installed below a
     declared major-version floor (e.g. ``pydantic>=2.0`` under pydantic v1).
-    Without the floor check, a version-specific ImportError such as pydantic
-    v2's ``field_validator`` under pydantic v1 would leak raw instead of
-    producing the helpful dependency-wrapper error (see #1118).
+    Dependency specs are distribution names, not always import-module names,
+    so known mismatches are resolved through ``_DEPENDENCY_IMPORT_MODULES`` and
+    then checked against installed distributions before being marked missing.
     """
+    missing = []
     for spec in deps:
-        m = _DEP_NAME_RE.match(spec)
-        if not m:
+        dep_name = _dependency_name(spec)
+        if not dep_name:
             continue
-        pkg = m.group(1).replace('-', '_')
-        try:
-            mod = importlib.import_module(pkg)
-        except ImportError:
-            return True
+        if not _dependency_is_installed(dep_name):
+            missing.append(spec)
+            continue
         floor = _DEP_FLOOR_RE.search(spec)
         if floor:
+            import_name = _DEPENDENCY_IMPORT_MODULES.get(dep_name, dep_name.replace('-', '_'))
+            try:
+                mod = importlib.import_module(import_name)
+            except ImportError:
+                continue
             major = _installed_major(mod)
             if major != -1 and major < int(floor.group(1)):
-                return True
-    return False
+                missing.append(spec)
+    return missing
+
+
+def _is_dep_missing(deps: list) -> bool:
+    return bool(_missing_dependencies(deps))
 
 
 def _create_dependency_wrapper(func_name: str, required_deps: list):
@@ -87,7 +115,12 @@ def _create_dependency_wrapper(func_name: str, required_deps: list):
             f"Install with: pip install {' '.join(required_deps)}"
         )
     wrapper.__name__ = func_name
+    wrapper.__qualname__ = func_name
     wrapper.__doc__ = f"Function requires dependencies: {', '.join(required_deps)}"
+    wrapper.__siege_optional_dependency_wrapper__ = True
+    wrapper.__siege_required_dependencies__ = tuple(required_deps)
+    wrapper.__siege_missing_dependencies__ = tuple(required_deps)
+    wrapper.__siege_available__ = False
     return wrapper
 
 
@@ -644,18 +677,71 @@ __all__ = [
 
 # ── Introspection functions (defined here, always available) ─────────
 
-def get_package_info() -> Dict[str, Any]:
-    """
-    Get comprehensive information about the siege_utilities package.
-    Uses DYNAMIC discovery to report only actually available functions.
+_CATEGORY_NAMES = (
+    'core', 'files', 'config', 'admin', 'distributed', 'geo', 'hygiene',
+    'development', 'git', 'testing', 'data', 'analytics', 'reporting',
+)
 
-    Returns:
-        Dictionary containing package information, available functions, and module status
+_EAGER_CATEGORIES = {
+    'configure_shared_logging': 'core',
+    'get_logger': 'core',
+    'init_logger': 'core',
+    'log_critical': 'core',
+    'log_debug': 'core',
+    'log_error': 'core',
+    'log_info': 'core',
+    'log_warning': 'core',
+    'remove_wrapping_quotes_and_trim': 'core',
+}
+
+
+def _category_from_module_path(module_path: str) -> str | None:
+    if module_path.startswith('siege_utilities.'):
+        parts = module_path.split('.')[1:]
+    else:
+        parts = module_path.lstrip('.').split('.')
+    if not parts or not parts[0]:
+        return None
+    first = parts[0]
+    if first == 'reference':
+        return 'data'
+    if first in _CATEGORY_NAMES:
+        return first
+    return None
+
+
+def _lazy_category(name: str) -> str | None:
+    entry = _LAZY_IMPORTS.get(name)
+    if not entry:
+        return _EAGER_CATEGORIES.get(name)
+    return _category_from_module_path(entry[0])
+
+
+def _lazy_entry_metadata(name: str) -> dict[str, Any]:
+    module_path, attr_name, deps = _LAZY_IMPORTS[name]
+    missing = _missing_dependencies(deps)
+    return {
+        'name': name,
+        'module': module_path,
+        'attribute': attr_name,
+        'category': _lazy_category(name),
+        'required_dependencies': list(deps),
+        'missing_dependencies': missing,
+        'available': not missing,
+    }
+
+
+def get_package_info() -> Dict[str, Any]:
+    """Get comprehensive package information.
+
+    Lazy public symbols are classified from the lazy-import registry without
+    first resolving optional-dependency wrappers. Symbols whose declared
+    dependencies are missing appear in ``unavailable_functions`` and
+    ``optional_dependency_symbols`` with machine-readable dependency metadata.
     """
     import inspect as _inspect
 
     current_module = sys.modules[__name__]
-
     package_info = {
         'package_name': 'siege_utilities',
         'version': __version__,
@@ -666,157 +752,58 @@ def get_package_info() -> Dict[str, Any]:
         'available_modules': [],
         'unavailable_functions': [],
         'failed_imports': [],
-        'subpackages': [],
-        'categories': {
-            'core': [], 'files': [], 'distributed': [], 'geo': [],
-            'config': [], 'admin': [], 'hygiene': [], 'testing': [],
-            'data': [], 'analytics': [], 'reporting': [], 'git': [],
-            'development': [],
-        }
+        'optional_dependency_symbols': {},
+        'categories': {category: [] for category in _CATEGORY_NAMES},
     }
 
-    # Function name to category mapping
-    function_categories = {
-        'log_info': 'core', 'log_warning': 'core', 'log_error': 'core',
-        'log_debug': 'core', 'log_critical': 'core',
-        'init_logger': 'core', 'get_logger': 'core', 'configure_shared_logging': 'core',
-        'remove_wrapping_quotes_and_trim': 'core',
-        'check_if_file_exists_at_path': 'files', 'calculate_file_hash': 'files',
-        'ensure_path_exists': 'files', 'generate_sha256_hash_for_file': 'files',
-        'get_file_hash': 'files', 'get_quick_file_signature': 'files',
-        'verify_file_integrity': 'files', 'unzip_file_to_directory': 'files',
-        'file_exists': 'files', 'touch_file': 'files', 'count_lines': 'files',
-        'copy_file': 'files', 'move_file': 'files', 'get_file_size': 'files',
-        'list_directory': 'files', 'run_command': 'files', 'remove_tree': 'files',
-        'generate_local_path_from_url': 'files', 'download_file': 'files',
-        'download_file_with_retry': 'files', 'get_file_info': 'files',
-        'is_downloadable': 'files', 'run_subprocess': 'files',
-        'get_row_count': 'distributed', 'repartition_and_cache': 'distributed',
-        'register_temp_table': 'distributed',
-        'move_column_to_front_of_dataframe': 'distributed',
-        'write_df_to_parquet': 'distributed', 'read_parquet_to_df': 'distributed',
-        'create_database_config': 'config', 'save_database_config': 'config',
-        'load_database_config': 'config', 'get_spark_database_options': 'config',
-        'test_database_connection': 'config', 'list_database_configs': 'config',
-        'create_spark_session_with_databases': 'config',
-        'create_project_config': 'config', 'save_project_config': 'config',
-        'load_project_config': 'config', 'setup_project_directories': 'config',
-        'get_project_path': 'config', 'list_projects': 'config',
-        'update_project_config': 'config',
-        'create_directory_structure': 'config',
-        'create_standard_project_structure': 'config',
-        'save_directory_config': 'config', 'load_directory_config': 'config',
-        'ensure_directories_exist': 'config', 'get_directory_info': 'config',
-        'clean_empty_directories': 'config', 'list_directory_configs': 'config',
-        'create_client_profile': 'config', 'save_client_profile': 'config',
-        'load_client_profile': 'config', 'update_client_profile': 'config',
-        'list_client_profiles': 'config', 'search_client_profiles': 'config',
-        'associate_client_with_project': 'config',
-        'get_client_project_associations': 'config',
-        'validate_client_profile': 'config',
-        'create_connection_profile': 'config', 'save_connection_profile': 'config',
-        'load_connection_profile': 'config', 'find_connection_by_name': 'config',
-        'list_connection_profiles': 'config', 'update_connection_profile': 'config',
-        'verify_connection_profile': 'config', 'get_connection_status': 'config',
-        'cleanup_old_connections': 'config',
-        'get_user_config': 'config', 'get_download_directory': 'config',
-        'load_user_profile': 'config', 'save_user_profile': 'config',
-        'export_config_yaml': 'config', 'import_config_yaml': 'config',
-        'get_default_profile_location': 'admin', 'set_profile_location': 'admin',
-        'get_profile_location': 'admin', 'list_profile_locations': 'admin',
-        'migrate_profiles': 'admin', 'create_default_profiles': 'admin',
-        'validate_profile_location': 'admin', 'get_profile_summary': 'admin',
-        'concatenate_addresses': 'geo', 'use_nominatim_geocoder': 'geo',
-        'get_census_intelligence': 'geo', 'quick_census_selection': 'geo',
-        'get_census_data_selector': 'geo', 'select_census_datasets': 'geo',
-        'get_analysis_approach': 'geo', 'select_datasets_for_analysis': 'geo',
-        'get_dataset_compatibility_matrix': 'geo', 'suggest_analysis_approach': 'geo',
-        'get_census_dataset_mapper': 'geo', 'get_best_dataset_for_analysis': 'geo',
-        'compare_census_datasets': 'geo', 'get_dataset_info': 'geo',
-        'list_datasets_by_type': 'geo', 'list_datasets_by_geography': 'geo',
-        'get_best_dataset_for_use_case': 'geo', 'get_dataset_relationships': 'geo',
-        'compare_datasets': 'geo', 'get_data_selection_guide': 'geo',
-        'export_dataset_catalog': 'geo',
-        'get_census_data': 'geo', 'get_census_boundaries': 'geo',
-        'download_osm_data': 'geo', 'get_available_years': 'geo',
-        'get_year_directory_contents': 'geo', 'discover_boundary_types': 'geo',
-        'construct_download_url': 'geo', 'validate_download_url': 'geo',
-        'get_optimal_year': 'geo', 'download_data': 'geo',
-        'get_geographic_boundaries': 'geo', 'get_available_boundary_types': 'geo',
-        'refresh_discovery_cache': 'geo', 'get_available_state_fips': 'geo',
-        'get_state_abbreviations': 'geo', 'get_comprehensive_state_info': 'geo',
-        'get_state_by_abbreviation': 'geo', 'get_state_by_name': 'geo',
-        'validate_state_fips': 'geo', 'get_state_name': 'geo',
-        'get_state_abbreviation': 'geo', 'download_dataset': 'geo',
-        'get_unified_fips_data': 'geo', 'normalize_state_identifier': 'config',
-        'generate_docstring_template': 'hygiene',
-        'analyze_function_signature': 'hygiene',
-        'generate_architecture_diagram': 'development',
-        'analyze_package_structure': 'development',
-        'analyze_branch_status': 'git', 'generate_branch_report': 'git',
-        'create_feature_branch': 'git', 'switch_branch': 'git',
-        'merge_branch': 'git', 'get_repository_status': 'git',
-        'get_branch_info': 'git', 'start_feature_workflow': 'git',
-        'validate_branch_naming': 'git',
-        'setup_spark_environment': 'testing', 'get_system_info': 'testing',
-        'load_sample_data': 'data', 'list_available_datasets': 'data',
-        'join_boundaries_and_data': 'data',
-        'create_sample_dataset': 'data', 'generate_synthetic_population': 'data',
-        'generate_synthetic_businesses': 'data', 'generate_synthetic_housing': 'data',
-        'create_ga_account_profile': 'analytics', 'save_ga_account_profile': 'analytics',
-        'load_ga_account_profile': 'analytics', 'list_ga_accounts_for_client': 'analytics',
-        'batch_retrieve_ga_data': 'analytics',
-        'create_facebook_account_profile': 'analytics',
-        'save_facebook_account_profile': 'analytics',
-        'load_facebook_account_profile': 'analytics',
-        'list_facebook_accounts_for_client': 'analytics',
-        'batch_retrieve_facebook_data': 'analytics',
-        'get_datadotworld_connector': 'analytics',
-        'search_datadotworld_datasets': 'analytics',
-        'load_datadotworld_dataset': 'analytics',
-        'query_datadotworld_dataset': 'analytics',
-        'search_datasets': 'analytics', 'list_datasets': 'analytics',
-        'get_snowflake_connector': 'analytics', 'upload_to_snowflake': 'analytics',
-        'download_from_snowflake': 'analytics', 'execute_snowflake_query': 'analytics',
-        'BaseReportTemplate': 'reporting', 'ReportGenerator': 'reporting',
-        'ChartGenerator': 'reporting', 'ClientBrandingManager': 'reporting',
-        'AnalyticsReportGenerator': 'reporting', 'PowerPointGenerator': 'reporting',
-        'get_report_output_directory': 'reporting',
-        'create_report_generator': 'reporting',
-        'create_powerpoint_generator': 'reporting',
-        'export_branding_config': 'reporting', 'import_branding_config': 'reporting',
-        'export_chart_type_config': 'reporting', 'PollingAnalyzer': 'reporting',
-        'create_bar_chart': 'reporting', 'create_line_chart': 'reporting',
-        'create_pie_chart': 'reporting', 'create_scatter_plot': 'reporting',
-        'create_heatmap': 'reporting', 'create_choropleth_map': 'reporting',
-        'create_bivariate_choropleth': 'reporting', 'create_marker_map': 'reporting',
-        'create_flow_map': 'reporting', 'create_dashboard': 'reporting',
-        'create_dataframe_summary_charts': 'reporting',
-        'generate_chart_from_dataframe': 'reporting',
-    }
+    public_names = sorted(set(__all__) | set(_LAZY_IMPORTS))
 
-    for name in dir(current_module):
-        if name.startswith('_') or name in ('sys', 'json', 'pathlib', 'logging', 'importlib', 'inspect'):
+    for name in public_names:
+        if name.startswith('_'):
             continue
-        obj = getattr(current_module, name)
-        if name in function_categories:
-            if obj is None:
+        if name in _LAZY_IMPORTS:
+            metadata = _lazy_entry_metadata(name)
+            if metadata['required_dependencies']:
+                package_info['optional_dependency_symbols'][name] = metadata
+            category = metadata['category']
+            if metadata['missing_dependencies']:
                 package_info['unavailable_functions'].append(name)
-            elif callable(obj) or _inspect.isclass(obj):
-                package_info['available_functions'].append(name)
-                package_info['categories'][function_categories[name]].append(name)
-                package_info['total_functions'] += 1
-        elif callable(obj) or _inspect.isclass(obj):
+                continue
+            try:
+                obj = getattr(current_module, name)
+            except ImportError as exc:
+                metadata = dict(metadata)
+                metadata['available'] = False
+                metadata['missing_dependencies'] = metadata['missing_dependencies'] or list(metadata['required_dependencies'])
+                metadata['error'] = str(exc)
+                package_info['optional_dependency_symbols'][name] = metadata
+                package_info['unavailable_functions'].append(name)
+                package_info['failed_imports'].append({'name': name, 'error': str(exc)})
+                continue
+        else:
+            try:
+                obj = getattr(current_module, name)
+            except AttributeError:
+                continue
+            category = _EAGER_CATEGORIES.get(name)
+
+        if callable(obj) or _inspect.isclass(obj):
             package_info['available_functions'].append(name)
             package_info['total_functions'] += 1
+            if category:
+                package_info['categories'][category].append(name)
+        elif _inspect.ismodule(obj):
+            package_info['available_modules'].append(name)
 
-    package_info['total_modules'] = len([
-        n for n in dir(current_module)
-        if _inspect.ismodule(getattr(current_module, n, None))
-    ])
-
+    package_info['total_modules'] = len(package_info['available_modules'])
     package_info['available_functions'].sort()
     package_info['unavailable_functions'].sort()
+    package_info['available_modules'].sort()
+    package_info['failed_imports'].sort(key=lambda item: item['name'])
+    package_info['optional_dependency_symbols'] = {
+        name: package_info['optional_dependency_symbols'][name]
+        for name in sorted(package_info['optional_dependency_symbols'])
+    }
     for cat in package_info['categories']:
         package_info['categories'][cat].sort()
 
@@ -826,7 +813,6 @@ def get_package_info() -> Dict[str, Any]:
         f"{len(package_info['unavailable_functions'])} unavailable"
     )
     return package_info
-
 
 def check_dependencies() -> Dict[str, bool]:
     """
