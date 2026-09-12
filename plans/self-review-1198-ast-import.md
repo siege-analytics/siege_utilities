@@ -56,4 +56,3 @@ Falsification: See investigation Falsification.
 ## Hostile-review response
 
 Verdict: SHIP (no findings). Reviewer independently confirmed `ast` is orphaned via `\bast\b` grep (only occurrence is inside the word "least" in a docstring), no dynamic imports exist, no tests reference the script, and `import ast` has no import-time side effects. See `plans/hostile-review-1198-ast-import.md` for the full artifact.
-
