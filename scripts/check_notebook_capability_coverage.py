@@ -37,12 +37,19 @@ def _literal_from_assignment(path: Path, name: str) -> Any:
     raise RuntimeError(f"Could not find {name} assignment in {path}")
 
 
+def _has_non_cache_content(path: Path) -> bool:
+    if not path.is_dir() or path.name == "__pycache__":
+        return False
+    for child in path.rglob("*"):
+        if "__pycache__" in child.parts:
+            continue
+        if child.is_file() and child.suffix != ".pyc":
+            return True
+    return False
+
+
 def _top_level_packages() -> set[str]:
-    return {
-        path.name
-        for path in PACKAGE_ROOT.iterdir()
-        if path.is_dir() and path.name != "__pycache__"
-    }
+    return {path.name for path in PACKAGE_ROOT.iterdir() if _has_non_cache_content(path)}
 
 
 def _governed_notebooks() -> set[str]:
