@@ -600,11 +600,13 @@ __all__ = [
     'get_report_output_directory',
     'import_branding_config',
     # databricks (18 symbols, batch 3)
-    # NOTE: `quote_ident` is a peer helper in
-    # `.databricks.lakehouse_federation` used by the two SQL builders
-    # below. Not promoted here because it is not currently in
-    # `_LAZY_IMPORTS` (audit only classifies lazy-registered symbols).
-    # Promotion decision deferred to #1210.
+    # NOTE: `quote_ident` is intentionally not a top-level symbol.
+    # Both `.databricks.lakehouse_federation` and `.trino.federation`
+    # export helpers with this name, but they implement different SQL
+    # dialect quoting rules (Databricks backticks vs Trino double quotes).
+    # Promoting either helper to `siege_utilities.quote_ident` would make
+    # the other dialect look accidentally canonical. Use the dialect module
+    # directly instead. See #1210.
     'build_databricks_run_url',
     'build_foreign_table_sql',
     'build_jdbc_url',

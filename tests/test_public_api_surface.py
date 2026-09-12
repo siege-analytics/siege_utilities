@@ -343,6 +343,17 @@ class TestBatch5Promotions:
         assert ">>> import siege_utilities" not in doc
         assert "from siege_utilities.testing.runner import run_command" in doc
 
+    def test_quote_ident_is_not_top_level_due_to_sql_dialect_collision(self):
+        """#1210: Databricks and Trino quote_ident helpers are dialect-specific."""
+        from siege_utilities.databricks.lakehouse_federation import quote_ident as dbx_quote_ident
+        from siege_utilities.trino.federation import quote_ident as trino_quote_ident
+
+        assert "quote_ident" not in siege_utilities.__all__
+        assert not hasattr(siege_utilities, "quote_ident")
+        assert dbx_quote_ident("name") == "`name`"
+        assert trino_quote_ident("name") == '"name"'
+        assert dbx_quote_ident is not trino_quote_ident
+
 
 class TestBatch6Promotions:
     """Verify #1176 batch 6 / #1213 sample-data canonicals.
