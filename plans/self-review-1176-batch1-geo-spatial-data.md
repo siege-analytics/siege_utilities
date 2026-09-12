@@ -64,4 +64,3 @@ Hostile review artifact: `plans/hostile-review-1176-batch1.md` (SHIP WITH REVISI
 - `TestAllDeclaration`: `__all__` is defined as a list; no duplicates; every declared name resolves; the 39 preserved-distributed symbols are all present (BREAKING-guard for `from siege_utilities import *`).
 - `TestBatch1Promotions`: each of the 27 promoted symbols is in `__all__` AND resolves to `siege_utilities.geo.spatial_data` specifically (cross-module rebinding detection).
 - `TestLazyRegistrationGuard`: F1 mechanical guard tested.
-

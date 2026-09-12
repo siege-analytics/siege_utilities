@@ -31,4 +31,3 @@ Risk: if a future batch registers `geo.choropleth.create_bivariate_choropleth` l
 **SHIP WITH REVISIONS**
 
 F1 is a real hazard and matches the batch-1 F1 shape that was explicitly handled there. Requires a decision (rename, override, or documentation) before merge. F2 is polish; can defer.
-
