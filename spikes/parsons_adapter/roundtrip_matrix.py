@@ -16,8 +16,6 @@ spikes/parsons_adapter/RESULTS.md (overwrites on each run).
 
 from __future__ import annotations
 
-import contextlib
-import io
 import json
 import sys
 import traceback
@@ -218,9 +216,9 @@ def run() -> int:
     """Run every case, write RESULTS.md, return non-zero if any FAIL."""
     lines: list[str] = []
     fail_count = 0
-    lines.append(f"# `parsons.Table` ↔ `pandas.DataFrame` round-trip matrix (P0-3)\n")
+    lines.append("# `parsons.Table` ↔ `pandas.DataFrame` round-trip matrix (P0-3)\n")
     lines.append(f"Generated: {datetime.now(timezone.utc).isoformat()}\n")
-    lines.append(f"Parsons version: 6.1.0\n")
+    lines.append("Parsons version: 6.1.0\n")
     lines.append(f"pandas version: {pd.__version__}\n")
     lines.append(f"Python version: {sys.version.split()[0]}\n")
     lines.append("\n## Summary table\n")
@@ -233,8 +231,8 @@ def run() -> int:
         t2df_pass, t2df_notes, t2df_artifacts = _safely_run(lambda: _build_and_roundtrip_via_df(factory))
         df2t_pass, df2t_notes, df2t_artifacts = _safely_run(lambda: _build_and_roundtrip_via_table(factory))
 
-        t2df_cell = "✅ PASS" if t2df_pass else f"❌ FAIL"
-        df2t_cell = "✅ PASS" if df2t_pass else f"❌ FAIL"
+        t2df_cell = "✅ PASS" if t2df_pass else "❌ FAIL"
+        df2t_cell = "✅ PASS" if df2t_pass else "❌ FAIL"
 
         if not t2df_pass:
             fail_count += 1
@@ -246,7 +244,7 @@ def run() -> int:
         detail_sections.append(f"### `{name}` — {description}\n")
         detail_sections.append(f"- **Table→DF→Table:** {t2df_notes}")
         detail_sections.append(f"- **DF→Table→DF:** {df2t_notes}\n")
-        detail_sections.append(f"<details><summary>Artifacts</summary>\n\n")
+        detail_sections.append("<details><summary>Artifacts</summary>\n\n")
         detail_sections.append("```json")
         # Truncate row lists to first 3 entries per case so RESULTS.md
         # stays reviewable — full artifacts are reproducible by re-running
