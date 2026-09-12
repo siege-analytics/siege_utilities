@@ -9,14 +9,15 @@ at source, tests, and architectural decisions.
 
 The notebooks tell a single story threaded through two partner firms of Siege
 Analytics. A first-time reader sees how the library's modules compose end-to-end
-for realistic work, not 17 disconnected demos.
+for realistic work. The current repository has 29 live notebooks: 29 governed
+canonical notebooks; #1227 has no remaining legacy live notebook rewrite/archive backlog.
 
 - **ElectInfo** ([elect.info](https://elect.info)) — political / civic analytics. Owns the spatial,
   redistricting, survey, FEC / campaign-finance, engine-scaling, PDF reporting,
-  and statistics-primitives notebooks (roughly 13 of 17).
+  and statistics-primitives notebooks.
 - **Masai Interactive** ([masaiinteractive.com](https://masaiinteractive.com)) — web / social analytics.
   Owns the external-connector, GA end-to-end, and slides / Google Workspace
-  delivery notebooks (3 of 17).
+  delivery notebooks.
 
 Both firms ship as predefined branding templates in
 `siege_utilities/reporting/client_branding.py` (`elect_info` and
@@ -37,6 +38,7 @@ notebooks/
   reports/       chart gallery + PDF, slides (PPTX & Google), polling/survey
   analytics/     external data connectors, GA end-to-end
   engines/       pandas ↔ DuckDB ↔ Spark ↔ Databricks, statistics primitives
+  playground/    pure/offline public API consumer-contract notebooks
   archive/       retired / superseded notebooks — not part of CI
 ```
 
@@ -47,6 +49,8 @@ notebooks/
 |---|---|
 | [`01_configuration.ipynb`](./foundations/01_configuration.ipynb) | Hydra + Pydantic config, env handling |
 | [`02_profiles_branding.ipynb`](./foundations/02_profiles_branding.ipynb) | Users, clients, Actor model, branding (consolidates Person/Actor + branding deep-dive) |
+| [`entity_identification.ipynb`](./foundations/entity_identification.ipynb) | Deterministic donor/customer deduplication with normalized names and UUID5 identifiers |
+| [`file_operations_and_security.ipynb`](./foundations/file_operations_and_security.ipynb) | Atomic writes, path traversal checks, and safe shell-command handling |
 
 ### `spatial/`
 | File | Capability |
@@ -57,6 +61,7 @@ notebooks/
 | [`04_redistricting.ipynb`](./spatial/04_redistricting.ipynb) | RDH + VTD routing |
 | [`05_multi_source_joins.ipynb`](./spatial/05_multi_source_joins.ipynb) | Cross-source spatial joins (dirty-data canonical) |
 | [`06_geodjango.ipynb`](./spatial/06_geodjango.ipynb) | GeoDjango + PostGIS |
+| [`07_natural_language_to_geometry.ipynb`](./spatial/07_natural_language_to_geometry.ipynb) | Natural-language spatial filters resolved to fixture geometry and GeoPandas handoff |
 
 ### `reports/`
 | File | Capability |
@@ -64,12 +69,27 @@ notebooks/
 | [`01_charts_and_pdf.ipynb`](./reports/01_charts_and_pdf.ipynb) | ChartGenerator gallery + ReportLab PDF (consolidates PDF features) |
 | [`02_slides_pptx_and_google.ipynb`](./reports/02_slides_pptx_and_google.ipynb) | `Argument` → PowerPoint + Google Slides (consolidates Workspace notebook) |
 | [`03_polling_survey_analysis.ipynb`](./reports/03_polling_survey_analysis.ipynb) | Survey pipeline end-to-end incl. `WaveSet.compare_chain` |
+| [`04_survey_full_showcase.ipynb`](./reports/04_survey_full_showcase.ipynb) | Survey TableTypes and branded multi-section PDF showcase |
+
+### `config/`
+| File | Capability |
+|---|---|
+| [`credential_management.ipynb`](./config/credential_management.ipynb) | Credential backend discovery and missing-credential handling without real secrets |
+
+### `playground/`
+| File | Capability |
+|---|---|
+| [`00_public_api_contracts.ipynb`](./playground/00_public_api_contracts.ipynb) | Public import shape, geocoding core contracts, and optional-dependency introspection |
+| [`01_geocoding_data_quality.ipynb`](./playground/01_geocoding_data_quality.ipynb) | Fixture-backed Census/Nominatim/cache geocoding data-quality contracts |
 
 ### `analytics/`
 | File | Capability |
 |---|---|
 | [`01_connectors.ipynb`](./analytics/01_connectors.ipynb) | External analytics source zoo (GA, Facebook, Snowflake, data.world) |
 | [`02_ga_end_to_end.ipynb`](./analytics/02_ga_end_to_end.ipynb) | GA → report showcase |
+| [`03_social_media_analytics.ipynb`](./analytics/03_social_media_analytics.ipynb) | Social media fixture analytics and report payload assembly |
+| [`04_crm_pipeline.ipynb`](./analytics/04_crm_pipeline.ipynb) | CRM pipeline deduplication, geographic preparation, and write-back planning |
+| [`05_crm_sales_reports.ipynb`](./analytics/05_crm_sales_reports.ipynb) | CRM sales reporting fixtures, charts, and report planning |
 
 ### `engines/`
 | File | Capability |
@@ -113,6 +133,25 @@ If you have a bookmark or external link pointing at the old flat numbering, this
 | `26_International_Boundaries_GADM` | merged into `spatial/01_boundaries` |
 | `27_Advanced_Census_MOE_NAICS` | `engines/04_statistics_primitives` |
 | `28_Polling_Survey_Analysis` | `reports/03_polling_survey_analysis` |
+
+### `economic/`
+| File | Capability |
+|---|---|
+| [`economic_data_irs_bls.ipynb`](./economic/economic_data_irs_bls.ipynb) | IRS SOI and BLS QCEW parsing with deterministic fixture data and provenance/grain notes |
+
+### `git/`
+| File | Capability |
+|---|---|
+| [`repo_analysis.ipynb`](./git/repo_analysis.ipynb) | Repository status, branch, and commit analysis against a temporary fixture repo |
+
+## Governance status
+
+All 29 live notebooks are listed in hygiene and execution governance after #1227/#1225/#1226;
+no legacy live notebook backlog remains.
+
+Run `python3 scripts/check_notebook_inventory.py --json` for the current
+machine-readable inventory and `--check` to guard missing references and local
+home-path leaks.
 
 ## Running notebooks
 

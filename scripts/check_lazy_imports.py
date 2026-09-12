@@ -25,24 +25,35 @@ from __future__ import annotations
 import argparse
 import importlib
 import importlib.util
-import pkgutil
 import sys
 from pathlib import Path
 
 
-def _check_package(pkg_name: str, quiet: bool) -> list[str]:
-    """Return a list of human-readable failure messages for *pkg_name*."""
+def _check_package(pkg_name: str, quiet: bool) -> tuple[list[str], list[str]]:
+    """Return (failures, optional-skip messages) for *pkg_name*."""
     failures: list[str] = []
+    optional_skips: list[str] = []
     try:
         pkg = importlib.import_module(pkg_name)
-    except ModuleNotFoundError:
+    except ModuleNotFoundError as exc:
         # Subpackage requires an optional dep to import its __init__.
-        # Not a structural drift problem — would be ideal if these
-        # were also lazy, but that's a separate refactor.
-        return failures
+        # Not a structural drift problem — report the skip explicitly
+        # so this report-only gate does not overclaim full resolution.
+        # Missing local modules are structural package failures, not optional
+        # external dependency skips.
+        if exc.name == pkg_name or exc.name.startswith(pkg_name + "."):
+            failures.append(f"{pkg_name}: package import failed; missing local module: {exc.name}")
+        else:
+            optional_skips.append(f"{pkg_name}: package import skipped; optional dependency missing: {exc.name}")
+        return failures, optional_skips
     except (ImportError, AttributeError, RuntimeError, OSError) as exc:
         failures.append(f"{pkg_name}: package import failed: {exc!r}")
-        return failures
+        return failures, optional_skips
+    except Exception as exc:
+        if ".django" in pkg_name:
+            optional_skips.append(f"{pkg_name}: package import skipped; optional GIS/Django dependency failed: {exc!r}")
+            return failures, optional_skips
+        raise
 
     lazy = getattr(pkg, "_LAZY_IMPORTS", None)
     public_all = getattr(pkg, "__all__", None)
@@ -83,15 +94,20 @@ def _check_package(pkg_name: str, quiet: bool) -> list[str]:
                         f"but module {modpath} cannot be imported "
                         f"(ModuleNotFoundError: {exc.name})"
                     )
+                optional_skips.append(
+                    f"{pkg_name}: {name!r} skipped; optional dependency missing: {exc.name}"
+                )
                 continue
-            except ImportError:
+            except ImportError as exc:
                 # Partial-module ImportError ("cannot import name X from
                 # optdep") — env, not drift.
+                optional_skips.append(f"{pkg_name}: {name!r} skipped; optional import failed: {exc}")
                 continue
-            except AttributeError:
+            except AttributeError as exc:
                 # `gpd = None; GeoDataFrame = gpd.GeoDataFrame` at module
                 # load raises AttributeError when the optional dep is
                 # missing. Env, not drift.
+                optional_skips.append(f"{pkg_name}: {name!r} skipped; optional attribute unavailable: {exc}")
                 continue
             except (ImportError, AttributeError, RuntimeError, OSError, TypeError) as exc:
                 failures.append(
@@ -102,7 +118,13 @@ def _check_package(pkg_name: str, quiet: bool) -> list[str]:
             # which can chain into another optional-dep ModuleNotFoundError.
             try:
                 resolved = hasattr(mod, attr_name)
-            except (ModuleNotFoundError, ImportError):
+            except ModuleNotFoundError as exc:
+                optional_skips.append(
+                    f"{pkg_name}: {name!r} hasattr skipped; optional dependency missing: {exc.name}"
+                )
+                continue
+            except ImportError as exc:
+                optional_skips.append(f"{pkg_name}: {name!r} hasattr skipped; optional import failed: {exc}")
                 continue
             if not resolved:
                 failures.append(
@@ -120,7 +142,10 @@ def _check_package(pkg_name: str, quiet: bool) -> list[str]:
             try:
                 if hasattr(pkg, name):
                     continue
-            except ModuleNotFoundError:
+            except ModuleNotFoundError as exc:
+                optional_skips.append(
+                    f"{pkg_name}: __all__ {name!r} skipped; optional dependency missing: {exc.name}"
+                )
                 continue
             if lazy and name in lazy:
                 continue
@@ -133,7 +158,7 @@ def _check_package(pkg_name: str, quiet: bool) -> list[str]:
         n_lazy = len(lazy) if lazy else 0
         n_all = len(public_all) if public_all else 0
         print(f"  {pkg_name}: lazy={n_lazy} __all__={n_all} OK")
-    return failures
+    return failures, optional_skips
 
 
 def main() -> int:
@@ -149,21 +174,29 @@ def main() -> int:
         print("checking lazy-import registries...")
 
     all_failures: list[str] = []
+    all_optional_skips: list[str] = []
     # Top-level package + every subpackage that has an __init__.py
     # declaring _LAZY_IMPORTS.
     packages = ["siege_utilities"]
     try:
-        root_pkg = importlib.import_module("siege_utilities")
+        importlib.import_module("siege_utilities")
     except (ImportError, AttributeError, RuntimeError, OSError) as exc:
         print(f"FAIL: cannot import siege_utilities: {exc!r}")
         return 1
 
-    for info in pkgutil.walk_packages(root_pkg.__path__, prefix="siege_utilities."):
-        if info.ispkg:
-            packages.append(info.name)
+    package_root = repo / "siege_utilities"
+    for init_file in package_root.rglob("__init__.py"):
+        if init_file == package_root / "__init__.py":
+            continue
+        rel = init_file.parent.relative_to(repo)
+        if "__pycache__" in rel.parts:
+            continue
+        packages.append(".".join(rel.parts))
 
     for name in sorted(packages):
-        all_failures.extend(_check_package(name, quiet=args.quiet))
+        failures, optional_skips = _check_package(name, quiet=args.quiet)
+        all_failures.extend(failures)
+        all_optional_skips.extend(optional_skips)
 
     if all_failures:
         print(f"\nFAIL: {len(all_failures)} lazy-import problem(s):\n")
@@ -172,7 +205,14 @@ def main() -> int:
         return 1
 
     if not args.quiet:
-        print(f"OK — checked {len(packages)} package(s), all lazy registries resolve")
+        print(
+            f"OK — checked {len(packages)} package(s), structural lazy registries resolve; "
+            f"optional dependency skips={len(all_optional_skips)}"
+        )
+        for skip in all_optional_skips[:20]:
+            print("  SKIP: " + skip)
+        if len(all_optional_skips) > 20:
+            print(f"  ... {len(all_optional_skips) - 20} additional optional skip(s)")
     return 0
 
 

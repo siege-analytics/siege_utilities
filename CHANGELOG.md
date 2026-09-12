@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Shelf alignment (2026-08-27 modernization session)
+
+- **CI job `griffe api-diff (writing-releases:1)` (added in PR #1191) is now the reference implementation** cited by `claude-configs-public` writing-releases:1 as the tool-agnostic optional mechanical assist for signature-level BREAKING detection (see claude-configs-public#646). Behavior changes that preserve signatures (e.g., a validator becoming stricter) remain operator-judgment per the rule; a green griffe run is not evidence of non-BREAKING.
+- **CRS round-trip property tests (added in PR #1193)** are consistent with the strengthened `_property-testing-rules.md` guidance for data-heavy libraries (claude-configs-public#646), which now flags "hypothesis-in-dev-extras-but-few-property-tests" as a coverage-debt signal. siege_utilities' `tests/property/` directory has 8 files post-#1193 covering grid, join, filter, read, spatial-join, to-geodataframe, engine-invariants, and CRS round-trip.
+- **DRF serializers audited against the new `_django-rest-framework-rules.md` shelf (claude-configs-public#651, merged to main via #652).** `siege_utilities/geo/django/serializers/boundary_serializers.py` — the library's only DRF surface — is already compliant: every serializer uses an explicit `fields = [...]` allowlist (never `"__all__"`), `read_only_fields` is used for immutable timestamps, no `Meta.depth` (which the shelf forbids for real APIs), and `rest_framework_gis.GeoFeatureModelSerializer` is used with a graceful fallback to `ModelSerializer` when the extra is absent. Zero new violations introduced by the new shelf; documented here so future contributors know the DRF rules apply.
+
+### Shelf additions (2026-08-28)
+
+- `_react-rules.md` + `skills/react/` — new shelf domain, currently no library consumers (siege_utilities has no React frontend). Referenced here for future contributors who add browser-facing surfaces (e.g., embedded Streamlit alternatives, notebook widgets).
+- `_django-rest-framework-rules.md` + `skills/django-rest-framework/` — new shelf domain, applies to `siege_utilities/geo/django/serializers/boundary_serializers.py` and any future DRF work.
+
+### Removed
+
+- **BREAKING (packaging):** the `[streamlit]` extra (streamlit + altair + bokeh
+  + pydeck + ipywidgets + jupyter + notebook) is removed. No library code ever
+  imported streamlit, altair, bokeh, or ipywidgets — the extra added 7 packages
+  of ecosystem infrastructure without any siege_utilities-specific consumer.
+  Users needing streamlit can `pip install streamlit altair bokeh` directly.
+  Verified: `grep -rn "import streamlit\|from streamlit" siege_utilities/
+  --include="*.py"` returns 0 matches. Closes #1180.
+- **BREAKING (packaging):** the `[export]` extra (openpyxl + xlsxwriter + psutil
+  + memory-profiler) is removed. No library code imported any of these — pandas
+  reaches openpyxl transitively when needed, and xlsxwriter / psutil /
+  memory-profiler had zero library-side consumers. Verified: `grep -rn
+  "import xlsxwriter\|import psutil\|import memory_profiler"
+  siege_utilities/ --include="*.py"` returns 0 matches. Closes #1179.
+
 ### Changed
 
 - **BREAKING (packaging):** the native GDAL/OGR Python bindings (`gdal`) are now
@@ -36,6 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hidden a real Django/GIS misconfiguration. The guards now catch exactly
   `(ImproperlyConfigured, ImportError, OSError)` (plus `RuntimeError` in the test
   guards), so a real misconfig surfaces loudly (writing-code:7).
+- **`siege_geo` migration 0006 no longer re-adds `RedistrictingPlan.state`, which broke a fresh `migrate` with `DuplicateColumn`.**
+  Migration 0005 already adds `redistrictingplan.state` (identical `ForeignKey` definition); 0006 added it a second time. On an already-migrated database the second `AddField` was a no-op, but on a fresh database (CI, new deploys) it ran `ALTER TABLE siege_geo_redistrictingplan ADD COLUMN state_id` on a column 0005 had just created, aborting the whole migration graph. `state` is now owned solely by 0005; 0006 keeps its four genuinely-new fields (`effective_from`, `effective_to`, `superseded_by`, `court_case`). Model state is unchanged. A new static guard `tests/test_geo_migration_graph.py` fails if any `(model, field)` is `AddField`-ed twice without an intervening removal, so this bug class cannot recur.
 
 ## [3.17.2] - 2026-05-14
 

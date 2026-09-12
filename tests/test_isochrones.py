@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-import requests
+import httpx
 
 from siege_utilities.geo.isochrones import (
     DEFAULT_ORS_BASE_URL,
@@ -26,7 +26,7 @@ from siege_utilities.geo.isochrones import (
 
 
 class _DummyResponse:
-    """Minimal stand-in for ``requests.Response``."""
+    """Minimal stand-in for ``httpx.Response``."""
 
     def __init__(self, data, status_code: int = 200):
         self._data = data
@@ -35,8 +35,10 @@ class _DummyResponse:
 
     def raise_for_status(self):
         if self.status_code >= 400:
-            raise requests.exceptions.HTTPError(
-                f"{self.status_code}", response=self,
+            # httpx.HTTPStatusError requires both request and response kwargs
+            fake_req = httpx.Request("POST", "http://test.example")
+            raise httpx.HTTPStatusError(
+                f"{self.status_code}", request=fake_req, response=self,
             )
 
     def json(self):
@@ -216,7 +218,7 @@ class TestGetIsochrone:
                             json=json, timeout=timeout)
             return _DummyResponse({"type": "FeatureCollection", "features": []})
 
-        monkeypatch.setattr("siege_utilities.geo.isochrones.requests.post", _fake_post)
+        monkeypatch.setattr("siege_utilities.geo.isochrones.httpx.post", _fake_post)
 
         result = get_isochrone(
             latitude=34.0522, longitude=-118.2437,
@@ -238,9 +240,9 @@ class TestGetIsochrone:
         def _fake_post(*args, **kwargs):
             nonlocal call_count
             call_count += 1
-            raise requests.exceptions.Timeout("timed out")
+            raise httpx.TimeoutException("timed out")
 
-        monkeypatch.setattr("siege_utilities.geo.isochrones.requests.post", _fake_post)
+        monkeypatch.setattr("siege_utilities.geo.isochrones.httpx.post", _fake_post)
 
         with pytest.raises(IsochroneNetworkError, match="timed out"):
             get_isochrone(
@@ -258,9 +260,9 @@ class TestGetIsochrone:
 class TestGetIsochroneErrors:
     def test_timeout_raises_network_error(self, monkeypatch):
         def _timeout(*args, **kwargs):
-            raise requests.exceptions.Timeout("connect timed out")
+            raise httpx.TimeoutException("connect timed out")
 
-        monkeypatch.setattr("siege_utilities.geo.isochrones.requests.post", _timeout)
+        monkeypatch.setattr("siege_utilities.geo.isochrones.httpx.post", _timeout)
         monkeypatch.setattr("siege_utilities.geo.isochrones.ISOCHRONE_RETRY_BACKOFF_BASE", 0)
 
         with pytest.raises(IsochroneNetworkError, match="timed out"):
@@ -271,9 +273,9 @@ class TestGetIsochroneErrors:
 
     def test_connection_error_raises_network_error(self, monkeypatch):
         def _conn_err(*args, **kwargs):
-            raise requests.exceptions.ConnectionError("refused")
+            raise httpx.ConnectError("refused")
 
-        monkeypatch.setattr("siege_utilities.geo.isochrones.requests.post", _conn_err)
+        monkeypatch.setattr("siege_utilities.geo.isochrones.httpx.post", _conn_err)
         monkeypatch.setattr("siege_utilities.geo.isochrones.ISOCHRONE_RETRY_BACKOFF_BASE", 0)
 
         with pytest.raises(IsochroneNetworkError, match="refused"):
@@ -286,7 +288,7 @@ class TestGetIsochroneErrors:
         def _fake_post(*args, **kwargs):
             return _DummyResponse({"error": "rate limited"}, status_code=403)
 
-        monkeypatch.setattr("siege_utilities.geo.isochrones.requests.post", _fake_post)
+        monkeypatch.setattr("siege_utilities.geo.isochrones.httpx.post", _fake_post)
 
         with pytest.raises(IsochroneProviderError, match="403"):
             get_isochrone(
@@ -298,7 +300,7 @@ class TestGetIsochroneErrors:
         def _fake_post(*args, **kwargs):
             return _NonJsonResponse()
 
-        monkeypatch.setattr("siege_utilities.geo.isochrones.requests.post", _fake_post)
+        monkeypatch.setattr("siege_utilities.geo.isochrones.httpx.post", _fake_post)
 
         with pytest.raises(IsochroneProviderError, match="non-JSON"):
             get_isochrone(
@@ -310,7 +312,7 @@ class TestGetIsochroneErrors:
         def _fake_post(*args, **kwargs):
             return _DummyResponse([1, 2, 3])
 
-        monkeypatch.setattr("siege_utilities.geo.isochrones.requests.post", _fake_post)
+        monkeypatch.setattr("siege_utilities.geo.isochrones.httpx.post", _fake_post)
 
         with pytest.raises(IsochroneProviderError, match="JSON object"):
             get_isochrone(
@@ -338,10 +340,10 @@ class TestGetIsochroneRetry:
             nonlocal call_count
             call_count += 1
             if call_count < 3:
-                raise requests.exceptions.Timeout("timed out")
+                raise httpx.TimeoutException("timed out")
             return _DummyResponse({"type": "FeatureCollection", "features": []})
 
-        monkeypatch.setattr("siege_utilities.geo.isochrones.requests.post", _flaky_post)
+        monkeypatch.setattr("siege_utilities.geo.isochrones.httpx.post", _flaky_post)
         monkeypatch.setattr("siege_utilities.geo.isochrones.ISOCHRONE_RETRY_BACKOFF_BASE", 0)
 
         result = get_isochrone(
@@ -361,7 +363,7 @@ class TestGetIsochroneRetry:
                 return _DummyResponse({"error": "bad gateway"}, status_code=502)
             return _DummyResponse({"type": "FeatureCollection", "features": []})
 
-        monkeypatch.setattr("siege_utilities.geo.isochrones.requests.post", _flaky_post)
+        monkeypatch.setattr("siege_utilities.geo.isochrones.httpx.post", _flaky_post)
         monkeypatch.setattr("siege_utilities.geo.isochrones.ISOCHRONE_RETRY_BACKOFF_BASE", 0)
 
         result = get_isochrone(
@@ -381,7 +383,7 @@ class TestGetIsochroneRetry:
                 return _DummyResponse({"error": "rate limited"}, status_code=429)
             return _DummyResponse({"type": "FeatureCollection", "features": []})
 
-        monkeypatch.setattr("siege_utilities.geo.isochrones.requests.post", _rate_limited)
+        monkeypatch.setattr("siege_utilities.geo.isochrones.httpx.post", _rate_limited)
         monkeypatch.setattr("siege_utilities.geo.isochrones.ISOCHRONE_RETRY_BACKOFF_BASE", 0)
 
         result = get_isochrone(
@@ -400,7 +402,7 @@ class TestGetIsochroneRetry:
             call_count += 1
             return _DummyResponse({"error": "forbidden"}, status_code=403)
 
-        monkeypatch.setattr("siege_utilities.geo.isochrones.requests.post", _forbidden)
+        monkeypatch.setattr("siege_utilities.geo.isochrones.httpx.post", _forbidden)
 
         with pytest.raises(IsochroneProviderError, match="403"):
             get_isochrone(

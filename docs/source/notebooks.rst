@@ -1,8 +1,11 @@
 Jupyter Notebooks
 =================
 
-The ``notebooks/`` directory contains 24 active Jupyter notebooks organized
-by domain, plus 12 archived notebooks from prior reorganizations.
+The ``notebooks/`` directory contains 41 Jupyter notebooks: 29 live notebooks
+organized by domain, plus 12 archived notebooks from prior reorganizations.
+29 live notebooks are currently canonical/governed by notebook hygiene and
+execution lists; no legacy live notebooks remain pending
+rewrite/archive disposition under issue #1227.
 
 Foundations
 -----------
@@ -36,6 +39,9 @@ Analytics
 
 - **01_connectors** — GA, Snowflake, data.world connector patterns
 - **02_ga_end_to_end** — Weekly GA digest pipeline: fetch, chart, PDF
+- **03_social_media_analytics** — Social platform analytics patterns
+- **04_crm_pipeline** — CRM pipeline patterns
+- **05_crm_sales_reports** — CRM sales reporting patterns
 
 Reports
 -------

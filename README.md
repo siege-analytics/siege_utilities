@@ -477,7 +477,7 @@ siege_utilities/
 ## Documentation
 
 - **Sphinx Docs**: [siege-analytics.github.io/siege_utilities](https://siege-analytics.github.io/siege_utilities/)
-- **Notebooks**: 18 Jupyter notebooks covering all major features (in `notebooks/`)
+- **Notebooks**: 41 notebooks in `notebooks/` — 29 live, 12 archived. All 29 live notebooks are governed/canonical; #1227 has no remaining legacy live notebook rewrite/archive backlog.
 
 ## Contributing
 

@@ -172,7 +172,7 @@ These rules are codified as SU-1 through SU-4 in `claude-configs-public/projects
 
 ## Notebooks
 
-32 notebooks in `notebooks/`, organized by domain:
+41 notebooks in `notebooks/`: 29 live notebooks plus 12 archived notebooks. All 29 live notebooks are currently canonical/governed by notebook hygiene and execution lists; #1227 has no remaining legacy live notebook rewrite/archive backlog.
 
 | Directory | Purpose |
 |---|---|

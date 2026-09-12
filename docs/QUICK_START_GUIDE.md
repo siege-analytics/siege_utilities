@@ -211,7 +211,7 @@ create_default_profiles()
 
 ## Next Steps
 
-1. **Notebooks**: 32 notebooks in `notebooks/` organized by domain (spatial, engines, reports, foundations)
+1. **Notebooks**: 41 notebooks in `notebooks/` — 29 live, 12 archived. Start with `notebooks/README.md`; use `python3 scripts/check_notebook_inventory.py --json` for the current governed/live/archive inventory.
 2. **Architecture**: `docs/ARCHITECTURE.md` for the full structural picture
 3. **Intent**: `docs/INTENT.md` for one-line module purposes
 4. **Tests**: `python -m pytest tests/` to verify the installation

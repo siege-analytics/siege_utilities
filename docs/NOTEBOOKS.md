@@ -1,13 +1,15 @@
 # siege_utilities — Notebook system
 
-**Status:** Complete (ELE-2456 shipped 2026-04-24 across PRs #418 / #419 / #420 / #421).
+**Status:** Governed. ELE-2456 established the canonical notebook template, and #1227 brought every live notebook into hygiene + execution governance or archived/removed the legacy backlog.
 
 ## Shape
 
-17 canonical notebooks across 5 themed folders. Every notebook is a capability
-showcase, not an API tour: one user intent, 10–15 cells, one coherent
-deliverable. Structural rules are enforced by `tests/test_notebook_hygiene.py`
-(102 checks at time of writing).
+41 notebooks are present: 29 live notebooks and 12 archived notebooks. 29 live
+notebooks are currently canonical/governed by `tests/test_notebook_hygiene.py`
+and `tests/test_notebooks.py`; #1227 has no remaining legacy live notebook rewrite,
+promotion, or archive/removal backlog. Canonical notebooks
+remain capability showcases, not API tours: one user intent, coherent cells,
+and one deliverable.
 
 ```
 notebooks/
@@ -21,10 +23,10 @@ notebooks/
 
 ## Running example — two Siege Analytics partner firms
 
-- **ElectInfo** — political / civic analytics. 13 of 17 notebooks: foundations,
+- **ElectInfo** — political / civic analytics. Most governed notebooks: foundations,
   all spatial, engines, statistics, PDF reports, polling waves.
-- **Masai Interactive** — web / social analytics. 3 notebooks: external
-  connectors, GA end-to-end, slides/Google Workspace delivery.
+- **Masai Interactive** — web / social analytics. Governed notebooks include
+  external connectors, GA end-to-end, and slides/Google Workspace delivery.
 
 Both firms ship as branding templates in `siege_utilities/reporting/client_branding.py`
 (`elect_info` and `masai_interactive`). `foundations/02_profiles_branding.ipynb`
@@ -36,14 +38,23 @@ introduces both and proves the wire-up by rendering the same chart under each br
 |---|---|---|---|
 | foundations | 01 | Bootstrap reporting env — Hydra + Pydantic config | ElectInfo |
 | foundations | 02 | Onboard two clients as branded profiles | Both |
+| foundations | entity_identification | Deduplicate donor/customer records with normalized names and UUID5 IDs | ElectInfo |
+| foundations | file_operations_and_security | Safe local project workspace, atomic writes, path checks, safe shell handling | ElectInfo |
 | spatial | 01 | Pull TX boundaries (TIGER + ACS demographics + GADM) | ElectInfo |
 | spatial | 02 | Resolve donor list to FIPS (Census batch geocoder) | ElectInfo |
 | spatial | 03 | Bivariate choropleth (dem share × turnout) | ElectInfo |
 | spatial | 04 | Redistricting diff — 116th vs 118th TX-32 | ElectInfo |
 | spatial | 05 | Unify 3 polling vendors onto TX-32 precincts | ElectInfo |
 | spatial | 06 | GeoDjango API for TX-32 precincts | ElectInfo |
+| spatial | 07 | Natural-language spatial filters resolved to fixture geometry and GeoPandas handoff | ElectInfo |
 | analytics | 01 | Three connectors, one call-shape pattern | Masai |
 | analytics | 02 | Weekly GA digest PDF | Masai |
+| analytics | 03 | Social media fixture analytics and report payload assembly | Masai |
+| analytics | 04 | CRM pipeline deduplication, geographic preparation, and write-back planning | Masai |
+| analytics | 05 | CRM sales reporting fixtures, charts, and report planning | Masai |
+| config | credential_management | Credential backend discovery and missing-credential handling without real secrets | Both |
+| git | repo_analysis | Repository status, branch, and commit analysis against a temporary fixture repo | Both |
+| economic | economic_data_irs_bls | IRS SOI and BLS QCEW parsing with deterministic fixture data and provenance/grain notes | ElectInfo |
 | engines | 01 | Same ranking, pandas vs DuckDB | ElectInfo |
 | engines | 02 | Scale to Spark (call shape) | ElectInfo |
 | engines | 03 | Azure Databricks — no Sedona workaround | ElectInfo |
@@ -51,6 +62,7 @@ introduces both and proves the wire-up by rendering the same chart under each br
 | reports | 01 | Assemble Q1 PDF for Acme Campaign | ElectInfo |
 | reports | 02 | Same data as branded deck (PPTX + Google Slides) | Masai |
 | reports | 03 | 3-wave TX-32 party-ID tracker | ElectInfo |
+| reports | 04 | Survey TableTypes and branded multi-section PDF showcase | ElectInfo |
 
 ## Data policy
 
@@ -105,7 +117,42 @@ notebook is unsafe to provision from CI. Both notebooks ship complete,
 copy-pasteable call shapes rather than fake execution. The analysis pattern
 is the point; provisioning is out-of-band.
 
-## CI (follow-up)
+## Inventory, capability coverage, and CI truth checks
+
+Run the scriptable inventory before changing notebook docs or governance:
+
+```bash
+python3 scripts/check_notebook_inventory.py --json
+python3 scripts/check_notebook_inventory.py --check
+```
+
+The strict all-live-governed gate now enforces that every live notebook is listed
+in both governance files:
+
+```bash
+python3 scripts/check_notebook_inventory.py --check --require-all-live-governed
+```
+
+Notebook capability coverage is also explicit and machine-readable in
+`notebooks/capability_coverage.json`. Every top-level `siege_utilities/*`
+package directory must have one entry classified as:
+
+- `demonstrated` — a user-facing package exercised or instantiated in one or
+  more live governed notebooks;
+- `support` — internal/support surface that is intentionally not a standalone
+  notebook capability, with rationale;
+- `docs_tests` — package covered by docs/tests rather than notebooks, with
+  rationale.
+
+The coverage checker fails when a new top-level package lacks an explicit entry,
+when entries cite missing or ungoverned notebooks, or when non-notebook surfaces
+lack rationale:
+
+```bash
+python3 scripts/check_notebook_capability_coverage.py --check
+```
+
+## CI (current and follow-up)
 
 ```yaml
 - name: Structural hygiene
@@ -126,9 +173,11 @@ is the point; provisioning is out-of-band.
       notebooks/spatial/05_multi_source_joins.ipynb
 ```
 
-`nbmake` gating is the explicit next step. Notebooks that need external
-credentials (`spatial/01` for ACS, `analytics/02` for GA, etc.) are excluded
-until secrets are wired in CI.
+Notebook execution gating must become tier-complete, not decorative smoke.
+Every live notebook needs an assigned execution tier and command; PRs touching
+notebooks or public APIs used by notebooks must run the impacted tier or expose
+an explicit tracked external-service skip with a fixture-backed offline path.
+See #1224 and #1227.
 
 ## See also
 

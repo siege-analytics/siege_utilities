@@ -1,15 +1,20 @@
 """Add the RedistrictingPlan fields declared on the model but absent from
-migration 0005: `state` FK, `effective_from`, `effective_to`,
-`superseded_by` self-FK, and `court_case`.
+migration 0005: `effective_from`, `effective_to`, `superseded_by`
+self-FK, and `court_case`.
 
 Fixes SU#527 — model declared the fields, schema didn't have the
 columns, so `for_date()` and any `select_related("redistricting_plan")`
 from downstream code crashed with UndefinedColumn.
 
+The `state` FK is NOT added here: migration 0005 already adds it (same
+definition). Re-adding it caused a DuplicateColumn error on a fresh
+`migrate` (the column exists once 0005 has run), so `state` is owned by
+0005 and this migration only fills the four remaining fields.
+
 All new columns are nullable / have safe defaults so existing rows
 backfill cleanly. No data migration needed: existing rows simply have
-NULL `state`, NULL `effective_from` / `effective_to`, NULL
-`superseded_by`, and empty `court_case`.
+NULL `effective_from` / `effective_to`, NULL `superseded_by`, and empty
+`court_case`.
 """
 
 from django.db import migrations, models
@@ -23,17 +28,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name="redistrictingplan",
-            name="state",
-            field=models.ForeignKey(
-                null=True,
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name="redistricting_plans",
-                to="siege_geo.state",
-                help_text="Parent state",
-            ),
-        ),
         migrations.AddField(
             model_name="redistrictingplan",
             name="effective_from",

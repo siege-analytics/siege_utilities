@@ -76,7 +76,10 @@ class FireProtectionDistrict(SpecialDistrictBase):
         verbose_name_plural = "Fire Protection Districts"
         unique_together = [("geoid", "vintage_year")]
         indexes = [
-            models.Index(fields=["state_fips", "vintage_year"]),
+            models.Index(
+                fields=["state_fips", "vintage_year"],
+                name="siege_geo_fireprot_vy_idx",
+            ),
         ]
 
 
@@ -88,7 +91,10 @@ class WaterSupplyDistrict(SpecialDistrictBase):
         verbose_name_plural = "Water Supply Districts"
         unique_together = [("geoid", "vintage_year")]
         indexes = [
-            models.Index(fields=["state_fips", "vintage_year"]),
+            models.Index(
+                fields=["state_fips", "vintage_year"],
+                name="siege_geo_watersup_vy_idx",
+            ),
         ]
 
 
@@ -100,7 +106,10 @@ class HospitalDistrict(SpecialDistrictBase):
         verbose_name_plural = "Hospital Districts"
         unique_together = [("geoid", "vintage_year")]
         indexes = [
-            models.Index(fields=["state_fips", "vintage_year"]),
+            models.Index(
+                fields=["state_fips", "vintage_year"],
+                name="siege_geo_hospital_vy_idx",
+            ),
         ]
 
 
@@ -112,7 +121,10 @@ class LibraryDistrict(SpecialDistrictBase):
         verbose_name_plural = "Library Districts"
         unique_together = [("geoid", "vintage_year")]
         indexes = [
-            models.Index(fields=["state_fips", "vintage_year"]),
+            models.Index(
+                fields=["state_fips", "vintage_year"],
+                name="siege_geo_libraryd_vy_idx",
+            ),
         ]
 
 
@@ -124,7 +136,10 @@ class CemeteryDistrict(SpecialDistrictBase):
         verbose_name_plural = "Cemetery Districts"
         unique_together = [("geoid", "vintage_year")]
         indexes = [
-            models.Index(fields=["state_fips", "vintage_year"]),
+            models.Index(
+                fields=["state_fips", "vintage_year"],
+                name="siege_geo_cemetery_vy_idx",
+            ),
         ]
 
 
@@ -136,7 +151,10 @@ class MosquitoAbatementDistrict(SpecialDistrictBase):
         verbose_name_plural = "Mosquito Abatement Districts"
         unique_together = [("geoid", "vintage_year")]
         indexes = [
-            models.Index(fields=["state_fips", "vintage_year"]),
+            models.Index(
+                fields=["state_fips", "vintage_year"],
+                name="siege_geo_mosquito_vy_idx",
+            ),
         ]
 
 
