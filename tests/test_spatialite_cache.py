@@ -71,6 +71,33 @@ class TestGeocodeCache:
         result = cache.get_geocode(addr)
         assert result["raw_response"] == raw
 
+    def test_get_geocode_or_fetch_cache_hit_does_not_call_provider(self, cache, monkeypatch):
+        import siege_utilities.geo.geocoding as geocoding
+
+        address = "301 W 2nd St, Austin, TX 78701"
+        cache.put_geocode(address, 30.265, -97.747, source="fixture")
+
+        def fail_if_called(*args, **kwargs):
+            raise AssertionError("provider should not be called on cache hit")
+
+        monkeypatch.setattr(geocoding, "use_nominatim_geocoder", fail_if_called)
+
+        result = cache.get_geocode_or_fetch("  301 w 2nd st,   austin, tx 78701  ")
+
+        assert result is not None
+        assert result["latitude"] == 30.265
+        assert result["longitude"] == -97.747
+        assert result["source"] == "fixture"
+
+    def test_get_geocode_or_fetch_no_match_does_not_poison_cache(self, cache, monkeypatch):
+        import siege_utilities.geo.geocoding as geocoding
+
+        monkeypatch.setattr(geocoding, "use_nominatim_geocoder", lambda *a, **k: None)
+
+        assert cache.get_geocode_or_fetch("unmatched fixture") is None
+        assert cache.stats()["geocodes"] == 0
+        assert cache.get_geocode("unmatched fixture") is None
+
 
 class TestBboxQuery:
 
