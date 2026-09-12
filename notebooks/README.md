@@ -9,7 +9,7 @@ at source, tests, and architectural decisions.
 
 The notebooks tell a single story threaded through two partner firms of Siege
 Analytics. A first-time reader sees how the library's modules compose end-to-end
-for realistic work. The current repository has 27 live notebooks: 27 governed
+for realistic work. The current repository has 28 live notebooks: 28 governed
 canonical notebooks; #1227 has no remaining legacy live notebook rewrite/archive backlog.
 
 - **ElectInfo** ([elect.info](https://elect.info)) — political / civic analytics. Owns the spatial,
@@ -38,6 +38,7 @@ notebooks/
   reports/       chart gallery + PDF, slides (PPTX & Google), polling/survey
   analytics/     external data connectors, GA end-to-end
   engines/       pandas ↔ DuckDB ↔ Spark ↔ Databricks, statistics primitives
+  playground/    pure/offline public API consumer-contract notebooks
   archive/       retired / superseded notebooks — not part of CI
 ```
 
@@ -74,6 +75,11 @@ notebooks/
 | File | Capability |
 |---|---|
 | [`credential_management.ipynb`](./config/credential_management.ipynb) | Credential backend discovery and missing-credential handling without real secrets |
+
+### `playground/`
+| File | Capability |
+|---|---|
+| [`00_public_api_contracts.ipynb`](./playground/00_public_api_contracts.ipynb) | Public import shape, geocoding core contracts, and optional-dependency introspection |
 
 ### `analytics/`
 | File | Capability |
@@ -139,7 +145,7 @@ If you have a bookmark or external link pointing at the old flat numbering, this
 
 ## Governance status
 
-All 27 live notebooks are listed in hygiene and execution governance after #1227;
+All 28 live notebooks are listed in hygiene and execution governance after #1227/#1225;
 no legacy live notebook backlog remains.
 
 Run `python3 scripts/check_notebook_inventory.py --json` for the current

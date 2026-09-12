@@ -222,7 +222,7 @@ scripts/
 └── check_*.py           # Lint and hygiene validation scripts
 
 tests/                   # 3058+ tests across all modules
-notebooks/               # 39 notebooks: 27 live, 12 archived; all 27 live notebooks governed/canonical after #1227
+notebooks/               # 40 notebooks: 28 live, 12 archived; all 28 live notebooks governed/canonical after #1227/#1225
 docs/                    # Sphinx documentation + policy docs
 ```
 
