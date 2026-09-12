@@ -62,7 +62,8 @@
       "status": "demonstrated",
       "notebooks": [
         "engines/01_multi_engine_dataframes.ipynb",
-        "engines/04_statistics_primitives.ipynb"
+        "engines/04_statistics_primitives.ipynb",
+        "playground/01_geocoding_data_quality.ipynb"
       ]
     },
     "databricks": {
@@ -115,6 +116,7 @@
       "status": "demonstrated",
       "notebooks": [
         "playground/00_public_api_contracts.ipynb",
+        "playground/01_geocoding_data_quality.ipynb",
         "spatial/01_boundaries.ipynb",
         "spatial/02_geocoding.ipynb",
         "spatial/03_choropleth_maps.ipynb",
@@ -184,7 +186,8 @@
     "testing": {
       "status": "support",
       "notebooks": [
-        "playground/00_public_api_contracts.ipynb"
+        "playground/00_public_api_contracts.ipynb",
+        "playground/01_geocoding_data_quality.ipynb"
       ],
       "rationale": "Testing helpers support maintainers and CI; they are intentionally exercised by tests rather than notebooks."
     },

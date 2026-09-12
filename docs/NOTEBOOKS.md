@@ -4,7 +4,7 @@
 
 ## Shape
 
-40 notebooks are present: 28 live notebooks and 12 archived notebooks. 28 live
+41 notebooks are present: 29 live notebooks and 12 archived notebooks. 29 live
 notebooks are currently canonical/governed by `tests/test_notebook_hygiene.py`
 and `tests/test_notebooks.py`; #1227 has no remaining legacy live notebook rewrite,
 promotion, or archive/removal backlog. Canonical notebooks

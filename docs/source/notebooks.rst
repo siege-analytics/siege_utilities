@@ -1,9 +1,9 @@
 Jupyter Notebooks
 =================
 
-The ``notebooks/`` directory contains 40 Jupyter notebooks: 28 live notebooks
+The ``notebooks/`` directory contains 41 Jupyter notebooks: 29 live notebooks
 organized by domain, plus 12 archived notebooks from prior reorganizations.
-28 live notebooks are currently canonical/governed by notebook hygiene and
+29 live notebooks are currently canonical/governed by notebook hygiene and
 execution lists; no legacy live notebooks remain pending
 rewrite/archive disposition under issue #1227.
 
