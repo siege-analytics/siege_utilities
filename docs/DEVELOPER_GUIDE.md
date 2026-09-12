@@ -194,6 +194,13 @@ python scripts/check_lint_ratchet.py --phase phase4
 python -c "import siege_utilities; print(siege_utilities.get_package_info())"
 ```
 
+`get_package_info()` is also the public introspection contract for optional
+dependency surfaces. A symbol with missing extras is listed in
+`unavailable_functions`, omitted from category-specific available-function lists,
+and described in `optional_dependency_symbols` with `required_dependencies`,
+`missing_dependencies`, `module`, `attribute`, and `category` fields. Do not
+count dependency-wrapper stubs as available functions.
+
 ## Branch and merge conventions
 
 - All work branches from `develop`. PRs target `develop`, not `main`.
