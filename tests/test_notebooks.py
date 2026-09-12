@@ -80,6 +80,7 @@ NOTEBOOK_GROUPS: dict[str, list[str]] = {
         "engines/01_multi_engine_dataframes.ipynb",
         "engines/04_statistics_primitives.ipynb",
         "reports/01_charts_and_pdf.ipynb",
+        "playground/00_public_api_contracts.ipynb",
     ],
     # Geo notebooks — require GDAL / GeoPandas / Shapely stack.
     "geo": [

@@ -53,7 +53,8 @@
     "core": {
       "status": "support",
       "notebooks": [
-        "foundations/file_operations_and_security.ipynb"
+        "foundations/file_operations_and_security.ipynb",
+        "playground/00_public_api_contracts.ipynb"
       ],
       "rationale": "Core logging/string/SQL safety helpers are cross-cutting support surfaces; safe local operations are demonstrated in the file-operations notebook while direct API details remain unit-test responsibility."
     },
@@ -113,6 +114,7 @@
     "geo": {
       "status": "demonstrated",
       "notebooks": [
+        "playground/00_public_api_contracts.ipynb",
         "spatial/01_boundaries.ipynb",
         "spatial/02_geocoding.ipynb",
         "spatial/03_choropleth_maps.ipynb",
@@ -129,7 +131,9 @@
     },
     "hygiene": {
       "status": "docs_tests",
-      "notebooks": [],
+      "notebooks": [
+        "playground/00_public_api_contracts.ipynb"
+      ],
       "rationale": "Hygiene/docstring generation is maintainer tooling and should be covered by tests and contributor docs, not end-user notebooks."
     },
     "identifiers": {
@@ -179,7 +183,9 @@
     },
     "testing": {
       "status": "support",
-      "notebooks": [],
+      "notebooks": [
+        "playground/00_public_api_contracts.ipynb"
+      ],
       "rationale": "Testing helpers support maintainers and CI; they are intentionally exercised by tests rather than notebooks."
     },
     "trino": {
