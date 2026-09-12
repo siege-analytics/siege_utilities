@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.geo.isochrones &mdash; Siege Utilities 3.23.0 documentation</title>
+  <title>siege_utilities.geo.geocoding_core &mdash; Siege Utilities 3.23.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
@@ -370,7 +370,11 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.open_swmaps"><code class="docutils literal notranslate"><span class="pre">open_swmaps()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.read_features"><code class="docutils literal notranslate"><span class="pre">read_features()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.find_vector_dataset_file_in_directory"><code class="docutils literal notranslate"><span class="pre">find_vector_dataset_file_in_directory()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.GeocodingError"><code class="docutils literal notranslate"><span class="pre">GeocodingError</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.concatenate_addresses"><code class="docutils literal notranslate"><span class="pre">concatenate_addresses()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.get_country_name"><code class="docutils literal notranslate"><span class="pre">get_country_name()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.get_country_code"><code class="docutils literal notranslate"><span class="pre">get_country_code()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.list_countries"><code class="docutils literal notranslate"><span class="pre">list_countries()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.use_nominatim_geocoder"><code class="docutils literal notranslate"><span class="pre">use_nominatim_geocoder()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.NominatimGeoClassifier"><code class="docutils literal notranslate"><span class="pre">NominatimGeoClassifier</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.NominatimGeoClassifier.__init__"><code class="docutils literal notranslate"><span class="pre">NominatimGeoClassifier.__init__()</span></code></a></li>
@@ -380,51 +384,11 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.NominatimGeoClassifier.from_json"><code class="docutils literal notranslate"><span class="pre">NominatimGeoClassifier.from_json()</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.get_country_name"><code class="docutils literal notranslate"><span class="pre">get_country_name()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.get_country_code"><code class="docutils literal notranslate"><span class="pre">get_country_code()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.list_countries"><code class="docutils literal notranslate"><span class="pre">list_countries()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.get_coordinates"><code class="docutils literal notranslate"><span class="pre">get_coordinates()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.geocode_with_nominatim_public"><code class="docutils literal notranslate"><span class="pre">geocode_with_nominatim_public()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.geocode_addresses_with_nominatim"><code class="docutils literal notranslate"><span class="pre">geocode_addresses_with_nominatim()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.GeocodingError"><code class="docutils literal notranslate"><span class="pre">GeocodingError</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.validate_geocode_data_pandas"><code class="docutils literal notranslate"><span class="pre">validate_geocode_data_pandas()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.mark_valid_geocode_data_pandas"><code class="docutils literal notranslate"><span class="pre">mark_valid_geocode_data_pandas()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.IsochroneError"><code class="docutils literal notranslate"><span class="pre">IsochroneError</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.IsochroneNetworkError"><code class="docutils literal notranslate"><span class="pre">IsochroneNetworkError</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.IsochroneProviderError"><code class="docutils literal notranslate"><span class="pre">IsochroneProviderError</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.IsochroneRequest"><code class="docutils literal notranslate"><span class="pre">IsochroneRequest</span></code></a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.IsochroneRequest.provider"><code class="docutils literal notranslate"><span class="pre">IsochroneRequest.provider</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.IsochroneRequest.method"><code class="docutils literal notranslate"><span class="pre">IsochroneRequest.method</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.IsochroneRequest.url"><code class="docutils literal notranslate"><span class="pre">IsochroneRequest.url</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.IsochroneRequest.headers"><code class="docutils literal notranslate"><span class="pre">IsochroneRequest.headers</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.IsochroneRequest.params"><code class="docutils literal notranslate"><span class="pre">IsochroneRequest.params</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.IsochroneRequest.json"><code class="docutils literal notranslate"><span class="pre">IsochroneRequest.json</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.IsochroneProvider"><code class="docutils literal notranslate"><span class="pre">IsochroneProvider</span></code></a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.IsochroneProvider.fetch"><code class="docutils literal notranslate"><span class="pre">IsochroneProvider.fetch()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.IsochroneProvider.validate_config"><code class="docutils literal notranslate"><span class="pre">IsochroneProvider.validate_config()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.IsochroneProvider.provider_name"><code class="docutils literal notranslate"><span class="pre">IsochroneProvider.provider_name</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.OpenRouteServiceProvider"><code class="docutils literal notranslate"><span class="pre">OpenRouteServiceProvider</span></code></a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.OpenRouteServiceProvider.__init__"><code class="docutils literal notranslate"><span class="pre">OpenRouteServiceProvider.__init__()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.OpenRouteServiceProvider.provider_name"><code class="docutils literal notranslate"><span class="pre">OpenRouteServiceProvider.provider_name</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.OpenRouteServiceProvider.validate_config"><code class="docutils literal notranslate"><span class="pre">OpenRouteServiceProvider.validate_config()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.OpenRouteServiceProvider.fetch"><code class="docutils literal notranslate"><span class="pre">OpenRouteServiceProvider.fetch()</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.ValhallaProvider"><code class="docutils literal notranslate"><span class="pre">ValhallaProvider</span></code></a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.ValhallaProvider.__init__"><code class="docutils literal notranslate"><span class="pre">ValhallaProvider.__init__()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.ValhallaProvider.provider_name"><code class="docutils literal notranslate"><span class="pre">ValhallaProvider.provider_name</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.ValhallaProvider.validate_config"><code class="docutils literal notranslate"><span class="pre">ValhallaProvider.validate_config()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.ValhallaProvider.fetch"><code class="docutils literal notranslate"><span class="pre">ValhallaProvider.fetch()</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.build_isochrone_request"><code class="docutils literal notranslate"><span class="pre">build_isochrone_request()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.get_isochrone"><code class="docutils literal notranslate"><span class="pre">get_isochrone()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrone_to_geodataframe"><code class="docutils literal notranslate"><span class="pre">isochrone_to_geodataframe()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.get_provider"><code class="docutils literal notranslate"><span class="pre">get_provider()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.CensusGeocodeError"><code class="docutils literal notranslate"><span class="pre">CensusGeocodeError</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.CensusVintage"><code class="docutils literal notranslate"><span class="pre">CensusVintage</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.CensusVintage.CENSUS_2010"><code class="docutils literal notranslate"><span class="pre">CensusVintage.CENSUS_2010</span></code></a></li>
@@ -989,42 +953,6 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.s2_utils.s2_token_to_cell_id"><code class="docutils literal notranslate"><span class="pre">s2_token_to_cell_id()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.s2_utils.s2_bbox_to_cells"><code class="docutils literal notranslate"><span class="pre">s2_bbox_to_cells()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.s2_utils.s2_cells_to_ranges"><code class="docutils literal notranslate"><span class="pre">s2_cells_to_ranges()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.IsochroneError"><code class="docutils literal notranslate"><span class="pre">IsochroneError</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.IsochroneNetworkError"><code class="docutils literal notranslate"><span class="pre">IsochroneNetworkError</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.IsochroneProvider"><code class="docutils literal notranslate"><span class="pre">IsochroneProvider</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.IsochroneProvider.fetch"><code class="docutils literal notranslate"><span class="pre">IsochroneProvider.fetch()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.IsochroneProvider.validate_config"><code class="docutils literal notranslate"><span class="pre">IsochroneProvider.validate_config()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.IsochroneProvider.provider_name"><code class="docutils literal notranslate"><span class="pre">IsochroneProvider.provider_name</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.IsochroneProviderError"><code class="docutils literal notranslate"><span class="pre">IsochroneProviderError</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.IsochroneRequest"><code class="docutils literal notranslate"><span class="pre">IsochroneRequest</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.IsochroneRequest.provider"><code class="docutils literal notranslate"><span class="pre">IsochroneRequest.provider</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.IsochroneRequest.method"><code class="docutils literal notranslate"><span class="pre">IsochroneRequest.method</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.IsochroneRequest.url"><code class="docutils literal notranslate"><span class="pre">IsochroneRequest.url</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.IsochroneRequest.headers"><code class="docutils literal notranslate"><span class="pre">IsochroneRequest.headers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.IsochroneRequest.params"><code class="docutils literal notranslate"><span class="pre">IsochroneRequest.params</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.IsochroneRequest.json"><code class="docutils literal notranslate"><span class="pre">IsochroneRequest.json</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.OpenRouteServiceProvider"><code class="docutils literal notranslate"><span class="pre">OpenRouteServiceProvider</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.OpenRouteServiceProvider.__init__"><code class="docutils literal notranslate"><span class="pre">OpenRouteServiceProvider.__init__()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.OpenRouteServiceProvider.provider_name"><code class="docutils literal notranslate"><span class="pre">OpenRouteServiceProvider.provider_name</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.OpenRouteServiceProvider.validate_config"><code class="docutils literal notranslate"><span class="pre">OpenRouteServiceProvider.validate_config()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.OpenRouteServiceProvider.fetch"><code class="docutils literal notranslate"><span class="pre">OpenRouteServiceProvider.fetch()</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.ValhallaProvider"><code class="docutils literal notranslate"><span class="pre">ValhallaProvider</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.ValhallaProvider.__init__"><code class="docutils literal notranslate"><span class="pre">ValhallaProvider.__init__()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.ValhallaProvider.provider_name"><code class="docutils literal notranslate"><span class="pre">ValhallaProvider.provider_name</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.ValhallaProvider.validate_config"><code class="docutils literal notranslate"><span class="pre">ValhallaProvider.validate_config()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.ValhallaProvider.fetch"><code class="docutils literal notranslate"><span class="pre">ValhallaProvider.fetch()</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.build_isochrone_request"><code class="docutils literal notranslate"><span class="pre">build_isochrone_request()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.get_isochrone"><code class="docutils literal notranslate"><span class="pre">get_isochrone()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.get_provider"><code class="docutils literal notranslate"><span class="pre">get_provider()</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.isochrones.isochrone_to_geodataframe"><code class="docutils literal notranslate"><span class="pre">isochrone_to_geodataframe()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.validators.BlockGroupGEOIDValidator"><code class="docutils literal notranslate"><span class="pre">BlockGroupGEOIDValidator</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.validators.BlockGroupGEOIDValidator.message"><code class="docutils literal notranslate"><span class="pre">BlockGroupGEOIDValidator.message</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo.html#siege_utilities.geo.validators.BlockGroupGEOIDValidator.code"><code class="docutils literal notranslate"><span class="pre">BlockGroupGEOIDValidator.code</span></code></a></li>
@@ -9073,7 +9001,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
-      <li class="breadcrumb-item active">siege_utilities.geo.isochrones</li>
+      <li class="breadcrumb-item active">siege_utilities.geo.geocoding_core</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -9082,634 +9010,372 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <h1>Source code for siege_utilities.geo.isochrones</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Isochrone utilities with open-source-first providers and custom server support.</span>
-
-<span class="sd">This module provides both a function-based API (backward-compatible) and a</span>
-<span class="sd">provider-based OOP architecture via :class:`IsochroneProvider` and its concrete</span>
-<span class="sd">subclasses :class:`OpenRouteServiceProvider` and :class:`ValhallaProvider`.</span>
-
-<span class="sd">Use :func:`get_provider` to obtain a configured provider instance by name.</span>
-<span class="sd">&quot;&quot;&quot;</span>
+  <h1>Source code for siege_utilities.geo.geocoding_core</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Stdlib-only geocoding constants and helper contracts."""</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">abc</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">,</span> <span class="n">Optional</span>
-
-<span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
-
-<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.geo.crs</span><span class="w"> </span><span class="kn">import</span> <span class="n">reproject_if_needed</span>
-
-<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
-    <span class="kn">import</span><span class="w"> </span><span class="nn">geopandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">gpd</span>
-
-<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s2">&quot;DEFAULT_ORS_BASE_URL&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;DEFAULT_VALHALLA_BASE_URL&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;ISOCHRONE_DEFAULT_RETRIES&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;IsochroneError&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;IsochroneNetworkError&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;IsochroneProvider&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;IsochroneProviderError&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;IsochroneRequest&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;OpenRouteServiceProvider&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;ValhallaProvider&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;build_isochrone_request&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;get_isochrone&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;get_provider&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;isochrone_to_geodataframe&quot;</span><span class="p">,</span>
+    <span class="s2">"GeocodingError"</span><span class="p">,</span>
+    <span class="s2">"COUNTRY_CODES"</span><span class="p">,</span>
+    <span class="s2">"DEFAULT_COUNTRY_CODE"</span><span class="p">,</span>
+    <span class="s2">"NOMINATIM_INTERNAL_URL"</span><span class="p">,</span>
+    <span class="s2">"get_country_name"</span><span class="p">,</span>
+    <span class="s2">"get_country_code"</span><span class="p">,</span>
+    <span class="s2">"list_countries"</span><span class="p">,</span>
+    <span class="s2">"concatenate_addresses"</span><span class="p">,</span>
 <span class="p">]</span>
 
-<span class="n">DEFAULT_ORS_BASE_URL</span> <span class="o">=</span> <span class="s2">&quot;https://api.openrouteservice.org&quot;</span>
-<span class="n">DEFAULT_VALHALLA_BASE_URL</span> <span class="o">=</span> <span class="s2">&quot;http://localhost:8002&quot;</span>
 
-<span class="n">ISOCHRONE_DEFAULT_RETRIES</span> <span class="o">=</span> <span class="mi">3</span>
-<span class="n">ISOCHRONE_RETRY_BACKOFF_BASE</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># seconds</span>
+<div class="viewcode-block" id="GeocodingError">
+<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geocoding.GeocodingError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GeocodingError</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Raised when Nominatim geocoding fails for reasons other than 'no match'.</span>
 
-<span class="n">_PROVIDER_ORS</span> <span class="o">=</span> <span class="s2">&quot;openrouteservice&quot;</span>
-<span class="n">_PROVIDER_VALHALLA</span> <span class="o">=</span> <span class="s2">&quot;valhalla&quot;</span>
+<span class="sd">    Covers network timeouts (after retries exhausted), service errors,</span>
+<span class="sd">    parse errors, and other unexpected failures from the geocoder.</span>
+<span class="sd">    Distinct from a legitimate "no result found" outcome, which still</span>
+<span class="sd">    returns ``None``. Use ``__cause__`` to inspect the underlying</span>
+<span class="sd">    exception.</span>
 
-<span class="n">_RETRYABLE_STATUS_CODES</span> <span class="o">=</span> <span class="p">{</span><span class="mi">429</span><span class="p">,</span> <span class="mi">502</span><span class="p">,</span> <span class="mi">503</span><span class="p">,</span> <span class="mi">504</span><span class="p">}</span>
-
-
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># Exceptions</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
-
-
-<div class="viewcode-block" id="IsochroneError">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.IsochroneError">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">IsochroneError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base exception for isochrone operations.&quot;&quot;&quot;</span></div>
+<span class="sd">    Mirrors</span>
+<span class="sd">    :class:`siege_utilities.geo.providers.census_geocoder.CensusGeocodeError`.</span>
+<span class="sd">    """</span></div>
 
 
 
-<div class="viewcode-block" id="IsochroneNetworkError">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.IsochroneNetworkError">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">IsochroneNetworkError</span><span class="p">(</span><span class="n">IsochroneError</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Network failure (timeout, connection refused, DNS resolution).&quot;&quot;&quot;</span></div>
+<span class="c1"># Country code mapping for Nominatim geocoding</span>
+<span class="n">COUNTRY_CODES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="c1"># North America</span>
+    <span class="s1">'us'</span><span class="p">:</span> <span class="s1">'United States'</span><span class="p">,</span>
+    <span class="s1">'ca'</span><span class="p">:</span> <span class="s1">'Canada'</span><span class="p">,</span>
+    <span class="s1">'mx'</span><span class="p">:</span> <span class="s1">'Mexico'</span><span class="p">,</span>
+    <span class="s1">'gt'</span><span class="p">:</span> <span class="s1">'Guatemala'</span><span class="p">,</span>
+    <span class="s1">'bz'</span><span class="p">:</span> <span class="s1">'Belize'</span><span class="p">,</span>
+    <span class="s1">'sv'</span><span class="p">:</span> <span class="s1">'El Salvador'</span><span class="p">,</span>
+    <span class="s1">'hn'</span><span class="p">:</span> <span class="s1">'Honduras'</span><span class="p">,</span>
+    <span class="s1">'ni'</span><span class="p">:</span> <span class="s1">'Nicaragua'</span><span class="p">,</span>
+    <span class="s1">'cr'</span><span class="p">:</span> <span class="s1">'Costa Rica'</span><span class="p">,</span>
+    <span class="s1">'pa'</span><span class="p">:</span> <span class="s1">'Panama'</span><span class="p">,</span>
+    <span class="s1">'cu'</span><span class="p">:</span> <span class="s1">'Cuba'</span><span class="p">,</span>
+    <span class="s1">'jm'</span><span class="p">:</span> <span class="s1">'Jamaica'</span><span class="p">,</span>
+    <span class="s1">'ht'</span><span class="p">:</span> <span class="s1">'Haiti'</span><span class="p">,</span>
+    <span class="s1">'do'</span><span class="p">:</span> <span class="s1">'Dominican Republic'</span><span class="p">,</span>
+    <span class="s1">'pr'</span><span class="p">:</span> <span class="s1">'Puerto Rico'</span><span class="p">,</span>
+    <span class="s1">'tt'</span><span class="p">:</span> <span class="s1">'Trinidad and Tobago'</span><span class="p">,</span>
+    <span class="s1">'bb'</span><span class="p">:</span> <span class="s1">'Barbados'</span><span class="p">,</span>
+    <span class="s1">'lc'</span><span class="p">:</span> <span class="s1">'Saint Lucia'</span><span class="p">,</span>
+    <span class="s1">'vc'</span><span class="p">:</span> <span class="s1">'Saint Vincent and the Grenadines'</span><span class="p">,</span>
+    <span class="s1">'gd'</span><span class="p">:</span> <span class="s1">'Grenada'</span><span class="p">,</span>
+    <span class="s1">'ag'</span><span class="p">:</span> <span class="s1">'Antigua and Barbuda'</span><span class="p">,</span>
+    <span class="s1">'kn'</span><span class="p">:</span> <span class="s1">'Saint Kitts and Nevis'</span><span class="p">,</span>
+    <span class="s1">'dm'</span><span class="p">:</span> <span class="s1">'Dominica'</span><span class="p">,</span>
+    <span class="s1">'bs'</span><span class="p">:</span> <span class="s1">'Bahamas'</span><span class="p">,</span>
+    <span class="s1">'tc'</span><span class="p">:</span> <span class="s1">'Turks and Caicos Islands'</span><span class="p">,</span>
+    <span class="s1">'ky'</span><span class="p">:</span> <span class="s1">'Cayman Islands'</span><span class="p">,</span>
+    <span class="s1">'bm'</span><span class="p">:</span> <span class="s1">'Bermuda'</span><span class="p">,</span>
+    <span class="s1">'gl'</span><span class="p">:</span> <span class="s1">'Greenland'</span><span class="p">,</span>
+    <span class="s1">'as'</span><span class="p">:</span> <span class="s1">'American Samoa'</span><span class="p">,</span>
+    <span class="s1">'gu'</span><span class="p">:</span> <span class="s1">'Guam'</span><span class="p">,</span>
+    <span class="s1">'mp'</span><span class="p">:</span> <span class="s1">'Northern Mariana Islands'</span><span class="p">,</span>
+    <span class="s1">'vi'</span><span class="p">:</span> <span class="s1">'U.S. Virgin Islands'</span><span class="p">,</span>
 
+    <span class="c1"># South America</span>
+    <span class="s1">'br'</span><span class="p">:</span> <span class="s1">'Brazil'</span><span class="p">,</span>
+    <span class="s1">'ar'</span><span class="p">:</span> <span class="s1">'Argentina'</span><span class="p">,</span>
+    <span class="s1">'cl'</span><span class="p">:</span> <span class="s1">'Chile'</span><span class="p">,</span>
+    <span class="s1">'co'</span><span class="p">:</span> <span class="s1">'Colombia'</span><span class="p">,</span>
+    <span class="s1">'pe'</span><span class="p">:</span> <span class="s1">'Peru'</span><span class="p">,</span>
+    <span class="s1">'ve'</span><span class="p">:</span> <span class="s1">'Venezuela'</span><span class="p">,</span>
+    <span class="s1">'uy'</span><span class="p">:</span> <span class="s1">'Uruguay'</span><span class="p">,</span>
+    <span class="s1">'py'</span><span class="p">:</span> <span class="s1">'Paraguay'</span><span class="p">,</span>
+    <span class="s1">'bo'</span><span class="p">:</span> <span class="s1">'Bolivia'</span><span class="p">,</span>
+    <span class="s1">'ec'</span><span class="p">:</span> <span class="s1">'Ecuador'</span><span class="p">,</span>
+    <span class="s1">'gy'</span><span class="p">:</span> <span class="s1">'Guyana'</span><span class="p">,</span>
+    <span class="s1">'sr'</span><span class="p">:</span> <span class="s1">'Suriname'</span><span class="p">,</span>
+    <span class="s1">'gf'</span><span class="p">:</span> <span class="s1">'French Guiana'</span><span class="p">,</span>
+    <span class="s1">'fk'</span><span class="p">:</span> <span class="s1">'Falkland Islands'</span><span class="p">,</span>
+    <span class="s1">'gs'</span><span class="p">:</span> <span class="s1">'South Georgia and the South Sandwich Islands'</span><span class="p">,</span>
 
+    <span class="c1"># Europe</span>
+    <span class="s1">'gb'</span><span class="p">:</span> <span class="s1">'United Kingdom'</span><span class="p">,</span>
+    <span class="s1">'ie'</span><span class="p">:</span> <span class="s1">'Ireland'</span><span class="p">,</span>
+    <span class="s1">'fr'</span><span class="p">:</span> <span class="s1">'France'</span><span class="p">,</span>
+    <span class="s1">'de'</span><span class="p">:</span> <span class="s1">'Germany'</span><span class="p">,</span>
+    <span class="s1">'it'</span><span class="p">:</span> <span class="s1">'Italy'</span><span class="p">,</span>
+    <span class="s1">'es'</span><span class="p">:</span> <span class="s1">'Spain'</span><span class="p">,</span>
+    <span class="s1">'pt'</span><span class="p">:</span> <span class="s1">'Portugal'</span><span class="p">,</span>
+    <span class="s1">'nl'</span><span class="p">:</span> <span class="s1">'Netherlands'</span><span class="p">,</span>
+    <span class="s1">'be'</span><span class="p">:</span> <span class="s1">'Belgium'</span><span class="p">,</span>
+    <span class="s1">'ch'</span><span class="p">:</span> <span class="s1">'Switzerland'</span><span class="p">,</span>
+    <span class="s1">'at'</span><span class="p">:</span> <span class="s1">'Austria'</span><span class="p">,</span>
+    <span class="s1">'se'</span><span class="p">:</span> <span class="s1">'Sweden'</span><span class="p">,</span>
+    <span class="s1">'no'</span><span class="p">:</span> <span class="s1">'Norway'</span><span class="p">,</span>
+    <span class="s1">'dk'</span><span class="p">:</span> <span class="s1">'Denmark'</span><span class="p">,</span>
+    <span class="s1">'fi'</span><span class="p">:</span> <span class="s1">'Finland'</span><span class="p">,</span>
+    <span class="s1">'is'</span><span class="p">:</span> <span class="s1">'Iceland'</span><span class="p">,</span>
+    <span class="s1">'pl'</span><span class="p">:</span> <span class="s1">'Poland'</span><span class="p">,</span>
+    <span class="s1">'cz'</span><span class="p">:</span> <span class="s1">'Czech Republic'</span><span class="p">,</span>
+    <span class="s1">'hu'</span><span class="p">:</span> <span class="s1">'Hungary'</span><span class="p">,</span>
+    <span class="s1">'sk'</span><span class="p">:</span> <span class="s1">'Slovakia'</span><span class="p">,</span>
+    <span class="s1">'si'</span><span class="p">:</span> <span class="s1">'Slovenia'</span><span class="p">,</span>
+    <span class="s1">'hr'</span><span class="p">:</span> <span class="s1">'Croatia'</span><span class="p">,</span>
+    <span class="s1">'bg'</span><span class="p">:</span> <span class="s1">'Bulgaria'</span><span class="p">,</span>
+    <span class="s1">'ro'</span><span class="p">:</span> <span class="s1">'Romania'</span><span class="p">,</span>
+    <span class="s1">'gr'</span><span class="p">:</span> <span class="s1">'Greece'</span><span class="p">,</span>
+    <span class="s1">'cy'</span><span class="p">:</span> <span class="s1">'Cyprus'</span><span class="p">,</span>
+    <span class="s1">'mt'</span><span class="p">:</span> <span class="s1">'Malta'</span><span class="p">,</span>
+    <span class="s1">'lu'</span><span class="p">:</span> <span class="s1">'Luxembourg'</span><span class="p">,</span>
+    <span class="s1">'ee'</span><span class="p">:</span> <span class="s1">'Estonia'</span><span class="p">,</span>
+    <span class="s1">'lv'</span><span class="p">:</span> <span class="s1">'Latvia'</span><span class="p">,</span>
+    <span class="s1">'lt'</span><span class="p">:</span> <span class="s1">'Lithuania'</span><span class="p">,</span>
+    <span class="s1">'ad'</span><span class="p">:</span> <span class="s1">'Andorra'</span><span class="p">,</span>
+    <span class="s1">'mc'</span><span class="p">:</span> <span class="s1">'Monaco'</span><span class="p">,</span>
+    <span class="s1">'sm'</span><span class="p">:</span> <span class="s1">'San Marino'</span><span class="p">,</span>
+    <span class="s1">'va'</span><span class="p">:</span> <span class="s1">'Vatican City'</span><span class="p">,</span>
+    <span class="s1">'li'</span><span class="p">:</span> <span class="s1">'Liechtenstein'</span><span class="p">,</span>
+    <span class="s1">'gi'</span><span class="p">:</span> <span class="s1">'Gibraltar'</span><span class="p">,</span>
+    <span class="s1">'ax'</span><span class="p">:</span> <span class="s1">'Åland Islands'</span><span class="p">,</span>
+    <span class="s1">'fo'</span><span class="p">:</span> <span class="s1">'Faroe Islands'</span><span class="p">,</span>
+    <span class="s1">'sj'</span><span class="p">:</span> <span class="s1">'Svalbard and Jan Mayen'</span><span class="p">,</span>
+    <span class="s1">'bq'</span><span class="p">:</span> <span class="s1">'Bonaire, Sint Eustatius and Saba'</span><span class="p">,</span>
+    <span class="s1">'cw'</span><span class="p">:</span> <span class="s1">'Curaçao'</span><span class="p">,</span>
+    <span class="s1">'sx'</span><span class="p">:</span> <span class="s1">'Sint Maarten'</span><span class="p">,</span>
+    <span class="s1">'aw'</span><span class="p">:</span> <span class="s1">'Aruba'</span><span class="p">,</span>
 
-<div class="viewcode-block" id="IsochroneProviderError">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.IsochroneProviderError">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">IsochroneProviderError</span><span class="p">(</span><span class="n">IsochroneError</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Provider returned an HTTP error or an unparseable response.&quot;&quot;&quot;</span></div>
+    <span class="c1"># Asia</span>
+    <span class="s1">'ru'</span><span class="p">:</span> <span class="s1">'Russia'</span><span class="p">,</span>
+    <span class="s1">'kz'</span><span class="p">:</span> <span class="s1">'Kazakhstan'</span><span class="p">,</span>
+    <span class="s1">'uz'</span><span class="p">:</span> <span class="s1">'Uzbekistan'</span><span class="p">,</span>
+    <span class="s1">'kg'</span><span class="p">:</span> <span class="s1">'Kyrgyzstan'</span><span class="p">,</span>
+    <span class="s1">'tj'</span><span class="p">:</span> <span class="s1">'Tajikistan'</span><span class="p">,</span>
+    <span class="s1">'tm'</span><span class="p">:</span> <span class="s1">'Turkmenistan'</span><span class="p">,</span>
+    <span class="s1">'af'</span><span class="p">:</span> <span class="s1">'Afghanistan'</span><span class="p">,</span>
+    <span class="s1">'pk'</span><span class="p">:</span> <span class="s1">'Pakistan'</span><span class="p">,</span>
+    <span class="s1">'in'</span><span class="p">:</span> <span class="s1">'India'</span><span class="p">,</span>
+    <span class="s1">'bd'</span><span class="p">:</span> <span class="s1">'Bangladesh'</span><span class="p">,</span>
+    <span class="s1">'bt'</span><span class="p">:</span> <span class="s1">'Bhutan'</span><span class="p">,</span>
+    <span class="s1">'np'</span><span class="p">:</span> <span class="s1">'Nepal'</span><span class="p">,</span>
+    <span class="s1">'lk'</span><span class="p">:</span> <span class="s1">'Sri Lanka'</span><span class="p">,</span>
+    <span class="s1">'mv'</span><span class="p">:</span> <span class="s1">'Maldives'</span><span class="p">,</span>
+    <span class="s1">'cn'</span><span class="p">:</span> <span class="s1">'China'</span><span class="p">,</span>
+    <span class="s1">'tw'</span><span class="p">:</span> <span class="s1">'Taiwan'</span><span class="p">,</span>
+    <span class="s1">'hk'</span><span class="p">:</span> <span class="s1">'Hong Kong'</span><span class="p">,</span>
+    <span class="s1">'mo'</span><span class="p">:</span> <span class="s1">'Macau'</span><span class="p">,</span>
+    <span class="s1">'mn'</span><span class="p">:</span> <span class="s1">'Mongolia'</span><span class="p">,</span>
+    <span class="s1">'jp'</span><span class="p">:</span> <span class="s1">'Japan'</span><span class="p">,</span>
+    <span class="s1">'kr'</span><span class="p">:</span> <span class="s1">'South Korea'</span><span class="p">,</span>
+    <span class="s1">'kp'</span><span class="p">:</span> <span class="s1">'North Korea'</span><span class="p">,</span>
+    <span class="s1">'th'</span><span class="p">:</span> <span class="s1">'Thailand'</span><span class="p">,</span>
+    <span class="s1">'vn'</span><span class="p">:</span> <span class="s1">'Vietnam'</span><span class="p">,</span>
+    <span class="s1">'la'</span><span class="p">:</span> <span class="s1">'Laos'</span><span class="p">,</span>
+    <span class="s1">'kh'</span><span class="p">:</span> <span class="s1">'Cambodia'</span><span class="p">,</span>
+    <span class="s1">'my'</span><span class="p">:</span> <span class="s1">'Malaysia'</span><span class="p">,</span>
+    <span class="s1">'sg'</span><span class="p">:</span> <span class="s1">'Singapore'</span><span class="p">,</span>
+    <span class="s1">'id'</span><span class="p">:</span> <span class="s1">'Indonesia'</span><span class="p">,</span>
+    <span class="s1">'ph'</span><span class="p">:</span> <span class="s1">'Philippines'</span><span class="p">,</span>
+    <span class="s1">'bn'</span><span class="p">:</span> <span class="s1">'Brunei'</span><span class="p">,</span>
+    <span class="s1">'tl'</span><span class="p">:</span> <span class="s1">'East Timor'</span><span class="p">,</span>
+    <span class="s1">'mm'</span><span class="p">:</span> <span class="s1">'Myanmar'</span><span class="p">,</span>
 
+    <span class="c1"># Middle East</span>
+    <span class="s1">'tr'</span><span class="p">:</span> <span class="s1">'Turkey'</span><span class="p">,</span>
+    <span class="s1">'ge'</span><span class="p">:</span> <span class="s1">'Georgia'</span><span class="p">,</span>
+    <span class="s1">'am'</span><span class="p">:</span> <span class="s1">'Armenia'</span><span class="p">,</span>
+    <span class="s1">'az'</span><span class="p">:</span> <span class="s1">'Azerbaijan'</span><span class="p">,</span>
+    <span class="s1">'sa'</span><span class="p">:</span> <span class="s1">'Saudi Arabia'</span><span class="p">,</span>
+    <span class="s1">'ye'</span><span class="p">:</span> <span class="s1">'Yemen'</span><span class="p">,</span>
+    <span class="s1">'om'</span><span class="p">:</span> <span class="s1">'Oman'</span><span class="p">,</span>
+    <span class="s1">'ae'</span><span class="p">:</span> <span class="s1">'United Arab Emirates'</span><span class="p">,</span>
+    <span class="s1">'qa'</span><span class="p">:</span> <span class="s1">'Qatar'</span><span class="p">,</span>
+    <span class="s1">'bh'</span><span class="p">:</span> <span class="s1">'Bahrain'</span><span class="p">,</span>
+    <span class="s1">'kw'</span><span class="p">:</span> <span class="s1">'Kuwait'</span><span class="p">,</span>
+    <span class="s1">'iq'</span><span class="p">:</span> <span class="s1">'Iraq'</span><span class="p">,</span>
+    <span class="s1">'sy'</span><span class="p">:</span> <span class="s1">'Syria'</span><span class="p">,</span>
+    <span class="s1">'lb'</span><span class="p">:</span> <span class="s1">'Lebanon'</span><span class="p">,</span>
+    <span class="s1">'jo'</span><span class="p">:</span> <span class="s1">'Jordan'</span><span class="p">,</span>
+    <span class="s1">'il'</span><span class="p">:</span> <span class="s1">'Israel'</span><span class="p">,</span>
+    <span class="s1">'ps'</span><span class="p">:</span> <span class="s1">'Palestine'</span><span class="p">,</span>
+    <span class="s1">'ir'</span><span class="p">:</span> <span class="s1">'Iran'</span><span class="p">,</span>
 
+    <span class="c1"># Africa</span>
+    <span class="s1">'eg'</span><span class="p">:</span> <span class="s1">'Egypt'</span><span class="p">,</span>
+    <span class="s1">'ly'</span><span class="p">:</span> <span class="s1">'Libya'</span><span class="p">,</span>
+    <span class="s1">'tn'</span><span class="p">:</span> <span class="s1">'Tunisia'</span><span class="p">,</span>
+    <span class="s1">'dz'</span><span class="p">:</span> <span class="s1">'Algeria'</span><span class="p">,</span>
+    <span class="s1">'ma'</span><span class="p">:</span> <span class="s1">'Morocco'</span><span class="p">,</span>
+    <span class="s1">'eh'</span><span class="p">:</span> <span class="s1">'Western Sahara'</span><span class="p">,</span>
+    <span class="s1">'mr'</span><span class="p">:</span> <span class="s1">'Mauritania'</span><span class="p">,</span>
+    <span class="s1">'ml'</span><span class="p">:</span> <span class="s1">'Mali'</span><span class="p">,</span>
+    <span class="s1">'ne'</span><span class="p">:</span> <span class="s1">'Niger'</span><span class="p">,</span>
+    <span class="s1">'td'</span><span class="p">:</span> <span class="s1">'Chad'</span><span class="p">,</span>
+    <span class="s1">'sd'</span><span class="p">:</span> <span class="s1">'Sudan'</span><span class="p">,</span>
+    <span class="s1">'ss'</span><span class="p">:</span> <span class="s1">'South Sudan'</span><span class="p">,</span>
+    <span class="s1">'et'</span><span class="p">:</span> <span class="s1">'Ethiopia'</span><span class="p">,</span>
+    <span class="s1">'er'</span><span class="p">:</span> <span class="s1">'Eritrea'</span><span class="p">,</span>
+    <span class="s1">'dj'</span><span class="p">:</span> <span class="s1">'Djibouti'</span><span class="p">,</span>
+    <span class="s1">'so'</span><span class="p">:</span> <span class="s1">'Somalia'</span><span class="p">,</span>
+    <span class="s1">'ke'</span><span class="p">:</span> <span class="s1">'Kenya'</span><span class="p">,</span>
+    <span class="s1">'ug'</span><span class="p">:</span> <span class="s1">'Uganda'</span><span class="p">,</span>
+    <span class="s1">'rw'</span><span class="p">:</span> <span class="s1">'Rwanda'</span><span class="p">,</span>
+    <span class="s1">'bi'</span><span class="p">:</span> <span class="s1">'Burundi'</span><span class="p">,</span>
+    <span class="s1">'tz'</span><span class="p">:</span> <span class="s1">'Tanzania'</span><span class="p">,</span>
+    <span class="s1">'mw'</span><span class="p">:</span> <span class="s1">'Malawi'</span><span class="p">,</span>
+    <span class="s1">'zm'</span><span class="p">:</span> <span class="s1">'Zambia'</span><span class="p">,</span>
+    <span class="s1">'zw'</span><span class="p">:</span> <span class="s1">'Zimbabwe'</span><span class="p">,</span>
+    <span class="s1">'bw'</span><span class="p">:</span> <span class="s1">'Botswana'</span><span class="p">,</span>
+    <span class="s1">'na'</span><span class="p">:</span> <span class="s1">'Namibia'</span><span class="p">,</span>
+    <span class="s1">'za'</span><span class="p">:</span> <span class="s1">'South Africa'</span><span class="p">,</span>
+    <span class="s1">'sz'</span><span class="p">:</span> <span class="s1">'Eswatini'</span><span class="p">,</span>
+    <span class="s1">'ls'</span><span class="p">:</span> <span class="s1">'Lesotho'</span><span class="p">,</span>
+    <span class="s1">'mg'</span><span class="p">:</span> <span class="s1">'Madagascar'</span><span class="p">,</span>
+    <span class="s1">'mu'</span><span class="p">:</span> <span class="s1">'Mauritius'</span><span class="p">,</span>
+    <span class="s1">'sc'</span><span class="p">:</span> <span class="s1">'Seychelles'</span><span class="p">,</span>
+    <span class="s1">'km'</span><span class="p">:</span> <span class="s1">'Comoros'</span><span class="p">,</span>
+    <span class="s1">'re'</span><span class="p">:</span> <span class="s1">'Réunion'</span><span class="p">,</span>
+    <span class="s1">'yt'</span><span class="p">:</span> <span class="s1">'Mayotte'</span><span class="p">,</span>
+    <span class="s1">'mz'</span><span class="p">:</span> <span class="s1">'Mozambique'</span><span class="p">,</span>
+    <span class="s1">'ao'</span><span class="p">:</span> <span class="s1">'Angola'</span><span class="p">,</span>
+    <span class="s1">'cd'</span><span class="p">:</span> <span class="s1">'Democratic Republic of the Congo'</span><span class="p">,</span>
+    <span class="s1">'cg'</span><span class="p">:</span> <span class="s1">'Republic of the Congo'</span><span class="p">,</span>
+    <span class="s1">'cf'</span><span class="p">:</span> <span class="s1">'Central African Republic'</span><span class="p">,</span>
+    <span class="s1">'cm'</span><span class="p">:</span> <span class="s1">'Cameroon'</span><span class="p">,</span>
+    <span class="s1">'gq'</span><span class="p">:</span> <span class="s1">'Equatorial Guinea'</span><span class="p">,</span>
+    <span class="s1">'ga'</span><span class="p">:</span> <span class="s1">'Gabon'</span><span class="p">,</span>
+    <span class="s1">'st'</span><span class="p">:</span> <span class="s1">'São Tomé and Príncipe'</span><span class="p">,</span>
+    <span class="s1">'gh'</span><span class="p">:</span> <span class="s1">'Ghana'</span><span class="p">,</span>
+    <span class="s1">'tg'</span><span class="p">:</span> <span class="s1">'Togo'</span><span class="p">,</span>
+    <span class="s1">'bj'</span><span class="p">:</span> <span class="s1">'Benin'</span><span class="p">,</span>
+    <span class="s1">'bf'</span><span class="p">:</span> <span class="s1">'Burkina Faso'</span><span class="p">,</span>
+    <span class="s1">'sn'</span><span class="p">:</span> <span class="s1">'Senegal'</span><span class="p">,</span>
+    <span class="s1">'gm'</span><span class="p">:</span> <span class="s1">'Gambia'</span><span class="p">,</span>
+    <span class="s1">'gw'</span><span class="p">:</span> <span class="s1">'Guinea-Bissau'</span><span class="p">,</span>
+    <span class="s1">'gn'</span><span class="p">:</span> <span class="s1">'Guinea'</span><span class="p">,</span>
+    <span class="s1">'sl'</span><span class="p">:</span> <span class="s1">'Sierra Leone'</span><span class="p">,</span>
+    <span class="s1">'lr'</span><span class="p">:</span> <span class="s1">'Liberia'</span><span class="p">,</span>
+    <span class="s1">'ci'</span><span class="p">:</span> <span class="s1">'Ivory Coast'</span><span class="p">,</span>
+    <span class="s1">'ng'</span><span class="p">:</span> <span class="s1">'Nigeria'</span><span class="p">,</span>
 
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># TypedDict for the request definition</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
+    <span class="c1"># Oceania</span>
+    <span class="s1">'au'</span><span class="p">:</span> <span class="s1">'Australia'</span><span class="p">,</span>
+    <span class="s1">'nz'</span><span class="p">:</span> <span class="s1">'New Zealand'</span><span class="p">,</span>
+    <span class="s1">'fj'</span><span class="p">:</span> <span class="s1">'Fiji'</span><span class="p">,</span>
+    <span class="s1">'pg'</span><span class="p">:</span> <span class="s1">'Papua New Guinea'</span><span class="p">,</span>
+    <span class="s1">'sb'</span><span class="p">:</span> <span class="s1">'Solomon Islands'</span><span class="p">,</span>
+    <span class="s1">'vu'</span><span class="p">:</span> <span class="s1">'Vanuatu'</span><span class="p">,</span>
+    <span class="s1">'nc'</span><span class="p">:</span> <span class="s1">'New Caledonia'</span><span class="p">,</span>
+    <span class="s1">'pf'</span><span class="p">:</span> <span class="s1">'French Polynesia'</span><span class="p">,</span>
+    <span class="s1">'ws'</span><span class="p">:</span> <span class="s1">'Samoa'</span><span class="p">,</span>
+    <span class="s1">'to'</span><span class="p">:</span> <span class="s1">'Tonga'</span><span class="p">,</span>
+    <span class="s1">'ki'</span><span class="p">:</span> <span class="s1">'Kiribati'</span><span class="p">,</span>
+    <span class="s1">'tv'</span><span class="p">:</span> <span class="s1">'Tuvalu'</span><span class="p">,</span>
+    <span class="s1">'nr'</span><span class="p">:</span> <span class="s1">'Nauru'</span><span class="p">,</span>
+    <span class="s1">'pw'</span><span class="p">:</span> <span class="s1">'Palau'</span><span class="p">,</span>
+    <span class="s1">'fm'</span><span class="p">:</span> <span class="s1">'Micronesia'</span><span class="p">,</span>
+    <span class="s1">'mh'</span><span class="p">:</span> <span class="s1">'Marshall Islands'</span><span class="p">,</span>
+    <span class="s1">'nf'</span><span class="p">:</span> <span class="s1">'Norfolk Island'</span><span class="p">,</span>
+    <span class="s1">'pn'</span><span class="p">:</span> <span class="s1">'Pitcairn Islands'</span><span class="p">,</span>
+    <span class="s1">'cc'</span><span class="p">:</span> <span class="s1">'Cocos (Keeling) Islands'</span><span class="p">,</span>
+    <span class="s1">'cx'</span><span class="p">:</span> <span class="s1">'Christmas Island'</span><span class="p">,</span>
+    <span class="s1">'ck'</span><span class="p">:</span> <span class="s1">'Cook Islands'</span><span class="p">,</span>
+    <span class="s1">'nu'</span><span class="p">:</span> <span class="s1">'Niue'</span><span class="p">,</span>
+    <span class="s1">'tk'</span><span class="p">:</span> <span class="s1">'Tokelau'</span><span class="p">,</span>
+    <span class="s1">'wf'</span><span class="p">:</span> <span class="s1">'Wallis and Futuna'</span><span class="p">,</span>
+    <span class="s1">'sh'</span><span class="p">:</span> <span class="s1">'Saint Helena, Ascension and Tristan da Cunha'</span><span class="p">,</span>
+    <span class="s1">'ac'</span><span class="p">:</span> <span class="s1">'Ascension Island'</span><span class="p">,</span>
+    <span class="s1">'ta'</span><span class="p">:</span> <span class="s1">'Tristan da Cunha'</span><span class="p">,</span>
 
-<span class="k">try</span><span class="p">:</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TypedDict</span>
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>  <span class="c1"># Python &lt;3.8 fallback; not expected on 3.11+</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">typing_extensions</span><span class="w"> </span><span class="kn">import</span> <span class="n">TypedDict</span>
+    <span class="c1"># Other territories</span>
+    <span class="s1">'io'</span><span class="p">:</span> <span class="s1">'British Indian Ocean Territory'</span><span class="p">,</span>
+    <span class="s1">'bv'</span><span class="p">:</span> <span class="s1">'Bouvet Island'</span><span class="p">,</span>
+    <span class="s1">'hm'</span><span class="p">:</span> <span class="s1">'Heard Island and McDonald Islands'</span><span class="p">,</span>
+    <span class="s1">'tf'</span><span class="p">:</span> <span class="s1">'French Southern Territories'</span><span class="p">,</span>
+    <span class="s1">'aq'</span><span class="p">:</span> <span class="s1">'Antarctica'</span>
+<span class="p">}</span>
 
+<span class="c1"># Default country code (US)</span>
+<span class="n">DEFAULT_COUNTRY_CODE</span> <span class="o">=</span> <span class="s1">'us'</span>
 
-<div class="viewcode-block" id="IsochroneRequest">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.IsochroneRequest">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">IsochroneRequest</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Structured request definition returned by :func:`build_isochrone_request`.&quot;&quot;&quot;</span>
+<span class="c1"># Internal Kubernetes service URL for self-hosted Nominatim (elect.info cluster)</span>
+<span class="n">NOMINATIM_INTERNAL_URL</span> <span class="o">=</span> <span class="s1">'http://nominatim.nominatim.svc.cluster.local:80'</span>
 
-    <span class="n">provider</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;openrouteservice&quot;</span><span class="p">,</span> <span class="s2">&quot;valhalla&quot;</span><span class="p">]</span>
-    <span class="n">method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span> <span class="s2">&quot;GET&quot;</span><span class="p">]</span>
-    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">headers</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
-    <span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
-    <span class="n">json</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span></div>
-
-
-
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># Internal helpers</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_normalize_provider</span><span class="p">(</span><span class="n">provider</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="n">normalized</span> <span class="o">=</span> <span class="p">(</span><span class="n">provider</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">normalized</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;ors&quot;</span><span class="p">,</span> <span class="s2">&quot;openrouteservice&quot;</span><span class="p">}:</span>
-        <span class="k">return</span> <span class="n">_PROVIDER_ORS</span>
-    <span class="k">if</span> <span class="n">normalized</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;valhalla&quot;</span><span class="p">}:</span>
-        <span class="k">return</span> <span class="n">_PROVIDER_VALHALLA</span>
-    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-        <span class="s2">&quot;provider must be one of: openrouteservice (ors), valhalla&quot;</span>
-    <span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_validate_inputs</span><span class="p">(</span><span class="n">latitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">longitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">travel_time_minutes</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="o">-</span><span class="mi">90</span> <span class="o">&lt;=</span> <span class="n">latitude</span> <span class="o">&lt;=</span> <span class="mi">90</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;latitude must be between -90 and 90&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="o">-</span><span class="mi">180</span> <span class="o">&lt;=</span> <span class="n">longitude</span> <span class="o">&lt;=</span> <span class="mi">180</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;longitude must be between -180 and 180&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">travel_time_minutes</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;travel_time_minutes must be &gt; 0&quot;</span><span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_valhalla_costing</span><span class="p">(</span><span class="n">profile</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="n">profile_norm</span> <span class="o">=</span> <span class="p">(</span><span class="n">profile</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-    <span class="n">mapping</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;driving-car&quot;</span><span class="p">:</span> <span class="s2">&quot;auto&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;driving-hgv&quot;</span><span class="p">:</span> <span class="s2">&quot;truck&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;cycling-regular&quot;</span><span class="p">:</span> <span class="s2">&quot;bicycle&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;foot-walking&quot;</span><span class="p">:</span> <span class="s2">&quot;pedestrian&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;auto&quot;</span><span class="p">:</span> <span class="s2">&quot;auto&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;truck&quot;</span><span class="p">:</span> <span class="s2">&quot;truck&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;bicycle&quot;</span><span class="p">:</span> <span class="s2">&quot;bicycle&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;pedestrian&quot;</span><span class="p">:</span> <span class="s2">&quot;pedestrian&quot;</span><span class="p">,</span>
-    <span class="p">}</span>
-    <span class="k">return</span> <span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">profile_norm</span><span class="p">,</span> <span class="s2">&quot;auto&quot;</span><span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_dispatch_request</span><span class="p">(</span>
-    <span class="n">request_def</span><span class="p">:</span> <span class="n">IsochroneRequest</span><span class="p">,</span>
-    <span class="n">timeout_seconds</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Send the HTTP request described by *request_def*.&quot;&quot;&quot;</span>
-    <span class="n">method</span> <span class="o">=</span> <span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;method&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;POST&quot;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
-            <span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;url&quot;</span><span class="p">],</span>
-            <span class="n">headers</span><span class="o">=</span><span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;headers&quot;</span><span class="p">],</span>
-            <span class="n">params</span><span class="o">=</span><span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">],</span>
-            <span class="n">json</span><span class="o">=</span><span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;json&quot;</span><span class="p">],</span>
-            <span class="n">timeout</span><span class="o">=</span><span class="n">timeout_seconds</span><span class="p">,</span>
-        <span class="p">)</span>
-    <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;GET&quot;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-            <span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;url&quot;</span><span class="p">],</span>
-            <span class="n">headers</span><span class="o">=</span><span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;headers&quot;</span><span class="p">],</span>
-            <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="o">**</span><span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">request_def</span><span class="p">[</span><span class="s2">&quot;json&quot;</span><span class="p">]},</span>
-            <span class="n">timeout</span><span class="o">=</span><span class="n">timeout_seconds</span><span class="p">,</span>
-        <span class="p">)</span>
-    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported HTTP method in request definition: </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># Public API</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
-
-
-<div class="viewcode-block" id="build_isochrone_request">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.build_isochrone_request">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">build_isochrone_request</span><span class="p">(</span>
-    <span class="n">latitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-    <span class="n">longitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-    <span class="n">travel_time_minutes</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">provider</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">_PROVIDER_ORS</span><span class="p">,</span>
-    <span class="n">base_url</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">profile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;driving-car&quot;</span><span class="p">,</span>
-    <span class="n">api_key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">extra_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">IsochroneRequest</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a provider-specific HTTP request definition for an isochrone call.</span>
-
-<span class="sd">    This supports open-source providers and self-hosted/custom endpoints.</span>
+<div class="viewcode-block" id="get_country_name">
+<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geocoding.get_country_name">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_country_name</span><span class="p">(</span><span class="n">country_code</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Get the full country name from a country code.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        latitude: Center latitude (-90 to 90).</span>
-<span class="sd">        longitude: Center longitude (-180 to 180).</span>
-<span class="sd">        travel_time_minutes: Travel-time contour in minutes (must be &gt; 0).</span>
-<span class="sd">        provider: ``&quot;openrouteservice&quot;`` (or ``&quot;ors&quot;``) or ``&quot;valhalla&quot;``.</span>
-<span class="sd">        base_url: Custom server root for self-hosted providers.</span>
-<span class="sd">        profile: Travel profile (``&quot;driving-car&quot;``, ``&quot;cycling-regular&quot;``,</span>
-<span class="sd">            ``&quot;foot-walking&quot;``, etc.).</span>
-<span class="sd">        api_key: Optional API key (commonly used for hosted ORS).</span>
-<span class="sd">        extra_params: Provider-specific extra request fields merged into the</span>
-<span class="sd">            JSON body (Valhalla) or query params (ORS).</span>
+<span class="sd">        country_code: Two-letter country code (e.g., 'us', 'gb', 'ca'), or</span>
+<span class="sd">            ``None`` for missing data.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        An :class:`IsochroneRequest` dict with ``provider``, ``method``,</span>
-<span class="sd">        ``url``, ``headers``, ``params``, and ``json`` keys.</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        ValueError: If inputs are out of range or provider is unknown.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">_validate_inputs</span><span class="p">(</span><span class="n">latitude</span><span class="p">,</span> <span class="n">longitude</span><span class="p">,</span> <span class="n">travel_time_minutes</span><span class="p">)</span>
-    <span class="n">provider_norm</span> <span class="o">=</span> <span class="n">_normalize_provider</span><span class="p">(</span><span class="n">provider</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">provider_norm</span> <span class="o">==</span> <span class="n">_PROVIDER_ORS</span><span class="p">:</span>
-        <span class="n">root</span> <span class="o">=</span> <span class="p">(</span><span class="n">base_url</span> <span class="ow">or</span> <span class="n">DEFAULT_ORS_BASE_URL</span><span class="p">)</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
-        <span class="n">headers</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">&quot;Accept&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;Content-Type&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
-        <span class="p">}</span>
-        <span class="k">if</span> <span class="n">api_key</span><span class="p">:</span>
-            <span class="n">headers</span><span class="p">[</span><span class="s2">&quot;Authorization&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">api_key</span>
-        <span class="k">return</span> <span class="n">IsochroneRequest</span><span class="p">(</span>
-            <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openrouteservice&quot;</span><span class="p">,</span>
-            <span class="n">method</span><span class="o">=</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span>
-            <span class="n">url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">/v2/isochrones/</span><span class="si">{</span><span class="n">profile</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-            <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span>
-            <span class="n">params</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">extra_params</span> <span class="ow">or</span> <span class="p">{}),</span>
-            <span class="n">json</span><span class="o">=</span><span class="p">{</span>
-                <span class="s2">&quot;locations&quot;</span><span class="p">:</span> <span class="p">[[</span><span class="nb">float</span><span class="p">(</span><span class="n">longitude</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">latitude</span><span class="p">)]],</span>
-                <span class="s2">&quot;range&quot;</span><span class="p">:</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">travel_time_minutes</span><span class="p">)</span> <span class="o">*</span> <span class="mi">60</span><span class="p">],</span>
-            <span class="p">},</span>
-        <span class="p">)</span>
-
-    <span class="c1"># Valhalla</span>
-    <span class="n">root</span> <span class="o">=</span> <span class="p">(</span><span class="n">base_url</span> <span class="ow">or</span> <span class="n">DEFAULT_VALHALLA_BASE_URL</span><span class="p">)</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
-    <span class="n">payload</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;locations&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;lat&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">latitude</span><span class="p">),</span> <span class="s2">&quot;lon&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">longitude</span><span class="p">)}],</span>
-        <span class="s2">&quot;costing&quot;</span><span class="p">:</span> <span class="n">_valhalla_costing</span><span class="p">(</span><span class="n">profile</span><span class="p">),</span>
-        <span class="s2">&quot;contours&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">travel_time_minutes</span><span class="p">)}],</span>
-        <span class="s2">&quot;polygons&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
-    <span class="p">}</span>
-    <span class="k">if</span> <span class="n">extra_params</span><span class="p">:</span>
-        <span class="n">payload</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">extra_params</span><span class="p">))</span>
-    <span class="k">return</span> <span class="n">IsochroneRequest</span><span class="p">(</span>
-        <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;valhalla&quot;</span><span class="p">,</span>
-        <span class="n">method</span><span class="o">=</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span>
-        <span class="n">url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">/isochrone&quot;</span><span class="p">,</span>
-        <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Accept&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span> <span class="s2">&quot;Content-Type&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">},</span>
-        <span class="n">params</span><span class="o">=</span><span class="p">{},</span>
-        <span class="n">json</span><span class="o">=</span><span class="n">payload</span><span class="p">,</span>
-    <span class="p">)</span></div>
+<span class="sd">        Full country name, the original unknown string, or ``None`` when the</span>
+<span class="sd">        input is ``None``.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">country_code</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">country_code</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">"country_code must be a string or None"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">COUNTRY_CODES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">country_code</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="n">country_code</span><span class="p">)</span></div>
 
 
 
-<div class="viewcode-block" id="get_isochrone">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.get_isochrone">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">get_isochrone</span><span class="p">(</span>
-    <span class="n">latitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-    <span class="n">longitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-    <span class="n">travel_time_minutes</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">provider</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">_PROVIDER_ORS</span><span class="p">,</span>
-    <span class="n">base_url</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">profile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;driving-car&quot;</span><span class="p">,</span>
-    <span class="n">api_key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">timeout_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
-    <span class="n">extra_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">max_retries</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">ISOCHRONE_DEFAULT_RETRIES</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fetch an isochrone GeoJSON response.</span>
+<div class="viewcode-block" id="get_country_code">
+<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geocoding.get_country_code">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_country_code</span><span class="p">(</span><span class="n">country_name</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Get the country code from a country name.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        latitude: Center latitude.</span>
-<span class="sd">        longitude: Center longitude.</span>
-<span class="sd">        travel_time_minutes: Travel-time contour in minutes.</span>
-<span class="sd">        provider: ``&quot;openrouteservice&quot;`` (default) or ``&quot;valhalla&quot;``.</span>
-<span class="sd">        base_url: Custom server root for self-hosted providers.</span>
-<span class="sd">        profile: Travel profile (``&quot;driving-car&quot;``, ``&quot;cycling-regular&quot;``,</span>
-<span class="sd">            ``&quot;foot-walking&quot;``, etc.).</span>
-<span class="sd">        api_key: Optional API key (commonly used for hosted ORS).</span>
-<span class="sd">        timeout_seconds: HTTP timeout in seconds (default 30).</span>
-<span class="sd">        extra_params: Provider-specific extra request fields.</span>
-<span class="sd">        max_retries: Maximum number of attempts for transient failures</span>
-<span class="sd">            (default 3). Set to 1 to disable retries.</span>
+<span class="sd">        country_name: Full country name (e.g., 'United States', 'Canada'), or</span>
+<span class="sd">            ``None`` for missing data.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        Provider response parsed as JSON (typically a GeoJSON</span>
-<span class="sd">        FeatureCollection).</span>
+<span class="sd">        Two-letter country code, or None if not found/missing.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">country_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">country_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">"country_name must be a string or None"</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">code</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">COUNTRY_CODES</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">country_name</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">code</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
 
-<span class="sd">    Raises:</span>
-<span class="sd">        IsochroneNetworkError: On timeout, connection, or DNS failure.</span>
-<span class="sd">        IsochroneProviderError: On HTTP error or unparseable response.</span>
-<span class="sd">        ValueError: If inputs are out of range or provider is unknown.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">request_def</span> <span class="o">=</span> <span class="n">build_isochrone_request</span><span class="p">(</span>
-        <span class="n">latitude</span><span class="p">,</span>
-        <span class="n">longitude</span><span class="p">,</span>
-        <span class="n">travel_time_minutes</span><span class="p">,</span>
-        <span class="n">provider</span><span class="o">=</span><span class="n">provider</span><span class="p">,</span>
-        <span class="n">base_url</span><span class="o">=</span><span class="n">base_url</span><span class="p">,</span>
-        <span class="n">profile</span><span class="o">=</span><span class="n">profile</span><span class="p">,</span>
-        <span class="n">api_key</span><span class="o">=</span><span class="n">api_key</span><span class="p">,</span>
-        <span class="n">extra_params</span><span class="o">=</span><span class="n">extra_params</span><span class="p">,</span>
-    <span class="p">)</span>
 
-    <span class="n">last_exc</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="ne">Exception</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">attempts</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_retries</span><span class="p">)</span>
 
-    <span class="k">for</span> <span class="n">attempt</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">attempts</span><span class="p">):</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">response</span> <span class="o">=</span> <span class="n">_dispatch_request</span><span class="p">(</span><span class="n">request_def</span><span class="p">,</span> <span class="n">timeout_seconds</span><span class="p">)</span>
-        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">Timeout</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="n">last_exc</span> <span class="o">=</span> <span class="n">IsochroneNetworkError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Isochrone request to </span><span class="si">{</span><span class="n">request_def</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> timed out &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;after </span><span class="si">{</span><span class="n">timeout_seconds</span><span class="si">}</span><span class="s2">s (attempt </span><span class="si">{</span><span class="n">attempt</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">attempts</span><span class="si">}</span><span class="s2">)&quot;</span>
-            <span class="p">)</span>
-            <span class="n">last_exc</span><span class="o">.</span><span class="n">__cause__</span> <span class="o">=</span> <span class="n">exc</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">last_exc</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">attempt</span> <span class="o">&lt;</span> <span class="n">attempts</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">ISOCHRONE_RETRY_BACKOFF_BASE</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="n">attempt</span><span class="p">))</span>
+<div class="viewcode-block" id="list_countries">
+<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geocoding.list_countries">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">list_countries</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Get a list of all available countries with their codes.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        dict: Dictionary mapping country codes to country names</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">COUNTRY_CODES</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="concatenate_addresses">
+<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.geocoding.concatenate_addresses">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">concatenate_addresses</span><span class="p">(</span><span class="n">street</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">city</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">state_province_area</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">postal_code</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">country</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Concatenate address components into a single string suitable for geocoding.</span>
+<span class="sd">    Returns a properly formatted address string.</span>
+<span class="sd">    """</span>
+    <span class="n">components</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">component</span> <span class="ow">in</span> <span class="p">(</span><span class="n">street</span><span class="p">,</span> <span class="n">city</span><span class="p">,</span> <span class="n">state_province_area</span><span class="p">,</span> <span class="n">postal_code</span><span class="p">,</span> <span class="n">country</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">component</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">continue</span>
-        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ConnectionError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="n">last_exc</span> <span class="o">=</span> <span class="n">IsochroneNetworkError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Connection to </span><span class="si">{</span><span class="n">request_def</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> failed &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;(attempt </span><span class="si">{</span><span class="n">attempt</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">attempts</span><span class="si">}</span><span class="s2">): </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span>
-            <span class="n">last_exc</span><span class="o">.</span><span class="n">__cause__</span> <span class="o">=</span> <span class="n">exc</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">last_exc</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">attempt</span> <span class="o">&lt;</span> <span class="n">attempts</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">ISOCHRONE_RETRY_BACKOFF_BASE</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="n">attempt</span><span class="p">))</span>
-            <span class="k">continue</span>
-        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">RequestException</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">IsochroneNetworkError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Isochrone request failed: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-
-        <span class="c1"># Retry on transient HTTP status codes</span>
-        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="ow">in</span> <span class="n">_RETRYABLE_STATUS_CODES</span> <span class="ow">and</span> <span class="n">attempt</span> <span class="o">&lt;</span> <span class="n">attempts</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                <span class="s2">&quot;Isochrone provider returned </span><span class="si">%d</span><span class="s2"> (attempt </span><span class="si">%d</span><span class="s2">/</span><span class="si">%d</span><span class="s2">), retrying&quot;</span><span class="p">,</span>
-                <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="n">attempt</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">attempts</span><span class="p">,</span>
-            <span class="p">)</span>
-            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">ISOCHRONE_RETRY_BACKOFF_BASE</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="n">attempt</span><span class="p">))</span>
-            <span class="k">continue</span>
-
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
-        <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">HTTPError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">IsochroneProviderError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Provider </span><span class="si">{</span><span class="n">request_def</span><span class="p">[</span><span class="s1">&#39;provider&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> returned HTTP &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">[:</span><span class="mi">200</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
-        <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">IsochroneProviderError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Provider returned non-JSON response: &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">[:</span><span class="mi">200</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="n">IsochroneProviderError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Isochrone response must be a JSON object, &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span>
-        <span class="k">return</span> <span class="n">data</span>
-
-    <span class="c1"># All retries exhausted</span>
-    <span class="k">if</span> <span class="n">last_exc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">last_exc</span>
-    <span class="k">raise</span> <span class="n">IsochroneNetworkError</span><span class="p">(</span><span class="s2">&quot;Isochrone request failed after all retry attempts&quot;</span><span class="p">)</span></div>
-
-
-
-<div class="viewcode-block" id="isochrone_to_geodataframe">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.isochrone_to_geodataframe">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">isochrone_to_geodataframe</span><span class="p">(</span>
-    <span class="n">isochrone_geojson</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">crs</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;gpd.GeoDataFrame&quot;</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert an isochrone GeoJSON object to a GeoDataFrame.</span>
-
-<span class="sd">    Requires ``geopandas``. Install with ``pip install siege_utilities[geo]``.</span>
-
-<span class="sd">    GeoJSON is always ingested as EPSG:4326 (the GeoJSON spec mandates WGS 84).</span>
-<span class="sd">    If *crs* differs from EPSG:4326 the result is reprojected to the</span>
-<span class="sd">    requested CRS before returning.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        isochrone_geojson: A GeoJSON dict (typically a FeatureCollection</span>
-<span class="sd">            returned by :func:`get_isochrone`).</span>
-<span class="sd">        crs: Target coordinate reference system. Defaults to</span>
-<span class="sd">            :func:`~siege_utilities.geo.crs.get_default_crs` (initially</span>
-<span class="sd">            ``&quot;EPSG:4326&quot;``).  Pass any string accepted by ``pyproj``.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        A GeoDataFrame with one row per feature in the requested *crs*.</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        ImportError: If geopandas is not installed.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="kn">import</span><span class="w"> </span><span class="nn">geopandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_gpd</span>
-    <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
-            <span class="s2">&quot;geopandas is required for isochrone_to_geodataframe. &quot;</span>
-            <span class="s2">&quot;Install with: pip install siege_utilities[geo]&quot;</span>
-        <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-
-    <span class="c1"># GeoJSON is always WGS 84 per RFC 7946</span>
-    <span class="n">features</span> <span class="o">=</span> <span class="n">isochrone_geojson</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;features&quot;</span><span class="p">,</span> <span class="p">[])</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">features</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">_gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">()</span>
-    <span class="n">gdf</span> <span class="o">=</span> <span class="n">_gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="o">.</span><span class="n">from_features</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="s2">&quot;EPSG:4326&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">reproject_if_needed</span><span class="p">(</span><span class="n">gdf</span><span class="p">,</span> <span class="n">crs</span><span class="p">)</span></div>
-
-
-
-<span class="c1"># ---------------------------------------------------------------------------</span>
-<span class="c1"># Provider architecture (ABC + concrete implementations)</span>
-<span class="c1"># ---------------------------------------------------------------------------</span>
-
-
-<div class="viewcode-block" id="IsochroneProvider">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.IsochroneProvider">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">IsochroneProvider</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Abstract base class for isochrone providers.</span>
-
-<span class="sd">    Subclasses must implement :meth:`fetch`, :meth:`validate_config`, and the</span>
-<span class="sd">    :attr:`provider_name` property.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-<div class="viewcode-block" id="IsochroneProvider.fetch">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.IsochroneProvider.fetch">[docs]</a>
-    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">fetch</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">lat</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-        <span class="n">lon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-        <span class="n">time_minutes</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">profile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;driving-car&quot;</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fetch an isochrone as a GeoJSON dict.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            lat: Center latitude (-90 to 90).</span>
-<span class="sd">            lon: Center longitude (-180 to 180).</span>
-<span class="sd">            time_minutes: Travel-time contour in minutes (must be &gt; 0).</span>
-<span class="sd">            profile: Travel profile (e.g. ``&quot;driving-car&quot;``).</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            A GeoJSON dict (typically a FeatureCollection).</span>
-<span class="sd">        &quot;&quot;&quot;</span></div>
-
-
-<div class="viewcode-block" id="IsochroneProvider.validate_config">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.IsochroneProvider.validate_config">[docs]</a>
-    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">validate_config</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether this provider is properly configured.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            ``True`` if the provider configuration is valid, ``False`` otherwise.</span>
-<span class="sd">        &quot;&quot;&quot;</span></div>
-
-
-    <span class="nd">@property</span>
-    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">provider_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the canonical name of this provider.&quot;&quot;&quot;</span></div>
-
-
-
-<div class="viewcode-block" id="OpenRouteServiceProvider">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.OpenRouteServiceProvider">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">OpenRouteServiceProvider</span><span class="p">(</span><span class="n">IsochroneProvider</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Concrete :class:`IsochroneProvider` wrapping the OpenRouteService API.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        api_key: ORS API key. Required for the hosted service; optional for</span>
-<span class="sd">            self-hosted instances.</span>
-<span class="sd">        base_url: Root URL of the ORS server. Defaults to</span>
-<span class="sd">            ``DEFAULT_ORS_BASE_URL``.</span>
-<span class="sd">        timeout_seconds: HTTP timeout in seconds (default 30).</span>
-<span class="sd">        max_retries: Maximum retry attempts for transient failures (default 3).</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-<div class="viewcode-block" id="OpenRouteServiceProvider.__init__">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.OpenRouteServiceProvider.__init__">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">api_key</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">base_url</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">timeout_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
-        <span class="n">max_retries</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">ISOCHRONE_DEFAULT_RETRIES</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">api_key</span> <span class="o">=</span> <span class="n">api_key</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="n">base_url</span> <span class="ow">or</span> <span class="n">DEFAULT_ORS_BASE_URL</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">timeout_seconds</span> <span class="o">=</span> <span class="n">timeout_seconds</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">max_retries</span> <span class="o">=</span> <span class="n">max_retries</span></div>
-
-
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">provider_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="k">return</span> <span class="s2">&quot;openrouteservice&quot;</span>
-
-<div class="viewcode-block" id="OpenRouteServiceProvider.validate_config">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.OpenRouteServiceProvider.validate_config">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">validate_config</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check that the provider is configured.</span>
-
-<span class="sd">        For the hosted ORS service (default URL), an API key is required.</span>
-<span class="sd">        For self-hosted instances, the base URL must be non-empty.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">==</span> <span class="n">DEFAULT_ORS_BASE_URL</span><span class="p">:</span>
-            <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">api_key</span><span class="p">)</span>
-        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="OpenRouteServiceProvider.fetch">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.OpenRouteServiceProvider.fetch">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">fetch</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">lat</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-        <span class="n">lon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-        <span class="n">time_minutes</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">profile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;driving-car&quot;</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="n">get_isochrone</span><span class="p">(</span>
-            <span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span>
-            <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span>
-            <span class="n">travel_time_minutes</span><span class="o">=</span><span class="n">time_minutes</span><span class="p">,</span>
-            <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openrouteservice&quot;</span><span class="p">,</span>
-            <span class="n">base_url</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">,</span>
-            <span class="n">profile</span><span class="o">=</span><span class="n">profile</span><span class="p">,</span>
-            <span class="n">api_key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">api_key</span><span class="p">,</span>
-            <span class="n">timeout_seconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">timeout_seconds</span><span class="p">,</span>
-            <span class="n">max_retries</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_retries</span><span class="p">,</span>
-        <span class="p">)</span></div>
-</div>
-
-
-
-<div class="viewcode-block" id="ValhallaProvider">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.ValhallaProvider">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">ValhallaProvider</span><span class="p">(</span><span class="n">IsochroneProvider</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Concrete :class:`IsochroneProvider` wrapping a Valhalla server.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        base_url: Root URL of the Valhalla server. Defaults to</span>
-<span class="sd">            ``DEFAULT_VALHALLA_BASE_URL``.</span>
-<span class="sd">        timeout_seconds: HTTP timeout in seconds (default 30).</span>
-<span class="sd">        max_retries: Maximum retry attempts for transient failures (default 3).</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-<div class="viewcode-block" id="ValhallaProvider.__init__">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.ValhallaProvider.__init__">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">base_url</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">timeout_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
-        <span class="n">max_retries</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">ISOCHRONE_DEFAULT_RETRIES</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="n">base_url</span> <span class="ow">or</span> <span class="n">DEFAULT_VALHALLA_BASE_URL</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">timeout_seconds</span> <span class="o">=</span> <span class="n">timeout_seconds</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">max_retries</span> <span class="o">=</span> <span class="n">max_retries</span></div>
-
-
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">provider_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="k">return</span> <span class="s2">&quot;valhalla&quot;</span>
-
-<div class="viewcode-block" id="ValhallaProvider.validate_config">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.ValhallaProvider.validate_config">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">validate_config</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check that the base URL is configured.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="ValhallaProvider.fetch">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.ValhallaProvider.fetch">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">fetch</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">lat</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-        <span class="n">lon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-        <span class="n">time_minutes</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">profile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;driving-car&quot;</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="n">get_isochrone</span><span class="p">(</span>
-            <span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span>
-            <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span>
-            <span class="n">travel_time_minutes</span><span class="o">=</span><span class="n">time_minutes</span><span class="p">,</span>
-            <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;valhalla&quot;</span><span class="p">,</span>
-            <span class="n">base_url</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">,</span>
-            <span class="n">profile</span><span class="o">=</span><span class="n">profile</span><span class="p">,</span>
-            <span class="n">timeout_seconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">timeout_seconds</span><span class="p">,</span>
-            <span class="n">max_retries</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_retries</span><span class="p">,</span>
-        <span class="p">)</span></div>
-</div>
-
-
-
-<div class="viewcode-block" id="get_provider">
-<a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.get_provider">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">get_provider</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;ors&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">IsochroneProvider</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Factory function returning a configured :class:`IsochroneProvider`.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        name: Provider name — ``&quot;ors&quot;`` / ``&quot;openrouteservice&quot;`` or</span>
-<span class="sd">            ``&quot;valhalla&quot;``.</span>
-<span class="sd">        **kwargs: Passed through to the provider constructor (e.g.</span>
-<span class="sd">            ``api_key``, ``base_url``, ``timeout_seconds``).</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        A configured provider instance.</span>
-
-<span class="sd">    Raises:</span>
-<span class="sd">        ValueError: If *name* is not a recognised provider.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">normalized</span> <span class="o">=</span> <span class="n">_normalize_provider</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">normalized</span> <span class="o">==</span> <span class="n">_PROVIDER_ORS</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">OpenRouteServiceProvider</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">normalized</span> <span class="o">==</span> <span class="n">_PROVIDER_VALHALLA</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">ValhallaProvider</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-    <span class="c1"># _normalize_provider already raises, but guard just in case</span>
-    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown isochrone provider: </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+        <span class="n">value</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">component</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">value</span><span class="p">:</span>
+            <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">components</span><span class="p">)</span></div>
 
 </pre></div>
 
