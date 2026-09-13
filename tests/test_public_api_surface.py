@@ -323,11 +323,25 @@ class TestBatch5Promotions:
         )
 
     def test_run_command_lazy_but_not_canonical_pending_collision_decision(self):
-        """#1215 tracks files.operations vs testing.runner run_command ambiguity."""
+        """#1215 keeps the file helper lazy-only until the name is canonical."""
         from siege_utilities import _LAZY_IMPORTS
+        from siege_utilities.files.operations import run_command as file_run_command
+        from siege_utilities.testing.runner import run_command as testing_run_command
 
         assert "run_command" not in siege_utilities.__all__
         assert _LAZY_IMPORTS["run_command"][0] == ".files.operations"
+        assert siege_utilities.run_command is file_run_command
+        assert siege_utilities.run_command is not testing_run_command
+
+    def test_testing_runner_docs_do_not_advertise_top_level_run_command(self):
+        """#1215: testing helper docs must not claim the top-level name."""
+        import inspect
+        from siege_utilities.testing.runner import run_command as testing_run_command
+
+        doc = inspect.getdoc(testing_run_command) or ""
+        assert ">>> success = siege_utilities.run_command" not in doc
+        assert ">>> import siege_utilities" not in doc
+        assert "from siege_utilities.testing.runner import run_command" in doc
 
 
 class TestBatch6Promotions:
