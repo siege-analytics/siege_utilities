@@ -165,6 +165,18 @@ class TestBatch2Promotions:
             "'siege_utilities.reporting' or a strict '.reporting.*' submodule"
         )
 
+    def test_bivariate_choropleth_top_level_is_reporting_variant(self):
+        """#1208: top-level bivariate helper is reporting, not geo."""
+        from siege_utilities.geo.choropleth import create_bivariate_choropleth as geo_variant
+        from siege_utilities.reporting.chart_generator import (
+            create_bivariate_choropleth as reporting_variant,
+        )
+
+        assert "create_bivariate_choropleth" in siege_utilities.__all__
+        assert siege_utilities.create_bivariate_choropleth is reporting_variant
+        assert siege_utilities.create_bivariate_choropleth is not geo_variant
+        assert geo_variant.__module__ == "siege_utilities.geo.choropleth"
+
 
 class TestBatch3Promotions:
     """Verify #1176 batch 3 (databricks, 18 canonicals) shipped correctly.
