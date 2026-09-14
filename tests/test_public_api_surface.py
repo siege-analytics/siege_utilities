@@ -165,6 +165,18 @@ class TestBatch2Promotions:
             "'siege_utilities.reporting' or a strict '.reporting.*' submodule"
         )
 
+    def test_bivariate_choropleth_top_level_is_reporting_variant(self):
+        """#1208: top-level bivariate helper is reporting, not geo."""
+        from siege_utilities.geo.choropleth import create_bivariate_choropleth as geo_variant
+        from siege_utilities.reporting.chart_generator import (
+            create_bivariate_choropleth as reporting_variant,
+        )
+
+        assert "create_bivariate_choropleth" in siege_utilities.__all__
+        assert siege_utilities.create_bivariate_choropleth is reporting_variant
+        assert siege_utilities.create_bivariate_choropleth is not geo_variant
+        assert geo_variant.__module__ == "siege_utilities.geo.choropleth"
+
 
 class TestBatch3Promotions:
     """Verify #1176 batch 3 (databricks, 18 canonicals) shipped correctly.
@@ -323,11 +335,36 @@ class TestBatch5Promotions:
         )
 
     def test_run_command_lazy_but_not_canonical_pending_collision_decision(self):
-        """#1215 tracks files.operations vs testing.runner run_command ambiguity."""
+        """#1215 keeps the file helper lazy-only until the name is canonical."""
         from siege_utilities import _LAZY_IMPORTS
+        from siege_utilities.files.operations import run_command as file_run_command
+        from siege_utilities.testing.runner import run_command as testing_run_command
 
         assert "run_command" not in siege_utilities.__all__
         assert _LAZY_IMPORTS["run_command"][0] == ".files.operations"
+        assert siege_utilities.run_command is file_run_command
+        assert siege_utilities.run_command is not testing_run_command
+
+    def test_testing_runner_docs_do_not_advertise_top_level_run_command(self):
+        """#1215: testing helper docs must not claim the top-level name."""
+        import inspect
+        from siege_utilities.testing.runner import run_command as testing_run_command
+
+        doc = inspect.getdoc(testing_run_command) or ""
+        assert ">>> success = siege_utilities.run_command" not in doc
+        assert ">>> import siege_utilities" not in doc
+        assert "from siege_utilities.testing.runner import run_command" in doc
+
+    def test_quote_ident_is_not_top_level_due_to_sql_dialect_collision(self):
+        """#1210: Databricks and Trino quote_ident helpers are dialect-specific."""
+        from siege_utilities.databricks.lakehouse_federation import quote_ident as dbx_quote_ident
+        from siege_utilities.trino.federation import quote_ident as trino_quote_ident
+
+        assert "quote_ident" not in siege_utilities.__all__
+        assert not hasattr(siege_utilities, "quote_ident")
+        assert dbx_quote_ident("name") == "`name`"
+        assert trino_quote_ident("name") == '"name"'
+        assert dbx_quote_ident is not trino_quote_ident
 
 
 class TestBatch6Promotions:
