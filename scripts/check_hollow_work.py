@@ -141,10 +141,6 @@ def is_protocol_noop_method(fn: ast.FunctionDef | ast.AsyncFunctionDef, cls: ast
         return True
     if fn.name in {"__init__", "update"} and cls.name.lower().startswith(("dummy", "_dummy", "noop", "_noop")):
         return True
-    if fn.name == "update" and _class_inherits(cls, {"MutableMapping", "Mapping", "dict"}):
-        return True
-    if fn.name == "__init__" and _class_inherits(cls, {"MutableMapping", "Mapping", "dict"}):
-        return True
     if fn.name == "ready" and _class_inherits(cls, {"AppConfig"}):
         return True
     return False
