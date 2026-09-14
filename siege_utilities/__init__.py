@@ -569,10 +569,11 @@ __all__ = [
     'validate_download_url',
     'validate_state_fips',
     # reporting (26 symbols, batch 2)
-    # NOTE: `create_bivariate_choropleth` also exists in
-    # `siege_utilities.geo.choropleth` with a different (GeoDataFrame-based)
-    # signature. Top-level resolves to the reporting variant per
-    # `_LAZY_IMPORTS`. Reconciliation tracked at #1208.
+    # NOTE: `create_bivariate_choropleth` is intentionally the reporting
+    # helper at the top level. `siege_utilities.geo.choropleth` exports a
+    # GeoDataFrame-specific helper with the same name and a different
+    # signature; import that dialect/surface explicitly when geospatial
+    # bivariate maps are required. See #1208.
     'AnalyticsReportGenerator',
     'BaseReportTemplate',
     'ChartGenerator',
