@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+No unreleased changes yet.
+
+## [3.24.0] - 2026-09-12
+
+Scope note: this release covers everything promoted to `main` since the
+`v3.23.0` tag, including the 2026-09-12 develop→main promotion in #1257.
+That promotion brought the public API, notebook governance/runtime,
+geocoding contract, Parsons spike, lint-ratchet, and CI hardening work that
+had landed on `develop` through #1256. The original release motivators remain
+#1115/#1121 (RDH auth failure surfaced instead of empty datasets) and #1117
+(`UserConfigManager` no longer crashes under unwritable `HOME`). Issue #1222
+tracks final tag/publish/post-publish verification; no tag or PyPI publish is
+implied by this changelog/version bump PR.
+
+
 ### Shelf alignment (2026-08-27 modernization session)
 
 - **CI job `griffe api-diff (writing-releases:1)` (added in PR #1191) is now the reference implementation** cited by `claude-configs-public` writing-releases:1 as the tool-agnostic optional mechanical assist for signature-level BREAKING detection (see claude-configs-public#646). Behavior changes that preserve signatures (e.g., a validator becoming stricter) remain operator-judgment per the rule; a green griffe run is not evidence of non-BREAKING.
