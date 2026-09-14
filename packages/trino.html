@@ -9040,15 +9040,15 @@ Trino’s ANSI dialect (not backticks).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>target_catalog</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Trino catalog the view lives in (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;iceberg&quot;</span></code>
+<li><p><strong>target_catalog</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Trino catalog the view lives in (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;iceberg&quot;</span></code>
 for an OSS UC-backed Iceberg catalog).</p></li>
-<li><p><strong>target_schema</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Schema within the target catalog (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;analytics&quot;</span></code>).</p></li>
-<li><p><strong>target_view</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – View name (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;persons&quot;</span></code>).</p></li>
-<li><p><strong>postgres_catalog</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Trino catalog alias for the PostgreSQL connector
+<li><p><strong>target_schema</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Schema within the target catalog (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;analytics&quot;</span></code>).</p></li>
+<li><p><strong>target_view</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – View name (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;persons&quot;</span></code>).</p></li>
+<li><p><strong>postgres_catalog</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Trino catalog alias for the PostgreSQL connector
 (whatever the operator named the <code class="docutils literal notranslate"><span class="pre">etc/catalog/postgresql.properties</span></code>
 file, sans extension).</p></li>
-<li><p><strong>source_schema</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – PostgreSQL schema (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;public&quot;</span></code>).</p></li>
-<li><p><strong>source_table</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – PostgreSQL table name. Defaults to <code class="docutils literal notranslate"><span class="pre">target_view</span></code>
+<li><p><strong>source_schema</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – PostgreSQL schema (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;public&quot;</span></code>).</p></li>
+<li><p><strong>source_table</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – PostgreSQL table name. Defaults to <code class="docutils literal notranslate"><span class="pre">target_view</span></code>
 when omitted, which is the common case (same name on both
 sides).</p></li>
 </ul>
@@ -9057,7 +9057,7 @@ sides).</p></li>
 <dd class="field-even"><p>A single SQL statement ending in <code class="docutils literal notranslate"><span class="pre">;</span></code>.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
 </dd>
 </dl>
 <p class="rubric">Example</p>
@@ -9084,11 +9084,11 @@ so re-runs after upstream column additions stay correct.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>target_catalog</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Trino catalog the schema + views live in.</p></li>
-<li><p><strong>target_schema</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Schema within <code class="docutils literal notranslate"><span class="pre">target_catalog</span></code>.</p></li>
-<li><p><strong>postgres_catalog</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Trino PostgreSQL connector alias.</p></li>
-<li><p><strong>source_schema</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – PostgreSQL schema containing <code class="docutils literal notranslate"><span class="pre">tables</span></code>.</p></li>
-<li><p><strong>tables</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.14)"><em>Iterable</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – Iterable of PostgreSQL table names. Same names are
+<li><p><strong>target_catalog</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Trino catalog the schema + views live in.</p></li>
+<li><p><strong>target_schema</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Schema within <code class="docutils literal notranslate"><span class="pre">target_catalog</span></code>.</p></li>
+<li><p><strong>postgres_catalog</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Trino PostgreSQL connector alias.</p></li>
+<li><p><strong>source_schema</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – PostgreSQL schema containing <code class="docutils literal notranslate"><span class="pre">tables</span></code>.</p></li>
+<li><p><strong>tables</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.14)"><em>Iterable</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – Iterable of PostgreSQL table names. Same names are
 used for the Trino views.</p></li>
 </ul>
 </dd>
@@ -9113,10 +9113,10 @@ here (the higher-level federation builders call
 <code class="docutils literal notranslate"><span class="pre">validate_sql_identifier</span></code> before <code class="docutils literal notranslate"><span class="pre">quote_ident</span></code>).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>value</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+<dd class="field-odd"><p><strong>value</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -9152,15 +9152,15 @@ Trino’s ANSI dialect (not backticks).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>target_catalog</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Trino catalog the view lives in (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;iceberg&quot;</span></code>
+<li><p><strong>target_catalog</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Trino catalog the view lives in (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;iceberg&quot;</span></code>
 for an OSS UC-backed Iceberg catalog).</p></li>
-<li><p><strong>target_schema</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Schema within the target catalog (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;analytics&quot;</span></code>).</p></li>
-<li><p><strong>target_view</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – View name (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;persons&quot;</span></code>).</p></li>
-<li><p><strong>postgres_catalog</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Trino catalog alias for the PostgreSQL connector
+<li><p><strong>target_schema</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Schema within the target catalog (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;analytics&quot;</span></code>).</p></li>
+<li><p><strong>target_view</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – View name (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;persons&quot;</span></code>).</p></li>
+<li><p><strong>postgres_catalog</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Trino catalog alias for the PostgreSQL connector
 (whatever the operator named the <code class="docutils literal notranslate"><span class="pre">etc/catalog/postgresql.properties</span></code>
 file, sans extension).</p></li>
-<li><p><strong>source_schema</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – PostgreSQL schema (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;public&quot;</span></code>).</p></li>
-<li><p><strong>source_table</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – PostgreSQL table name. Defaults to <code class="docutils literal notranslate"><span class="pre">target_view</span></code>
+<li><p><strong>source_schema</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – PostgreSQL schema (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;public&quot;</span></code>).</p></li>
+<li><p><strong>source_table</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – PostgreSQL table name. Defaults to <code class="docutils literal notranslate"><span class="pre">target_view</span></code>
 when omitted, which is the common case (same name on both
 sides).</p></li>
 </ul>
@@ -9169,7 +9169,7 @@ sides).</p></li>
 <dd class="field-even"><p>A single SQL statement ending in <code class="docutils literal notranslate"><span class="pre">;</span></code>.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
 </dd>
 </dl>
 <p class="rubric">Example</p>
@@ -9196,11 +9196,11 @@ so re-runs after upstream column additions stay correct.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>target_catalog</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Trino catalog the schema + views live in.</p></li>
-<li><p><strong>target_schema</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Schema within <code class="docutils literal notranslate"><span class="pre">target_catalog</span></code>.</p></li>
-<li><p><strong>postgres_catalog</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Trino PostgreSQL connector alias.</p></li>
-<li><p><strong>source_schema</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – PostgreSQL schema containing <code class="docutils literal notranslate"><span class="pre">tables</span></code>.</p></li>
-<li><p><strong>tables</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.14)"><em>Iterable</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – Iterable of PostgreSQL table names. Same names are
+<li><p><strong>target_catalog</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Trino catalog the schema + views live in.</p></li>
+<li><p><strong>target_schema</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Schema within <code class="docutils literal notranslate"><span class="pre">target_catalog</span></code>.</p></li>
+<li><p><strong>postgres_catalog</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Trino PostgreSQL connector alias.</p></li>
+<li><p><strong>source_schema</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – PostgreSQL schema containing <code class="docutils literal notranslate"><span class="pre">tables</span></code>.</p></li>
+<li><p><strong>tables</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.14)"><em>Iterable</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – Iterable of PostgreSQL table names. Same names are
 used for the Trino views.</p></li>
 </ul>
 </dd>
@@ -9225,10 +9225,10 @@ here (the higher-level federation builders call
 <code class="docutils literal notranslate"><span class="pre">validate_sql_identifier</span></code> before <code class="docutils literal notranslate"><span class="pre">quote_ident</span></code>).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>value</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+<dd class="field-odd"><p><strong>value</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
 </dd>
 </dl>
 </dd></dl>

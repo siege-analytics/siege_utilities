@@ -9040,7 +9040,7 @@ Provides functions for managing configuration, profiles, and system settings.</p
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>location</strong> (<a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>) – Path to the profile directory</p></li>
-<li><p><strong>profile_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Type of profile location (‘default’, ‘user’, ‘client’, etc.)</p></li>
+<li><p><strong>profile_type</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Type of profile location (‘default’, ‘user’, ‘client’, etc.)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -9055,7 +9055,7 @@ Provides functions for managing configuration, profiles, and system settings.</p
 <dd><p>Get the current profile location for a given type.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>profile_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Type of profile location (‘default’, ‘user’, ‘client’, etc.)</p>
+<dd class="field-odd"><p><strong>profile_type</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Type of profile location (‘default’, ‘user’, ‘client’, etc.)</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Path to the profile location</p>
@@ -9075,7 +9075,7 @@ Provides functions for managing configuration, profiles, and system settings.</p
 <dd class="field-odd"><p>Dictionary mapping profile types to their locations</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>]</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9089,14 +9089,14 @@ Provides functions for managing configuration, profiles, and system settings.</p
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>source_location</strong> (<a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>) – Source profile directory</p></li>
 <li><p><strong>target_location</strong> (<a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>) – Destination profile directory</p></li>
-<li><p><strong>backup</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to create a backup of target location</p></li>
+<li><p><strong>backup</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to create a backup of target location</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Dictionary with migration statistics</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a>]</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)">int</a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9130,7 +9130,7 @@ Provides functions for managing configuration, profiles, and system settings.</p
 <dd class="field-even"><p>True if location is valid, False otherwise</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)">bool</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)">bool</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -9176,7 +9176,7 @@ Handles default locations, custom locations, and profile migration.</p>
 <dd><p>Get the current profile location for a given type.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>profile_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Type of profile location (‘default’, ‘user’, ‘client’, etc.)</p>
+<dd class="field-odd"><p><strong>profile_type</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Type of profile location (‘default’, ‘user’, ‘client’, etc.)</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Path to the profile location</p>
@@ -9199,7 +9199,7 @@ Handles default locations, custom locations, and profile migration.</p>
 <dd class="field-even"><p>Dictionary with profile summary statistics</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>]</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9213,7 +9213,7 @@ Handles default locations, custom locations, and profile migration.</p>
 <dd class="field-odd"><p>Dictionary mapping profile types to their locations</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>]</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9227,14 +9227,14 @@ Handles default locations, custom locations, and profile migration.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>source_location</strong> (<a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>) – Source profile directory</p></li>
 <li><p><strong>target_location</strong> (<a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>) – Destination profile directory</p></li>
-<li><p><strong>backup</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to create a backup of target location</p></li>
+<li><p><strong>backup</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to create a backup of target location</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Dictionary with migration statistics</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a>]</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)">int</a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9247,7 +9247,7 @@ Handles default locations, custom locations, and profile migration.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>location</strong> (<a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>) – Path to the profile directory</p></li>
-<li><p><strong>profile_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Type of profile location (‘default’, ‘user’, ‘client’, etc.)</p></li>
+<li><p><strong>profile_type</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Type of profile location (‘default’, ‘user’, ‘client’, etc.)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -9268,7 +9268,7 @@ Handles default locations, custom locations, and profile migration.</p>
 <dd class="field-even"><p>True if location is valid, False otherwise</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)">bool</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)">bool</a></p>
 </dd>
 </dl>
 </dd></dl>

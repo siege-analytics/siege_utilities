@@ -9042,7 +9042,7 @@ slashes/spaces with underscores.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>DataFrame</em>) – Input Spark DataFrame.</p></li>
-<li><p><strong>column_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the column to analyze.</p></li>
+<li><p><strong>column_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the column to analyze.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -9066,7 +9066,7 @@ slashes/spaces with underscores.</p>
 <dd class="field-even"><p>Row count.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)">int</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -9079,7 +9079,7 @@ slashes/spaces with underscores.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>DataFrame</em>) – Input Spark DataFrame.</p></li>
-<li><p><strong>partitions</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Number of partitions. Default is 100.</p></li>
+<li><p><strong>partitions</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Number of partitions. Default is 100.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -9099,7 +9099,7 @@ slashes/spaces with underscores.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>DataFrame</em>) – Input Spark DataFrame.</p></li>
-<li><p><strong>table_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name for the temporary view.</p></li>
+<li><p><strong>table_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name for the temporary view.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -9120,7 +9120,7 @@ the rest of the pipeline more readable without changing semantics.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>pyspark.sql.DataFrame</em>) – Input DataFrame. Not mutated.</p></li>
-<li><p><strong>column_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the column to move to position 0. Must be present in
+<li><p><strong>column_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the column to move to position 0. Must be present in
 <code class="docutils literal notranslate"><span class="pre">df.columns</span></code> (raises <code class="docutils literal notranslate"><span class="pre">AnalysisException</span></code> from the underlying
 <code class="docutils literal notranslate"><span class="pre">select</span></code> otherwise).</p></li>
 </ul>
@@ -9145,8 +9145,8 @@ a side effect (for interactive inspection).</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>DataFrame</em>) – Input Spark DataFrame.</p></li>
-<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Output path.</p></li>
-<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Write mode. Defaults to “overwrite”.</p></li>
+<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Output path.</p></li>
+<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Write mode. Defaults to “overwrite”.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -9163,7 +9163,7 @@ a side effect (for interactive inspection).</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>spark</strong> (<em>SparkSession</em>) – Active Spark session.</p></li>
-<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to the Parquet file.</p></li>
+<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to the Parquet file.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -9184,15 +9184,15 @@ Has fallback mechanisms for corrupt JSON data.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>DataFrame</em>) – The input Spark DataFrame.</p></li>
-<li><p><strong>json_column</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The name of the column containing JSON strings.</p></li>
-<li><p><strong>prefix</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – Prefix to add to the flattened column names. Defaults to “<a href="#id1"><span class="problematic" id="id2">json_column_</span></a>”.</p></li>
+<li><p><strong>json_column</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The name of the column containing JSON strings.</p></li>
+<li><p><strong>prefix</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – Prefix to add to the flattened column names. Defaults to “<a href="#id1"><span class="problematic" id="id2">json_column_</span></a>”.</p></li>
 <li><p><strong>logger</strong> (<em>Optional</em><em>[</em><em>Any</em><em>]</em><em>, </em><em>optional</em>) – Logger object for logging messages. Defaults to None.</p></li>
-<li><p><strong>drop_original</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>optional</em>) – Whether to drop the original JSON column after flattening. Defaults to True.</p></li>
-<li><p><strong>explode_arrays</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>optional</em>) – Whether to explode array columns. Defaults to False.</p></li>
-<li><p><strong>flatten_level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – “shallow” or “deep” flattening. Defaults to “shallow”.</p></li>
-<li><p><strong>verbose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>optional</em>) – Controls whether to log detailed messages. Defaults to False.</p></li>
-<li><p><strong>sample_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Number of samples to check. Defaults to 5.</p></li>
-<li><p><strong>show_samples</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>optional</em>) – Whether to display sample data. Defaults to False.</p></li>
+<li><p><strong>drop_original</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>optional</em>) – Whether to drop the original JSON column after flattening. Defaults to True.</p></li>
+<li><p><strong>explode_arrays</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>optional</em>) – Whether to explode array columns. Defaults to False.</p></li>
+<li><p><strong>flatten_level</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – “shallow” or “deep” flattening. Defaults to “shallow”.</p></li>
+<li><p><strong>verbose</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>optional</em>) – Controls whether to log detailed messages. Defaults to False.</p></li>
+<li><p><strong>sample_size</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Number of samples to check. Defaults to 5.</p></li>
+<li><p><strong>show_samples</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>optional</em>) – Whether to display sample data. Defaults to False.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -9203,8 +9203,8 @@ Has fallback mechanisms for corrupt JSON data.</p>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If all JSON samples are corrupt and schema cannot be inferred.</p></li>
-<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#RuntimeError" title="(in Python v3.14)"><strong>RuntimeError</strong></a> – If Spark analysis fails and the fallback path also fails.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If all JSON samples are corrupt and schema cannot be inferred.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#RuntimeError" title="(in Python v3.14)"><strong>RuntimeError</strong></a> – If Spark analysis fails and the fallback path also fails.</p></li>
 </ul>
 </dd>
 </dl>
@@ -9216,12 +9216,12 @@ Has fallback mechanisms for corrupt JSON data.</p>
 <dd><p>Filters out rows with invalid geographic coordinates using string-based column names.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <em>lat_col_name</em> or <em>lon_col_name</em> is not in the DataFrame.</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <em>lat_col_name</em> or <em>lon_col_name</em> is not in the DataFrame.</p>
 </dd>
 <dt class="field-even">Parameters<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>lat_col_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>lon_col_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>lat_col_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>lon_col_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
 </ul>
 </dd>
 </dl>
@@ -9241,14 +9241,14 @@ each row with a True (valid) or False (invalid) value in the new output column.<
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>DataFrame</em>) – The Spark DataFrame containing geocode data.</p></li>
-<li><p><strong>lat_col_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The name of the latitude column.</p></li>
-<li><p><strong>lon_col_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The name of the longitude column.</p></li>
-<li><p><strong>output_col_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – The name of the output column to store the validity flag.
+<li><p><strong>lat_col_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The name of the latitude column.</p></li>
+<li><p><strong>lon_col_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The name of the longitude column.</p></li>
+<li><p><strong>output_col_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – The name of the output column to store the validity flag.
 Defaults to “is_valid”.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <em>lat_col_name</em> or <em>lon_col_name</em> is not in the DataFrame.</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <em>lat_col_name</em> or <em>lon_col_name</em> is not in the DataFrame.</p>
 </dd>
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>A new DataFrame with an additional column indicating geocode validity.</p>
@@ -9267,7 +9267,7 @@ Defaults to “is_valid”.</p></li>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>pyspark.sql.DataFrame</em>) – Input DataFrame containing a bounding-box string column.</p></li>
-<li><p><strong>bbox_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the string column holding the bbox. Each value is
+<li><p><strong>bbox_col</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the string column holding the bbox. Each value is
 expected to be a comma-separated list optionally wrapped in
 <code class="docutils literal notranslate"><span class="pre">[...]</span></code>, in the order:
 <code class="docutils literal notranslate"><span class="pre">min_latitude,</span> <span class="pre">max_latitude,</span> <span class="pre">min_longitude,</span> <span class="pre">max_longitude</span></code>.</p></li>
@@ -9320,13 +9320,13 @@ ST_Transform(geom, ‘source_srid’, ‘target_srid’)</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>DataFrame</em>) – Spark DataFrame containing the geometry columns.</p></li>
-<li><p><strong>geom_columns</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>) – List of column names (strings) to reproject.</p></li>
-<li><p><strong>source_srid</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The source CRS (e.g. “EPSG:4326”).</p></li>
-<li><p><strong>target_srid</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The target CRS (e.g. “EPSG:27700”).</p></li>
+<li><p><strong>geom_columns</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>) – List of column names (strings) to reproject.</p></li>
+<li><p><strong>source_srid</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The source CRS (e.g. “EPSG:4326”).</p></li>
+<li><p><strong>target_srid</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The target CRS (e.g. “EPSG:27700”).</p></li>
 </ul>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <em>source_srid</em> or <em>target_srid</em> is not a valid EPSG identifier.</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <em>source_srid</em> or <em>target_srid</em> is not a valid EPSG identifier.</p>
 </dd>
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>The DataFrame with each specified geometry column conditionally reprojected.</p>
@@ -9377,7 +9377,7 @@ Prevents type merging errors by ensuring all values are strings.</p>
 </ul>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#RuntimeError" title="(in Python v3.14)"><strong>RuntimeError</strong></a> – If no active Spark session is found.</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#RuntimeError" title="(in Python v3.14)"><strong>RuntimeError</strong></a> – If no active Spark session is found.</p>
 </dd>
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Spark DataFrame with all string columns</p>
@@ -9393,8 +9393,8 @@ Prevents type merging errors by ensuring all values are strings.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>spark_df</strong> (<em>pyspark.sql.DataFrame</em>) – The PySpark DataFrame to export.</p></li>
-<li><p><strong>file_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The name of the output Excel file.</p></li>
-<li><p><strong>sheet_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The sheet name in the Excel file.</p></li>
+<li><p><strong>file_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The name of the output Excel file.</p></li>
+<li><p><strong>sheet_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The sheet name in the Excel file.</p></li>
 </ul>
 </dd>
 </dl>
@@ -9417,7 +9417,7 @@ The pivot table includes three metrics:</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>DataFrame</em>) – The source Spark DataFrame.</p></li>
-<li><p><strong>columns</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>) – List of column names (assumed to be boolean flags) to summarize.</p></li>
+<li><p><strong>columns</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>) – List of column names (assumed to be boolean flags) to summarize.</p></li>
 <li><p><strong>spark</strong> (<em>SparkSession</em>) – The active Spark session.</p></li>
 </ul>
 </dd>
@@ -9439,9 +9439,9 @@ including rows for “Count”, “Percentage (%)”, and “Total” for each g
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>DataFrame</em>) – The source Spark DataFrame.</p></li>
-<li><p><strong>group_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>) – The column name (or list of column names) used for grouping.
+<li><p><strong>group_col</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>) – The column name (or list of column names) used for grouping.
 For example, “geocode_granularity” or [“state”, “region”].</p></li>
-<li><p><strong>pivot_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The categorical column to pivot on (e.g., “final_geocode_choice”).</p></li>
+<li><p><strong>pivot_col</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – The categorical column to pivot on (e.g., “final_geocode_choice”).</p></li>
 <li><p><strong>spark</strong> (<em>SparkSession</em>) – The active Spark session.</p></li>
 </ul>
 </dd>
@@ -9468,7 +9468,7 @@ The non-grouping columns represent each distinct pivot column value.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>None</em>) – Target DataFrame</p></li>
 <li><p><strong>write_path</strong> (<a class="reference internal" href="packages/conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>) – Pathlib object for export destination</p></li>
-<li><p><strong>delimiter</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – CSV delimiter (default is comma)</p></li>
+<li><p><strong>delimiter</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – CSV delimiter (default is comma)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -9490,7 +9490,7 @@ given <code class="docutils literal notranslate"><span class="pre">title</span><
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>spark_df</strong> (<em>pyspark.sql.DataFrame</em>) – DataFrame to display. Should be small enough to fit in driver
 memory (calls <code class="docutils literal notranslate"><span class="pre">.toPandas()</span></code> internally).</p></li>
-<li><p><strong>title</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Header line printed before the table.</p></li>
+<li><p><strong>title</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Header line printed before the table.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -9500,7 +9500,7 @@ memory (calls <code class="docutils literal notranslate"><span class="pre">.toPa
 <dd class="field-odd"><p>None</p>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ImportError" title="(in Python v3.14)"><strong>ImportError</strong></a> – If the optional <code class="docutils literal notranslate"><span class="pre">tabulate</span></code> dependency is not installed. The
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ImportError" title="(in Python v3.14)"><strong>ImportError</strong></a> – If the optional <code class="docutils literal notranslate"><span class="pre">tabulate</span></code> dependency is not installed. The
     error message names the <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span></code> command that unblocks
     the call site.</p>
 </dd>
@@ -9521,7 +9521,7 @@ Returns a <code class="docutils literal notranslate"><span class="pre">{&quot;gr
 audit / per-deployment tweaking.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>] | None</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>] | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9552,7 +9552,7 @@ be inspected after the run.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>pyspark.sql.DataFrame</em>) – DataFrame to snapshot. Wide/deep frames are written in full —
 do not use on frames larger than debug-storage budget.</p></li>
-<li><p><strong>step_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Human-readable label used to build the output directory name.
+<li><p><strong>step_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Human-readable label used to build the output directory name.
 Ensure uniqueness across steps in the same run.</p></li>
 </ul>
 </dd>
@@ -9578,19 +9578,19 @@ untouched — no partial/corrupted files ever appear at the target.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>df</strong> (<em>pyspark.sql.DataFrame</em>) – DataFrame to write.</p></li>
-<li><p><strong>final_destination</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Target path where the completed output should live. Must be
+<li><p><strong>final_destination</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Target path where the completed output should live. Must be
 empty or absent (unless <code class="docutils literal notranslate"><span class="pre">mode='overwrite'</span></code>).</p></li>
-<li><p><strong>staging_directory</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Working directory where the write happens before the atomic
+<li><p><strong>staging_directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Working directory where the write happens before the atomic
 move. Recommended: build via
 <a class="reference internal" href="#siege_utilities.distributed.spark_utils.create_unique_staging_directory" title="siege_utilities.distributed.spark_utils.create_unique_staging_directory"><code class="xref py py-func docutils literal notranslate"><span class="pre">create_unique_staging_directory()</span></code></a> to avoid concurrent
 collisions. Removed on success and on failure.</p></li>
-<li><p><strong>file_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Output format. Currently supports <code class="docutils literal notranslate"><span class="pre">'csv'</span></code> and <code class="docutils literal notranslate"><span class="pre">'parquet'</span></code>;
+<li><p><strong>file_format</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Output format. Currently supports <code class="docutils literal notranslate"><span class="pre">'csv'</span></code> and <code class="docutils literal notranslate"><span class="pre">'parquet'</span></code>;
 defaults to <code class="docutils literal notranslate"><span class="pre">'csv'</span></code>.</p></li>
-<li><p><strong>delimiter</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Field delimiter for CSV output. Ignored for parquet. Defaults
+<li><p><strong>delimiter</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Field delimiter for CSV output. Ignored for parquet. Defaults
 to <code class="docutils literal notranslate"><span class="pre">','</span></code>.</p></li>
-<li><p><strong>header</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Include header row in CSV output. Ignored for parquet.
+<li><p><strong>header</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Include header row in CSV output. Ignored for parquet.
 Defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
-<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Spark write mode passed to <code class="docutils literal notranslate"><span class="pre">df.write.mode(...)</span></code>. Defaults to
+<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Spark write mode passed to <code class="docutils literal notranslate"><span class="pre">df.write.mode(...)</span></code>. Defaults to
 <code class="docutils literal notranslate"><span class="pre">'overwrite'</span></code>.</p></li>
 </ul>
 </dd>
@@ -9601,7 +9601,7 @@ Defaults to <code class="docutils literal notranslate"><span class="pre">True</s
 <dd class="field-odd"><p>None</p>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#RuntimeError" title="(in Python v3.14)"><strong>RuntimeError</strong></a> – Wrapped from any exception during the staging write or the
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#RuntimeError" title="(in Python v3.14)"><strong>RuntimeError</strong></a> – Wrapped from any exception during the staging write or the
     atomic move. Original cause is preserved via <code class="docutils literal notranslate"><span class="pre">raise</span> <span class="pre">...</span> <span class="pre">from</span>
 &#160;&#160;&#160; <span class="pre">e</span></code>.</p>
 </dd>
@@ -9615,9 +9615,9 @@ Defaults to <code class="docutils literal notranslate"><span class="pre">True</s
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>base_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><a class="reference internal" href="packages/conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>pathlib.Path</em></a>) – Parent directory under which the staging directory is created.
+<li><p><strong>base_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><a class="reference internal" href="packages/conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>pathlib.Path</em></a>) – Parent directory under which the staging directory is created.
 Must be writable.</p></li>
-<li><p><strong>operation_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Human-readable label included in the directory name so concurrent
+<li><p><strong>operation_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Human-readable label included in the directory name so concurrent
 operations remain distinguishable in logs. Defaults to
 <code class="docutils literal notranslate"><span class="pre">'operation'</span></code>.</p></li>
 </ul>
@@ -9628,7 +9628,7 @@ has the shape <code class="docutils literal notranslate"><span class="pre">{base
 and is guaranteed unique.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
 </dd>
 </dl>
 <p class="rubric">Notes</p>

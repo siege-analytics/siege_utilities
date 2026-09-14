@@ -9040,7 +9040,7 @@ different schemas / tables.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="siege_utilities.schema.MigrationRunner">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.schema.</span></span><span class="sig-name descname"><span class="pre">MigrationRunner</span></span><a class="reference internal" href="../_modules/siege_utilities/schema/migration_runner.html#MigrationRunner"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.schema.MigrationRunner" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Apply versioned SQL migrations to a PostgreSQL database.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -9056,8 +9056,8 @@ identifier. Defaults to <code class="docutils literal notranslate"><span class="
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#RuntimeError" title="(in Python v3.14)"><strong>RuntimeError</strong></a> – if psycopg is not installed.</p></li>
-<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – if tracking_schema or tracking_table is not a valid
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#RuntimeError" title="(in Python v3.14)"><strong>RuntimeError</strong></a> – if psycopg is not installed.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – if tracking_schema or tracking_table is not a valid
     SQL identifier.</p></li>
 </ul>
 </dd>
@@ -9068,10 +9068,10 @@ identifier. Defaults to <code class="docutils literal notranslate"><span class="
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>dsn</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>migrations_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p></li>
-<li><p><strong>tracking_schema</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>tracking_table</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>dsn</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>migrations_dir</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p></li>
+<li><p><strong>tracking_schema</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>tracking_table</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -9088,7 +9088,7 @@ identifier. Defaults to <code class="docutils literal notranslate"><span class="
 if the directory is missing; returns <code class="docutils literal notranslate"><span class="pre">[]</span></code> if it’s empty.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.MigrationFile" title="siege_utilities.schema.migration_runner.MigrationFile"><em>MigrationFile</em></a>]</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.MigrationFile" title="siege_utilities.schema.migration_runner.MigrationFile"><em>MigrationFile</em></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9100,7 +9100,7 @@ if the directory is missing; returns <code class="docutils literal notranslate">
 <p>If the tracking table doesn’t exist yet, returns an empty list.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.AppliedMigration" title="siege_utilities.schema.migration_runner.AppliedMigration"><em>AppliedMigration</em></a>]</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.AppliedMigration" title="siege_utilities.schema.migration_runner.AppliedMigration"><em>AppliedMigration</em></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9114,7 +9114,7 @@ which typically indicate a concerning drift between the DB and the
 code.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference internal" href="#siege_utilities.schema.migration_runner.MigrationStatus" title="siege_utilities.schema.migration_runner.MigrationStatus"><em>MigrationStatus</em></a>]]</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference internal" href="#siege_utilities.schema.migration_runner.MigrationStatus" title="siege_utilities.schema.migration_runner.MigrationStatus"><em>MigrationStatus</em></a>]]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9125,7 +9125,7 @@ code.</p>
 <dd><p>Return migrations on disk that are not in the tracking table.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.PendingMigration" title="siege_utilities.schema.migration_runner.PendingMigration"><em>PendingMigration</em></a>]</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.PendingMigration" title="siege_utilities.schema.migration_runner.PendingMigration"><em>PendingMigration</em></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9141,7 +9141,7 @@ warning that migration files have been edited after application —
 a correctness hazard.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>]]</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>]]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9153,14 +9153,14 @@ a correctness hazard.</p>
 <p>Returns the list of migrations that were applied during this call.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>_pending</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference internal" href="#siege_utilities.schema.migration_runner.PendingMigration" title="siege_utilities.schema.migration_runner.PendingMigration"><em>PendingMigration</em></a><em>] </em><em>| </em><em>None</em>) – Optional pre-discovered pending list. Pass the result of
+<dd class="field-odd"><p><strong>_pending</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference internal" href="#siege_utilities.schema.migration_runner.PendingMigration" title="siege_utilities.schema.migration_runner.PendingMigration"><em>PendingMigration</em></a><em>] </em><em>| </em><em>None</em>) – Optional pre-discovered pending list. Pass the result of
 a prior <code class="docutils literal notranslate"><span class="pre">pending_migrations()</span></code> call to let <code class="docutils literal notranslate"><span class="pre">_apply_one</span></code>’s
 divergence guard detect mid-flight file mutations. When
 <code class="docutils literal notranslate"><span class="pre">None</span></code> (the default), <code class="docutils literal notranslate"><span class="pre">pending_migrations()</span></code> is called
 internally. This parameter is primarily intended for testing.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.PendingMigration" title="siege_utilities.schema.migration_runner.PendingMigration"><em>PendingMigration</em></a>]</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.PendingMigration" title="siege_utilities.schema.migration_runner.PendingMigration"><em>PendingMigration</em></a>]</p>
 </dd>
 </dl>
 <p><strong>Concurrency:</strong> This method is intended for single-process use.
@@ -9181,10 +9181,10 @@ Raises <code class="docutils literal notranslate"><span class="pre">ValueError</
 <p><strong>Concurrency:</strong> Same single-process caveat as <a class="reference internal" href="#siege_utilities.schema.MigrationRunner.apply_all" title="siege_utilities.schema.MigrationRunner.apply_all"><code class="xref py py-meth docutils literal notranslate"><span class="pre">apply_all()</span></code></a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>target_version</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+<dd class="field-odd"><p><strong>target_version</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.PendingMigration" title="siege_utilities.schema.migration_runner.PendingMigration"><em>PendingMigration</em></a>]</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.PendingMigration" title="siege_utilities.schema.migration_runner.PendingMigration"><em>PendingMigration</em></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9194,16 +9194,16 @@ Raises <code class="docutils literal notranslate"><span class="pre">ValueError</
 <dl class="py class">
 <dt class="sig sig-object py" id="siege_utilities.schema.MigrationFile">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.schema.</span></span><span class="sig-name descname"><span class="pre">MigrationFile</span></span><a class="reference internal" href="../_modules/siege_utilities/schema/migration_runner.html#MigrationFile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.schema.MigrationFile" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>A migration file on disk.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.MigrationFile.version">
-<span class="sig-name descname"><span class="pre">version</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.MigrationFile.version" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">version</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.MigrationFile.version" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.MigrationFile.description">
-<span class="sig-name descname"><span class="pre">description</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.MigrationFile.description" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">description</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.MigrationFile.description" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -9213,12 +9213,12 @@ Raises <code class="docutils literal notranslate"><span class="pre">ValueError</
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.MigrationFile.sql_text">
-<span class="sig-name descname"><span class="pre">sql_text</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.MigrationFile.sql_text" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">sql_text</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.MigrationFile.sql_text" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.MigrationFile.checksum">
-<span class="sig-name descname"><span class="pre">checksum</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.MigrationFile.checksum" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">checksum</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.MigrationFile.checksum" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
@@ -9227,7 +9227,7 @@ Raises <code class="docutils literal notranslate"><span class="pre">ValueError</
 <dd><p>Parse <code class="docutils literal notranslate"><span class="pre">V&lt;version&gt;__&lt;description&gt;.sql</span></code> and load its SQL body.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If the filename does not match the expected pattern.</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If the filename does not match the expected pattern.</p>
 </dd>
 <dt class="field-even">Parameters<span class="colon">:</span></dt>
 <dd class="field-even"><p><strong>path</strong> (<a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p>
@@ -9244,11 +9244,11 @@ Raises <code class="docutils literal notranslate"><span class="pre">ValueError</
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>version</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>description</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>version</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>description</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
 <li><p><strong>path</strong> (<a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p></li>
-<li><p><strong>sql_text</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>checksum</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>sql_text</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>checksum</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -9279,21 +9279,21 @@ Raises <code class="docutils literal notranslate"><span class="pre">ValueError</
 <dl class="py class">
 <dt class="sig sig-object py" id="siege_utilities.schema.AppliedMigration">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.schema.</span></span><span class="sig-name descname"><span class="pre">AppliedMigration</span></span><a class="reference internal" href="../_modules/siege_utilities/schema/migration_runner.html#AppliedMigration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.schema.AppliedMigration" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>A migration row read from the tracking table.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.AppliedMigration.version">
-<span class="sig-name descname"><span class="pre">version</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.AppliedMigration.version" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">version</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.AppliedMigration.version" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.AppliedMigration.description">
-<span class="sig-name descname"><span class="pre">description</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.AppliedMigration.description" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">description</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.AppliedMigration.description" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.AppliedMigration.checksum">
-<span class="sig-name descname"><span class="pre">checksum</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.AppliedMigration.checksum" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">checksum</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.AppliedMigration.checksum" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -9307,9 +9307,9 @@ Raises <code class="docutils literal notranslate"><span class="pre">ValueError</
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>version</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>description</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>checksum</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>version</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>description</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>checksum</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
 <li><p><strong>applied_at</strong> (<a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.14)"><em>datetime</em></a>)</p></li>
 </ul>
 </dd>
@@ -9324,21 +9324,21 @@ Raises <code class="docutils literal notranslate"><span class="pre">ValueError</
 <dl class="py class">
 <dt class="sig sig-object py" id="siege_utilities.schema.PendingMigration">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.schema.</span></span><span class="sig-name descname"><span class="pre">PendingMigration</span></span><a class="reference internal" href="../_modules/siege_utilities/schema/migration_runner.html#PendingMigration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.schema.PendingMigration" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>A migration file that has not yet been applied to the database.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.PendingMigration.version">
-<span class="sig-name descname"><span class="pre">version</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.PendingMigration.version" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">version</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.PendingMigration.version" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.PendingMigration.description">
-<span class="sig-name descname"><span class="pre">description</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.PendingMigration.description" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">description</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.PendingMigration.description" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.PendingMigration.checksum">
-<span class="sig-name descname"><span class="pre">checksum</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.PendingMigration.checksum" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">checksum</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.PendingMigration.checksum" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -9352,9 +9352,9 @@ Raises <code class="docutils literal notranslate"><span class="pre">ValueError</
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>version</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>description</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>checksum</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>version</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>description</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>checksum</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
 <li><p><strong>path</strong> (<a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p></li>
 </ul>
 </dd>
@@ -9390,21 +9390,21 @@ migration. Consumers who need rollbacks should reach for a heavier tool.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="siege_utilities.schema.migration_runner.AppliedMigration">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.schema.migration_runner.</span></span><span class="sig-name descname"><span class="pre">AppliedMigration</span></span><a class="reference internal" href="../_modules/siege_utilities/schema/migration_runner.html#AppliedMigration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.schema.migration_runner.AppliedMigration" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>A migration row read from the tracking table.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.migration_runner.AppliedMigration.version">
-<span class="sig-name descname"><span class="pre">version</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.AppliedMigration.version" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">version</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.AppliedMigration.version" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.migration_runner.AppliedMigration.description">
-<span class="sig-name descname"><span class="pre">description</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.AppliedMigration.description" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">description</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.AppliedMigration.description" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.migration_runner.AppliedMigration.checksum">
-<span class="sig-name descname"><span class="pre">checksum</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.AppliedMigration.checksum" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">checksum</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.AppliedMigration.checksum" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -9418,9 +9418,9 @@ migration. Consumers who need rollbacks should reach for a heavier tool.</p>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>version</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>description</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>checksum</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>version</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>description</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>checksum</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
 <li><p><strong>applied_at</strong> (<a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.14)"><em>datetime</em></a>)</p></li>
 </ul>
 </dd>
@@ -9435,16 +9435,16 @@ migration. Consumers who need rollbacks should reach for a heavier tool.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="siege_utilities.schema.migration_runner.MigrationFile">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.schema.migration_runner.</span></span><span class="sig-name descname"><span class="pre">MigrationFile</span></span><a class="reference internal" href="../_modules/siege_utilities/schema/migration_runner.html#MigrationFile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.schema.migration_runner.MigrationFile" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>A migration file on disk.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.migration_runner.MigrationFile.version">
-<span class="sig-name descname"><span class="pre">version</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.MigrationFile.version" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">version</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.MigrationFile.version" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.migration_runner.MigrationFile.description">
-<span class="sig-name descname"><span class="pre">description</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.MigrationFile.description" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">description</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.MigrationFile.description" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -9454,12 +9454,12 @@ migration. Consumers who need rollbacks should reach for a heavier tool.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.migration_runner.MigrationFile.sql_text">
-<span class="sig-name descname"><span class="pre">sql_text</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.MigrationFile.sql_text" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">sql_text</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.MigrationFile.sql_text" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.migration_runner.MigrationFile.checksum">
-<span class="sig-name descname"><span class="pre">checksum</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.MigrationFile.checksum" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">checksum</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.MigrationFile.checksum" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
@@ -9468,7 +9468,7 @@ migration. Consumers who need rollbacks should reach for a heavier tool.</p>
 <dd><p>Parse <code class="docutils literal notranslate"><span class="pre">V&lt;version&gt;__&lt;description&gt;.sql</span></code> and load its SQL body.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If the filename does not match the expected pattern.</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If the filename does not match the expected pattern.</p>
 </dd>
 <dt class="field-even">Parameters<span class="colon">:</span></dt>
 <dd class="field-even"><p><strong>path</strong> (<a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p>
@@ -9485,11 +9485,11 @@ migration. Consumers who need rollbacks should reach for a heavier tool.</p>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>version</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>description</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>version</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>description</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
 <li><p><strong>path</strong> (<a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p></li>
-<li><p><strong>sql_text</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>checksum</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>sql_text</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>checksum</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -9503,7 +9503,7 @@ migration. Consumers who need rollbacks should reach for a heavier tool.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="siege_utilities.schema.migration_runner.MigrationRunner">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.schema.migration_runner.</span></span><span class="sig-name descname"><span class="pre">MigrationRunner</span></span><a class="reference internal" href="../_modules/siege_utilities/schema/migration_runner.html#MigrationRunner"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.schema.migration_runner.MigrationRunner" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Apply versioned SQL migrations to a PostgreSQL database.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -9519,8 +9519,8 @@ identifier. Defaults to <code class="docutils literal notranslate"><span class="
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#RuntimeError" title="(in Python v3.14)"><strong>RuntimeError</strong></a> – if psycopg is not installed.</p></li>
-<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – if tracking_schema or tracking_table is not a valid
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#RuntimeError" title="(in Python v3.14)"><strong>RuntimeError</strong></a> – if psycopg is not installed.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – if tracking_schema or tracking_table is not a valid
     SQL identifier.</p></li>
 </ul>
 </dd>
@@ -9531,10 +9531,10 @@ identifier. Defaults to <code class="docutils literal notranslate"><span class="
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>dsn</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>migrations_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p></li>
-<li><p><strong>tracking_schema</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>tracking_table</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>dsn</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>migrations_dir</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p></li>
+<li><p><strong>tracking_schema</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>tracking_table</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -9551,7 +9551,7 @@ identifier. Defaults to <code class="docutils literal notranslate"><span class="
 if the directory is missing; returns <code class="docutils literal notranslate"><span class="pre">[]</span></code> if it’s empty.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.MigrationFile" title="siege_utilities.schema.migration_runner.MigrationFile"><em>MigrationFile</em></a>]</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.MigrationFile" title="siege_utilities.schema.migration_runner.MigrationFile"><em>MigrationFile</em></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9563,7 +9563,7 @@ if the directory is missing; returns <code class="docutils literal notranslate">
 <p>If the tracking table doesn’t exist yet, returns an empty list.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.AppliedMigration" title="siege_utilities.schema.migration_runner.AppliedMigration"><em>AppliedMigration</em></a>]</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.AppliedMigration" title="siege_utilities.schema.migration_runner.AppliedMigration"><em>AppliedMigration</em></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9577,7 +9577,7 @@ which typically indicate a concerning drift between the DB and the
 code.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference internal" href="#siege_utilities.schema.migration_runner.MigrationStatus" title="siege_utilities.schema.migration_runner.MigrationStatus"><em>MigrationStatus</em></a>]]</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference internal" href="#siege_utilities.schema.migration_runner.MigrationStatus" title="siege_utilities.schema.migration_runner.MigrationStatus"><em>MigrationStatus</em></a>]]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9588,7 +9588,7 @@ code.</p>
 <dd><p>Return migrations on disk that are not in the tracking table.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.PendingMigration" title="siege_utilities.schema.migration_runner.PendingMigration"><em>PendingMigration</em></a>]</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.PendingMigration" title="siege_utilities.schema.migration_runner.PendingMigration"><em>PendingMigration</em></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9604,7 +9604,7 @@ warning that migration files have been edited after application —
 a correctness hazard.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>]]</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)">str</a>]]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9616,14 +9616,14 @@ a correctness hazard.</p>
 <p>Returns the list of migrations that were applied during this call.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>_pending</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference internal" href="#siege_utilities.schema.migration_runner.PendingMigration" title="siege_utilities.schema.migration_runner.PendingMigration"><em>PendingMigration</em></a><em>] </em><em>| </em><em>None</em>) – Optional pre-discovered pending list. Pass the result of
+<dd class="field-odd"><p><strong>_pending</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference internal" href="#siege_utilities.schema.migration_runner.PendingMigration" title="siege_utilities.schema.migration_runner.PendingMigration"><em>PendingMigration</em></a><em>] </em><em>| </em><em>None</em>) – Optional pre-discovered pending list. Pass the result of
 a prior <code class="docutils literal notranslate"><span class="pre">pending_migrations()</span></code> call to let <code class="docutils literal notranslate"><span class="pre">_apply_one</span></code>’s
 divergence guard detect mid-flight file mutations. When
 <code class="docutils literal notranslate"><span class="pre">None</span></code> (the default), <code class="docutils literal notranslate"><span class="pre">pending_migrations()</span></code> is called
 internally. This parameter is primarily intended for testing.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.PendingMigration" title="siege_utilities.schema.migration_runner.PendingMigration"><em>PendingMigration</em></a>]</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.PendingMigration" title="siege_utilities.schema.migration_runner.PendingMigration"><em>PendingMigration</em></a>]</p>
 </dd>
 </dl>
 <p><strong>Concurrency:</strong> This method is intended for single-process use.
@@ -9644,10 +9644,10 @@ Raises <code class="docutils literal notranslate"><span class="pre">ValueError</
 <p><strong>Concurrency:</strong> Same single-process caveat as <a class="reference internal" href="#siege_utilities.schema.migration_runner.MigrationRunner.apply_all" title="siege_utilities.schema.migration_runner.MigrationRunner.apply_all"><code class="xref py py-meth docutils literal notranslate"><span class="pre">apply_all()</span></code></a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>target_version</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+<dd class="field-odd"><p><strong>target_version</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.PendingMigration" title="siege_utilities.schema.migration_runner.PendingMigration"><em>PendingMigration</em></a>]</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference internal" href="#siege_utilities.schema.migration_runner.PendingMigration" title="siege_utilities.schema.migration_runner.PendingMigration"><em>PendingMigration</em></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9674,21 +9674,21 @@ Raises <code class="docutils literal notranslate"><span class="pre">ValueError</
 <dl class="py class">
 <dt class="sig sig-object py" id="siege_utilities.schema.migration_runner.PendingMigration">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.schema.migration_runner.</span></span><span class="sig-name descname"><span class="pre">PendingMigration</span></span><a class="reference internal" href="../_modules/siege_utilities/schema/migration_runner.html#PendingMigration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.schema.migration_runner.PendingMigration" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>A migration file that has not yet been applied to the database.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.migration_runner.PendingMigration.version">
-<span class="sig-name descname"><span class="pre">version</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.PendingMigration.version" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">version</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.PendingMigration.version" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.migration_runner.PendingMigration.description">
-<span class="sig-name descname"><span class="pre">description</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.PendingMigration.description" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">description</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.PendingMigration.description" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.schema.migration_runner.PendingMigration.checksum">
-<span class="sig-name descname"><span class="pre">checksum</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.PendingMigration.checksum" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">checksum</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.schema.migration_runner.PendingMigration.checksum" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -9702,9 +9702,9 @@ Raises <code class="docutils literal notranslate"><span class="pre">ValueError</
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>version</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>description</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>checksum</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>version</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>description</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>checksum</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
 <li><p><strong>path</strong> (<a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p></li>
 </ul>
 </dd>

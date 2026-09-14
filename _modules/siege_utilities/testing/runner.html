@@ -9057,11 +9057,18 @@
 <span class="sd">        True if command succeeded, False otherwise</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; import siege_utilities</span>
-<span class="sd">        &gt;&gt;&gt; success = siege_utilities.run_command(</span>
+<span class="sd">        &gt;&gt;&gt; from siege_utilities.testing.runner import run_command</span>
+<span class="sd">        &gt;&gt;&gt; success = run_command(</span>
 <span class="sd">        &gt;&gt;&gt;     ["python", "-m", "pytest", "tests/"],</span>
 <span class="sd">        &gt;&gt;&gt;     "Running tests"</span>
 <span class="sd">        &gt;&gt;&gt; )</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        This testing helper is intentionally not the top-level</span>
+<span class="sd">        ``siege_utilities.run_command`` contract. The lazy top-level name</span>
+<span class="sd">        resolves to ``siege_utilities.files.operations.run_command`` for</span>
+<span class="sd">        backward compatibility, but remains outside ``siege_utilities.__all__``</span>
+<span class="sd">        because this testing helper has a different signature.</span>
 <span class="sd">    """</span>
     <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">\n</span><span class="si">{</span><span class="n">description</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
     <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Running: </span><span class="si">{</span><span class="s1">' '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>

@@ -9032,7 +9032,7 @@ per-district demographics).</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="siege_utilities.education.nces.NCESFiles">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.education.nces.</span></span><span class="sig-name descname"><span class="pre">NCESFiles</span></span><a class="reference internal" href="../_modules/siege_utilities/education/nces/files.html#NCESFiles"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.education.nces.NCESFiles" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Thin wrapper around NCES CCD + EDGE open data files.</p>
 <p>Loads (district directory + nonfiscal + finance) per school-year +
 (school directory + nonfiscal) per school-year + EDGE demographics
@@ -9050,7 +9050,7 @@ edge = files.load_edge_district_demographics(“2018-22”)</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>cache_dir</strong> (<a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a><em> | </em><em>None</em>)</p></li>
-<li><p><strong>timeout</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>timeout</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
 </ul>
 </dd>
 </dl>
@@ -9061,7 +9061,7 @@ edge = files.load_edge_district_demographics(“2018-22”)</p>
 <span class="sig-name descname"><span class="pre">load_ccd_directory</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">school_year</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/education/nces/files.html#NCESFiles.load_ccd_directory"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.education.nces.NCESFiles.load_ccd_directory" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.5)">pandas.DataFrame</a></p>
@@ -9074,7 +9074,7 @@ edge = files.load_edge_district_demographics(“2018-22”)</p>
 <span class="sig-name descname"><span class="pre">load_ccd_nonfiscal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">school_year</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/education/nces/files.html#NCESFiles.load_ccd_nonfiscal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.education.nces.NCESFiles.load_ccd_nonfiscal" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.5)">pandas.DataFrame</a></p>
@@ -9087,7 +9087,7 @@ edge = files.load_edge_district_demographics(“2018-22”)</p>
 <span class="sig-name descname"><span class="pre">load_ccd_finance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">school_year</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/education/nces/files.html#NCESFiles.load_ccd_finance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.education.nces.NCESFiles.load_ccd_finance" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.5)">pandas.DataFrame</a></p>
@@ -9100,7 +9100,7 @@ edge = files.load_edge_district_demographics(“2018-22”)</p>
 <span class="sig-name descname"><span class="pre">load_ccd_school_directory</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">school_year</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/education/nces/files.html#NCESFiles.load_ccd_school_directory"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.education.nces.NCESFiles.load_ccd_school_directory" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.5)">pandas.DataFrame</a></p>
@@ -9113,7 +9113,7 @@ edge = files.load_edge_district_demographics(“2018-22”)</p>
 <span class="sig-name descname"><span class="pre">load_ccd_school_nonfiscal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">school_year</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/education/nces/files.html#NCESFiles.load_ccd_school_nonfiscal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.education.nces.NCESFiles.load_ccd_school_nonfiscal" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.5)">pandas.DataFrame</a></p>
@@ -9130,7 +9130,7 @@ Returns a DataFrame with LEAID + the EDGE demographic variables.
 Unlike CCD files, EDGE is a direct CSV (no zip).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>acs_endpoint</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+<dd class="field-odd"><p><strong>acs_endpoint</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.5)">pandas.DataFrame</a></p>
@@ -9156,7 +9156,7 @@ Downstream consumers should <cite>from siege_utilities.education.nces import NCE
 <dl class="py class">
 <dt class="sig sig-object py" id="siege_utilities.education.nces.files.NCESFiles">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.education.nces.files.</span></span><span class="sig-name descname"><span class="pre">NCESFiles</span></span><a class="reference internal" href="../_modules/siege_utilities/education/nces/files.html#NCESFiles"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.education.nces.files.NCESFiles" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Thin wrapper around NCES CCD + EDGE open data files.</p>
 <p>Loads (district directory + nonfiscal + finance) per school-year +
 (school directory + nonfiscal) per school-year + EDGE demographics
@@ -9174,7 +9174,7 @@ edge = files.load_edge_district_demographics(“2018-22”)</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>cache_dir</strong> (<a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a><em> | </em><em>None</em>)</p></li>
-<li><p><strong>timeout</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>timeout</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
 </ul>
 </dd>
 </dl>
@@ -9185,7 +9185,7 @@ edge = files.load_edge_district_demographics(“2018-22”)</p>
 <span class="sig-name descname"><span class="pre">load_ccd_directory</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">school_year</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/education/nces/files.html#NCESFiles.load_ccd_directory"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.education.nces.files.NCESFiles.load_ccd_directory" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.5)">pandas.DataFrame</a></p>
@@ -9198,7 +9198,7 @@ edge = files.load_edge_district_demographics(“2018-22”)</p>
 <span class="sig-name descname"><span class="pre">load_ccd_nonfiscal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">school_year</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/education/nces/files.html#NCESFiles.load_ccd_nonfiscal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.education.nces.files.NCESFiles.load_ccd_nonfiscal" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.5)">pandas.DataFrame</a></p>
@@ -9211,7 +9211,7 @@ edge = files.load_edge_district_demographics(“2018-22”)</p>
 <span class="sig-name descname"><span class="pre">load_ccd_finance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">school_year</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/education/nces/files.html#NCESFiles.load_ccd_finance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.education.nces.files.NCESFiles.load_ccd_finance" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.5)">pandas.DataFrame</a></p>
@@ -9224,7 +9224,7 @@ edge = files.load_edge_district_demographics(“2018-22”)</p>
 <span class="sig-name descname"><span class="pre">load_ccd_school_directory</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">school_year</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/education/nces/files.html#NCESFiles.load_ccd_school_directory"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.education.nces.files.NCESFiles.load_ccd_school_directory" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.5)">pandas.DataFrame</a></p>
@@ -9237,7 +9237,7 @@ edge = files.load_edge_district_demographics(“2018-22”)</p>
 <span class="sig-name descname"><span class="pre">load_ccd_school_nonfiscal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">school_year</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/education/nces/files.html#NCESFiles.load_ccd_school_nonfiscal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.education.nces.files.NCESFiles.load_ccd_school_nonfiscal" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+<dd class="field-odd"><p><strong>school_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.5)">pandas.DataFrame</a></p>
@@ -9254,7 +9254,7 @@ Returns a DataFrame with LEAID + the EDGE demographic variables.
 Unlike CCD files, EDGE is a direct CSV (no zip).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>acs_endpoint</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+<dd class="field-odd"><p><strong>acs_endpoint</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.5)">pandas.DataFrame</a></p>
