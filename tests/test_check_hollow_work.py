@@ -44,7 +44,7 @@ class Resource:
     assert _findings(source) == []
 
 
-def test_mutable_mapping_update_noop_is_carved_out():
+def test_dummy_named_mapping_update_noop_is_carved_out():
     source = '''
 from collections.abc import MutableMapping
 
@@ -63,6 +63,40 @@ class NoopMapping(MutableMapping):
         pass
 '''
     assert _findings(source) == []
+
+
+def test_regular_mutable_mapping_update_noop_still_flags():
+    source = '''
+from collections.abc import MutableMapping
+
+class ReadOnlyMapping(MutableMapping):
+    def __getitem__(self, key):
+        raise KeyError(key)
+    def __setitem__(self, key, value):
+        raise TypeError("read only")
+    def __delitem__(self, key):
+        raise TypeError("read only")
+    def __iter__(self):
+        return iter(())
+    def __len__(self):
+        return 0
+    def update(self, other=None, **kwargs):
+        pass
+'''
+    findings = _findings(source)
+    assert len(findings) == 1
+    assert "def update() has pass-only body" in findings[0]
+
+
+def test_regular_dict_init_noop_still_flags():
+    source = '''
+class ReadOnlyDict(dict):
+    def __init__(self, *args, **kwargs):
+        pass
+'''
+    findings = _findings(source)
+    assert len(findings) == 1
+    assert "def __init__() has pass-only body" in findings[0]
 
 
 def test_django_appconfig_ready_noop_is_carved_out():
