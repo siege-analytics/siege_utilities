@@ -117,6 +117,7 @@ def place_polygons(
             f"place_polygons: code_col {code_col!r} not in gdf columns"
         )
     if algorithm in (Algorithm.FORCE_DIRECTED, Algorithm.ILP):
+        # #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.
         raise NotImplementedError(
             f"Algorithm {algorithm.value!r} is reserved for follow-up "
             "work (see ELE-2482). Use 'greedy', 'hungarian', or "
