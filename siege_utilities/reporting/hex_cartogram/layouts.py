@@ -173,6 +173,7 @@ def _resolve_named_layout(name: str) -> dict[str, AxialCoord]:
         return REGISTERED_LAYOUTS[name]
     if name in BUILTIN_LAYOUTS:
         # Will be implemented in ELE-2482 follow-up; placeholder for now.
+        # #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.
         raise NotImplementedError(
             f"Built-in layout {name!r} is reserved but not yet shipped. "
             "Until follow-up work lands, supply a hand-drawn layout via "

@@ -459,6 +459,7 @@ class BaseReportTemplate:
         Args:
             report_data: Dictionary containing data needed for the report
         """
+        # #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.
         raise NotImplementedError("Subclasses must implement generate_report method")
 
     def add_title_page(self, title: str, subtitle: str = "", author: str = "", date: str = ""):

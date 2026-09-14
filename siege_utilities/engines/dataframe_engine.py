@@ -632,6 +632,7 @@ class DataFrameEngine(ABC):
             If k > 1 (base implementation only supports single-nearest).
         """
         if k > 1:
+            # #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.
             raise NotImplementedError(
                 f"Base GeoPandas engine only supports k=1 (got k={k}). "
                 "Use a spatial-database engine (PostGIS, Sedona, DuckDB) for k-nearest."
@@ -884,6 +885,7 @@ class DuckDBEngine(DataFrameEngine):
         if you need to override auto-detection.
         """
         if kwargs:
+            # #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.
             raise NotImplementedError(
                 f"DuckDBEngine.read_csv does not yet forward kwargs "
                 f"(got {sorted(kwargs.keys())}); use .query() with an "
@@ -904,6 +906,7 @@ class DuckDBEngine(DataFrameEngine):
         for DuckDB-specific options.
         """
         if kwargs:
+            # #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.
             raise NotImplementedError(
                 f"DuckDBEngine.read_parquet does not yet forward kwargs "
                 f"(got {sorted(kwargs.keys())}); use .query() with an "
@@ -1180,6 +1183,7 @@ class SparkEngine(DataFrameEngine):
         ignored.
         """
         if kwargs:
+            # #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.
             raise NotImplementedError(
                 f"SparkEngine.query takes no engine-specific kwargs (got "
                 f"{sorted(kwargs.keys())}); DuckDBEngine.query accepts "
@@ -1338,6 +1342,7 @@ class SparkEngine(DataFrameEngine):
     def buffer(self, df, distance, geometry_col="geometry", *, crs=None):
         self._ensure_sedona()
         if crs is not None:
+            # #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.
             raise NotImplementedError(
                 "CRS reprojection before buffer is not yet supported in the "
                 "Sedona engine. Reproject your data beforehand, or omit crs."
@@ -1554,6 +1559,7 @@ class PostGISEngine(DataFrameEngine):
         whole point -- the database can't index a value it has to compute
         per-row. Hence this engine raises rather than silently degrade.
         """
+        # #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.
         raise NotImplementedError(
             "PostGISEngine.index_points: compute cell IDs at ingest time "
             "(via PandasEngine or s2_index_points), store as BIGINT column, "

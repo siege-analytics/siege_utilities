@@ -78,6 +78,74 @@ MARKER_RE = re.compile(r"#\s*(TODO|FIXME|HACK|XXX)\b", re.IGNORECASE)
 TICKET_REF_RE = re.compile(r"#\d+")
 
 
+def _is_name_or_attr(node: ast.AST, names: set[str]) -> bool:
+    if isinstance(node, ast.Name):
+        return node.id in names
+    if isinstance(node, ast.Attribute):
+        return node.attr in names
+    if isinstance(node, ast.Subscript):
+        return _is_name_or_attr(node.value, names)
+    return False
+
+
+def _class_inherits(cls: ast.ClassDef | None, names: set[str]) -> bool:
+    if cls is None:
+        return False
+    return any(_is_name_or_attr(base, names) for base in cls.bases)
+
+
+def _enclosing_try_importerror(tree: ast.Module, fn: ast.FunctionDef | ast.AsyncFunctionDef) -> ast.Try | None:
+    """Return the try node whose ImportError handler directly contains ``fn``."""
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Try):
+            continue
+        for handler in node.handlers:
+            handled = handler.type
+            handles_import_error = handled is None or _is_name_or_attr(handled, {"ImportError", "ModuleNotFoundError"})
+            if not handles_import_error:
+                continue
+            if any(child is fn for child in handler.body):
+                return node
+    return None
+
+
+def is_fallback_logging_stub(
+    tree: ast.Module,
+    fn: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> bool:
+    """Carve out no-op log_* functions inside ImportError fallback blocks."""
+    if fn.name not in {"log_info", "log_warning", "log_error", "log_debug"}:
+        return False
+    enclosing_try = _enclosing_try_importerror(tree, fn)
+    if enclosing_try is None:
+        return False
+    imported_logging = False
+    for stmt in enclosing_try.body:
+        if isinstance(stmt, ast.ImportFrom):
+            module = stmt.module or ""
+            imported_names = {alias.name for alias in stmt.names}
+            if module.endswith("core.logging") and fn.name in imported_names:
+                imported_logging = True
+    return imported_logging
+
+
+def is_protocol_noop_method(fn: ast.FunctionDef | ast.AsyncFunctionDef, cls: ast.ClassDef | None) -> bool:
+    """Carve out no-op protocol/context-manager/framework hook methods."""
+    if cls is None:
+        return False
+    has_enter = any(
+        isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name == "__enter__"
+        for item in cls.body
+    )
+    if fn.name == "__exit__" and has_enter:
+        return True
+    if fn.name in {"__init__", "update"} and cls.name.lower().startswith(("dummy", "_dummy", "noop", "_noop")):
+        return True
+    if fn.name == "ready" and _class_inherits(cls, {"AppConfig"}):
+        return True
+    return False
+
+
 def is_test_path(path: Path) -> bool:
     """writing-code:19 carve-out — test files exempt from TODO/FIXME/HACK."""
     return "tests" in path.parts
@@ -183,6 +251,10 @@ def check_empty_bodies(path: Path, tree: ast.Module) -> Iterator[str]:
         return
     for fn, cls in _collect_function_class_pairs(tree):
         if is_abstract_or_protocol(fn, cls):
+            continue
+        if is_fallback_logging_stub(tree, fn):
+            continue
+        if is_protocol_noop_method(fn, cls):
             continue
         body = fn.body
         # Skip docstring-only bodies

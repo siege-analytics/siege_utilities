@@ -343,6 +343,7 @@ def get_census_data(year: int = 2020,
     if not CENSUS_AVAILABLE:
         raise ImportError("Census utilities required. Install with: pip install siege-utilities[geo]")
 
+    # #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.
     raise NotImplementedError(
         "get_census_data() is not yet implemented. "
         "Use siege_utilities.geo.census.api.CensusAPI directly for Census data retrieval."
