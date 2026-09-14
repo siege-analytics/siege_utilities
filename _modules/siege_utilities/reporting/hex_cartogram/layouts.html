@@ -9193,6 +9193,7 @@
         <span class="k">return</span> <span class="n">REGISTERED_LAYOUTS</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
     <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">BUILTIN_LAYOUTS</span><span class="p">:</span>
         <span class="c1"># Will be implemented in ELE-2482 follow-up; placeholder for now.</span>
+        <span class="c1"># #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">"Built-in layout </span><span class="si">{</span><span class="n">name</span><span class="si">!r}</span><span class="s2"> is reserved but not yet shipped. "</span>
             <span class="s2">"Until follow-up work lands, supply a hand-drawn layout via "</span>

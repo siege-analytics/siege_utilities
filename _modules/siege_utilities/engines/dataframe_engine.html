@@ -9721,6 +9721,7 @@
 <span class="sd">            If k &gt; 1 (base implementation only supports single-nearest).</span>
 <span class="sd">        """</span>
         <span class="k">if</span> <span class="n">k</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">"Base GeoPandas engine only supports k=1 (got k=</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">). "</span>
                 <span class="s2">"Use a spatial-database engine (PostGIS, Sedona, DuckDB) for k-nearest."</span>
@@ -10024,6 +10025,7 @@
 <span class="sd">        if you need to override auto-detection.</span>
 <span class="sd">        """</span>
         <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="c1"># #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">"DuckDBEngine.read_csv does not yet forward kwargs "</span>
                 <span class="sa">f</span><span class="s2">"(got </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s2">); use .query() with an "</span>
@@ -10047,6 +10049,7 @@
 <span class="sd">        for DuckDB-specific options.</span>
 <span class="sd">        """</span>
         <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="c1"># #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">"DuckDBEngine.read_parquet does not yet forward kwargs "</span>
                 <span class="sa">f</span><span class="s2">"(got </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s2">); use .query() with an "</span>
@@ -10371,6 +10374,7 @@
 <span class="sd">        ignored.</span>
 <span class="sd">        """</span>
         <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="c1"># #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">"SparkEngine.query takes no engine-specific kwargs (got "</span>
                 <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s2">); DuckDBEngine.query accepts "</span>
@@ -10550,6 +10554,7 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">buffer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">distance</span><span class="p">,</span> <span class="n">geometry_col</span><span class="o">=</span><span class="s2">"geometry"</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_sedona</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">crs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
                 <span class="s2">"CRS reprojection before buffer is not yet supported in the "</span>
                 <span class="s2">"Sedona engine. Reproject your data beforehand, or omit crs."</span>
@@ -10793,6 +10798,7 @@
 <span class="sd">        whole point -- the database can't index a value it has to compute</span>
 <span class="sd">        per-row. Hence this engine raises rather than silently degrade.</span>
 <span class="sd">        """</span>
+        <span class="c1"># #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
             <span class="s2">"PostGISEngine.index_points: compute cell IDs at ingest time "</span>
             <span class="s2">"(via PandasEngine or s2_index_points), store as BIGINT column, "</span>

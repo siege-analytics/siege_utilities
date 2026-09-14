@@ -9370,6 +9370,7 @@
     <span class="k">if</span> <span class="ow">not</span> <span class="n">CENSUS_AVAILABLE</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s2">"Census utilities required. Install with: pip install siege-utilities[geo]"</span><span class="p">)</span>
 
+    <span class="c1"># #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.</span>
     <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
         <span class="s2">"get_census_data() is not yet implemented. "</span>
         <span class="s2">"Use siege_utilities.geo.census.api.CensusAPI directly for Census data retrieval."</span>

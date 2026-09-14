@@ -9136,6 +9136,7 @@
             <span class="sa">f</span><span class="s2">"place_polygons: code_col </span><span class="si">{</span><span class="n">code_col</span><span class="si">!r}</span><span class="s2"> not in gdf columns"</span>
         <span class="p">)</span>
     <span class="k">if</span> <span class="n">algorithm</span> <span class="ow">in</span> <span class="p">(</span><span class="n">Algorithm</span><span class="o">.</span><span class="n">FORCE_DIRECTED</span><span class="p">,</span> <span class="n">Algorithm</span><span class="o">.</span><span class="n">ILP</span><span class="p">):</span>
+        <span class="c1"># #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">"Algorithm </span><span class="si">{</span><span class="n">algorithm</span><span class="o">.</span><span class="n">value</span><span class="si">!r}</span><span class="s2"> is reserved for follow-up "</span>
             <span class="s2">"work (see ELE-2482). Use 'greedy', 'hungarian', or "</span>
