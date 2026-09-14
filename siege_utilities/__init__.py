@@ -569,10 +569,11 @@ __all__ = [
     'validate_download_url',
     'validate_state_fips',
     # reporting (26 symbols, batch 2)
-    # NOTE: `create_bivariate_choropleth` also exists in
-    # `siege_utilities.geo.choropleth` with a different (GeoDataFrame-based)
-    # signature. Top-level resolves to the reporting variant per
-    # `_LAZY_IMPORTS`. Reconciliation tracked at #1208.
+    # NOTE: `create_bivariate_choropleth` is intentionally the reporting
+    # helper at the top level. `siege_utilities.geo.choropleth` exports a
+    # GeoDataFrame-specific helper with the same name and a different
+    # signature; import that dialect/surface explicitly when geospatial
+    # bivariate maps are required. See #1208.
     'AnalyticsReportGenerator',
     'BaseReportTemplate',
     'ChartGenerator',
@@ -600,11 +601,13 @@ __all__ = [
     'get_report_output_directory',
     'import_branding_config',
     # databricks (18 symbols, batch 3)
-    # NOTE: `quote_ident` is a peer helper in
-    # `.databricks.lakehouse_federation` used by the two SQL builders
-    # below. Not promoted here because it is not currently in
-    # `_LAZY_IMPORTS` (audit only classifies lazy-registered symbols).
-    # Promotion decision deferred to #1210.
+    # NOTE: `quote_ident` is intentionally not a top-level symbol.
+    # Both `.databricks.lakehouse_federation` and `.trino.federation`
+    # export helpers with this name, but they implement different SQL
+    # dialect quoting rules (Databricks backticks vs Trino double quotes).
+    # Promoting either helper to `siege_utilities.quote_ident` would make
+    # the other dialect look accidentally canonical. Use the dialect module
+    # directly instead. See #1210.
     'build_databricks_run_url',
     'build_foreign_table_sql',
     'build_jdbc_url',

@@ -42,11 +42,18 @@ def run_command(cmd: List[str], description: str, log_file: Optional[str] = None
         True if command succeeded, False otherwise
 
     Example:
-        >>> import siege_utilities
-        >>> success = siege_utilities.run_command(
+        >>> from siege_utilities.testing.runner import run_command
+        >>> success = run_command(
         >>>     ["python", "-m", "pytest", "tests/"],
         >>>     "Running tests"
         >>> )
+
+    Note:
+        This testing helper is intentionally not the top-level
+        ``siege_utilities.run_command`` contract. The lazy top-level name
+        resolves to ``siege_utilities.files.operations.run_command`` for
+        backward compatibility, but remains outside ``siege_utilities.__all__``
+        because this testing helper has a different signature.
     """
     log_info(f"\n{description}")
     log_info(f"Running: {' '.join(cmd)}")
