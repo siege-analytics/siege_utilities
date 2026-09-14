@@ -229,11 +229,13 @@ class CensusTIGERBoundary(TemporalBoundary):
     @classmethod
     def get_geoid_length(cls) -> int:
         """Return the expected GEOID length for this geography type."""
+        # #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.
         raise NotImplementedError("Subclasses must implement get_geoid_length()")
 
     @classmethod
     def parse_geoid(cls, geoid: str) -> dict:
         """Parse a GEOID into its component parts."""
+        # #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.
         raise NotImplementedError("Subclasses must implement parse_geoid()")
 
 

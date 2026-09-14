@@ -1135,6 +1135,7 @@ class SpatialDataSource:
     
     def download_data(self, **kwargs) -> Optional[GeoDataFrame]:
         """Download data from the source."""
+        # #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.
         raise NotImplementedError("Subclasses must implement download_data")
 
 
