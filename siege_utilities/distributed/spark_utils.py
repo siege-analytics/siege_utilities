@@ -894,9 +894,13 @@ def validate_geometry(df, geom_col, step_name):
     """
     log_info(f'Validating geometry in step: {step_name} for column: {geom_col}'
         )
-    validation_df = df.select('postal_code', geom_col, F.expr(
-        f'typeof({geom_col})').alias('geometry_type'), F.expr(
-        f'ST_SRID({geom_col})').alias('srid'))
+    select_columns = []
+    if 'postal_code' in getattr(df, 'columns', []):
+        select_columns.append('postal_code')
+    select_columns.extend([geom_col, expr(
+        f'typeof({geom_col})').alias('geometry_type'), expr(
+        f'ST_SRID({geom_col})').alias('srid')])
+    validation_df = df.select(*select_columns)
     validation_df.show(10, truncate=False)
     log_info(f"Completed validation for '{geom_col}' in step: {step_name}")
     return df
