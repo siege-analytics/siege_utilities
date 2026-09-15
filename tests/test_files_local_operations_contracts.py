@@ -18,7 +18,9 @@ def test_file_exists_reports_existing_and_missing_paths(tmp_path):
     assert file_exists(tmp_path / "missing.txt") is False
 
 
-def test_copy_file_preserves_source_and_requires_overwrite_for_existing_destination(tmp_path):
+def test_copy_file_preserves_source_and_requires_overwrite(
+    tmp_path,
+):
     source = tmp_path / "source.txt"
     destination = tmp_path / "nested" / "copy.txt"
     source.write_text("first", encoding="utf-8")
@@ -33,10 +35,13 @@ def test_copy_file_preserves_source_and_requires_overwrite_for_existing_destinat
         copy_file(source, destination)
 
     copy_file(source, destination, overwrite=True)
+    assert source.read_text(encoding="utf-8") == "second"
     assert destination.read_text(encoding="utf-8") == "second"
 
 
-def test_move_file_moves_source_and_requires_overwrite_for_existing_destination(tmp_path):
+def test_move_file_moves_source_and_requires_overwrite(
+    tmp_path,
+):
     source = tmp_path / "source.txt"
     destination = tmp_path / "nested" / "moved.txt"
     source.write_text("payload", encoding="utf-8")
@@ -67,4 +72,5 @@ def test_hash_helpers_and_integrity_checks_use_requested_algorithm(tmp_path):
     assert get_file_hash(path) == expected_sha256
     assert get_file_hash(path, algorithm="md5") == expected_md5
     assert verify_file_integrity(path, expected_sha256) is True
+    assert verify_file_integrity(path, expected_md5, algorithm="md5") is True
     assert verify_file_integrity(path, "0" * 64) is False
