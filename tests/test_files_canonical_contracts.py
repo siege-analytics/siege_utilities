@@ -95,20 +95,26 @@ def test_download_file_with_retry_returns_after_retry_from_canonical_import(
             raise OSError("temporary disk/network failure")
         return str(local_filename)
 
+    sleep_calls = []
+
+    def fake_sleep(seconds):
+        sleep_calls.append(seconds)
+
     monkeypatch.setattr(remote, "download_file", flaky_download)
-    monkeypatch.setattr("time.sleep", lambda seconds: None)
+    monkeypatch.setattr("time.sleep", fake_sleep)
 
     result = download_file_with_retry(
         "https://example.test/retry.bin",
         tmp_path / "retry.bin",
         max_retries=2,
-        retry_delay=0,
+        retry_delay=3,
         timeout=5,
     )
 
     assert result.endswith("retry.bin")
     assert len(attempts) == 2
     assert attempts[1][2] == {"timeout": 5}
+    assert sleep_calls == [3]
 
 
 def test_get_file_info_and_is_downloadable_use_head_metadata(monkeypatch):
@@ -150,13 +156,21 @@ def test_is_downloadable_falls_back_to_get_when_head_has_no_size(monkeypatch):
             "content_type": "unknown",
         },
     )
-    monkeypatch.setattr(
-        remote.requests,
-        "get",
-        lambda *args, **kwargs: _Response(ok=True),
-    )
+    get_calls = []
+
+    def fake_get(*args, **kwargs):
+        get_calls.append((args, kwargs))
+        return _Response(ok=True)
+
+    monkeypatch.setattr(remote.requests, "get", fake_get)
 
     assert is_downloadable("https://example.test/stream", timeout=2) is True
+    assert get_calls == [
+        (
+            ("https://example.test/stream",),
+            {"stream": True, "timeout": 2},
+        )
+    ]
 
 
 def test_get_quick_file_signature_hashes_large_file_contract(tmp_path):
@@ -178,11 +192,17 @@ def test_get_quick_file_signature_hashes_large_file_contract(tmp_path):
 
 
 def test_run_command_uses_argv_execution_without_shell_from_canonical_import():
-    result = run_command(["echo", "canonical"], allow_list={"echo"})
+    list_result = run_command(["echo", "canonical"], allow_list={"echo"})
 
-    assert isinstance(result, subprocess.CompletedProcess)
-    assert result.returncode == 0
-    assert result.stdout.strip() == "canonical"
+    assert isinstance(list_result, subprocess.CompletedProcess)
+    assert list_result.returncode == 0
+    assert list_result.stdout.strip() == "canonical"
+
+    string_result = run_command("echo safe-string", allow_list={"echo"})
+
+    assert isinstance(string_result, subprocess.CompletedProcess)
+    assert string_result.returncode == 0
+    assert string_result.stdout.strip() == "safe-string"
 
 
 def test_run_command_rejects_unsafe_string_shell_metacharacters():
