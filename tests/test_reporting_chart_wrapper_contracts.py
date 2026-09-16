@@ -5,40 +5,8 @@ from siege_utilities import create_line_chart
 from siege_utilities import create_pie_chart
 from siege_utilities import generate_chart_from_dataframe
 
-
-class FakeChartGenerator:
-    instances = []
-
-    def __init__(self):
-        self.calls = []
-        FakeChartGenerator.instances.append(self)
-
-    def create_bar_chart(self, *args, **kwargs):
-        self.calls.append(("bar", args, kwargs))
-        return {"kind": "bar"}
-
-    def create_line_chart(self, *args, **kwargs):
-        self.calls.append(("line", args, kwargs))
-        return {"kind": "line"}
-
-    def create_pie_chart(self, *args, **kwargs):
-        self.calls.append(("pie", args, kwargs))
-        return {"kind": "pie"}
-
-    def generate_chart_from_dataframe(self, *args, **kwargs):
-        self.calls.append(("dataframe", args, kwargs))
-        return {"kind": "dataframe"}
-
-
-def install_fake_chart_generator(monkeypatch):
-    from siege_utilities.reporting import chart_generator
-
-    FakeChartGenerator.instances = []
-    monkeypatch.setattr(
-        chart_generator,
-        "ChartGenerator",
-        FakeChartGenerator,
-    )
+from tests.reporting_chart_support import FakeChartGenerator
+from tests.reporting_chart_support import install_fake_chart_generator
 
 
 def test_basic_chart_wrappers_delegate_dimensions_and_kwargs(monkeypatch):
