@@ -3,32 +3,8 @@
 from siege_utilities import create_dashboard
 from siege_utilities import create_dataframe_summary_charts
 
-
-class FakeChartGenerator:
-    instances = []
-
-    def __init__(self):
-        self.calls = []
-        FakeChartGenerator.instances.append(self)
-
-    def create_dashboard(self, *args, **kwargs):
-        self.calls.append(("dashboard", args, kwargs))
-        return {"kind": "dashboard"}
-
-    def create_dataframe_summary_charts(self, *args, **kwargs):
-        self.calls.append(("summary", args, kwargs))
-        return {"kind": "summary"}
-
-
-def install_fake_chart_generator(monkeypatch):
-    from siege_utilities.reporting import chart_generator
-
-    FakeChartGenerator.instances = []
-    monkeypatch.setattr(
-        chart_generator,
-        "ChartGenerator",
-        FakeChartGenerator,
-    )
+from tests.reporting_chart_support import FakeChartGenerator
+from tests.reporting_chart_support import install_fake_chart_generator
 
 
 def test_create_dashboard_delegates_layout_dimensions_and_kwargs(monkeypatch):
