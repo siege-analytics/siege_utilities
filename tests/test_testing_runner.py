@@ -66,8 +66,17 @@ class TestRunCommand:
         result = run_command(["echo", "hello"], "Echo test", log_file="/tmp/test.log")
 
         assert result is True
-        # run_command opens the log file with an explicit utf-8 encoding.
-        mock_file.assert_called_once_with("/tmp/test.log", "w", encoding="utf-8")
+        # run_command opens the requested log file with an explicit utf-8
+        # encoding. Shared logging may also open its own configured file in
+        # this process, so assert the target call without requiring it to be
+        # the only global open() call.
+        target_calls = [
+            call_args
+            for call_args in mock_file.call_args_list
+            if call_args.args[:2] == ("/tmp/test.log", "w")
+        ]
+        assert len(target_calls) == 1
+        assert target_calls[0].kwargs == {"encoding": "utf-8"}
         handle = mock_file()
         assert handle.write.call_count == 2
 
