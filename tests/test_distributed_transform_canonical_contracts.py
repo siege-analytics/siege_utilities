@@ -68,8 +68,13 @@ class AggregatedFrame:
 
 
 class PivotSourceFrame:
+    def __init__(self):
+        self.grouped_frames = []
+
     def groupBy(self, *group_cols):
-        return Grouped(self, group_cols)
+        grouped = Grouped(self, group_cols)
+        self.grouped_frames.append(grouped)
+        return grouped
 
 
 class CreatedFrame:
@@ -123,31 +128,37 @@ def test_clean_and_reorder_bbox_builds_expected_derived_columns(monkeypatch):
     result = clean_and_reorder_bbox(frame, "bbox")
 
     assert result is frame
-    assert [name for name, _ in frame.with_columns] == [
-        "bbox_cleaned",
-        "bbox_split",
-        "bbox_min_lat",
-        "bbox_max_lat",
-        "bbox_min_lon",
-        "bbox_max_lon",
-        "bbox_reordered",
+    assert frame.with_columns == [
+        ("bbox_cleaned", "translate(bbox,[],)"),
+        ("bbox_split", "split(bbox_cleaned,,)"),
+        ("bbox_min_lat", "cast(bbox_split[0] as double)"),
+        ("bbox_max_lat", "cast(bbox_split[1] as double)"),
+        ("bbox_min_lon", "cast(bbox_split[2] as double)"),
+        ("bbox_max_lon", "cast(bbox_split[3] as double)"),
+        (
+            "bbox_reordered",
+            "array(bbox_min_lon,bbox_min_lat,bbox_max_lon,bbox_max_lat)",
+        ),
     ]
-    assert frame.with_columns[-1] == (
-        "bbox_reordered",
-        "array(bbox_min_lon,bbox_min_lat,bbox_max_lon,bbox_max_lat)",
-    )
 
 
 def test_pivot_summary_with_metrics_builds_count_percent_total_rows():
     spark = Spark()
+    source = PivotSourceFrame()
 
     result = pivot_summary_with_metrics(
-        PivotSourceFrame(),
+        source,
         "region",
         "category",
         spark,
     )
 
+    assert [grouped.group_cols for grouped in source.grouped_frames] == [
+        ("region",),
+        ("region",),
+    ]
+    assert source.grouped_frames[0].pivot_col == "category"
+    assert source.grouped_frames[1].pivot_col is None
     assert result is spark.created_frame
     assert spark.created_rows == [
         {"Metric": "Count", "A": 2.0, "B": 0.0, "region": "North"},
