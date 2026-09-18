@@ -176,7 +176,16 @@ def process_python_file(file_path):
         ImportError: If astor is not installed.
         OSError: If the file cannot be read or written.
     """
-    relative_path = file_path.relative_to(Path.cwd())
+    file_path = Path(file_path)
+    # relative_path is used only for a friendly log line and a module label;
+    # it must never abort real work. relative_to() raises when file_path is a
+    # relative path, lives outside cwd, or differs from cwd only by a symlink
+    # (e.g. macOS /var vs /private/var), so resolve both sides and fall back
+    # to the given path for display when it is not under the working dir.
+    try:
+        relative_path = file_path.resolve().relative_to(Path.cwd().resolve())
+    except ValueError:
+        relative_path = file_path
     log_info(f'\nProcessing {relative_path}')
 
     with open(file_path, 'r', encoding='utf-8') as f:

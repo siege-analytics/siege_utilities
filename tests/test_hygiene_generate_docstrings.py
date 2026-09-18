@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import textwrap
+from pathlib import Path
 
 import pytest
 
@@ -175,3 +176,45 @@ class TestProcessPythonFile:
         process_python_file(f)
         # Should not have been rewritten
         assert "already" in f.read_text()
+
+    def test_relative_path_in_cwd_does_not_raise(self, tmp_path, monkeypatch):
+        # Regression: process_python_file used file_path.relative_to(cwd) for a
+        # log label, which raised ValueError ("one path is relative and the
+        # other is absolute") for the natural call of passing a bare relative
+        # filename. A cosmetic display path must never abort real work.
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "rel.py").write_text(
+            'def g():\n    """has."""\n    return 1\n'
+        )
+        process_python_file(Path("rel.py"))
+        assert "has." in (tmp_path / "rel.py").read_text()
+
+    def test_absolute_path_outside_cwd_does_not_raise(
+        self, tmp_path, monkeypatch
+    ):
+        # Regression: an absolute path that is not under cwd raised ValueError
+        # ("not in the subpath of"). The documented contract accepts any file
+        # path, so processing a file outside the working directory must work.
+        work = tmp_path / "work"
+        work.mkdir()
+        monkeypatch.chdir(work)
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        target = elsewhere / "outside.py"
+        target.write_text('def h():\n    """has."""\n    return 1\n')
+        process_python_file(target)
+        assert "has." in target.read_text()
+
+    def test_adds_missing_docstring(self, tmp_path, monkeypatch):
+        # The primary contract: a function lacking a docstring gains one.
+        pytest.importorskip(
+            "astor",
+            reason="astor is required to rewrite source with new docstrings",
+        )
+        monkeypatch.chdir(tmp_path)
+        f = tmp_path / "needs.py"
+        f.write_text("def undocumented(value):\n    return value + 1\n")
+        process_python_file(f)
+        rewritten = f.read_text()
+        assert '"""' in rewritten
+        assert "Undocumented." in rewritten
