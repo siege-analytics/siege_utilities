@@ -102,6 +102,16 @@ def analyze_module(module, module_name: str) -> Dict[str, Any]:
     Returns:
         Dictionary containing module analysis
     """
+    return _analyze_module(module, module_name, set())
+
+
+def _analyze_module(module, module_name: str, seen: set) -> Dict[str, Any]:
+    """Recursive worker for :func:`analyze_module`.
+
+    ``seen`` carries the set of already-visited module names so a cyclic
+    module graph (siege_utilities submodules re-export one another) terminates
+    instead of recursing until ``RecursionError``.
+    """
     module_info = {
         "name": module_name,
         "path": getattr(module, '__file__', 'Unknown'),
@@ -111,6 +121,12 @@ def analyze_module(module, module_name: str) -> Dict[str, Any]:
         "class_count": 0,
         "submodules": {}
     }
+
+    module_id = getattr(module, "__name__", None) or module_name
+    if module_id in seen:
+        module_info["note"] = "already analyzed (cycle avoided)"
+        return module_info
+    seen.add(module_id)
 
     try:
         for item_name in dir(module):
@@ -130,7 +146,7 @@ def analyze_module(module, module_name: str) -> Dict[str, Any]:
                 elif inspect.ismodule(item) and hasattr(item, '__file__'):
                     # Only analyze submodules that are part of our package
                     if 'siege_utilities' in str(item.__file__):
-                        submodule_info = analyze_module(item, item_name)
+                        submodule_info = _analyze_module(item, item_name, seen)
                         module_info["submodules"][item_name] = submodule_info
 
     except (AttributeError, TypeError, ValueError, ImportError) as e:
