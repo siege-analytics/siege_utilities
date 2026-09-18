@@ -19,6 +19,7 @@ def _git(cwd, *args):
         check=True,
         capture_output=True,
         text=True,
+        timeout=30,
     )
 
 
