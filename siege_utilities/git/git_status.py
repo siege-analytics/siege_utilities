@@ -71,7 +71,15 @@ def get_repository_status(repo_path: str = ".") -> Dict[str, Union[str, int, boo
 
     # Get remote info
     try:
-        remote_url = run_git_command("config", "--get", "remote.origin.url", repo_path=repo_path)
+        remote_url = run_git_command(
+            "config",
+            "--get",
+            "remote.origin.url",
+            repo_path=repo_path,
+            check=False,
+        )
+        if remote_url == "":
+            remote_url = None
         upstream_branch = run_git_command("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}", repo_path=repo_path, check=False)
         if upstream_branch == "":
             upstream_branch = None
