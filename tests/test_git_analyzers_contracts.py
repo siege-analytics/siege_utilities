@@ -24,6 +24,7 @@ def _git(cwd, *args):
         check=True,
         capture_output=True,
         text=True,
+        timeout=30,
     )
 
 
@@ -116,8 +117,12 @@ def test_get_branch_info_includes_local_branches(demo_repo):
 def test_generate_branch_report_contains_branch_and_status(demo_repo):
     report = generate_branch_report(repo_path=str(demo_repo))
     assert "feature/demo" in report
-    # 2 commits ahead => in-development status text.
-    assert "IN DEVELOPMENT" in report
+    # 2 commits ahead => the exact status header line must say IN DEVELOPMENT
+    # (asserting the full line, not a bare substring, so a flipped status
+    # decision that leaves a stray "IN DEVELOPMENT" elsewhere is still caught).
+    assert "**Status**: **IN DEVELOPMENT**" in report
+    assert "**Status**: **READY FOR MERGE**" not in report
+    assert "**Ahead of main**: 2 commits" in report
     assert "refactor: clean gamma" in report
 
 
