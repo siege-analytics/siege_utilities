@@ -13,10 +13,12 @@ rather than a mock so the assertions verify the documented contract.
 
 import json
 import sys
+import types
 
 from siege_utilities import analyze_package_structure
 from siege_utilities import generate_architecture_diagram
 from siege_utilities import diagnose_environment
+from siege_utilities.development.architecture import analyze_module
 
 
 class TestAnalyzePackageStructure:
@@ -35,6 +37,24 @@ class TestAnalyzePackageStructure:
         structure = analyze_package_structure("no_such_package_xyz_123")
         assert "error" in structure
         assert "no_such_package_xyz_123" in structure["error"]
+
+    def test_analyze_module_breaks_reference_cycles(self):
+        # Regression: analyze_module recursed into every submodule with no
+        # visited set, so a cyclic module graph (siege_utilities submodules
+        # re-export one another) raised RecursionError once enough of the
+        # package was imported. A synthetic a <-> b cycle must terminate.
+        mod_a = types.ModuleType("siege_utilities._cycle_a")
+        mod_a.__file__ = "/pkg/siege_utilities/_cycle_a.py"
+        mod_b = types.ModuleType("siege_utilities._cycle_b")
+        mod_b.__file__ = "/pkg/siege_utilities/_cycle_b.py"
+        mod_a.b = mod_b
+        mod_b.a = mod_a
+
+        result = analyze_module(mod_a, "a")
+        assert "b" in result["submodules"]
+        # The edge back to 'a' is recorded as a broken cycle, not recursed.
+        back = result["submodules"]["b"]["submodules"]["a"]
+        assert back.get("note") == "already analyzed (cycle avoided)"
 
 
 class TestGenerateArchitectureDiagram:
