@@ -14,6 +14,7 @@ Covers:
 """
 
 import sys
+from datetime import datetime
 from unittest.mock import patch, MagicMock, mock_open
 
 from siege_utilities.testing.runner import (
@@ -21,9 +22,12 @@ from siege_utilities.testing.runner import (
     build_pytest_command,
     run_test_suite,
     quick_smoke_test,
-    get_test_report,
-    run_comprehensive_test,
 )
+
+# Root-import the canonical public exports so the per-symbol coverage scanner
+# credits direct coverage (they resolve to the same testing.runner functions).
+from siege_utilities import get_test_report
+from siege_utilities import run_comprehensive_test
 
 
 # ----------------------------------------------------------------
@@ -368,24 +372,50 @@ class TestGetTestReport:
         """Report has expected keys when everything succeeds."""
         mock_su = MagicMock()
         mock_su.get_system_info.return_value = {"python": "3.11"}
-        mock_su.diagnose_environment.return_value = True
+        mock_su.diagnose_environment.return_value = {"pydantic_v2": True}
+        mock_su.check_dependencies.return_value = {"pyspark": True}
+
+        with patch.dict("sys.modules", {"siege_utilities": mock_su}):
+            report = get_test_report()
+
+        # environment_healthy is a bool derived from the diagnostics dict
+        # (pydantic_v2 sentinel), not the raw dict; the full dict is retained.
+        assert report["environment_healthy"] is True
+        assert report["diagnostics"] == {"pydantic_v2": True}
+        assert report["smoke_test_passed"] is True
+        assert report["dependencies"] == {"pyspark": True}
+        assert report["system_info"] == {"python": "3.11"}
+        assert report["suggestions"] == []
+        # timestamp is a real ISO-8601 instant, not the working directory path.
+        assert "T" in report["timestamp"]
+        assert "/" not in report["timestamp"]
+        parsed = datetime.fromisoformat(report["timestamp"])
+        assert parsed.tzinfo is not None  # timezone-aware UTC
+
+    @patch("siege_utilities.testing.runner.quick_smoke_test")
+    def test_report_non_dict_diagnostics_falls_back_to_truthiness(
+        self, mock_smoke
+    ):
+        """If diagnose_environment yields a non-dict, health is bool(result)
+        and the value is still preserved under diagnostics."""
+        mock_smoke.return_value = True
+        mock_su = MagicMock()
+        mock_su.get_system_info.return_value = {}
+        mock_su.diagnose_environment.return_value = True  # non-dict
         mock_su.check_dependencies.return_value = {"pyspark": True}
 
         with patch.dict("sys.modules", {"siege_utilities": mock_su}):
             report = get_test_report()
 
         assert report["environment_healthy"] is True
-        assert report["smoke_test_passed"] is True
-        assert report["dependencies"] == {"pyspark": True}
-        assert report["system_info"] == {"python": "3.11"}
-        assert report["suggestions"] == []
+        assert report["diagnostics"] is True
 
     @patch("siege_utilities.testing.runner.quick_smoke_test", return_value=False)
     def test_report_unhealthy_environment(self, mock_smoke):
         """Report generates suggestions when environment is unhealthy."""
         mock_su = MagicMock()
         mock_su.get_system_info.return_value = {}
-        mock_su.diagnose_environment.return_value = False
+        mock_su.diagnose_environment.return_value = {"pydantic_v2": False}
         mock_su.check_dependencies.return_value = {"pyspark": False}
 
         with patch.dict("sys.modules", {"siege_utilities": mock_su}):
@@ -423,7 +453,7 @@ class TestRunComprehensiveTest:
     def test_all_pass(self, mock_smoke, mock_suite):
         """Returns True when environment, smoke, and suite all pass."""
         mock_su = MagicMock()
-        mock_su.diagnose_environment.return_value = True
+        mock_su.diagnose_environment.return_value = {"pydantic_v2": True}
         mock_su.check_dependencies.return_value = {"pyspark": True}
 
         with patch.dict("sys.modules", {"siege_utilities": mock_su}):
@@ -438,7 +468,7 @@ class TestRunComprehensiveTest:
     def test_smoke_failure_stops_early(self, mock_smoke, mock_suite):
         """Returns False immediately when smoke test fails."""
         mock_su = MagicMock()
-        mock_su.diagnose_environment.return_value = True
+        mock_su.diagnose_environment.return_value = {"pydantic_v2": True}
 
         with patch.dict("sys.modules", {"siege_utilities": mock_su}):
             result = run_comprehensive_test()
@@ -454,7 +484,7 @@ class TestRunComprehensiveTest:
         # smoke suite passes, unit suite fails
         mock_suite.side_effect = [True, False]
         mock_su = MagicMock()
-        mock_su.diagnose_environment.return_value = True
+        mock_su.diagnose_environment.return_value = {"pydantic_v2": True}
         mock_su.check_dependencies.return_value = {"pyspark": True}
 
         with patch.dict("sys.modules", {"siege_utilities": mock_su}):
@@ -467,7 +497,7 @@ class TestRunComprehensiveTest:
     def test_environment_diagnostics_failure(self, mock_smoke, mock_suite):
         """Returns False when environment diagnostics returns unhealthy."""
         mock_su = MagicMock()
-        mock_su.diagnose_environment.return_value = False
+        mock_su.diagnose_environment.return_value = {"pydantic_v2": False}
         mock_su.check_dependencies.return_value = {"pyspark": True}
 
         with patch.dict("sys.modules", {"siege_utilities": mock_su}):
@@ -494,7 +524,7 @@ class TestRunComprehensiveTest:
     def test_dependency_check_exception(self, mock_smoke, mock_suite):
         """Handles exception during dependency check gracefully."""
         mock_su = MagicMock()
-        mock_su.diagnose_environment.return_value = True
+        mock_su.diagnose_environment.return_value = {"pydantic_v2": True}
         mock_su.check_dependencies.side_effect = RuntimeError("deps broke")
 
         with patch.dict("sys.modules", {"siege_utilities": mock_su}):

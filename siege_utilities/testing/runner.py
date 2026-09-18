@@ -5,6 +5,7 @@ Provides functions for running different test suites with proper environment set
 
 import sys
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
@@ -330,8 +331,9 @@ def get_test_report() -> Dict[str, Any]:
         >>> print(f"Environment healthy: {report['environment_healthy']}")
     """
     report = {
-        'timestamp': str(Path.cwd()),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
         'environment_healthy': False,
+        'diagnostics': {},
         'smoke_test_passed': False,
         'dependencies': {},
         'system_info': {},
@@ -343,8 +345,18 @@ def get_test_report() -> Dict[str, Any]:
         import siege_utilities
         report['system_info'] = siege_utilities.get_system_info()
 
-        # Check environment health
-        report['environment_healthy'] = siege_utilities.diagnose_environment()
+        # Check environment health. diagnose_environment() returns a
+        # diagnostics dict, not a bool; keep the full dict and derive the
+        # boolean health flag from pydantic v2 availability (the sentinel the
+        # runtime guard in siege_utilities.runtime is built around). Guard for
+        # a non-dict result so lazy-resolution changes cannot break this.
+        diagnostics = siege_utilities.diagnose_environment()
+        report['diagnostics'] = diagnostics
+        if isinstance(diagnostics, dict):
+            report['environment_healthy'] = bool(
+                diagnostics.get('pydantic_v2'))
+        else:
+            report['environment_healthy'] = bool(diagnostics)
 
         # Run smoke test
         report['smoke_test_passed'] = quick_smoke_test()
@@ -391,7 +403,15 @@ def run_comprehensive_test() -> bool:
     log_info("\nStep 1: Environment Diagnostics")
     try:
         import siege_utilities
-        env_healthy = siege_utilities.diagnose_environment()
+        # diagnose_environment() returns a diagnostics dict; derive the health
+        # flag from pydantic v2 availability (the runtime guard's sentinel)
+        # rather than treating the truthy dict as a boolean. Guard for a
+        # non-dict result so lazy-resolution changes cannot break this.
+        diagnostics = siege_utilities.diagnose_environment()
+        if isinstance(diagnostics, dict):
+            env_healthy = bool(diagnostics.get('pydantic_v2'))
+        else:
+            env_healthy = bool(diagnostics)
         if not env_healthy:
             log_warning("Environment issues detected, but continuing...")
             all_passed = False
