@@ -399,8 +399,14 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
             flatten_level)
     if explode_arrays:
         try:
-            array_columns = [col_name for col_name, data_type in result_df.
-                dtypes if 'array' in data_type.lower()]
+            # Select genuine array columns by their top-level type. A
+            # substring match on the dtype string wrongly matches struct
+            # columns whose nested schema merely mentions an array (e.g. the
+            # intermediate parsed_json struct), which then fails explode().
+            array_columns = [
+                field.name for field in result_df.schema.fields
+                if isinstance(field.dataType, ArrayType)
+            ]
             for array_column in array_columns:
                 result_df = result_df.withColumn(array_column,
                     explode_outer(col(array_column)))
