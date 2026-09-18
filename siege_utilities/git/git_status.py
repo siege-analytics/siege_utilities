@@ -44,8 +44,13 @@ def get_repository_status(repo_path: str = ".") -> Dict[str, Union[str, int, boo
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
     is_detached = "HEAD" in current_branch
 
-    # Working directory status
-    status_output = run_git_command("status", "--porcelain", repo_path=repo_path)
+    # Working directory status. strip=False preserves the leading status
+    # column: `git status --porcelain` lines are "XY filename" where a
+    # worktree-only change begins with a space (" M file"); stripping would
+    # shift the first line's columns and miscount staged vs unstaged.
+    status_output = run_git_command(
+        "status", "--porcelain", repo_path=repo_path, strip=False
+    )
     status_lines = [line for line in status_output.split('\n') if line.strip()]
 
     # Count different types of changes
