@@ -327,7 +327,13 @@ def get_file_status(repo_path: str = ".") -> Dict[str, List[str]]:
         If the git status command fails.
     """
     try:
-        status_output = run_git_command("status", "--porcelain", repo_path=repo_path)
+        # strip=False preserves the leading status column: porcelain lines are
+        # "XY filename" where a worktree-only change starts with a space
+        # (" M file"); stripping would shift the first line's columns and both
+        # misclassify it and corrupt its filepath slice.
+        status_output = run_git_command(
+            "status", "--porcelain", repo_path=repo_path, strip=False
+        )
     except (GitError, RuntimeError) as exc:
         raise GitError(f"Could not retrieve file status: {exc}") from exc
 
