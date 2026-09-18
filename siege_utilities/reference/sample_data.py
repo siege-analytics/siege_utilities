@@ -59,6 +59,47 @@ if FAKER_AVAILABLE:
     faker_hi = Faker(['hi_IN'])  # Indian names
     faker_ar = Faker(['ar_SA'])  # Arabic names
 
+
+def _apportion(total: int, distribution: Dict[str, float]) -> Dict[str, int]:
+    """Allocate ``total`` items across weighted categories.
+
+    Uses the largest-remainder (Hamilton) method so the per-category counts
+    sum to exactly ``total`` instead of losing the fractional remainder to
+    ``int()`` truncation. Weights need not sum to 1; they are normalized, so
+    a partial custom distribution still produces ``total`` items.
+
+    Args:
+        total: Number of items to allocate (values <= 0 yield all zeros).
+        distribution: Mapping of category -> weight.
+
+    Returns:
+        Mapping of category -> integer count, summing to ``total``.
+    """
+    counts = {category: 0 for category in distribution}
+    weight_sum = sum(distribution.values())
+    if total <= 0 or weight_sum <= 0:
+        return counts
+
+    shares = {
+        category: total * (weight / weight_sum)
+        for category, weight in distribution.items()
+    }
+    for category, share in shares.items():
+        counts[category] = int(share)
+
+    remainder = total - sum(counts.values())
+    if remainder > 0:
+        by_frac = sorted(
+            distribution,
+            key=lambda category: shares[category] - int(shares[category]),
+            reverse=True,
+        )
+        for category in by_frac[:remainder]:
+            counts[category] += 1
+
+    return counts
+
+
 __all__ = [
     'HOUSING_LOCALE_PRESETS',
     'SAMPLE_DATASETS',
@@ -556,8 +597,9 @@ def generate_synthetic_population(demographics: Optional[Dict] = None,
     # Generate population based on demographics
     population_data = []
 
-    for ethnicity, percentage in demographics.items():
-        ethnic_count = int(size * percentage)
+    counts = _apportion(size, demographics)
+    for ethnicity in demographics:
+        ethnic_count = counts[ethnicity]
         if ethnic_count == 0:
             continue
 
@@ -635,8 +677,9 @@ def generate_synthetic_businesses(business_count: int = 500,
 
     businesses = []
 
-    for industry, percentage in industry_distribution.items():
-        industry_count = int(business_count * percentage)
+    counts = _apportion(business_count, industry_distribution)
+    for industry in industry_distribution:
+        industry_count = counts[industry]
         if industry_count == 0:
             continue
 
@@ -703,8 +746,9 @@ def generate_synthetic_housing(housing_count: int = 300,
 
     housing_units = []
 
-    for prop_type, percentage in property_types.items():
-        type_count = int(housing_count * percentage)
+    counts = _apportion(housing_count, property_types)
+    for prop_type in property_types:
+        type_count = counts[prop_type]
         if type_count == 0:
             continue
 
