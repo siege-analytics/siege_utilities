@@ -363,6 +363,7 @@ markers = [
     "requires_gdal: tests requiring GDAL libraries",
     "requires_spark: tests requiring PySpark",
     "integration: tests requiring network/API access",
+    "e2e: end-to-end tests chaining multiple public functions in a real flow",
     "smoke: quick validation tests for critical paths (no network, no GDAL)",
     "slow: tests that take >10s (network, large data)",
     "databricks: tests requiring Databricks runtime or SDK",
