@@ -72,8 +72,18 @@ def geopandas_to_spark(
             lambda geom: None if geom is None else geom.wkb_hex
         )
 
-    pdf[crs_column] = str(dataframe.crs) if dataframe.crs else None
-    return pandas_to_spark(pdf, spark=spark)
+    # The CRS is a single value for the whole frame. Append it as an
+    # explicitly string-typed literal column rather than assigning it into
+    # the pandas frame: when the CRS is None the column is all-null and
+    # Spark's type inference raises CANNOT_DETERMINE_TYPE (#1338).
+    from pyspark.sql.functions import lit
+    from pyspark.sql.types import StringType
+
+    crs_value = str(dataframe.crs) if dataframe.crs else None
+    if crs_column in pdf.columns:
+        pdf = pdf.drop(columns=[crs_column])
+    sdf = pandas_to_spark(pdf, spark=spark)
+    return sdf.withColumn(crs_column, lit(crs_value).cast(StringType()))
 
 
 def spark_to_geopandas(
