@@ -3,6 +3,7 @@ Test runner utilities for siege_utilities.
 Provides functions for running different test suites with proper environment setup.
 """
 
+import os
 import sys
 import subprocess
 from datetime import datetime, timezone
@@ -56,6 +57,23 @@ def run_command(cmd: List[str], description: str, log_file: Optional[str] = None
         backward compatibility, but remains outside ``siege_utilities.__all__``
         because this testing helper has a different signature.
     """
+    # Re-entrancy guard: spawning pytest from inside a running pytest re-runs
+    # the whole suite -- including the test that triggered the spawn -- which
+    # recurses combinatorially (run_comprehensive_test does exactly this via
+    # run_test_suite). Refuse only the pytest-spawn case when
+    # PYTEST_CURRENT_TEST is set; other subprocesses (pip install, etc.) are
+    # unaffected, and tests that mock run_command never reach this guard.
+    # (#1342)
+    if os.environ.get("PYTEST_CURRENT_TEST") and "pytest" in [
+        str(part) for part in cmd
+    ]:
+        log_error(
+            "Refusing to spawn pytest from within a running pytest "
+            "(PYTEST_CURRENT_TEST set): a nested suite re-runs the calling "
+            "test and recurses. Invoke the test runner from a shell or REPL."
+        )
+        return False
+
     log_info(f"\n{description}")
     log_info(f"Running: {' '.join(cmd)}")
     log_info("-" * 60)
