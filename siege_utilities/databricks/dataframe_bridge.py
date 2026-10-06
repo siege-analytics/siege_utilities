@@ -81,11 +81,17 @@ def spark_to_geopandas(
     geometry_column: str = "geometry",
     geometry_format: str = "wkt",
     crs: Optional[str] = None,
+    crs_column: str = "geometry_crs",
 ) -> Any:
     """
     Convert Spark DataFrame with serialized geometry into GeoPandas DataFrame.
 
     Supports WKT and WKB hex serialization formats.
+
+    The CRS that ``geopandas_to_spark`` preserves in ``crs_column`` (default
+    ``"geometry_crs"``) is restored automatically, so the round-trip keeps its
+    spatial reference. An explicit ``crs`` argument overrides the preserved
+    value, and the ``crs_column`` metadata column is dropped from the result.
     """
     try:
         import geopandas as gpd
@@ -110,4 +116,15 @@ def spark_to_geopandas(
             lambda value: None if value is None else wkb.loads(bytes.fromhex(value))
         )
 
-    return gpd.GeoDataFrame(pdf, geometry=geometry_column, crs=crs)
+    # Restore the CRS preserved by geopandas_to_spark. An explicit crs
+    # argument wins; otherwise fall back to the first non-null value in
+    # crs_column. The column is metadata, not data, so drop it either way.
+    effective_crs = crs
+    if crs_column in pdf.columns:
+        if effective_crs is None:
+            preserved = pdf[crs_column].dropna()
+            if not preserved.empty:
+                effective_crs = preserved.iloc[0]
+        pdf = pdf.drop(columns=[crs_column])
+
+    return gpd.GeoDataFrame(pdf, geometry=geometry_column, crs=effective_crs)
