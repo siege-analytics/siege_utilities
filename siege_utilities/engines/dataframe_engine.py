@@ -89,6 +89,17 @@ def _validate_agg_names(agg_dict: "Dict[str, str]", engine_name: str) -> None:
         )
 
 
+# The shared agg-name set uses the Spark/SQL spellings (avg, stddev, variance).
+# pandas-family engines (Pandas, DuckDB, PostGIS driver-side) call
+# DataFrame.agg, whose method names are mean, std, var. Map every shared name
+# to its pandas spelling before dispatch; names that already match pass through.
+_PANDAS_AGG_SPELLING = {"avg": "mean", "stddev": "std", "variance": "var"}
+
+
+def _normalise_pandas_aggs(agg_dict: "Dict[str, str]") -> "Dict[str, str]":
+    return {col: _PANDAS_AGG_SPELLING.get(fn, fn) for col, fn in agg_dict.items()}
+
+
 # ---------------------------------------------------------------------------
 # ABC
 # ---------------------------------------------------------------------------
@@ -771,9 +782,7 @@ class PandasEngine(DataFrameEngine):
         agg_dict: Dict[str, str],
     ) -> Any:
         _validate_agg_names(agg_dict, "PandasEngine")
-        # pandas accepts "mean" but not "avg"; normalise so the shared
-        # agg-name set is honored across engines.
-        normalised = {col: ("mean" if fn == "avg" else fn) for col, fn in agg_dict.items()}
+        normalised = _normalise_pandas_aggs(agg_dict)
         return df.groupby(list(group_cols)).agg(normalised).reset_index()
 
     def filter(self, df: Any, condition: Any) -> Any:
@@ -950,7 +959,7 @@ class DuckDBEngine(DataFrameEngine):
     ) -> Any:
         _validate_agg_names(agg_dict, "DuckDBEngine")
         import pandas as pd
-        normalised = {col: ("mean" if fn == "avg" else fn) for col, fn in agg_dict.items()}
+        normalised = _normalise_pandas_aggs(agg_dict)
         if isinstance(df, pd.DataFrame):
             return df.groupby(list(group_cols)).agg(normalised).reset_index()
         raise TypeError(
@@ -1648,7 +1657,7 @@ class PostGISEngine(DataFrameEngine):
         agg_dict: Dict[str, str],
     ) -> Any:
         _validate_agg_names(agg_dict, "PostGISEngine")
-        normalised = {col: ("mean" if fn == "avg" else fn) for col, fn in agg_dict.items()}
+        normalised = _normalise_pandas_aggs(agg_dict)
         return df.groupby(list(group_cols)).agg(normalised).reset_index()
 
     def filter(self, df: Any, condition: Any) -> Any:

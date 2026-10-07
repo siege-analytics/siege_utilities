@@ -283,10 +283,18 @@ def _normalize_boundaries_multi_year(
             )
             normalized[year] = normalized_df
         except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
-            log.warning(
-                f"  Could not normalize {year} data: {e}. Using original boundaries."
-            )
-            normalized[year] = df
+            # SU-1: do not fall back to the original-vintage frame. The caller
+            # merges these years to wide format and attaches target-year
+            # geometry, so a silent fallback would place source-vintage values
+            # on target-vintage boundaries with no failure signal. Fail loudly.
+            raise ValueError(
+                f"Failed to normalize {year} data from {source_boundary_year} "
+                f"to {target_boundary_year} boundaries: {e}. Returning the "
+                f"original frame would mix {source_boundary_year}-vintage values "
+                f"onto {target_boundary_year} geometry. Re-run without "
+                f"normalize_boundaries=True to keep each year on its own "
+                f"boundaries, or resolve the crosswalk failure."
+            ) from e
 
     return normalized
 
