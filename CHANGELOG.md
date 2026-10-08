@@ -18,7 +18,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `datadotworld` dependency is dropped from the `analytics` extra. Code importing
   these symbols must remove those imports. (C15/C16, #1358.)
 
+### Added
+
+- Python 3.13 is now a blocking CI gate (previously allowed to fail). The full
+  Linux suite passes on 3.13. Python 3.14 is tested as a non-blocking CI gate
+  while its recently released native stack stabilizes. (#1365.)
+
+### Changed
+
+- Capped `pandas>=2.0.0,<3.0` across every extra that declares pandas (data,
+  geo, reporting, analytics, survey, all; geo pins it explicitly because
+  geopandas pulls pandas transitively). pandas 3.0 makes
+  the default string dtype Arrow-backed, so `.str` operations dispatch into
+  `pyarrow.compute` and segfault on 3.13 with the current native stack. The cap
+  keeps strings on the stable backend; lift it once pandas 3.x + pyarrow string
+  interop is verified green on the CI matrix. (#1365.)
+
 ### Fixed
+
+- Docstring hygiene tool works on Python 3.14: it matches `ast.Constant` instead
+  of the removed `ast.Str` alias, and renders rewritten source with stdlib
+  `ast.unparse` rather than the unmaintained `astor` (which still reached for
+  `ast.Str` when rendering f-strings and raised `AttributeError` on 3.14). The
+  `astor` dependency is dropped from the dev extra (#1365).
+- EPSG:2163 round-trip property test compares the minimal angular longitude
+  difference, so the antimeridian (lon 180 emitted as -180 by newer PROJ) is no
+  longer read as a 360-degree drift (#1365).
 
 - Engine aggregation set honors advertised `stddev`/`variance` on the
   pandas-family engines (C17, #1359).

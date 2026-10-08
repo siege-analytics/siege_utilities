@@ -213,11 +213,12 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    # Allow 3.13 to fail without blocking PRs while we stabilize
-    continue-on-error: ${{ matrix.python-version == '3.13' }}
+    # 3.14 runs as a non-blocking gate while its recently released native stack
+    # (numba / apache-sedona / pyspark wheels) stabilizes. 3.11-3.13 block.
+    continue-on-error: ${{ matrix.python-version == '3.14' }}
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
 
     steps:
     - uses: actions/checkout@v4

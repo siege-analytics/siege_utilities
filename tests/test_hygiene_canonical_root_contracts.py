@@ -8,8 +8,6 @@ scanner (epic #1199) does not credit them. Exercise them through the root
 
 from pathlib import Path
 
-import pytest
-
 from siege_utilities import analyze_function_signature
 from siege_utilities import generate_docstring_template
 from siege_utilities import process_python_file
@@ -33,9 +31,7 @@ def test_generate_docstring_template_includes_name_and_example():
 
 
 def test_process_python_file_adds_missing_docstring(tmp_path, monkeypatch):
-    pytest.importorskip(
-        "astor", reason="astor is required to rewrite source with docstrings"
-    )
+    # Rewriting uses stdlib ast.unparse now (no astor), so no importorskip.
     monkeypatch.chdir(tmp_path)
     target = tmp_path / "needs.py"
     target.write_text("def undocumented(value):\n    return value + 1\n")
