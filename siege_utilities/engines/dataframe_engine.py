@@ -1436,12 +1436,33 @@ class SparkEngine(DataFrameEngine):
         """
         import pandas as pd
 
+        if len(gdf) == 0:
+            raise ValueError(
+                "Cannot convert an empty GeoDataFrame to Spark: there are no "
+                "rows to infer a schema from. Provide at least one row."
+            )
+
         attr_cols = [c for c in gdf.columns if c != geometry_col]
+        geoms = [(g.wkt if g is not None else None) for g in gdf[geometry_col]]
         pdf = pd.DataFrame({c: gdf[c].values for c in attr_cols})
-        pdf[geometry_col] = [
-            (g.wkt if g is not None else None) for g in gdf[geometry_col]
-        ]
-        return self._session.createDataFrame(pdf)
+
+        if any(v is not None for v in geoms):
+            pdf[geometry_col] = geoms
+            return self._session.createDataFrame(pdf)
+
+        # All geometries are null. Spark cannot infer the type of an all-null
+        # column, so build from the attribute columns and attach geometry as an
+        # explicitly-typed null StringType column (mirrors geopandas_to_spark's
+        # #1338 handling). Requires at least one attribute column.
+        if not attr_cols:
+            raise ValueError(
+                "Cannot convert a GeoDataFrame whose only column is an all-null "
+                "geometry: Spark has no column to infer a schema from."
+            )
+        from pyspark.sql.functions import lit
+        from pyspark.sql.types import StringType
+        sdf = self._session.createDataFrame(pdf)
+        return sdf.withColumn(geometry_col, lit(None).cast(StringType()))
 
     # -- Spatial overrides (Spark/Sedona native) ---------------------------
 

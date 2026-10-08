@@ -902,4 +902,17 @@ class LongitudinalAligner:
             extensive_variables=numeric_cols,
         )
 
-        return pd.DataFrame(result.data.drop(columns="geometry"))
+        out = result.data.drop(columns="geometry")
+        # interpolate_areal returns one row per target polygon in target order
+        # but drops non-geometry target columns, so the target GEOID is lost and
+        # the caller cannot key the normalized frame (it would silently align by
+        # position downstream). Re-attach the target GEOID; guard the positional
+        # alignment the backends guarantee.
+        if len(out) != len(target_boundaries):
+            raise RuntimeError(
+                f"Areal interpolation returned {len(out)} rows for "
+                f"{len(target_boundaries)} target polygons; cannot re-key "
+                f"{geoid_column}."
+            )
+        out.insert(0, geoid_column, target_boundaries["GEOID"].to_numpy())
+        return pd.DataFrame(out)

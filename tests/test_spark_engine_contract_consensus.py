@@ -85,3 +85,39 @@ def test_from_geodataframe_builds_spark_df_with_wkt():
     assert list(pdf["geometry"]) == ["POINT (0 0)", "POINT (1 1)"]
     # geometry serialized to WKT strings, not shapely objects
     assert all(isinstance(v, str) for v in pdf["geometry"])
+
+
+def test_from_geodataframe_rejects_empty():
+    """C7 edge: an empty GeoDataFrame has no rows for Spark to infer a schema."""
+    gpd = pytest.importorskip("geopandas")
+    eng = _sessionless_engine()
+    gdf = gpd.GeoDataFrame({"id": []}, geometry=[], crs="EPSG:4326")
+    with pytest.raises(ValueError, match="empty GeoDataFrame"):
+        eng.from_geodataframe(gdf)
+
+
+def test_from_geodataframe_types_all_null_geometry_explicitly(monkeypatch):
+    """C7 edge: all-null geometry cannot be inferred; type it as a null string
+    column instead of letting Spark raise CANNOT_DETERMINE_TYPE. pyspark's lit()
+    needs a live SparkContext, so it is stubbed to keep this JVM-free."""
+    gpd = pytest.importorskip("geopandas")
+    pytest.importorskip("pyspark")
+    import pyspark.sql.functions as F
+    monkeypatch.setattr(F, "lit", lambda *a, **k: MagicMock())
+
+    eng = _sessionless_engine()
+    captured = {}
+    base = MagicMock()
+
+    def _create(pdf):
+        captured["pdf"] = pdf
+        return base
+
+    eng._spark.createDataFrame = _create
+
+    gdf = gpd.GeoDataFrame({"id": [1, 2]}, geometry=[None, None], crs="EPSG:4326")
+    eng.from_geodataframe(gdf)
+    # geometry is NOT in the inferred pandas frame (would be all-null); it is
+    # attached via an explicitly-typed withColumn instead.
+    assert "geometry" not in captured["pdf"].columns
+    assert base.withColumn.called

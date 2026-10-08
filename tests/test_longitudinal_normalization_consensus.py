@@ -61,16 +61,49 @@ def test_normalization_success_uses_crosswalk_result(monkeypatch):
 
 
 def test_areal_fallback_imports_the_real_function_name():
-    """F13: the areal fallback imported a nonexistent areal_interpolate; the
-    real name is interpolate_areal, and the ImportError was rewritten as
-    misleading install advice. An import-name typo is inspection-detectable,
-    so an inspection test is appropriate here (writing-tests:6).
+    """F13 (name): the areal fallback imported a nonexistent areal_interpolate;
+    the real name is interpolate_areal. Cheap inspection guard (writing-tests:6,
+    import-name typo is inspection-detectable); the behavioral test below runs
+    the real backend.
     """
-    assert hasattr(mod.LongitudinalAligner, "_apply_areal_interpolation")
     src = inspect.getsource(mod.LongitudinalAligner._apply_areal_interpolation)
-    assert "interpolate_areal" in src, "areal fallback does not import the real name"
-    assert "import areal_interpolate" not in src, "the nonexistent name is back"
-
+    assert "interpolate_areal" in src and "import areal_interpolate" not in src
     from siege_utilities.geo.interpolation import areal
-    assert hasattr(areal, "interpolate_areal")
-    assert not hasattr(areal, "areal_interpolate")
+    assert hasattr(areal, "interpolate_areal") and not hasattr(areal, "areal_interpolate")
+
+
+def test_areal_fallback_preserves_target_geoids_behaviorally(monkeypatch):
+    """F13 (behavior): fixing the import reaches the real Tobler backend, which
+    drops non-geometry target columns. The fallback must re-attach the target
+    GEOID so align() does not report success with the identifiers lost.
+    """
+    gpd = pytest.importorskip("geopandas")
+    pytest.importorskip("tobler")
+    from shapely.geometry import box
+
+    # Source polygon (pop 100) fully covering two equal target polygons.
+    source = gpd.GeoDataFrame(
+        {"GEOID": ["S1"]}, geometry=[box(0, 0, 2, 1)], crs="EPSG:3857"
+    )
+    target = gpd.GeoDataFrame(
+        {"GEOID": ["T1", "T2"]},
+        geometry=[box(0, 0, 1, 1), box(1, 0, 2, 1)],
+        crs="EPSG:3857",
+    )
+
+    def _boundaries(year, geographic_level, state_fips, **kw):
+        return source.copy() if year == 2010 else target.copy()
+
+    monkeypatch.setattr(
+        "siege_utilities.geo.spatial_data.get_census_boundaries", _boundaries
+    )
+
+    aligner = mod.LongitudinalAligner(target_vintage=2020, geography="tract")
+    df = pd.DataFrame({"GEOID": ["S1"], "population": [100]})
+    out = aligner._apply_areal_interpolation(
+        df, source_year=2010, target_year=2020,
+        geography_level="tract", state_fips="06", geoid_column="GEOID",
+    )
+
+    assert list(out["GEOID"]) == ["T1", "T2"], "target GEOIDs were lost"
+    assert abs(out["population"].sum() - 100) < 1e-6, "population not conserved"

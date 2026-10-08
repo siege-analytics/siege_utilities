@@ -376,13 +376,19 @@ def _table_to_text(table) -> str:
     """
     import pandas as pd
 
+    def _render(df: "pd.DataFrame") -> str:
+        # Keep the index when it carries labels (e.g. metric names); drop only a
+        # plain positional RangeIndex so meaningful row labels are not lost.
+        keep_index = not isinstance(df.index, pd.RangeIndex)
+        return df.to_string(index=keep_index)
+
     if isinstance(table, pd.DataFrame):
-        return table.to_string(index=False)
+        return _render(table)
     to_df = getattr(table, "to_dataframe", None)
     if callable(to_df):
         df = to_df()
         if isinstance(df, pd.DataFrame):
-            return df.to_string(index=False)
+            return _render(df)
     return str(table)
 
 

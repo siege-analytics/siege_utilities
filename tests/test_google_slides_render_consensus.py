@@ -80,3 +80,23 @@ def test_report_raises_when_a_slide_fails(monkeypatch):
     arg = types.SimpleNamespace(headline="broken")
     with pytest.raises(RuntimeError, match="slides failed"):
         gs.create_report_from_arguments(client, "report", [arg])
+
+
+def test_table_rendering_preserves_meaningful_row_labels(monkeypatch):
+    """C8 (Codex): a table whose labels live in the index must not lose them."""
+    recorded = []
+    monkeypatch.setattr(gs, "add_blank_slide", lambda *a, **k: "slide-1")
+    monkeypatch.setattr(
+        gs, "create_textbox",
+        lambda client, pres, slide, text, **k: recorded.append(text),
+    )
+    monkeypatch.setattr(gs, "insert_image", lambda *a, **k: None)
+
+    table = pd.DataFrame({"value": [0.54, 0.61]}, index=["turnout", "support"])
+    argument = types.SimpleNamespace(
+        layout="side_by_side", headline="H", narrative="N",
+        base_note=None, source_note=None, map_figure=None, chart=None, table=table,
+    )
+    gs.create_argument_slide(object(), "pres-1", argument)
+    joined = "\n".join(recorded)
+    assert "turnout" in joined and "support" in joined, "row labels (index) were lost"
