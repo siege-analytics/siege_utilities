@@ -8,6 +8,8 @@ source-vintage values on target-vintage boundaries with no failure
 signal. The fix raises instead. These tests pin both the failure path
 (raises) and the success path (uses the crosswalk result).
 """
+import inspect
+
 import pandas as pd
 import pytest
 
@@ -56,3 +58,19 @@ def test_normalization_success_uses_crosswalk_result(monkeypatch):
     # target year passes through unchanged; source year is the crosswalk result
     assert out[2020].equals(_yearly()[2020])
     assert out[2015].equals(marker)
+
+
+def test_areal_fallback_imports_the_real_function_name():
+    """F13: the areal fallback imported a nonexistent areal_interpolate; the
+    real name is interpolate_areal, and the ImportError was rewritten as
+    misleading install advice. An import-name typo is inspection-detectable,
+    so an inspection test is appropriate here (writing-tests:6).
+    """
+    assert hasattr(mod.LongitudinalAligner, "_apply_areal_interpolation")
+    src = inspect.getsource(mod.LongitudinalAligner._apply_areal_interpolation)
+    assert "interpolate_areal" in src, "areal fallback does not import the real name"
+    assert "import areal_interpolate" not in src, "the nonexistent name is back"
+
+    from siege_utilities.geo.interpolation import areal
+    assert hasattr(areal, "interpolate_areal")
+    assert not hasattr(areal, "areal_interpolate")

@@ -151,7 +151,10 @@ def test_snowflake_live_connect_disconnect(api_credentials):
     c = SnowflakeConnector(**{k: creds.get(k) for k in (
         "account", "user", "password", "warehouse", "database", "schema", "role"
     )})
-    assert c.connect() is True
+    # connect() returns None and sets self.connection (C18 #1361): assert the
+    # real post-condition, not a truthy return the method never produces.
+    c.connect()
+    assert c.connection is not None
     try:
         result = c.execute_query("SELECT CURRENT_VERSION()")
         assert result and len(result) == 1

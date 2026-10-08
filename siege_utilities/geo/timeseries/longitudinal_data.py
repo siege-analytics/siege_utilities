@@ -864,7 +864,7 @@ class LongitudinalAligner:
     ) -> pd.DataFrame:
         """Fall back to areal interpolation when crosswalk is unavailable."""
         try:
-            from ..interpolation.areal import areal_interpolate
+            from ..interpolation.areal import interpolate_areal
             from ..spatial_data import get_census_boundaries
         except ImportError as exc:
             raise ImportError(
@@ -896,7 +896,7 @@ class LongitudinalAligner:
             if c != geoid_column and df[c].dtype.kind in ("i", "f")
         ]
 
-        result = areal_interpolate(
+        result = interpolate_areal(
             source_gdf=source_gdf,
             target_gdf=target_boundaries,
             extensive_variables=numeric_cols,
