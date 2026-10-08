@@ -8,8 +8,6 @@ scanner (epic #1199) does not credit them. Exercise them through the root
 
 from pathlib import Path
 
-import pytest
-
 from siege_utilities import analyze_function_signature
 from siege_utilities import generate_docstring_template
 from siege_utilities import process_python_file
