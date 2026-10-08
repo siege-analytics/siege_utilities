@@ -9,6 +9,7 @@ signal. The fix raises instead. These tests pin both the failure path
 (raises) and the success path (uses the crosswalk result).
 """
 import inspect
+import types
 
 import pandas as pd
 import pytest
@@ -106,4 +107,55 @@ def test_areal_fallback_preserves_target_geoids_behaviorally(monkeypatch):
     )
 
     assert list(out["GEOID"]) == ["T1", "T2"], "target GEOIDs were lost"
+    assert abs(out["population"].sum() - 100) < 1e-6, "population not conserved"
+
+
+def test_areal_fallback_handles_backend_that_retains_geoid(monkeypatch):
+    """F13-P2 (Codex re-check): the Tobler backend drops the target GEOID, but
+    the Shapely and DuckDB backends retain it. Re-keying by insert() collided
+    (`cannot insert GEOID, already exists`) on those backends, so align()
+    returned method="failed" with unchanged data. Keying by assignment must
+    tolerate a backend that already carries the column.
+    """
+    gpd = pytest.importorskip("geopandas")
+    from shapely.geometry import box
+
+    source = gpd.GeoDataFrame(
+        {"GEOID": ["S1"]}, geometry=[box(0, 0, 2, 1)], crs="EPSG:3857"
+    )
+    target = gpd.GeoDataFrame(
+        {"GEOID": ["T1", "T2"]},
+        geometry=[box(0, 0, 1, 1), box(1, 0, 2, 1)],
+        crs="EPSG:3857",
+    )
+
+    def _boundaries(year, geographic_level, state_fips, **kw):
+        return source.copy() if year == 2010 else target.copy()
+
+    monkeypatch.setattr(
+        "siege_utilities.geo.spatial_data.get_census_boundaries", _boundaries
+    )
+
+    # Simulate a GEOID-retaining backend (Shapely/DuckDB): the returned frame
+    # already carries GEOID in target order plus the interpolated value.
+    retained = gpd.GeoDataFrame(
+        {"GEOID": ["T1", "T2"], "population": [50.0, 50.0]},
+        geometry=[box(0, 0, 1, 1), box(1, 0, 2, 1)],
+        crs="EPSG:3857",
+    )
+    # Patched at the source module: _apply_areal_interpolation imports
+    # interpolate_areal in-function (from ..interpolation.areal import ...).
+    monkeypatch.setattr(
+        "siege_utilities.geo.interpolation.areal.interpolate_areal",
+        lambda **kw: types.SimpleNamespace(data=retained.copy()),
+    )
+
+    aligner = mod.LongitudinalAligner(target_vintage=2020, geography="tract")
+    df = pd.DataFrame({"GEOID": ["S1"], "population": [100]})
+    out = aligner._apply_areal_interpolation(
+        df, source_year=2010, target_year=2020,
+        geography_level="tract", state_fips="06", geoid_column="GEOID",
+    )
+
+    assert list(out["GEOID"]) == ["T1", "T2"], "target GEOIDs lost on retain backend"
     assert abs(out["population"].sum() - 100) < 1e-6, "population not conserved"

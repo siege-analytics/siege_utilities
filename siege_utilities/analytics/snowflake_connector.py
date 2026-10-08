@@ -295,15 +295,11 @@ class SnowflakeConnector:
                 self.cursor.execute(query, params)
             else:
                 self.cursor.execute(query)
-            # fetch_pandas_all is the supported cursor->DataFrame path when the
-            # pandas extra is installed; fall back to building from the cursor
-            # description so a non-arrow install still returns a real frame.
-            if hasattr(self.cursor, "fetch_pandas_all"):
-                df = self.cursor.fetch_pandas_all()
-            else:
-                rows = self.cursor.fetchall()
-                columns = [c[0] for c in (self.cursor.description or [])]
-                df = pd.DataFrame(rows, columns=columns)
+            # fetch_pandas_all is the connector's cursor->DataFrame path. It
+            # requires the pyarrow extra (snowflake-connector-python[pandas]);
+            # without it the call raises, caught below and surfaced as a clear
+            # RuntimeError rather than a partial frame.
+            df = self.cursor.fetch_pandas_all()
             log.info(f"Successfully downloaded {len(df)} rows as DataFrame")
             return df
 

@@ -903,16 +903,17 @@ class LongitudinalAligner:
         )
 
         out = result.data.drop(columns="geometry")
-        # interpolate_areal returns one row per target polygon in target order
-        # but drops non-geometry target columns, so the target GEOID is lost and
-        # the caller cannot key the normalized frame (it would silently align by
-        # position downstream). Re-attach the target GEOID; guard the positional
-        # alignment the backends guarantee.
+        # interpolate_areal returns one row per target polygon in target order.
+        # The Tobler backend drops non-geometry target columns (target GEOID
+        # lost); the Shapely and DuckDB backends retain it. Keying by assignment
+        # covers both: it creates the column when the backend dropped it and
+        # overwrites the retained column with the target GEOID in target order.
+        # The length guard pins the positional alignment all backends return.
         if len(out) != len(target_boundaries):
             raise RuntimeError(
                 f"Areal interpolation returned {len(out)} rows for "
                 f"{len(target_boundaries)} target polygons; cannot re-key "
                 f"{geoid_column}."
             )
-        out.insert(0, geoid_column, target_boundaries["GEOID"].to_numpy())
+        out[geoid_column] = target_boundaries["GEOID"].to_numpy()
         return pd.DataFrame(out)
