@@ -59,6 +59,9 @@ data = [
 ]
 # Geospatial (geopandas, shapely, pyproj, etc.)
 geo = [
+    # pandas is pulled transitively by geopandas; pin it here too so a
+    # geo-only install cannot resolve pandas 3.0 and hit the #1365 crash.
+    "pandas>=2.0.0,<3.0",
     "geopandas>=0.13.2",
     "shapely>=2.0.0,<3.0",
     "pyproj>=3.3.0",
@@ -239,7 +242,6 @@ dev = [
     "black>=21.0.0",
     "flake8>=3.8.0",
     "bandit>=1.7.0",
-    "astor>=0.8.1",
     "django>=4.2.0",
     "djangorestframework>=3.14.0",
     "djangorestframework-gis>=1.0.0",

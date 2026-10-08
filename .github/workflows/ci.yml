@@ -213,7 +213,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    # 3.14 runs as a non-blocking gate while its just-released native stack
+    # 3.14 runs as a non-blocking gate while its recently released native stack
     # (numba / apache-sedona / pyspark wheels) stabilizes. 3.11-3.13 block.
     continue-on-error: ${{ matrix.python-version == '3.14' }}
     strategy:

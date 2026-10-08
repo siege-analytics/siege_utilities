@@ -172,7 +172,6 @@ def process_python_file(file_path):
 
     Raises:
         SyntaxError: If the file has invalid Python syntax.
-        ImportError: If astor is not installed.
         OSError: If the file cannot be read or written.
     """
     file_path = Path(file_path)
@@ -196,8 +195,11 @@ def process_python_file(file_path):
     new_tree = transformer.visit(tree)
 
     if transformer.functions_processed > 0:
-        import astor
-        new_content = astor.to_source(new_tree)
+        # ast.unparse (stdlib, 3.9+) replaces the unmaintained astor package,
+        # which breaks on Python 3.14: astor still references the removed
+        # ast.Str/ast.Num aliases when rendering f-strings and other nodes.
+        ast.fix_missing_locations(new_tree)
+        new_content = ast.unparse(new_tree)
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(new_content)
         log_info(f'Updated {file_path}')
@@ -228,17 +230,10 @@ def main():
     """Process all Python files in siege_utilities to add missing docstrings.
 
     Raises:
-        ImportError: If astor is not installed.
         FileNotFoundError: If no Python files are found in the working directory.
     """
     log_info('Auto-generating docstrings for siege_utilities')
     log_info('=' * 60)
-    try:
-        import astor  # noqa: F401
-    except ImportError as e:
-        raise ImportError(
-            'Missing dependency: astor. Install with: pip install astor'
-        ) from e
     base_path = Path.cwd()
     python_files = find_python_files(base_path)
     if not python_files:

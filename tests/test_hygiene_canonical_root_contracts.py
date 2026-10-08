@@ -33,9 +33,7 @@ def test_generate_docstring_template_includes_name_and_example():
 
 
 def test_process_python_file_adds_missing_docstring(tmp_path, monkeypatch):
-    pytest.importorskip(
-        "astor", reason="astor is required to rewrite source with docstrings"
-    )
+    # Rewriting uses stdlib ast.unparse now (no astor), so no importorskip.
     monkeypatch.chdir(tmp_path)
     target = tmp_path / "needs.py"
     target.write_text("def undocumented(value):\n    return value + 1\n")
