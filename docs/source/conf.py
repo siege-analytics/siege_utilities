@@ -34,7 +34,7 @@ autodoc_mock_imports = [
     'scipy', 'openpyxl', 'pyarrow', 'faker',
     'folium', 'branca', 'seaborn', 'PIL',
     'mapclassify', 'censusgeocode', 'topojson',
-    'google', 'facebook_business', 'datadotworld',
+    'google', 'facebook_business',
     'weightipy', 'keyring', 'boto3', 'hydra',
     'omegaconf', 'bs4', 'lxml', 's2sphere', 'h3',
     'psycopg', 'psycopg2', 'wkls', 'etter',

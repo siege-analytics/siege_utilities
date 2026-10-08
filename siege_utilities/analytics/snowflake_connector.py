@@ -12,7 +12,11 @@ import os
 
 try:
     import snowflake.connector
-    from snowflake.connector.pandas_tools import write_pandas, read_pandas
+    # Only write_pandas is part of pandas_tools. The connector has no
+    # read_pandas; importing it raised ImportError and disabled the whole
+    # connector on an installed SDK (C13 #1357). Reads use the cursor's
+    # fetch_pandas_all / description, see download_dataframe.
+    from snowflake.connector.pandas_tools import write_pandas
     from snowflake.connector.errors import (
         DatabaseError as _SnowflakeDatabaseError,
         ProgrammingError as _SnowflakeProgrammingError,
@@ -39,8 +43,8 @@ class SnowflakeConnector:
     """Snowflake data warehouse connector with advanced features."""
 
     def __init__(self,
-                 account: str,
-                 user: str,
+                 account: Optional[str] = None,
+                 user: Optional[str] = None,
                  password: Optional[str] = None,
                  warehouse: Optional[str] = None,
                  database: Optional[str] = None,
@@ -72,15 +76,25 @@ class SnowflakeConnector:
         self.role = role
         self.config_file = config_file
 
-        # Load configuration if provided
+        # Load configuration if provided. account/user may arrive either as
+        # explicit arguments or from the config file (C14 #1357): they are
+        # optional here precisely so get_snowflake_connector(config_file=...)
+        # works. Require them to be resolved from one source or the other.
         if config_file:
             self._load_config(config_file)
+
+        if not self.account or not self.user:
+            missing = [n for n in ("account", "user") if not getattr(self, n)]
+            raise ValueError(
+                f"Snowflake connector requires {missing}; pass as arguments or "
+                f"provide them in config_file."
+            )
 
         # Initialize connection
         self.connection = None
         self.cursor = None
 
-        log.info(f"Initialized Snowflake connector for account: {account}")
+        log.info(f"Initialized Snowflake connector for account: {self.account}")
 
     def _load_config(self, config_file: Union[str, Path]) -> None:
         """Load configuration from file."""
@@ -277,7 +291,15 @@ class SnowflakeConnector:
             self.connect()
 
         try:
-            df = read_pandas(self.connection, query, params)
+            if params:
+                self.cursor.execute(query, params)
+            else:
+                self.cursor.execute(query)
+            # fetch_pandas_all is the connector's cursor->DataFrame path. It
+            # requires the pyarrow extra (snowflake-connector-python[pandas]);
+            # without it the call raises, caught below and surfaced as a clear
+            # RuntimeError rather than a partial frame.
+            df = self.cursor.fetch_pandas_all()
             log.info(f"Successfully downloaded {len(df)} rows as DataFrame")
             return df
 

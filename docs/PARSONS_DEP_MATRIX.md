@@ -43,7 +43,7 @@ This is siege's `gdal>=3.13` pin in `[all]` against my system's libgdal 3.12.4 �
 
 ### Claim C (P0-2 ticket) — `parsons[ngpvan]` does not conflict with siege's current pins
 
-**CONFIRMED.** `pip install --dry-run 'siege-utilities[data,analytics]' 'parsons[ngpvan]==6.1.0'` resolves cleanly, would install ~90 packages, zero version-conflict errors. One transitive downgrade: `urllib3` from 2.7.0 (parsons-preferred) to 1.26.20 (siege transitive pin — likely `google-analytics-*` or `datadotworld`). This is resolver-handled and not a conflict.
+**CONFIRMED.** `pip install --dry-run 'siege-utilities[data,analytics]' 'parsons[ngpvan]==6.1.0'` resolves cleanly, would install ~90 packages, zero version-conflict errors. One transitive downgrade: `urllib3` from 2.7.0 (parsons-preferred) to 1.26.20 (siege transitive pin — likely `google-analytics-*`). This is resolver-handled and not a conflict.
 
 ## Which Parsons connectors are in core vs need extras
 

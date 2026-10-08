@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No unreleased changes yet.
+### BREAKING
+
+- **Removed the data.world connector** (`siege_utilities.analytics.datadotworld_connector`
+  and its exports: `DataDotWorldConnector`, `get_datadotworld_connector`,
+  `search_datadotworld_datasets`, `load_datadotworld_dataset`,
+  `query_datadotworld_dataset`, `search_datasets`, `list_datasets`,
+  `DATADOTWORLD_AVAILABLE`). The upstream open-source `datadotworld` product was
+  discontinued, so the connector is removed rather than repaired. The
+  `datadotworld` dependency is dropped from the `analytics` extra. Code importing
+  these symbols must remove those imports. (C15/C16, #1358.)
+
+### Fixed
+
+- Engine aggregation set honors advertised `stddev`/`variance` on the
+  pandas-family engines (C17, #1359).
+- Boundary normalization raises instead of silently returning un-normalized data
+  on crosswalk failure (C3, #1351).
+- Census sample datasets are flagged unavailable instead of advertised as working
+  (C9/C10, #1360).
+- `spark_to_geopandas` rejects a mixed-CRS metadata column instead of silently
+  unifying it (C6, #1354).
+- Snowflake connector is enabled on an installed SDK and its config-file factory
+  works (C13/C14, #1357).
 
 ## [3.24.0] - 2026-09-12
 

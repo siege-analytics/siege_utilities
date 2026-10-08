@@ -2,7 +2,7 @@
 Analytics Module — lazy-loaded.
 
 Provides analytics integration: Google Analytics, Facebook Business,
-Snowflake, Data.world connectors, and Google Workspace write APIs
+Snowflake connectors, and Google Workspace write APIs
 (Sheets, Docs, Slides).
 """
 
@@ -34,11 +34,8 @@ _register([
     'download_from_snowflake', 'execute_snowflake_query', 'SNOWFLAKE_AVAILABLE',
 ], '.snowflake_connector')
 
-_register([
-    'DataDotWorldConnector', 'get_datadotworld_connector', 'search_datasets',
-    'list_datasets', 'search_datadotworld_datasets', 'load_datadotworld_dataset',
-    'query_datadotworld_dataset', 'DATADOTWORLD_AVAILABLE',
-], '.datadotworld_connector')
+# data.world connector removed: the upstream open-source datadotworld
+# product was discontinued (C15/C16 #1358).
 
 # Google Workspace write APIs (Docs, Sheets, Slides)
 _register([

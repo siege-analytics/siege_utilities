@@ -91,7 +91,7 @@ These 9 notebooks were added after the `ELE-2456` migration and are outside the 
 
 **Placement decision:** Parsons notebooks land in a **new `notebooks/advocacy/` subdirectory** rather than extending `analytics/`. Rationale:
 
-- `analytics/` in the current layout is web / social analytics (Google Analytics, Facebook, Snowflake, data.world) per README's group table. Mixing VAN / ActionKit / Mobilize there dilutes the group's purpose.
+- `analytics/` in the current layout is web / social analytics (Google Analytics, Facebook, Snowflake) per README's group table. Mixing VAN / ActionKit / Mobilize there dilutes the group's purpose.
 - Parsons's own docs group these connectors as "advocacy tools," which matches the persona split.
 - New subdirectory lets us add a fresh README section rather than editing the existing analytics table.
 - Two-firm narrative: `advocacy/` notebooks star ElectInfo end-to-end (VAN pull → adapter → siege reporting under `elect_info` branding).

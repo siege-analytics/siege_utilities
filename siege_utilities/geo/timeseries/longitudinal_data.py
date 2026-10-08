@@ -283,10 +283,20 @@ def _normalize_boundaries_multi_year(
             )
             normalized[year] = normalized_df
         except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
-            log.warning(
-                f"  Could not normalize {year} data: {e}. Using original boundaries."
-            )
-            normalized[year] = df
+            # SU-1: do not fall back to the original-vintage frame. The caller
+            # merges these years to wide format and attaches target-year
+            # geometry, so a silent fallback would place source-vintage values
+            # on target-vintage boundaries with no failure signal. Fail loudly.
+            raise ValueError(
+                f"Failed to normalize {year} data from {source_boundary_year} "
+                f"to {target_boundary_year} boundaries: {e}. Returning the "
+                f"original frame would mix {source_boundary_year}-vintage values "
+                f"onto {target_boundary_year} geometry. Pass "
+                f"normalize_boundaries=False to keep each year on its own "
+                f"boundaries (note: with include_geometry=True the geometry is "
+                f"still attached from target_year), or resolve the crosswalk "
+                f"failure."
+            ) from e
 
     return normalized
 
@@ -854,7 +864,7 @@ class LongitudinalAligner:
     ) -> pd.DataFrame:
         """Fall back to areal interpolation when crosswalk is unavailable."""
         try:
-            from ..interpolation.areal import areal_interpolate
+            from ..interpolation.areal import interpolate_areal
             from ..spatial_data import get_census_boundaries
         except ImportError as exc:
             raise ImportError(
@@ -886,10 +896,24 @@ class LongitudinalAligner:
             if c != geoid_column and df[c].dtype.kind in ("i", "f")
         ]
 
-        result = areal_interpolate(
+        result = interpolate_areal(
             source_gdf=source_gdf,
             target_gdf=target_boundaries,
             extensive_variables=numeric_cols,
         )
 
-        return pd.DataFrame(result.data.drop(columns="geometry"))
+        out = result.data.drop(columns="geometry")
+        # interpolate_areal returns one row per target polygon in target order.
+        # The Tobler backend drops non-geometry target columns (target GEOID
+        # lost); the Shapely and DuckDB backends retain it. Keying by assignment
+        # covers both: it creates the column when the backend dropped it and
+        # overwrites the retained column with the target GEOID in target order.
+        # The length guard pins the positional alignment all backends return.
+        if len(out) != len(target_boundaries):
+            raise RuntimeError(
+                f"Areal interpolation returned {len(out)} rows for "
+                f"{len(target_boundaries)} target polygons; cannot re-key "
+                f"{geoid_column}."
+            )
+        out[geoid_column] = target_boundaries["GEOID"].to_numpy()
+        return pd.DataFrame(out)

@@ -119,6 +119,10 @@ siege-test-credentials.yaml
 *client_secret*.json
 *.pem
 !tests/fixtures/**
+# A global ~/.gitignore `test_*.py` rule otherwise silently drops new test
+# files in this repo; re-include the project's own test suite at any depth.
+!tests/test_*.py
+!tests/**/test_*.py
 .venv
 env/
 venv/

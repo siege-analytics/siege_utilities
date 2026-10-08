@@ -49,7 +49,7 @@ most common combinations.
 |----------|----------------|--------------|
 | **Geocoding + Demographics + Maps** | `pip install siege-utilities[geo,reporting,data]` | Census geocoder, geopandas, matplotlib, folium, plotly, pandas, numpy |
 | **Survey Analysis + Reports** | `pip install siege-utilities[survey,reporting,data]` | RIM weighting (weightipy), chart generation, PDF/PPTX export, pandas |
-| **Analytics Connectors** | `pip install siege-utilities[analytics,data]` | Google Analytics, Facebook, Snowflake, data.world, pandas |
+| **Analytics Connectors** | `pip install siege-utilities[analytics,data]` | Google Analytics, Facebook, Snowflake, pandas |
 | **Multi-Engine DataFrames (local)** | `pip install siege-utilities[performance]` | DuckDB backend for fast local analytics |
 | **Multi-Engine DataFrames (cluster)** | `pip install siege-utilities[distributed]` | PySpark + Apache Sedona for distributed spatial processing |
 | **GeoDjango Spatial Platform** | `pip install siege-utilities[geo,geodjango,data]` | Full spatial models, services, management commands, PostGIS |

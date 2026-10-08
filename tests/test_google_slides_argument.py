@@ -16,6 +16,7 @@ from siege_utilities.analytics.google_slides import (
     create_report_from_arguments,
     upload_figure_to_drive,
 )
+from siege_utilities.analytics.google_workspace import GoogleWorkspaceClient
 from siege_utilities.reporting.pages.page_models import Argument, TableType
 
 try:
@@ -33,7 +34,10 @@ except ImportError:
 
 @pytest.fixture
 def mock_client():
-    client = MagicMock()
+    # spec=GoogleWorkspaceClient (C18 #1361): a method the renderer calls that
+    # does not exist on the real client now fails the test instead of being
+    # auto-created by an unrestricted MagicMock.
+    client = MagicMock(spec=GoogleWorkspaceClient)
     # slides_service chain
     slides_svc = MagicMock()
     client.slides_service.return_value = slides_svc

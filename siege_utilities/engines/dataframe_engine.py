@@ -89,6 +89,17 @@ def _validate_agg_names(agg_dict: "Dict[str, str]", engine_name: str) -> None:
         )
 
 
+# The shared agg-name set uses the Spark/SQL spellings (avg, stddev, variance).
+# pandas-family engines (Pandas, DuckDB, PostGIS driver-side) call
+# DataFrame.agg, whose method names are mean, std, var. Map every shared name
+# to its pandas spelling before dispatch; names that already match pass through.
+_PANDAS_AGG_SPELLING = {"avg": "mean", "stddev": "std", "variance": "var"}
+
+
+def _normalise_pandas_aggs(agg_dict: "Dict[str, str]") -> "Dict[str, str]":
+    return {col: _PANDAS_AGG_SPELLING.get(fn, fn) for col, fn in agg_dict.items()}
+
+
 # ---------------------------------------------------------------------------
 # ABC
 # ---------------------------------------------------------------------------
@@ -771,9 +782,7 @@ class PandasEngine(DataFrameEngine):
         agg_dict: Dict[str, str],
     ) -> Any:
         _validate_agg_names(agg_dict, "PandasEngine")
-        # pandas accepts "mean" but not "avg"; normalise so the shared
-        # agg-name set is honored across engines.
-        normalised = {col: ("mean" if fn == "avg" else fn) for col, fn in agg_dict.items()}
+        normalised = _normalise_pandas_aggs(agg_dict)
         return df.groupby(list(group_cols)).agg(normalised).reset_index()
 
     def filter(self, df: Any, condition: Any) -> Any:
@@ -950,7 +959,7 @@ class DuckDBEngine(DataFrameEngine):
     ) -> Any:
         _validate_agg_names(agg_dict, "DuckDBEngine")
         import pandas as pd
-        normalised = {col: ("mean" if fn == "avg" else fn) for col, fn in agg_dict.items()}
+        normalised = _normalise_pandas_aggs(agg_dict)
         if isinstance(df, pd.DataFrame):
             return df.groupby(list(group_cols)).agg(normalised).reset_index()
         raise TypeError(
@@ -1355,10 +1364,19 @@ class SparkEngine(DataFrameEngine):
         import uuid as _uuid
         view = f"_buf_tbl_{_uuid.uuid4().hex[:8]}"
         df.createOrReplaceTempView(view)
-        sql = (
-            f"SELECT *, ST_AsText(ST_Buffer(ST_GeomFromText({geometry_col}), {distance_lit})) "
-            f"AS {geometry_col}_buffered FROM {view}"
+        # Replace the geometry column in place (contract: buffer replaces the
+        # geometry) so a subsequent default spatial op uses the buffered
+        # geometry on Spark, matching the pandas path. Emitting a separate
+        # geometry_buffered column left the original geometry active.
+        other_cols = [c for c in df.columns if c != geometry_col]
+        select_list = ", ".join(
+            [f"`{c}`" for c in other_cols]
+            + [
+                f"ST_AsText(ST_Buffer(ST_GeomFromText(`{geometry_col}`), "
+                f"{distance_lit})) AS `{geometry_col}`"
+            ]
         )
+        sql = f"SELECT {select_list} FROM {view}"
         return self._session.sql(sql)
 
     def distance(self, df, other, geometry_col="geometry", other_geom="geometry"):
@@ -1380,13 +1398,18 @@ class SparkEngine(DataFrameEngine):
                 f"ST_GeomFromText('{wkt_escaped}')) AS _distance FROM {lv}"
             )
         else:
-            validate_identifier_in(other_geom, other.columns, label="other geometry column")
-            rv = f"_dist_right_{_uuid.uuid4().hex[:8]}"
-            other.createOrReplaceTempView(rv)
-            sql = (
-                f"SELECT ST_Distance(ST_GeomFromText(l.{geometry_col}), "
-                f"ST_GeomFromText(r.{other_geom})) AS _distance "
-                f"FROM {lv} l, {rv} r"
+            # Contract: a DataFrame 'other' means row-aligned pairwise distance
+            # (row i of df paired with row i of other). Spark DataFrames have no
+            # positional row order, so `FROM l, r` is a Cartesian product, not
+            # aligned pairs, and the projection dropped every identifier. Reject
+            # rather than return a silently wrong N*M result.
+            raise NotImplementedError(
+                "SparkEngine.distance does not support DataFrame-to-DataFrame "
+                "row-aligned pairwise distance: Spark has no positional row "
+                "alignment, so pairing by position is undefined (a cross join "
+                "would be N*M rows, not N aligned pairs). Pass a single geometry, "
+                "or join the two frames on an explicit key first and compute "
+                "ST_Distance on the joined geometry columns."
             )
         return self._session.sql(sql)
 
@@ -1401,6 +1424,45 @@ class SparkEngine(DataFrameEngine):
             )
             return gpd.GeoDataFrame(pdf, geometry=geoms, crs=crs or get_default_crs())
         raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
+
+    def from_geodataframe(self, gdf, geometry_col="geometry"):
+        """Convert a GeoDataFrame to a Spark DataFrame with WKT geometry.
+
+        The base implementation returns the GeoDataFrame unchanged, which left
+        boundary-provider conversion handing a GeoDataFrame into Spark-only
+        calls (createOrReplaceTempView). Serialize geometry to WKT and build a
+        real Spark DataFrame so the Spark spatial methods (which read
+        ST_GeomFromText(geometry_col)) receive engine-native input.
+        """
+        import pandas as pd
+
+        if len(gdf) == 0:
+            raise ValueError(
+                "Cannot convert an empty GeoDataFrame to Spark: there are no "
+                "rows to infer a schema from. Provide at least one row."
+            )
+
+        attr_cols = [c for c in gdf.columns if c != geometry_col]
+        geoms = [(g.wkt if g is not None else None) for g in gdf[geometry_col]]
+        pdf = pd.DataFrame({c: gdf[c].values for c in attr_cols})
+
+        if any(v is not None for v in geoms):
+            pdf[geometry_col] = geoms
+            return self._session.createDataFrame(pdf)
+
+        # All geometries are null. Spark cannot infer the type of an all-null
+        # column, so build from the attribute columns and attach geometry as an
+        # explicitly-typed null StringType column (mirrors geopandas_to_spark's
+        # #1338 handling). Requires at least one attribute column.
+        if not attr_cols:
+            raise ValueError(
+                "Cannot convert a GeoDataFrame whose only column is an all-null "
+                "geometry: Spark has no column to infer a schema from."
+            )
+        from pyspark.sql.functions import lit
+        from pyspark.sql.types import StringType
+        sdf = self._session.createDataFrame(pdf)
+        return sdf.withColumn(geometry_col, lit(None).cast(StringType()))
 
     # -- Spatial overrides (Spark/Sedona native) ---------------------------
 
@@ -1648,7 +1710,7 @@ class PostGISEngine(DataFrameEngine):
         agg_dict: Dict[str, str],
     ) -> Any:
         _validate_agg_names(agg_dict, "PostGISEngine")
-        normalised = {col: ("mean" if fn == "avg" else fn) for col, fn in agg_dict.items()}
+        normalised = _normalise_pandas_aggs(agg_dict)
         return df.groupby(list(group_cols)).agg(normalised).reset_index()
 
     def filter(self, df: Any, condition: Any) -> Any:
