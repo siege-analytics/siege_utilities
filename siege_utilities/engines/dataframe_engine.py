@@ -1364,10 +1364,19 @@ class SparkEngine(DataFrameEngine):
         import uuid as _uuid
         view = f"_buf_tbl_{_uuid.uuid4().hex[:8]}"
         df.createOrReplaceTempView(view)
-        sql = (
-            f"SELECT *, ST_AsText(ST_Buffer(ST_GeomFromText({geometry_col}), {distance_lit})) "
-            f"AS {geometry_col}_buffered FROM {view}"
+        # Replace the geometry column in place (contract: buffer replaces the
+        # geometry) so a subsequent default spatial op uses the buffered
+        # geometry on Spark, matching the pandas path. Emitting a separate
+        # geometry_buffered column left the original geometry active.
+        other_cols = [c for c in df.columns if c != geometry_col]
+        select_list = ", ".join(
+            [f"`{c}`" for c in other_cols]
+            + [
+                f"ST_AsText(ST_Buffer(ST_GeomFromText(`{geometry_col}`), "
+                f"{distance_lit})) AS `{geometry_col}`"
+            ]
         )
+        sql = f"SELECT {select_list} FROM {view}"
         return self._session.sql(sql)
 
     def distance(self, df, other, geometry_col="geometry", other_geom="geometry"):
@@ -1389,13 +1398,18 @@ class SparkEngine(DataFrameEngine):
                 f"ST_GeomFromText('{wkt_escaped}')) AS _distance FROM {lv}"
             )
         else:
-            validate_identifier_in(other_geom, other.columns, label="other geometry column")
-            rv = f"_dist_right_{_uuid.uuid4().hex[:8]}"
-            other.createOrReplaceTempView(rv)
-            sql = (
-                f"SELECT ST_Distance(ST_GeomFromText(l.{geometry_col}), "
-                f"ST_GeomFromText(r.{other_geom})) AS _distance "
-                f"FROM {lv} l, {rv} r"
+            # Contract: a DataFrame 'other' means row-aligned pairwise distance
+            # (row i of df paired with row i of other). Spark DataFrames have no
+            # positional row order, so `FROM l, r` is a Cartesian product, not
+            # aligned pairs, and the projection dropped every identifier. Reject
+            # rather than return a silently wrong N*M result.
+            raise NotImplementedError(
+                "SparkEngine.distance does not support DataFrame-to-DataFrame "
+                "row-aligned pairwise distance: Spark has no positional row "
+                "alignment, so pairing by position is undefined (a cross join "
+                "would be N*M rows, not N aligned pairs). Pass a single geometry, "
+                "or join the two frames on an explicit key first and compute "
+                "ST_Distance on the joined geometry columns."
             )
         return self._session.sql(sql)
 
@@ -1410,6 +1424,24 @@ class SparkEngine(DataFrameEngine):
             )
             return gpd.GeoDataFrame(pdf, geometry=geoms, crs=crs or get_default_crs())
         raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
+
+    def from_geodataframe(self, gdf, geometry_col="geometry"):
+        """Convert a GeoDataFrame to a Spark DataFrame with WKT geometry.
+
+        The base implementation returns the GeoDataFrame unchanged, which left
+        boundary-provider conversion handing a GeoDataFrame into Spark-only
+        calls (createOrReplaceTempView). Serialize geometry to WKT and build a
+        real Spark DataFrame so the Spark spatial methods (which read
+        ST_GeomFromText(geometry_col)) receive engine-native input.
+        """
+        import pandas as pd
+
+        attr_cols = [c for c in gdf.columns if c != geometry_col]
+        pdf = pd.DataFrame({c: gdf[c].values for c in attr_cols})
+        pdf[geometry_col] = [
+            (g.wkt if g is not None else None) for g in gdf[geometry_col]
+        ]
+        return self._session.createDataFrame(pdf)
 
     # -- Spatial overrides (Spark/Sedona native) ---------------------------
 
