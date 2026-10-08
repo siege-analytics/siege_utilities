@@ -47,14 +47,21 @@ jobs:
   notebook-governance:
     runs-on: ubuntu-latest
     name: "notebook governance + pure execution"
+    # E2E notebooks verified green on 3.13 and 3.14 in #1365. 3.11 and 3.13
+    # block; 3.14 is non-blocking while its recently released native stack
+    # stabilizes, mirroring the `test` job's matrix policy.
+    continue-on-error: ${{ matrix.python-version == '3.14' }}
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.13", "3.14"]
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python 3.11
+    - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
-        python-version: "3.11"
+        python-version: ${{ matrix.python-version }}
 
     - name: Install system geospatial libraries
       run: |
@@ -92,7 +99,7 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: notebook-failure-artifacts
+        name: notebook-failure-artifacts-${{ matrix.python-version }}
         path: ${{ runner.temp }}/notebook-artifacts
         if-no-files-found: ignore
 
