@@ -202,42 +202,48 @@ SAMPLE_DATASETS = {
         "size": "~1-5 MB",
         "type": "geospatial",
         "variables": ["demographics", "housing", "income", "geometry"],
-        "source": "census_synthetic"
+        "source": "census_synthetic",
+        "available": False,  # C9/C10 #1360: advertised but not implemented
     },
     "census_county_sample": {
         "description": "Sample county with multiple tracts and synthetic businesses",
         "size": "~5-15 MB",
         "type": "geospatial",
         "variables": ["demographics", "businesses", "geometry"],
-        "source": "census_synthetic"
+        "source": "census_synthetic",
+        "available": False,  # C9/C10 #1360: advertised but not implemented
     },
     "metropolitan_sample": {
         "description": "Metropolitan area with multiple counties and comprehensive data",
         "size": "~20-50 MB",
         "type": "geospatial",
         "variables": ["demographics", "businesses", "housing", "transportation"],
-        "source": "census_synthetic"
+        "source": "census_synthetic",
+        "available": False,  # C9/C10 #1360: advertised but not implemented
     },
     "synthetic_population": {
         "description": "Synthetic population matching Census standards and demographic patterns",
         "size": "~1-10 MB",
         "type": "tabular",
         "variables": ["names", "age_groups", "race", "hispanic_origin", "sex", "income_brackets", "education_attainment"],
-        "source": "synthetic"
+        "source": "synthetic",
+        "available": True,
     },
     "synthetic_businesses": {
         "description": "Synthetic business data with realistic industry patterns",
         "size": "~1-5 MB",
         "type": "tabular",
         "variables": ["names", "industries", "sizes", "locations", "revenue"],
-        "source": "synthetic"
+        "source": "synthetic",
+        "available": True,
     },
     "synthetic_housing": {
         "description": "Synthetic housing data with realistic property patterns",
         "size": "~1-5 MB",
         "type": "tabular",
         "variables": ["addresses", "values", "types", "features", "coordinates"],
-        "source": "synthetic"
+        "source": "synthetic",
+        "available": True,
     }
 }
 
@@ -249,7 +255,10 @@ def list_available_datasets() -> Dict[str, Dict[str, Any]]:
     List all available sample datasets with descriptions and metadata.
 
     Returns:
-        Dictionary of available datasets with metadata
+        Dictionary of datasets with metadata. Each entry carries an
+        ``available`` flag: the synthetic datasets are implemented
+        (``True``); the census_* datasets are declared but not yet
+        implemented (``False``, see #1360) and raise from load_sample_data.
     """
     return SAMPLE_DATASETS.copy()
 
@@ -282,6 +291,14 @@ def load_sample_data(dataset_name: str, **kwargs) -> Union[pd.DataFrame, "gpd.Ge
     """
     if dataset_name not in SAMPLE_DATASETS:
         raise ValueError(f"Unknown dataset: {dataset_name}. Available: {list(SAMPLE_DATASETS.keys())}")
+
+    if not SAMPLE_DATASETS[dataset_name].get("available", True):
+        implemented = [n for n, d in SAMPLE_DATASETS.items() if d.get("available", True)]
+        raise NotImplementedError(
+            f"Sample dataset {dataset_name!r} is declared but not implemented "
+            f"(#1360). Use siege_utilities.geo.census.api.CensusAPI for real "
+            f"Census data, or choose an implemented dataset: {implemented}."
+        )
 
     if dataset_name in CENSUS_SAMPLES:
         if not CENSUS_AVAILABLE:
@@ -369,7 +386,12 @@ def get_census_data(year: int = 2020,
                    state_fips: Optional[str] = None,
                    county_fips: Optional[str] = None) -> Optional[pd.DataFrame]:
     """
-    Get Census demographic/attribute data.
+    Not implemented. Declared as an extension point; always raises.
+
+    For real Census data retrieval use
+    ``siege_utilities.geo.census.api.CensusAPI`` directly. The
+    ``reference.sample_data`` census_* datasets that route through this
+    function are marked ``available: False`` in SAMPLE_DATASETS.
 
     Args:
         year: Census year (default: 2020)
@@ -378,15 +400,17 @@ def get_census_data(year: int = 2020,
         state_fips: State FIPS code for filtering
         county_fips: County FIPS code for filtering
 
-    Returns:
-        DataFrame with Census data or None if failed
+    Raises:
+        ImportError: If census extras are not installed.
+        NotImplementedError: Always, once imports resolve. Tracked in
+            #1206 (extension point) and #1360 (de-advertise / implement).
     """
     if not CENSUS_AVAILABLE:
         raise ImportError("Census utilities required. Install with: pip install siege-utilities[geo]")
 
-    # #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.
+    # #1206/#1360: declared extension point, not implemented. Kept tracked.
     raise NotImplementedError(
-        "get_census_data() is not yet implemented. "
+        "get_census_data() is not implemented (#1360). "
         "Use siege_utilities.geo.census.api.CensusAPI directly for Census data retrieval."
     )
 
@@ -489,13 +513,20 @@ def get_census_county_sample(state_fips: str = "06",
     """
     Generate a sample county dataset with multiple tracts and synthetic data.
 
+    Declared but not implemented: this wraps create_sample_dataset, which
+    calls the unimplemented get_census_data, so it raises today (#1360).
+
     Args:
         state_fips: State FIPS code (default: CA)
         county_fips: County FIPS code (default: Los Angeles)
         tract_count: Number of tracts to include
 
     Returns:
-        DataFrame or GeoDataFrame with county data
+        DataFrame or GeoDataFrame with county data, once get_census_data lands.
+
+    Raises:
+        ImportError: If census extras are not installed.
+        NotImplementedError: Via get_census_data until #1360 is resolved.
     """
     if not CENSUS_AVAILABLE:
         raise ImportError("Census utilities required. Install with: pip install siege-utilities[geo]")
@@ -532,12 +563,19 @@ def get_metropolitan_sample(cbsa_code: str = "31080",
     """
     Generate a metropolitan area sample with multiple counties.
 
+    Declared but not implemented: this wraps get_census_county_sample,
+    which calls the unimplemented get_census_data, so it raises today (#1360).
+
     Args:
         cbsa_code: CBSA code (default: Los Angeles metro)
         county_count: Number of counties to include
 
     Returns:
-        DataFrame or GeoDataFrame with metro data
+        DataFrame or GeoDataFrame with metro data, once get_census_data lands.
+
+    Raises:
+        ImportError: If census extras are not installed.
+        NotImplementedError: Via get_census_data until #1360 is resolved.
     """
     if not CENSUS_AVAILABLE:
         raise ImportError("Census utilities required. Install with: pip install siege-utilities[geo]")
