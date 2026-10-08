@@ -136,7 +136,6 @@ is a design note recording the inconsistency and the agreed target state.
 | `reporting/report_generator.py` | 1 site | Pending ELE-2420 |
 | `reporting/engines/base_engine.py` | 1 site | Pending ELE-2420 |
 | `analytics/snowflake_connector.py` | 7 sites | Pending ELE-2420 |
-| `analytics/datadotworld_connector.py` | 11 sites | Pending ELE-2420 |
 | `files/operations.py` | 12 sites | Pending ELE-2420 (high blast radius) |
 | `files/remote.py` | 4 sites | Pending ELE-2420 |
 | `geo/spatial_transformations.py` | 17 sites | Pending ELE-2420 (DRY refactor opportunity) |

@@ -2,7 +2,7 @@
 Analytics Module — lazy-loaded.
 
 Provides analytics integration: Google Analytics, Facebook Business,
-Snowflake, Data.world connectors, and Google Workspace write APIs
+Snowflake connectors, and Google Workspace write APIs
 (Sheets, Docs, Slides).
 """
 
