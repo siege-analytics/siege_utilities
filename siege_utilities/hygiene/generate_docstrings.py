@@ -151,14 +151,13 @@ Note:
         if node.name.startswith('_'):
             return self.generic_visit(node)
         has_docstring = node.body and isinstance(node.body[0], ast.Expr
-            ) and isinstance(node.body[0].value, (ast.Constant, ast.Str))
+            ) and isinstance(node.body[0].value, ast.Constant)
         if not has_docstring:
             docstring_content = generate_docstring_template(node.name)
-            if hasattr(ast, 'Constant'):
-                docstring_node = ast.Expr(value=ast.Constant(value=
-                    docstring_content))
-            else:
-                docstring_node = ast.Expr(value=ast.Str(s=docstring_content))
+            # ast.Constant replaced ast.Str/ast.Num in 3.8 and the aliases
+            # were removed in 3.14; requires-python is >=3.11 so Constant is
+            # always present.
+            docstring_node = ast.Expr(value=ast.Constant(value=docstring_content))
             node.body.insert(0, docstring_node)
             log_info(f'Added docstring to {node.name}')
             self.functions_processed += 1
