@@ -291,9 +291,11 @@ def _normalize_boundaries_multi_year(
                 f"Failed to normalize {year} data from {source_boundary_year} "
                 f"to {target_boundary_year} boundaries: {e}. Returning the "
                 f"original frame would mix {source_boundary_year}-vintage values "
-                f"onto {target_boundary_year} geometry. Re-run without "
-                f"normalize_boundaries=True to keep each year on its own "
-                f"boundaries, or resolve the crosswalk failure."
+                f"onto {target_boundary_year} geometry. Pass "
+                f"normalize_boundaries=False to keep each year on its own "
+                f"boundaries (note: with include_geometry=True the geometry is "
+                f"still attached from target_year), or resolve the crosswalk "
+                f"failure."
             ) from e
 
     return normalized

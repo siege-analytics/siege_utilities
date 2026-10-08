@@ -8,6 +8,7 @@ result. These tests run the entire advertised set on each pandas-family
 engine and assert the numeric result, so a revert of the spelling map
 turns them red.
 """
+import importlib.util
 import math
 
 import pandas as pd
@@ -19,6 +20,22 @@ from siege_utilities.engines.dataframe_engine import (
     _SUPPORTED_AGG_NAMES,
     _normalise_pandas_aggs,
 )
+
+# DuckDB is an optional `performance` extra; the geo-without-GDAL CI job runs
+# this file without it. Skip the DuckDB parameter when the package is absent
+# rather than fail at construction; Pandas coverage is retained unconditionally.
+_HAVE_DUCKDB = importlib.util.find_spec("duckdb") is not None
+_ENGINE_PARAMS = [
+    pytest.param(PandasEngine, id="pandas"),
+    pytest.param(
+        DuckDBEngine,
+        id="duckdb",
+        marks=pytest.mark.skipif(
+            not _HAVE_DUCKDB,
+            reason="install duckdb (the 'performance' extra) to exercise DuckDBEngine",
+        ),
+    ),
+]
 
 
 def _sample_frame():
@@ -38,7 +55,7 @@ def test_normalise_maps_sql_spellings_to_pandas():
     assert out == {"a": "mean", "b": "std", "c": "var", "d": "sum"}
 
 
-@pytest.mark.parametrize("engine_cls", [PandasEngine, DuckDBEngine])
+@pytest.mark.parametrize("engine_cls", _ENGINE_PARAMS)
 def test_full_supported_agg_set_runs(engine_cls):
     """Every advertised aggregation must execute without AttributeError."""
     engine = engine_cls()
@@ -49,7 +66,7 @@ def test_full_supported_agg_set_runs(engine_cls):
         assert len(result) == 2, f"{agg} did not produce one row per group"
 
 
-@pytest.mark.parametrize("engine_cls", [PandasEngine, DuckDBEngine])
+@pytest.mark.parametrize("engine_cls", _ENGINE_PARAMS)
 def test_stddev_and_variance_match_pandas(engine_cls):
     """stddev/variance must compute the real statistic, not raise."""
     engine = engine_cls()
