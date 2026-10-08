@@ -368,6 +368,24 @@ def upload_figure_to_drive(
             pass
 
 
+def _table_to_text(table) -> str:
+    """Render an Argument.table (DataFrame or Chain) to plain text.
+
+    A table-bearing Argument must not lose its table on a slide. This is a
+    text rendering, not a native Slides table; it preserves the content.
+    """
+    import pandas as pd
+
+    if isinstance(table, pd.DataFrame):
+        return table.to_string(index=False)
+    to_df = getattr(table, "to_dataframe", None)
+    if callable(to_df):
+        df = to_df()
+        if isinstance(df, pd.DataFrame):
+            return df.to_string(index=False)
+    return str(table)
+
+
 def create_argument_slide(
     client,
     presentation_id: str,
@@ -406,6 +424,12 @@ def create_argument_slide(
         body_text = f"{body_text}\n\n{argument.base_note}"
     if argument.source_note:
         body_text = f"{body_text}\n{argument.source_note}"
+    # Render the table so a table-bearing Argument does not silently lose it.
+    table = getattr(argument, "table", None)
+    if table is not None:
+        table_text = _table_to_text(table)
+        if table_text:
+            body_text = f"{body_text}\n\n{table_text}"
     nl, nt, nw, nh = layout["narrative"]
     create_textbox(client, presentation_id, slide_id,
                    body_text, left=nl, top=nt, width=nw, height=nh)
@@ -452,12 +476,25 @@ def create_report_from_arguments(
     else:
         pres_id = create_presentation(client, title, folder_id=folder_id)
 
+    failures = []
     for i, argument in enumerate(arguments):
         try:
             create_argument_slide(client, pres_id, argument, slide_index=i)
         except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError) as exc:
-            log.error("Failed to create slide %d for argument %r: %s",
-                      i, argument.headline, exc)
+            headline = getattr(argument, "headline", "?")
+            log.error("Failed to create slide %d for argument %r: %s", i, headline, exc)
+            failures.append((i, headline, repr(exc)))
+
+    if failures:
+        # SU-1: a report missing slides is not a success. Do not return the
+        # presentation id as if everything rendered; surface what failed. The
+        # presentation exists in Drive for inspection/cleanup.
+        raise RuntimeError(
+            f"create_report_from_arguments: {len(failures)} of {len(arguments)} "
+            f"slides failed for presentation {pres_id} "
+            f"({client.presentation_url(pres_id)}); failures={failures}. "
+            f"The presentation was created but is incomplete."
+        )
 
     log.info("Created report %r with %d slides → %s",
              title, len(arguments), client.presentation_url(pres_id))

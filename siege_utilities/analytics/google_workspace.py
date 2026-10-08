@@ -563,3 +563,58 @@ class GoogleWorkspaceClient:
         )
         log.info("Moved %s to folder %s", file_id, folder_id)
         return result
+
+    def upload_file(
+        self,
+        local_path: str,
+        name: Optional[str] = None,
+        mime_type: Optional[str] = None,
+        folder_id: Optional[str] = None,
+    ) -> str:
+        """Upload a local file to Drive and return its file ID.
+
+        Args:
+            local_path: Path to the file on disk.
+            name: Drive file name. Defaults to the local basename.
+            mime_type: MIME type of the upload (e.g. ``image/png``).
+            folder_id: Optional Drive folder to place the file in.
+
+        Returns:
+            The new Drive file's ID.
+        """
+        import os
+        from googleapiclient.http import MediaFileUpload
+
+        body: Dict[str, Any] = {"name": name or os.path.basename(local_path)}
+        if folder_id:
+            body["parents"] = [folder_id]
+        media = MediaFileUpload(local_path, mimetype=mime_type, resumable=False)
+        result = (
+            self.drive_service()
+            .files()
+            .create(body=body, media_body=media, fields="id")
+            .execute()
+        )
+        file_id = result["id"]
+        log.info("Uploaded %s -> Drive %s", local_path, file_id)
+        return file_id
+
+    def public_url(self, file_id: str) -> str:
+        """Grant anyone-with-link read access and return a fetchable URL.
+
+        The returned URL is usable as an image source for Slides
+        ``insertImage`` requests, which require the image to be reachable
+        without authentication.
+
+        Args:
+            file_id: The Drive file to publish.
+
+        Returns:
+            A public, directly-fetchable URL for the file.
+        """
+        self.drive_service().permissions().create(
+            fileId=file_id,
+            body={"type": "anyone", "role": "reader"},
+        ).execute()
+        log.info("Published %s with anyone-reader access", file_id)
+        return f"https://drive.google.com/uc?export=view&id={file_id}"
