@@ -101,9 +101,6 @@ ANALYTICS_NAMES = [
     'load_ga_account_profile', 'list_ga_accounts_for_client', 'batch_retrieve_ga_data',
     'FacebookBusinessConnector', 'create_facebook_account_profile', 'save_facebook_account_profile',
     'load_facebook_account_profile', 'list_facebook_accounts_for_client', 'batch_retrieve_facebook_data',
-    'get_datadotworld_connector', 'search_datadotworld_datasets',
-    'load_datadotworld_dataset', 'query_datadotworld_dataset',
-    'search_datasets', 'list_datasets',
     'get_snowflake_connector', 'upload_to_snowflake',
     'download_from_snowflake', 'execute_snowflake_query',
 ]

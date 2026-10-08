@@ -1,8 +1,7 @@
 Analytics
 =========
 
-Analytics connectors: Google Analytics, Snowflake, data.world, Facebook
-Business.
+Analytics connectors: Google Analytics, Snowflake, Facebook Business.
 
 .. automodule:: siege_utilities.analytics
    :members:
@@ -32,10 +31,6 @@ Submodules
    :show-inheritance:
 
 .. automodule:: siege_utilities.analytics.snowflake_connector
-   :members:
-   :show-inheritance:
-
-.. automodule:: siege_utilities.analytics.datadotworld_connector
    :members:
    :show-inheritance:
 
