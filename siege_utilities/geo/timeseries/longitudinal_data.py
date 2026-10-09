@@ -728,10 +728,26 @@ class LongitudinalAligner:
         current_df = df.copy()
         method = "crosswalk"
 
+        if intensive_columns is None:
+            numeric = [
+                c for c in df.columns
+                if c != geoid_column and df[c].dtype.kind in ("i", "f")
+            ]
+            if numeric:
+                log.warning(
+                    "Aligning without intensive_columns: all numeric columns "
+                    "(%s) are treated as EXTENSIVE and disaggregated by weight. "
+                    "Rates/ratios/medians/densities will be mis-scaled when a "
+                    "boundary splits; pass intensive_columns=[...] to "
+                    "area-weight them.",
+                    numeric,
+                )
+
         for src, tgt in chain:
             try:
                 current_df = self._apply_crosswalk_step(
                     current_df, src, tgt, geo, sfips, geoid_column,
+                    intensive_columns=intensive_columns,
                 )
             except Exception as exc:
                 # Any crosswalk-step failure falls back to areal interpolation.
@@ -842,8 +858,15 @@ class LongitudinalAligner:
         geography_level: str,
         state_fips: Optional[str],
         geoid_column: str,
+        intensive_columns: Optional[List[str]] = None,
     ) -> pd.DataFrame:
-        """Apply a single crosswalk step using CrosswalkProcessor."""
+        """Apply a single crosswalk step using CrosswalkProcessor.
+
+        Intensive columns (rates, ratios, medians, densities) are area-weighted
+        averaged rather than disaggregated by weight; any numeric column not
+        listed is treated as extensive. Without this, a crosswalk split halves
+        a rate the same way the areal fallback did.
+        """
         from ..crosswalk.crosswalk_processor import apply_crosswalk
 
         return apply_crosswalk(
@@ -853,6 +876,7 @@ class LongitudinalAligner:
             geography_level=geography_level,
             state_fips=state_fips,
             geoid_column=geoid_column,
+            intensive_variables=list(intensive_columns) if intensive_columns else None,
         )
 
     @staticmethod

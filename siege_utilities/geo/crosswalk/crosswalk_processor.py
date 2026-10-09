@@ -174,7 +174,8 @@ class CrosswalkProcessor:
         geoid_column: str = 'GEOID',
         value_columns: Optional[List[str]] = None,
         weight_method: WeightMethod = WeightMethod.AREA,
-        aggregation_func: Union[str, Callable] = 'sum'
+        aggregation_func: Union[str, Callable] = 'sum',
+        intensive_variables: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """
         Transform data from source boundaries to target boundaries.
@@ -185,6 +186,11 @@ class CrosswalkProcessor:
             value_columns: List of columns to transform. If None, all numeric columns.
             weight_method: How to weight data for splits/merges
             aggregation_func: How to aggregate merged data ('sum', 'mean', 'weighted_mean')
+            intensive_variables: Columns that are intensive (rates, ratios,
+                medians, densities, per-capita values). These are area-weighted
+                averaged rather than disaggregated by weight, so a split
+                preserves the value instead of scaling it down. Columns not
+                listed here are treated as extensive (disaggregated).
 
         Returns:
             DataFrame with data in target boundary vintage
@@ -261,6 +267,14 @@ class CrosswalkProcessor:
             for col in value_columns:
                 if col in result.columns:
                     result[col] = result[col] / result['_total_weight']
+        else:
+            # Intensive variables (rates, ratios, medians, densities) are
+            # area-weighted averaged, not disaggregated: divide the weighted
+            # sum by the total weight so a split preserves the value instead
+            # of scaling it down. Extensive columns keep the weighted sum.
+            for col in (intensive_variables or []):
+                if col in result.columns and '_total_weight' in result.columns:
+                    result[col] = result[col] / result['_total_weight']
 
         # Drop helper columns
         result = result.drop(columns=['_total_weight'], errors='ignore')
@@ -282,7 +296,8 @@ def apply_crosswalk(
     geoid_column: str = 'GEOID',
     value_columns: Optional[List[str]] = None,
     weight_method: WeightMethod = WeightMethod.AREA,
-    aggregation_func: Union[str, Callable] = 'sum'
+    aggregation_func: Union[str, Callable] = 'sum',
+    intensive_variables: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     """
     Apply a crosswalk to transform data from one boundary vintage to another.
@@ -337,7 +352,8 @@ def apply_crosswalk(
         geoid_column=geoid_column,
         value_columns=value_columns,
         weight_method=weight_method,
-        aggregation_func=aggregation_func
+        aggregation_func=aggregation_func,
+        intensive_variables=intensive_variables,
     )
 
 

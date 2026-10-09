@@ -1087,7 +1087,12 @@ class DuckDBEngine(DataFrameEngine):
             sample = non_null.iloc[0] if not non_null.empty else None
             if sample is not None and not isinstance(sample, BaseGeometry):
                 if isinstance(sample, (bytes, bytearray)):
-                    geoms = df[geometry_col].apply(lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g) if g is not None else None)
+                    # DuckDB returns pd.NA (not None) for null geometry; guard
+                    # with pd.isna so a null row does not reach shapely_wkb.loads.
+                    geoms = df[geometry_col].apply(
+                        lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g)
+                        if (g is not None and not pd.isna(g)) else None
+                    )
                 else:
                     geoms = df[geometry_col].apply(lambda g: shapely_wkt.loads(g) if isinstance(g, str) else g)
                 target_crs = crs or get_default_crs()
@@ -1106,7 +1111,7 @@ class DuckDBEngine(DataFrameEngine):
         attr_cols = [c for c in gdf.columns if c != geometry_col]
         df = pd.DataFrame({c: gdf[c].values for c in attr_cols})
         df["_geom_wkb"] = [
-            g.wkb_hex if g is not None else None
+            g.wkb_hex if (g is not None and not pd.isna(g)) else None
             for g in gdf[geometry_col]
         ]
 
@@ -1430,19 +1435,25 @@ class SparkEngine(DataFrameEngine):
 
     def to_geodataframe(self, df, geometry_col="geometry", *, crs=None):
         import geopandas as gpd
-        from siege_utilities.geo.crs import get_default_crs
+        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
         from shapely import wkt
         pdf = df.toPandas()
         if geometry_col in pdf.columns:
             # from_geodataframe normalizes geometry to the default CRS before
-            # serializing to WKT (Spark/Sedona carries no CRS), so read-back
-            # assigns the same CRS the coordinates are actually in.
-            target_crs = crs or get_default_crs()
+            # serializing to WKT (Spark/Sedona carries no CRS), so the stored
+            # coordinates ARE in the default CRS. Build the GeoDataFrame in that
+            # CRS, then reproject to a caller-requested crs rather than merely
+            # relabeling it (relabeling would mislabel default-CRS coordinates
+            # as the requested CRS).
+            stored_crs = get_default_crs()
             parsed = pdf[geometry_col].apply(
                 lambda g: wkt.loads(g) if isinstance(g, str) else g
             )
-            pdf[geometry_col] = gpd.GeoSeries(parsed.values, index=pdf.index, crs=target_crs)
-            return gpd.GeoDataFrame(pdf, geometry=geometry_col, crs=target_crs)
+            pdf[geometry_col] = gpd.GeoSeries(parsed.values, index=pdf.index, crs=stored_crs)
+            out = gpd.GeoDataFrame(pdf, geometry=geometry_col, crs=stored_crs)
+            if crs is not None:
+                out = reproject_if_needed(out, crs)
+            return out
         raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
 
     def from_geodataframe(self, gdf, geometry_col="geometry"):
@@ -1469,6 +1480,14 @@ class SparkEngine(DataFrameEngine):
         # preserves geographic location rather than raw projected numbers.
         if getattr(gdf, "crs", None) is not None:
             gdf = reproject_if_needed(gdf, get_default_crs())
+        else:
+            log.warning(
+                "from_geodataframe received a GeoDataFrame with no CRS; its "
+                "coordinates are assumed to already be in the default CRS (%s) "
+                "and will be read back as such. Set a CRS to avoid silent "
+                "mislabeling.",
+                get_default_crs(),
+            )
 
         attr_cols = [c for c in gdf.columns if c != geometry_col]
         geoms = [(g.wkt if g is not None else None) for g in gdf[geometry_col]]

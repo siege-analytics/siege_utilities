@@ -61,6 +61,32 @@ def test_areal_interpolation_preserves_intensive_and_splits_extensive(monkeypatc
     assert all(abs(r - 0.2) < 1e-9 for r in out["poverty_rate"])  # intensive: unchanged
 
 
+def test_crosswalk_routes_intensive_vs_extensive():
+    # The PRIMARY (crosswalk) path, not just the areal fallback, must area-weight
+    # intensive columns. A 50/50 split must halve population (extensive) and keep
+    # poverty_rate (intensive) at 0.2.
+    import pandas as pd
+    from siege_utilities.geo.crosswalk.crosswalk_processor import CrosswalkProcessor
+
+    xwalk = pd.DataFrame({
+        "source_geoid": ["S1", "S1"],
+        "target_geoid": ["T1", "T2"],
+        "area_weight": [0.5, 0.5],
+    })
+    proc = CrosswalkProcessor(
+        crosswalk_df=xwalk, source_year=2010, target_year=2020, geography_level="tract"
+    )
+    df = pd.DataFrame({"GEOID": ["S1"], "population": [100], "poverty_rate": [0.2]})
+    out = proc.transform(
+        df, geoid_column="GEOID", value_columns=["population", "poverty_rate"],
+        intensive_variables=["poverty_rate"],
+    ).set_index("GEOID")
+    assert abs(out.loc["T1", "population"] - 50) < 1e-6
+    assert abs(out.loc["T2", "population"] - 50) < 1e-6
+    assert abs(out.loc["T1", "poverty_rate"] - 0.2) < 1e-9
+    assert abs(out.loc["T2", "poverty_rate"] - 0.2) < 1e-9
+
+
 # --- C: Spark from_geodataframe normalizes CRS before WKT serialization ---
 
 def test_spark_from_geodataframe_normalizes_crs(monkeypatch):
@@ -80,6 +106,23 @@ def test_spark_from_geodataframe_normalizes_crs(monkeypatch):
     assert abs(geom.x - 1.0) < 1e-3 and abs(geom.y) < 1e-6, (
         f"CRS not normalized before serialize: got {geom.wkt}"
     )
+
+
+def test_spark_to_geodataframe_reprojects_to_requested_crs():
+    gpd = pytest.importorskip("geopandas")
+    import pandas as pd
+    from siege_utilities.engines.dataframe_engine import SparkEngine
+
+    # Stored WKT is in the default CRS (EPSG:4326). Requesting EPSG:3857 on
+    # read-back must REPROJECT (POINT (1 0) deg -> ~111319 m), not relabel the
+    # degree coordinates as metres.
+    class _DF:
+        def toPandas(self):
+            return pd.DataFrame({"id": [1], "geometry": ["POINT (1 0)"]})
+
+    eng = SparkEngine.__new__(SparkEngine)
+    out = eng.to_geodataframe(_DF(), crs="EPSG:3857")
+    assert abs(out.geometry.iloc[0].x - 111319.49) < 1.0, out.geometry.iloc[0].wkt
 
 
 # --- D: docstring generator dry-run does not write and honors --path ---
@@ -128,26 +171,40 @@ def test_duckdb_geometry_roundtrip(tmp_path):
     gonly = gpd.GeoDataFrame(geometry=[Point(2, 2)], crs="EPSG:4326")
     back2 = eng.to_geodataframe(eng.from_geodataframe(gonly))
     assert back2.geometry.iloc[0].equals(Point(2, 2))
+    # A null geometry round-trips as missing (DuckDB returns pd.NA, not None).
+    mixed = gpd.GeoDataFrame({"id": [1, 2]}, geometry=[Point(3, 3), None], crs="EPSG:4326")
+    back3 = eng.to_geodataframe(eng.from_geodataframe(mixed))
+    assert back3.geometry.iloc[0].equals(Point(3, 3))
+    assert back3.geometry.isna().iloc[1]
 
 
 # --- F: Snowflake write_pandas uses unquoted identifiers to match CREATE ---
 
-def test_snowflake_upload_uses_unquoted_identifiers(monkeypatch):
+def test_snowflake_create_table_quotes_identifiers(monkeypatch):
+    # CREATE must quote identifiers to match write_pandas (quoted by default),
+    # so the created columns line up with what write_pandas targets. Forcing
+    # write_pandas unquoted instead would regress existing case-sensitive tables.
     import siege_utilities.analytics.snowflake_connector as sc
     import pandas as pd
 
-    captured = {}
+    executed = []
+    wp = {}
 
     def _fake_write_pandas(conn, df, table, **kwargs):
-        captured["kwargs"] = kwargs
+        wp["kwargs"] = kwargs
         return True, 1, len(df), None
 
     monkeypatch.setattr(sc, "write_pandas", _fake_write_pandas)
     conn = sc.SnowflakeConnector(account="a", user="u")
     conn.connection = object()
-    conn.cursor = type("Cur", (), {"execute": lambda self, *a, **k: None})()
-    conn.upload_dataframe(pd.DataFrame({"amount": [1]}), "events", auto_create_table=False)
-    assert captured["kwargs"].get("quote_identifiers") is False
+    conn.cursor = type("Cur", (), {"execute": lambda self, sql, *a, **k: executed.append(sql)})()
+    conn.upload_dataframe(pd.DataFrame({"amount": [1]}), "events", auto_create_table=True)
+
+    create = [s for s in executed if "CREATE TABLE" in s]
+    assert create, f"no CREATE TABLE executed: {executed}"
+    assert '"amount"' in create[0] and '"events"' in create[0], create[0]
+    # write_pandas must not be forced to unquoted identifiers (regression guard).
+    assert wp["kwargs"].get("quote_identifiers") is not False
 
 
 # --- G: census catalog populator does not double the /data path segment ---
