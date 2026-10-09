@@ -210,9 +210,27 @@ class CrosswalkProcessor:
 
         log.info(f"Transforming {len(df)} rows with {len(value_columns)} value columns")
 
-        # Merge with crosswalk
+        intensive_set = set(intensive_variables or [])
+
+        # Merge with crosswalk. When intensive columns are requested, also pull
+        # an absolute-area column so intensive MERGES can be area-weighted
+        # correctly. ``area_weight`` is an allocation factor (overlap/source),
+        # which is ~1 for every fully-contained source and therefore cannot
+        # recover the relative source areas an area-weighted mean needs on a
+        # merge (sources of area 1 and 9 both get area_weight 1). ``overlap_area``
+        # (the intersection area) is the correct intensive weight; ``source_area``
+        # is the fallback.
+        merge_cols = ['source_geoid', 'target_geoid', 'area_weight']
+        areal_weight_col: Optional[str] = None
+        if intensive_set:
+            for _cand in ('overlap_area', 'source_area'):
+                if _cand in self.crosswalk_df.columns:
+                    areal_weight_col = _cand
+                    merge_cols.append(_cand)
+                    break
+
         merged = df.merge(
-            self.crosswalk_df[['source_geoid', 'target_geoid', 'area_weight']],
+            self.crosswalk_df[merge_cols],
             left_on=geoid_column,
             right_on='source_geoid',
             how='left'
@@ -226,6 +244,10 @@ class CrosswalkProcessor:
             )
             merged.loc[unmatched, 'target_geoid'] = merged.loc[unmatched, geoid_column]
             merged.loc[unmatched, 'area_weight'] = 1.0
+            if areal_weight_col is not None:
+                # An unmatched row is a lone self-mapped source; weight 1.0
+                # preserves its intensive value.
+                merged.loc[unmatched, areal_weight_col] = 1.0
 
         # Get weight column based on method
         if weight_method == WeightMethod.EQUAL:
@@ -233,27 +255,76 @@ class CrosswalkProcessor:
         else:
             merged['_weight'] = merged['area_weight'].fillna(1.0)
 
-        # Apply weights to value columns (for splits)
-        for col in value_columns:
-            if col in merged.columns:
-                merged[f'_weighted_{col}'] = merged[col] * merged['_weight']
+        # Split the value columns into extensive (disaggregated by weight) and
+        # intensive (area-weighted averaged). They need fundamentally different
+        # math, so handle them on separate paths rather than dividing an
+        # already-aggregated extensive result.
+        extensive_cols = [
+            c for c in value_columns if c in merged.columns and c not in intensive_set
+        ]
+        intensive_cols = [
+            c for c in value_columns if c in merged.columns and c in intensive_set
+        ]
 
-        # Aggregate by target GEOID
+        # Apply weights to extensive value columns (for splits/merges).
+        for col in extensive_cols:
+            merged[f'_weighted_{col}'] = merged[col] * merged['_weight']
+
+        # Build the area-weighted numerator/denominator for intensive columns.
+        # The area-weighted mean is Sum(value_i * area_i) / Sum(area_i), computed
+        # only over rows with a non-null value so a missing value does not dilute
+        # the rate (e.g. [.2, NaN] -> .2, not .1). This matches the areal/tobler
+        # intensive formula exactly (see geo.interpolation.areal).
+        if intensive_cols:
+            if areal_weight_col is not None:
+                areal_w = pd.to_numeric(merged[areal_weight_col], errors='coerce')
+                areal_w = areal_w.where(~unmatched, 1.0).fillna(0.0)
+            else:
+                # No absolute-area column available. A merge (a target fed by
+                # more than one source) CANNOT be area-weighted from the
+                # allocation factor, so refuse rather than return a wrong
+                # number. A split / 1:1 (each target fed by a single source)
+                # preserves the intensive value regardless of weight, so it is
+                # safe to proceed with unit weights.
+                target_source_counts = merged.groupby('target_geoid').size()
+                if (target_source_counts > 1).any():
+                    raise ValueError(
+                        "Cannot area-weight intensive columns "
+                        f"{sorted(intensive_set)} on a merge: the crosswalk "
+                        "carries only the allocation factor 'area_weight', "
+                        "which cannot express an area-weighted mean (sources "
+                        "of area 1 and 9 both get weight 1). Supply a crosswalk "
+                        "with an 'overlap_area' or 'source_area' column, or "
+                        "route intensive columns through areal interpolation "
+                        "(LongitudinalAligner falls back to tobler "
+                        "automatically on a crosswalk failure)."
+                    )
+                areal_w = pd.Series(1.0, index=merged.index)
+
+            for col in intensive_cols:
+                vals = pd.to_numeric(merged[col], errors='coerce')
+                valid = vals.notna()
+                merged[f'_inum_{col}'] = np.where(valid, vals.fillna(0.0) * areal_w, 0.0)
+                merged[f'_iden_{col}'] = np.where(valid, areal_w, 0.0)
+
+        # Aggregate by target GEOID.
         agg_dict = {}
-        for col in value_columns:
+        for col in extensive_cols:
             weighted_col = f'_weighted_{col}'
-            if weighted_col in merged.columns:
-                if aggregation_func == 'sum':
-                    agg_dict[col] = (weighted_col, 'sum')
-                elif aggregation_func == 'mean':
-                    agg_dict[col] = (weighted_col, 'mean')
-                elif aggregation_func == 'weighted_mean':
-                    # Will handle separately
-                    agg_dict[col] = (weighted_col, 'sum')
-                else:
-                    agg_dict[col] = (weighted_col, aggregation_func)
+            if aggregation_func == 'sum':
+                agg_dict[col] = (weighted_col, 'sum')
+            elif aggregation_func == 'mean':
+                agg_dict[col] = (weighted_col, 'mean')
+            elif aggregation_func == 'weighted_mean':
+                # Will be divided by total weight below.
+                agg_dict[col] = (weighted_col, 'sum')
+            else:
+                agg_dict[col] = (weighted_col, aggregation_func)
+        for col in intensive_cols:
+            agg_dict[f'_inum_{col}'] = (f'_inum_{col}', 'sum')
+            agg_dict[f'_iden_{col}'] = (f'_iden_{col}', 'sum')
 
-        # Also aggregate weights for weighted_mean calculation
+        # Also aggregate weights for weighted_mean calculation.
         agg_dict['_total_weight'] = ('_weight', 'sum')
 
         # Group and aggregate
@@ -262,22 +333,25 @@ class CrosswalkProcessor:
         # Rename target_geoid back to original column name
         result = result.rename(columns={'target_geoid': geoid_column})
 
-        # Calculate weighted mean if needed
+        # Extensive weighted_mean normalization (intensive columns are never
+        # touched here -- they are computed from their own numerator/denominator
+        # below, so 'mean'/'weighted_mean' cannot double-divide a rate).
         if aggregation_func == 'weighted_mean':
-            for col in value_columns:
+            for col in extensive_cols:
                 if col in result.columns:
                     result[col] = result[col] / result['_total_weight']
-        else:
-            # Intensive variables (rates, ratios, medians, densities) are
-            # area-weighted averaged, not disaggregated: divide the weighted
-            # sum by the total weight so a split preserves the value instead
-            # of scaling it down. Extensive columns keep the weighted sum.
-            for col in (intensive_variables or []):
-                if col in result.columns and '_total_weight' in result.columns:
-                    result[col] = result[col] / result['_total_weight']
+
+        # Intensive area-weighted mean: numerator / denominator.
+        drop_cols = ['_total_weight']
+        for col in intensive_cols:
+            inum, iden = f'_inum_{col}', f'_iden_{col}'
+            if inum in result.columns and iden in result.columns:
+                with np.errstate(invalid='ignore', divide='ignore'):
+                    result[col] = result[inum] / result[iden].replace(0, np.nan)
+                drop_cols += [inum, iden]
 
         # Drop helper columns
-        result = result.drop(columns=['_total_weight'], errors='ignore')
+        result = result.drop(columns=drop_cols, errors='ignore')
 
         log.info(f"Transformed to {len(result)} rows in target vintage")
         return result

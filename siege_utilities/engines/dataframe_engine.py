@@ -33,8 +33,11 @@ PySpark, or SQLAlchemy/psycopg2 to be installed.
 from __future__ import annotations
 
 import enum
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Sequence, Union
+
+log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -1435,25 +1438,29 @@ class SparkEngine(DataFrameEngine):
 
     def to_geodataframe(self, df, geometry_col="geometry", *, crs=None):
         import geopandas as gpd
-        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+        from siege_utilities.geo.crs import get_default_crs
         from shapely import wkt
         pdf = df.toPandas()
         if geometry_col in pdf.columns:
-            # from_geodataframe normalizes geometry to the default CRS before
-            # serializing to WKT (Spark/Sedona carries no CRS), so the stored
-            # coordinates ARE in the default CRS. Build the GeoDataFrame in that
-            # CRS, then reproject to a caller-requested crs rather than merely
-            # relabeling it (relabeling would mislabel default-CRS coordinates
-            # as the requested CRS).
-            stored_crs = get_default_crs()
+            # Spark/Sedona carries no CRS metadata, so the stored WKT
+            # coordinates are in whatever CRS the caller wrote them in
+            # (read_spatial(crs="EPSG:3857") stores projected metres). We
+            # ASSIGN the requested crs (default EPSG:4326) to the parsed
+            # geometry -- we do NOT reproject, because the stored numbers
+            # are already in the caller-declared CRS. Reprojecting here
+            # would treat projected metres as degrees and blow up to
+            # POINT(inf inf). Round-trip CRS fidelity is the caller's
+            # responsibility: pass the crs the coordinates are actually in.
+            target_crs = crs or get_default_crs()
             parsed = pdf[geometry_col].apply(
                 lambda g: wkt.loads(g) if isinstance(g, str) else g
             )
-            pdf[geometry_col] = gpd.GeoSeries(parsed.values, index=pdf.index, crs=stored_crs)
-            out = gpd.GeoDataFrame(pdf, geometry=geometry_col, crs=stored_crs)
-            if crs is not None:
-                out = reproject_if_needed(out, crs)
-            return out
+            # Bind the parsed geometry back under geometry_col as the active
+            # GeoSeries (not via the GeoDataFrame geometry= kwarg, which would
+            # leave the column as plain strings). This keeps .buffer()/
+            # .distance() working on the returned frame.
+            pdf[geometry_col] = gpd.GeoSeries(parsed.values, index=pdf.index, crs=target_crs)
+            return gpd.GeoDataFrame(pdf, geometry=geometry_col, crs=target_crs)
         raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
 
     def from_geodataframe(self, gdf, geometry_col="geometry"):
@@ -1464,9 +1471,16 @@ class SparkEngine(DataFrameEngine):
         calls (createOrReplaceTempView). Serialize geometry to WKT and build a
         real Spark DataFrame so the Spark spatial methods (which read
         ST_GeomFromText(geometry_col)) receive engine-native input.
+
+        Spark/Sedona carries no CRS metadata. Coordinates are serialized to
+        WKT exactly as they are in *gdf* -- no reprojection -- so a
+        read_spatial(crs=...) -> from_geodataframe -> to_geodataframe(crs=...)
+        round-trip preserves the numbers unchanged. The caller is responsible
+        for passing the same crs to to_geodataframe that the coordinates are
+        actually in; normalizing to a default CRS here would corrupt data
+        that entered in a projected CRS.
         """
         import pandas as pd
-        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
 
         if len(gdf) == 0:
             raise ValueError(
@@ -1474,19 +1488,12 @@ class SparkEngine(DataFrameEngine):
                 "rows to infer a schema from. Provide at least one row."
             )
 
-        # WKT carries no CRS and Spark/Sedona has no CRS metadata, so a
-        # projected input would be silently misread as lon/lat on read-back.
-        # Normalize to the default CRS before serializing so the round-trip
-        # preserves geographic location rather than raw projected numbers.
-        if getattr(gdf, "crs", None) is not None:
-            gdf = reproject_if_needed(gdf, get_default_crs())
-        else:
+        if getattr(gdf, "crs", None) is None:
             log.warning(
-                "from_geodataframe received a GeoDataFrame with no CRS; its "
-                "coordinates are assumed to already be in the default CRS (%s) "
-                "and will be read back as such. Set a CRS to avoid silent "
-                "mislabeling.",
-                get_default_crs(),
+                "from_geodataframe received a GeoDataFrame with no CRS. "
+                "Coordinates are serialized as-is and Spark/Sedona stores no "
+                "CRS metadata; pass the matching crs to to_geodataframe on "
+                "read-back to avoid mislabeling."
             )
 
         attr_cols = [c for c in gdf.columns if c != geometry_col]

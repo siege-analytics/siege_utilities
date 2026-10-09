@@ -378,10 +378,14 @@ class SnowflakeConnector:
                 validate_identifier(schema, label="schema name")
                 self.cursor.execute(f"USE SCHEMA {schema}")
 
-            self.cursor.execute(f"DESCRIBE TABLE {table_name}")
+            # Quote the identifier so a table CREATEd with quotes (case-sensitive,
+            # the write_pandas / _create_table_from_dataframe convention) is
+            # addressable here. Unquoted DESCRIBE/SELECT would uppercase the name
+            # and miss a mixed-case table.
+            self.cursor.execute(f'DESCRIBE TABLE "{table_name}"')
             columns = self.cursor.fetchall()
 
-            self.cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+            self.cursor.execute(f'SELECT COUNT(*) FROM "{table_name}"')
             row_count = self.cursor.fetchone()[0]
 
             self.cursor.execute(

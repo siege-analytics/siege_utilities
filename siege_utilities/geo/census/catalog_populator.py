@@ -51,7 +51,14 @@ class CensusCatalogPopulator:
         base_url: str = CENSUS_API_BASE_URL,
         timeout: int = 30,
     ):
-        self.base_url = base_url.rstrip("/")
+        # The discovery endpoints live under ``/data/{year}/...``. Normalize so
+        # the final URL contains ``/data`` exactly once whether or not the
+        # caller's base_url already includes it: both "https://api.census.gov"
+        # and "https://api.census.gov/data" must resolve correctly.
+        normalized = base_url.rstrip("/")
+        if not normalized.endswith("/data"):
+            normalized = f"{normalized}/data"
+        self.base_url = normalized
         self.timeout = timeout
 
     def populate(
