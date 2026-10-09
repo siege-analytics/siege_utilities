@@ -242,10 +242,10 @@ class SnowflakeConnector:
         try:
             if database:
                 validate_identifier(database, label="database name")
-                self.cursor.execute(f"USE DATABASE {database}")
+                self.cursor.execute(f'USE DATABASE "{database}"')
             if schema:
                 validate_identifier(schema, label="schema name")
-                self.cursor.execute(f"USE SCHEMA {schema}")
+                self.cursor.execute(f'USE SCHEMA "{schema}"')
 
             if auto_create_table:
                 self._create_table_from_dataframe(df, table_name, overwrite)
@@ -373,10 +373,10 @@ class SnowflakeConnector:
         try:
             if database:
                 validate_identifier(database, label="database name")
-                self.cursor.execute(f"USE DATABASE {database}")
+                self.cursor.execute(f'USE DATABASE "{database}"')
             if schema:
                 validate_identifier(schema, label="schema name")
-                self.cursor.execute(f"USE SCHEMA {schema}")
+                self.cursor.execute(f'USE SCHEMA "{schema}"')
 
             # Quote the identifier so a table CREATEd with quotes (case-sensitive,
             # the write_pandas / _create_table_from_dataframe convention) is
@@ -435,10 +435,10 @@ class SnowflakeConnector:
         try:
             if database:
                 validate_identifier(database, label="database name")
-                self.cursor.execute(f"USE DATABASE {database}")
+                self.cursor.execute(f'USE DATABASE "{database}"')
             if schema:
                 validate_identifier(schema, label="schema name")
-                self.cursor.execute(f"USE SCHEMA {schema}")
+                self.cursor.execute(f'USE SCHEMA "{schema}"')
 
             self.cursor.execute("SHOW TABLES")
             tables = [row[1] for row in self.cursor.fetchall()]

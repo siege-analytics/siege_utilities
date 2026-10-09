@@ -51,15 +51,49 @@ class CensusCatalogPopulator:
         base_url: str = CENSUS_API_BASE_URL,
         timeout: int = 30,
     ):
-        # The discovery endpoints live under ``/data/{year}/...``. Normalize so
-        # the final URL contains ``/data`` exactly once whether or not the
-        # caller's base_url already includes it: both "https://api.census.gov"
-        # and "https://api.census.gov/data" must resolve correctly.
-        normalized = base_url.rstrip("/")
-        if not normalized.endswith("/data"):
-            normalized = f"{normalized}/data"
-        self.base_url = normalized
+        # The discovery endpoints live under ``/data/{year}/{dataset}/...``;
+        # ``_fetch_variables`` / ``_fetch_groups`` append that suffix
+        # themselves. Normalize the base_url STRUCTURALLY so the final URL
+        # contains ``/data`` exactly once and never doubles the dataset path,
+        # for: host root ("https://api.census.gov"), trailing slash, "/data",
+        # "/data/", and proxy prefixes ("https://proxy/census" -> ".../census/data").
+        # A full dataset path ("https://api.census.gov/data/2023/acs/acs5")
+        # already carries year+dataset and cannot be used as a base -- reject it
+        # explicitly rather than silently producing "/data/2023/.../data/2023/...".
+        self.base_url = self._normalize_base_url(base_url)
         self.timeout = timeout
+
+    @staticmethod
+    def _normalize_base_url(base_url: str) -> str:
+        """Return an API-root base_url ending at ``/data`` exactly once.
+
+        Raises:
+            ValueError: If base_url includes a full dataset path after
+                ``/data`` (e.g. ``/data/2023/acs/acs5``); the fetchers append
+                ``/{year}/{dataset}/...`` themselves, so such a base_url would
+                double the path.
+        """
+        from urllib.parse import urlsplit, urlunsplit
+
+        parts = urlsplit(base_url)
+        segments = [s for s in parts.path.split("/") if s]
+
+        if segments and segments[-1] == "data":
+            new_segments = segments
+        elif "data" in segments:
+            raise ValueError(
+                f"base_url {base_url!r} includes a full dataset path after "
+                f"'/data' (e.g. '/data/{{year}}/{{dataset}}'). Pass the API "
+                f"root ending at '/data' or without it -- for example "
+                f"'https://api.census.gov' or 'https://api.census.gov/data'. "
+                f"_fetch_variables/_fetch_groups append "
+                f"'/{{year}}/{{dataset}}/...' themselves."
+            )
+        else:
+            new_segments = segments + ["data"]
+
+        new_path = "/" + "/".join(new_segments)
+        return urlunsplit((parts.scheme, parts.netloc, new_path, "", ""))
 
     def populate(
         self,

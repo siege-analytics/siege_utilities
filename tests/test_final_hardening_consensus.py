@@ -465,3 +465,339 @@ def test_buffer_custom_geometry_col(engine_name):
     eng = PandasEngine() if engine_name == "pandas" else DuckDBEngine()
     out = eng.buffer(pd.DataFrame({"geom": ["POINT (0 0)"]}), 1.0, geometry_col="geom")
     assert out["geom"].iloc[0].area > 0, "buffer did not produce a polygon on the custom column"
+
+
+# ===========================================================================
+# Round-4 class-level findings (#1369). Each test is red-on-revert against the
+# pre-fix code: it fails on the un-fixed implementation and passes on the fix.
+# ===========================================================================
+
+
+# --- Finding #1 (P1): intensive area-weight uses ACTUAL overlap area ---
+
+def test_crosswalk_intensive_partial_overlap_is_area_weighted():
+    # source_area [1, 9] with area_weight (overlap/source) [1, 1/9] means the
+    # actual overlaps are [1, 1], so the area-weighted mean of rates [.1, .9]
+    # is (.1*1 + .9*1)/2 = .50 -- NOT .82. The pre-fix code fell back to
+    # source_area ALONE ([1, 9] -> .82), ignoring the allocation fraction.
+    import pandas as pd
+    from siege_utilities.geo.crosswalk.crosswalk_processor import CrosswalkProcessor
+
+    xwalk = pd.DataFrame({
+        "source_geoid": ["S1", "S2"],
+        "target_geoid": ["T1", "T1"],
+        "area_weight": [1.0, 1.0 / 9.0],   # overlap/source fraction
+        "source_area": [1.0, 9.0],
+    })
+    proc = CrosswalkProcessor(xwalk, 2010, 2020, "tract")
+    df = pd.DataFrame({"GEOID": ["S1", "S2"], "rate": [0.1, 0.9]})
+    out = proc.transform(
+        df, geoid_column="GEOID", value_columns=["rate"], intensive_variables=["rate"],
+    ).set_index("GEOID")
+    assert abs(out.loc["T1", "rate"] - 0.50) < 1e-9, out.loc["T1", "rate"]
+
+
+def test_crosswalk_partial_overlap_matches_real_tobler():
+    # The crosswalk answer for a partial overlap must equal the REAL tobler
+    # areal-interpolation answer for the same geometry. S1 (area 1) is fully
+    # inside the target; S2 (area 9) overlaps the target by exactly 1 (so its
+    # allocation fraction is 1/9). Both must yield .50.
+    gpd = pytest.importorskip("geopandas")
+    pytest.importorskip("tobler")
+    import pandas as pd
+    from shapely.geometry import box
+    from siege_utilities.geo.crosswalk.crosswalk_processor import CrosswalkProcessor
+    from siege_utilities.geo.interpolation.areal import interpolate_areal
+
+    tgt = gpd.GeoDataFrame({"GEOID": ["T1"]}, geometry=[box(0, 0, 1, 2)], crs="EPSG:3857")
+    src = gpd.GeoDataFrame(
+        {"GEOID": ["S1", "S2"], "rate": [0.1, 0.9]},
+        geometry=[box(0, 0, 1, 1), box(0, 1, 1, 10)],  # S1 area1 in T; S2 area9 overlaps by 1
+        crs="EPSG:3857",
+    )
+    areal = interpolate_areal(source_gdf=src, target_gdf=tgt, intensive_variables=["rate"])
+    areal_rate = float(areal.data["rate"].iloc[0])
+    assert abs(areal_rate - 0.50) < 1e-6, areal_rate
+
+    xwalk = pd.DataFrame({
+        "source_geoid": ["S1", "S2"],
+        "target_geoid": ["T1", "T1"],
+        "area_weight": [1.0, 1.0 / 9.0],
+        "source_area": [1.0, 9.0],
+    })
+    proc = CrosswalkProcessor(xwalk, 2010, 2020, "tract")
+    df = pd.DataFrame({"GEOID": ["S1", "S2"], "rate": [0.1, 0.9]})
+    out = proc.transform(
+        df, geoid_column="GEOID", value_columns=["rate"], intensive_variables=["rate"],
+    ).set_index("GEOID")
+    assert abs(out.loc["T1", "rate"] - areal_rate) < 1e-6, (out.loc["T1", "rate"], areal_rate)
+
+
+# --- Finding #2 (P1): align() areal fallback excludes NaN sources ---
+
+def test_align_areal_fallback_excludes_nan_source(monkeypatch):
+    # When the crosswalk refuses (no area columns) and the REAL tobler areal
+    # path runs, a NaN source value must not dilute the rate. [.2, NaN] over
+    # two equal-area sources fully tiling one target must yield .2, not .1.
+    # tobler 0.13 substitutes 0 for the NaN while keeping its area in the
+    # denominator; the fix recomputes the variable on its valid-source subset.
+    gpd = pytest.importorskip("geopandas")
+    pytest.importorskip("tobler")
+    import numpy as np
+    import pandas as pd
+    from shapely.geometry import box
+    import siege_utilities.geo.timeseries.longitudinal_data as mod
+
+    src = gpd.GeoDataFrame(
+        {"GEOID": ["S1", "S2"]},
+        geometry=[box(0, 0, 1, 1), box(0, 1, 1, 2)], crs="EPSG:3857",
+    )
+    tgt = gpd.GeoDataFrame({"GEOID": ["T1"]}, geometry=[box(0, 0, 1, 2)], crs="EPSG:3857")
+    monkeypatch.setattr(
+        "siege_utilities.geo.spatial_data.get_census_boundaries",
+        lambda year, geographic_level, state_fips, **k: src.copy() if year == 2010 else tgt.copy(),
+    )
+    aligner = mod.LongitudinalAligner(target_vintage=2020, geography="tract")
+    df = pd.DataFrame({"GEOID": ["S1", "S2"], "rate": [0.2, np.nan]})
+    out = aligner._apply_areal_interpolation(
+        df, source_year=2010, target_year=2020, geography_level="tract",
+        state_fips="06", geoid_column="GEOID", intensive_columns=["rate"],
+    )
+    assert abs(float(out["rate"].iloc[0]) - 0.2) < 1e-9, out["rate"].iloc[0]
+
+
+def test_interpolate_areal_nan_intensive_excluded_from_denominator():
+    # Direct interpolate_areal check on the same defect (independent of align).
+    gpd = pytest.importorskip("geopandas")
+    pytest.importorskip("tobler")
+    import numpy as np
+    from shapely.geometry import box
+    from siege_utilities.geo.interpolation.areal import interpolate_areal
+
+    src = gpd.GeoDataFrame(
+        {"GEOID": ["S1", "S2"], "rate": [0.2, np.nan]},
+        geometry=[box(0, 0, 1, 1), box(0, 1, 1, 2)], crs="EPSG:3857",
+    )
+    tgt = gpd.GeoDataFrame({"GEOID": ["T1"]}, geometry=[box(0, 0, 1, 2)], crs="EPSG:3857")
+    res = interpolate_areal(source_gdf=src, target_gdf=tgt, intensive_variables=["rate"])
+    assert abs(float(res.data["rate"].iloc[0]) - 0.2) < 1e-9, res.data["rate"].iloc[0]
+
+
+# --- Finding #3: metadata/helper collisions + extensive passthrough ---
+
+def test_crosswalk_input_area_column_collision_no_keyerror():
+    # Finding #3a: input data that already carries 'overlap_area'/'source_area'
+    # columns must not collide with crosswalk metadata (pre-fix: merge suffix
+    # -> KeyError('overlap_area')). The crosswalk's own areas drive the result.
+    import pandas as pd
+    from siege_utilities.geo.crosswalk.crosswalk_processor import CrosswalkProcessor
+
+    xwalk = pd.DataFrame({
+        "source_geoid": ["S1", "S2"],
+        "target_geoid": ["T1", "T1"],
+        "area_weight": [1.0, 1.0],
+        "source_area": [1.0, 9.0],
+        "overlap_area": [1.0, 9.0],
+    })
+    proc = CrosswalkProcessor(xwalk, 2010, 2020, "tract")
+    df = pd.DataFrame({
+        "GEOID": ["S1", "S2"], "rate": [0.1, 0.9],
+        "overlap_area": [111.0, 222.0], "source_area": [333.0, 444.0],  # user columns
+    })
+    out = proc.transform(
+        df, geoid_column="GEOID", value_columns=["rate"], intensive_variables=["rate"],
+    ).set_index("GEOID")
+    assert abs(out.loc["T1", "rate"] - 0.82) < 1e-9, out.loc["T1", "rate"]
+
+
+def test_crosswalk_extensive_passthrough_survives_helper_name_collision():
+    # Finding #3b: extensive input columns named like the internal helpers
+    # ('_inum_rate', '_iden_rate') must still be summed into the output, not
+    # dropped by a helper-column name collision. Expected totals: 15 and 150.
+    import pandas as pd
+    from siege_utilities.geo.crosswalk.crosswalk_processor import CrosswalkProcessor
+
+    xwalk = pd.DataFrame({
+        "source_geoid": ["S1", "S2"],
+        "target_geoid": ["T1", "T1"],
+        "area_weight": [1.0, 1.0],
+        "source_area": [1.0, 1.0],
+        "overlap_area": [1.0, 1.0],
+    })
+    proc = CrosswalkProcessor(xwalk, 2010, 2020, "tract")
+    df = pd.DataFrame({
+        "GEOID": ["S1", "S2"], "rate": [0.2, 0.8],
+        "_inum_rate": [5.0, 10.0], "_iden_rate": [50.0, 100.0],
+    })
+    out = proc.transform(
+        df, geoid_column="GEOID",
+        value_columns=["rate", "_inum_rate", "_iden_rate"],
+        intensive_variables=["rate"],
+    ).set_index("GEOID")
+    assert "_inum_rate" in out.columns and "_iden_rate" in out.columns, list(out.columns)
+    assert abs(out.loc["T1", "_inum_rate"] - 15.0) < 1e-9, out.loc["T1", "_inum_rate"]
+    assert abs(out.loc["T1", "_iden_rate"] - 150.0) < 1e-9, out.loc["T1", "_iden_rate"]
+
+
+# --- Finding #4: missing/invalid area is recovered or rejected, never zeroed ---
+
+def test_crosswalk_recovers_overlap_area_from_source_area_when_nan():
+    # overlap_area [1, NaN] must be recovered from source_area * area_weight
+    # ([1, 9] * [1, 1] = [1, 9]) -> .82, NOT silently zeroed (pre-fix -> .1).
+    import numpy as np
+    import pandas as pd
+    from siege_utilities.geo.crosswalk.crosswalk_processor import CrosswalkProcessor
+
+    xwalk = pd.DataFrame({
+        "source_geoid": ["S1", "S2"],
+        "target_geoid": ["T1", "T1"],
+        "area_weight": [1.0, 1.0],
+        "source_area": [1.0, 9.0],
+        "overlap_area": [1.0, np.nan],
+    })
+    proc = CrosswalkProcessor(xwalk, 2010, 2020, "tract")
+    df = pd.DataFrame({"GEOID": ["S1", "S2"], "rate": [0.1, 0.9]})
+    out = proc.transform(
+        df, geoid_column="GEOID", value_columns=["rate"], intensive_variables=["rate"],
+    ).set_index("GEOID")
+    assert abs(out.loc["T1", "rate"] - 0.82) < 1e-9, out.loc["T1", "rate"]
+
+
+def test_crosswalk_unrecoverable_invalid_area_rejects():
+    # overlap_area [1, NaN] with NO source_area fallback on a 2-distinct-source
+    # merge cannot be area-weighted -> must raise, not silently drop the source.
+    import numpy as np
+    import pandas as pd
+    from siege_utilities.geo.crosswalk.crosswalk_processor import CrosswalkProcessor
+
+    xwalk = pd.DataFrame({
+        "source_geoid": ["S1", "S2"],
+        "target_geoid": ["T1", "T1"],
+        "area_weight": [1.0, 1.0],
+        "overlap_area": [1.0, np.nan],
+    })
+    proc = CrosswalkProcessor(xwalk, 2010, 2020, "tract")
+    df = pd.DataFrame({"GEOID": ["S1", "S2"], "rate": [0.1, 0.9]})
+    with pytest.raises(ValueError, match="area-weight intensive"):
+        proc.transform(
+            df, geoid_column="GEOID", value_columns=["rate"], intensive_variables=["rate"],
+        )
+
+
+# --- Finding #5: refusal counts DISTINCT sources, not rows ---
+
+def test_crosswalk_duplicate_source_rows_do_not_refuse():
+    # One distinct source geography (S1) with two duplicate input rows mapping
+    # to T1 is unambiguous: the result is .2. The pre-fix code counted ROWS and
+    # raised a bogus "merge" ValueError.
+    import pandas as pd
+    from siege_utilities.geo.crosswalk.crosswalk_processor import CrosswalkProcessor
+
+    xwalk = pd.DataFrame({
+        "source_geoid": ["S1"],
+        "target_geoid": ["T1"],
+        "area_weight": [1.0],
+    })
+    proc = CrosswalkProcessor(xwalk, 2010, 2020, "tract")
+    df = pd.DataFrame({"GEOID": ["S1", "S1"], "rate": [0.2, 0.2]})
+    out = proc.transform(
+        df, geoid_column="GEOID", value_columns=["rate"], intensive_variables=["rate"],
+    ).set_index("GEOID")
+    assert abs(out.loc["T1", "rate"] - 0.2) < 1e-9, out.loc["T1", "rate"]
+
+
+# --- Finding #7: full dataset-path base_url is rejected (no doubled /data) ---
+
+def test_census_catalog_full_dataset_path_base_url_rejected():
+    from siege_utilities.geo.census import catalog_populator as cp
+    # A base_url that already contains the dataset path would otherwise produce
+    # '.../data/2023/acs/acs5/data/2023/acs/acs5/variables.json'.
+    with pytest.raises(ValueError, match="full dataset path"):
+        cp.CensusCatalogPopulator(base_url="https://api.census.gov/data/2023/acs/acs5")
+
+
+# --- Finding #8: DuckDB native GEOMETRY round-trips (ST_AsWKB on read-back) ---
+
+def test_duckdb_native_geometry_query_roundtrips():
+    # A relation from a native-geometry query (ST_Point) carries DuckDB's
+    # internal GEOMETRY blob, NOT valid WKB. to_geodataframe() must convert it
+    # via ST_AsWKB; pre-fix it reached the WKB decoder and raised
+    # "GEOSException: Unknown WKB type 0".
+    gpd = pytest.importorskip("geopandas")
+    pytest.importorskip("duckdb")
+    from shapely.geometry import Point
+    from siege_utilities.engines.dataframe_engine import DuckDBEngine
+
+    eng = DuckDBEngine()
+    eng._ensure_spatial()
+    rel = eng._connection.query("SELECT 7 AS id, ST_Point(1, 2) AS geometry")
+    gdf = eng.to_geodataframe(rel)
+    assert list(gdf["id"]) == [7]
+    assert gdf.geometry.iloc[0].equals(Point(1, 2)), gdf.geometry.iloc[0].wkt
+
+
+def test_duckdb_read_spatial_native_geometry_roundtrips(tmp_path):
+    # read_spatial fetches ST_Read's native GEOMETRY; it must ST_AsWKB it so the
+    # decoder gets valid WKB (pre-fix returned corrupt/opaque bytes).
+    gpd = pytest.importorskip("geopandas")
+    pytest.importorskip("duckdb")
+    from shapely.geometry import Point
+    from siege_utilities.engines.dataframe_engine import DuckDBEngine
+
+    geojson = tmp_path / "pt.geojson"
+    geojson.write_text(
+        '{"type":"FeatureCollection","features":[{"type":"Feature",'
+        '"properties":{"id":1},"geometry":{"type":"Point","coordinates":[1,2]}}]}'
+    )
+    eng = DuckDBEngine()
+    gdf = eng.read_spatial(str(geojson), crs="EPSG:4326")
+    geom = gdf.geometry.iloc[0]
+    assert geom.equals(Point(1, 2)), geom.wkt
+
+
+# --- Finding #9a: nontrivial two-source mean merge is not double-divided ---
+
+def test_crosswalk_two_source_mean_merge_not_double_divided():
+    # A MERGE of two sources (areas 1 and 9, rates .1 and .9) under
+    # aggregation_func="mean" must yield the area-weighted mean .82. Intensive
+    # columns are computed on their own numerator/denominator path, so the
+    # aggregation_func cannot double-divide (the round-2 defect produced .25).
+    import pandas as pd
+    from siege_utilities.geo.crosswalk.crosswalk_processor import CrosswalkProcessor
+
+    xwalk = pd.DataFrame({
+        "source_geoid": ["S1", "S2"],
+        "target_geoid": ["T1", "T1"],
+        "area_weight": [1.0, 1.0],
+        "source_area": [1.0, 9.0],
+        "overlap_area": [1.0, 9.0],
+    })
+    proc = CrosswalkProcessor(xwalk, 2010, 2020, "tract")
+    df = pd.DataFrame({"GEOID": ["S1", "S2"], "rate": [0.1, 0.9]})
+    out = proc.transform(
+        df, geoid_column="GEOID", value_columns=["rate"],
+        intensive_variables=["rate"], aggregation_func="mean",
+    ).set_index("GEOID")
+    assert abs(out.loc["T1", "rate"] - 0.82) < 1e-9, out.loc["T1", "rate"]
+
+
+# --- Finding #9b: no-CRS serialization exercises the module logger path ---
+
+def test_spark_from_geodataframe_no_crs_uses_module_logger():
+    # A GeoDataFrame with no CRS takes the warning branch in
+    # SparkEngine.from_geodataframe. That branch calls the module-level `log`;
+    # if the module logger is undefined the serialization raises NameError.
+    # This test exercises that path (red-on-revert: remove `log = getLogger`).
+    gpd = pytest.importorskip("geopandas")
+    from shapely.geometry import Point
+    from siege_utilities.engines.dataframe_engine import SparkEngine
+
+    eng = SparkEngine.__new__(SparkEngine)
+    captured = {}
+    eng._spark = types.SimpleNamespace(
+        createDataFrame=lambda pdf: captured.setdefault("pdf", pdf)
+    )
+    gdf = gpd.GeoDataFrame({"id": [1]}, geometry=[Point(5, 6)], crs=None)
+    assert gdf.crs is None
+    eng.from_geodataframe(gdf)  # must not raise NameError on the no-CRS log path
+    assert captured["pdf"]["geometry"].iloc[0] == "POINT (5 6)", captured["pdf"]["geometry"].iloc[0]

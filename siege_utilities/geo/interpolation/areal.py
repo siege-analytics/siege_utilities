@@ -363,19 +363,45 @@ def interpolate_areal(
         len(source), len(target), backend,
     )
 
-    if backend == "tobler":
-        result_gdf = _interpolate_tobler(
-            source, target, extensive_variables, intensive_variables,
-            allocate_total, n_jobs,
-        )
-    elif backend == "duckdb":
-        result_gdf = _interpolate_duckdb(
-            source, target, extensive_variables, intensive_variables,
+    def _run_backend(src, tgt, ext_vars, int_vars):
+        if backend == "tobler":
+            return _interpolate_tobler(
+                src, tgt, ext_vars, int_vars, allocate_total, n_jobs,
+            )
+        if backend == "duckdb":
+            return _interpolate_duckdb(src, tgt, ext_vars, int_vars)
+        return _interpolate_shapely(src, tgt, ext_vars, int_vars)
+
+    # An intensive variable whose source values contain NaN must be computed on
+    # the valid-source subset so the NaN source's area is excluded from BOTH
+    # numerator and denominator. Otherwise the backend (tobler 0.13 in
+    # particular) substitutes 0 for the missing value while KEEPING its area in
+    # the denominator, diluting the rate ([0.2, NaN] -> 0.1 instead of 0.2).
+    # This mirrors the crosswalk path's per-variable valid-area denominator so
+    # align() yields 0.2 for [0.2, NaN] through either path.
+    nan_intensive = [v for v in intensive_variables if source[v].isna().any()]
+    clean_intensive = [v for v in intensive_variables if v not in nan_intensive]
+
+    if extensive_variables or clean_intensive:
+        result_gdf = _run_backend(
+            source, target, extensive_variables, clean_intensive,
         )
     else:
-        result_gdf = _interpolate_shapely(
-            source, target, extensive_variables, intensive_variables,
+        # Only NaN-bearing intensive variables requested; seed from the target
+        # geometries and fill each variable from its valid-source subset below.
+        result_gdf = target.copy()
+
+    for v in nan_intensive:
+        valid = source[source[v].notna()]
+        if valid.empty:
+            # No source carries a value for this variable -> undefined rate.
+            result_gdf[v] = np.nan
+            continue
+        sub = _run_backend(
+            valid.reset_index(drop=True), target, [], [v],
         )
+        # Both frames are one row per target in target order; assign by position.
+        result_gdf[v] = sub[v].to_numpy()
 
     result_gdf = reproject_if_needed(result_gdf, crs)
 

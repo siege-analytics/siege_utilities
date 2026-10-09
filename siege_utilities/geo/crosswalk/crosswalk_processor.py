@@ -212,48 +212,65 @@ class CrosswalkProcessor:
 
         intensive_set = set(intensive_variables or [])
 
-        # Merge with crosswalk. When intensive columns are requested, also pull
-        # an absolute-area column so intensive MERGES can be area-weighted
-        # correctly. ``area_weight`` is an allocation factor (overlap/source),
-        # which is ~1 for every fully-contained source and therefore cannot
-        # recover the relative source areas an area-weighted mean needs on a
-        # merge (sources of area 1 and 9 both get area_weight 1). ``overlap_area``
-        # (the intersection area) is the correct intensive weight; ``source_area``
-        # is the fallback.
-        merge_cols = ['source_geoid', 'target_geoid', 'area_weight']
-        areal_weight_col: Optional[str] = None
-        if intensive_set:
-            for _cand in ('overlap_area', 'source_area'):
-                if _cand in self.crosswalk_df.columns:
-                    areal_weight_col = _cand
-                    merge_cols.append(_cand)
-                    break
+        # All internal columns use a reserved prefix so they can never collide
+        # with user input columns. A caller's data may legitimately contain a
+        # column named 'overlap_area', 'source_area', or even '_inum_rate' /
+        # '_iden_rate'; merging crosswalk metadata or creating helper columns
+        # under those bare names silently drops the user's columns (or raises a
+        # merge-suffix KeyError). Routing every internal name through this
+        # prefix isolates crosswalk metadata and computation helpers.
+        R = '__xwalk__'
+        c_src, c_tgt, c_aw = f'{R}source_geoid', f'{R}target_geoid', f'{R}area_weight'
+        c_ov, c_sa = f'{R}overlap_area', f'{R}source_area'
+        c_weight, c_total_weight = f'{R}weight', f'{R}total_weight'
 
+        # Pull the crosswalk columns under reserved names. For intensive columns
+        # we also pull whichever absolute-area columns exist so the actual
+        # OVERLAP (intersection) area can be reconstructed -- ``area_weight``
+        # alone (an overlap/source allocation factor) cannot express an
+        # area-weighted mean on a merge (sources of area 1 and 9 can both have
+        # area_weight 1). ``overlap_area`` is the intersection area directly;
+        # ``source_area * area_weight`` reconstructs it when overlap_area is
+        # absent or has gaps (findings: intensive overlap weighting).
+        rename_map = {
+            'source_geoid': c_src,
+            'target_geoid': c_tgt,
+            'area_weight': c_aw,
+        }
+        sel = ['source_geoid', 'target_geoid', 'area_weight']
+        has_overlap = 'overlap_area' in self.crosswalk_df.columns
+        has_source_area = 'source_area' in self.crosswalk_df.columns
+        if intensive_set:
+            if has_overlap:
+                sel.append('overlap_area')
+                rename_map['overlap_area'] = c_ov
+            if has_source_area:
+                sel.append('source_area')
+                rename_map['source_area'] = c_sa
+
+        xwalk = self.crosswalk_df[sel].rename(columns=rename_map)
         merged = df.merge(
-            self.crosswalk_df[merge_cols],
+            xwalk,
             left_on=geoid_column,
-            right_on='source_geoid',
-            how='left'
+            right_on=c_src,
+            how='left',
         )
 
-        # Handle unmatched rows (keep original GEOID)
-        unmatched = merged['target_geoid'].isna()
+        # Handle unmatched rows (keep original GEOID).
+        unmatched = merged[c_tgt].isna()
         if unmatched.any():
             log.warning(
                 f"{unmatched.sum()} rows not found in crosswalk, keeping original GEOIDs"
             )
-            merged.loc[unmatched, 'target_geoid'] = merged.loc[unmatched, geoid_column]
-            merged.loc[unmatched, 'area_weight'] = 1.0
-            if areal_weight_col is not None:
-                # An unmatched row is a lone self-mapped source; weight 1.0
-                # preserves its intensive value.
-                merged.loc[unmatched, areal_weight_col] = 1.0
+            merged.loc[unmatched, c_tgt] = merged.loc[unmatched, geoid_column]
+            merged.loc[unmatched, c_src] = merged.loc[unmatched, geoid_column]
+            merged.loc[unmatched, c_aw] = 1.0
 
         # Get weight column based on method
         if weight_method == WeightMethod.EQUAL:
-            merged['_weight'] = 1.0
+            merged[c_weight] = 1.0
         else:
-            merged['_weight'] = merged['area_weight'].fillna(1.0)
+            merged[c_weight] = merged[c_aw].fillna(1.0)
 
         # Split the value columns into extensive (disaggregated by weight) and
         # intensive (area-weighted averaged). They need fundamentally different
@@ -268,26 +285,34 @@ class CrosswalkProcessor:
 
         # Apply weights to extensive value columns (for splits/merges).
         for col in extensive_cols:
-            merged[f'_weighted_{col}'] = merged[col] * merged['_weight']
+            merged[f'{R}weighted_{col}'] = merged[col] * merged[c_weight]
 
         # Build the area-weighted numerator/denominator for intensive columns.
-        # The area-weighted mean is Sum(value_i * area_i) / Sum(area_i), computed
-        # only over rows with a non-null value so a missing value does not dilute
-        # the rate (e.g. [.2, NaN] -> .2, not .1). This matches the areal/tobler
-        # intensive formula exactly (see geo.interpolation.areal).
+        # The area-weighted mean is Sum(value_i * overlap_i) / Sum(overlap_i),
+        # computed only over rows with a non-null VALUE so a missing value does
+        # not dilute the rate (e.g. [.2, NaN] -> .2, not .1). This matches the
+        # areal/tobler intensive formula exactly (see geo.interpolation.areal).
         if intensive_cols:
-            if areal_weight_col is not None:
-                areal_w = pd.to_numeric(merged[areal_weight_col], errors='coerce')
-                areal_w = areal_w.where(~unmatched, 1.0).fillna(0.0)
-            else:
-                # No absolute-area column available. A merge (a target fed by
-                # more than one source) CANNOT be area-weighted from the
-                # allocation factor, so refuse rather than return a wrong
-                # number. A split / 1:1 (each target fed by a single source)
-                # preserves the intensive value regardless of weight, so it is
-                # safe to proceed with unit weights.
-                target_source_counts = merged.groupby('target_geoid').size()
-                if (target_source_counts > 1).any():
+            overlap_area = self._reconstruct_overlap_area(
+                merged, c_ov, c_sa, c_aw, has_overlap, has_source_area,
+            )
+
+            # Refusal policy triggers on a true merge -- 2+ DISTINCT source
+            # geographies feeding one target -- not on row count. A single
+            # source with duplicate rows, or a split, is unambiguous and must
+            # never refuse. Count distinct sources per target.
+            distinct_src = merged.groupby(c_tgt)[c_src].nunique(dropna=False)
+            merge_targets = set(distinct_src.index[distinct_src > 1])
+            is_merge = merged[c_tgt].isin(merge_targets)
+
+            if overlap_area is None:
+                # No absolute-area column available. A merge of 2+ distinct
+                # sources CANNOT be area-weighted from the allocation factor,
+                # so refuse rather than return a wrong number. A split / 1:1 /
+                # single-source (even with duplicate rows) preserves the
+                # intensive value regardless of weight, so proceed with unit
+                # weights.
+                if is_merge.any():
                     raise ValueError(
                         "Cannot area-weight intensive columns "
                         f"{sorted(intensive_set)} on a merge: the crosswalk "
@@ -300,17 +325,43 @@ class CrosswalkProcessor:
                         "automatically on a crosswalk failure)."
                     )
                 areal_w = pd.Series(1.0, index=merged.index)
+            else:
+                areal_w = overlap_area.astype(float)
+                # An unmatched row is a lone self-mapped source; weight 1.0
+                # preserves its intensive value.
+                areal_w = areal_w.where(~unmatched, 1.0)
+                # Do NOT coerce a missing/invalid overlap area to a zero
+                # contribution -- that silently drops a source and bypasses the
+                # refusal policy. If a matched merge row still has an invalid
+                # area after reconstruction (no overlap_area and no recoverable
+                # source_area*area_weight), reject with a clear error.
+                bad_area = areal_w.isna() | (areal_w < 0)
+                if (bad_area & is_merge & ~unmatched).any():
+                    raise ValueError(
+                        "Cannot area-weight intensive columns "
+                        f"{sorted(intensive_set)} on a merge: missing or invalid "
+                        "overlap area for one or more sources and no recoverable "
+                        "'source_area' x 'area_weight' fallback. Supply a valid "
+                        "'overlap_area' (or 'source_area') for every merging "
+                        "source, or route intensive columns through areal "
+                        "interpolation."
+                    )
+                # A single source feeding a target preserves its intensive value
+                # regardless of area (there is nothing to weight it against), so
+                # a non-merge row with an invalid area gets unit weight rather
+                # than producing a silent NaN.
+                areal_w = areal_w.where(~(bad_area & ~is_merge), 1.0)
 
             for col in intensive_cols:
                 vals = pd.to_numeric(merged[col], errors='coerce')
                 valid = vals.notna()
-                merged[f'_inum_{col}'] = np.where(valid, vals.fillna(0.0) * areal_w, 0.0)
-                merged[f'_iden_{col}'] = np.where(valid, areal_w, 0.0)
+                merged[f'{R}inum_{col}'] = np.where(valid, vals.fillna(0.0) * areal_w, 0.0)
+                merged[f'{R}iden_{col}'] = np.where(valid, areal_w, 0.0)
 
         # Aggregate by target GEOID.
         agg_dict = {}
         for col in extensive_cols:
-            weighted_col = f'_weighted_{col}'
+            weighted_col = f'{R}weighted_{col}'
             if aggregation_func == 'sum':
                 agg_dict[col] = (weighted_col, 'sum')
             elif aggregation_func == 'mean':
@@ -321,17 +372,17 @@ class CrosswalkProcessor:
             else:
                 agg_dict[col] = (weighted_col, aggregation_func)
         for col in intensive_cols:
-            agg_dict[f'_inum_{col}'] = (f'_inum_{col}', 'sum')
-            agg_dict[f'_iden_{col}'] = (f'_iden_{col}', 'sum')
+            agg_dict[f'{R}inum_{col}'] = (f'{R}inum_{col}', 'sum')
+            agg_dict[f'{R}iden_{col}'] = (f'{R}iden_{col}', 'sum')
 
         # Also aggregate weights for weighted_mean calculation.
-        agg_dict['_total_weight'] = ('_weight', 'sum')
+        agg_dict[c_total_weight] = (c_weight, 'sum')
 
         # Group and aggregate
-        result = merged.groupby('target_geoid').agg(**agg_dict).reset_index()
+        result = merged.groupby(c_tgt).agg(**agg_dict).reset_index()
 
         # Rename target_geoid back to original column name
-        result = result.rename(columns={'target_geoid': geoid_column})
+        result = result.rename(columns={c_tgt: geoid_column})
 
         # Extensive weighted_mean normalization (intensive columns are never
         # touched here -- they are computed from their own numerator/denominator
@@ -339,12 +390,12 @@ class CrosswalkProcessor:
         if aggregation_func == 'weighted_mean':
             for col in extensive_cols:
                 if col in result.columns:
-                    result[col] = result[col] / result['_total_weight']
+                    result[col] = result[col] / result[c_total_weight]
 
         # Intensive area-weighted mean: numerator / denominator.
-        drop_cols = ['_total_weight']
+        drop_cols = [c_total_weight]
         for col in intensive_cols:
-            inum, iden = f'_inum_{col}', f'_iden_{col}'
+            inum, iden = f'{R}inum_{col}', f'{R}iden_{col}'
             if inum in result.columns and iden in result.columns:
                 with np.errstate(invalid='ignore', divide='ignore'):
                     result[col] = result[inum] / result[iden].replace(0, np.nan)
@@ -355,6 +406,53 @@ class CrosswalkProcessor:
 
         log.info(f"Transformed to {len(result)} rows in target vintage")
         return result
+
+    @staticmethod
+    def _reconstruct_overlap_area(
+        merged: pd.DataFrame,
+        c_ov: str,
+        c_sa: str,
+        c_aw: str,
+        has_overlap: bool,
+        has_source_area: bool,
+    ) -> Optional[pd.Series]:
+        """Reconstruct the per-row overlap (intersection) area for intensive
+        area-weighting.
+
+        The area-weighted mean weights each source by its ACTUAL overlap with
+        the target. Precedence:
+
+        1. ``overlap_area`` (the intersection area) is used directly.
+        2. Where ``overlap_area`` is missing -- or absent entirely -- fall back
+           to ``source_area * area_weight``: ``area_weight`` is the
+           overlap/source allocation fraction, so the product reconstructs the
+           intersection area. This is what makes a partial overlap (area_weight
+           < 1) weight correctly instead of using the whole source area.
+
+        Returns a float Series of overlap areas, or ``None`` when neither an
+        overlap area nor a reconstructible source_area x area_weight is
+        available (the caller then applies the distinct-source refusal policy).
+        """
+        aw = pd.to_numeric(merged[c_aw], errors='coerce') if c_aw in merged.columns else None
+        sa = (
+            pd.to_numeric(merged[c_sa], errors='coerce')
+            if (has_source_area and c_sa in merged.columns)
+            else None
+        )
+        fallback = (sa * aw) if (sa is not None and aw is not None) else None
+
+        if has_overlap and c_ov in merged.columns:
+            ov = pd.to_numeric(merged[c_ov], errors='coerce')
+            if fallback is not None:
+                # Fill only the gaps in overlap_area from the reconstruction;
+                # a present overlap_area always wins.
+                ov = ov.where(ov.notna(), fallback)
+            return ov
+
+        if fallback is not None:
+            return fallback
+
+        return None
 
 
 # =============================================================================

@@ -1009,6 +1009,39 @@ class DuckDBEngine(DataFrameEngine):
             self._connection.execute("INSTALL spatial; LOAD spatial;")
             self._spatial_loaded = True
 
+    def _geometry_column_names(self, relation: Any) -> List[str]:
+        """Return the names of GEOMETRY-typed columns in a DuckDB relation."""
+        return [
+            c for c, t in zip(relation.columns, relation.types)
+            if str(t).upper() == "GEOMETRY"
+        ]
+
+    def _materialize_geometry_wkb(self, df: Any) -> Any:
+        """Fetch a DuckDB relation to pandas, converting native GEOMETRY to WKB.
+
+        DuckDB's internal GEOMETRY representation is an opaque blob that is
+        **not** valid WKB; fetching it straight to pandas and handing the bytes
+        to the shapely WKB decoder fails with "Unknown WKB type 0". Convert
+        every GEOMETRY column with ``ST_AsWKB`` *before* materializing. Inputs
+        that are not DuckDB relations (already-materialized pandas/GeoDataFrame)
+        pass through unchanged -- native bytes cannot be recovered post-fetch,
+        so conversion must happen here or in :meth:`read_spatial`.
+        """
+        try:
+            import duckdb
+        except ImportError:
+            return df
+        if not isinstance(df, duckdb.DuckDBPyRelation):
+            return df
+        geom_cols = self._geometry_column_names(df)
+        if not geom_cols:
+            return df.fetchdf()
+        proj = ", ".join(
+            f'ST_AsWKB("{c}") AS "{c}"' if c in geom_cols else f'"{c}"'
+            for c in df.columns
+        )
+        return df.project(proj).fetchdf()
+
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
         """Read a spatial file via DuckDB's ``ST_Read``.
 
@@ -1016,20 +1049,33 @@ class DuckDBEngine(DataFrameEngine):
         current DuckDB path but accepted for interface compatibility).
         """
         import geopandas as gpd
+        import pandas as pd
         from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
         self._ensure_spatial()
+        # ST_Read yields DuckDB-native GEOMETRY (an internal blob, NOT valid
+        # WKB). Introspect the column types first (DESCRIBE materializes no
+        # geometry), then convert every GEOMETRY column with ST_AsWKB in the
+        # projection so the bytes that reach the WKB decoder below are valid
+        # standard WKB rather than the internal blob.
+        desc = self._connection.execute(
+            "DESCRIBE SELECT * FROM ST_Read(?)", [path]
+        ).fetchall()
+        geom_type_cols = {r[0] for r in desc if str(r[1]).upper() == "GEOMETRY"}
+        proj = ", ".join(
+            f'ST_AsWKB("{r[0]}") AS "{r[0]}"' if r[0] in geom_type_cols else f'"{r[0]}"'
+            for r in desc
+        )
         result = self._connection.execute(
-            "SELECT * FROM ST_Read(?)", [path]
+            f"SELECT {proj} FROM ST_Read(?)", [path]
         ).fetchdf()
-        # ST_Read returns geometry as WKB-hex; convert to shapely
         geom_col = "geom" if "geom" in result.columns else "geometry"
         if geom_col in result.columns:
             from shapely import wkb as shapely_wkb, wkt as shapely_wkt
             def _parse_geom(g):
                 if g is None:
                     return None
-                if isinstance(g, bytes):
-                    return shapely_wkb.loads(g)
+                if isinstance(g, (bytes, bytearray)):
+                    return shapely_wkb.loads(bytes(g))
                 if isinstance(g, str):
                     # WKB-hex strings are pure hexadecimal; WKT strings
                     # start with a geometry-type keyword (POINT, POLYGON,
@@ -1040,7 +1086,8 @@ class DuckDBEngine(DataFrameEngine):
                     if head and all(c in "0123456789abcdefABCDEF" for c in head):
                         return shapely_wkb.loads(g, hex=True)
                     return shapely_wkt.loads(g)
-                return g
+                # Scalar NA (pd.NA / NaN) or unexpected type -> missing geometry.
+                return None
             result[geom_col] = result[geom_col].apply(_parse_geom)
             gdf = gpd.GeoDataFrame(result, geometry=geom_col, crs=crs or get_default_crs())
             return reproject_if_needed(gdf, crs or get_default_crs())
@@ -1078,6 +1125,11 @@ class DuckDBEngine(DataFrameEngine):
         import geopandas as gpd
         import pandas as pd
         from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+        # A DuckDB relation (e.g. from ``duckdb.query("SELECT ST_Point(...)")``)
+        # carries native GEOMETRY columns -- an internal blob that is NOT valid
+        # WKB. Convert to standard WKB via ST_AsWKB before materializing so the
+        # bytes that reach the WKB decoder below are valid.
+        df = self._materialize_geometry_wkb(df)
         if isinstance(df, gpd.GeoDataFrame):
             return reproject_if_needed(df, crs or get_default_crs())
         if isinstance(df, pd.DataFrame) and geometry_col in df.columns:
