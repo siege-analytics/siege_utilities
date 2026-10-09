@@ -948,7 +948,17 @@ class DuckDBEngine(DataFrameEngine):
         df = kwargs.pop("df", None)
         if table is not None and df is not None:
             self._connection.register(table, df)
-        return self._connection.execute(sql).fetchdf()
+        # Load spatial up front so a SELECT using ST_* functions (e.g.
+        # ``SELECT ST_Point(1, 2)``) resolves, and route the result through the
+        # single fetch chokepoint so native GEOMETRY columns become valid WKB
+        # before they reach the client. ``.sql`` returns a relation for a
+        # result-producing statement and ``None`` for a pure DDL/DML statement.
+        self._ensure_spatial()
+        relation = self._connection.sql(sql)
+        if relation is None:
+            import pandas as pd
+            return pd.DataFrame()
+        return self._relation_to_pandas(relation)
 
     # -- Transforms ---------------------------------------------------------
 
@@ -956,7 +966,17 @@ class DuckDBEngine(DataFrameEngine):
         import pandas as pd
         if isinstance(df, pd.DataFrame):
             return df
-        # DuckDB relations have a .fetchdf() method
+        # A DuckDB relation carries native GEOMETRY as an opaque blob; route it
+        # through the fetch chokepoint so geometry columns become valid WKB
+        # rather than fetching the corrupt bytes straight to pandas.
+        try:
+            import duckdb
+            if isinstance(df, duckdb.DuckDBPyRelation):
+                return self._relation_to_pandas(df)
+        except ImportError:
+            pass
+        # Other objects exposing .fetchdf() (e.g. a raw result cursor) have no
+        # introspectable column types here; fetch as-is.
         if hasattr(df, "fetchdf"):
             return df.fetchdf()
         return pd.DataFrame(df)
@@ -1009,6 +1029,16 @@ class DuckDBEngine(DataFrameEngine):
             self._connection.execute("INSTALL spatial; LOAD spatial;")
             self._spatial_loaded = True
 
+    @staticmethod
+    def _quote_ident(name: Any) -> str:
+        """Quote a DuckDB identifier, escaping any embedded double quotes.
+
+        DuckDB quotes identifiers with double quotes; a literal double quote
+        inside the name must be doubled (``a"b`` -> ``"a""b"``). Emitting the
+        name un-escaped produces an unterminated-identifier ParserException.
+        """
+        return '"' + str(name).replace('"', '""') + '"'
+
     def _geometry_column_names(self, relation: Any) -> List[str]:
         """Return the names of GEOMETRY-typed columns in a DuckDB relation."""
         return [
@@ -1016,16 +1046,41 @@ class DuckDBEngine(DataFrameEngine):
             if str(t).upper() == "GEOMETRY"
         ]
 
-    def _materialize_geometry_wkb(self, df: Any) -> Any:
-        """Fetch a DuckDB relation to pandas, converting native GEOMETRY to WKB.
+    def _relation_to_pandas(self, relation: Any) -> Any:
+        """The single chokepoint where a DuckDB relation becomes client data.
+
+        Every public method that fetches a DuckDB relation to pandas
+        (:meth:`query`, :meth:`to_pandas`, :meth:`to_geodataframe`) routes
+        through here so native GEOMETRY columns get converted exactly once.
 
         DuckDB's internal GEOMETRY representation is an opaque blob that is
         **not** valid WKB; fetching it straight to pandas and handing the bytes
-        to the shapely WKB decoder fails with "Unknown WKB type 0". Convert
-        every GEOMETRY column with ``ST_AsWKB`` *before* materializing. Inputs
-        that are not DuckDB relations (already-materialized pandas/GeoDataFrame)
-        pass through unchanged -- native bytes cannot be recovered post-fetch,
-        so conversion must happen here or in :meth:`read_spatial`.
+        to the shapely WKB decoder fails with "Unknown WKB type 0". Load the
+        spatial extension (so ``ST_AsWKB`` resolves) and convert every
+        GEOMETRY-typed column to standard WKB *before* ``fetchdf``. Column
+        selection is by introspected TYPE, never by a guessed name, so a
+        property column that happens to share the geometry column's name is
+        left untouched.
+        """
+        geom_cols = self._geometry_column_names(relation)
+        if not geom_cols:
+            return relation.fetchdf()
+        self._ensure_spatial()
+        geom_set = set(geom_cols)
+        proj = ", ".join(
+            f'ST_AsWKB({self._quote_ident(c)}) AS {self._quote_ident(c)}'
+            if c in geom_set else self._quote_ident(c)
+            for c in relation.columns
+        )
+        return relation.project(proj).fetchdf()
+
+    def _materialize_geometry_wkb(self, df: Any) -> Any:
+        """Route a DuckDB relation through the fetch chokepoint.
+
+        Inputs that are not DuckDB relations (already-materialized
+        pandas/GeoDataFrame) pass through unchanged -- native bytes cannot be
+        recovered post-fetch, so conversion must happen at the chokepoint
+        (:meth:`_relation_to_pandas`) or in :meth:`read_spatial`.
         """
         try:
             import duckdb
@@ -1033,14 +1088,7 @@ class DuckDBEngine(DataFrameEngine):
             return df
         if not isinstance(df, duckdb.DuckDBPyRelation):
             return df
-        geom_cols = self._geometry_column_names(df)
-        if not geom_cols:
-            return df.fetchdf()
-        proj = ", ".join(
-            f'ST_AsWKB("{c}") AS "{c}"' if c in geom_cols else f'"{c}"'
-            for c in df.columns
-        )
-        return df.project(proj).fetchdf()
+        return self._relation_to_pandas(df)
 
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
         """Read a spatial file via DuckDB's ``ST_Read``.
@@ -1060,38 +1108,50 @@ class DuckDBEngine(DataFrameEngine):
         desc = self._connection.execute(
             "DESCRIBE SELECT * FROM ST_Read(?)", [path]
         ).fetchall()
-        geom_type_cols = {r[0] for r in desc if str(r[1]).upper() == "GEOMETRY"}
+        # Identify geometry columns by introspected TYPE, never by a guessed
+        # name. A feature property that collides with the default geometry
+        # column name (e.g. a ``geom`` property alongside the geometry) makes
+        # ST_Read emit ``geom INTEGER`` + ``geom_1 GEOMETRY``; selecting by the
+        # name "geom" would grab the integer property and leave the real
+        # geometry unparsed. Ordered list preserves file column order so the
+        # first geometry column becomes the active geometry.
+        geom_cols = [r[0] for r in desc if str(r[1]).upper() == "GEOMETRY"]
+        geom_set = set(geom_cols)
         proj = ", ".join(
-            f'ST_AsWKB("{r[0]}") AS "{r[0]}"' if r[0] in geom_type_cols else f'"{r[0]}"'
+            f'ST_AsWKB({self._quote_ident(r[0])}) AS {self._quote_ident(r[0])}'
+            if r[0] in geom_set else self._quote_ident(r[0])
             for r in desc
         )
         result = self._connection.execute(
             f"SELECT {proj} FROM ST_Read(?)", [path]
         ).fetchdf()
-        geom_col = "geom" if "geom" in result.columns else "geometry"
-        if geom_col in result.columns:
-            from shapely import wkb as shapely_wkb, wkt as shapely_wkt
-            def _parse_geom(g):
-                if g is None:
-                    return None
-                if isinstance(g, (bytes, bytearray)):
-                    return shapely_wkb.loads(bytes(g))
-                if isinstance(g, str):
-                    # WKB-hex strings are pure hexadecimal; WKT strings
-                    # start with a geometry-type keyword (POINT, POLYGON,
-                    # MULTIPOLYGON, etc.). Introspect rather than try/
-                    # except so a corrupt WKB string doesn't silently fall
-                    # through to WKT parsing of garbage.
-                    head = g[:32].strip() if g else ""
-                    if head and all(c in "0123456789abcdefABCDEF" for c in head):
-                        return shapely_wkb.loads(g, hex=True)
-                    return shapely_wkt.loads(g)
-                # Scalar NA (pd.NA / NaN) or unexpected type -> missing geometry.
+        if not geom_cols:
+            return result
+        from shapely import wkb as shapely_wkb, wkt as shapely_wkt
+        def _parse_geom(g):
+            if g is None:
                 return None
-            result[geom_col] = result[geom_col].apply(_parse_geom)
-            gdf = gpd.GeoDataFrame(result, geometry=geom_col, crs=crs or get_default_crs())
-            return reproject_if_needed(gdf, crs or get_default_crs())
-        return result
+            if isinstance(g, (bytes, bytearray)):
+                return shapely_wkb.loads(bytes(g))
+            if isinstance(g, str):
+                # WKB-hex strings are pure hexadecimal; WKT strings
+                # start with a geometry-type keyword (POINT, POLYGON,
+                # MULTIPOLYGON, etc.). Introspect rather than try/
+                # except so a corrupt WKB string doesn't silently fall
+                # through to WKT parsing of garbage.
+                head = g[:32].strip() if g else ""
+                if head and all(c in "0123456789abcdefABCDEF" for c in head):
+                    return shapely_wkb.loads(g, hex=True)
+                return shapely_wkt.loads(g)
+            # Scalar NA (pd.NA / NaN) or unexpected type -> missing geometry.
+            return None
+        # Parse every geometry column so a multi-geometry file keeps all of
+        # them; the first becomes the active geometry.
+        for gc in geom_cols:
+            result[gc] = result[gc].apply(_parse_geom)
+        active_geom = geom_cols[0]
+        gdf = gpd.GeoDataFrame(result, geometry=active_geom, crs=crs or get_default_crs())
+        return reproject_if_needed(gdf, crs or get_default_crs())
 
     def spatial_join(self, left, right, how="inner", predicate="intersects",
                      *, left_geom="geometry", right_geom="geometry"):

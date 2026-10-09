@@ -729,9 +729,11 @@ def test_duckdb_native_geometry_query_roundtrips():
     from siege_utilities.engines.dataframe_engine import DuckDBEngine
 
     eng = DuckDBEngine()
-    eng._ensure_spatial()
-    rel = eng._connection.query("SELECT 7 AS id, ST_Point(1, 2) AS geometry")
-    gdf = eng.to_geodataframe(rel)
+    # Exercise the PUBLIC path: eng.query() must itself load spatial and
+    # ST_AsWKB the GEOMETRY column before fetch (the private
+    # eng._connection.query() path masked the defect by handing to_geodataframe
+    # a live relation it could still convert).
+    gdf = eng.to_geodataframe(eng.query("SELECT 7 AS id, ST_Point(1, 2) AS geometry"))
     assert list(gdf["id"]) == [7]
     assert gdf.geometry.iloc[0].equals(Point(1, 2)), gdf.geometry.iloc[0].wkt
 

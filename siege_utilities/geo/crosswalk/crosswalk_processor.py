@@ -201,6 +201,25 @@ class CrosswalkProcessor:
         if geoid_column not in df.columns:
             raise ValueError(f"GEOID column '{geoid_column}' not found in DataFrame")
 
+        # Reject input columns that use the reserved internal prefix up front.
+        # Every internal helper/metadata column is routed through '__xwalk__'
+        # (see below). A user column under that prefix would otherwise be
+        # silently overwritten and dropped, or collide with a crosswalk-metadata
+        # merge and raise an opaque KeyError. Fail loudly instead of corrupting
+        # the caller's data.
+        _RESERVED_PREFIX = '__xwalk__'
+        reserved_inputs = [
+            c for c in df.columns
+            if isinstance(c, str) and c.startswith(_RESERVED_PREFIX)
+        ]
+        if reserved_inputs:
+            raise ValueError(
+                f"Input columns use the reserved '{_RESERVED_PREFIX}' prefix: "
+                f"{reserved_inputs}. This prefix is reserved for internal "
+                f"crosswalk bookkeeping; rename these columns before calling "
+                f"transform()."
+            )
+
         # Identify value columns
         if value_columns is None:
             value_columns = df.select_dtypes(include=[np.number]).columns.tolist()
@@ -219,7 +238,7 @@ class CrosswalkProcessor:
         # under those bare names silently drops the user's columns (or raises a
         # merge-suffix KeyError). Routing every internal name through this
         # prefix isolates crosswalk metadata and computation helpers.
-        R = '__xwalk__'
+        R = _RESERVED_PREFIX
         c_src, c_tgt, c_aw = f'{R}source_geoid', f'{R}target_geoid', f'{R}area_weight'
         c_ov, c_sa = f'{R}overlap_area', f'{R}source_area'
         c_weight, c_total_weight = f'{R}weight', f'{R}total_weight'
@@ -332,10 +351,12 @@ class CrosswalkProcessor:
                 areal_w = areal_w.where(~unmatched, 1.0)
                 # Do NOT coerce a missing/invalid overlap area to a zero
                 # contribution -- that silently drops a source and bypasses the
-                # refusal policy. If a matched merge row still has an invalid
-                # area after reconstruction (no overlap_area and no recoverable
-                # source_area*area_weight), reject with a clear error.
-                bad_area = areal_w.isna() | (areal_w < 0)
+                # refusal policy. A usable area is finite AND strictly positive;
+                # NaN, +/-inf, zero, and negative are all invalid. If a matched
+                # merge row still has an invalid area after reconstruction (no
+                # overlap_area and no recoverable source_area*area_weight),
+                # reject with a clear error.
+                bad_area = ~(pd.Series(np.isfinite(areal_w), index=areal_w.index) & (areal_w > 0))
                 if (bad_area & is_merge & ~unmatched).any():
                     raise ValueError(
                         "Cannot area-weight intensive columns "
@@ -439,13 +460,28 @@ class CrosswalkProcessor:
             if (has_source_area and c_sa in merged.columns)
             else None
         )
-        fallback = (sa * aw) if (sa is not None and aw is not None) else None
+
+        def _valid(s: pd.Series) -> pd.Series:
+            # A usable area is finite AND strictly positive. NaN, +inf, -inf,
+            # zero, and negative are all invalid: none can serve as an
+            # area weight or as a reconstruction input.
+            return pd.Series(np.isfinite(s), index=s.index) & (s > 0)
+
+        # source_area * area_weight reconstructs the intersection area, but only
+        # where BOTH inputs are valid; where either is invalid the product is
+        # garbage and must stay NaN so the caller's recover-else-reject policy
+        # fires rather than trusting a bad number.
+        fallback = None
+        if sa is not None and aw is not None:
+            fallback = (sa * aw).where(_valid(sa) & _valid(aw))
 
         if has_overlap and c_ov in merged.columns:
             ov = pd.to_numeric(merged[c_ov], errors='coerce')
+            # Trust overlap_area only where it is itself valid (finite, > 0); a
+            # present-but-invalid value (0, negative, +/-inf) is a gap to fill
+            # from the reconstruction, not a number to use directly.
+            ov = ov.where(_valid(ov))
             if fallback is not None:
-                # Fill only the gaps in overlap_area from the reconstruction;
-                # a present overlap_area always wins.
                 ov = ov.where(ov.notna(), fallback)
             return ov
 

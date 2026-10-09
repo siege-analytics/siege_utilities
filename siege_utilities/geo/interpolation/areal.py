@@ -279,6 +279,57 @@ def _interpolate_shapely(
 
 
 # ---------------------------------------------------------------------------
+# Per-target overlap support
+# ---------------------------------------------------------------------------
+
+def _targets_with_valid_overlap(
+    sources: gpd.GeoDataFrame,
+    target: gpd.GeoDataFrame,
+) -> np.ndarray:
+    """Boolean array, one entry per target row, True where the target shares a
+    positive-area intersection with at least one of *sources*.
+
+    Used to distinguish "a valid source actually contributes to this target"
+    (keep the interpolated value) from "no valid source overlaps this target"
+    (the value is undefined -> NaN, not the backend's fabricated 0.0). Boundary
+    touches (zero-area intersection) do not count as a contribution.
+    """
+    n_tgt = len(target)
+    mask = np.zeros(n_tgt, dtype=bool)
+    if len(sources) == 0 or n_tgt == 0:
+        return mask
+    src_geoms = sources.geometry.to_numpy()
+    tgt_geoms = target.geometry.to_numpy()
+
+    if _SHAPELY_AVAILABLE:
+        tree = STRtree(src_geoms)
+        for ti, tgeom in enumerate(tgt_geoms):
+            if tgeom is None or tgeom.is_empty:
+                continue
+            for si in tree.query(tgeom):
+                sgeom = src_geoms[si]
+                if sgeom is None or sgeom.is_empty:
+                    continue
+                if tgeom.intersects(sgeom) and tgeom.intersection(sgeom).area > 0:
+                    mask[ti] = True
+                    break
+        return mask
+
+    # Fallback without an STRtree: direct pairwise test (geopandas guarantees
+    # shapely, so this is defensive rather than expected).
+    for ti, tgeom in enumerate(tgt_geoms):
+        if tgeom is None or tgeom.is_empty:
+            continue
+        for sgeom in src_geoms:
+            if sgeom is None or sgeom.is_empty:
+                continue
+            if tgeom.intersects(sgeom) and tgeom.intersection(sgeom).area > 0:
+                mask[ti] = True
+                break
+    return mask
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -401,7 +452,15 @@ def interpolate_areal(
             valid.reset_index(drop=True), target, [], [v],
         )
         # Both frames are one row per target in target order; assign by position.
-        result_gdf[v] = sub[v].to_numpy()
+        vals = sub[v].to_numpy(dtype=float, copy=True)
+        # A target whose only overlapping source has a NaN value for this
+        # variable has ZERO valid contributors -- the backend fabricates 0.0
+        # for it (tobler fills, duckdb/shapely default to 0). That 0 is wrong:
+        # the rate is UNDEFINED, not zero. Mask per target so a disjoint source
+        # carrying a real value cannot leak a 0 into an unrelated target.
+        has_valid = _targets_with_valid_overlap(valid, target)
+        vals[~has_valid] = np.nan
+        result_gdf[v] = vals
 
     result_gdf = reproject_if_needed(result_gdf, crs)
 

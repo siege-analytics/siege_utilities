@@ -68,27 +68,49 @@ class CensusCatalogPopulator:
         """Return an API-root base_url ending at ``/data`` exactly once.
 
         Raises:
-            ValueError: If base_url includes a full dataset path after
-                ``/data`` (e.g. ``/data/2023/acs/acs5``); the fetchers append
+            ValueError: If base_url includes a full dataset path -- the
+                ``/data/{year}/{dataset}/{survey}`` shape (e.g.
+                ``/data/2023/acs/acs5``); the fetchers append
                 ``/{year}/{dataset}/...`` themselves, so such a base_url would
-                double the path.
+                double the path. A bare ``data`` segment in a proxy prefix
+                (``/data/census``, ``/data/2023/census``) is accepted.
         """
         from urllib.parse import urlsplit, urlunsplit
 
         parts = urlsplit(base_url)
         segments = [s for s in parts.path.split("/") if s]
 
+        # Reject ONLY a full Census dataset path: a 'data' segment immediately
+        # followed by a 4-digit year and at least two more segments -- the
+        # '/data/{year}/{dataset}/{survey}' shape (e.g. '/data/2023/acs/acs5').
+        # Such a base_url already carries year+dataset, and the fetchers append
+        # '/{year}/{dataset}/...' themselves, so using it would double the path.
+        # A bare 'data' segment in a proxy prefix ('/data/census',
+        # '/data/2023/census') is NOT a full dataset path and must be accepted,
+        # exactly as before round 4 -- do not reject merely because a 'data' or
+        # year-like segment appears somewhere in the path.
+        def _is_year(seg: str) -> bool:
+            return len(seg) == 4 and seg.isdigit()
+
+        for i, seg in enumerate(segments):
+            if (
+                seg == "data"
+                and i + 1 < len(segments)
+                and _is_year(segments[i + 1])
+                and len(segments) - (i + 2) >= 2
+            ):
+                raise ValueError(
+                    f"base_url {base_url!r} includes a full dataset path "
+                    f"(the '/data/{{year}}/{{dataset}}/{{survey}}' shape, e.g. "
+                    f"'/data/2023/acs/acs5'). Pass the API root ending at "
+                    f"'/data' or without it -- for example "
+                    f"'https://api.census.gov' or 'https://api.census.gov/data'. "
+                    f"_fetch_variables/_fetch_groups append "
+                    f"'/{{year}}/{{dataset}}/...' themselves."
+                )
+
         if segments and segments[-1] == "data":
             new_segments = segments
-        elif "data" in segments:
-            raise ValueError(
-                f"base_url {base_url!r} includes a full dataset path after "
-                f"'/data' (e.g. '/data/{{year}}/{{dataset}}'). Pass the API "
-                f"root ending at '/data' or without it -- for example "
-                f"'https://api.census.gov' or 'https://api.census.gov/data'. "
-                f"_fetch_variables/_fetch_groups append "
-                f"'/{{year}}/{{dataset}}/...' themselves."
-            )
         else:
             new_segments = segments + ["data"]
 
