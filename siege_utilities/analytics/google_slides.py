@@ -450,7 +450,14 @@ def create_argument_slide(
             insert_image(client, presentation_id, slide_id, img_url,
                          left=fl, top=ft, width=fw, height=fh)
         except (OSError, ValueError, RuntimeError, KeyError) as exc:
-            log.warning("Could not upload figure for slide %s: %s", slide_id, exc)
+            # A map/chart is the core content of the slide; a failed figure is
+            # a failed slide, not a text-only success. Propagate so
+            # create_report_from_arguments aggregates it into its failure list
+            # instead of returning a presentation id with missing figures.
+            raise RuntimeError(
+                f"Figure upload/insert failed for slide {slide_id} "
+                f"(figure {fig_name}): {exc}"
+            ) from exc
 
     return slide_id
 

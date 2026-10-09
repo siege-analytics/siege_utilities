@@ -847,10 +847,17 @@ class PandasEngine(DataFrameEngine):
             return reproject_if_needed(df, crs or get_default_crs())
         if geometry_col in df.columns:
             from shapely import wkt
-            geoms = df[geometry_col].apply(
+            target_crs = crs or get_default_crs()
+            parsed = df[geometry_col].apply(
                 lambda g: wkt.loads(g) if isinstance(g, str) else g
             )
-            return gpd.GeoDataFrame(df, geometry=geoms, crs=crs or get_default_crs())
+            # Bind the parsed geometry back under geometry_col as the active
+            # GeoSeries. Passing geometry=<Series> to GeoDataFrame leaves the
+            # requested column as plain strings, so df[geometry_col] would not
+            # be a GeoSeries and .buffer()/.distance() would raise.
+            out = df.copy()
+            out[geometry_col] = gpd.GeoSeries(parsed.values, index=out.index, crs=target_crs)
+            return gpd.GeoDataFrame(out, geometry=geometry_col, crs=target_crs)
         raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
 
 
@@ -1083,7 +1090,10 @@ class DuckDBEngine(DataFrameEngine):
                     geoms = df[geometry_col].apply(lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g) if g is not None else None)
                 else:
                     geoms = df[geometry_col].apply(lambda g: shapely_wkt.loads(g) if isinstance(g, str) else g)
-                return gpd.GeoDataFrame(df, geometry=geoms, crs=crs or get_default_crs())
+                target_crs = crs or get_default_crs()
+                out = df.copy()
+                out[geometry_col] = gpd.GeoSeries(geoms.values, index=out.index, crs=target_crs)
+                return gpd.GeoDataFrame(out, geometry=geometry_col, crs=target_crs)
             return gpd.GeoDataFrame(df, geometry=geometry_col, crs=crs or get_default_crs())
         raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
 
@@ -1108,9 +1118,14 @@ class DuckDBEngine(DataFrameEngine):
         self._connection.register(tbl_name, df)
 
         col_list = ", ".join(f'"{c}"' for c in attr_cols)
+        # Emit standard WKB (ST_AsWKB) rather than DuckDB's internal GEOMETRY
+        # type: fetchdf() would otherwise hand back bytes that are not valid
+        # WKB, so to_geodataframe() fails with "Unknown WKB type 0". Guard the
+        # leading comma so a geometry-only frame does not produce "SELECT ,".
+        col_prefix = f"{col_list}, " if col_list else ""
         sql = (
-            f"SELECT {col_list}, "
-            f"ST_GeomFromWKB(UNHEX(_geom_wkb)) AS {geometry_col} "
+            f"SELECT {col_prefix}"
+            f"ST_AsWKB(ST_GeomFromWKB(UNHEX(_geom_wkb))) AS {geometry_col} "
             f"FROM {tbl_name}"
         )
         result = self._connection.execute(sql).fetchdf()
@@ -1419,10 +1434,15 @@ class SparkEngine(DataFrameEngine):
         from shapely import wkt
         pdf = df.toPandas()
         if geometry_col in pdf.columns:
-            geoms = pdf[geometry_col].apply(
+            # from_geodataframe normalizes geometry to the default CRS before
+            # serializing to WKT (Spark/Sedona carries no CRS), so read-back
+            # assigns the same CRS the coordinates are actually in.
+            target_crs = crs or get_default_crs()
+            parsed = pdf[geometry_col].apply(
                 lambda g: wkt.loads(g) if isinstance(g, str) else g
             )
-            return gpd.GeoDataFrame(pdf, geometry=geoms, crs=crs or get_default_crs())
+            pdf[geometry_col] = gpd.GeoSeries(parsed.values, index=pdf.index, crs=target_crs)
+            return gpd.GeoDataFrame(pdf, geometry=geometry_col, crs=target_crs)
         raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
 
     def from_geodataframe(self, gdf, geometry_col="geometry"):
@@ -1435,12 +1455,20 @@ class SparkEngine(DataFrameEngine):
         ST_GeomFromText(geometry_col)) receive engine-native input.
         """
         import pandas as pd
+        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
 
         if len(gdf) == 0:
             raise ValueError(
                 "Cannot convert an empty GeoDataFrame to Spark: there are no "
                 "rows to infer a schema from. Provide at least one row."
             )
+
+        # WKT carries no CRS and Spark/Sedona has no CRS metadata, so a
+        # projected input would be silently misread as lon/lat on read-back.
+        # Normalize to the default CRS before serializing so the round-trip
+        # preserves geographic location rather than raw projected numbers.
+        if getattr(gdf, "crs", None) is not None:
+            gdf = reproject_if_needed(gdf, get_default_crs())
 
         attr_cols = [c for c in gdf.columns if c != geometry_col]
         geoms = [(g.wkt if g is not None else None) for g in gdf[geometry_col]]
@@ -1774,10 +1802,13 @@ class PostGISEngine(DataFrameEngine):
         import pandas as pd
         if isinstance(df, pd.DataFrame) and geometry_col in df.columns:
             from shapely import wkt
-            geoms = df[geometry_col].apply(
+            target_crs = crs or get_default_crs()
+            parsed = df[geometry_col].apply(
                 lambda g: wkt.loads(g) if isinstance(g, str) else g
             )
-            return gpd.GeoDataFrame(df, geometry=geoms, crs=crs or get_default_crs())
+            out = df.copy()
+            out[geometry_col] = gpd.GeoSeries(parsed.values, index=out.index, crs=target_crs)
+            return gpd.GeoDataFrame(out, geometry=geometry_col, crs=target_crs)
         raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
 
 

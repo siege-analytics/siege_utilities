@@ -94,7 +94,7 @@ class CensusCatalogPopulator:
         return catalog
 
     def _fetch_variables(self, dataset_path: str, year: int) -> dict:
-        url = f"{self.base_url}/data/{year}/{dataset_path}/variables.json"
+        url = f"{self.base_url}/{year}/{dataset_path}/variables.json"
         log.debug("Fetching variables from %s", url)
         resp = requests.get(url, timeout=self.timeout)
         resp.raise_for_status()
@@ -102,7 +102,7 @@ class CensusCatalogPopulator:
         return data.get("variables", {})
 
     def _fetch_groups(self, dataset_path: str, year: int) -> list[dict]:
-        url = f"{self.base_url}/data/{year}/{dataset_path}/groups.json"
+        url = f"{self.base_url}/{year}/{dataset_path}/groups.json"
         log.debug("Fetching groups from %s", url)
         resp = requests.get(url, timeout=self.timeout)
         resp.raise_for_status()

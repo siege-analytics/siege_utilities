@@ -250,12 +250,18 @@ class SnowflakeConnector:
             if auto_create_table:
                 self._create_table_from_dataframe(df, table_name, overwrite)
 
+            # quote_identifiers=False so write_pandas targets the same
+            # unquoted (Snowflake-uppercased) identifiers that
+            # _create_table_from_dataframe emits. The default (True) quotes
+            # column/table names case-sensitively, which misses the uppercased
+            # table columns and fails to find them on read-back.
             success, nchunks, nrows, _ = write_pandas(
                 self.connection,
                 df,
                 table_name,
                 auto_create_table=False,
-                overwrite=overwrite
+                overwrite=overwrite,
+                quote_identifiers=False,
             )
 
             if not success:
