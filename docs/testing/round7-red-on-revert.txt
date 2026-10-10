@@ -244,7 +244,7 @@ ______________ test_query_result_is_snapshot_after_source_delete _______________
 /tmp/siege-round7-baseline-1a172z8r/tests/test_round7_class_hardening.py:89: in test_query_result_is_snapshot_after_source_delete
     assert restored.i.tolist() == [7]
 E   assert [] == [7]
-E     
+E
 E     Right contains one more item: 7
 E     Use -v to get more diff
 _ test_query_materializes_wkb_with_null_and_empty_schema[ST_Point(1,2) AS geometry, ST_Point(3,4) AS geometry-columns0] _
@@ -340,7 +340,7 @@ E   shapely.errors.GEOSException: ParseException: Unknown WKB type 0
 =============================== warnings summary ===============================
 ../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
   /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: DJANGO_SETTINGS_MODULE
-  
+
     self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
 
 tests/test_round7_class_hardening.py::test_census_dataset_rejection_is_host_specific[https://proxy/data/2023/gw]

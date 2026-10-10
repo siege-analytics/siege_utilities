@@ -200,7 +200,7 @@ E   Failed: DID NOT RAISE <class 'ValueError'>
 =============================== warnings summary ===============================
 ../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
   /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: DJANGO_SETTINGS_MODULE
-  
+
     self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
 
 tests/test_round8_class_hardening.py::test_equivalent_census_hosts_reject_dataset_paths_before_http[https://%61pi.census.gov/data/2023/cbp]

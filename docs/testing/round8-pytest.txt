@@ -11,7 +11,7 @@ Exit: 0
 =============================== warnings summary ===============================
 ../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
   /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: DJANGO_SETTINGS_MODULE
-  
+
     self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
 
 ../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113
@@ -22,44 +22,44 @@ tests/test_dataframe_engine_spatial.py::TestPandasSpatial::test_buffer
 tests/test_dataframe_engine_spatial.py::TestEngineConsistency::test_buffer_same_area
 tests/test_final_hardening_consensus.py::test_buffer_custom_geometry_col[pandas]
   /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/siege_utilities/engines/dataframe_engine.py:834: UserWarning: Geometry is in a geographic CRS. Results from 'buffer' are likely incorrect. Use 'GeoSeries.to_crs()' to re-project geometries to a projected CRS before this operation.
-  
+
     result[geometry_col] = result[geometry_col].buffer(distance)
 
 tests/test_dataframe_engine_spatial.py::TestPandasSpatial::test_distance_to_point
   /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/siege_utilities/engines/dataframe_engine.py:840: UserWarning: Geometry is in a geographic CRS. Results from 'distance' are likely incorrect. Use 'GeoSeries.to_crs()' to re-project geometries to a projected CRS before this operation.
-  
+
     return df[geometry_col].distance(other)
 
 tests/test_dataframe_engine_spatial.py::TestPandasSpatial::test_distance_to_wkt
   /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/siege_utilities/engines/dataframe_engine.py:843: UserWarning: Geometry is in a geographic CRS. Results from 'distance' are likely incorrect. Use 'GeoSeries.to_crs()' to re-project geometries to a projected CRS before this operation.
-  
+
     return df[geometry_col].distance(wkt.loads(other))
 
 tests/test_dataframe_engine_spatial.py::TestPandasSpatial::test_distance_pairwise
   /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/siege_utilities/engines/dataframe_engine.py:844: UserWarning: Geometry is in a geographic CRS. Results from 'distance' are likely incorrect. Use 'GeoSeries.to_crs()' to re-project geometries to a projected CRS before this operation.
-  
+
     return df[geometry_col].distance(other[other_geom])
 
 tests/test_dataframe_engine_spatial.py::TestDuckDBSpatial::test_buffer
 tests/test_dataframe_engine_spatial.py::TestEngineConsistency::test_buffer_same_area
 tests/test_final_hardening_consensus.py::test_buffer_custom_geometry_col[duckdb]
   /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/siege_utilities/engines/dataframe_engine.py:1212: UserWarning: Geometry is in a geographic CRS. Results from 'buffer' are likely incorrect. Use 'GeoSeries.to_crs()' to re-project geometries to a projected CRS before this operation.
-  
+
     result[geometry_col] = result[geometry_col].buffer(distance)
 
 tests/test_dataframe_engine_spatial.py::TestDuckDBSpatial::test_distance_to_point
   /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/siege_utilities/engines/dataframe_engine.py:1220: UserWarning: Geometry is in a geographic CRS. Results from 'distance' are likely incorrect. Use 'GeoSeries.to_crs()' to re-project geometries to a projected CRS before this operation.
-  
+
     return gdf[geometry_col].distance(other)
 
 tests/test_dataframe_engine_spatial.py::TestEngineConsistency::test_buffer_same_area
   /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_dataframe_engine_spatial.py:206: UserWarning: Geometry is in a geographic CRS. Results from 'area' are likely incorrect. Use 'GeoSeries.to_crs()' to re-project geometries to a projected CRS before this operation.
-  
+
     pd_area = pd_result.geometry.area.sum()
 
 tests/test_dataframe_engine_spatial.py::TestEngineConsistency::test_buffer_same_area
   /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_dataframe_engine_spatial.py:207: UserWarning: Geometry is in a geographic CRS. Results from 'area' are likely incorrect. Use 'GeoSeries.to_crs()' to re-project geometries to a projected CRS before this operation.
-  
+
     dk_area = dk_result.geometry.area.sum()
 
 tests/test_areal_interpolation.py::TestInterpolateExtensive::test_splits_population_by_area
@@ -70,7 +70,7 @@ tests/test_areal_interpolation.py::TestInterpolateAreal::test_two_sources_extens
 tests/test_areal_interpolation.py::TestInterpolateAreal::test_result_has_target_geometry
 tests/test_areal_interpolation.py::TestBackendSelection::test_reports_backend_in_result
   /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/siege_utilities/geo/interpolation/areal.py:130: UserWarning: Geometry is in a geographic CRS. Results from 'area' are likely incorrect. Use 'GeoSeries.to_crs()' to re-project geometries to a projected CRS before this operation.
-  
+
     result_gdf = _tobler_area_interpolate(
 
 tests/test_areal_interpolation.py::TestInterpolateExtensive::test_splits_population_by_area
@@ -80,7 +80,7 @@ tests/test_areal_interpolation.py::TestInterpolateAreal::test_two_sources_extens
 tests/test_areal_interpolation.py::TestInterpolateAreal::test_result_has_target_geometry
 tests/test_areal_interpolation.py::TestBackendSelection::test_reports_backend_in_result
   /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/tobler/area_weighted/area_interpolate.py:312: UserWarning: Geometry is in a geographic CRS. Results from 'area' are likely incorrect. Use 'GeoSeries.to_crs()' to re-project geometries to a projected CRS before this operation.
-  
+
     den = source_df.area.values
 
 tests/test_areal_interpolation.py::TestInterpolateExtensive::test_splits_population_by_area
@@ -102,4 +102,3 @@ tests/test_final_hardening_consensus.py::test_areal_interpolation_preserves_inte
 SKIPPED [1] ../../Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_dataframe_engine_errors.py:198: pyspark is installed; cannot test missing-import path
 SKIPPED [1] ../../Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_snowflake_connector.py:142: requires_api_key: no credentials file at /Users/dheerajchand/.siege-test-credentials.yaml. Create one with the per-connector keys you want to exercise; see docs/testing/sprint-b-credentials.md for the schema.
 472 passed, 2 skipped, 36 warnings in 4.46s
-
