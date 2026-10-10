@@ -395,20 +395,20 @@ _________ test_encoded_census_roots_deduplicate_before_fetch[/%64ata] __________
 /tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:85: in test_encoded_census_roots_deduplicate_before_fetch
     assert [call.args[0] for call in request.call_args_list] == [
 E   AssertionError: assert ['https://api.../groups.json'] == ['https://api.../groups.json']
-E     
+E
 E     At index 0 diff: 'https://api.census.gov/%64ata/data/2023/acs/acs5/variables.json' != 'https://api.census.gov/data/2023/acs/acs5/variables.json'
 E     Use -v to get more diff
 _____ test_encoded_census_roots_deduplicate_before_fetch[//data//%64ata/] ______
 /tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:85: in test_encoded_census_roots_deduplicate_before_fetch
     assert [call.args[0] for call in request.call_args_list] == [
 E   AssertionError: assert ['https://api.../groups.json'] == ['https://api.../groups.json']
-E     
+E
 E     At index 0 diff: 'https://api.census.gov/data/%64ata/data/2023/acs/acs5/variables.json' != 'https://api.census.gov/data/2023/acs/acs5/variables.json'
 E     Use -v to get more diff
 =============================== warnings summary ===============================
 ../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
   /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: DJANGO_SETTINGS_MODULE
-  
+
     self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
 
 tests/test_round9_class_hardening.py::test_encoded_census_dataset_paths_reject_before_http[/%64ata/2023/cbp-api.census.gov]
