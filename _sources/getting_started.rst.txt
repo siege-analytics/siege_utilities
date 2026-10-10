@@ -152,7 +152,7 @@ Package Overview
      - Survey analysis, crosstabs, weighting, significance
      - Domain
    * - **analytics/**
-     - GA, Snowflake, data.world, Facebook connectors
+     - GA, Snowflake, Facebook connectors
      - Domain
    * - **engines/**
      - Multi-engine DataFrame abstraction (pandas, DuckDB, Spark, PostGIS)
