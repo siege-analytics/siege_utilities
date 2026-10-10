@@ -961,13 +961,11 @@ class LongitudinalAligner:
             intensive_variables=intensive_vars or None,
         )
 
-        out = result.data.drop(columns="geometry")
-        # interpolate_areal returns one row per target polygon in target order.
-        # The Tobler backend drops non-geometry target columns (target GEOID
-        # lost); the Shapely and DuckDB backends retain it. Keying by assignment
-        # covers both: it creates the column when the backend dropped it and
-        # overwrites the retained column with the target GEOID in target order.
-        # The length guard pins the positional alignment all backends return.
+        # Carry only interpolated variables: target boundary metadata would
+        # become input variables and collide with boundaries on the next step.
+        out = result.data[extensive_vars + intensive_vars].copy()
+        # Assign the caller's GEOID from target boundaries in target row order.
+        # Guard the positional alignment first.
         if len(out) != len(target_boundaries):
             raise RuntimeError(
                 f"Areal interpolation returned {len(out)} rows for "

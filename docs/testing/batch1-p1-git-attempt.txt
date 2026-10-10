@@ -1,0 +1,18 @@
+Command: git fetch origin develop
+error: cannot open '/Users/dheerajchand/git/siege-analytics/siege_utilities/.git/worktrees/siege_utilities-hardening/FETCH_HEAD': Operation not permitted
+
+Exit code: 255
+
+Command: git switch -c fix/1373-batch1 origin/develop
+fatal: Unable to create '/Users/dheerajchand/git/siege-analytics/siege_utilities/.git/worktrees/siege_utilities-hardening/index.lock': Operation not permitted
+
+Exit code: 128
+
+Command: git -c 'user.name=Dheeraj Chand' -c user.email=dheeraj@siegeanalytics.com commit --dry-run
+fatal: Unable to create '/Users/dheerajchand/git/siege-analytics/siege_utilities/.git/worktrees/siege_utilities-hardening/index.lock': Operation not permitted
+
+Exit code: 128
+Commit dry run only: requested branch could not be created; no commit on the docs branch.
+Current branch: docs/expand-library-guide
+Cached origin/develop: 174a58178eb2fad7075ad906811f95395e2f88aa
+No push attempted.

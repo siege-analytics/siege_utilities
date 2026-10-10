@@ -1,0 +1,188 @@
+Identical test files in patched/reverted runs: SHA256=fa691b6d027b593447580378c562a87a77a50f64524c3e517ddd011e98e4d7c2
+All production Python files identical except the single reverted projection assignment.
+Pre-correction Batch-1: 4 new failures, 48 deselected.
+Projection-only revert, all Batch-1 fixes retained: 4 failed, 48 passed.
+Corrected Batch-1: 52 passed.
+Matched red-to-green cases:
+test_align_areal_carries_only_requested_variables[GEOID-2000]: pre-correction=failed; reverted=failed; corrected=passed
+test_align_areal_carries_only_requested_variables[GEOID-2010]: pre-correction=failed; reverted=failed; corrected=passed
+test_align_areal_carries_only_requested_variables[tract_id-2000]: pre-correction=failed; reverted=failed; corrected=passed
+test_align_areal_carries_only_requested_variables[tract_id-2010]: pre-correction=failed; reverted=failed; corrected=passed
+
+pre-correction
+cwd=/private/tmp
+PYTHONPATH=/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening
+Command: /Users/dheerajchand/.pyenv/versions/default_31111/bin/python -m pytest /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_batch1_1373.py -k align_areal_carries_only_requested_variables -o addopts= -q --tb=short --junitxml=/private/tmp/batch1-p1-evidence/pre-correction.xml
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+________ test_align_areal_carries_only_requested_variables[GEOID-2000] _________
+/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_batch1_1373.py:316: in test_align_areal_carries_only_requested_variables
+    assert result.method == "areal", result.warnings
+E   AssertionError: ['Used areal interpolation for 2000→2010 (crosswalk unavailable)', "Both crosswalk and areal interpolation failed for 2010→2020: Variables not found in source: ['ALAND', 'AWATER']"]
+E   assert 'failed' == 'areal'
+E     
+E     - areal
+E     + failed
+------------------------------ Captured log call -------------------------------
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:754 Crosswalk 2000→2010 failed (crosswalk unavailable), trying areal interpolation
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:754 Crosswalk 2010→2020 failed (crosswalk unavailable), trying areal interpolation
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:772 Both crosswalk and areal interpolation failed for 2010→2020: Variables not found in source: ['ALAND', 'AWATER']
+________ test_align_areal_carries_only_requested_variables[GEOID-2010] _________
+/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_batch1_1373.py:325: in test_align_areal_carries_only_requested_variables
+    pd.testing.assert_frame_equal(result.data, expected)
+E   AssertionError: DataFrame are different
+E   
+E   DataFrame shape mismatch
+E   [left]:  (2, 5)
+E   [right]: (2, 3)
+------------------------------ Captured log call -------------------------------
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:754 Crosswalk 2010→2020 failed (crosswalk unavailable), trying areal interpolation
+_______ test_align_areal_carries_only_requested_variables[tract_id-2000] _______
+/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_batch1_1373.py:316: in test_align_areal_carries_only_requested_variables
+    assert result.method == "areal", result.warnings
+E   AssertionError: ['Used areal interpolation for 2000→2010 (crosswalk unavailable)', "Both crosswalk and areal interpolation failed for 2010→2020: Variables not found in source: ['ALAND', 'AWATER']"]
+E   assert 'failed' == 'areal'
+E     
+E     - areal
+E     + failed
+------------------------------ Captured log call -------------------------------
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:754 Crosswalk 2000→2010 failed (crosswalk unavailable), trying areal interpolation
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:754 Crosswalk 2010→2020 failed (crosswalk unavailable), trying areal interpolation
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:772 Both crosswalk and areal interpolation failed for 2010→2020: Variables not found in source: ['ALAND', 'AWATER']
+_______ test_align_areal_carries_only_requested_variables[tract_id-2010] _______
+/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_batch1_1373.py:325: in test_align_areal_carries_only_requested_variables
+    pd.testing.assert_frame_equal(result.data, expected)
+E   AssertionError: DataFrame are different
+E   
+E   DataFrame shape mismatch
+E   [left]:  (2, 6)
+E   [right]: (2, 3)
+------------------------------ Captured log call -------------------------------
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:754 Crosswalk 2010→2020 failed (crosswalk unavailable), trying areal interpolation
+=============================== warnings summary ===============================
+../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: DJANGO_SETTINGS_MODULE
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+tests/test_batch1_1373.py::test_align_areal_carries_only_requested_variables[GEOID-2000]
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---- generated xml file: /private/tmp/batch1-p1-evidence/pre-correction.xml ----
+=========================== short test summary info ============================
+FAILED ../../Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_batch1_1373.py::test_align_areal_carries_only_requested_variables[GEOID-2000]
+FAILED ../../Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_batch1_1373.py::test_align_areal_carries_only_requested_variables[GEOID-2010]
+FAILED ../../Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_batch1_1373.py::test_align_areal_carries_only_requested_variables[tract_id-2000]
+FAILED ../../Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_batch1_1373.py::test_align_areal_carries_only_requested_variables[tract_id-2010]
+4 failed, 48 deselected, 2 warnings in 2.41s
+
+Exit code: 1
+
+reverted
+cwd=/private/tmp/batch1-p1-evidence/reverted
+PYTHONPATH=/private/tmp/batch1-p1-evidence/reverted
+Command: /Users/dheerajchand/.pyenv/versions/default_31111/bin/python -m pytest /private/tmp/batch1-p1-evidence/reverted/tests/test_batch1_1373.py --rootdir=/private/tmp/batch1-p1-evidence/reverted -o addopts= -q --tb=short --junitxml=/private/tmp/batch1-p1-evidence/reverted.xml
+................................................FFFF                     [100%]
+=================================== FAILURES ===================================
+________ test_align_areal_carries_only_requested_variables[GEOID-2000] _________
+tests/test_batch1_1373.py:316: in test_align_areal_carries_only_requested_variables
+    assert result.method == "areal", result.warnings
+E   AssertionError: ['Used areal interpolation for 2000→2010 (crosswalk unavailable)', "Both crosswalk and areal interpolation failed for 2010→2020: Variables not found in source: ['ALAND', 'AWATER']"]
+E   assert 'failed' == 'areal'
+E     
+E     - areal
+E     + failed
+------------------------------ Captured log call -------------------------------
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:754 Crosswalk 2000→2010 failed (crosswalk unavailable), trying areal interpolation
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:754 Crosswalk 2010→2020 failed (crosswalk unavailable), trying areal interpolation
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:772 Both crosswalk and areal interpolation failed for 2010→2020: Variables not found in source: ['ALAND', 'AWATER']
+________ test_align_areal_carries_only_requested_variables[GEOID-2010] _________
+tests/test_batch1_1373.py:325: in test_align_areal_carries_only_requested_variables
+    pd.testing.assert_frame_equal(result.data, expected)
+E   AssertionError: DataFrame are different
+E   
+E   DataFrame shape mismatch
+E   [left]:  (2, 5)
+E   [right]: (2, 3)
+------------------------------ Captured log call -------------------------------
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:754 Crosswalk 2010→2020 failed (crosswalk unavailable), trying areal interpolation
+_______ test_align_areal_carries_only_requested_variables[tract_id-2000] _______
+tests/test_batch1_1373.py:316: in test_align_areal_carries_only_requested_variables
+    assert result.method == "areal", result.warnings
+E   AssertionError: ['Used areal interpolation for 2000→2010 (crosswalk unavailable)', "Both crosswalk and areal interpolation failed for 2010→2020: Variables not found in source: ['ALAND', 'AWATER']"]
+E   assert 'failed' == 'areal'
+E     
+E     - areal
+E     + failed
+------------------------------ Captured log call -------------------------------
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:754 Crosswalk 2000→2010 failed (crosswalk unavailable), trying areal interpolation
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:754 Crosswalk 2010→2020 failed (crosswalk unavailable), trying areal interpolation
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:772 Both crosswalk and areal interpolation failed for 2010→2020: Variables not found in source: ['ALAND', 'AWATER']
+_______ test_align_areal_carries_only_requested_variables[tract_id-2010] _______
+tests/test_batch1_1373.py:325: in test_align_areal_carries_only_requested_variables
+    pd.testing.assert_frame_equal(result.data, expected)
+E   AssertionError: DataFrame are different
+E   
+E   DataFrame shape mismatch
+E   [left]:  (2, 6)
+E   [right]: (2, 3)
+------------------------------ Captured log call -------------------------------
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:754 Crosswalk 2010→2020 failed (crosswalk unavailable), trying areal interpolation
+=============================== warnings summary ===============================
+tests/test_batch1_1373.py::test_extensive_nan_propagates_per_variable_across_backends[tobler-True]
+tests/test_batch1_1373.py::test_extensive_nan_propagates_per_variable_across_backends[tobler-False]
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/tobler/area_weighted/area_interpolate.py:323: UserWarning: nan values in variable: pop, replacing with 0
+    vals = _nan_check(source_df, variable)
+
+tests/test_batch1_1373.py::test_extensive_nan_propagates_per_variable_across_backends[tobler-True]
+tests/test_batch1_1373.py::test_extensive_nan_propagates_per_variable_across_backends[tobler-False]
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/tobler/area_weighted/area_interpolate.py:323: UserWarning: nan values in variable: other, replacing with 0
+    vals = _nan_check(source_df, variable)
+
+tests/test_batch1_1373.py::test_census_rejects_yearless_dataset_before_http[/data/timeseries/govs/schfin]
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+------- generated xml file: /private/tmp/batch1-p1-evidence/reverted.xml -------
+=========================== short test summary info ============================
+FAILED tests/test_batch1_1373.py::test_align_areal_carries_only_requested_variables[GEOID-2000]
+FAILED tests/test_batch1_1373.py::test_align_areal_carries_only_requested_variables[GEOID-2010]
+FAILED tests/test_batch1_1373.py::test_align_areal_carries_only_requested_variables[tract_id-2000]
+FAILED tests/test_batch1_1373.py::test_align_areal_carries_only_requested_variables[tract_id-2010]
+4 failed, 48 passed, 5 warnings in 2.31s
+
+Exit code: 1
+
+patched
+cwd=/private/tmp
+PYTHONPATH=/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening
+Command: /Users/dheerajchand/.pyenv/versions/default_31111/bin/python -m pytest /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_batch1_1373.py -o addopts= -q --tb=short --junitxml=/private/tmp/batch1-p1-evidence/patched.xml
+....................................................                     [100%]
+=============================== warnings summary ===============================
+../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: DJANGO_SETTINGS_MODULE
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+tests/test_batch1_1373.py::test_extensive_nan_propagates_per_variable_across_backends[tobler-True]
+tests/test_batch1_1373.py::test_extensive_nan_propagates_per_variable_across_backends[tobler-False]
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/tobler/area_weighted/area_interpolate.py:323: UserWarning: nan values in variable: pop, replacing with 0
+    vals = _nan_check(source_df, variable)
+
+tests/test_batch1_1373.py::test_extensive_nan_propagates_per_variable_across_backends[tobler-True]
+tests/test_batch1_1373.py::test_extensive_nan_propagates_per_variable_across_backends[tobler-False]
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/tobler/area_weighted/area_interpolate.py:323: UserWarning: nan values in variable: other, replacing with 0
+    vals = _nan_check(source_df, variable)
+
+tests/test_batch1_1373.py::test_census_rejects_yearless_dataset_before_http[/data/timeseries/govs/schfin]
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+------- generated xml file: /private/tmp/batch1-p1-evidence/patched.xml --------
+52 passed, 6 warnings in 2.15s
+
+Exit code: 0

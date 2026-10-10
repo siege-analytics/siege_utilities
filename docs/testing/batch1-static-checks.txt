@@ -1,0 +1,131 @@
+Baseline (cached origin/develop): 174a58178eb2fad7075ad906811f95395e2f88aa
+AST PASS scripts/verify_batch1_1373.py
+AST PASS siege_utilities/engines/dataframe_engine.py
+AST PASS siege_utilities/geo/census/catalog_populator.py
+AST PASS siege_utilities/geo/interpolation/areal.py
+AST PASS siege_utilities/geo/timeseries/longitudinal_data.py
+AST PASS tests/test_batch1_1373.py
+Parsed every changed/new Python file: 6 PASS
+SU-4b PASS: no added or altered exception handlers: siege_utilities/engines/dataframe_engine.py
+SU-4b PASS: no added or altered exception handlers: siege_utilities/geo/census/catalog_populator.py
+SU-4b PASS: no added or altered exception handlers: siege_utilities/geo/interpolation/areal.py
+Empty-target validation AST identical to origin/develop: PASS
+Fixes 3/4 pre-edit mask statements retained unchanged: PASS
+SU-4b PASS: no added or altered exception handlers: siege_utilities/geo/timeseries/longitudinal_data.py
+Longitudinal consumer edit is comment-only; AST unchanged: PASS
+Fixes 1-7 pre-edit snapshot unchanged: siege_utilities/engines/dataframe_engine.py
+Fixes 1-7 pre-edit snapshot unchanged: siege_utilities/geo/census/catalog_populator.py
+Patched/baseline/fix8-reverted tests byte-identical: SHA256=fa88b925432b61deb0fa4271b8e67f4ac9abaaf118bd52b3dad1f96b219c89ac
+origin/develop: {'failed': 39, 'passed': 9}
+Fix 8 reverted; fixes 1-7 retained: {'passed': 29, 'failed': 19}
+Patched tree: {'passed': 48}
+Fix 8: 19 individually matched failures on both baselines -> same tests PASS on patch
+Preservation controls: 9 PASS on baseline and patch (6 empty-target cases, 3 backend-error cases)
+RED -> GREEN test_empty_source_preserves_nonempty_schema_without_dispatch[extensive-tobler]
+RED -> GREEN test_empty_source_preserves_nonempty_schema_without_dispatch[extensive-duckdb]
+RED -> GREEN test_empty_source_preserves_nonempty_schema_without_dispatch[extensive-shapely]
+RED -> GREEN test_empty_source_preserves_nonempty_schema_without_dispatch[intensive-tobler]
+RED -> GREEN test_empty_source_preserves_nonempty_schema_without_dispatch[intensive-duckdb]
+RED -> GREEN test_empty_source_preserves_nonempty_schema_without_dispatch[intensive-shapely]
+RED -> GREEN test_empty_source_preserves_nonempty_schema_without_dispatch[both-tobler]
+RED -> GREEN test_empty_source_preserves_nonempty_schema_without_dispatch[both-duckdb]
+RED -> GREEN test_empty_source_preserves_nonempty_schema_without_dispatch[both-shapely]
+RED -> GREEN test_no_positive_overlap_skips_backend[False-tobler]
+RED -> GREEN test_no_positive_overlap_skips_backend[False-duckdb]
+RED -> GREEN test_no_positive_overlap_skips_backend[False-shapely]
+RED -> GREEN test_no_positive_overlap_skips_backend[True-tobler]
+RED -> GREEN test_no_positive_overlap_skips_backend[True-duckdb]
+RED -> GREEN test_no_positive_overlap_skips_backend[True-shapely]
+RED -> GREEN test_valid_intensive_subset_without_overlap_skips_backend[tobler]
+RED -> GREEN test_valid_intensive_subset_without_overlap_skips_backend[duckdb]
+RED -> GREEN test_valid_intensive_subset_without_overlap_skips_backend[shapely]
+RED -> GREEN test_duckdb_empty_geometry_frame_returns_cleanly
+git diff --check PASS
+SU-1: empty source/no positive overlap are valid input conditions, detected before backend execution; no exception is caught or converted to data.
+SU-2: public docstring states zero extensive/NaN intensive defaults, target schema/row order, float variables and selected backend metadata.
+SU-4b: unchanged empty-target guard asserts exact ValueError; nonempty backend failure controls assert RuntimeError propagates.
+SU-4b: malformed geometry and Census dataset validation regression tests still pass; no catch changed.
+
+writing-claims:1 areal dispatch and consumer scope
+Command: rg -n interpolate_(areal|extensive|intensive|duckdb|tobler|shapely)|_targets_with_valid_overlap siege_utilities scripts -g *.py
+scripts/verify_round6_hardening.py:149:            result = areal.interpolate_areal(source, target, intensive_variables=["rate"])
+scripts/verify_round6_hardening.py:154:            areal.interpolate_areal(source, target.iloc[:0], intensive_variables=["rate"])
+scripts/verify_batch1_1373.py:49:            result = areal.interpolate_areal(
+scripts/verify_batch1_1373.py:110:            populated = areal.interpolate_areal(source, target, **kwargs)
+scripts/verify_batch1_1373.py:114:                    result = areal.interpolate_areal(src, tgt, **kwargs)
+scripts/verify_batch1_1373.py:127:                    areal.interpolate_areal(source, target.iloc[:0], **kwargs)
+siege_utilities/geo/interpolation/areal.py:56:    'interpolate_areal',
+siege_utilities/geo/interpolation/areal.py:57:    'interpolate_extensive',
+siege_utilities/geo/interpolation/areal.py:58:    'interpolate_intensive',
+siege_utilities/geo/interpolation/areal.py:122:def _interpolate_tobler(
+siege_utilities/geo/interpolation/areal.py:145:def _interpolate_duckdb(
+siege_utilities/geo/interpolation/areal.py:228:def _interpolate_shapely(
+siege_utilities/geo/interpolation/areal.py:285:def _targets_with_valid_overlap(
+siege_utilities/geo/interpolation/areal.py:353:def interpolate_areal(
+siege_utilities/geo/interpolation/areal.py:434:        if not _targets_with_valid_overlap(src, tgt).any():
+siege_utilities/geo/interpolation/areal.py:442:            return _interpolate_tobler(
+siege_utilities/geo/interpolation/areal.py:446:            return _interpolate_duckdb(src, tgt, ext_vars, int_vars)
+siege_utilities/geo/interpolation/areal.py:447:        return _interpolate_shapely(src, tgt, ext_vars, int_vars)
+siege_utilities/geo/interpolation/areal.py:474:            has_missing = _targets_with_valid_overlap(missing_sources, target)
+siege_utilities/geo/interpolation/areal.py:482:        has_overlap = _targets_with_valid_overlap(source, target)
+siege_utilities/geo/interpolation/areal.py:504:        has_valid = _targets_with_valid_overlap(valid, target)
+siege_utilities/geo/interpolation/areal.py:529:def interpolate_extensive(
+siege_utilities/geo/interpolation/areal.py:539:    return interpolate_areal(
+siege_utilities/geo/interpolation/areal.py:549:def interpolate_intensive(
+siege_utilities/geo/interpolation/areal.py:559:    return interpolate_areal(
+siege_utilities/geo/interpolation/__init__.py:9:    from siege_utilities.geo.interpolation import interpolate_extensive, interpolate_intensive
+siege_utilities/geo/interpolation/__init__.py:12:    result = interpolate_extensive(
+siege_utilities/geo/interpolation/__init__.py:19:    result = interpolate_intensive(
+siege_utilities/geo/interpolation/__init__.py:28:    interpolate_areal,
+siege_utilities/geo/interpolation/__init__.py:29:    interpolate_extensive,
+siege_utilities/geo/interpolation/__init__.py:30:    interpolate_intensive,
+siege_utilities/geo/interpolation/__init__.py:36:    "interpolate_areal",
+siege_utilities/geo/interpolation/__init__.py:37:    "interpolate_extensive",
+siege_utilities/geo/interpolation/__init__.py:38:    "interpolate_intensive",
+siege_utilities/geo/timeseries/longitudinal_data.py:904:            from ..interpolation.areal import interpolate_areal
+siege_utilities/geo/timeseries/longitudinal_data.py:957:        result = interpolate_areal(
+siege_utilities/geo/timeseries/longitudinal_data.py:965:        # interpolate_areal preserves target attributes and row order. Assign
+siege_utilities/geo/__init__.py:249:    'ArealInterpolationResult', 'interpolate_areal',
+siege_utilities/geo/__init__.py:250:    'interpolate_extensive', 'interpolate_intensive', 'compute_area_weights',
+
+
+writing-claims:1 empty-frame conversion patterns
+Command: rg -n geometry\.apply.*wkb_hex|if (source|target)(_gdf)?\.empty|if overlaps\.empty siege_utilities/geo siege_utilities/engines
+siege_utilities/geo/interpolation/areal.py:158:    src_df["_geom_wkb"] = source.geometry.apply(lambda g: g.wkb_hex)
+siege_utilities/geo/interpolation/areal.py:162:    tgt_df["_geom_wkb"] = target.geometry.apply(lambda g: g.wkb_hex)
+siege_utilities/geo/interpolation/areal.py:191:    if overlaps.empty:
+siege_utilities/geo/interpolation/areal.py:416:    if target_gdf.empty:
+
+
+writing-claims:1 geometry and Census scope
+Command: rg -n _decode_geometry_text|wkt.loads|_quote_ident|_normalize_base_url|_decode_unreserved|rstrip siege_utilities/engines/dataframe_engine.py siege_utilities/geo/census/catalog_populator.py
+siege_utilities/geo/census/catalog_populator.py:63:        self.base_url = self._normalize_base_url(base_url)
+siege_utilities/geo/census/catalog_populator.py:67:    def _normalize_base_url(base_url: str) -> str:
+siege_utilities/geo/census/catalog_populator.py:86:        hostname = unquote(parts.hostname or "").rstrip(".").lower()
+siege_utilities/geo/census/catalog_populator.py:89:        def _decode_unreserved(match: re.Match[str]) -> str:
+siege_utilities/geo/census/catalog_populator.py:95:        path = re.sub(r"%[0-9A-Fa-f]{2}", _decode_unreserved, parts.path)
+siege_utilities/engines/dataframe_engine.py:843:            return df[geometry_col].distance(wkt.loads(other))
+siege_utilities/engines/dataframe_engine.py:855:                lambda g: wkt.loads(g) if isinstance(g, str) else g
+siege_utilities/engines/dataframe_engine.py:1132:    def _quote_ident(name: Any) -> str:
+siege_utilities/engines/dataframe_engine.py:1142:    def _decode_geometry_text(value: str) -> Any:
+siege_utilities/engines/dataframe_engine.py:1151:        return shapely_wkt.loads(value)
+siege_utilities/engines/dataframe_engine.py:1174:            f'ST_AsWKB(#{i + 1}) AS {self._quote_ident(name)}'
+siege_utilities/engines/dataframe_engine.py:1175:            if i in positions else f'#{i + 1} AS {self._quote_ident(name)}'
+siege_utilities/engines/dataframe_engine.py:1202:                return self._decode_geometry_text(g)
+siege_utilities/engines/dataframe_engine.py:1237:            return gdf[geometry_col].distance(wkt.loads(other))
+siege_utilities/engines/dataframe_engine.py:1271:                        lambda g: self._decode_geometry_text(g) if isinstance(g, str) else g
+siege_utilities/engines/dataframe_engine.py:1300:        col_list = ", ".join(self._quote_ident(c) for c in attr_cols)
+siege_utilities/engines/dataframe_engine.py:1308:            f"ST_AsWKB(ST_GeomFromWKB(UNHEX(_geom_wkb))) AS {self._quote_ident(geometry_col)} "
+siege_utilities/engines/dataframe_engine.py:1628:                lambda g: wkt.loads(g) if isinstance(g, str) else g
+siege_utilities/engines/dataframe_engine.py:1871:            df["geometry"] = df["geometry"].apply(wkt.loads)
+siege_utilities/engines/dataframe_engine.py:1991:            return gdf[geometry_col].distance(wkt.loads(other))
+siege_utilities/engines/dataframe_engine.py:2005:                lambda g: wkt.loads(g) if isinstance(g, str) else g
+
+
+Notebook impact
+Command: rg -n interpolate_areal|interpolate_extensive|interpolate_intensive|CensusCatalogPopulator notebooks
+(no matches)
+Scope: public areal wrappers and LongitudinalAligner use interpolate_areal; no external production caller dispatches directly to private kernels.
+Private kernels retain backend-native behavior; the public dispatch guard handles empty source/overlap before any kernel is called.
+No notebook calls the changed areal/Census APIs; existing documentation gap remains. Engine notebook WKB prose remains accurate.
+Other engines WKT-only conversion and compute_area_weights empty overlap matrix are outside the requested fixes.

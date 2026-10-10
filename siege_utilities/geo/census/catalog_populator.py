@@ -72,9 +72,9 @@ class CensusCatalogPopulator:
         remain encoded and are not treated as structural path separators.
 
         Raises:
-            ValueError: If base_url on api.census.gov includes a full dataset path -- the
-                ``/data/{year}/{dataset...}`` shape (e.g.
-                ``/data/2023/acs/acs5``); the fetchers append
+            ValueError: If base_url on api.census.gov includes a full dataset path,
+                such as ``/data/2023/acs/acs5`` or
+                ``/data/timeseries/govs/schfin``; the fetchers append
                 ``/{year}/{dataset}/...`` themselves, so such a base_url would
                 double the path. Other hosts accept arbitrary proxy prefixes,
                 including ``/data/2023/gw`` and dataset-shaped paths.
@@ -83,32 +83,32 @@ class CensusCatalogPopulator:
 
         parts = urlsplit(base_url)
         # Apply the host guard to equivalent spellings before HTTP normalization.
-        hostname = unquote(parts.hostname or "").removesuffix(".").lower()
+        hostname = unquote(parts.hostname or "").rstrip(".").lower()
         unreserved = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
 
         def _decode_unreserved(match: re.Match[str]) -> str:
             char = chr(int(match.group()[1:], 16))
             return char if char in unreserved else match.group()
 
+        # Deliberately leave encoded separators (e.g. %2f) encoded: decoding
+        # them into structural separators requires a separate revalidation step.
         path = re.sub(r"%[0-9A-Fa-f]{2}", _decode_unreserved, parts.path)
         segments = [s for s in path.split("/") if s]
 
-        # Only the Census API host defines data/year as a dataset endpoint.
+        # On the Census host, anything after /data other than repeated root
+        # components is a dataset path, including yearless timeseries paths.
         # Proxy hosts own their path namespaces, regardless of their spelling.
-        def _is_year(seg: str) -> bool:
-            return len(seg) == 4 and seg.isdigit()
-
         for i, seg in enumerate(segments):
             if (
                 hostname == "api.census.gov"
                 and seg == "data"
                 and i + 1 < len(segments)
-                and _is_year(segments[i + 1])
+                and segments[i + 1] != "data"
             ):
                 raise ValueError(
                     f"base_url {base_url!r} includes a full dataset path "
-                    f"(the '/data/{{year}}/{{dataset...}}' shape, e.g. "
-                    f"'/data/2023/acs/acs5'). Pass the API root ending at "
+                    f"(e.g. '/data/2023/acs/acs5' or "
+                    f"'/data/timeseries/govs/schfin'). Pass the API root ending at "
                     f"'/data' or without it -- for example "
                     f"'https://api.census.gov' or 'https://api.census.gov/data'. "
                     f"_fetch_variables/_fetch_groups append "
