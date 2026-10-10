@@ -988,15 +988,25 @@ class DuckDBEngine(DataFrameEngine):
             # only reports Count. Inspect its definition without executing it.
             import re
 
-            position = duckdb.tokenize(statement.query)[1][0]
-            # The tokenizer skips leading comments. Stop an unquoted name at
-            # either trailing comment opener; quoted comment markers are data.
-            identifier = re.match(
-                r'"(?:[^"]|"")*"|[^\s();/\-]+',
-                statement.query.encode("utf-8")[position:].decode("utf-8"),
-            ).group()
+            tokens = duckdb.tokenize(statement.query)
+            if len(tokens) < 2:
+                raise ValueError("Cannot extract prepared statement name from EXECUTE")
+            position = tokens[1][0]
+            # The tokenizer skips leading comments and reports byte offsets.
+            # Match DuckDB's identifier bytes: ASCII letters/underscore or
+            # high-bit bytes, followed also by digits/$ (not Python's \s).
+            # DuckDB has already normalized its Unicode space separators in
+            # statement.query; other non-ASCII characters belong to the name.
+            match = re.match(
+                rb'"(?:[^"]|"")*"|[A-Za-z_\x80-\xff][A-Za-z_0-9$\x80-\xff]*',
+                statement.query.encode("utf-8")[position:],
+            )
+            if match is None:
+                raise ValueError("Cannot extract prepared statement name from EXECUTE")
+            identifier = match.group().decode("utf-8")
             name = identifier[1:-1].replace('""', '"') if identifier.startswith('"') else identifier
-            lookup = "SELECT statement FROM duckdb_prepared_statements() WHERE name = ?"
+            # Session collations must not merge distinct catalog identifiers.
+            lookup = 'SELECT statement FROM duckdb_prepared_statements() WHERE name = ? COLLATE "binary"'
             prepared = self._connection.execute(
                 lookup, [name],
             ).fetchone()

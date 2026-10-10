@@ -67,6 +67,10 @@ class CensusCatalogPopulator:
     def _normalize_base_url(base_url: str) -> str:
         """Return an API-root base_url with one terminal ``/data`` component.
 
+        Decode only percent-encoded ASCII unreserved path characters before
+        validation and root deduplication. Reserved escapes such as ``%2f``
+        remain encoded and are not treated as structural path separators.
+
         Raises:
             ValueError: If base_url on api.census.gov includes a full dataset path -- the
                 ``/data/{year}/{dataset...}`` shape (e.g.
@@ -80,7 +84,14 @@ class CensusCatalogPopulator:
         parts = urlsplit(base_url)
         # Apply the host guard to equivalent spellings before HTTP normalization.
         hostname = unquote(parts.hostname or "").removesuffix(".").lower()
-        segments = [s for s in parts.path.split("/") if s]
+        unreserved = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
+
+        def _decode_unreserved(match: re.Match[str]) -> str:
+            char = chr(int(match.group()[1:], 16))
+            return char if char in unreserved else match.group()
+
+        path = re.sub(r"%[0-9A-Fa-f]{2}", _decode_unreserved, parts.path)
+        segments = [s for s in path.split("/") if s]
 
         # Only the Census API host defines data/year as a dataset endpoint.
         # Proxy hosts own their path namespaces, regardless of their spelling.

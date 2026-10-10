@@ -1,0 +1,154 @@
+Command: ['/Users/dheerajchand/.pyenv/versions/default_31111/bin/python', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/scripts/verify_round9_hardening.py', '--spark-boundary-only']
+Cwd: /tmp; PYTHONPATH=/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening
+Exit: 0
+
+Stdout
+nocase: Count name='é' {'Count': [1]}; geometry name='É' POINT (1 2)
+nocase: Count name='É' {'Count': [1]}; geometry name='é' POINT (1 2)
+nocase: Count name='e' {'Count': [1]}; geometry name='é' POINT (1 2)
+nocase: Count name='é' {'Count': [1]}; geometry name='e' POINT (1 2)
+noaccent: Count name='é' {'Count': [1]}; geometry name='É' POINT (1 2)
+noaccent: Count name='É' {'Count': [1]}; geometry name='é' POINT (1 2)
+noaccent: Count name='e' {'Count': [1]}; geometry name='é' POINT (1 2)
+noaccent: Count name='é' {'Count': [1]}; geometry name='e' POINT (1 2)
+noaccent.nocase: Count name='é' {'Count': [1]}; geometry name='É' POINT (1 2)
+noaccent.nocase: Count name='É' {'Count': [1]}; geometry name='é' POINT (1 2)
+noaccent.nocase: Count name='e' {'Count': [1]}; geometry name='é' POINT (1 2)
+noaccent.nocase: Count name='é' {'Count': [1]}; geometry name='e' POINT (1 2)
+identifier '"\x85p"': POINT (1 2)
+identifier '\x85p': POINT (1 2)
+identifier '"\u1680p"': POINT (1 2)
+identifier '\u1680p': POINT (1 2)
+identifier '"\u2028p"': POINT (1 2)
+identifier '\u2028p': POINT (1 2)
+identifier '"\u2029p"': POINT (1 2)
+identifier '\u2029p': POINT (1 2)
+census REJECT https://api.census.gov/%64ata/2023/cbp: ValueError (full dataset path), no HTTP
+census REJECT https://api.census.gov/data/%32%30%32%33/cbp: ValueError (full dataset path), no HTTP
+census REJECT https://%61pi.census.gov/%64ata/2023/cbp: ValueError (full dataset path), no HTTP
+census REJECT https://%61pi.census.gov/data/%32%30%32%33/cbp: ValueError (full dataset path), no HTTP
+census REJECT https://api.census.gov./%64ata/2023/cbp: ValueError (full dataset path), no HTTP
+census REJECT https://api.census.gov./data/%32%30%32%33/cbp: ValueError (full dataset path), no HTTP
+census ACCEPT https://api.census.gov/%64ata -> https://api.census.gov/data: fetch paths verified
+census ACCEPT https://api.census.gov//%64ata//data/ -> https://api.census.gov/data: fetch paths verified
+census ACCEPT https://proxy/%64ata/%32%30%32%33/census -> https://proxy/data/2023/census/data: fetch paths verified
+census ACCEPT https://proxy/%7e%61%2D%5F%2e -> https://proxy/~a-_./data: fetch paths verified
+census ACCEPT https://api.census.gov/data%2f2023/cbp -> https://api.census.gov/data%2f2023/cbp/data: fetch paths verified
+census ACCEPT https://api.census.gov/%64ata%2F2023/cbp -> https://api.census.gov/data%2F2023/cbp/data: fetch paths verified
+census ACCEPT https://proxy/%252f/%3F/%23/%25/%c3%a9/%zz -> https://proxy/%252f/%3F/%23/%25/%c3%a9/%zz/data: fetch paths verified
+prepared grammar 'semi; colon': POINT (1 2)
+prepared grammar 'quote"--/*\t name': POINT (1 2)
+prepared grammar '_p$9': POINT (1 2)
+prepared grammar '\U0001f600p': POINT (1 2)
+DuckDB ASCII and normalized Unicode separators: POINT (1 2)
+mixed-case CTAS/CTE/EXPLAIN/PRAGMA/SET/CALL and literal RETURNING: PASS
+EXECUTE /: clear ParserException
+EXECUTE missing: clear BinderException
+PREPARE RETURNING: DataFrame {'Success': []}; mutation not executed
+EXECUTE "é": {'Count': [1]}; EXECUTE "É": POINT (1 2)
+EXECUTE "É": {'Count': [1]}; EXECUTE "é": POINT (1 2)
+EXECUTE commented--comment: POINT (3 3)
+EXECUTE commented/* trailing */: POINT (3 3)
+census REJECT https://%61pi.census.gov/data/2023/cbp: ValueError (full dataset path)
+census REJECT https://api.census.gov./data/2023/cbp: ValueError (full dataset path)
+geometry detection stored: POINT (1 2), standard WKB
+geometry detection function: POINT (1 2), standard WKB
+geometry detection CTE: POINT (1 2), standard WKB
+geometry detection subquery: POINT (1 2), standard WKB
+geometry detection arbitrary position: POINT (1 2), standard WKB
+VARCHAR WKB-hex: preserved verbatim, no double conversion
+100000 rows: eager DataFrame, complete sequence, last geometry POINT (99999 99999)
+CTE RETURNING direct batch: POINT (1 1), exactly once
+CTE RETURNING prepared batch: POINT (1 1), exactly once
+MERGE RETURNING direct batch: POINT (1 1), exactly once
+query-frame consumers: spatial_join/buffer/distance/dissolve/aggregation/assign_boundaries/nearest/filter/join PASS
+read_spatial collision: geom=123, active geometry POINT (1 2)
+census ACCEPT https://api.census.gov: root, /data, /data/, //data//data/ -> single /data
+census ACCEPT https://%61pi.census.gov: root, /data, /data/, //data//data/ -> single /data
+census ACCEPT https://api.census.gov.: root, /data, /data/, //data//data/ -> single /data
+census REJECT HTTP://API.CENSUS.GOV/data/2023/cbp: ValueError (full dataset path)
+census REJECT https://api.census.gov:443/data/2023/cbp: ValueError (full dataset path)
+census REJECT https://user:pw@api.census.gov/data/2023/cbp: ValueError (full dataset path)
+census REJECT https://api.census.gov/data/2023/cbp?key=value#fragment: ValueError (full dataset path)
+census ACCEPT proxy https://api.census.gov.proxy/data/2023/cbp: prefix preserved
+census ACCEPT proxy https://proxy/data/2023/cbp: prefix preserved
+census ACCEPT proxy https://proxy/any/path: prefix preserved
+row/status DataFrame contract: SELECT/SHOW/DESCRIBE/CTE/PREPARE/EXECUTE/transaction/SET/PRAGMA/CALL/EXPLAIN/DEALLOCATE PASS
+WKB claim: query and to_pandas(relation) convert GEOMETRY columns; nested GEOMETRY[] and POINT_2D unchanged
+INSERT RETURNING: POINT (1 1), x=1, x_1=2; exactly once, remaining=[1]
+UPDATE RETURNING: POINT (1 1), x=1, x_1=2; exactly once, remaining=[1]
+DELETE RETURNING: POINT (1 1), x=1, x_1=2; exactly once, remaining=[]
+index_points(query): POINT (-87 41), s2_index=881236b
+dead-engine result: POINT (1 2), engine collected=True
+snapshot after DELETE: i=7, POINT (1 2); source rows=0
+geometry schema SELECT ST_Point(1,2) AS geometry UNION ALL SELECT NULL::GEOMETRY: ['POINT (1 2)', None], columns=['geometry']
+geometry schema SELECT NULL::GEOMETRY AS geometry: [None], columns=['geometry']
+geometry schema SELECT NULL::GEOMETRY AS geometry WHERE FALSE: [], columns=['geometry']
+geometry schema DELETE FROM points WHERE FALSE RETURNING ST_Point(i,i) AS geometry: [], columns=['geometry']
+failed spatial load: PermissionException; subsequent SELECT 42=42
+RETURNING tokenizer: quoted names, literals, comments, UTF-8; Count preserved; geometry decoded
+census ACCEPT https://proxy/data/2023/gw: ['https://proxy/data/2023/gw/data/2023/acs/acs5/variables.json', 'https://proxy/data/2023/gw/data/2023/acs/acs5/groups.json']
+census ACCEPT https://proxy/data/2023/acs/acs5: ['https://proxy/data/2023/acs/acs5/data/2023/acs/acs5/variables.json', 'https://proxy/data/2023/acs/acs5/data/2023/acs/acs5/groups.json']
+SELECT config={}: {'answer': [42]}
+SELECT config={'enable_external_access': False}: {'answer': [42]}
+DDL: {'Count': []}
+INSERT: {'Count': [2]}
+UPDATE: {'Count': [1]}
+DELETE: {'Count': [2]}
+SELECT ST_Point(1,2) AS geometry, 1 AS x, 2 AS x: {'geometry': 'POINT (1 2)', 'x': 1, 'x_1': 2}
+SELECT ST_Point(1,2) AS x, ST_Point(3,4) AS x: {'x': 'POINT (1 2)', 'x_1': 'POINT (3 4)'}
+SELECT ST_Point(1,2) AS x, 7 AS x: {'x': 'POINT (1 2)', 'x_1': 7}
+SELECT 7 AS x, ST_Point(1,2) AS x: {'x': 7, 'x_1': 'POINT (1 2)'}
+query -> to_geodataframe: POINT (1 2)
+query -> to_pandas: decodable WKB, hex=0101000000000000000000f03f0000000000000040
+registered DataFrame + to_pandas identity: PASS
+empty geometry result: rows=0, columns=['x', 'x_1'], active=x_1
+zero-overlap transform: T1.rate=0.1
+zero-overlap apply_crosswalk: T1.rate=0.1
+zero-overlap align: T1.rate=0.1
+zero-overlap align: method=crosswalk, areal calls=0, warnings=[]
+census ACCEPT https://api.census.gov: ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+census ACCEPT https://api.census.gov/data: ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+census ACCEPT https://api.census.gov/data/: ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+census ACCEPT https://api.census.gov//data//data/: ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+census ACCEPT https://api.census.gov//data/: ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+census ACCEPT https://proxy/data/census: ['https://proxy/data/census/data/2023/acs/acs5/variables.json', 'https://proxy/data/census/data/2023/acs/acs5/groups.json']
+census ACCEPT https://proxy/data/2023/census: ['https://proxy/data/2023/census/data/2023/acs/acs5/variables.json', 'https://proxy/data/2023/census/data/2023/acs/acs5/groups.json']
+census ACCEPT https://proxy/2023/gw: ['https://proxy/2023/gw/data/2023/acs/acs5/variables.json', 'https://proxy/2023/gw/data/2023/acs/acs5/groups.json']
+census REJECT https://api.census.gov/data/2023/cbp: ValueError (full dataset path)
+census REJECT https://api.census.gov/data/2023/acs/acs5: ValueError (full dataset path)
+census REJECT https://api.census.gov/data/2023/custom/a/b: ValueError (full dataset path)
+census REJECT https://api.census.gov/data/2023: ValueError (full dataset path)
+intensive parity: crosswalk=0.50, real tobler=0.50
+intensive parity: crosswalk=0.82, real tobler=0.82
+distinct-source merge without absolute area: ValueError (area-weight intensive)
+align NaN fallback: rate=0.2, method=areal
+per-target NaN tobler: [nan, 0.8]
+per-target NaN duckdb: [nan, 0.8]
+per-target NaN shapely: [nan, 0.8]
+empty-target DuckDB/areal: ValueError: target GeoDataFrame is empty; provide at least one target polygon
+Snowflake upload_dataframe SQL capture: ['USE DATABASE "MixedDb"', 'USE SCHEMA "MixedSchema"']
+Snowflake get_table_info SQL capture: ['USE DATABASE "MixedDb"', 'USE SCHEMA "MixedSchema"']
+Snowflake list_tables SQL capture: ['USE DATABASE "MixedDb"', 'USE SCHEMA "MixedSchema"']
+DuckDB from_geodataframe round-trip: POINT (100000 200000), null preserved, EPSG:3857
+Spark (session-boundary stub) assign-not-reproject round-trip: POINT (100000 200000), null preserved, EPSG:3857
+SELF-REGRESSION GATE: PASS
+ROUND-7 SELF-REGRESSION GATE: PASS
+ROUND-8 FULL SELF-REGRESSION GATE: PASS
+ROUND-9 FULL SELF-REGRESSION GATE: PASS
+
+Stderr
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+  warnings.warn(
+/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/siege_utilities/engines/dataframe_engine.py:1222: UserWarning: Geometry is in a geographic CRS. Results from 'buffer' are likely incorrect. Use 'GeoSeries.to_crs()' to re-project geometries to a projected CRS before this operation.
+
+  result[geometry_col] = result[geometry_col].buffer(distance)
+/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/siege_utilities/engines/dataframe_engine.py:1230: UserWarning: Geometry is in a geographic CRS. Results from 'distance' are likely incorrect. Use 'GeoSeries.to_crs()' to re-project geometries to a projected CRS before this operation.
+
+  return gdf[geometry_col].distance(other)
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/geopandas/array.py:407: UserWarning: Geometry is in a geographic CRS. Results from 'sjoin_nearest' are likely incorrect. Use 'GeoSeries.to_crs()' to re-project geometries to a projected CRS before this operation.
+
+  warnings.warn(
+Crosswalk 2010→2020 failed (Cannot area-weight intensive columns ['rate'] on a merge: the crosswalk carries only the allocation factor 'area_weight', which cannot express an area-weighted mean (sources of area 1 and 9 both get weight 1). Supply a crosswalk with an 'overlap_area' or 'source_area' column, or route intensive columns through areal interpolation (LongitudinalAligner falls back to tobler automatically on a crosswalk failure).), trying areal interpolation
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/snowflake/connector/vendored/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+  warnings.warn(
