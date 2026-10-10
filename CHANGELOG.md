@@ -55,6 +55,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unifying it (C6, #1354).
 - Snowflake connector is enabled on an installed SDK and its config-file factory
   works (C13/C14, #1357).
+- DuckDB engine `query()` returns an eager, materialized frame with stable
+  snapshot and lifetime semantics, converts native GEOMETRY to WKB by column
+  position for every result-producing statement (including DML `RETURNING`),
+  loads the spatial extension only when a result carries geometry so ordinary
+  SQL runs under a restricted configuration, preserves DML affected-row counts,
+  and matches prepared-statement names on engine token boundaries with a binary
+  collation (#1369).
+- Crosswalk intensive variables area-weight by true overlap area with
+  real-tobler parity, exclude missing values per variable, treat zero-overlap
+  sources as non-contributing instead of a false merge rejection, and areal
+  interpolation leaves a no-valid-contributor target undefined rather than
+  fabricating `0.0` (#1369).
+- Census catalog rejects a dataset-path base URL keyed to the Census API host
+  with percent-decoded path validation, so an arbitrary proxy prefix is accepted
+  while a real dataset endpoint is rejected (#1369).
+
+### Documentation
+
+- Added [docs/EXPANDING_THE_LIBRARY.md](docs/EXPANDING_THE_LIBRARY.md), a
+  contributor guide for adding an optional extra, a `DataFrameEngine` backend, a
+  lazily-imported symbol, a provider, or a governed notebook, and linked it from
+  the architecture and developer guides. It records the engine, geo, and census
+  extension contracts hardened in #1369 and the Python and pandas version-support
+  policy (#1369).
 
 ## [3.24.0] - 2026-09-12
 

@@ -209,6 +209,13 @@ count dependency-wrapper stubs as available functions.
 
 ## Adding new functions
 
+For the basic case (a new function in an existing module) follow the three
+steps below. For the harder extension points -- a new optional extra, a new
+`DataFrameEngine` backend, a lazily-imported symbol, a data or boundary
+provider, or a governed notebook -- see
+[EXPANDING_THE_LIBRARY.md](EXPANDING_THE_LIBRARY.md), which encodes the
+engine, geo, and census extension contracts and the version-support policy.
+
 ### 1. Create function in the appropriate module
 
 ```python

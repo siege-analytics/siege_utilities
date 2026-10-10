@@ -124,8 +124,27 @@ server; an upward edge breaks that.
 3. The `[all]` extra exists for end-user convenience. It is not an
    excuse for an internal module to assume `[all]` is installed.
 
-The single invariant — **imports go DOWN** — is what keeps a `pip install
+The single invariant -- **imports go DOWN** -- is what keeps a `pip install
 "siege-utilities[geo]"` lean and predictable on a 4 GB EC2 image.
+
+## Expanding the library
+
+[EXPANDING_THE_LIBRARY.md](EXPANDING_THE_LIBRARY.md) is the contributor
+guide for adding a capability across the harder seams: a new optional
+extra, a new `DataFrameEngine` backend, a lazily-imported symbol, a data or
+boundary provider, or a governed notebook. It encodes the extension
+contracts that are easy to break, including the `DataFrameEngine` result
+contract (eager materialization with stable snapshot and lifetime, geometry
+to WKB by column position for every result-producing statement, capability
+loaded only when a result needs it, affected-row counts preserved,
+identifiers quoted and matched on engine token boundaries with binary
+collation) and the crosswalk/areal aggregation rules (intensive
+area-weighting by true overlap area, per-variable NaN exclusion,
+zero-overlap sources contributing nothing, no-valid-contributor targets
+staying undefined). Those contracts were hardened across an extended
+cross-model review of the engine, geo, and census surfaces; each clause has
+a red-on-revert regression test under `tests/` with evidence in
+[testing/](testing/).
 
 ## Known invariant violations
 
