@@ -351,11 +351,8 @@ _register_lazy([
     'load_ga_account_profile', 'list_ga_accounts_for_client', 'batch_retrieve_ga_data',
 ], '.analytics.google_analytics', deps=['google-analytics-data'])
 
-_register_lazy([
-    'get_datadotworld_connector', 'search_datadotworld_datasets',
-    'load_datadotworld_dataset', 'query_datadotworld_dataset',
-    'search_datasets', 'list_datasets',
-], '.analytics.datadotworld_connector', deps=['datadotworld'])
+# data.world connector removed: upstream open-source product discontinued
+# (C15/C16 #1358).
 
 _register_lazy([
     'get_snowflake_connector', 'upload_to_snowflake',

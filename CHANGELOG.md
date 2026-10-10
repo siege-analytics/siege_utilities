@@ -7,7 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No unreleased changes yet.
+### BREAKING
+
+- **Removed the data.world connector** (`siege_utilities.analytics.datadotworld_connector`
+  and its exports: `DataDotWorldConnector`, `get_datadotworld_connector`,
+  `search_datadotworld_datasets`, `load_datadotworld_dataset`,
+  `query_datadotworld_dataset`, `search_datasets`, `list_datasets`,
+  `DATADOTWORLD_AVAILABLE`). The upstream open-source `datadotworld` product was
+  discontinued, so the connector is removed rather than repaired. The
+  `datadotworld` dependency is dropped from the `analytics` extra. Code importing
+  these symbols must remove those imports. (C15/C16, #1358.)
+
+### Added
+
+- Python 3.13 is now a blocking CI gate (previously allowed to fail). The full
+  Linux suite passes on 3.13. Python 3.14 is tested as a non-blocking CI gate
+  while its recently released native stack stabilizes. (#1365.)
+
+### Changed
+
+- Capped `pandas>=2.0.0,<3.0` across every extra that declares pandas (data,
+  geo, reporting, analytics, survey, all; geo pins it explicitly because
+  geopandas pulls pandas transitively). pandas 3.0 makes
+  the default string dtype Arrow-backed, so `.str` operations dispatch into
+  `pyarrow.compute` and segfault on 3.13 with the current native stack. The cap
+  keeps strings on the stable backend; lift it once pandas 3.x + pyarrow string
+  interop is verified green on the CI matrix. (#1365.)
+
+### Fixed
+
+- Docstring hygiene tool works on Python 3.14: it matches `ast.Constant` instead
+  of the removed `ast.Str` alias, and renders rewritten source with stdlib
+  `ast.unparse` rather than the unmaintained `astor` (which still reached for
+  `ast.Str` when rendering f-strings and raised `AttributeError` on 3.14). The
+  `astor` dependency is dropped from the dev extra (#1365).
+- EPSG:2163 round-trip property test compares the minimal angular longitude
+  difference, so the antimeridian (lon 180 emitted as -180 by newer PROJ) is no
+  longer read as a 360-degree drift (#1365).
+
+- Engine aggregation set honors advertised `stddev`/`variance` on the
+  pandas-family engines (C17, #1359).
+- Boundary normalization raises instead of silently returning un-normalized data
+  on crosswalk failure (C3, #1351).
+- Census sample datasets are flagged unavailable instead of advertised as working
+  (C9/C10, #1360).
+- `spark_to_geopandas` rejects a mixed-CRS metadata column instead of silently
+  unifying it (C6, #1354).
+- Snowflake connector is enabled on an installed SDK and its config-file factory
+  works (C13/C14, #1357).
 
 ## [3.24.0] - 2026-09-12
 

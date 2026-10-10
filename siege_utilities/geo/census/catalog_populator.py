@@ -51,8 +51,78 @@ class CensusCatalogPopulator:
         base_url: str = CENSUS_API_BASE_URL,
         timeout: int = 30,
     ):
-        self.base_url = base_url.rstrip("/")
+        # The discovery endpoints live under ``/data/{year}/{dataset}/...``;
+        # ``_fetch_variables`` / ``_fetch_groups`` append that suffix
+        # themselves. Normalize the base_url STRUCTURALLY so the final URL
+        # has one terminal ``/data`` component and never doubles the dataset path,
+        # for: host root ("https://api.census.gov"), trailing slash, "/data",
+        # "/data/", and proxy prefixes ("https://proxy/census" -> ".../census/data").
+        # A full dataset path ("https://api.census.gov/data/2023/acs/acs5")
+        # already carries year+dataset and cannot be used as a base -- reject it
+        # explicitly rather than silently producing "/data/2023/.../data/2023/...".
+        self.base_url = self._normalize_base_url(base_url)
         self.timeout = timeout
+
+    @staticmethod
+    def _normalize_base_url(base_url: str) -> str:
+        """Return an API-root base_url with one terminal ``/data`` component.
+
+        Decode only percent-encoded ASCII unreserved path characters before
+        validation and root deduplication. Reserved escapes such as ``%2f``
+        remain encoded and are not treated as structural path separators.
+
+        Raises:
+            ValueError: If base_url on api.census.gov includes a full dataset path -- the
+                ``/data/{year}/{dataset...}`` shape (e.g.
+                ``/data/2023/acs/acs5``); the fetchers append
+                ``/{year}/{dataset}/...`` themselves, so such a base_url would
+                double the path. Other hosts accept arbitrary proxy prefixes,
+                including ``/data/2023/gw`` and dataset-shaped paths.
+        """
+        from urllib.parse import unquote, urlsplit, urlunsplit
+
+        parts = urlsplit(base_url)
+        # Apply the host guard to equivalent spellings before HTTP normalization.
+        hostname = unquote(parts.hostname or "").removesuffix(".").lower()
+        unreserved = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
+
+        def _decode_unreserved(match: re.Match[str]) -> str:
+            char = chr(int(match.group()[1:], 16))
+            return char if char in unreserved else match.group()
+
+        path = re.sub(r"%[0-9A-Fa-f]{2}", _decode_unreserved, parts.path)
+        segments = [s for s in path.split("/") if s]
+
+        # Only the Census API host defines data/year as a dataset endpoint.
+        # Proxy hosts own their path namespaces, regardless of their spelling.
+        def _is_year(seg: str) -> bool:
+            return len(seg) == 4 and seg.isdigit()
+
+        for i, seg in enumerate(segments):
+            if (
+                hostname == "api.census.gov"
+                and seg == "data"
+                and i + 1 < len(segments)
+                and _is_year(segments[i + 1])
+            ):
+                raise ValueError(
+                    f"base_url {base_url!r} includes a full dataset path "
+                    f"(the '/data/{{year}}/{{dataset...}}' shape, e.g. "
+                    f"'/data/2023/acs/acs5'). Pass the API root ending at "
+                    f"'/data' or without it -- for example "
+                    f"'https://api.census.gov' or 'https://api.census.gov/data'. "
+                    f"_fetch_variables/_fetch_groups append "
+                    f"'/{{year}}/{{dataset}}/...' themselves."
+                )
+
+        # Collapse repeated terminal API-root components after removing empty
+        # slash components; preserve 'data' inside legitimate proxy prefixes.
+        while segments and segments[-1] == "data":
+            segments.pop()
+        new_segments = segments + ["data"]
+
+        new_path = "/" + "/".join(new_segments)
+        return urlunsplit((parts.scheme, parts.netloc, new_path, "", ""))
 
     def populate(
         self,
@@ -94,7 +164,7 @@ class CensusCatalogPopulator:
         return catalog
 
     def _fetch_variables(self, dataset_path: str, year: int) -> dict:
-        url = f"{self.base_url}/data/{year}/{dataset_path}/variables.json"
+        url = f"{self.base_url}/{year}/{dataset_path}/variables.json"
         log.debug("Fetching variables from %s", url)
         resp = requests.get(url, timeout=self.timeout)
         resp.raise_for_status()
@@ -102,7 +172,7 @@ class CensusCatalogPopulator:
         return data.get("variables", {})
 
     def _fetch_groups(self, dataset_path: str, year: int) -> list[dict]:
-        url = f"{self.base_url}/data/{year}/{dataset_path}/groups.json"
+        url = f"{self.base_url}/{year}/{dataset_path}/groups.json"
         log.debug("Fetching groups from %s", url)
         resp = requests.get(url, timeout=self.timeout)
         resp.raise_for_status()

@@ -83,7 +83,7 @@ Package Structure
     ├── economic/       BLS QCEW, economic indicators
     ├── education/      NCES data, school districts
     ├── survey/         Survey analysis, crosstabs, weighting
-    ├── analytics/      GA, Snowflake, data.world, Facebook connectors
+    ├── analytics/      GA, Snowflake, Facebook connectors
     │
     ├── engines/        Multi-engine DataFrame abstraction
     ├── distributed/    Spark utilities, HDFS operations

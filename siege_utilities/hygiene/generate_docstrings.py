@@ -151,14 +151,13 @@ Note:
         if node.name.startswith('_'):
             return self.generic_visit(node)
         has_docstring = node.body and isinstance(node.body[0], ast.Expr
-            ) and isinstance(node.body[0].value, (ast.Constant, ast.Str))
+            ) and isinstance(node.body[0].value, ast.Constant)
         if not has_docstring:
             docstring_content = generate_docstring_template(node.name)
-            if hasattr(ast, 'Constant'):
-                docstring_node = ast.Expr(value=ast.Constant(value=
-                    docstring_content))
-            else:
-                docstring_node = ast.Expr(value=ast.Str(s=docstring_content))
+            # ast.Constant replaced ast.Str/ast.Num in 3.8 and the aliases
+            # were removed in 3.14; requires-python is >=3.11 so Constant is
+            # always present.
+            docstring_node = ast.Expr(value=ast.Constant(value=docstring_content))
             node.body.insert(0, docstring_node)
             log_info(f'Added docstring to {node.name}')
             self.functions_processed += 1
@@ -168,15 +167,27 @@ Note:
         return self.generic_visit(node)
 
 
-def process_python_file(file_path):
+def process_python_file(file_path, dry_run=False):
     """Process a single Python file to add missing docstrings.
+
+    Args:
+        file_path: Python file to process.
+        dry_run: When True, report what would change but do not write the file.
 
     Raises:
         SyntaxError: If the file has invalid Python syntax.
-        ImportError: If astor is not installed.
         OSError: If the file cannot be read or written.
     """
-    relative_path = file_path.relative_to(Path.cwd())
+    file_path = Path(file_path)
+    # relative_path is used only for a friendly log line and a module label;
+    # it must never abort real work. relative_to() raises when file_path is a
+    # relative path, lives outside cwd, or differs from cwd only by a symlink
+    # (e.g. macOS /var vs /private/var), so resolve both sides and fall back
+    # to the given path for display when it is not under the working dir.
+    try:
+        relative_path = file_path.resolve().relative_to(Path.cwd().resolve())
+    except ValueError:
+        relative_path = file_path
     log_info(f'\nProcessing {relative_path}')
 
     with open(file_path, 'r', encoding='utf-8') as f:
@@ -188,14 +199,23 @@ def process_python_file(file_path):
     new_tree = transformer.visit(tree)
 
     if transformer.functions_processed > 0:
-        import astor
-        new_content = astor.to_source(new_tree)
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(new_content)
-        log_info(f'Updated {file_path}')
-        log_info(
-            f'Processed: {transformer.functions_processed}, Skipped: {transformer.functions_skipped}'
-        )
+        # ast.unparse (stdlib, 3.9+) replaces the unmaintained astor package,
+        # which breaks on Python 3.14: astor still references the removed
+        # ast.Str/ast.Num aliases when rendering f-strings and other nodes.
+        ast.fix_missing_locations(new_tree)
+        new_content = ast.unparse(new_tree)
+        if dry_run:
+            log_info(
+                f'[dry-run] Would add {transformer.functions_processed} docstring(s) '
+                f'to {file_path} (Skipped: {transformer.functions_skipped}); no write'
+            )
+        else:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(new_content)
+            log_info(f'Updated {file_path}')
+            log_info(
+                f'Processed: {transformer.functions_processed}, Skipped: {transformer.functions_skipped}'
+            )
     else:
         log_info('No changes needed')
 
@@ -216,22 +236,19 @@ def find_python_files(base_path):
     return sorted(python_files)
 
 
-def main():
-    """Process all Python files in siege_utilities to add missing docstrings.
+def main(base_path=None, dry_run=False):
+    """Process all Python files under base_path to add missing docstrings.
+
+    Args:
+        base_path: Directory to search (defaults to the current directory).
+        dry_run: When True, report changes without writing any file.
 
     Raises:
-        ImportError: If astor is not installed.
-        FileNotFoundError: If no Python files are found in the working directory.
+        FileNotFoundError: If no Python files are found under base_path.
     """
     log_info('Auto-generating docstrings for siege_utilities')
     log_info('=' * 60)
-    try:
-        import astor  # noqa: F401
-    except ImportError as e:
-        raise ImportError(
-            'Missing dependency: astor. Install with: pip install astor'
-        ) from e
-    base_path = Path.cwd()
+    base_path = Path(base_path) if base_path is not None else Path.cwd()
     python_files = find_python_files(base_path)
     if not python_files:
         raise FileNotFoundError(
@@ -243,7 +260,7 @@ def main():
     errors: list[tuple[Path, Exception]] = []
     for file_path in python_files:
         try:
-            process_python_file(file_path)
+            process_python_file(file_path, dry_run=dry_run)
             successful += 1
         except (SyntaxError, OSError, ImportError, ValueError, TypeError) as e:
             log_error(f'Error processing {file_path}: {e}')
@@ -275,9 +292,9 @@ def cli():
     args = parser.parse_args()
     if args.dry_run:
         log_info('DRY RUN MODE - No files will be modified')
-    return main()
+    return main(base_path=args.path, dry_run=args.dry_run)
 
 
 if __name__ == '__main__':
-    success = main()
+    success = cli()
     sys.exit(0 if success else 1)

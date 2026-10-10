@@ -1,0 +1,173 @@
+Round-6 verification — 2026-10-09
+
+Baseline: 4ee38349215f207151b54e0429c97e1217c57a7d
+Branch: fix/1369-final-hardening
+Interpreter: /Users/dheerajchand/.pyenv/versions/default_31111/bin/python
+All Python commands executed from /tmp, PYTHONPATH set to the source checkout.
+PYSPARK_PYTHON and PYSPARK_DRIVER_PYTHON set to the interpreter above.
+
+Implementation and contract
+1. Native GEOMETRY SELECTs retain a typed DuckDB relation. Geometry-aware reads
+   alone project ST_AsWKB, using one-based column positions, not names. Ordinary
+   SELECTs still return pandas DataFrames. to_pandas fetches native bytes without
+   geometry conversion; callers must pass the typed relation directly to
+   to_geodataframe. This intentionally replaces round 5's WKB-to-pandas behavior.
+   The public docstrings and the engine notebook describe this distinction.
+2. Spatial loads only after DuckDB reports a bind dependency on its spatial
+   extension, or on an explicitly spatial method. LOAD precedes INSTALL; only a
+   missing local extension triggers installation. Failed spatial loads propagate
+   and do not prevent later ordinary SQL. SQL batches bind statements separately
+   so retrying a spatial bind cannot replay preceding DML.
+3. DML uses execute/fetchdf, preserving Count; DDL preserves its empty Count schema.
+4. Explicit zero allocation is excluded from distinct-source merge counts and
+   intensive numerators/denominators. Invalid contributing areas still reject when
+   they cannot be reconstructed. No areal fallback for the legitimate zero case.
+5. Census data/year endpoint detection has no dataset-depth assumption. The
+   required non-Census-host /data/year/census proxy namespace remains accepted.
+A. Redundant slashes and repeated terminal data components normalize to one API
+   root component; interior proxy paths are retained.
+B. Empty SQL geometry results retain their schema. Empty areal targets now raise
+   an explicit ValueError before backend dispatch (the old DuckDB failure was
+   pre-existing, not counted as a round-6 regression).
+
+Test fidelity
+The isolated baseline was created with `git archive 4ee38349` into
+/tmp/siege-round6-baseline. Only the current test files were copied into it.
+All four changed implementation files were byte-compared with git show 4ee38349.
+The same 24 new/replacement pytest cases: 24 failed on baseline, 24 passed on fix.
+No new/replacement case passed or skipped on baseline. Existing unchanged tests
+are retained controls; no new red-on-revert claim is made for those controls.
+The two overstated round-5 tests were replaced: the invalid-area test now
+separates zero allocations from invalid contributors, and the dataset-path test
+starts with the previously accepted CBP endpoint. The to_pandas test now guards
+its explicitly geometry-neutral contract. Historical blanket proof claims were
+removed from the round-5 module docstring.
+
+Per-finding baseline evidence (full traceback log follows in separate file)
+1. Duplicate scalar x_1=1 instead of 2; duplicate geometry has the first point's
+   bytes twice; geometry/int loses 7; int/geometry raises ST_AsWKB(INTEGER).
+2. SELECT 42 with enable_external_access=False raises PermissionException.
+3. INSERT/UPDATE/DELETE return {} instead of Count [2]/[1]/[2]; DDL loses Count.
+4. transform/apply_crosswalk raise ValueError; align attempts forbidden fallback.
+5. CBP endpoint fails the expected ValueError assertion (DID NOT RAISE).
+A. Built URL includes /data/data/2023 instead of /data/2023.
+B. Empty mixed-type duplicate query raises BinderException; empty target raises
+   NotImplementedException instead of the clear public ValueError.
+Extra boundary cases: load/install ordering, ordinary SQL after a failed spatial
+load, and batch column identity are also measured red on baseline.
+
+Validation limits and error handling
+SU-1: errors propagate; no failure is replaced with a valid-shaped empty result.
+SU-2: geometry results and native-byte conversion boundaries are documented.
+SU-4b: the to_pandas ImportError catch was removed, along with the unnecessary
+geometry relation-import fallback. Tests exercise the new spatial load failure,
+missing-local-extension, and unrelated CatalogException paths through public APIs.
+writing-claims:1: counts below are captured results, not extrapolated coverage.
+Census HTTP and Snowflake SDK writes are mocked; no live request/write is claimed.
+A real Spark JVM was attempted, but the sandbox rejected localhost socket binding:
+  py4j.Py4JNetworkException: Failed to bind to /127.0.0.1:0
+  Caused by: java.net.SocketException: Operation not permitted
+The completed gate uses --spark-boundary-only: real SparkEngine from_geodataframe
+and to_geodataframe methods, with createDataFrame/toPandas at a stubbed session
+boundary. It verifies serialization, nulls, projected coordinates, and CRS assignment;
+it does not claim a successful Spark JVM execution.
+
+Follow-up ticket notes (not filed; outside this round's scope)
+- DuckDB from_geodataframe identifier quoting: reuse _quote_ident for attribute and
+  geometry names. Raw interpolation remains pre-existing; no all-identifiers-safe
+  claim is made here.
+- DuckDB to_geodataframe: recognize VARCHAR WKB hex instead of treating all str as WKT.
+- Areal extensive variables: reconcile NaN behavior across backends.
+- Clean intensive variables: define undefined output for fully disjoint targets
+  instead of the existing 0.0. This behavior was not changed in round 6.
+
+Installed packages: duckdb 1.4.4, tobler 0.13.0, shapely 2.1.2, pandas 2.3.3, pyspark 4.1.1
+
+Baseline SHA256 checks:
+siege_utilities/engines/dataframe_engine.py bbb3e474fd8dbd2a9fa14f4bbdae1a4d98586db13e096271172bfdc1d2680a42
+siege_utilities/geo/census/catalog_populator.py 6d28f9f23b599e397da98a7eb45b74bd366456af31f66214f61d4c935e856f2f
+siege_utilities/geo/crosswalk/crosswalk_processor.py d5e01f27941aaae08b07d9028c9347385d912c74693d63655c3ed55ace577c0c
+siege_utilities/geo/interpolation/areal.py e825c5229a0cccb48dfbd14033fb61320651ab76ba65ee53dd6c46625b77591e
+
+Parse verification:
+JSON + Python cells PASS notebooks/engines/01_multi_engine_dataframes.ipynb
+AST PASS scripts/verify_round6_hardening.py
+AST PASS siege_utilities/engines/dataframe_engine.py
+AST PASS siege_utilities/geo/census/catalog_populator.py
+AST PASS siege_utilities/geo/crosswalk/crosswalk_processor.py
+AST PASS siege_utilities/geo/interpolation/areal.py
+AST PASS tests/test_round5_class_hardening.py
+AST PASS tests/test_round6_class_hardening.py
+
+Regression green: 24 passed, 2 warnings in 1.79s
+Final consensus: 34 passed, 6 warnings in 6.01s
+Touched-area suite: 429 passed, 2 skipped, 36 warnings in 4.11s
+
+Skipped: installed-pyspark missing-import check; live Snowflake smoke (no credentials).
+
+Self-regression gate command:
+cd /tmp
+PYTHONPATH=/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening SIEGE_AUTO_INIT_DIRS=false PYSPARK_PYTHON=/Users/dheerajchand/.pyenv/versions/default_31111/bin/python PYSPARK_DRIVER_PYTHON=/Users/dheerajchand/.pyenv/versions/default_31111/bin/python SPARK_LOCAL_IP=127.0.0.1 /Users/dheerajchand/.pyenv/versions/default_31111/bin/python /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/scripts/verify_round6_hardening.py --spark-boundary-only
+
+Full self-regression gate stdout:
+SELECT config={}: {'answer': [42]}
+SELECT config={'enable_external_access': False}: {'answer': [42]}
+DDL: {'Count': []}
+INSERT: {'Count': [2]}
+UPDATE: {'Count': [1]}
+DELETE: {'Count': [2]}
+SELECT ST_Point(1,2) AS geometry, 1 AS x, 2 AS x: {'geometry': 'POINT (1 2)', 'x': 1, 'x_1': 2}
+SELECT ST_Point(1,2) AS x, ST_Point(3,4) AS x: {'x': 'POINT (1 2)', 'x_1': 'POINT (3 4)'}
+SELECT ST_Point(1,2) AS x, 7 AS x: {'x': 'POINT (1 2)', 'x_1': 7}
+SELECT 7 AS x, ST_Point(1,2) AS x: {'x': 7, 'x_1': 'POINT (1 2)'}
+query -> to_geodataframe: POINT (1 2)
+query -> to_pandas: native geometry preserved, hex=00000000000000000000000001000000000000000000f03f0000000000000040
+registered DataFrame + to_pandas identity: PASS
+empty geometry result: rows=0, columns=['x', 'x_1'], active=x_1
+zero-overlap transform: T1.rate=0.1
+zero-overlap apply_crosswalk: T1.rate=0.1
+zero-overlap align: T1.rate=0.1
+zero-overlap align: method=crosswalk, areal calls=0, warnings=[]
+census ACCEPT https://api.census.gov: ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+census ACCEPT https://api.census.gov/data: ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+census ACCEPT https://api.census.gov/data/: ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+census ACCEPT https://api.census.gov//data//data/: ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+census ACCEPT https://api.census.gov//data/: ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+census ACCEPT https://proxy/data/census: ['https://proxy/data/census/data/2023/acs/acs5/variables.json', 'https://proxy/data/census/data/2023/acs/acs5/groups.json']
+census ACCEPT https://proxy/data/2023/census: ['https://proxy/data/2023/census/data/2023/acs/acs5/variables.json', 'https://proxy/data/2023/census/data/2023/acs/acs5/groups.json']
+census ACCEPT https://proxy/2023/gw: ['https://proxy/2023/gw/data/2023/acs/acs5/variables.json', 'https://proxy/2023/gw/data/2023/acs/acs5/groups.json']
+census REJECT https://api.census.gov/data/2023/cbp: ValueError (full dataset path)
+census REJECT https://api.census.gov/data/2023/acs/acs5: ValueError (full dataset path)
+census REJECT https://api.census.gov/data/2023/custom/a/b: ValueError (full dataset path)
+census REJECT https://api.census.gov/data/2023: ValueError (full dataset path)
+intensive parity: crosswalk=0.50, real tobler=0.50
+intensive parity: crosswalk=0.82, real tobler=0.82
+distinct-source merge without absolute area: ValueError (area-weight intensive)
+align NaN fallback: rate=0.2, method=areal
+per-target NaN tobler: [nan, 0.8]
+per-target NaN duckdb: [nan, 0.8]
+per-target NaN shapely: [nan, 0.8]
+empty-target DuckDB/areal: ValueError: target GeoDataFrame is empty; provide at least one target polygon
+Snowflake upload_dataframe SQL capture: ['USE DATABASE "MixedDb"', 'USE SCHEMA "MixedSchema"']
+Snowflake get_table_info SQL capture: ['USE DATABASE "MixedDb"', 'USE SCHEMA "MixedSchema"']
+Snowflake list_tables SQL capture: ['USE DATABASE "MixedDb"', 'USE SCHEMA "MixedSchema"']
+DuckDB from_geodataframe round-trip: POINT (100000 200000), null preserved, EPSG:3857
+Spark (session-boundary stub) assign-not-reproject round-trip: POINT (100000 200000), null preserved, EPSG:3857
+SELF-REGRESSION GATE: PASS
+
+Pytest reproduction commands (Python argument vectors):
+red-on-revert: ['/Users/dheerajchand/.pyenv/versions/default_31111/bin/python', '-m', 'pytest', '-o', 'addopts=', '--tb=short', '-q', '-rs', '/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py', '/tmp/siege-round6-baseline/tests/test_round5_class_hardening.py::test_duckdb_public_to_pandas_preserves_native_geometry', '/tmp/siege-round6-baseline/tests/test_round5_class_hardening.py::test_crosswalk_rejects_invalid_contributors_but_ignores_zero_allocations', '/tmp/siege-round6-baseline/tests/test_round5_class_hardening.py::test_census_dataset_endpoint_rejected_regardless_of_arity']
+
+regression-green: ['/Users/dheerajchand/.pyenv/versions/default_31111/bin/python', '-m', 'pytest', '-o', 'addopts=', '--tb=short', '-q', '-rs', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_round6_class_hardening.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_round5_class_hardening.py::test_duckdb_public_to_pandas_preserves_native_geometry', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_round5_class_hardening.py::test_crosswalk_rejects_invalid_contributors_but_ignores_zero_allocations', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_round5_class_hardening.py::test_census_dataset_endpoint_rejected_regardless_of_arity']
+
+touched-suite: ['/Users/dheerajchand/.pyenv/versions/default_31111/bin/python', '-m', 'pytest', '-o', 'addopts=', '--tb=short', '-q', '-rs', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_dataframe_engine.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_dataframe_engine_errors.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_dataframe_engine_spatial.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_crosswalk.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_geo_crosswalk_crosswalk_processor_errors.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_geo_crosswalk_relationship_types_errors.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_crosswalk_analytics.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_census_catalog_populator.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_census_catalog.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_census_catalog_cache.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_census_catalog_search.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_census_catalog_docs.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_areal_interpolation.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_longitudinal_aligner.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_longitudinal_normalization_consensus.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_snowflake_connector.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_snowflake_connector_consensus.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_spark_engine_contract_consensus.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_dataframe_bridge_crs_consensus.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/property/test_to_geodataframe_invariants.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_final_hardening_consensus.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_round5_class_hardening.py', '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_round6_class_hardening.py']
+
+Commit status
+The authorized git add/commit was attempted after verification. git add failed:
+  fatal: Unable to create '/Users/dheerajchand/git/siege-analytics/siege_utilities/.git/worktrees/siege_utilities-hardening/index.lock': Operation not permitted
+The worktree's Git metadata lies outside the writable roots. Elevation is not
+available in this session. No commit or push occurred; the verified changes
+remain in the working tree on fix/1369-final-hardening at baseline HEAD.
+Prepared conventional commit message:
+  fix: isolate DuckDB geometry reads and restore hardening contracts
+Requested author: Dheeraj Chand <dheeraj@siegeanalytics.com>

@@ -72,8 +72,18 @@ def geopandas_to_spark(
             lambda geom: None if geom is None else geom.wkb_hex
         )
 
-    pdf[crs_column] = str(dataframe.crs) if dataframe.crs else None
-    return pandas_to_spark(pdf, spark=spark)
+    # The CRS is a single value for the whole frame. Append it as an
+    # explicitly string-typed literal column rather than assigning it into
+    # the pandas frame: when the CRS is None the column is all-null and
+    # Spark's type inference raises CANNOT_DETERMINE_TYPE (#1338).
+    from pyspark.sql.functions import lit
+    from pyspark.sql.types import StringType
+
+    crs_value = str(dataframe.crs) if dataframe.crs else None
+    if crs_column in pdf.columns:
+        pdf = pdf.drop(columns=[crs_column])
+    sdf = pandas_to_spark(pdf, spark=spark)
+    return sdf.withColumn(crs_column, lit(crs_value).cast(StringType()))
 
 
 def spark_to_geopandas(
@@ -81,11 +91,17 @@ def spark_to_geopandas(
     geometry_column: str = "geometry",
     geometry_format: str = "wkt",
     crs: Optional[str] = None,
+    crs_column: str = "geometry_crs",
 ) -> Any:
     """
     Convert Spark DataFrame with serialized geometry into GeoPandas DataFrame.
 
     Supports WKT and WKB hex serialization formats.
+
+    The CRS that ``geopandas_to_spark`` preserves in ``crs_column`` (default
+    ``"geometry_crs"``) is restored automatically, so the round-trip keeps its
+    spatial reference. An explicit ``crs`` argument overrides the preserved
+    value, and the ``crs_column`` metadata column is dropped from the result.
     """
     try:
         import geopandas as gpd
@@ -110,4 +126,24 @@ def spark_to_geopandas(
             lambda value: None if value is None else wkb.loads(bytes.fromhex(value))
         )
 
-    return gpd.GeoDataFrame(pdf, geometry=geometry_column, crs=crs)
+    # Restore the CRS preserved by geopandas_to_spark. An explicit crs argument
+    # wins. The column is metadata, not data, so drop it. SU-1: geometries
+    # serialized under different CRS cannot be combined into one GeoDataFrame
+    # under a single crs without reprojection; taking the first value silently
+    # mislocates the rest. Reject a mixed crs_column loudly instead.
+    effective_crs = crs
+    if crs_column in pdf.columns:
+        distinct = list(pdf[crs_column].dropna().unique())
+        if len(distinct) > 1:
+            raise ValueError(
+                f"spark_to_geopandas: {crs_column!r} holds multiple distinct CRS "
+                f"values {sorted(map(str, distinct))}. Geometries serialized under "
+                f"different CRS cannot be combined into one GeoDataFrame without "
+                f"reprojection. Reproject to a common CRS upstream, or split the "
+                f"frame by {crs_column!r} and convert each group separately."
+            )
+        if effective_crs is None and len(distinct) == 1:
+            effective_crs = distinct[0]
+        pdf = pdf.drop(columns=[crs_column])
+
+    return gpd.GeoDataFrame(pdf, geometry=geometry_column, crs=effective_crs)

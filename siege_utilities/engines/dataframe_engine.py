@@ -33,8 +33,11 @@ PySpark, or SQLAlchemy/psycopg2 to be installed.
 from __future__ import annotations
 
 import enum
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Sequence, Union
+
+log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -87,6 +90,17 @@ def _validate_agg_names(agg_dict: "Dict[str, str]", engine_name: str) -> None:
             f"function(s) {unknown}. Supported: "
             f"{sorted(_SUPPORTED_AGG_NAMES)}."
         )
+
+
+# The shared agg-name set uses the Spark/SQL spellings (avg, stddev, variance).
+# pandas-family engines (Pandas, DuckDB, PostGIS driver-side) call
+# DataFrame.agg, whose method names are mean, std, var. Map every shared name
+# to its pandas spelling before dispatch; names that already match pass through.
+_PANDAS_AGG_SPELLING = {"avg": "mean", "stddev": "std", "variance": "var"}
+
+
+def _normalise_pandas_aggs(agg_dict: "Dict[str, str]") -> "Dict[str, str]":
+    return {col: _PANDAS_AGG_SPELLING.get(fn, fn) for col, fn in agg_dict.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -771,9 +785,7 @@ class PandasEngine(DataFrameEngine):
         agg_dict: Dict[str, str],
     ) -> Any:
         _validate_agg_names(agg_dict, "PandasEngine")
-        # pandas accepts "mean" but not "avg"; normalise so the shared
-        # agg-name set is honored across engines.
-        normalised = {col: ("mean" if fn == "avg" else fn) for col, fn in agg_dict.items()}
+        normalised = _normalise_pandas_aggs(agg_dict)
         return df.groupby(list(group_cols)).agg(normalised).reset_index()
 
     def filter(self, df: Any, condition: Any) -> Any:
@@ -838,10 +850,17 @@ class PandasEngine(DataFrameEngine):
             return reproject_if_needed(df, crs or get_default_crs())
         if geometry_col in df.columns:
             from shapely import wkt
-            geoms = df[geometry_col].apply(
+            target_crs = crs or get_default_crs()
+            parsed = df[geometry_col].apply(
                 lambda g: wkt.loads(g) if isinstance(g, str) else g
             )
-            return gpd.GeoDataFrame(df, geometry=geoms, crs=crs or get_default_crs())
+            # Bind the parsed geometry back under geometry_col as the active
+            # GeoSeries. Passing geometry=<Series> to GeoDataFrame leaves the
+            # requested column as plain strings, so df[geometry_col] would not
+            # be a GeoSeries and .buffer()/.distance() would raise.
+            out = df.copy()
+            out[geometry_col] = gpd.GeoSeries(parsed.values, index=out.index, crs=target_crs)
+            return gpd.GeoDataFrame(out, geometry=geometry_col, crs=target_crs)
         raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
 
 
@@ -924,20 +943,134 @@ class DuckDBEngine(DataFrameEngine):
         If a ``table`` keyword is supplied together with a pandas DataFrame
         value, that DataFrame is first registered as a virtual table so it
         can be referenced in *sql*.
+        Row and status results are eagerly materialized pandas DataFrames,
+        independent of the connection lifetime and subsequent source mutations.
+        Output columns whose DuckDB type is GEOMETRY (including DML RETURNING)
+        are converted to standard WKB by column position before fetching;
+        nested geometry values and other spatial types are not converted.
+        Duplicate names retain their distinct values
+        and receive DuckDB's usual suffixes. :meth:`to_pandas` returns this
+        frame unchanged; :meth:`to_geodataframe` decodes its WKB geometry.
+        DML without RETURNING retains its affected-row Count; PREPARE returns
+        its empty Success status without executing the prepared statement.
+        Spatial is loaded only for geometry conversion or SQL requiring it.
         """
         table = kwargs.pop("table", None)
         df = kwargs.pop("df", None)
         if table is not None and df is not None:
             self._connection.register(table, df)
-        return self._connection.execute(sql).fetchdf()
+        # Bind each statement separately: a spatial bind failure must not
+        # replay preceding DML. Relations are strictly internal and always
+        # materialized before returning to the caller.
+        statements = self._connection.extract_statements(sql)
+        for statement in statements[:-1]:
+            self._bind_spatial_if_needed(self._connection.execute, statement)
+        if not statements:
+            return self._connection.execute(sql).fetchdf()
+        statement = statements[-1]
+        if self._statement_returns_rows(statement):
+            relation = self._bind_spatial_if_needed(self._connection.sql, statement)
+            return self._materialize_geometry_wkb(relation)
+        return self._bind_spatial_if_needed(self._connection.execute, statement).fetchdf()
+
+    def _statement_returns_rows(self, statement: Any) -> bool:
+        """Select the typed-result API without executing a mutation to probe it.
+
+        DuckDB's sql() discards affected-row Counts, while execute() loses
+        geometry types on fetch. Statement metadata identifies queries; DML
+        metadata allows both rows and Counts, so inspect its RETURNING clause
+        with DuckDB's tokenizer (ignoring strings, comments and subqueries).
+        """
+        import duckdb
+
+        if statement.type == duckdb.StatementType.EXECUTE:
+            # EXECUTE's metadata says QUERY_RESULT even for prepared DML that
+            # only reports Count. Inspect its definition without executing it.
+            import re
+
+            tokens = duckdb.tokenize(statement.query)
+            if len(tokens) < 2:
+                raise ValueError("Cannot extract prepared statement name from EXECUTE")
+            position = tokens[1][0]
+            # The tokenizer skips leading comments and reports byte offsets.
+            # Match DuckDB's identifier bytes: ASCII letters/underscore or
+            # high-bit bytes, followed also by digits/$ (not Python's \s).
+            # DuckDB has already normalized its Unicode space separators in
+            # statement.query; other non-ASCII characters belong to the name.
+            match = re.match(
+                rb'"(?:[^"]|"")*"|[A-Za-z_\x80-\xff][A-Za-z_0-9$\x80-\xff]*',
+                statement.query.encode("utf-8")[position:],
+            )
+            if match is None:
+                raise ValueError("Cannot extract prepared statement name from EXECUTE")
+            identifier = match.group().decode("utf-8")
+            name = identifier[1:-1].replace('""', '"') if identifier.startswith('"') else identifier
+            # Session collations must not merge distinct catalog identifiers.
+            lookup = 'SELECT statement FROM duckdb_prepared_statements() WHERE name = ? COLLATE "binary"'
+            prepared = self._connection.execute(
+                lookup, [name],
+            ).fetchone()
+            if prepared is None:
+                # DuckDB identifiers ignore ASCII case only. Resolve an ASCII
+                # alias to the stored spelling, then bind that exact name.
+                # Unicode lower() would conflate distinct names such as é/É.
+                ascii_fold = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
+                names = self._connection.execute("SELECT name FROM duckdb_prepared_statements()").fetchall()
+                for (stored_name,) in names:
+                    if stored_name.translate(ascii_fold) == name.translate(ascii_fold):
+                        prepared = self._connection.execute(lookup, [stored_name]).fetchone()
+                        break
+            if prepared is None:
+                # Let execute() raise the normal missing-prepared-statement error.
+                return False
+            return self._statement_returns_rows(self._connection.extract_statements(prepared[0])[0])
+        if statement.expected_result_type == [duckdb.ExpectedResultType.QUERY_RESULT]:
+            return True
+        if duckdb.ExpectedResultType.QUERY_RESULT not in statement.expected_result_type:
+            # Only inspect RETURNING when the outer statement can return rows.
+            # PREPARE has a status result even when its definition has RETURNING.
+            return False
+        sql = statement.query.encode("utf-8")  # Token positions are byte offsets.
+        depth = 0
+        for position, kind in duckdb.tokenize(statement.query):
+            if kind == duckdb.token_type.operator:
+                if sql[position:position + 1] == b"(":
+                    depth += 1
+                elif sql[position:position + 1] == b")":
+                    depth -= 1
+            elif depth == 0 and kind == duckdb.token_type.keyword:
+                if sql[position:position + 9].upper() == b"RETURNING":
+                    return True
+        return False
+
+    def _bind_spatial_if_needed(self, operation, statement):
+        """Retry only a bind failure that explicitly requires spatial."""
+        import duckdb
+
+        try:
+            return operation(statement)
+        except duckdb.CatalogException as exc:
+            if self._spatial_loaded or "exists in the spatial extension" not in str(exc):
+                raise
+            self._ensure_spatial()
+            return operation(statement)
 
     # -- Transforms ---------------------------------------------------------
 
     def to_pandas(self, df: Any) -> Any:
+        """Return a pandas frame, converting GEOMETRY columns in typed relations.
+
+        Frames returned by :meth:`query` are already materialized and are
+        returned unchanged. Relation columns typed exactly GEOMETRY become WKB;
+        nested geometry values and other spatial types are not converted.
+        Use :meth:`to_geodataframe` to decode the WKB.
+        """
         import pandas as pd
         if isinstance(df, pd.DataFrame):
             return df
-        # DuckDB relations have a .fetchdf() method
+        df = self._materialize_geometry_wkb(df)
+        if isinstance(df, pd.DataFrame):
+            return df
         if hasattr(df, "fetchdf"):
             return df.fetchdf()
         return pd.DataFrame(df)
@@ -950,7 +1083,7 @@ class DuckDBEngine(DataFrameEngine):
     ) -> Any:
         _validate_agg_names(agg_dict, "DuckDBEngine")
         import pandas as pd
-        normalised = {col: ("mean" if fn == "avg" else fn) for col, fn in agg_dict.items()}
+        normalised = _normalise_pandas_aggs(agg_dict)
         if isinstance(df, pd.DataFrame):
             return df.groupby(list(group_cols)).agg(normalised).reset_index()
         raise TypeError(
@@ -985,10 +1118,52 @@ class DuckDBEngine(DataFrameEngine):
     # -- Spatial -----------------------------------------------------------
 
     def _ensure_spatial(self) -> None:
-        """Load DuckDB spatial extension if not already loaded."""
+        """Load spatial only for a geometry operation, installing if absent."""
         if not self._spatial_loaded:
-            self._connection.execute("INSTALL spatial; LOAD spatial;")
+            import duckdb
+            try:
+                self._connection.execute("LOAD spatial")
+            except duckdb.IOException:
+                self._connection.execute("INSTALL spatial")
+                self._connection.execute("LOAD spatial")
             self._spatial_loaded = True
+
+    @staticmethod
+    def _quote_ident(name: Any) -> str:
+        """Quote a DuckDB identifier, escaping any embedded double quotes.
+
+        DuckDB quotes identifiers with double quotes; a literal double quote
+        inside the name must be doubled (``a"b`` -> ``"a""b"``). Emitting the
+        name un-escaped produces an unterminated-identifier ParserException.
+        """
+        return '"' + str(name).replace('"', '""') + '"'
+
+    @staticmethod
+    def _geometry_column_positions(relation: Any) -> List[int]:
+        """Return zero-based positions, retaining duplicate column identity."""
+        return [i for i, dtype in enumerate(relation.types) if str(dtype).upper() == "GEOMETRY"]
+
+    def _materialize_geometry_wkb(self, df: Any) -> Any:
+        """Eagerly fetch a typed result with columns typed GEOMETRY in WKB.
+
+        DuckDB's one-based positional references preserve distinct columns
+        even when their aliases coincide. fetchdf then deduplicates the output
+        names using DuckDB's usual rules (x, x_1, ...).
+        """
+        import duckdb
+
+        if not isinstance(df, duckdb.DuckDBPyRelation):
+            return df
+        positions = self._geometry_column_positions(df)
+        if not positions:
+            return df.fetchdf()
+        self._ensure_spatial()
+        projection = ", ".join(
+            f'ST_AsWKB(#{i + 1}) AS {self._quote_ident(name)}'
+            if i in positions else f'#{i + 1} AS {self._quote_ident(name)}'
+            for i, name in enumerate(df.columns)
+        )
+        return df.project(projection).fetchdf()
 
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
         """Read a spatial file via DuckDB's ``ST_Read``.
@@ -999,33 +1174,37 @@ class DuckDBEngine(DataFrameEngine):
         import geopandas as gpd
         from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
         self._ensure_spatial()
-        result = self._connection.execute(
-            "SELECT * FROM ST_Read(?)", [path]
-        ).fetchdf()
-        # ST_Read returns geometry as WKB-hex; convert to shapely
-        geom_col = "geom" if "geom" in result.columns else "geometry"
-        if geom_col in result.columns:
-            from shapely import wkb as shapely_wkb, wkt as shapely_wkt
-            def _parse_geom(g):
-                if g is None:
-                    return None
-                if isinstance(g, bytes):
-                    return shapely_wkb.loads(g)
-                if isinstance(g, str):
-                    # WKB-hex strings are pure hexadecimal; WKT strings
-                    # start with a geometry-type keyword (POINT, POLYGON,
-                    # MULTIPOLYGON, etc.). Introspect rather than try/
-                    # except so a corrupt WKB string doesn't silently fall
-                    # through to WKT parsing of garbage.
-                    head = g[:32].strip() if g else ""
-                    if head and all(c in "0123456789abcdefABCDEF" for c in head):
-                        return shapely_wkb.loads(g, hex=True)
-                    return shapely_wkt.loads(g)
-                return g
-            result[geom_col] = result[geom_col].apply(_parse_geom)
-            gdf = gpd.GeoDataFrame(result, geometry=geom_col, crs=crs or get_default_crs())
-            return reproject_if_needed(gdf, crs or get_default_crs())
-        return result
+        relation = self._connection.sql("SELECT * FROM ST_Read(?)", params=[path])
+        positions = self._geometry_column_positions(relation)
+        result = self._materialize_geometry_wkb(relation)
+        if not positions:
+            return result
+        geom_cols = [result.columns[i] for i in positions]
+        from shapely import wkb as shapely_wkb, wkt as shapely_wkt
+        def _parse_geom(g):
+            if g is None:
+                return None
+            if isinstance(g, (bytes, bytearray)):
+                return shapely_wkb.loads(bytes(g))
+            if isinstance(g, str):
+                # WKB-hex strings are pure hexadecimal; WKT strings
+                # start with a geometry-type keyword (POINT, POLYGON,
+                # MULTIPOLYGON, etc.). Introspect rather than try/
+                # except so a corrupt WKB string doesn't silently fall
+                # through to WKT parsing of garbage.
+                head = g[:32].strip() if g else ""
+                if head and all(c in "0123456789abcdefABCDEF" for c in head):
+                    return shapely_wkb.loads(g, hex=True)
+                return shapely_wkt.loads(g)
+            # Scalar NA (pd.NA / NaN) or unexpected type -> missing geometry.
+            return None
+        # Parse every geometry column so a multi-geometry file keeps all of
+        # them; the first becomes the active geometry.
+        for gc in geom_cols:
+            result[gc] = result[gc].apply(_parse_geom)
+        active_geom = geom_cols[0]
+        gdf = gpd.GeoDataFrame(result, geometry=active_geom, crs=crs or get_default_crs())
+        return reproject_if_needed(gdf, crs or get_default_crs())
 
     def spatial_join(self, left, right, how="inner", predicate="intersects",
                      *, left_geom="geometry", right_geom="geometry"):
@@ -1056,9 +1235,15 @@ class DuckDBEngine(DataFrameEngine):
         return gdf[geometry_col].distance(other_gdf[other_geom])
 
     def to_geodataframe(self, df, geometry_col="geometry", *, crs=None):
+        """Decode the selected WKB column of a materialized query result.
+
+        Also accepts typed DuckDB relations (materialized via :meth:`to_pandas`),
+        frames containing WKT or Shapely geometry, and GeoDataFrames.
+        """
         import geopandas as gpd
         import pandas as pd
         from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+        df = self.to_pandas(df)
         if isinstance(df, gpd.GeoDataFrame):
             return reproject_if_needed(df, crs or get_default_crs())
         if isinstance(df, pd.DataFrame) and geometry_col in df.columns:
@@ -1071,15 +1256,23 @@ class DuckDBEngine(DataFrameEngine):
             sample = non_null.iloc[0] if not non_null.empty else None
             if sample is not None and not isinstance(sample, BaseGeometry):
                 if isinstance(sample, (bytes, bytearray)):
-                    geoms = df[geometry_col].apply(lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g) if g is not None else None)
+                    # DuckDB returns pd.NA (not None) for null geometry; guard
+                    # with pd.isna so a null row does not reach shapely_wkb.loads.
+                    geoms = df[geometry_col].apply(
+                        lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g)
+                        if (g is not None and not pd.isna(g)) else None
+                    )
                 else:
                     geoms = df[geometry_col].apply(lambda g: shapely_wkt.loads(g) if isinstance(g, str) else g)
-                return gpd.GeoDataFrame(df, geometry=geoms, crs=crs or get_default_crs())
+                target_crs = crs or get_default_crs()
+                out = df.copy()
+                out[geometry_col] = gpd.GeoSeries(geoms.values, index=out.index, crs=target_crs)
+                return gpd.GeoDataFrame(out, geometry=geometry_col, crs=target_crs)
             return gpd.GeoDataFrame(df, geometry=geometry_col, crs=crs or get_default_crs())
         raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
 
     def from_geodataframe(self, gdf, geometry_col="geometry"):
-        """Convert GeoDataFrame to a DuckDB pandas DataFrame with WKB-hex geometry."""
+        """Convert GeoDataFrame to a pandas DataFrame with standard WKB geometry."""
         import pandas as pd
 
         self._ensure_spatial()
@@ -1087,7 +1280,7 @@ class DuckDBEngine(DataFrameEngine):
         attr_cols = [c for c in gdf.columns if c != geometry_col]
         df = pd.DataFrame({c: gdf[c].values for c in attr_cols})
         df["_geom_wkb"] = [
-            g.wkb_hex if g is not None else None
+            g.wkb_hex if (g is not None and not pd.isna(g)) else None
             for g in gdf[geometry_col]
         ]
 
@@ -1099,9 +1292,14 @@ class DuckDBEngine(DataFrameEngine):
         self._connection.register(tbl_name, df)
 
         col_list = ", ".join(f'"{c}"' for c in attr_cols)
+        # Emit standard WKB (ST_AsWKB) rather than DuckDB's internal GEOMETRY
+        # type: fetchdf() would otherwise hand back bytes that are not valid
+        # WKB, so to_geodataframe() fails with "Unknown WKB type 0". Guard the
+        # leading comma so a geometry-only frame does not produce "SELECT ,".
+        col_prefix = f"{col_list}, " if col_list else ""
         sql = (
-            f"SELECT {col_list}, "
-            f"ST_GeomFromWKB(UNHEX(_geom_wkb)) AS {geometry_col} "
+            f"SELECT {col_prefix}"
+            f"ST_AsWKB(ST_GeomFromWKB(UNHEX(_geom_wkb))) AS {geometry_col} "
             f"FROM {tbl_name}"
         )
         result = self._connection.execute(sql).fetchdf()
@@ -1355,10 +1553,19 @@ class SparkEngine(DataFrameEngine):
         import uuid as _uuid
         view = f"_buf_tbl_{_uuid.uuid4().hex[:8]}"
         df.createOrReplaceTempView(view)
-        sql = (
-            f"SELECT *, ST_AsText(ST_Buffer(ST_GeomFromText({geometry_col}), {distance_lit})) "
-            f"AS {geometry_col}_buffered FROM {view}"
+        # Replace the geometry column in place (contract: buffer replaces the
+        # geometry) so a subsequent default spatial op uses the buffered
+        # geometry on Spark, matching the pandas path. Emitting a separate
+        # geometry_buffered column left the original geometry active.
+        other_cols = [c for c in df.columns if c != geometry_col]
+        select_list = ", ".join(
+            [f"`{c}`" for c in other_cols]
+            + [
+                f"ST_AsText(ST_Buffer(ST_GeomFromText(`{geometry_col}`), "
+                f"{distance_lit})) AS `{geometry_col}`"
+            ]
         )
+        sql = f"SELECT {select_list} FROM {view}"
         return self._session.sql(sql)
 
     def distance(self, df, other, geometry_col="geometry", other_geom="geometry"):
@@ -1380,13 +1587,18 @@ class SparkEngine(DataFrameEngine):
                 f"ST_GeomFromText('{wkt_escaped}')) AS _distance FROM {lv}"
             )
         else:
-            validate_identifier_in(other_geom, other.columns, label="other geometry column")
-            rv = f"_dist_right_{_uuid.uuid4().hex[:8]}"
-            other.createOrReplaceTempView(rv)
-            sql = (
-                f"SELECT ST_Distance(ST_GeomFromText(l.{geometry_col}), "
-                f"ST_GeomFromText(r.{other_geom})) AS _distance "
-                f"FROM {lv} l, {rv} r"
+            # Contract: a DataFrame 'other' means row-aligned pairwise distance
+            # (row i of df paired with row i of other). Spark DataFrames have no
+            # positional row order, so `FROM l, r` is a Cartesian product, not
+            # aligned pairs, and the projection dropped every identifier. Reject
+            # rather than return a silently wrong N*M result.
+            raise NotImplementedError(
+                "SparkEngine.distance does not support DataFrame-to-DataFrame "
+                "row-aligned pairwise distance: Spark has no positional row "
+                "alignment, so pairing by position is undefined (a cross join "
+                "would be N*M rows, not N aligned pairs). Pass a single geometry, "
+                "or join the two frames on an explicit key first and compute "
+                "ST_Distance on the joined geometry columns."
             )
         return self._session.sql(sql)
 
@@ -1396,11 +1608,81 @@ class SparkEngine(DataFrameEngine):
         from shapely import wkt
         pdf = df.toPandas()
         if geometry_col in pdf.columns:
-            geoms = pdf[geometry_col].apply(
+            # Spark/Sedona carries no CRS metadata, so the stored WKT
+            # coordinates are in whatever CRS the caller wrote them in
+            # (read_spatial(crs="EPSG:3857") stores projected metres). We
+            # ASSIGN the requested crs (default EPSG:4326) to the parsed
+            # geometry -- we do NOT reproject, because the stored numbers
+            # are already in the caller-declared CRS. Reprojecting here
+            # would treat projected metres as degrees and blow up to
+            # POINT(inf inf). Round-trip CRS fidelity is the caller's
+            # responsibility: pass the crs the coordinates are actually in.
+            target_crs = crs or get_default_crs()
+            parsed = pdf[geometry_col].apply(
                 lambda g: wkt.loads(g) if isinstance(g, str) else g
             )
-            return gpd.GeoDataFrame(pdf, geometry=geoms, crs=crs or get_default_crs())
+            # Bind the parsed geometry back under geometry_col as the active
+            # GeoSeries (not via the GeoDataFrame geometry= kwarg, which would
+            # leave the column as plain strings). This keeps .buffer()/
+            # .distance() working on the returned frame.
+            pdf[geometry_col] = gpd.GeoSeries(parsed.values, index=pdf.index, crs=target_crs)
+            return gpd.GeoDataFrame(pdf, geometry=geometry_col, crs=target_crs)
         raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
+
+    def from_geodataframe(self, gdf, geometry_col="geometry"):
+        """Convert a GeoDataFrame to a Spark DataFrame with WKT geometry.
+
+        The base implementation returns the GeoDataFrame unchanged, which left
+        boundary-provider conversion handing a GeoDataFrame into Spark-only
+        calls (createOrReplaceTempView). Serialize geometry to WKT and build a
+        real Spark DataFrame so the Spark spatial methods (which read
+        ST_GeomFromText(geometry_col)) receive engine-native input.
+
+        Spark/Sedona carries no CRS metadata. Coordinates are serialized to
+        WKT exactly as they are in *gdf* -- no reprojection -- so a
+        read_spatial(crs=...) -> from_geodataframe -> to_geodataframe(crs=...)
+        round-trip preserves the numbers unchanged. The caller is responsible
+        for passing the same crs to to_geodataframe that the coordinates are
+        actually in; normalizing to a default CRS here would corrupt data
+        that entered in a projected CRS.
+        """
+        import pandas as pd
+
+        if len(gdf) == 0:
+            raise ValueError(
+                "Cannot convert an empty GeoDataFrame to Spark: there are no "
+                "rows to infer a schema from. Provide at least one row."
+            )
+
+        if getattr(gdf, "crs", None) is None:
+            log.warning(
+                "from_geodataframe received a GeoDataFrame with no CRS. "
+                "Coordinates are serialized as-is and Spark/Sedona stores no "
+                "CRS metadata; pass the matching crs to to_geodataframe on "
+                "read-back to avoid mislabeling."
+            )
+
+        attr_cols = [c for c in gdf.columns if c != geometry_col]
+        geoms = [(g.wkt if g is not None else None) for g in gdf[geometry_col]]
+        pdf = pd.DataFrame({c: gdf[c].values for c in attr_cols})
+
+        if any(v is not None for v in geoms):
+            pdf[geometry_col] = geoms
+            return self._session.createDataFrame(pdf)
+
+        # All geometries are null. Spark cannot infer the type of an all-null
+        # column, so build from the attribute columns and attach geometry as an
+        # explicitly-typed null StringType column (mirrors geopandas_to_spark's
+        # #1338 handling). Requires at least one attribute column.
+        if not attr_cols:
+            raise ValueError(
+                "Cannot convert a GeoDataFrame whose only column is an all-null "
+                "geometry: Spark has no column to infer a schema from."
+            )
+        from pyspark.sql.functions import lit
+        from pyspark.sql.types import StringType
+        sdf = self._session.createDataFrame(pdf)
+        return sdf.withColumn(geometry_col, lit(None).cast(StringType()))
 
     # -- Spatial overrides (Spark/Sedona native) ---------------------------
 
@@ -1648,7 +1930,7 @@ class PostGISEngine(DataFrameEngine):
         agg_dict: Dict[str, str],
     ) -> Any:
         _validate_agg_names(agg_dict, "PostGISEngine")
-        normalised = {col: ("mean" if fn == "avg" else fn) for col, fn in agg_dict.items()}
+        normalised = _normalise_pandas_aggs(agg_dict)
         return df.groupby(list(group_cols)).agg(normalised).reset_index()
 
     def filter(self, df: Any, condition: Any) -> Any:
@@ -1712,10 +1994,13 @@ class PostGISEngine(DataFrameEngine):
         import pandas as pd
         if isinstance(df, pd.DataFrame) and geometry_col in df.columns:
             from shapely import wkt
-            geoms = df[geometry_col].apply(
+            target_crs = crs or get_default_crs()
+            parsed = df[geometry_col].apply(
                 lambda g: wkt.loads(g) if isinstance(g, str) else g
             )
-            return gpd.GeoDataFrame(df, geometry=geoms, crs=crs or get_default_crs())
+            out = df.copy()
+            out[geometry_col] = gpd.GeoSeries(parsed.values, index=out.index, crs=target_crs)
+            return gpd.GeoDataFrame(out, geometry=geometry_col, crs=target_crs)
         raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
 
 

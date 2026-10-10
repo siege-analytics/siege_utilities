@@ -44,8 +44,13 @@ def get_repository_status(repo_path: str = ".") -> Dict[str, Union[str, int, boo
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
     is_detached = "HEAD" in current_branch
 
-    # Working directory status
-    status_output = run_git_command("status", "--porcelain", repo_path=repo_path)
+    # Working directory status. strip=False preserves the leading status
+    # column: `git status --porcelain` lines are "XY filename" where a
+    # worktree-only change begins with a space (" M file"); stripping would
+    # shift the first line's columns and miscount staged vs unstaged.
+    status_output = run_git_command(
+        "status", "--porcelain", repo_path=repo_path, strip=False
+    )
     status_lines = [line for line in status_output.split('\n') if line.strip()]
 
     # Count different types of changes
@@ -66,7 +71,15 @@ def get_repository_status(repo_path: str = ".") -> Dict[str, Union[str, int, boo
 
     # Get remote info
     try:
-        remote_url = run_git_command("config", "--get", "remote.origin.url", repo_path=repo_path)
+        remote_url = run_git_command(
+            "config",
+            "--get",
+            "remote.origin.url",
+            repo_path=repo_path,
+            check=False,
+        )
+        if remote_url == "":
+            remote_url = None
         upstream_branch = run_git_command("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}", repo_path=repo_path, check=False)
         if upstream_branch == "":
             upstream_branch = None
@@ -322,7 +335,13 @@ def get_file_status(repo_path: str = ".") -> Dict[str, List[str]]:
         If the git status command fails.
     """
     try:
-        status_output = run_git_command("status", "--porcelain", repo_path=repo_path)
+        # strip=False preserves the leading status column: porcelain lines are
+        # "XY filename" where a worktree-only change starts with a space
+        # (" M file"); stripping would shift the first line's columns and both
+        # misclassify it and corrupt its filepath slice.
+        status_output = run_git_command(
+            "status", "--porcelain", repo_path=repo_path, strip=False
+        )
     except (GitError, RuntimeError) as exc:
         raise GitError(f"Could not retrieve file status: {exc}") from exc
 

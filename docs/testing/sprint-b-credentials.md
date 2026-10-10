@@ -31,11 +31,6 @@ facebook_business:
   app_secret: ...
   ad_account_id: act_...
 
-datadotworld:
-  api_token: ...
-  dataset_owner: my-org
-  dataset_id: test-dataset
-
 google_analytics:
   property_id: "12345678"
   # Auth comes from a service-account JSON; set GOOGLE_APPLICATION_CREDENTIALS

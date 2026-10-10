@@ -115,7 +115,13 @@ def test_us_national_atlas_equal_area_roundtrip_identity(
     assert abs(lat - lat_back) < _TOLERANCE_DEG, (
         f"lat drift: {lat} → {lat_back}"
     )
-    assert abs(lon - lon_back) < _TOLERANCE_DEG, (
+    # Longitude +/-180 is the same meridian; compare the minimal angular
+    # difference so the antimeridian (lon=180 -> -180, which newer PROJ emits)
+    # is not counted as a 360-degree drift.
+    lon_drift = abs(lon - lon_back) % 360.0
+    if lon_drift > 180.0:
+        lon_drift = 360.0 - lon_drift
+    assert lon_drift < _TOLERANCE_DEG, (
         f"lon drift: {lon} → {lon_back}"
     )
 

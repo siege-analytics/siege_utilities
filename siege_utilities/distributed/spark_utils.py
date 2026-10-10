@@ -399,8 +399,14 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
             flatten_level)
     if explode_arrays:
         try:
-            array_columns = [col_name for col_name, data_type in result_df.
-                dtypes if 'array' in data_type.lower()]
+            # Select genuine array columns by their top-level type. A
+            # substring match on the dtype string wrongly matches struct
+            # columns whose nested schema merely mentions an array (e.g. the
+            # intermediate parsed_json struct), which then fails explode().
+            array_columns = [
+                field.name for field in result_df.schema.fields
+                if isinstance(field.dataType, ArrayType)
+            ]
             for array_column in array_columns:
                 result_df = result_df.withColumn(array_column,
                     explode_outer(col(array_column)))
@@ -605,13 +611,22 @@ def prepare_dataframe_for_export(df, logger_func=None):
             if not isinstance(field.dataType, StringType) and not isinstance(
                 field.dataType, (StructType, ArrayType)
                 ) and field.name != 'parsed_json':
-                simple_fields.append(field.name)
+                simple_fields.append(field)
         if simple_fields:
             _log(f'   Converting {len(simple_fields)} scalar fields to strings')
-            for field_name in simple_fields:
-                df = df.withColumn(field_name, when(col(field_name).isNull(
-                    ), '').when(isnan(col(field_name)), '').otherwise(col(
-                    field_name).cast(StringType())))
+            for field in simple_fields:
+                field_name = field.name
+                casted = col(field_name).cast(StringType())
+                # isnan only accepts FLOAT/DOUBLE; applied to boolean, date,
+                # or timestamp columns it raises an AnalysisException, so
+                # guard the NaN branch to floating-point columns only.
+                if isinstance(field.dataType, (FloatType, DoubleType)):
+                    new_column = when(col(field_name).isNull(), '').when(
+                        isnan(col(field_name)), '').otherwise(casted)
+                else:
+                    new_column = when(col(field_name).isNull(), '').otherwise(
+                        casted)
+                df = df.withColumn(field_name, new_column)
         intermediate_columns = ['parsed_json']
         columns_to_drop = [col_name for col_name in intermediate_columns if
             col_name in df.columns]

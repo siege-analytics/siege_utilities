@@ -37,7 +37,7 @@ Spatial
 Analytics
 ---------
 
-- **01_connectors** — GA, Snowflake, data.world connector patterns
+- **01_connectors** — GA, Snowflake connector patterns
 - **02_ga_end_to_end** — Weekly GA digest pipeline: fetch, chart, PDF
 - **03_social_media_analytics** — Social platform analytics patterns
 - **04_crm_pipeline** — CRM pipeline patterns

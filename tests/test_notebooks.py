@@ -267,7 +267,13 @@ def _execute_with_nbclient(nb_path: Path, timeout: int, cwd: Path, kernel_name: 
         ).execute()
         _cleanup_success_artifacts(_artifact_dir())
     except Exception:
-        out_path = _artifact_dir() / f"{_artifact_stem(nb_path)}.failed.ipynb"
+        # Retain the partially-executed notebook under the SAME name the
+        # papermill backend uses (`.executed.ipynb`). On success both
+        # backends clean the artifact dir, so a surviving `.executed.ipynb`
+        # always means the run failed -- keeping the name backend-agnostic
+        # so retention does not depend on which backend ran (#1343).
+        stem = _artifact_stem(nb_path)
+        out_path = _artifact_dir() / f"{stem}.executed.ipynb"
         nbformat.write(nb, out_path)
         raise
     return nb

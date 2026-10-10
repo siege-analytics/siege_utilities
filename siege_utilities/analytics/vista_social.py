@@ -6,7 +6,7 @@ Facebook, Instagram, LinkedIn, X, TikTok, YouTube, and other channels.
 This module provides a thin connector that auths against the Vista
 Social REST API and exposes a few common reporting calls in the same
 shape as the other connectors in this package
-(``FacebookBusinessConnector``, ``DataDotWorldConnector``).
+(``FacebookBusinessConnector``, ``SnowflakeConnector``).
 
 Why "thin"
 ----------

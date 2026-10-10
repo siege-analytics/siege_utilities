@@ -1,0 +1,33 @@
+Interpreter: /Users/dheerajchand/.pyenv/versions/default_31111/bin/python
+Versions: duckdb 1.4.4, tobler 0.13.0, shapely 2.1.2
+AST PASS siege_utilities/engines/dataframe_engine.py
+AST PASS siege_utilities/geo/census/catalog_populator.py
+AST PASS tests/test_round9_class_hardening.py
+AST PASS scripts/verify_round9_hardening.py
+Final vs baseline copy byte-match: tests/test_round9_class_hardening.py; SHA256=5d9e1596cdc33b207168bb9ce164ca523180731775ba4ca6a7ab3b6c12e4882c
+Final vs baseline copy byte-match: scripts/verify_round9_hardening.py; SHA256=eeda3cd2837b081afc6aba8c05a5aa350d94d034d7f9105d0433e0fcdaea25f5
+Exact pytest identity match: all 25 new cases fail on a29d8198 and pass in the fixed suite; no changed existing tests
+test_final_hardening_consensus: 34 passed
+test_round5_class_hardening: 16 passed
+test_round6_class_hardening: 21 passed
+test_round7_class_hardening: 18 passed
+test_round8_class_hardening: 15 passed
+test_round9_class_hardening: 25 passed
+Combined suite: 497 passed, 2 skipped (touched-area: 368 passed, 2 skipped)
+SU-4b handler comparison PASS: siege_utilities/engines/dataframe_engine.py; no added/changed catches
+SU-4b handler comparison PASS: siege_utilities/geo/census/catalog_populator.py; no added/changed catches
+JSON + code-cell AST PASS notebooks/engines/01_multi_engine_dataframes.ipynb
+Notebook impact: existing query materialization/Count/PREPARE prose remains accurate; no notebook uses the affected name/collation or encoded Census dataset forms
+git diff --check PASS
+
+writing-claims:1 production scope search
+Command: ['rg', '-n', 'duckdb_prepared_statements|StatementType.EXECUTE|duckdb.tokenize|full dataset path|parts\\.path\\.split|def _normalize_base_url', 'siege_utilities']
+siege_utilities/engines/dataframe_engine.py:986:        if statement.type == duckdb.StatementType.EXECUTE:
+siege_utilities/engines/dataframe_engine.py:991:            tokens = duckdb.tokenize(statement.query)
+siege_utilities/engines/dataframe_engine.py:1009:            lookup = 'SELECT statement FROM duckdb_prepared_statements() WHERE name = ? COLLATE "binary"'
+siege_utilities/engines/dataframe_engine.py:1018:                names = self._connection.execute("SELECT name FROM duckdb_prepared_statements()").fetchall()
+siege_utilities/engines/dataframe_engine.py:1035:        for position, kind in duckdb.tokenize(statement.query):
+siege_utilities/geo/census/catalog_populator.py:60:        # A full dataset path ("https://api.census.gov/data/2023/acs/acs5")
+siege_utilities/geo/census/catalog_populator.py:67:    def _normalize_base_url(base_url: str) -> str:
+siege_utilities/geo/census/catalog_populator.py:75:            ValueError: If base_url on api.census.gov includes a full dataset path -- the
+siege_utilities/geo/census/catalog_populator.py:109:                    f"base_url {base_url!r} includes a full dataset path "

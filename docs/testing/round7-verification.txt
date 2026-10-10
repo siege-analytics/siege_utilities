@@ -1,0 +1,175 @@
+Round-7 verification — baseline 3e207f39
+
+Scope and results
+1. DuckDB query materializes every returned typed relation through a shared
+   positional ST_AsWKB projection, including INSERT/UPDATE/DELETE RETURNING.
+   DML without RETURNING uses execute/fetchdf so Count is retained. Dispatch
+   uses parsed statement metadata and DuckDB tokenization; prepared EXECUTE
+   inspects the prepared definition without executing the mutation to probe it.
+2. to_pandas returns query frames unchanged and materializes external typed
+   relations through the same WKB boundary. index_points therefore preserves
+   decodable geometry. to_geodataframe decodes the selected WKB column.
+3. Query frames outlive their engine and retain the original values after a
+   source-row delete. No lazy relation escapes query(). Memory use remains
+   proportional to the eager result size, as requested.
+4. Census dataset-path rejection checks hostname == api.census.gov. Other hosts
+   accept arbitrary proxy paths. Existing slash and terminal-data normalization,
+   cbp/acs rejection, and earlier proxy shapes are preserved.
+
+The engine docstrings and notebook supersede round-6 native-byte wording. The
+round-6 verification script now checks WKB and is reused for prior controls.
+Historical round-6 logs describe the then-current contract, not this contract.
+
+Red-on-revert evidence
+An isolated git archive of 3e207f39 was extracted to /tmp. Only the final test
+files and verification scripts were copied into it. Both changed implementation
+files were byte-compared against git show 3e207f39 and SHA256 hashes were recorded.
+Final test identities: 18 new round-7 cases + 2 changed round-5 cases.
+Baseline: 20 failed, 0 passed, 0 skipped (1.84s).
+Fix: those same 20 cases passed in the completed suite; no changed test excluded.
+Both changed/new verification scripts also fail on the baseline at WKB decoding.
+Full commands, hashes and tracebacks: docs/testing/round7-red-on-revert.txt.
+
+Per-finding baseline failures:
+1. All six direct/prepared INSERT/UPDATE/DELETE RETURNING cases raise GEOSException:
+   ParseException: Unknown WKB type 0. Fixed results decode POINT (1 1), preserve
+   duplicate scalars and geometries, and keep exactly-once state and Count.
+2. index_points(query(...)) raises the same GEOSException. Fixed result decodes
+   POINT (-87 41); to_pandas WKB is also directly decodable.
+3. Dead-engine scope raises ConnectionException: Connection has already been
+   closed. Snapshot after source deletion returns [] instead of [7]. Fixed scope
+   and snapshot results retain POINT (1 2). Four additional geometry/null/empty
+   cases and the changed public query test reject the baseline's lazy relation.
+4. All five proxy cases raise ValueError (full dataset path) on the baseline;
+   fixed requests retain their full proxy prefix and append /data/year/dataset.
+The second changed round-5 test proves to_pandas emits decodable WKB for both
+external typed relations and materialized query results; native bytes fail red.
+Unchanged controls already passing on baseline are not claimed as new regressions.
+
+Validation
+Combined suite: 457 passed, 2 skipped, 36 warnings in 4.61s.
+  tests/test_final_hardening_consensus.py: 34 passed
+  tests/test_round5_class_hardening.py: 16 passed
+  tests/test_round6_class_hardening.py: 21 passed
+  tests/test_round7_class_hardening.py: 18 passed
+  Remaining touched-area suite (including grids): 368 passed, 2 skipped
+Skipped: missing-pyspark ImportError check (pyspark is installed); live Snowflake
+smoke (no credentials). Full command and output: docs/testing/round7-pytest.txt.
+Warnings are existing pytest config, requests dependency, geographic-CRS and
+SciPy notices; no test failure is hidden.
+
+JSON + Python cells PASS notebooks/engines/01_multi_engine_dataframes.ipynb
+AST PASS scripts/verify_round6_hardening.py
+AST PASS scripts/verify_round7_hardening.py
+AST PASS siege_utilities/engines/dataframe_engine.py
+AST PASS siege_utilities/geo/census/catalog_populator.py
+AST PASS tests/test_round5_class_hardening.py
+AST PASS tests/test_round7_class_hardening.py
+
+SU-1: failures propagate. No failure becomes an empty frame or a success value.
+SU-2: eager DataFrame, WKB, snapshot/lifetime, Count and load contracts are explicit
+in docstrings and the engine notebook; the obsolete from_geodataframe WKB-hex
+return description now says WKB (its implementation was not changed).
+SU-4b: no broad catch was introduced. Spatial-load failure remains visible and
+later ordinary SQL still works. The unchanged round-6 tests recheck failed load,
+missing-local-extension installation, unrelated CatalogException and bind retry.
+writing-claims:1: all reported counts and values come from captured executions.
+Census HTTP and Snowflake writes are mocked; no live service success is claimed.
+A real Spark startup was attempted in this round and failed at the sandbox's
+localhost socket boundary: Py4JNetworkException: Failed to bind to /127.0.0.1:0;
+caused by java.net.SocketException: Operation not permitted. The completed gate
+uses the session-boundary stub for createDataFrame/toPandas, while running the
+actual SparkEngine serialization/conversion methods. No live Spark execution
+success is claimed. Notebook JSON and code cells were parsed, not executed.
+
+Follow-up ticket notes (not filed; pre-existing and outside this round)
+- DuckDB to_geodataframe treats VARCHAR WKB hex as WKT; recognize hex explicitly.
+- DuckDB from_geodataframe still interpolates raw attribute/geometry identifiers;
+  reuse identifier quoting in a separate change.
+- Extensive-variable NaN behavior differs across areal backends.
+- Clean fully-disjoint intensive targets currently return 0.0; define semantics.
+- Census yearless /data/timeseries/govsschfin remains accepted as an API root;
+  address the pre-existing yearless dataset-endpoint limitation separately.
+
+Self-regression command (run from /tmp)
+PYTHONPATH=/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening SIEGE_AUTO_INIT_DIRS=false PYSPARK_PYTHON=/Users/dheerajchand/.pyenv/versions/default_31111/bin/python PYSPARK_DRIVER_PYTHON=/Users/dheerajchand/.pyenv/versions/default_31111/bin/python SPARK_LOCAL_IP=127.0.0.1 /Users/dheerajchand/.pyenv/versions/default_31111/bin/python /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/scripts/verify_round7_hardening.py --spark-boundary-only
+Exit status: 0
+
+Full self-regression gate stdout
+INSERT RETURNING: POINT (1 1), x=1, x_1=2; exactly once, remaining=[1]
+UPDATE RETURNING: POINT (1 1), x=1, x_1=2; exactly once, remaining=[1]
+DELETE RETURNING: POINT (1 1), x=1, x_1=2; exactly once, remaining=[]
+index_points(query): POINT (-87 41), s2_index=881236b
+dead-engine result: POINT (1 2), engine collected=True
+snapshot after DELETE: i=7, POINT (1 2); source rows=0
+geometry schema SELECT ST_Point(1,2) AS geometry UNION ALL SELECT NULL::GEOMETRY: ['POINT (1 2)', None], columns=['geometry']
+geometry schema SELECT NULL::GEOMETRY AS geometry: [None], columns=['geometry']
+geometry schema SELECT NULL::GEOMETRY AS geometry WHERE FALSE: [], columns=['geometry']
+geometry schema DELETE FROM points WHERE FALSE RETURNING ST_Point(i,i) AS geometry: [], columns=['geometry']
+failed spatial load: PermissionException; subsequent SELECT 42=42
+RETURNING tokenizer: quoted names, literals, comments, UTF-8; Count preserved; geometry decoded
+census ACCEPT https://proxy/data/2023/gw: ['https://proxy/data/2023/gw/data/2023/acs/acs5/variables.json', 'https://proxy/data/2023/gw/data/2023/acs/acs5/groups.json']
+census ACCEPT https://proxy/data/2023/acs/acs5: ['https://proxy/data/2023/acs/acs5/data/2023/acs/acs5/variables.json', 'https://proxy/data/2023/acs/acs5/data/2023/acs/acs5/groups.json']
+SELECT config={}: {'answer': [42]}
+SELECT config={'enable_external_access': False}: {'answer': [42]}
+DDL: {'Count': []}
+INSERT: {'Count': [2]}
+UPDATE: {'Count': [1]}
+DELETE: {'Count': [2]}
+SELECT ST_Point(1,2) AS geometry, 1 AS x, 2 AS x: {'geometry': 'POINT (1 2)', 'x': 1, 'x_1': 2}
+SELECT ST_Point(1,2) AS x, ST_Point(3,4) AS x: {'x': 'POINT (1 2)', 'x_1': 'POINT (3 4)'}
+SELECT ST_Point(1,2) AS x, 7 AS x: {'x': 'POINT (1 2)', 'x_1': 7}
+SELECT 7 AS x, ST_Point(1,2) AS x: {'x': 7, 'x_1': 'POINT (1 2)'}
+query -> to_geodataframe: POINT (1 2)
+query -> to_pandas: decodable WKB, hex=0101000000000000000000f03f0000000000000040
+registered DataFrame + to_pandas identity: PASS
+empty geometry result: rows=0, columns=['x', 'x_1'], active=x_1
+zero-overlap transform: T1.rate=0.1
+zero-overlap apply_crosswalk: T1.rate=0.1
+zero-overlap align: T1.rate=0.1
+zero-overlap align: method=crosswalk, areal calls=0, warnings=[]
+census ACCEPT https://api.census.gov: ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+census ACCEPT https://api.census.gov/data: ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+census ACCEPT https://api.census.gov/data/: ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+census ACCEPT https://api.census.gov//data//data/: ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+census ACCEPT https://api.census.gov//data/: ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+census ACCEPT https://proxy/data/census: ['https://proxy/data/census/data/2023/acs/acs5/variables.json', 'https://proxy/data/census/data/2023/acs/acs5/groups.json']
+census ACCEPT https://proxy/data/2023/census: ['https://proxy/data/2023/census/data/2023/acs/acs5/variables.json', 'https://proxy/data/2023/census/data/2023/acs/acs5/groups.json']
+census ACCEPT https://proxy/2023/gw: ['https://proxy/2023/gw/data/2023/acs/acs5/variables.json', 'https://proxy/2023/gw/data/2023/acs/acs5/groups.json']
+census REJECT https://api.census.gov/data/2023/cbp: ValueError (full dataset path)
+census REJECT https://api.census.gov/data/2023/acs/acs5: ValueError (full dataset path)
+census REJECT https://api.census.gov/data/2023/custom/a/b: ValueError (full dataset path)
+census REJECT https://api.census.gov/data/2023: ValueError (full dataset path)
+intensive parity: crosswalk=0.50, real tobler=0.50
+intensive parity: crosswalk=0.82, real tobler=0.82
+distinct-source merge without absolute area: ValueError (area-weight intensive)
+align NaN fallback: rate=0.2, method=areal
+per-target NaN tobler: [nan, 0.8]
+per-target NaN duckdb: [nan, 0.8]
+per-target NaN shapely: [nan, 0.8]
+empty-target DuckDB/areal: ValueError: target GeoDataFrame is empty; provide at least one target polygon
+Snowflake upload_dataframe SQL capture: ['USE DATABASE "MixedDb"', 'USE SCHEMA "MixedSchema"']
+Snowflake get_table_info SQL capture: ['USE DATABASE "MixedDb"', 'USE SCHEMA "MixedSchema"']
+Snowflake list_tables SQL capture: ['USE DATABASE "MixedDb"', 'USE SCHEMA "MixedSchema"']
+DuckDB from_geodataframe round-trip: POINT (100000 200000), null preserved, EPSG:3857
+Spark (session-boundary stub) assign-not-reproject round-trip: POINT (100000 200000), null preserved, EPSG:3857
+SELF-REGRESSION GATE: PASS
+ROUND-7 SELF-REGRESSION GATE: PASS
+
+Full self-regression gate stderr
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+  warnings.warn(
+Crosswalk 2010→2020 failed (Cannot area-weight intensive columns ['rate'] on a merge: the crosswalk carries only the allocation factor 'area_weight', which cannot express an area-weighted mean (sources of area 1 and 9 both get weight 1). Supply a crosswalk with an 'overlap_area' or 'source_area' column, or route intensive columns through areal interpolation (LongitudinalAligner falls back to tobler automatically on a crosswalk failure).), trying areal interpolation
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/snowflake/connector/vendored/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+  warnings.warn(
+
+Commit status
+The authorized git add/commit command was attempted after verification. Staging
+failed with exit 128:
+  fatal: Unable to create '/Users/dheerajchand/git/siege-analytics/siege_utilities/.git/worktrees/siege_utilities-hardening/index.lock': Operation not permitted
+Git metadata is outside the writable roots; this session does not allow approval
+or elevation. The commit command was not reached. No commit or push occurred.
+All changes remain in the worktree on fix/1369-final-hardening at 3e207f39.
+Prepared conventional commit:
+  fix: materialize DuckDB geometry results and scope Census validation
+Requested author: Dheeraj Chand <dheeraj@siegeanalytics.com>
