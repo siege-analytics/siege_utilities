@@ -1,0 +1,229 @@
+Baseline: 715f623f1e2377ec37aee867fdbb09bd136ecb70
+Isolated git archive: /tmp/siege-round8-baseline-94lpyh8k
+Baseline source byte-match: siege_utilities/engines/dataframe_engine.py; SHA256=30dbc0d223b01fe0a95cb98c3d673f1fe19e69b407779c225afb1df21b7d3a60
+Baseline source byte-match: siege_utilities/geo/census/catalog_populator.py; SHA256=f99ba6463da6761eeaf7043750d098415a1c50aa883324b344fbf86c9e260afb
+Final copied file: tests/test_round8_class_hardening.py; SHA256=7cd03b60a86958561e4ead706632006224c9d12069028de234f4c5be1c5c3c70
+Final copied file: scripts/verify_round8_hardening.py; SHA256=35e5a897d1c7ac478c97dee6b128fefdac6882b579c9e7865b62d6d7a8e3a535
+Command: ['/Users/dheerajchand/.pyenv/versions/default_31111/bin/python', '-m', 'pytest', '-o', 'addopts=', '-q', '--tb=short', '-rs', '--junitxml=/tmp/round8-baseline.xml', '/tmp/siege-round8-baseline-94lpyh8k/tests/test_round8_class_hardening.py']
+Cwd: /tmp; PYTHONPATH=/tmp/siege-round8-baseline-94lpyh8k
+Exit: 1
+FFFFFFFFFFFFFFF                                                          [100%]
+=================================== FAILURES ===================================
+_ test_prepare_returning_reports_status_without_executing[scalar-INSERT INTO items VALUES (2)-remaining0] _
+/tmp/siege-round8-baseline-94lpyh8k/tests/test_round8_class_hardening.py:26: in test_prepare_returning_reports_status_without_executing
+    assert isinstance(status, pd.DataFrame)
+E   AssertionError: assert False
+E    +  where False = isinstance(None, <class 'pandas.core.frame.DataFrame'>)
+E    +    where <class 'pandas.core.frame.DataFrame'> = pd.DataFrame
+_ test_prepare_returning_reports_status_without_executing[scalar-UPDATE items SET i=i+1-remaining1] _
+/tmp/siege-round8-baseline-94lpyh8k/tests/test_round8_class_hardening.py:26: in test_prepare_returning_reports_status_without_executing
+    assert isinstance(status, pd.DataFrame)
+E   AssertionError: assert False
+E    +  where False = isinstance(None, <class 'pandas.core.frame.DataFrame'>)
+E    +    where <class 'pandas.core.frame.DataFrame'> = pd.DataFrame
+_ test_prepare_returning_reports_status_without_executing[scalar-DELETE FROM items-remaining2] _
+/tmp/siege-round8-baseline-94lpyh8k/tests/test_round8_class_hardening.py:26: in test_prepare_returning_reports_status_without_executing
+    assert isinstance(status, pd.DataFrame)
+E   AssertionError: assert False
+E    +  where False = isinstance(None, <class 'pandas.core.frame.DataFrame'>)
+E    +    where <class 'pandas.core.frame.DataFrame'> = pd.DataFrame
+_ test_prepare_returning_reports_status_without_executing[geometry-INSERT INTO items VALUES (2)-remaining0] _
+/tmp/siege-round8-baseline-94lpyh8k/tests/test_round8_class_hardening.py:26: in test_prepare_returning_reports_status_without_executing
+    assert isinstance(status, pd.DataFrame)
+E   AssertionError: assert False
+E    +  where False = isinstance(None, <class 'pandas.core.frame.DataFrame'>)
+E    +    where <class 'pandas.core.frame.DataFrame'> = pd.DataFrame
+_ test_prepare_returning_reports_status_without_executing[geometry-UPDATE items SET i=i+1-remaining1] _
+/tmp/siege-round8-baseline-94lpyh8k/tests/test_round8_class_hardening.py:26: in test_prepare_returning_reports_status_without_executing
+    assert isinstance(status, pd.DataFrame)
+E   AssertionError: assert False
+E    +  where False = isinstance(None, <class 'pandas.core.frame.DataFrame'>)
+E    +    where <class 'pandas.core.frame.DataFrame'> = pd.DataFrame
+_ test_prepare_returning_reports_status_without_executing[geometry-DELETE FROM items-remaining2] _
+/tmp/siege-round8-baseline-94lpyh8k/tests/test_round8_class_hardening.py:26: in test_prepare_returning_reports_status_without_executing
+    assert isinstance(status, pd.DataFrame)
+E   AssertionError: assert False
+E    +  where False = isinstance(None, <class 'pandas.core.frame.DataFrame'>)
+E    +    where <class 'pandas.core.frame.DataFrame'> = pd.DataFrame
+___ test_unicode_prepared_names_keep_distinct_counts_and_geometry[\xe9-\xc9] ___
+/tmp/siege-round8-baseline-94lpyh8k/tests/test_round8_class_hardening.py:45: in test_unicode_prepared_names_keep_distinct_counts_and_geometry
+    assert isinstance(count, pd.DataFrame)
+E   AssertionError: assert False
+E    +  where False = isinstance(None, <class 'pandas.core.frame.DataFrame'>)
+E    +    where <class 'pandas.core.frame.DataFrame'> = pd.DataFrame
+___ test_unicode_prepared_names_keep_distinct_counts_and_geometry[\xc9-\xe9] ___
+/tmp/siege-round8-baseline-94lpyh8k/tests/test_round8_class_hardening.py:45: in test_unicode_prepared_names_keep_distinct_counts_and_geometry
+    assert isinstance(count, pd.DataFrame)
+E   AssertionError: assert False
+E    +  where False = isinstance(None, <class 'pandas.core.frame.DataFrame'>)
+E    +    where <class 'pandas.core.frame.DataFrame'> = pd.DataFrame
+____ test_execute_line_comments_keep_returning_geometry[EXECUTE p--comment] ____
+/tmp/siege-round8-baseline-94lpyh8k/tests/test_round8_class_hardening.py:69: in test_execute_line_comments_keep_returning_geometry
+    assert eng.to_geodataframe(result).geometry.iloc[0].wkt == "POINT (1 1)"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/siege-round8-baseline-94lpyh8k/siege_utilities/engines/dataframe_engine.py:1230: in to_geodataframe
+    geoms = df[geometry_col].apply(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/series.py:4943: in apply
+    ).apply()
+      ^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1422: in apply
+    return self.apply_standard()
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1502: in apply_standard
+    mapped = obj._map_values(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/base.py:925: in _map_values
+    return algorithms.map_array(arr, mapper, na_action=na_action, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/algorithms.py:1743: in map_array
+    return lib.map_infer(values, mapper, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pandas/_libs/lib.pyx:2999: in pandas._libs.lib.map_infer
+    ???
+/tmp/siege-round8-baseline-94lpyh8k/siege_utilities/engines/dataframe_engine.py:1231: in <lambda>
+    lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/wkb.py:20: in loads
+    return shapely.from_wkb(data)
+           ^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/io.py:353: in from_wkb
+    return lib.from_wkb(geometry, invalid_handler, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   shapely.errors.GEOSException: ParseException: Unknown WKB type 0
+_ test_execute_line_comments_keep_returning_geometry[  EXECUTE /* before */ p--comment\n  ] _
+/tmp/siege-round8-baseline-94lpyh8k/tests/test_round8_class_hardening.py:69: in test_execute_line_comments_keep_returning_geometry
+    assert eng.to_geodataframe(result).geometry.iloc[0].wkt == "POINT (1 1)"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/siege-round8-baseline-94lpyh8k/siege_utilities/engines/dataframe_engine.py:1230: in to_geodataframe
+    geoms = df[geometry_col].apply(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/series.py:4943: in apply
+    ).apply()
+      ^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1422: in apply
+    return self.apply_standard()
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1502: in apply_standard
+    mapped = obj._map_values(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/base.py:925: in _map_values
+    return algorithms.map_array(arr, mapper, na_action=na_action, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/algorithms.py:1743: in map_array
+    return lib.map_infer(values, mapper, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pandas/_libs/lib.pyx:2999: in pandas._libs.lib.map_infer
+    ???
+/tmp/siege-round8-baseline-94lpyh8k/siege_utilities/engines/dataframe_engine.py:1231: in <lambda>
+    lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/wkb.py:20: in loads
+    return shapely.from_wkb(data)
+           ^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/io.py:353: in from_wkb
+    return lib.from_wkb(geometry, invalid_handler, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   shapely.errors.GEOSException: ParseException: Unknown WKB type 0
+_ test_execute_line_comments_keep_returning_geometry[EXECUTE p--comment\n/* after */ ;] _
+/tmp/siege-round8-baseline-94lpyh8k/tests/test_round8_class_hardening.py:69: in test_execute_line_comments_keep_returning_geometry
+    assert eng.to_geodataframe(result).geometry.iloc[0].wkt == "POINT (1 1)"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/siege-round8-baseline-94lpyh8k/siege_utilities/engines/dataframe_engine.py:1230: in to_geodataframe
+    geoms = df[geometry_col].apply(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/series.py:4943: in apply
+    ).apply()
+      ^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1422: in apply
+    return self.apply_standard()
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1502: in apply_standard
+    mapped = obj._map_values(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/base.py:925: in _map_values
+    return algorithms.map_array(arr, mapper, na_action=na_action, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/algorithms.py:1743: in map_array
+    return lib.map_infer(values, mapper, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pandas/_libs/lib.pyx:2999: in pandas._libs.lib.map_infer
+    ???
+/tmp/siege-round8-baseline-94lpyh8k/siege_utilities/engines/dataframe_engine.py:1231: in <lambda>
+    lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/wkb.py:20: in loads
+    return shapely.from_wkb(data)
+           ^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/io.py:353: in from_wkb
+    return lib.from_wkb(geometry, invalid_handler, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   shapely.errors.GEOSException: ParseException: Unknown WKB type 0
+_ test_execute_line_comments_keep_returning_geometry[EXECUTE /* outer /* nested */ comment */ p--comment] _
+/tmp/siege-round8-baseline-94lpyh8k/tests/test_round8_class_hardening.py:69: in test_execute_line_comments_keep_returning_geometry
+    assert eng.to_geodataframe(result).geometry.iloc[0].wkt == "POINT (1 1)"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/siege-round8-baseline-94lpyh8k/siege_utilities/engines/dataframe_engine.py:1230: in to_geodataframe
+    geoms = df[geometry_col].apply(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/series.py:4943: in apply
+    ).apply()
+      ^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1422: in apply
+    return self.apply_standard()
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1502: in apply_standard
+    mapped = obj._map_values(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/base.py:925: in _map_values
+    return algorithms.map_array(arr, mapper, na_action=na_action, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/algorithms.py:1743: in map_array
+    return lib.map_infer(values, mapper, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pandas/_libs/lib.pyx:2999: in pandas._libs.lib.map_infer
+    ???
+/tmp/siege-round8-baseline-94lpyh8k/siege_utilities/engines/dataframe_engine.py:1231: in <lambda>
+    lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/wkb.py:20: in loads
+    return shapely.from_wkb(data)
+           ^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/io.py:353: in from_wkb
+    return lib.from_wkb(geometry, invalid_handler, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   shapely.errors.GEOSException: ParseException: Unknown WKB type 0
+_ test_equivalent_census_hosts_reject_dataset_paths_before_http[https://%61pi.census.gov/data/2023/cbp] _
+/tmp/siege-round8-baseline-94lpyh8k/tests/test_round8_class_hardening.py:98: in test_equivalent_census_hosts_reject_dataset_paths_before_http
+    with pytest.raises(ValueError, match="full dataset path"):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+_ test_equivalent_census_hosts_reject_dataset_paths_before_http[https://api.census.gov./data/2023/cbp] _
+/tmp/siege-round8-baseline-94lpyh8k/tests/test_round8_class_hardening.py:98: in test_equivalent_census_hosts_reject_dataset_paths_before_http
+    with pytest.raises(ValueError, match="full dataset path"):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+_ test_equivalent_census_hosts_reject_dataset_paths_before_http[HTTP://user:pw@%41PI.CENSUS.GOV.:443/data/2023/cbp?x=1#fragment] _
+/tmp/siege-round8-baseline-94lpyh8k/tests/test_round8_class_hardening.py:98: in test_equivalent_census_hosts_reject_dataset_paths_before_http
+    with pytest.raises(ValueError, match="full dataset path"):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+=============================== warnings summary ===============================
+../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: DJANGO_SETTINGS_MODULE
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+tests/test_round8_class_hardening.py::test_equivalent_census_hosts_reject_dataset_paths_before_http[https://%61pi.census.gov/data/2023/cbp]
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+----------------- generated xml file: /tmp/round8-baseline.xml -----------------
+15 failed, 2 warnings in 1.08s
+
+
+Command: ['/Users/dheerajchand/.pyenv/versions/default_31111/bin/python', '/tmp/siege-round8-baseline-94lpyh8k/scripts/verify_round8_hardening.py', '--spark-boundary-only']
+Cwd: /tmp; PYTHONPATH=/tmp/siege-round8-baseline-94lpyh8k
+Exit: 1
+
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+  warnings.warn(
+Traceback (most recent call last):
+  File "/tmp/siege-round8-baseline-94lpyh8k/scripts/verify_round8_hardening.py", line 182, in <module>
+    main(spark_boundary_only=parser.parse_args().spark_boundary_only)
+  File "/tmp/siege-round8-baseline-94lpyh8k/scripts/verify_round8_hardening.py", line 172, in main
+    round8_findings()
+  File "/tmp/siege-round8-baseline-94lpyh8k/scripts/verify_round8_hardening.py", line 25, in round8_findings
+    assert isinstance(result, pd.DataFrame) and result.to_dict("list") == {"Success": []}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

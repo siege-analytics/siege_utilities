@@ -1,0 +1,110 @@
+Round-8 verification — baseline 715f623f
+
+Findings and measured results
+1. PREPARE RETURNING now uses the outer statement's expected result kinds.
+   A definition's RETURNING clause cannot turn PREPARE into a row result.
+   PREPARE returns DataFrame {'Success': []}, leaves the table untouched, and
+   EXECUTE performs the mutation exactly once. Six INSERT/UPDATE/DELETE cases
+   (scalar and geometry RETURNING) failed on the baseline's None result.
+2. Prepared metadata lookup binds the exact catalog name with name = ?.
+   Unicode é and É remain distinct. An ASCII-only alias resolution preserves
+   DuckDB's existing ASCII case-insensitive identifiers, then looks up the exact
+   stored spelling. No Unicode lower() comparison remains. Both Unicode role
+   permutations failed on the baseline's missing Count; now Count=[1] and the
+   row-producing statement yields POINT (1 2). Mixed ASCII/Unicode aliases are
+   also exercised without merging the accented identifiers.
+3. Census host comparison percent-decodes the hostname, removes one trailing
+   dot, and lowercases it before applying the existing dataset-path guard.
+   Both %61pi.census.gov/data/2023/cbp and api.census.gov./data/2023/cbp reject
+   with ValueError before HTTP. Three equivalent-host cases failed because
+   the baseline accepted them. Proxy paths and all accepted root shapes stay
+   accepted, including for the equivalent Census host spellings.
+4. DuckDB's tokenizer skips comments before an EXECUTE name; name extraction
+   now stops at either trailing SQL comment opener. Quoted comment markers
+   remain identifier text. Four trailing-line-comment cases failed with
+   Unknown WKB type 0 on the baseline; EXECUTE p--comment now decodes POINT
+   (1 1) and mutates once. Block/nested comments, escaped quoted identifiers,
+   parameters, whitespace, and missing-prepared-name errors are also checked.
+
+Writing claims / SU review
+SU-1: no synthetic success/empty result replaces a failure. PREPARE's empty
+Success frame comes from DuckDB itself. A missing prepared statement raises
+BinderException, and invalid Census dataset bases raise ValueError before HTTP.
+SU-2: notebook and docstrings scope eager DataFrames to query row/status
+results, explicitly including PREPARE. Other public helpers may return other
+types (for example distance returns a Series); no engine-wide DataFrame claim
+is made. WKB conversion is scoped to columns typed exactly GEOMETRY in query
+results and typed relations materialized by to_pandas. Nested GEOMETRY[] and
+POINT_2D are verified unchanged. Existing DataFrames pass through to_pandas.
+SU-4b: no broad exception handler was added. Missing-name and spatial-load
+failures propagate; later ordinary SQL after a denied spatial load still works.
+writing-claims:1: all stated outcomes are measured below and in the linked-by-
+path evidence files. Previously green controls are not claimed as new regressions.
+
+Red-on-revert
+An isolated git archive of 715f623f1e2377ec37aee867fdbb09bd136ecb70 received
+only the final new test and verification script. Both implementation files
+were byte-compared with git show 715f623f and hashed. Final copied test/script
+hashes were checked again after validation. No pre-existing test was changed.
+Baseline: 15 failed, 0 passed, 0 skipped (1.08s).
+Fix: all 15 exact pytest case identities pass in the combined suite.
+The complete new verification script also fails on baseline at PREPARE status.
+Commands, source/test hashes and failures: docs/testing/round8-red-on-revert.txt.
+Case-identity comparison: docs/testing/round8-static-checks.txt.
+
+Validation
+Combined suite: 472 passed, 2 skipped, 36 warnings in 4.46s.
+  tests/test_final_hardening_consensus.py: 34 passed
+  tests/test_round5_class_hardening.py: 16 passed
+  tests/test_round6_class_hardening.py: 21 passed
+  tests/test_round7_class_hardening.py: 18 passed
+  tests/test_round8_class_hardening.py: 15 passed
+  Touched-area suite: 368 passed, 2 skipped
+Full command and output: docs/testing/round8-pytest.txt.
+Skips: missing-pyspark import test (pyspark is installed); credentialed live
+Snowflake smoke test. Snowflake SQL quoting is exercised with mocks.
+Warnings are pytest configuration, requests dependencies, geographic-CRS
+operations, and SciPy notices; no failing test is omitted from the count.
+
+The complete self-gate exits 0 and ends:
+  SELF-REGRESSION GATE: PASS
+  ROUND-7 SELF-REGRESSION GATE: PASS
+  ROUND-8 FULL SELF-REGRESSION GATE: PASS
+Full command, stdout and stderr: docs/testing/round8-self-gate.txt.
+This includes all four findings plus duplicate scalar/geometry columns;
+conditional spatial loading; stored/function/CTE/subquery/arbitrary-position,
+multiple/null/zero-row geometry; VARCHAR-hex preservation; 100000 rows;
+exactly-once direct/prepared/batch DML, CTE and MERGE RETURNING; Count;
+ordinary/RETURNING geometry conversion; index_points; engine lifetime and
+snapshot; every listed query-frame consumer; read_spatial collisions; Census
+canonical and equivalent host rejection, proxy acceptance and root forms;
+zero-overlap crosswalk=0.1; intensive 0.50/0.82 real-tobler parity; align
+NaN=0.2; per-target NaN in tobler/DuckDB/Shapely; empty-target ValueError;
+Snowflake USE quoting; Spark assign-not-reproject; from_geodataframe round-trip.
+Spark uses the authorized session-boundary stub; no real JVM execution is
+claimed. DuckDB 1.4.4 cannot PREPARE a MERGE, so MERGE is exercised directly;
+prepared INSERT/UPDATE/DELETE and CTE INSERT are exercised separately.
+
+All four added/changed Python files parse. Notebook JSON and Python code cells
+parse. Interpreter: /Users/dheerajchand/.pyenv/versions/default_31111/bin/python.
+Runs use cwd=/tmp and PYTHONPATH pointing to the checkout under test.
+Versions: DuckDB 1.4.4, tobler 0.13.0, Shapely 2.1.2.
+Static evidence: docs/testing/round8-static-checks.txt.
+
+Follow-up ticket topics (out of scope; no fixes or remote tickets created)
+1. to_geodataframe interprets VARCHAR WKB-hex strings as WKT.
+2. from_geodataframe interpolates raw identifiers.
+3. Extensive-variable NaN handling differs across interpolation backends.
+4. A clean fully-disjoint target produces 0.0.
+5. Yearless /data/timeseries Census endpoint is accepted as an API root.
+
+Commit status
+Both git add (all ten changed/new files) and the requested git commit were
+attempted separately. Both exited 128 with:
+  fatal: Unable to create '/Users/dheerajchand/git/siege-analytics/siege_utilities/.git/worktrees/siege_utilities-hardening/index.lock': Operation not permitted
+Git metadata is outside this session's writable roots. No commit or push
+occurred. All changes remain uncommitted on fix/1369-final-hardening at
+715f623f1e2377ec37aee867fdbb09bd136ecb70 for the coordinator to commit.
+Attempted command (no attribution):
+  git -c user.name="Dheeraj Chand" -c user.email="dheeraj@siegeanalytics.com" commit -m "fix: harden DuckDB prepared results and Census host validation"
+Final git diff --check: PASS. No pre-existing staged changes were present.

@@ -75,9 +75,11 @@ class CensusCatalogPopulator:
                 double the path. Other hosts accept arbitrary proxy prefixes,
                 including ``/data/2023/gw`` and dataset-shaped paths.
         """
-        from urllib.parse import urlsplit, urlunsplit
+        from urllib.parse import unquote, urlsplit, urlunsplit
 
         parts = urlsplit(base_url)
+        # Apply the host guard to equivalent spellings before HTTP normalization.
+        hostname = unquote(parts.hostname or "").removesuffix(".").lower()
         segments = [s for s in parts.path.split("/") if s]
 
         # Only the Census API host defines data/year as a dataset endpoint.
@@ -87,7 +89,7 @@ class CensusCatalogPopulator:
 
         for i, seg in enumerate(segments):
             if (
-                parts.hostname == "api.census.gov"
+                hostname == "api.census.gov"
                 and seg == "data"
                 and i + 1 < len(segments)
                 and _is_year(segments[i + 1])

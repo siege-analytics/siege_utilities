@@ -943,14 +943,17 @@ class DuckDBEngine(DataFrameEngine):
         If a ``table`` keyword is supplied together with a pandas DataFrame
         value, that DataFrame is first registered as a virtual table so it
         can be referenced in *sql*.
-        Returns an eagerly materialized pandas DataFrame, independent of the
-        connection lifetime and subsequent source mutations. Every GEOMETRY
-        output (including DML RETURNING) is converted to standard WKB by column
-        position before fetching; duplicate names retain their distinct values
+        Row and status results are eagerly materialized pandas DataFrames,
+        independent of the connection lifetime and subsequent source mutations.
+        Output columns whose DuckDB type is GEOMETRY (including DML RETURNING)
+        are converted to standard WKB by column position before fetching;
+        nested geometry values and other spatial types are not converted.
+        Duplicate names retain their distinct values
         and receive DuckDB's usual suffixes. :meth:`to_pandas` returns this
         frame unchanged; :meth:`to_geodataframe` decodes its WKB geometry.
-        DML without RETURNING retains its affected-row Count. Spatial is loaded
-        only for geometry conversion or SQL that explicitly requires it.
+        DML without RETURNING retains its affected-row Count; PREPARE returns
+        its empty Success status without executing the prepared statement.
+        Spatial is loaded only for geometry conversion or SQL requiring it.
         """
         table = kwargs.pop("table", None)
         df = kwargs.pop("df", None)
@@ -986,21 +989,37 @@ class DuckDBEngine(DataFrameEngine):
             import re
 
             position = duckdb.tokenize(statement.query)[1][0]
+            # The tokenizer skips leading comments. Stop an unquoted name at
+            # either trailing comment opener; quoted comment markers are data.
             identifier = re.match(
-                r'"(?:[^"]|"")*"|[^\s(;/]+',
+                r'"(?:[^"]|"")*"|[^\s();/\-]+',
                 statement.query.encode("utf-8")[position:].decode("utf-8"),
             ).group()
             name = identifier[1:-1].replace('""', '"') if identifier.startswith('"') else identifier
+            lookup = "SELECT statement FROM duckdb_prepared_statements() WHERE name = ?"
             prepared = self._connection.execute(
-                "SELECT statement FROM duckdb_prepared_statements() WHERE lower(name) = lower(?)",
-                [name],
+                lookup, [name],
             ).fetchone()
+            if prepared is None:
+                # DuckDB identifiers ignore ASCII case only. Resolve an ASCII
+                # alias to the stored spelling, then bind that exact name.
+                # Unicode lower() would conflate distinct names such as é/É.
+                ascii_fold = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
+                names = self._connection.execute("SELECT name FROM duckdb_prepared_statements()").fetchall()
+                for (stored_name,) in names:
+                    if stored_name.translate(ascii_fold) == name.translate(ascii_fold):
+                        prepared = self._connection.execute(lookup, [stored_name]).fetchone()
+                        break
             if prepared is None:
                 # Let execute() raise the normal missing-prepared-statement error.
                 return False
             return self._statement_returns_rows(self._connection.extract_statements(prepared[0])[0])
         if statement.expected_result_type == [duckdb.ExpectedResultType.QUERY_RESULT]:
             return True
+        if duckdb.ExpectedResultType.QUERY_RESULT not in statement.expected_result_type:
+            # Only inspect RETURNING when the outer statement can return rows.
+            # PREPARE has a status result even when its definition has RETURNING.
+            return False
         sql = statement.query.encode("utf-8")  # Token positions are byte offsets.
         depth = 0
         for position, kind in duckdb.tokenize(statement.query):
@@ -1029,10 +1048,12 @@ class DuckDBEngine(DataFrameEngine):
     # -- Transforms ---------------------------------------------------------
 
     def to_pandas(self, df: Any) -> Any:
-        """Return a pandas frame, materializing typed relations with WKB geometry.
+        """Return a pandas frame, converting GEOMETRY columns in typed relations.
 
         Frames returned by :meth:`query` are already materialized and are
-        returned unchanged. Use :meth:`to_geodataframe` to decode the WKB.
+        returned unchanged. Relation columns typed exactly GEOMETRY become WKB;
+        nested geometry values and other spatial types are not converted.
+        Use :meth:`to_geodataframe` to decode the WKB.
         """
         import pandas as pd
         if isinstance(df, pd.DataFrame):
@@ -1113,7 +1134,7 @@ class DuckDBEngine(DataFrameEngine):
         return [i for i, dtype in enumerate(relation.types) if str(dtype).upper() == "GEOMETRY"]
 
     def _materialize_geometry_wkb(self, df: Any) -> Any:
-        """Eagerly fetch a typed result with every GEOMETRY column in WKB.
+        """Eagerly fetch a typed result with columns typed GEOMETRY in WKB.
 
         DuckDB's one-based positional references preserve distinct columns
         even when their aliases coincide. fetchdf then deduplicates the output
