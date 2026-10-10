@@ -682,6 +682,7 @@ class LongitudinalAligner:
         geography: Optional[str] = None,
         state_fips: Optional[str] = None,
         geoid_column: str = "GEOID",
+        intensive_columns: Optional[List[str]] = None,
     ) -> AlignmentResult:
         """Align *df* from *source_vintage* boundaries to :attr:`target_vintage`.
 
@@ -727,10 +728,26 @@ class LongitudinalAligner:
         current_df = df.copy()
         method = "crosswalk"
 
+        if intensive_columns is None:
+            numeric = [
+                c for c in df.columns
+                if c != geoid_column and df[c].dtype.kind in ("i", "f")
+            ]
+            if numeric:
+                log.warning(
+                    "Aligning without intensive_columns: all numeric columns "
+                    "(%s) are treated as EXTENSIVE and disaggregated by weight. "
+                    "Rates/ratios/medians/densities will be mis-scaled when a "
+                    "boundary splits; pass intensive_columns=[...] to "
+                    "area-weight them.",
+                    numeric,
+                )
+
         for src, tgt in chain:
             try:
                 current_df = self._apply_crosswalk_step(
                     current_df, src, tgt, geo, sfips, geoid_column,
+                    intensive_columns=intensive_columns,
                 )
             except Exception as exc:
                 # Any crosswalk-step failure falls back to areal interpolation.
@@ -741,6 +758,7 @@ class LongitudinalAligner:
                 try:
                     current_df = self._apply_areal_interpolation(
                         current_df, src, tgt, geo, sfips, geoid_column,
+                        intensive_columns=intensive_columns,
                     )
                     method = "areal"
                     warnings.append(
@@ -840,8 +858,15 @@ class LongitudinalAligner:
         geography_level: str,
         state_fips: Optional[str],
         geoid_column: str,
+        intensive_columns: Optional[List[str]] = None,
     ) -> pd.DataFrame:
-        """Apply a single crosswalk step using CrosswalkProcessor."""
+        """Apply a single crosswalk step using CrosswalkProcessor.
+
+        Intensive columns (rates, ratios, medians, densities) are area-weighted
+        averaged rather than disaggregated by weight; any numeric column not
+        listed is treated as extensive. Without this, a crosswalk split halves
+        a rate the same way the areal fallback did.
+        """
         from ..crosswalk.crosswalk_processor import apply_crosswalk
 
         return apply_crosswalk(
@@ -851,6 +876,7 @@ class LongitudinalAligner:
             geography_level=geography_level,
             state_fips=state_fips,
             geoid_column=geoid_column,
+            intensive_variables=list(intensive_columns) if intensive_columns else None,
         )
 
     @staticmethod
@@ -861,8 +887,19 @@ class LongitudinalAligner:
         geography_level: str,
         state_fips: Optional[str],
         geoid_column: str,
+        intensive_columns: Optional[List[str]] = None,
     ) -> pd.DataFrame:
-        """Fall back to areal interpolation when crosswalk is unavailable."""
+        """Fall back to areal interpolation when crosswalk is unavailable.
+
+        Areal interpolation redistributes values by area of intersection.
+        Extensive quantities (counts, totals, population, dollars) are split
+        across target polygons; intensive quantities (rates, ratios, medians,
+        densities, per-capita values) must NOT be split — they are area-weighted
+        averaged. Pass the intensive column names in ``intensive_columns`` so
+        they are routed correctly; any numeric column not listed is treated as
+        extensive. When ``intensive_columns`` is None the method warns, because
+        treating a rate as extensive halves it when a polygon splits.
+        """
         try:
             from ..interpolation.areal import interpolate_areal
             from ..spatial_data import get_census_boundaries
@@ -889,17 +926,39 @@ class LongitudinalAligner:
                 f"({source_year}/{target_year} {geography_level})"
             )
 
-        # Merge data onto source boundaries
+        # Merge data onto source boundaries. Inner join drops df rows whose
+        # GEOID is absent from the source boundaries; log the loss rather than
+        # letting rows vanish silently (data-trust: log loss after every join).
         source_gdf = source_boundaries.merge(df, left_on="GEOID", right_on=geoid_column)
+        dropped = len(df) - len(source_gdf)
+        if dropped > 0:
+            log.warning(
+                "Areal interpolation dropped %d/%d rows whose %s had no match "
+                "in %d source boundaries",
+                dropped, len(df), geoid_column, source_year,
+            )
+
         numeric_cols = [
             c for c in df.columns
             if c != geoid_column and df[c].dtype.kind in ("i", "f")
         ]
+        intensive_set = set(intensive_columns or ())
+        extensive_vars = [c for c in numeric_cols if c not in intensive_set]
+        intensive_vars = [c for c in numeric_cols if c in intensive_set]
+        if intensive_columns is None and numeric_cols:
+            log.warning(
+                "Areal interpolation is treating all numeric columns as "
+                "EXTENSIVE (%s); rate/ratio/median/density columns will be "
+                "mis-scaled when a polygon splits. Pass intensive_columns=[...] "
+                "to area-weight them correctly.",
+                numeric_cols,
+            )
 
         result = interpolate_areal(
             source_gdf=source_gdf,
             target_gdf=target_boundaries,
-            extensive_variables=numeric_cols,
+            extensive_variables=extensive_vars or None,
+            intensive_variables=intensive_vars or None,
         )
 
         out = result.data.drop(columns="geometry")

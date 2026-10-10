@@ -279,6 +279,57 @@ def _interpolate_shapely(
 
 
 # ---------------------------------------------------------------------------
+# Per-target overlap support
+# ---------------------------------------------------------------------------
+
+def _targets_with_valid_overlap(
+    sources: gpd.GeoDataFrame,
+    target: gpd.GeoDataFrame,
+) -> np.ndarray:
+    """Boolean array, one entry per target row, True where the target shares a
+    positive-area intersection with at least one of *sources*.
+
+    Used to distinguish "a valid source actually contributes to this target"
+    (keep the interpolated value) from "no valid source overlaps this target"
+    (the value is undefined -> NaN, not the backend's fabricated 0.0). Boundary
+    touches (zero-area intersection) do not count as a contribution.
+    """
+    n_tgt = len(target)
+    mask = np.zeros(n_tgt, dtype=bool)
+    if len(sources) == 0 or n_tgt == 0:
+        return mask
+    src_geoms = sources.geometry.to_numpy()
+    tgt_geoms = target.geometry.to_numpy()
+
+    if _SHAPELY_AVAILABLE:
+        tree = STRtree(src_geoms)
+        for ti, tgeom in enumerate(tgt_geoms):
+            if tgeom is None or tgeom.is_empty:
+                continue
+            for si in tree.query(tgeom):
+                sgeom = src_geoms[si]
+                if sgeom is None or sgeom.is_empty:
+                    continue
+                if tgeom.intersects(sgeom) and tgeom.intersection(sgeom).area > 0:
+                    mask[ti] = True
+                    break
+        return mask
+
+    # Fallback without an STRtree: direct pairwise test (geopandas guarantees
+    # shapely, so this is defensive rather than expected).
+    for ti, tgeom in enumerate(tgt_geoms):
+        if tgeom is None or tgeom.is_empty:
+            continue
+        for sgeom in src_geoms:
+            if sgeom is None or sgeom.is_empty:
+                continue
+            if tgeom.intersects(sgeom) and tgeom.intersection(sgeom).area > 0:
+                mask[ti] = True
+                break
+    return mask
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -336,7 +387,8 @@ def interpolate_areal(
 
     Raises:
         ImportError: If no suitable backend is available.
-        ValueError: If no variables are specified or columns missing.
+        ValueError: If no variables are specified, columns are missing, or
+            the target GeoDataFrame is empty.
     """
     extensive_variables = extensive_variables or []
     intensive_variables = intensive_variables or []
@@ -353,6 +405,9 @@ def interpolate_areal(
     if missing:
         raise ValueError(f"Variables not found in source: {missing}")
 
+    if target_gdf.empty:
+        raise ValueError("target GeoDataFrame is empty; provide at least one target polygon")
+
     source, target, warnings = _ensure_common_crs(source_gdf, target_gdf)
 
     backend = _select_backend(extensive_variables, intensive_variables)
@@ -363,19 +418,53 @@ def interpolate_areal(
         len(source), len(target), backend,
     )
 
-    if backend == "tobler":
-        result_gdf = _interpolate_tobler(
-            source, target, extensive_variables, intensive_variables,
-            allocate_total, n_jobs,
-        )
-    elif backend == "duckdb":
-        result_gdf = _interpolate_duckdb(
-            source, target, extensive_variables, intensive_variables,
+    def _run_backend(src, tgt, ext_vars, int_vars):
+        if backend == "tobler":
+            return _interpolate_tobler(
+                src, tgt, ext_vars, int_vars, allocate_total, n_jobs,
+            )
+        if backend == "duckdb":
+            return _interpolate_duckdb(src, tgt, ext_vars, int_vars)
+        return _interpolate_shapely(src, tgt, ext_vars, int_vars)
+
+    # An intensive variable whose source values contain NaN must be computed on
+    # the valid-source subset so the NaN source's area is excluded from BOTH
+    # numerator and denominator. Otherwise the backend (tobler 0.13 in
+    # particular) substitutes 0 for the missing value while KEEPING its area in
+    # the denominator, diluting the rate ([0.2, NaN] -> 0.1 instead of 0.2).
+    # This mirrors the crosswalk path's per-variable valid-area denominator so
+    # align() yields 0.2 for [0.2, NaN] through either path.
+    nan_intensive = [v for v in intensive_variables if source[v].isna().any()]
+    clean_intensive = [v for v in intensive_variables if v not in nan_intensive]
+
+    if extensive_variables or clean_intensive:
+        result_gdf = _run_backend(
+            source, target, extensive_variables, clean_intensive,
         )
     else:
-        result_gdf = _interpolate_shapely(
-            source, target, extensive_variables, intensive_variables,
+        # Only NaN-bearing intensive variables requested; seed from the target
+        # geometries and fill each variable from its valid-source subset below.
+        result_gdf = target.copy()
+
+    for v in nan_intensive:
+        valid = source[source[v].notna()]
+        if valid.empty:
+            # No source carries a value for this variable -> undefined rate.
+            result_gdf[v] = np.nan
+            continue
+        sub = _run_backend(
+            valid.reset_index(drop=True), target, [], [v],
         )
+        # Both frames are one row per target in target order; assign by position.
+        vals = sub[v].to_numpy(dtype=float, copy=True)
+        # A target whose only overlapping source has a NaN value for this
+        # variable has ZERO valid contributors -- the backend fabricates 0.0
+        # for it (tobler fills, duckdb/shapely default to 0). That 0 is wrong:
+        # the rate is UNDEFINED, not zero. Mask per target so a disjoint source
+        # carrying a real value cannot leak a 0 into an unrelated target.
+        has_valid = _targets_with_valid_overlap(valid, target)
+        vals[~has_valid] = np.nan
+        result_gdf[v] = vals
 
     result_gdf = reproject_if_needed(result_gdf, crs)
 

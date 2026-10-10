@@ -242,20 +242,25 @@ class SnowflakeConnector:
         try:
             if database:
                 validate_identifier(database, label="database name")
-                self.cursor.execute(f"USE DATABASE {database}")
+                self.cursor.execute(f'USE DATABASE "{database}"')
             if schema:
                 validate_identifier(schema, label="schema name")
-                self.cursor.execute(f"USE SCHEMA {schema}")
+                self.cursor.execute(f'USE SCHEMA "{schema}"')
 
             if auto_create_table:
                 self._create_table_from_dataframe(df, table_name, overwrite)
 
+            # write_pandas quotes identifiers by default (case-sensitive, exact
+            # DataFrame column case). _create_table_from_dataframe quotes to
+            # match, so the created columns line up with what write_pandas
+            # targets -- and an existing case-sensitive table (auto_create off)
+            # is still addressed correctly.
             success, nchunks, nrows, _ = write_pandas(
                 self.connection,
                 df,
                 table_name,
                 auto_create_table=False,
-                overwrite=overwrite
+                overwrite=overwrite,
             )
 
             if not success:
@@ -310,16 +315,20 @@ class SnowflakeConnector:
         """Create Snowflake table based on DataFrame structure."""
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
         validate_identifier(table_name, label="table name")
+        # Quote identifiers so CREATE matches write_pandas (which quotes by
+        # default, preserving the DataFrame's exact column case). Unquoted
+        # identifiers are uppercased by Snowflake and would not match the
+        # quoted columns write_pandas writes, breaking read-back.
         if overwrite:
-            self.cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+            self.cursor.execute(f'DROP TABLE IF EXISTS "{table_name}"')
 
         columns = []
         for col_name, dtype in df.dtypes.items():
             validate_identifier(str(col_name), label="column name", allow_dotted=False)
             snowflake_type = self._map_pandas_to_snowflake_type(dtype)
-            columns.append(f"{col_name} {snowflake_type}")
+            columns.append(f'"{col_name}" {snowflake_type}')
 
-        create_statement = f"CREATE TABLE IF NOT EXISTS {table_name} ({', '.join(columns)})"
+        create_statement = f'CREATE TABLE IF NOT EXISTS "{table_name}" ({", ".join(columns)})'
         self.cursor.execute(create_statement)
         log.info(f"Created table {table_name} with {len(columns)} columns")
 
@@ -364,15 +373,19 @@ class SnowflakeConnector:
         try:
             if database:
                 validate_identifier(database, label="database name")
-                self.cursor.execute(f"USE DATABASE {database}")
+                self.cursor.execute(f'USE DATABASE "{database}"')
             if schema:
                 validate_identifier(schema, label="schema name")
-                self.cursor.execute(f"USE SCHEMA {schema}")
+                self.cursor.execute(f'USE SCHEMA "{schema}"')
 
-            self.cursor.execute(f"DESCRIBE TABLE {table_name}")
+            # Quote the identifier so a table CREATEd with quotes (case-sensitive,
+            # the write_pandas / _create_table_from_dataframe convention) is
+            # addressable here. Unquoted DESCRIBE/SELECT would uppercase the name
+            # and miss a mixed-case table.
+            self.cursor.execute(f'DESCRIBE TABLE "{table_name}"')
             columns = self.cursor.fetchall()
 
-            self.cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+            self.cursor.execute(f'SELECT COUNT(*) FROM "{table_name}"')
             row_count = self.cursor.fetchone()[0]
 
             self.cursor.execute(
@@ -422,10 +435,10 @@ class SnowflakeConnector:
         try:
             if database:
                 validate_identifier(database, label="database name")
-                self.cursor.execute(f"USE DATABASE {database}")
+                self.cursor.execute(f'USE DATABASE "{database}"')
             if schema:
                 validate_identifier(schema, label="schema name")
-                self.cursor.execute(f"USE SCHEMA {schema}")
+                self.cursor.execute(f'USE SCHEMA "{schema}"')
 
             self.cursor.execute("SHOW TABLES")
             tables = [row[1] for row in self.cursor.fetchall()]

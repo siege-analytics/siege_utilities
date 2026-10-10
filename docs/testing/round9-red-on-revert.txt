@@ -1,0 +1,436 @@
+Baseline: a29d819898cc36b71fcfdf91fb3c82f96882455a
+Isolated archive: /tmp/round9-baseline-1vhw0hie
+Cwd: /tmp
+Interpreter: /Users/dheerajchand/.pyenv/versions/default_31111/bin/python
+Baseline implementation byte-match: siege_utilities/engines/dataframe_engine.py; SHA256=42a1e24a80084a30b117f41aefbad409a9154972309d4bf9be0993fee753792d
+Baseline implementation byte-match: siege_utilities/geo/census/catalog_populator.py; SHA256=690f817a6e504c3597da3ea2ac7e709548a8660aaf82594171fecda487a2a972
+Copied final tests/test_round9_class_hardening.py; SHA256=5d9e1596cdc33b207168bb9ce164ca523180731775ba4ca6a7ab3b6c12e4882c
+Copied final scripts/verify_round9_hardening.py; SHA256=eeda3cd2837b081afc6aba8c05a5aa350d94d034d7f9105d0433e0fcdaea25f5
+Command: ['/Users/dheerajchand/.pyenv/versions/default_31111/bin/python', '-m', 'pytest', '-o', 'addopts=', '--tb=short', '-q', '-rs', '--junitxml=/tmp/round9-baseline.xml', '/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py']
+PYTHONPATH=/tmp/round9-baseline-1vhw0hie
+Exit: 1
+FFFFFFFFFFFFFFFFFFFFFFFFF                                                [100%]
+=================================== FAILURES ===================================
+_______ test_prepared_lookup_is_independent_of_session_collation[nocase] _______
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:27: in test_prepared_lookup_is_independent_of_session_collation
+    assert eng.query(f'EXECUTE "{count_name}"').to_dict("list") == {"Count": [1]}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'NoneType' object has no attribute 'to_dict'
+______ test_prepared_lookup_is_independent_of_session_collation[noaccent] ______
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:29: in test_prepared_lookup_is_independent_of_session_collation
+    assert eng.to_geodataframe(result).geometry.iloc[0].wkt == "POINT (1 2)"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1251: in to_geodataframe
+    geoms = df[geometry_col].apply(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/series.py:4943: in apply
+    ).apply()
+      ^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1422: in apply
+    return self.apply_standard()
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1502: in apply_standard
+    mapped = obj._map_values(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/base.py:925: in _map_values
+    return algorithms.map_array(arr, mapper, na_action=na_action, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/algorithms.py:1743: in map_array
+    return lib.map_infer(values, mapper, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pandas/_libs/lib.pyx:2999: in pandas._libs.lib.map_infer
+    ???
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1252: in <lambda>
+    lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/wkb.py:20: in loads
+    return shapely.from_wkb(data)
+           ^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/io.py:353: in from_wkb
+    return lib.from_wkb(geometry, invalid_handler, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   shapely.errors.GEOSException: ParseException: Unknown WKB type 0
+__ test_prepared_lookup_is_independent_of_session_collation[noaccent.nocase] ___
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:27: in test_prepared_lookup_is_independent_of_session_collation
+    assert eng.query(f'EXECUTE "{count_name}"').to_dict("list") == {"Count": [1]}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'NoneType' object has no attribute 'to_dict'
+_____ test_unicode_identifier_characters_are_not_whitespace[leading-U0085] _____
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:47: in test_unicode_identifier_characters_are_not_whitespace
+    result = eng.query(f"eXeCuTe /* before */ {spelling}--after\n;")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:971: in query
+    if self._statement_returns_rows(statement):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:997: in _statement_returns_rows
+    ).group()
+      ^^^^^
+E   AttributeError: 'NoneType' object has no attribute 'group'
+_____ test_unicode_identifier_characters_are_not_whitespace[leading-U1680] _____
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:47: in test_unicode_identifier_characters_are_not_whitespace
+    result = eng.query(f"eXeCuTe /* before */ {spelling}--after\n;")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:971: in query
+    if self._statement_returns_rows(statement):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:997: in _statement_returns_rows
+    ).group()
+      ^^^^^
+E   AttributeError: 'NoneType' object has no attribute 'group'
+_____ test_unicode_identifier_characters_are_not_whitespace[leading-U2028] _____
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:47: in test_unicode_identifier_characters_are_not_whitespace
+    result = eng.query(f"eXeCuTe /* before */ {spelling}--after\n;")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:971: in query
+    if self._statement_returns_rows(statement):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:997: in _statement_returns_rows
+    ).group()
+      ^^^^^
+E   AttributeError: 'NoneType' object has no attribute 'group'
+_____ test_unicode_identifier_characters_are_not_whitespace[leading-U2029] _____
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:47: in test_unicode_identifier_characters_are_not_whitespace
+    result = eng.query(f"eXeCuTe /* before */ {spelling}--after\n;")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:971: in query
+    if self._statement_returns_rows(statement):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:997: in _statement_returns_rows
+    ).group()
+      ^^^^^
+E   AttributeError: 'NoneType' object has no attribute 'group'
+_____ test_unicode_identifier_characters_are_not_whitespace[middle-U0085] ______
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:48: in test_unicode_identifier_characters_are_not_whitespace
+    assert eng.to_geodataframe(result).geometry.iloc[0].wkt == "POINT (1 1)"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1251: in to_geodataframe
+    geoms = df[geometry_col].apply(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/series.py:4943: in apply
+    ).apply()
+      ^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1422: in apply
+    return self.apply_standard()
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1502: in apply_standard
+    mapped = obj._map_values(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/base.py:925: in _map_values
+    return algorithms.map_array(arr, mapper, na_action=na_action, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/algorithms.py:1743: in map_array
+    return lib.map_infer(values, mapper, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pandas/_libs/lib.pyx:2999: in pandas._libs.lib.map_infer
+    ???
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1252: in <lambda>
+    lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/wkb.py:20: in loads
+    return shapely.from_wkb(data)
+           ^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/io.py:353: in from_wkb
+    return lib.from_wkb(geometry, invalid_handler, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   shapely.errors.GEOSException: ParseException: Unknown WKB type 0
+_____ test_unicode_identifier_characters_are_not_whitespace[middle-U1680] ______
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:48: in test_unicode_identifier_characters_are_not_whitespace
+    assert eng.to_geodataframe(result).geometry.iloc[0].wkt == "POINT (1 1)"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1251: in to_geodataframe
+    geoms = df[geometry_col].apply(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/series.py:4943: in apply
+    ).apply()
+      ^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1422: in apply
+    return self.apply_standard()
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1502: in apply_standard
+    mapped = obj._map_values(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/base.py:925: in _map_values
+    return algorithms.map_array(arr, mapper, na_action=na_action, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/algorithms.py:1743: in map_array
+    return lib.map_infer(values, mapper, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pandas/_libs/lib.pyx:2999: in pandas._libs.lib.map_infer
+    ???
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1252: in <lambda>
+    lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/wkb.py:20: in loads
+    return shapely.from_wkb(data)
+           ^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/io.py:353: in from_wkb
+    return lib.from_wkb(geometry, invalid_handler, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   shapely.errors.GEOSException: ParseException: Unknown WKB type 0
+_____ test_unicode_identifier_characters_are_not_whitespace[middle-U2028] ______
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:48: in test_unicode_identifier_characters_are_not_whitespace
+    assert eng.to_geodataframe(result).geometry.iloc[0].wkt == "POINT (1 1)"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1251: in to_geodataframe
+    geoms = df[geometry_col].apply(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/series.py:4943: in apply
+    ).apply()
+      ^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1422: in apply
+    return self.apply_standard()
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1502: in apply_standard
+    mapped = obj._map_values(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/base.py:925: in _map_values
+    return algorithms.map_array(arr, mapper, na_action=na_action, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/algorithms.py:1743: in map_array
+    return lib.map_infer(values, mapper, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pandas/_libs/lib.pyx:2999: in pandas._libs.lib.map_infer
+    ???
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1252: in <lambda>
+    lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/wkb.py:20: in loads
+    return shapely.from_wkb(data)
+           ^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/io.py:353: in from_wkb
+    return lib.from_wkb(geometry, invalid_handler, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   shapely.errors.GEOSException: ParseException: Unknown WKB type 0
+_____ test_unicode_identifier_characters_are_not_whitespace[middle-U2029] ______
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:48: in test_unicode_identifier_characters_are_not_whitespace
+    assert eng.to_geodataframe(result).geometry.iloc[0].wkt == "POINT (1 1)"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1251: in to_geodataframe
+    geoms = df[geometry_col].apply(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/series.py:4943: in apply
+    ).apply()
+      ^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1422: in apply
+    return self.apply_standard()
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1502: in apply_standard
+    mapped = obj._map_values(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/base.py:925: in _map_values
+    return algorithms.map_array(arr, mapper, na_action=na_action, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/algorithms.py:1743: in map_array
+    return lib.map_infer(values, mapper, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pandas/_libs/lib.pyx:2999: in pandas._libs.lib.map_infer
+    ???
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1252: in <lambda>
+    lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/wkb.py:20: in loads
+    return shapely.from_wkb(data)
+           ^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/io.py:353: in from_wkb
+    return lib.from_wkb(geometry, invalid_handler, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   shapely.errors.GEOSException: ParseException: Unknown WKB type 0
+____ test_unicode_identifier_characters_are_not_whitespace[trailing-U0085] _____
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:48: in test_unicode_identifier_characters_are_not_whitespace
+    assert eng.to_geodataframe(result).geometry.iloc[0].wkt == "POINT (1 1)"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1251: in to_geodataframe
+    geoms = df[geometry_col].apply(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/series.py:4943: in apply
+    ).apply()
+      ^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1422: in apply
+    return self.apply_standard()
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1502: in apply_standard
+    mapped = obj._map_values(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/base.py:925: in _map_values
+    return algorithms.map_array(arr, mapper, na_action=na_action, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/algorithms.py:1743: in map_array
+    return lib.map_infer(values, mapper, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pandas/_libs/lib.pyx:2999: in pandas._libs.lib.map_infer
+    ???
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1252: in <lambda>
+    lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/wkb.py:20: in loads
+    return shapely.from_wkb(data)
+           ^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/io.py:353: in from_wkb
+    return lib.from_wkb(geometry, invalid_handler, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   shapely.errors.GEOSException: ParseException: Unknown WKB type 0
+____ test_unicode_identifier_characters_are_not_whitespace[trailing-U1680] _____
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:48: in test_unicode_identifier_characters_are_not_whitespace
+    assert eng.to_geodataframe(result).geometry.iloc[0].wkt == "POINT (1 1)"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1251: in to_geodataframe
+    geoms = df[geometry_col].apply(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/series.py:4943: in apply
+    ).apply()
+      ^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1422: in apply
+    return self.apply_standard()
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1502: in apply_standard
+    mapped = obj._map_values(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/base.py:925: in _map_values
+    return algorithms.map_array(arr, mapper, na_action=na_action, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/algorithms.py:1743: in map_array
+    return lib.map_infer(values, mapper, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pandas/_libs/lib.pyx:2999: in pandas._libs.lib.map_infer
+    ???
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1252: in <lambda>
+    lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/wkb.py:20: in loads
+    return shapely.from_wkb(data)
+           ^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/io.py:353: in from_wkb
+    return lib.from_wkb(geometry, invalid_handler, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   shapely.errors.GEOSException: ParseException: Unknown WKB type 0
+____ test_unicode_identifier_characters_are_not_whitespace[trailing-U2028] _____
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:48: in test_unicode_identifier_characters_are_not_whitespace
+    assert eng.to_geodataframe(result).geometry.iloc[0].wkt == "POINT (1 1)"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1251: in to_geodataframe
+    geoms = df[geometry_col].apply(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/series.py:4943: in apply
+    ).apply()
+      ^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1422: in apply
+    return self.apply_standard()
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1502: in apply_standard
+    mapped = obj._map_values(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/base.py:925: in _map_values
+    return algorithms.map_array(arr, mapper, na_action=na_action, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/algorithms.py:1743: in map_array
+    return lib.map_infer(values, mapper, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pandas/_libs/lib.pyx:2999: in pandas._libs.lib.map_infer
+    ???
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1252: in <lambda>
+    lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/wkb.py:20: in loads
+    return shapely.from_wkb(data)
+           ^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/io.py:353: in from_wkb
+    return lib.from_wkb(geometry, invalid_handler, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   shapely.errors.GEOSException: ParseException: Unknown WKB type 0
+____ test_unicode_identifier_characters_are_not_whitespace[trailing-U2029] _____
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:48: in test_unicode_identifier_characters_are_not_whitespace
+    assert eng.to_geodataframe(result).geometry.iloc[0].wkt == "POINT (1 1)"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1251: in to_geodataframe
+    geoms = df[geometry_col].apply(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/series.py:4943: in apply
+    ).apply()
+      ^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1422: in apply
+    return self.apply_standard()
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1502: in apply_standard
+    mapped = obj._map_values(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/base.py:925: in _map_values
+    return algorithms.map_array(arr, mapper, na_action=na_action, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/algorithms.py:1743: in map_array
+    return lib.map_infer(values, mapper, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pandas/_libs/lib.pyx:2999: in pandas._libs.lib.map_infer
+    ???
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:1252: in <lambda>
+    lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/wkb.py:20: in loads
+    return shapely.from_wkb(data)
+           ^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/io.py:353: in from_wkb
+    return lib.from_wkb(geometry, invalid_handler, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   shapely.errors.GEOSException: ParseException: Unknown WKB type 0
+________ test_unextractable_prepared_name_raises_clear_error[EXECUTE /] ________
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:63: in test_unextractable_prepared_name_raises_clear_error
+    eng._statement_returns_rows(statement)
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:997: in _statement_returns_rows
+    ).group()
+      ^^^^^
+E   AttributeError: 'NoneType' object has no attribute 'group'
+_________ test_unextractable_prepared_name_raises_clear_error[EXECUTE] _________
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:63: in test_unextractable_prepared_name_raises_clear_error
+    eng._statement_returns_rows(statement)
+/tmp/round9-baseline-1vhw0hie/siege_utilities/engines/dataframe_engine.py:991: in _statement_returns_rows
+    position = duckdb.tokenize(statement.query)[1][0]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   IndexError: list index out of range
+_ test_encoded_census_dataset_paths_reject_before_http[/%64ata/2023/cbp-api.census.gov] _
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:72: in test_encoded_census_dataset_paths_reject_before_http
+    with pytest.raises(ValueError, match="full dataset path"):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+_ test_encoded_census_dataset_paths_reject_before_http[/%64ata/2023/cbp-%61pi.census.gov] _
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:72: in test_encoded_census_dataset_paths_reject_before_http
+    with pytest.raises(ValueError, match="full dataset path"):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+_ test_encoded_census_dataset_paths_reject_before_http[/%64ata/2023/cbp-api.census.gov.] _
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:72: in test_encoded_census_dataset_paths_reject_before_http
+    with pytest.raises(ValueError, match="full dataset path"):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+_ test_encoded_census_dataset_paths_reject_before_http[/data/%32%30%32%33/cbp-api.census.gov] _
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:72: in test_encoded_census_dataset_paths_reject_before_http
+    with pytest.raises(ValueError, match="full dataset path"):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+_ test_encoded_census_dataset_paths_reject_before_http[/data/%32%30%32%33/cbp-%61pi.census.gov] _
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:72: in test_encoded_census_dataset_paths_reject_before_http
+    with pytest.raises(ValueError, match="full dataset path"):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+_ test_encoded_census_dataset_paths_reject_before_http[/data/%32%30%32%33/cbp-api.census.gov.] _
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:72: in test_encoded_census_dataset_paths_reject_before_http
+    with pytest.raises(ValueError, match="full dataset path"):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+_________ test_encoded_census_roots_deduplicate_before_fetch[/%64ata] __________
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:85: in test_encoded_census_roots_deduplicate_before_fetch
+    assert [call.args[0] for call in request.call_args_list] == [
+E   AssertionError: assert ['https://api.../groups.json'] == ['https://api.../groups.json']
+E
+E     At index 0 diff: 'https://api.census.gov/%64ata/data/2023/acs/acs5/variables.json' != 'https://api.census.gov/data/2023/acs/acs5/variables.json'
+E     Use -v to get more diff
+_____ test_encoded_census_roots_deduplicate_before_fetch[//data//%64ata/] ______
+/tmp/round9-baseline-1vhw0hie/tests/test_round9_class_hardening.py:85: in test_encoded_census_roots_deduplicate_before_fetch
+    assert [call.args[0] for call in request.call_args_list] == [
+E   AssertionError: assert ['https://api.../groups.json'] == ['https://api.../groups.json']
+E
+E     At index 0 diff: 'https://api.census.gov/data/%64ata/data/2023/acs/acs5/variables.json' != 'https://api.census.gov/data/2023/acs/acs5/variables.json'
+E     Use -v to get more diff
+=============================== warnings summary ===============================
+../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: DJANGO_SETTINGS_MODULE
+
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+tests/test_round9_class_hardening.py::test_encoded_census_dataset_paths_reject_before_http[/%64ata/2023/cbp-api.census.gov]
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+----------------- generated xml file: /tmp/round9-baseline.xml -----------------
+25 failed, 2 warnings in 1.67s
+
+
+Command: ['/Users/dheerajchand/.pyenv/versions/default_31111/bin/python', '/tmp/round9-baseline-1vhw0hie/scripts/verify_round9_hardening.py', '--spark-boundary-only']
+Exit: 1
+
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+  warnings.warn(
+Traceback (most recent call last):
+  File "/tmp/round9-baseline-1vhw0hie/scripts/verify_round9_hardening.py", line 123, in <module>
+    main(spark_boundary_only=parser.parse_args().spark_boundary_only)
+  File "/tmp/round9-baseline-1vhw0hie/scripts/verify_round9_hardening.py", line 113, in main
+    round9_findings()
+  File "/tmp/round9-baseline-1vhw0hie/scripts/verify_round9_hardening.py", line 26, in round9_findings
+    count = eng.query(f'EXECUTE "{count_name}"').to_dict("list")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'to_dict'

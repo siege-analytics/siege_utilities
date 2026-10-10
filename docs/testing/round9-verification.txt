@@ -1,0 +1,127 @@
+Round-9 verification — baseline a29d819898cc36b71fcfdf91fb3c82f96882455a
+
+Findings and measured results
+1. Prepared metadata uses name = ? COLLATE "binary" for both exact names
+   and resolved ASCII aliases. nocase, noaccent, and noaccent.nocase each
+   preserve Count=[1], decodable POINT (1 2), and exactly-once mutations in
+   both role permutations. Tests cover é/É and e/é: noaccent alone does not
+   merge é/É, but does merge e/é. Three collation regression cases failed on
+   baseline with missing Count or native geometry escaping as invalid WKB.
+2. Census paths decode only percent-encoded ASCII unreserved characters
+   before dataset-shape validation and terminal /data deduplication. Both
+   /%64ata/2023/cbp and /data/%32%30%32%33/cbp reject before HTTP on canonical,
+   percent-encoded, and single-trailing-dot Census hosts. Six rejection cases
+   and two encoded-root deduplication cases failed on baseline. Canonical
+   dataset rejections, all accepted root shapes, and arbitrary proxy prefixes
+   pass. %2f/%2F stay encoded; they are not structural separators. Other
+   reserved escapes, encoded non-ASCII bytes, invalid escapes, and %252f also
+   remain encoded. This is root/path correctness, not a security boundary.
+3. The prepared-name extractor uses DuckDB's token byte offset and identifier
+   byte classes, preserving non-ASCII name characters rather than treating
+   Python Unicode whitespace as a delimiter. Missing tokens and a regex
+   non-match raise ValueError with an explicit extraction message. Twelve
+   leading/middle/trailing cases for U+0085/U+1680/U+2028/U+2029 and two
+   defensive-error cases failed on baseline. All now pass. Quoted and
+   unquoted names return geometry and Count correctly; missing/invalid public
+   SQL retains DuckDB's BinderException/ParserException.
+
+Identifier normalization reference: DuckDB v1.4.4 normalizes selected Unicode
+space separators before storing statement.query (not the four name characters
+above). The gate checks normalized separators as well as quoted characters:
+https://github.com/duckdb/duckdb/blob/v1.4.4/src/parser/parser.cpp
+
+Red-on-revert evidence
+An isolated git archive of a29d8198 received only the final new test and gate
+script. Both baseline implementation files were byte-compared with git show
+and hashed. The final test/script copies were byte-compared and hashed after
+execution. No pre-existing tests or gates were modified.
+Baseline: 25 failed, 0 passed, 0 skipped (1.67s).
+Fixed: all 25 identical pytest case identities pass in the combined suite.
+The complete new gate script also exits 1 on baseline, at the collation bug.
+New gate preservation controls are not claimed as individually red regressions.
+Commands, hashes, and failures: docs/testing/round9-red-on-revert.txt.
+Exact case-identity check: docs/testing/round9-static-checks.txt.
+
+Validation
+Combined suite: 497 passed, 2 skipped, 36 warnings in 4.81s.
+  tests/test_final_hardening_consensus.py: 34 passed
+  tests/test_round5_class_hardening.py: 16 passed
+  tests/test_round6_class_hardening.py: 21 passed
+  tests/test_round7_class_hardening.py: 18 passed
+  tests/test_round8_class_hardening.py: 15 passed
+  tests/test_round9_class_hardening.py: 25 passed
+  Touched-area suite: 368 passed, 2 skipped
+Full command/output: docs/testing/round9-pytest.txt.
+Skips: the missing-pyspark import path (pyspark is installed), and the live
+Snowflake smoke test (credentials unavailable). SQL quoting runs with mocks.
+Warnings are pytest configuration, requests dependency versions, geographic
+CRS operations, and SciPy notices. No failing cases are omitted.
+
+Full self-gate exits 0 and ends:
+  SELF-REGRESSION GATE: PASS
+  ROUND-7 SELF-REGRESSION GATE: PASS
+  ROUND-8 FULL SELF-REGRESSION GATE: PASS
+  ROUND-9 FULL SELF-REGRESSION GATE: PASS
+Full command/stdout/stderr: docs/testing/round9-self-gate.txt.
+This covers the three new findings, all four round-8 fixes, positional duplicate
+columns, conditional spatial loading, eager materialization, stored/function/
+CTE/subquery/arbitrary-position/multiple/null/empty geometry, 100000 rows,
+exactly-once direct/prepared/batch DML and geometry RETURNING, index_points,
+dead-engine scope and snapshots, spatial_join/buffer/distance/dissolve/
+aggregation/boundary/nearest/filter/join consumers, read_spatial, Census root
+and proxy shapes/rejections, zero-overlap crosswalk=0.1, intensive 0.50/0.82
+real-tobler parity, align NaN=0.2, per-target NaN in all three backends, empty
+areal target ValueError, Snowflake USE quoting, Spark assign-not-reproject,
+and from_geodataframe round-trip. It also covers EXPLAIN/CTE/CTAS/PRAGMA/SET/
+CALL statement kinds, mixed-case keywords, literal RETURNING, and comments,
+semicolons, whitespace, escaped quotes, parameters, dollars and emoji in names.
+Spark uses the authorized session-boundary stub; no real JVM run is claimed.
+MERGE RETURNING runs directly because DuckDB 1.4.4 cannot PREPARE a MERGE.
+
+SU and writing-claims review
+SU-1: no failure is turned into a success or empty result. Invalid Census bases
+raise before HTTP; unextractable metadata raises clearly; missing prepared
+names still fail in DuckDB. Inspection found no new return inside a catch.
+SU-2: the path docstring limits decoding to ASCII unreserved characters and
+documents reserved escapes. Existing query row/status and geometry conversion
+contracts stay in scope. The notebook's materialization/Count/PREPARE prose
+remains accurate; it does not use the affected names/collations or URLs.
+SU-4b: both new defensive raises assert their type and message; Census failure
+cases assert ValueError and no HTTP. No exception handler was added or changed.
+writing-claims:1: counts and outcomes above come from captured execution, not
+inferred test coverage. A repository-wide production search for prepared
+catalog lookups, EXECUTE classification/tokenization, and dataset-root guards
+found those implementations only in the two changed modules; exact command
+and output are in round9-static-checks.txt. All four changed/added .py files parse; notebook JSON
+and code cells parse; git diff --check passes. Static results and final hashes
+are in docs/testing/round9-static-checks.txt.
+Interpreter: /Users/dheerajchand/.pyenv/versions/default_31111/bin/python.
+All Python runs use cwd=/tmp and PYTHONPATH pointing at the checkout under test.
+Versions: DuckDB 1.4.4, tobler 0.13.0, Shapely 2.1.2.
+
+Review status
+Local self-review found no additional in-scope issue in this patch. Independent
+reviewer sign-offs have not been received in this executor session; the
+both-reviewers-zero condition remains pending coordinator review.
+
+Follow-up ticket topics (out of scope; no fixes or remote tickets created)
+1. to_geodataframe interprets VARCHAR WKB-hex strings as WKT.
+2. from_geodataframe interpolates raw identifiers.
+3. Extensive-variable NaN handling differs across interpolation backends.
+4. A clean fully-disjoint target produces 0.0.
+5. Yearless /data/timeseries Census endpoint is accepted as an API root.
+6. api.census.gov.. double-trailing-dot host: non-resolvable hostname and
+   path-doubling correctness only; not a security boundary.
+7. Encoded-slash %2f semantics: deliberately preserved, not decoded or used
+   as a separator by this normalizer. Any downstream separator interpretation
+   is outside this root-normalization guard and requires a separate contract.
+
+Commit status
+Both git add (all nine changed/new files) and the requested git commit were
+attempted separately. Both exited 128 with:
+  fatal: Unable to create '/Users/dheerajchand/git/siege-analytics/siege_utilities/.git/worktrees/siege_utilities-hardening/index.lock': Operation not permitted
+Git metadata is outside this session's writable roots. No commit or push
+occurred. Changes remain uncommitted on fix/1369-final-hardening at a29d8198
+for the coordinator to commit. No pre-existing staged changes were present.
+Attempted command (no attribution):
+  git -c user.name="Dheeraj Chand" -c user.email="dheeraj@siegeanalytics.com" commit -m "fix: harden prepared name matching and Census path normalization"

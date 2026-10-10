@@ -190,7 +190,7 @@ class TestAlign:
         aligner = LongitudinalAligner(target_vintage=2020, geography="tract")
 
         call_count = 0
-        def mock_step(df, src, tgt, geo, sfips, geoid_col):
+        def mock_step(df, src, tgt, geo, sfips, geoid_col, intensive_columns=None):
             nonlocal call_count
             call_count += 1
             return df.copy()
