@@ -3,9 +3,9 @@
 Every test here exercises the PUBLIC API a user would call (``eng.query``,
 ``eng.to_pandas``, ``eng.to_geodataframe``, ``eng.read_spatial``,
 ``CrosswalkProcessor.transform``, ``interpolate_areal``,
-``CensusCatalogPopulator``), never a private helper. Each is proven
-red-on-revert against e751a8e0: it fails on the un-fixed source and passes on
-the fix.
+``CensusCatalogPopulator``), never a private helper. Historical regression checks remain here; round-6
+replacements and their measured baseline failures are documented in
+docs/testing/round6-verification.txt.
 """
 
 import numpy as np
@@ -83,10 +83,8 @@ def test_interpolate_areal_valid_target_keeps_value_when_nan_sibling_present():
 # --- Finding 3: DuckDB native GEOMETRY round-trips through the PUBLIC API ---
 
 def test_duckdb_public_query_to_geodataframe_native_geometry():
-    # The PUBLIC path: eng.query() must load spatial (so ST_Point resolves) and
-    # ST_AsWKB every GEOMETRY column before fetch, so eng.to_geodataframe() sees
-    # valid WKB. Pre-fix: query() neither loads spatial nor converts, so
-    # ST_Point raises CatalogException (and the bytes would be corrupt anyway).
+    # The PUBLIC path retains typed geometry until to_geodataframe converts
+    # it. Spatial is loaded only when ST_Point binding requires it.
     gpd = pytest.importorskip("geopandas")
     pytest.importorskip("duckdb")
     from shapely.geometry import Point
@@ -98,17 +96,21 @@ def test_duckdb_public_query_to_geodataframe_native_geometry():
     assert gdf.geometry.iloc[0].equals(Point(1, 2)), gdf.geometry.iloc[0].wkt
 
 
-def test_duckdb_public_query_to_pandas_valid_wkb():
-    # eng.to_pandas() on a native-geometry query must also yield valid WKB.
-    pytest.importorskip("duckdb")
-    from shapely import wkb
-    from shapely.geometry import Point
-    from siege_utilities.engines.dataframe_engine import DuckDBEngine
-
-    eng = DuckDBEngine()
-    pdf = eng.to_pandas(eng.query("SELECT ST_Point(1, 2) AS geometry"))
-    g = pdf["geometry"].iloc[0]
-    assert wkb.loads(bytes(g)).equals(Point(1, 2)), g
+def test_duckdb_public_to_pandas_preserves_native_geometry():
+    # Geometry conversion belongs to the geometry-aware reader. Fetching a
+    # typed relation through to_pandas must preserve DuckDB's native bytes.
+    duckdb = pytest.importorskip("duckdb")
+    from importlib import import_module
+    engine = import_module("siege_utilities.engines.dataframe_engine").DuckDBEngine()
+    with duckdb.connect() as conn:
+        conn.execute("LOAD spatial")
+        relation = conn.sql("SELECT ST_Point(1, 2) AS geometry")
+        expected = bytes(relation.fetchdf()["geometry"].iloc[0])
+        actual = engine.to_pandas(relation)
+        assert bytes(actual["geometry"].iloc[0]) == expected
+        result = engine.query("SELECT ST_Point(1, 2) AS geometry")
+        assert bytes(engine.to_pandas(result)["geometry"].iloc[0]) == expected
+        assert engine.to_geodataframe(result).geometry.iloc[0].wkt == "POINT (1 2)"
 
 
 # --- Finding 4: invalid area is recovered (merge) or value-preserved (single) ---
@@ -175,12 +177,24 @@ def test_crosswalk_single_source_inf_overlap_preserves_value():
     assert abs(out.loc["T1", "rate"] - 0.42) < 1e-9, out.loc["T1", "rate"]
 
 
-def test_crosswalk_unrecoverable_invalid_area_still_rejects():
-    # No valid fallback (source_area carries a negative) on a 2-distinct-source
-    # merge must still REJECT, not silently zero.
-    import pytest as _pytest
-    with _pytest.raises(ValueError, match="area-weight intensive"):
-        _run_two_source([1.0, -1.0], [1.0, -9.0])
+def test_crosswalk_rejects_invalid_contributors_but_ignores_zero_allocations():
+    import pandas as pd
+    from importlib import import_module
+    processor = import_module("siege_utilities.geo.crosswalk.crosswalk_processor").CrosswalkProcessor
+    data = pd.DataFrame({"GEOID": ["S1", "S2", "S3"], "rate": [0.1, 0.9, 0.7]})
+    for bad in [-1.0, np.inf, np.nan]:
+        crosswalk = pd.DataFrame({
+            "source_geoid": ["S1", "S2", "S3"], "target_geoid": ["T1"] * 3,
+            "area_weight": [1.0, 1.0, 0.0], "overlap_area": [1.0, 9.0, bad],
+        })
+        def run():
+            return processor(crosswalk, 2010, 2020, "tract").transform(
+                data, value_columns=["rate"], intensive_variables=["rate"],
+            ).set_index("GEOID")
+        assert run().loc["T1", "rate"] == pytest.approx(0.82)
+        crosswalk.loc[2, "area_weight"] = 1.0
+        with pytest.raises(ValueError, match="area-weight intensive"):
+            run()
 
 
 # --- Finding 5: reserved-prefix INPUT columns are rejected, never dropped ---
@@ -223,11 +237,12 @@ def test_census_proxy_data_year_prefix_accepted():
     )
 
 
-def test_census_full_dataset_path_still_rejected():
-    # Confirmed-good: the true full dataset path must still reject.
-    from siege_utilities.geo.census import catalog_populator as cp
-    with pytest.raises(ValueError, match="full dataset path"):
-        cp.CensusCatalogPopulator(base_url="https://api.census.gov/data/2023/acs/acs5")
+def test_census_dataset_endpoint_rejected_regardless_of_arity():
+    from importlib import import_module
+    cp = import_module("siege_utilities.geo.census.catalog_populator")
+    for path in ["data/2023/cbp", "data/2023/acs/acs5", "data/2023/custom/a/b", "data/2023"]:
+        with pytest.raises(ValueError, match="full dataset path"):
+            cp.CensusCatalogPopulator(base_url=f"https://api.census.gov/{path}")
 
 
 # --- Finding 7: identifiers with embedded double quotes are escaped ---

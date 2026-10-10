@@ -387,7 +387,8 @@ def interpolate_areal(
 
     Raises:
         ImportError: If no suitable backend is available.
-        ValueError: If no variables are specified or columns missing.
+        ValueError: If no variables are specified, columns are missing, or
+            the target GeoDataFrame is empty.
     """
     extensive_variables = extensive_variables or []
     intensive_variables = intensive_variables or []
@@ -403,6 +404,9 @@ def interpolate_areal(
     ]
     if missing:
         raise ValueError(f"Variables not found in source: {missing}")
+
+    if target_gdf.empty:
+        raise ValueError("target GeoDataFrame is empty; provide at least one target polygon")
 
     source, target, warnings = _ensure_common_crs(source_gdf, target_gdf)
 

@@ -1,0 +1,254 @@
+FFFFFFFFFFFFFFFFFFFFFFFF                                                 [100%]
+=================================== FAILURES ===================================
+_______ test_ordinary_sql_and_registered_frames_without_external_access ________
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:18: in test_ordinary_sql_and_registered_frames_without_external_access
+    assert eng.query("SELECT 42 AS answer").to_dict("list") == {"answer": [42]}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/siege-round6-baseline/siege_utilities/engines/dataframe_engine.py:956: in query
+    self._ensure_spatial()
+/tmp/siege-round6-baseline/siege_utilities/engines/dataframe_engine.py:1029: in _ensure_spatial
+    self._connection.execute("INSTALL spatial; LOAD spatial;")
+E   _duckdb.PermissionException: Permission Error: Cannot access directory "/Users/dheerajchand" - file system operations are disabled by configuration
+___ test_dml_retains_affected_row_count[INSERT INTO items VALUES (3), (4)-2] ___
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:32: in test_dml_retains_affected_row_count
+    assert eng.query(sql).to_dict("list") == {"Count": [count]}
+E   AssertionError: assert {} == {'Count': [2]}
+E     
+E     Right contains 1 more item:
+E     {'Count': [2]}
+E     Use -v to get more diff
+__ test_dml_retains_affected_row_count[UPDATE items SET x = 9 WHERE x = 1-1] ___
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:32: in test_dml_retains_affected_row_count
+    assert eng.query(sql).to_dict("list") == {"Count": [count]}
+E   AssertionError: assert {} == {'Count': [1]}
+E     
+E     Right contains 1 more item:
+E     {'Count': [1]}
+E     Use -v to get more diff
+_____ test_dml_retains_affected_row_count[DELETE FROM items WHERE x > 0-2] _____
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:32: in test_dml_retains_affected_row_count
+    assert eng.query(sql).to_dict("list") == {"Count": [count]}
+E   AssertionError: assert {} == {'Count': [2]}
+E     
+E     Right contains 1 more item:
+E     {'Count': [2]}
+E     Use -v to get more diff
+_____________________ test_ddl_retains_empty_count_schema ______________________
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:36: in test_ddl_retains_empty_count_schema
+    assert engine().query("CREATE TABLE items(x INT)").to_dict("list") == {"Count": []}
+E   AssertionError: assert {} == {'Count': []}
+E     
+E     Right contains 1 more item:
+E     {'Count': []}
+E     Use -v to get more diff
+___________ test_spatial_load_failure_does_not_disable_ordinary_sql ____________
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:44: in test_spatial_load_failure_does_not_disable_ordinary_sql
+    assert eng.query("SELECT 42 AS answer").to_dict("list") == {"answer": [42]}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/siege-round6-baseline/siege_utilities/engines/dataframe_engine.py:956: in query
+    self._ensure_spatial()
+/tmp/siege-round6-baseline/siege_utilities/engines/dataframe_engine.py:1029: in _ensure_spatial
+    self._connection.execute("INSTALL spatial; LOAD spatial;")
+E   _duckdb.PermissionException: Permission Error: Cannot access directory "/Users/dheerajchand" - file system operations are disabled by configuration
+___________ test_spatial_installs_only_after_missing_local_extension ___________
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:71: in test_spatial_installs_only_after_missing_local_extension
+    assert actions == ["LOAD spatial", "INSTALL spatial", "LOAD spatial"]
+E   AssertionError: assert ['INSTALL spa...OAD spatial;'] == ['LOAD spatia...LOAD spatial']
+E     
+E     At index 0 diff: 'INSTALL spatial; LOAD spatial;' != 'LOAD spatial'
+E     Right contains 2 more items, first extra item: 'INSTALL spatial'
+E     Use -v to get more diff
+_____________ test_batch_spatial_binding_preserves_prior_dml_once ______________
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:84: in test_batch_spatial_binding_preserves_prior_dml_once
+    assert out["n_1"].tolist() == [8]
+E   assert [7] == [8]
+E     
+E     At index 0 diff: 7 != 8
+E     Use -v to get more diff
+_ test_geometry_duplicate_aliases_keep_positions[ST_Point(1,2) AS geometry, 1 AS x, 2 AS x-geometry-points0-values0] _
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:102: in test_geometry_duplicate_aliases_keep_positions
+    assert pdf[name].iloc[0] == value
+E   assert np.int32(1) == 2
+_ test_geometry_duplicate_aliases_keep_positions[ST_Point(1,2) AS x, ST_Point(3,4) AS x-x-points1-values1] _
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:106: in test_geometry_duplicate_aliases_keep_positions
+    assert bytes(pdf[name].iloc[0]) == bytes(expected["geometry"].iloc[0])
+E   AssertionError: assert b'\x01\x01\x0...\x00\x00\x00@' == b'\x01\x01\x0...\x00\x00\x10@'
+E     
+E     At index 11 diff: b'\xf0' != b'\x08'
+E     Use -v to get more diff
+_ test_geometry_duplicate_aliases_keep_positions[ST_Point(1,2) AS x, 7 AS x-x-points2-values2] _
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:102: in test_geometry_duplicate_aliases_keep_positions
+    assert pdf[name].iloc[0] == value
+E   AssertionError: assert bytearray(b'\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf0?\x00\x00\x00\x00\x00\x00\x00@') == 7
+_ test_geometry_duplicate_aliases_keep_positions[7 AS x, ST_Point(1,2) AS x-x_1-points3-values3] _
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:98: in test_geometry_duplicate_aliases_keep_positions
+    result = eng.query(f"SELECT {select}")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/siege-round6-baseline/siege_utilities/engines/dataframe_engine.py:961: in query
+    return self._relation_to_pandas(relation)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/siege-round6-baseline/siege_utilities/engines/dataframe_engine.py:1075: in _relation_to_pandas
+    return relation.project(proj).fetchdf()
+           ^^^^^^^^^^^^^^^^^^^^^^
+E   _duckdb.BinderException: Binder Error: No function matches the given name and argument types 'ST_AsWKB(INTEGER)'. You might need to add explicit type casts.
+E   	Candidate functions:
+E   	ST_AsWKB(GEOMETRY) -> WKB_BLOB
+__________ test_empty_geometry_query_preserves_duplicate_column_types __________
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:113: in test_empty_geometry_query_preserves_duplicate_column_types
+    result = eng.query("SELECT 1 AS x, ST_Point(1,2) AS x WHERE FALSE")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/siege-round6-baseline/siege_utilities/engines/dataframe_engine.py:961: in query
+    return self._relation_to_pandas(relation)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/siege-round6-baseline/siege_utilities/engines/dataframe_engine.py:1075: in _relation_to_pandas
+    return relation.project(proj).fetchdf()
+           ^^^^^^^^^^^^^^^^^^^^^^
+E   _duckdb.BinderException: Binder Error: No function matches the given name and argument types 'ST_AsWKB(INTEGER)'. You might need to add explicit type casts.
+E   	Candidate functions:
+E   	ST_AsWKB(GEOMETRY) -> WKB_BLOB
+__________ test_zero_allocation_is_not_a_corrupt_merge[0.0-transform] __________
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:132: in test_zero_allocation_is_not_a_corrupt_merge
+    out = cp.CrosswalkProcessor(crosswalk, 2010, 2020, "tract").transform(
+/tmp/siege-round6-baseline/siege_utilities/geo/crosswalk/crosswalk_processor.py:361: in transform
+    raise ValueError(
+E   ValueError: Cannot area-weight intensive columns ['rate'] on a merge: missing or invalid overlap area for one or more sources and no recoverable 'source_area' x 'area_weight' fallback. Supply a valid 'overlap_area' (or 'source_area') for every merging source, or route intensive columns through areal interpolation.
+_______ test_zero_allocation_is_not_a_corrupt_merge[0.0-apply_crosswalk] _______
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:136: in test_zero_allocation_is_not_a_corrupt_merge
+    out = cp.apply_crosswalk(data, value_columns=["rate"], intensive_variables=["rate"])
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/siege-round6-baseline/siege_utilities/geo/crosswalk/crosswalk_processor.py:558: in apply_crosswalk
+    return processor.transform(
+/tmp/siege-round6-baseline/siege_utilities/geo/crosswalk/crosswalk_processor.py:361: in transform
+    raise ValueError(
+E   ValueError: Cannot area-weight intensive columns ['rate'] on a merge: missing or invalid overlap area for one or more sources and no recoverable 'source_area' x 'area_weight' fallback. Supply a valid 'overlap_area' (or 'source_area') for every merging source, or route intensive columns through areal interpolation.
+____________ test_zero_allocation_is_not_a_corrupt_merge[0.0-align] ____________
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(  GEOID  rate
+E   0    S1   0.1
+E   1    S2   0.9, 2010, 2020, 'tract', None, 'GEOID', intensive_columns=['rate'])].
+
+During handling of the above exception, another exception occurred:
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:142: in test_zero_allocation_is_not_a_corrupt_merge
+    fallback.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(  GEOID  rate
+E   0    S1   0.1
+E   1    S2   0.9, 2010, 2020, 'tract', None, 'GEOID', intensive_columns=['rate'])].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert (  GEOID  rat...None, 'GEOID') == ()
+E     
+E     Left contains 6 more items, first extra item:   GEOID  rate\n0    S1   0.1\n1    S2   0.9
+E     Use -v to get more diff
+E   Kwargs:
+E   assert {'intensive_c...ns': ['rate']} == {}
+E     
+E     Left contains 1 more item:
+E     {'intensive_columns': ['rate']}
+E     Use -v to get more diff
+------------------------------ Captured log call -------------------------------
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:754 Crosswalk 2010→2020 failed (Cannot area-weight intensive columns ['rate'] on a merge: missing or invalid overlap area for one or more sources and no recoverable 'source_area' x 'area_weight' fallback. Supply a valid 'overlap_area' (or 'source_area') for every merging source, or route intensive columns through areal interpolation.), trying areal interpolation
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:772 Both crosswalk and areal interpolation failed for 2010→2020: zero overlap must not fall back to areal
+_________ test_zero_allocation_is_not_a_corrupt_merge[None-transform] __________
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:132: in test_zero_allocation_is_not_a_corrupt_merge
+    out = cp.CrosswalkProcessor(crosswalk, 2010, 2020, "tract").transform(
+/tmp/siege-round6-baseline/siege_utilities/geo/crosswalk/crosswalk_processor.py:361: in transform
+    raise ValueError(
+E   ValueError: Cannot area-weight intensive columns ['rate'] on a merge: missing or invalid overlap area for one or more sources and no recoverable 'source_area' x 'area_weight' fallback. Supply a valid 'overlap_area' (or 'source_area') for every merging source, or route intensive columns through areal interpolation.
+______ test_zero_allocation_is_not_a_corrupt_merge[None-apply_crosswalk] _______
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:136: in test_zero_allocation_is_not_a_corrupt_merge
+    out = cp.apply_crosswalk(data, value_columns=["rate"], intensive_variables=["rate"])
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/siege-round6-baseline/siege_utilities/geo/crosswalk/crosswalk_processor.py:558: in apply_crosswalk
+    return processor.transform(
+/tmp/siege-round6-baseline/siege_utilities/geo/crosswalk/crosswalk_processor.py:361: in transform
+    raise ValueError(
+E   ValueError: Cannot area-weight intensive columns ['rate'] on a merge: missing or invalid overlap area for one or more sources and no recoverable 'source_area' x 'area_weight' fallback. Supply a valid 'overlap_area' (or 'source_area') for every merging source, or route intensive columns through areal interpolation.
+___________ test_zero_allocation_is_not_a_corrupt_merge[None-align] ____________
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(  GEOID  rate
+E   0    S1   0.1
+E   1    S2   0.9, 2010, 2020, 'tract', None, 'GEOID', intensive_columns=['rate'])].
+
+During handling of the above exception, another exception occurred:
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:142: in test_zero_allocation_is_not_a_corrupt_merge
+    fallback.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(  GEOID  rate
+E   0    S1   0.1
+E   1    S2   0.9, 2010, 2020, 'tract', None, 'GEOID', intensive_columns=['rate'])].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert (  GEOID  rat...None, 'GEOID') == ()
+E     
+E     Left contains 6 more items, first extra item:   GEOID  rate\n0    S1   0.1\n1    S2   0.9
+E     Use -v to get more diff
+E   Kwargs:
+E   assert {'intensive_c...ns': ['rate']} == {}
+E     
+E     Left contains 1 more item:
+E     {'intensive_columns': ['rate']}
+E     Use -v to get more diff
+------------------------------ Captured log call -------------------------------
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:754 Crosswalk 2010→2020 failed (Cannot area-weight intensive columns ['rate'] on a merge: missing or invalid overlap area for one or more sources and no recoverable 'source_area' x 'area_weight' fallback. Supply a valid 'overlap_area' (or 'source_area') for every merging source, or route intensive columns through areal interpolation.), trying areal interpolation
+WARNING  siege_utilities.geo.timeseries.longitudinal_data:longitudinal_data.py:772 Both crosswalk and areal interpolation failed for 2010→2020: zero overlap must not fall back to areal
+___________ test_census_slash_normalization_preserves_proxy_prefixes ___________
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:166: in test_census_slash_normalization_preserves_proxy_prefixes
+    assert requested[-2:] == [f"{root}/2023/acs/acs5/{leaf}.json" for leaf in ["variables", "groups"]]
+E   AssertionError: assert ['https://api.../groups.json'] == ['https://api.../groups.json']
+E     
+E     At index 0 diff: 'https://api.census.gov/data/data/2023/acs/acs5/variables.json' != 'https://api.census.gov/data/2023/acs/acs5/variables.json'
+E     Use -v to get more diff
+_____________ test_empty_target_has_clear_public_error_with_duckdb _____________
+/tmp/siege-round6-baseline/tests/test_round6_class_hardening.py:179: in test_empty_target_has_clear_public_error_with_duckdb
+    areal.interpolate_areal(source, target, intensive_variables=["rate"])
+/tmp/siege-round6-baseline/siege_utilities/geo/interpolation/areal.py:437: in interpolate_areal
+    result_gdf = _run_backend(
+/tmp/siege-round6-baseline/siege_utilities/geo/interpolation/areal.py:423: in _run_backend
+    return _interpolate_duckdb(src, tgt, ext_vars, int_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/tmp/siege-round6-baseline/siege_utilities/geo/interpolation/areal.py:166: in _interpolate_duckdb
+    con.register("target_tbl", tgt_df)
+E   _duckdb.NotImplementedException: Not implemented Error: Data type 'geometry' not recognized
+____________ test_duckdb_public_to_pandas_preserves_native_geometry ____________
+/tmp/siege-round6-baseline/tests/test_round5_class_hardening.py:105: in test_duckdb_public_to_pandas_preserves_native_geometry
+    with duckdb.connect() as conn:
+/tmp/siege-round6-baseline/tests/test_round5_class_hardening.py:110: in test_duckdb_public_to_pandas_preserves_native_geometry
+    assert bytes(actual["geometry"].iloc[0]) == expected
+E   AssertionError: assert b'\x01\x01\x0...\x00\x00\x00@' == b'\x00\x00\x0...\x00\x00\x00@'
+E     
+E     At index 0 diff: b'\x01' != b'\x00'
+E     Use -v to get more diff
+___ test_crosswalk_rejects_invalid_contributors_but_ignores_zero_allocations ___
+/tmp/siege-round6-baseline/tests/test_round5_class_hardening.py:194: in test_crosswalk_rejects_invalid_contributors_but_ignores_zero_allocations
+    assert run().loc["T1", "rate"] == pytest.approx(0.82)
+           ^^^^^
+/tmp/siege-round6-baseline/tests/test_round5_class_hardening.py:191: in run
+    return processor(crosswalk, 2010, 2020, "tract").transform(
+/tmp/siege-round6-baseline/siege_utilities/geo/crosswalk/crosswalk_processor.py:361: in transform
+    raise ValueError(
+E   ValueError: Cannot area-weight intensive columns ['rate'] on a merge: missing or invalid overlap area for one or more sources and no recoverable 'source_area' x 'area_weight' fallback. Supply a valid 'overlap_area' (or 'source_area') for every merging source, or route intensive columns through areal interpolation.
+__________ test_census_dataset_endpoint_rejected_regardless_of_arity ___________
+/tmp/siege-round6-baseline/tests/test_round5_class_hardening.py:244: in test_census_dataset_endpoint_rejected_regardless_of_arity
+    with pytest.raises(ValueError, match="full dataset path"):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+=============================== warnings summary ===============================
+../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: DJANGO_SETTINGS_MODULE
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+tests/test_round6_class_hardening.py::test_zero_allocation_is_not_a_corrupt_merge[0.0-transform]
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+24 failed, 2 warnings in 3.29s

@@ -320,7 +320,11 @@ class CrosswalkProcessor:
             # geographies feeding one target -- not on row count. A single
             # source with duplicate rows, or a split, is unambiguous and must
             # never refuse. Count distinct sources per target.
-            distinct_src = merged.groupby(c_tgt)[c_src].nunique(dropna=False)
+            # An explicit zero allocation is no contribution, even when its
+            # optional absolute-area metadata is absent or invalid. Exclude it
+            # before deciding whether distinct sources actually merge.
+            no_contribution = pd.to_numeric(merged[c_aw], errors='coerce').eq(0)
+            distinct_src = merged.loc[~no_contribution].groupby(c_tgt)[c_src].nunique(dropna=False)
             merge_targets = set(distinct_src.index[distinct_src > 1])
             is_merge = merged[c_tgt].isin(merge_targets)
 
@@ -349,15 +353,10 @@ class CrosswalkProcessor:
                 # An unmatched row is a lone self-mapped source; weight 1.0
                 # preserves its intensive value.
                 areal_w = areal_w.where(~unmatched, 1.0)
-                # Do NOT coerce a missing/invalid overlap area to a zero
-                # contribution -- that silently drops a source and bypasses the
-                # refusal policy. A usable area is finite AND strictly positive;
-                # NaN, +/-inf, zero, and negative are all invalid. If a matched
-                # merge row still has an invalid area after reconstruction (no
-                # overlap_area and no recoverable source_area*area_weight),
-                # reject with a clear error.
+                # Contributing merge rows require finite, positive area after
+                # reconstruction. Explicit zero allocations are excluded below.
                 bad_area = ~(pd.Series(np.isfinite(areal_w), index=areal_w.index) & (areal_w > 0))
-                if (bad_area & is_merge & ~unmatched).any():
+                if (bad_area & is_merge & ~unmatched & ~no_contribution).any():
                     raise ValueError(
                         "Cannot area-weight intensive columns "
                         f"{sorted(intensive_set)} on a merge: missing or invalid "
@@ -373,9 +372,11 @@ class CrosswalkProcessor:
                 # than producing a silent NaN.
                 areal_w = areal_w.where(~(bad_area & ~is_merge), 1.0)
 
+            areal_w = areal_w.where(~no_contribution, 0.0)
+
             for col in intensive_cols:
                 vals = pd.to_numeric(merged[col], errors='coerce')
-                valid = vals.notna()
+                valid = vals.notna() & ~no_contribution
                 merged[f'{R}inum_{col}'] = np.where(valid, vals.fillna(0.0) * areal_w, 0.0)
                 merged[f'{R}iden_{col}'] = np.where(valid, areal_w, 0.0)
 

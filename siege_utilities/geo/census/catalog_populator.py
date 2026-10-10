@@ -54,7 +54,7 @@ class CensusCatalogPopulator:
         # The discovery endpoints live under ``/data/{year}/{dataset}/...``;
         # ``_fetch_variables`` / ``_fetch_groups`` append that suffix
         # themselves. Normalize the base_url STRUCTURALLY so the final URL
-        # contains ``/data`` exactly once and never doubles the dataset path,
+        # has one terminal ``/data`` component and never doubles the dataset path,
         # for: host root ("https://api.census.gov"), trailing slash, "/data",
         # "/data/", and proxy prefixes ("https://proxy/census" -> ".../census/data").
         # A full dataset path ("https://api.census.gov/data/2023/acs/acs5")
@@ -65,11 +65,11 @@ class CensusCatalogPopulator:
 
     @staticmethod
     def _normalize_base_url(base_url: str) -> str:
-        """Return an API-root base_url ending at ``/data`` exactly once.
+        """Return an API-root base_url with one terminal ``/data`` component.
 
         Raises:
             ValueError: If base_url includes a full dataset path -- the
-                ``/data/{year}/{dataset}/{survey}`` shape (e.g.
+                ``/data/{year}/{dataset...}`` shape (e.g.
                 ``/data/2023/acs/acs5``); the fetchers append
                 ``/{year}/{dataset}/...`` themselves, so such a base_url would
                 double the path. A bare ``data`` segment in a proxy prefix
@@ -80,15 +80,14 @@ class CensusCatalogPopulator:
         parts = urlsplit(base_url)
         segments = [s for s in parts.path.split("/") if s]
 
-        # Reject ONLY a full Census dataset path: a 'data' segment immediately
-        # followed by a 4-digit year and at least two more segments -- the
-        # '/data/{year}/{dataset}/{survey}' shape (e.g. '/data/2023/acs/acs5').
-        # Such a base_url already carries year+dataset, and the fetchers append
-        # '/{year}/{dataset}/...' themselves, so using it would double the path.
-        # A bare 'data' segment in a proxy prefix ('/data/census',
-        # '/data/2023/census') is NOT a full dataset path and must be accepted,
-        # exactly as before round 4 -- do not reject merely because a 'data' or
-        # year-like segment appears somewhere in the path.
+        # A proxy can end in a literal 'census' namespace, including the
+        # supported /data/2023/census prefix. This is not a dataset on the
+        # Census API host. All other data/year endpoints are rejected without
+        # assuming a dataset has a particular number of path components.
+        proxy_namespace = (
+            parts.hostname != "api.census.gov"
+            and segments and segments[-1] == "census"
+        )
         def _is_year(seg: str) -> bool:
             return len(seg) == 4 and seg.isdigit()
 
@@ -97,11 +96,11 @@ class CensusCatalogPopulator:
                 seg == "data"
                 and i + 1 < len(segments)
                 and _is_year(segments[i + 1])
-                and len(segments) - (i + 2) >= 2
+                and not (proxy_namespace and i + 2 == len(segments) - 1)
             ):
                 raise ValueError(
                     f"base_url {base_url!r} includes a full dataset path "
-                    f"(the '/data/{{year}}/{{dataset}}/{{survey}}' shape, e.g. "
+                    f"(the '/data/{{year}}/{{dataset...}}' shape, e.g. "
                     f"'/data/2023/acs/acs5'). Pass the API root ending at "
                     f"'/data' or without it -- for example "
                     f"'https://api.census.gov' or 'https://api.census.gov/data'. "
@@ -109,10 +108,11 @@ class CensusCatalogPopulator:
                     f"'/{{year}}/{{dataset}}/...' themselves."
                 )
 
-        if segments and segments[-1] == "data":
-            new_segments = segments
-        else:
-            new_segments = segments + ["data"]
+        # Collapse repeated terminal API-root components after removing empty
+        # slash components; preserve 'data' inside legitimate proxy prefixes.
+        while segments and segments[-1] == "data":
+            segments.pop()
+        new_segments = segments + ["data"]
 
         new_path = "/" + "/".join(new_segments)
         return urlunsplit((parts.scheme, parts.netloc, new_path, "", ""))
