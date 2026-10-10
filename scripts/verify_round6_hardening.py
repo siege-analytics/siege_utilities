@@ -1,4 +1,4 @@
-"""Print and assert the round-6 public self-regression gate.
+"""Print and assert prior hardening controls under the current public contract.
 
 Run from /tmp with PYTHONPATH pointing at the checkout and PYSPARK_PYTHON
 pointing at the interpreter. Census and Snowflake network boundaries are
@@ -58,13 +58,11 @@ def main(*, spark_boundary_only=False):
         print(f"SELECT {sql}: {actual}")
     result = eng.query("SELECT ST_Point(1,2) AS geometry")
     assert eng.to_geodataframe(result).geometry.iloc[0].equals(Point(1, 2))
-    native = bytes(eng.to_pandas(result).geometry.iloc[0])
-    import duckdb
-    with duckdb.connect() as conn:
-        conn.execute("LOAD spatial")
-        assert native == conn.execute("SELECT ST_Point(1,2)").fetchone()[0]
+    wkb = bytes(eng.to_pandas(result).geometry.iloc[0])
+    from shapely import from_wkb
+    assert from_wkb(wkb).equals(Point(1, 2))
     print("query -> to_geodataframe: POINT (1 2)")
-    print(f"query -> to_pandas: native geometry preserved, hex={native.hex()}")
+    print(f"query -> to_pandas: decodable WKB, hex={wkb.hex()}")
     registered = pd.DataFrame({"id": [7, 9], "value": [0.2, 0.4]})
     pd.testing.assert_frame_equal(eng.query("SELECT * FROM registered", table="registered", df=registered), registered)
     assert eng.to_pandas(registered) is registered

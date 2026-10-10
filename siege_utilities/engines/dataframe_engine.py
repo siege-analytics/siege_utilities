@@ -943,33 +943,76 @@ class DuckDBEngine(DataFrameEngine):
         If a ``table`` keyword is supplied together with a pandas DataFrame
         value, that DataFrame is first registered as a virtual table so it
         can be referenced in *sql*.
-        Ordinary results are pandas DataFrames. A SELECT containing native
-        GEOMETRY returns a typed DuckDB relation; pass it directly to
-        :meth:`to_geodataframe` for positional WKB conversion. :meth:`to_pandas`
-        fetches native bytes unchanged. Spatial is loaded only when binding
-        an operation explicitly requires the extension.
+        Returns an eagerly materialized pandas DataFrame, independent of the
+        connection lifetime and subsequent source mutations. Every GEOMETRY
+        output (including DML RETURNING) is converted to standard WKB by column
+        position before fetching; duplicate names retain their distinct values
+        and receive DuckDB's usual suffixes. :meth:`to_pandas` returns this
+        frame unchanged; :meth:`to_geodataframe` decodes its WKB geometry.
+        DML without RETURNING retains its affected-row Count. Spatial is loaded
+        only for geometry conversion or SQL that explicitly requires it.
         """
         table = kwargs.pop("table", None)
         df = kwargs.pop("df", None)
         if table is not None and df is not None:
             self._connection.register(table, df)
-        import duckdb
-
         # Bind each statement separately: a spatial bind failure must not
-        # replay preceding DML. Only a SELECT can return a lazy typed relation;
-        # execute/fetchdf preserves Count for DML and the empty DDL schema.
+        # replay preceding DML. Relations are strictly internal and always
+        # materialized before returning to the caller.
         statements = self._connection.extract_statements(sql)
         for statement in statements[:-1]:
             self._bind_spatial_if_needed(self._connection.execute, statement)
         if not statements:
             return self._connection.execute(sql).fetchdf()
         statement = statements[-1]
-        if statement.type == duckdb.StatementType.SELECT:
+        if self._statement_returns_rows(statement):
             relation = self._bind_spatial_if_needed(self._connection.sql, statement)
-            if self._geometry_column_positions(relation):
-                return relation
-            return relation.fetchdf()
+            return self._materialize_geometry_wkb(relation)
         return self._bind_spatial_if_needed(self._connection.execute, statement).fetchdf()
+
+    def _statement_returns_rows(self, statement: Any) -> bool:
+        """Select the typed-result API without executing a mutation to probe it.
+
+        DuckDB's sql() discards affected-row Counts, while execute() loses
+        geometry types on fetch. Statement metadata identifies queries; DML
+        metadata allows both rows and Counts, so inspect its RETURNING clause
+        with DuckDB's tokenizer (ignoring strings, comments and subqueries).
+        """
+        import duckdb
+
+        if statement.type == duckdb.StatementType.EXECUTE:
+            # EXECUTE's metadata says QUERY_RESULT even for prepared DML that
+            # only reports Count. Inspect its definition without executing it.
+            import re
+
+            position = duckdb.tokenize(statement.query)[1][0]
+            identifier = re.match(
+                r'"(?:[^"]|"")*"|[^\s(;/]+',
+                statement.query.encode("utf-8")[position:].decode("utf-8"),
+            ).group()
+            name = identifier[1:-1].replace('""', '"') if identifier.startswith('"') else identifier
+            prepared = self._connection.execute(
+                "SELECT statement FROM duckdb_prepared_statements() WHERE lower(name) = lower(?)",
+                [name],
+            ).fetchone()
+            if prepared is None:
+                # Let execute() raise the normal missing-prepared-statement error.
+                return False
+            return self._statement_returns_rows(self._connection.extract_statements(prepared[0])[0])
+        if statement.expected_result_type == [duckdb.ExpectedResultType.QUERY_RESULT]:
+            return True
+        sql = statement.query.encode("utf-8")  # Token positions are byte offsets.
+        depth = 0
+        for position, kind in duckdb.tokenize(statement.query):
+            if kind == duckdb.token_type.operator:
+                if sql[position:position + 1] == b"(":
+                    depth += 1
+                elif sql[position:position + 1] == b")":
+                    depth -= 1
+            elif depth == 0 and kind == duckdb.token_type.keyword:
+                if sql[position:position + 9].upper() == b"RETURNING":
+                    return True
+        return False
 
     def _bind_spatial_if_needed(self, operation, statement):
         """Retry only a bind failure that explicitly requires spatial."""
@@ -986,12 +1029,15 @@ class DuckDBEngine(DataFrameEngine):
     # -- Transforms ---------------------------------------------------------
 
     def to_pandas(self, df: Any) -> Any:
-        """Fetch as pandas without geometry conversion.
+        """Return a pandas frame, materializing typed relations with WKB geometry.
 
-        Use :meth:`to_geodataframe` on a typed relation to decode geometry.
-        Native DuckDB GEOMETRY bytes fetched here are not standard WKB.
+        Frames returned by :meth:`query` are already materialized and are
+        returned unchanged. Use :meth:`to_geodataframe` to decode the WKB.
         """
         import pandas as pd
+        if isinstance(df, pd.DataFrame):
+            return df
+        df = self._materialize_geometry_wkb(df)
         if isinstance(df, pd.DataFrame):
             return df
         if hasattr(df, "fetchdf"):
@@ -1067,7 +1113,7 @@ class DuckDBEngine(DataFrameEngine):
         return [i for i, dtype in enumerate(relation.types) if str(dtype).upper() == "GEOMETRY"]
 
     def _materialize_geometry_wkb(self, df: Any) -> Any:
-        """Convert a typed relation only at a geometry-aware read boundary.
+        """Eagerly fetch a typed result with every GEOMETRY column in WKB.
 
         DuckDB's one-based positional references preserve distinct columns
         even when their aliases coincide. fetchdf then deduplicates the output
@@ -1158,14 +1204,15 @@ class DuckDBEngine(DataFrameEngine):
         return gdf[geometry_col].distance(other_gdf[other_geom])
 
     def to_geodataframe(self, df, geometry_col="geometry", *, crs=None):
+        """Decode the selected WKB column of a materialized query result.
+
+        Also accepts typed DuckDB relations (materialized via :meth:`to_pandas`),
+        frames containing WKT or Shapely geometry, and GeoDataFrames.
+        """
         import geopandas as gpd
         import pandas as pd
         from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
-        # A DuckDB relation (e.g. from ``duckdb.query("SELECT ST_Point(...)")``)
-        # carries native GEOMETRY columns -- an internal blob that is NOT valid
-        # WKB. Convert to standard WKB via ST_AsWKB before materializing so the
-        # bytes that reach the WKB decoder below are valid.
-        df = self._materialize_geometry_wkb(df)
+        df = self.to_pandas(df)
         if isinstance(df, gpd.GeoDataFrame):
             return reproject_if_needed(df, crs or get_default_crs())
         if isinstance(df, pd.DataFrame) and geometry_col in df.columns:
@@ -1194,7 +1241,7 @@ class DuckDBEngine(DataFrameEngine):
         raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
 
     def from_geodataframe(self, gdf, geometry_col="geometry"):
-        """Convert GeoDataFrame to a DuckDB pandas DataFrame with WKB-hex geometry."""
+        """Convert GeoDataFrame to a pandas DataFrame with standard WKB geometry."""
         import pandas as pd
 
         self._ensure_spatial()

@@ -83,33 +83,35 @@ def test_interpolate_areal_valid_target_keeps_value_when_nan_sibling_present():
 # --- Finding 3: DuckDB native GEOMETRY round-trips through the PUBLIC API ---
 
 def test_duckdb_public_query_to_geodataframe_native_geometry():
-    # The PUBLIC path retains typed geometry until to_geodataframe converts
-    # it. Spatial is loaded only when ST_Point binding requires it.
+    # The public query boundary materializes WKB before returning to callers.
+    import pandas as pd
     gpd = pytest.importorskip("geopandas")
     pytest.importorskip("duckdb")
     from shapely.geometry import Point
     from siege_utilities.engines.dataframe_engine import DuckDBEngine
 
     eng = DuckDBEngine()
-    gdf = eng.to_geodataframe(eng.query("SELECT 7 AS id, ST_Point(1, 2) AS geometry"))
+    result = eng.query("SELECT 7 AS id, ST_Point(1, 2) AS geometry")
+    assert isinstance(result, pd.DataFrame)
+    gdf = eng.to_geodataframe(result)
     assert list(gdf["id"]) == [7]
     assert gdf.geometry.iloc[0].equals(Point(1, 2)), gdf.geometry.iloc[0].wkt
 
 
-def test_duckdb_public_to_pandas_preserves_native_geometry():
-    # Geometry conversion belongs to the geometry-aware reader. Fetching a
-    # typed relation through to_pandas must preserve DuckDB's native bytes.
+def test_duckdb_public_to_pandas_materializes_decodable_wkb():
+    # Both external typed relations and query frames expose standard WKB.
     duckdb = pytest.importorskip("duckdb")
     from importlib import import_module
+    from shapely import from_wkb
     engine = import_module("siege_utilities.engines.dataframe_engine").DuckDBEngine()
     with duckdb.connect() as conn:
         conn.execute("LOAD spatial")
         relation = conn.sql("SELECT ST_Point(1, 2) AS geometry")
-        expected = bytes(relation.fetchdf()["geometry"].iloc[0])
         actual = engine.to_pandas(relation)
-        assert bytes(actual["geometry"].iloc[0]) == expected
+        assert from_wkb(bytes(actual["geometry"].iloc[0])).wkt == "POINT (1 2)"
         result = engine.query("SELECT ST_Point(1, 2) AS geometry")
-        assert bytes(engine.to_pandas(result)["geometry"].iloc[0]) == expected
+        assert engine.to_pandas(result) is result
+        assert from_wkb(bytes(result["geometry"].iloc[0])).wkt == "POINT (1 2)"
         assert engine.to_geodataframe(result).geometry.iloc[0].wkt == "POINT (1 2)"
 
 

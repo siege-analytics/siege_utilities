@@ -68,35 +68,29 @@ class CensusCatalogPopulator:
         """Return an API-root base_url with one terminal ``/data`` component.
 
         Raises:
-            ValueError: If base_url includes a full dataset path -- the
+            ValueError: If base_url on api.census.gov includes a full dataset path -- the
                 ``/data/{year}/{dataset...}`` shape (e.g.
                 ``/data/2023/acs/acs5``); the fetchers append
                 ``/{year}/{dataset}/...`` themselves, so such a base_url would
-                double the path. A bare ``data`` segment in a proxy prefix
-                (``/data/census``, ``/data/2023/census``) is accepted.
+                double the path. Other hosts accept arbitrary proxy prefixes,
+                including ``/data/2023/gw`` and dataset-shaped paths.
         """
         from urllib.parse import urlsplit, urlunsplit
 
         parts = urlsplit(base_url)
         segments = [s for s in parts.path.split("/") if s]
 
-        # A proxy can end in a literal 'census' namespace, including the
-        # supported /data/2023/census prefix. This is not a dataset on the
-        # Census API host. All other data/year endpoints are rejected without
-        # assuming a dataset has a particular number of path components.
-        proxy_namespace = (
-            parts.hostname != "api.census.gov"
-            and segments and segments[-1] == "census"
-        )
+        # Only the Census API host defines data/year as a dataset endpoint.
+        # Proxy hosts own their path namespaces, regardless of their spelling.
         def _is_year(seg: str) -> bool:
             return len(seg) == 4 and seg.isdigit()
 
         for i, seg in enumerate(segments):
             if (
-                seg == "data"
+                parts.hostname == "api.census.gov"
+                and seg == "data"
                 and i + 1 < len(segments)
                 and _is_year(segments[i + 1])
-                and not (proxy_namespace and i + 2 == len(segments) - 1)
             ):
                 raise ValueError(
                     f"base_url {base_url!r} includes a full dataset path "
