@@ -1,0 +1,713 @@
+cwd=/private/tmp
+Interpreter=/Users/dheerajchand/.pyenv/versions/default_31111/bin/python
+PYTHONPATH=/private/tmp/siege-1373-fix8-baseline-_1h7a12c
+PYSPARK_PYTHON=/Users/dheerajchand/.pyenv/versions/default_31111/bin/python
+DJANGO_SETTINGS_MODULE=tests.django_project.settings
+Baseline: cached origin/develop 174a58178eb2fad7075ad906811f95395e2f88aa
+Tests copied byte-identically from patched worktree.
+
+red-on-revert
+Command: /Users/dheerajchand/.pyenv/versions/default_31111/bin/python -m pytest /private/tmp/siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py -o addopts= -q --tb=short --junitxml=/private/tmp/batch1-fix8-evidence/red-on-revert.xml
+FFFFFFFFFFFFFFFFFFFF......FFFFFFFFFFFFFFFFFFF...                         [100%]
+=================================== FAILURES ===================================
+_________________ test_to_geodataframe_decodes_hex_wkb_and_wkt _________________
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:23: in test_to_geodataframe_decodes_hex_wkb_and_wkt
+    result = eng.to_geodataframe(frame, crs=3857)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/engines/dataframe_engine.py:1266: in to_geodataframe
+    geoms = df[geometry_col].apply(lambda g: shapely_wkt.loads(g) if isinstance(g, str) else g)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/series.py:4943: in apply
+    ).apply()
+      ^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1422: in apply
+    return self.apply_standard()
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/apply.py:1502: in apply_standard
+    mapped = obj._map_values(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/base.py:925: in _map_values
+    return algorithms.map_array(arr, mapper, na_action=na_action, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/algorithms.py:1743: in map_array
+    return lib.map_infer(values, mapper, convert=convert)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pandas/_libs/lib.pyx:2999: in pandas._libs.lib.map_infer
+    ???
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/engines/dataframe_engine.py:1266: in <lambda>
+    geoms = df[geometry_col].apply(lambda g: shapely_wkt.loads(g) if isinstance(g, str) else g)
+                                             ^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/wkt.py:22: in loads
+    return shapely.from_wkt(data)
+           ^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/shapely/io.py:305: in from_wkt
+    return lib.from_wkt(geometry, invalid_handler, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   shapely.errors.GEOSException: ParseException: Unknown type: '0101000000000000000000F03F0000000000000040'
+___________ test_from_geodataframe_quotes_identifiers[a"b-geometry] ____________
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:45: in test_from_geodataframe_quotes_identifiers
+    stored = eng.from_geodataframe(source, geometry_col=geom)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/engines/dataframe_engine.py:1305: in from_geodataframe
+    result = self._connection.execute(sql).fetchdf()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   _duckdb.ParserException: Parser Error: unterminated quoted identifier at or near "", ST_AsWKB(ST_GeomFromWKB(UNHEX(_geom_wkb))) AS geometry FROM _boundary_8112"
+E   
+E   LINE 1: SELECT "a"b", ST_AsWKB(ST_GeomFromWKB(UNHEX(_geom_wkb))) AS geometry...
+E                      ^
+____________ test_from_geodataframe_quotes_identifiers[value-g"eom] ____________
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:45: in test_from_geodataframe_quotes_identifiers
+    stored = eng.from_geodataframe(source, geometry_col=geom)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/engines/dataframe_engine.py:1305: in from_geodataframe
+    result = self._connection.execute(sql).fetchdf()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   _duckdb.ParserException: Parser Error: unterminated quoted identifier at or near ""eom FROM _boundary_74256"
+E   
+E   LINE 1: ... "value", ST_AsWKB(ST_GeomFromWKB(UNHEX(_geom_wkb))) AS g"eom FROM _boundary_74256
+E                                                                       ^
+____________ test_from_geodataframe_quotes_identifiers[None-g"eom] _____________
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:45: in test_from_geodataframe_quotes_identifiers
+    stored = eng.from_geodataframe(source, geometry_col=geom)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/engines/dataframe_engine.py:1305: in from_geodataframe
+    result = self._connection.execute(sql).fetchdf()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   _duckdb.ParserException: Parser Error: unterminated quoted identifier at or near ""eom FROM _boundary_26928"
+E   
+E   LINE 1: SELECT ST_AsWKB(ST_GeomFromWKB(UNHEX(_geom_wkb))) AS g"eom FROM _boundary_26928
+E                                                                 ^
+___ test_extensive_nan_propagates_per_variable_across_backends[tobler-True] ____
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:84: in test_extensive_nan_propagates_per_variable_across_backends
+    np.testing.assert_allclose(result["pop"], [np.nan, 40, 0, 0], err_msg=engine)
+E   AssertionError: 
+E   Not equal to tolerance rtol=1e-07, atol=0
+E   tobler
+E   nan location mismatch:
+E    ACTUAL: array([100.,  40.,   0.,   0.])
+E    DESIRED: array([nan, 40.,  0.,  0.])
+___ test_extensive_nan_propagates_per_variable_across_backends[tobler-False] ___
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:84: in test_extensive_nan_propagates_per_variable_across_backends
+    np.testing.assert_allclose(result["pop"], [np.nan, 40, 0, 0], err_msg=engine)
+E   AssertionError: 
+E   Not equal to tolerance rtol=1e-07, atol=0
+E   tobler
+E   nan location mismatch:
+E    ACTUAL: array([100.,  40.,   0.,   0.])
+E    DESIRED: array([nan, 40.,  0.,  0.])
+___ test_extensive_nan_propagates_per_variable_across_backends[duckdb-True] ____
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:84: in test_extensive_nan_propagates_per_variable_across_backends
+    np.testing.assert_allclose(result["pop"], [np.nan, 40, 0, 0], err_msg=engine)
+E   AssertionError: 
+E   Not equal to tolerance rtol=1e-07, atol=0
+E   duckdb
+E   nan location mismatch:
+E    ACTUAL: array([100.,  40.,   0.,   0.])
+E    DESIRED: array([nan, 40.,  0.,  0.])
+___ test_extensive_nan_propagates_per_variable_across_backends[duckdb-False] ___
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:84: in test_extensive_nan_propagates_per_variable_across_backends
+    np.testing.assert_allclose(result["pop"], [np.nan, 40, 0, 0], err_msg=engine)
+E   AssertionError: 
+E   Not equal to tolerance rtol=1e-07, atol=0
+E   duckdb
+E   nan location mismatch:
+E    ACTUAL: array([100.,  40.,   0.,   0.])
+E    DESIRED: array([nan, 40.,  0.,  0.])
+_ test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero[False-tobler] __
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:111: in test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero
+    np.testing.assert_allclose(result.data["rate"], expected)
+E   AssertionError: 
+E   Not equal to tolerance rtol=1e-07, atol=0
+E   
+E   nan location mismatch:
+E    ACTUAL: array([0., 0., 0., 0.])
+E    DESIRED: array([ 0.,  0., nan, nan])
+_ test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero[False-duckdb] __
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:111: in test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero
+    np.testing.assert_allclose(result.data["rate"], expected)
+E   AssertionError: 
+E   Not equal to tolerance rtol=1e-07, atol=0
+E   
+E   nan location mismatch:
+E    ACTUAL: array([0., 0., 0., 0.])
+E    DESIRED: array([ 0.,  0., nan, nan])
+_ test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero[False-shapely] _
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:111: in test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero
+    np.testing.assert_allclose(result.data["rate"], expected)
+E   AssertionError: 
+E   Not equal to tolerance rtol=1e-07, atol=0
+E   
+E   nan location mismatch:
+E    ACTUAL: array([0., 0., 0., 0.])
+E    DESIRED: array([ 0.,  0., nan, nan])
+__ test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero[True-tobler] __
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:111: in test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero
+    np.testing.assert_allclose(result.data["rate"], expected)
+E   AssertionError: 
+E   Not equal to tolerance rtol=1e-07, atol=0
+E   
+E   nan location mismatch:
+E    ACTUAL: array([0., 0.])
+E    DESIRED: array([nan, nan])
+__ test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero[True-duckdb] __
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:111: in test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero
+    np.testing.assert_allclose(result.data["rate"], expected)
+E   AssertionError: 
+E   Not equal to tolerance rtol=1e-07, atol=0
+E   
+E   nan location mismatch:
+E    ACTUAL: array([0., 0.])
+E    DESIRED: array([nan, nan])
+------------------------------ Captured log call -------------------------------
+WARNING  siege_utilities.geo.interpolation.areal:areal.py:192 No intersections found between source and target (DuckDB).
+_ test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero[True-shapely] __
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:111: in test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero
+    np.testing.assert_allclose(result.data["rate"], expected)
+E   AssertionError: 
+E   Not equal to tolerance rtol=1e-07, atol=0
+E   
+E   nan location mismatch:
+E    ACTUAL: array([0., 0.])
+E    DESIRED: array([nan, nan])
+_ test_census_rejects_yearless_dataset_before_http[/data/timeseries/govs/schfin] _
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:120: in test_census_rejects_yearless_dataset_before_http
+    with pytest.raises(ValueError, match="full dataset path"):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+______ test_census_rejects_yearless_dataset_before_http[/data/timeseries] ______
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:120: in test_census_rejects_yearless_dataset_before_http
+    with pytest.raises(ValueError, match="full dataset path"):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+_ test_census_rejects_yearless_dataset_before_http[//data//data/timeseries/govs/schfin] _
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:120: in test_census_rejects_yearless_dataset_before_http
+    with pytest.raises(ValueError, match="full dataset path"):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+_______ test_census_normalizes_all_trailing_host_dots[api.census.gov..] ________
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:130: in test_census_normalizes_all_trailing_host_dots
+    with pytest.raises(ValueError, match="full dataset path"):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+_______ test_census_normalizes_all_trailing_host_dots[api.census.gov...] _______
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:130: in test_census_normalizes_all_trailing_host_dots
+    with pytest.raises(ValueError, match="full dataset path"):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+______ test_census_normalizes_all_trailing_host_dots[%61pi.census.gov..] _______
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:130: in test_census_normalizes_all_trailing_host_dots
+    with pytest.raises(ValueError, match="full dataset path"):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+_ test_empty_source_preserves_nonempty_schema_without_dispatch[extensive-tobler] _
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(Empty GeoDataFrame
+E   Columns: [pop, missing_rate, rate, geometry]
+E   Index: [],    target_id   label                                geometry
+E   20         a   first     POLYGON ((2 0, 2 1, 0 1, 0 0, 2 0))
+E   10         b  second  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), ['pop'], [], True, 1)].
+
+During handling of the above exception, another exception occurred:
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:174: in test_empty_source_preserves_nonempty_schema_without_dispatch
+    dispatch.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(Empty GeoDataFrame
+E   Columns: [pop, missing_rate, rate, geometry]
+E   Index: [],    target_id   label                                geometry
+E   20         a   first     POLYGON ((2 0, 2 1, 0 1, 0 0, 2 0))
+E   10         b  second  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), ['pop'], [], True, 1)].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert (Empty GeoDat..., [], True, 1) == ()
+E     
+E     Left contains 6 more items, first extra item: Empty GeoDataFrame\nColumns: [pop, missing_rate, rate, geometry]\nIndex: []
+E     Use -v to get more diff
+_ test_empty_source_preserves_nonempty_schema_without_dispatch[extensive-duckdb] _
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:173: in test_empty_source_preserves_nonempty_schema_without_dispatch
+    empty = areal.interpolate_areal(source.iloc[:0], target, **kwargs)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/interpolation/areal.py:441: in interpolate_areal
+    result_gdf = _run_backend(
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/interpolation/areal.py:427: in _run_backend
+    return _interpolate_duckdb(src, tgt, ext_vars, int_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:1124: in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:1128: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:1201: in _execute_mock_call
+    return self._mock_wraps(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/interpolation/areal.py:165: in _interpolate_duckdb
+    con.register("source_tbl", src_df)
+E   _duckdb.NotImplementedException: Not implemented Error: Data type 'geometry' not recognized
+_ test_empty_source_preserves_nonempty_schema_without_dispatch[extensive-shapely] _
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(Empty GeoDataFrame
+E   Columns: [pop, missing_rate, rate, geometry]
+E   Index: [],    target_id   label                                geometry
+E   20         a   first     POLYGON ((2 0, 2 1, 0 1, 0 0, 2 0))
+E   10         b  second  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), ['pop'], [])].
+
+During handling of the above exception, another exception occurred:
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:174: in test_empty_source_preserves_nonempty_schema_without_dispatch
+    dispatch.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(Empty GeoDataFrame
+E   Columns: [pop, missing_rate, rate, geometry]
+E   Index: [],    target_id   label                                geometry
+E   20         a   first     POLYGON ((2 0, 2 1, 0 1, 0 0, 2 0))
+E   10         b  second  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), ['pop'], [])].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert (Empty GeoDat..., ['pop'], []) == ()
+E     
+E     Left contains 4 more items, first extra item: Empty GeoDataFrame\nColumns: [pop, missing_rate, rate, geometry]\nIndex: []
+E     Use -v to get more diff
+_ test_empty_source_preserves_nonempty_schema_without_dispatch[intensive-tobler] _
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(Empty GeoDataFrame
+E   Columns: [pop, missing_rate, rate, geometry]
+E   Index: [],    target_id   label                                geometry
+E   20         a   first     POLYGON ((2 0, 2 1, 0 1, 0 0, 2 0))
+E   10         b  second  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), [], ['missing_rate', 'rate'], True, 1)].
+
+During handling of the above exception, another exception occurred:
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:174: in test_empty_source_preserves_nonempty_schema_without_dispatch
+    dispatch.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(Empty GeoDataFrame
+E   Columns: [pop, missing_rate, rate, geometry]
+E   Index: [],    target_id   label                                geometry
+E   20         a   first     POLYGON ((2 0, 2 1, 0 1, 0 0, 2 0))
+E   10         b  second  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), [], ['missing_rate', 'rate'], True, 1)].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert (Empty GeoDat...te'], True, 1) == ()
+E     
+E     Left contains 6 more items, first extra item: Empty GeoDataFrame\nColumns: [pop, missing_rate, rate, geometry]\nIndex: []
+E     Use -v to get more diff
+_ test_empty_source_preserves_nonempty_schema_without_dispatch[intensive-duckdb] _
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:173: in test_empty_source_preserves_nonempty_schema_without_dispatch
+    empty = areal.interpolate_areal(source.iloc[:0], target, **kwargs)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/interpolation/areal.py:441: in interpolate_areal
+    result_gdf = _run_backend(
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/interpolation/areal.py:427: in _run_backend
+    return _interpolate_duckdb(src, tgt, ext_vars, int_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:1124: in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:1128: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:1201: in _execute_mock_call
+    return self._mock_wraps(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/interpolation/areal.py:165: in _interpolate_duckdb
+    con.register("source_tbl", src_df)
+E   _duckdb.NotImplementedException: Not implemented Error: Data type 'geometry' not recognized
+_ test_empty_source_preserves_nonempty_schema_without_dispatch[intensive-shapely] _
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(Empty GeoDataFrame
+E   Columns: [pop, missing_rate, rate, geometry]
+E   Index: [],    target_id   label                                geometry
+E   20         a   first     POLYGON ((2 0, 2 1, 0 1, 0 0, 2 0))
+E   10         b  second  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), [], ['missing_rate', 'rate'])].
+
+During handling of the above exception, another exception occurred:
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:174: in test_empty_source_preserves_nonempty_schema_without_dispatch
+    dispatch.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(Empty GeoDataFrame
+E   Columns: [pop, missing_rate, rate, geometry]
+E   Index: [],    target_id   label                                geometry
+E   20         a   first     POLYGON ((2 0, 2 1, 0 1, 0 0, 2 0))
+E   10         b  second  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), [], ['missing_rate', 'rate'])].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert (Empty GeoDat...ate', 'rate']) == ()
+E     
+E     Left contains 4 more items, first extra item: Empty GeoDataFrame\nColumns: [pop, missing_rate, rate, geometry]\nIndex: []
+E     Use -v to get more diff
+__ test_empty_source_preserves_nonempty_schema_without_dispatch[both-tobler] ___
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(Empty GeoDataFrame
+E   Columns: [pop, missing_rate, rate, geometry]
+E   Index: [],    target_id   label                                geometry
+E   20         a   first     POLYGON ((2 0, 2 1, 0 1, 0 0, 2 0))
+E   10         b  second  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), ['pop'], ['missing_rate', 'rate'], True, 1)].
+
+During handling of the above exception, another exception occurred:
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:174: in test_empty_source_preserves_nonempty_schema_without_dispatch
+    dispatch.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(Empty GeoDataFrame
+E   Columns: [pop, missing_rate, rate, geometry]
+E   Index: [],    target_id   label                                geometry
+E   20         a   first     POLYGON ((2 0, 2 1, 0 1, 0 0, 2 0))
+E   10         b  second  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), ['pop'], ['missing_rate', 'rate'], True, 1)].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert (Empty GeoDat...te'], True, 1) == ()
+E     
+E     Left contains 6 more items, first extra item: Empty GeoDataFrame\nColumns: [pop, missing_rate, rate, geometry]\nIndex: []
+E     Use -v to get more diff
+__ test_empty_source_preserves_nonempty_schema_without_dispatch[both-duckdb] ___
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:173: in test_empty_source_preserves_nonempty_schema_without_dispatch
+    empty = areal.interpolate_areal(source.iloc[:0], target, **kwargs)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/interpolation/areal.py:441: in interpolate_areal
+    result_gdf = _run_backend(
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/interpolation/areal.py:427: in _run_backend
+    return _interpolate_duckdb(src, tgt, ext_vars, int_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:1124: in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:1128: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:1201: in _execute_mock_call
+    return self._mock_wraps(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/interpolation/areal.py:165: in _interpolate_duckdb
+    con.register("source_tbl", src_df)
+E   _duckdb.NotImplementedException: Not implemented Error: Data type 'geometry' not recognized
+__ test_empty_source_preserves_nonempty_schema_without_dispatch[both-shapely] __
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(Empty GeoDataFrame
+E   Columns: [pop, missing_rate, rate, geometry]
+E   Index: [],    target_id   label                                geometry
+E   20         a   first     POLYGON ((2 0, 2 1, 0 1, 0 0, 2 0))
+E   10         b  second  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), ['pop'], ['missing_rate', 'rate'])].
+
+During handling of the above exception, another exception occurred:
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:174: in test_empty_source_preserves_nonempty_schema_without_dispatch
+    dispatch.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(Empty GeoDataFrame
+E   Columns: [pop, missing_rate, rate, geometry]
+E   Index: [],    target_id   label                                geometry
+E   20         a   first     POLYGON ((2 0, 2 1, 0 1, 0 0, 2 0))
+E   10         b  second  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), ['pop'], ['missing_rate', 'rate'])].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert (Empty GeoDat...ate', 'rate']) == ()
+E     
+E     Left contains 4 more items, first extra item: Empty GeoDataFrame\nColumns: [pop, missing_rate, rate, geometry]\nIndex: []
+E     Use -v to get more diff
+_____________ test_no_positive_overlap_skips_backend[False-tobler] _____________
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   pop  rate                             geometry
+E   0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)),   target_id                                geometry
+E   0         a  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), ['pop'], ['rate'], True, 1)].
+
+During handling of the above exception, another exception occurred:
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:214: in test_no_positive_overlap_skips_backend
+    dispatch.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   pop  rate                             geometry
+E   0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)),   target_id                                geometry
+E   0         a  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), ['pop'], ['rate'], True, 1)].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert (   pop  rate...te'], True, 1) == ()
+E     
+E     Left contains 6 more items, first extra item:    pop  rate                             geometry\n0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0))
+E     Use -v to get more diff
+_____________ test_no_positive_overlap_skips_backend[False-duckdb] _____________
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   pop  rate                             geometry
+E   0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)),   target_id                                geometry
+E   0         a  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), ['pop'], ['rate'])].
+
+During handling of the above exception, another exception occurred:
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:214: in test_no_positive_overlap_skips_backend
+    dispatch.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   pop  rate                             geometry
+E   0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)),   target_id                                geometry
+E   0         a  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), ['pop'], ['rate'])].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert (   pop  rate...p'], ['rate']) == ()
+E     
+E     Left contains 4 more items, first extra item:    pop  rate                             geometry\n0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0))
+E     Use -v to get more diff
+------------------------------ Captured log call -------------------------------
+WARNING  siege_utilities.geo.interpolation.areal:areal.py:192 No intersections found between source and target (DuckDB).
+____________ test_no_positive_overlap_skips_backend[False-shapely] _____________
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   pop  rate                             geometry
+E   0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)),   target_id                                geometry
+E   0         a  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), ['pop'], ['rate'])].
+
+During handling of the above exception, another exception occurred:
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:214: in test_no_positive_overlap_skips_backend
+    dispatch.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   pop  rate                             geometry
+E   0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)),   target_id                                geometry
+E   0         a  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)), ['pop'], ['rate'])].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert (   pop  rate...p'], ['rate']) == ()
+E     
+E     Left contains 4 more items, first extra item:    pop  rate                             geometry\n0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0))
+E     Use -v to get more diff
+_____________ test_no_positive_overlap_skips_backend[True-tobler] ______________
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   pop  rate                             geometry
+E   0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)),   target_id                             geometry
+E   0         a  POLYGON ((2 0, 2 1, 1 1, 1 0, 2 0)), ['pop'], ['rate'], True, 1)].
+
+During handling of the above exception, another exception occurred:
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:214: in test_no_positive_overlap_skips_backend
+    dispatch.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   pop  rate                             geometry
+E   0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)),   target_id                             geometry
+E   0         a  POLYGON ((2 0, 2 1, 1 1, 1 0, 2 0)), ['pop'], ['rate'], True, 1)].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert (   pop  rate...te'], True, 1) == ()
+E     
+E     Left contains 6 more items, first extra item:    pop  rate                             geometry\n0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0))
+E     Use -v to get more diff
+_____________ test_no_positive_overlap_skips_backend[True-duckdb] ______________
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   pop  rate                             geometry
+E   0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)),   target_id                             geometry
+E   0         a  POLYGON ((2 0, 2 1, 1 1, 1 0, 2 0)), ['pop'], ['rate'])].
+
+During handling of the above exception, another exception occurred:
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:214: in test_no_positive_overlap_skips_backend
+    dispatch.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   pop  rate                             geometry
+E   0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)),   target_id                             geometry
+E   0         a  POLYGON ((2 0, 2 1, 1 1, 1 0, 2 0)), ['pop'], ['rate'])].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert (   pop  rate...p'], ['rate']) == ()
+E     
+E     Left contains 4 more items, first extra item:    pop  rate                             geometry\n0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0))
+E     Use -v to get more diff
+------------------------------ Captured log call -------------------------------
+WARNING  siege_utilities.geo.interpolation.areal:areal.py:192 No intersections found between source and target (DuckDB).
+_____________ test_no_positive_overlap_skips_backend[True-shapely] _____________
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   pop  rate                             geometry
+E   0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)),   target_id                             geometry
+E   0         a  POLYGON ((2 0, 2 1, 1 1, 1 0, 2 0)), ['pop'], ['rate'])].
+
+During handling of the above exception, another exception occurred:
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:214: in test_no_positive_overlap_skips_backend
+    dispatch.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   pop  rate                             geometry
+E   0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)),   target_id                             geometry
+E   0         a  POLYGON ((2 0, 2 1, 1 1, 1 0, 2 0)), ['pop'], ['rate'])].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert (   pop  rate...p'], ['rate']) == ()
+E     
+E     Left contains 4 more items, first extra item:    pop  rate                             geometry\n0  NaN   0.0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0))
+E     Use -v to get more diff
+______ test_valid_intensive_subset_without_overlap_skips_backend[tobler] _______
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   rate                                geometry
+E   0   0.0  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)),                               geometry
+E   0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)), [], ['rate'], True, 1)].
+
+During handling of the above exception, another exception occurred:
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:234: in test_valid_intensive_subset_without_overlap_skips_backend
+    dispatch.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   rate                                geometry
+E   0   0.0  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)),                               geometry
+E   0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)), [], ['rate'], True, 1)].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert (   rate     ...te'], True, 1) == ()
+E     
+E     Left contains 6 more items, first extra item:    rate                                geometry\n0   0.0  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0))
+E     Use -v to get more diff
+______ test_valid_intensive_subset_without_overlap_skips_backend[duckdb] _______
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   rate                                geometry
+E   0   0.0  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)),                               geometry
+E   0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)), [], ['rate'])].
+
+During handling of the above exception, another exception occurred:
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:234: in test_valid_intensive_subset_without_overlap_skips_backend
+    dispatch.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   rate                                geometry
+E   0   0.0  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)),                               geometry
+E   0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)), [], ['rate'])].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert (   rate     ... [], ['rate']) == ()
+E     
+E     Left contains 4 more items, first extra item:    rate                                geometry\n0   0.0  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0))
+E     Use -v to get more diff
+------------------------------ Captured log call -------------------------------
+WARNING  siege_utilities.geo.interpolation.areal:areal.py:192 No intersections found between source and target (DuckDB).
+______ test_valid_intensive_subset_without_overlap_skips_backend[shapely] ______
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   rate                                geometry
+E   0   0.0  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)),                               geometry
+E   0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)), [], ['rate'])].
+
+During handling of the above exception, another exception occurred:
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:234: in test_valid_intensive_subset_without_overlap_skips_backend
+    dispatch.assert_not_called()
+E   AssertionError: Expected 'mock' to not have been called. Called 1 times.
+E   Calls: [call(   rate                                geometry
+E   0   0.0  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0)),                               geometry
+E   0  POLYGON ((1 0, 1 1, 0 1, 0 0, 1 0)), [], ['rate'])].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert (   rate     ... [], ['rate']) == ()
+E     
+E     Left contains 4 more items, first extra item:    rate                                geometry\n0   0.0  POLYGON ((10 0, 10 1, 9 1, 9 0, 10 0))
+E     Use -v to get more diff
+_______________ test_duckdb_empty_geometry_frame_returns_cleanly _______________
+siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py:245: in test_duckdb_empty_geometry_frame_returns_cleanly
+    result = areal.interpolate_extensive(source, target, ["pop"], crs=4326)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/interpolation/areal.py:494: in interpolate_extensive
+    return interpolate_areal(
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/interpolation/areal.py:441: in interpolate_areal
+    result_gdf = _run_backend(
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/interpolation/areal.py:427: in _run_backend
+    return _interpolate_duckdb(src, tgt, ext_vars, int_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/interpolation/areal.py:165: in _interpolate_duckdb
+    con.register("source_tbl", src_df)
+E   _duckdb.NotImplementedException: Not implemented Error: Data type 'geometry' not recognized
+=============================== warnings summary ===============================
+../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: DJANGO_SETTINGS_MODULE
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+tests/test_batch1_1373.py::test_extensive_nan_propagates_per_variable_across_backends[tobler-True]
+tests/test_batch1_1373.py::test_extensive_nan_propagates_per_variable_across_backends[tobler-False]
+tests/test_batch1_1373.py::test_no_positive_overlap_skips_backend[False-tobler]
+tests/test_batch1_1373.py::test_no_positive_overlap_skips_backend[True-tobler]
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/tobler/area_weighted/area_interpolate.py:323: UserWarning: nan values in variable: pop, replacing with 0
+    vals = _nan_check(source_df, variable)
+
+tests/test_batch1_1373.py::test_extensive_nan_propagates_per_variable_across_backends[tobler-True]
+tests/test_batch1_1373.py::test_extensive_nan_propagates_per_variable_across_backends[tobler-False]
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/tobler/area_weighted/area_interpolate.py:323: UserWarning: nan values in variable: other, replacing with 0
+    vals = _nan_check(source_df, variable)
+
+tests/test_batch1_1373.py::test_census_rejects_yearless_dataset_before_http[/data/timeseries/govs/schfin]
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--- generated xml file: /private/tmp/batch1-fix8-evidence/red-on-revert.xml ----
+=========================== short test summary info ============================
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_to_geodataframe_decodes_hex_wkb_and_wkt
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_from_geodataframe_quotes_identifiers[a"b-geometry]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_from_geodataframe_quotes_identifiers[value-g"eom]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_from_geodataframe_quotes_identifiers[None-g"eom]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_extensive_nan_propagates_per_variable_across_backends[tobler-True]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_extensive_nan_propagates_per_variable_across_backends[tobler-False]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_extensive_nan_propagates_per_variable_across_backends[duckdb-True]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_extensive_nan_propagates_per_variable_across_backends[duckdb-False]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero[False-tobler]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero[False-duckdb]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero[False-shapely]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero[True-tobler]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero[True-duckdb]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero[True-shapely]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_census_rejects_yearless_dataset_before_http[/data/timeseries/govs/schfin]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_census_rejects_yearless_dataset_before_http[/data/timeseries]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_census_rejects_yearless_dataset_before_http[//data//data/timeseries/govs/schfin]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_census_normalizes_all_trailing_host_dots[api.census.gov..]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_census_normalizes_all_trailing_host_dots[api.census.gov...]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_census_normalizes_all_trailing_host_dots[%61pi.census.gov..]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_empty_source_preserves_nonempty_schema_without_dispatch[extensive-tobler]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_empty_source_preserves_nonempty_schema_without_dispatch[extensive-duckdb]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_empty_source_preserves_nonempty_schema_without_dispatch[extensive-shapely]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_empty_source_preserves_nonempty_schema_without_dispatch[intensive-tobler]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_empty_source_preserves_nonempty_schema_without_dispatch[intensive-duckdb]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_empty_source_preserves_nonempty_schema_without_dispatch[intensive-shapely]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_empty_source_preserves_nonempty_schema_without_dispatch[both-tobler]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_empty_source_preserves_nonempty_schema_without_dispatch[both-duckdb]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_empty_source_preserves_nonempty_schema_without_dispatch[both-shapely]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_no_positive_overlap_skips_backend[False-tobler]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_no_positive_overlap_skips_backend[False-duckdb]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_no_positive_overlap_skips_backend[False-shapely]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_no_positive_overlap_skips_backend[True-tobler]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_no_positive_overlap_skips_backend[True-duckdb]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_no_positive_overlap_skips_backend[True-shapely]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_valid_intensive_subset_without_overlap_skips_backend[tobler]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_valid_intensive_subset_without_overlap_skips_backend[duckdb]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_valid_intensive_subset_without_overlap_skips_backend[shapely]
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_batch1_1373.py::test_duckdb_empty_geometry_frame_returns_cleanly
+39 failed, 9 passed, 8 warnings in 3.32s
+
+Exit code: 1

@@ -1,0 +1,104 @@
+Issue #1373 batch-1 verification: fixes 1-8 implemented
+Baseline: cached origin/develop 174a58178eb2fad7075ad906811f95395e2f88aa.
+No fixes 1-7 were reverted or reimplemented. Engine and Census files match
+pre-fix-8 snapshots byte-for-byte; areal fixes 3/4 mask statements are unchanged.
+
+Fix 8: operator option i
+- Empty target still raises exactly:
+  ValueError("target GeoDataFrame is empty; provide at least one target polygon")
+- Empty source or no positive-area overlap skips backend execution, including
+  boundary-only contact and per-variable valid-source subsets.
+- Extensive allocations are zero without source mass. A missing contributing
+  source still propagates NaN per variable through the unchanged fix-3 masks.
+- Uncovered intensive values are NaN; covered zero remains zero.
+- Public outputs preserve target attributes, geometry, index and row order.
+  Requested variables replace same-named columns or append in extensive then
+  intensive order, with consistent floating dtypes across empty/non-empty runs
+  and tobler/DuckDB/Shapely. Output CRS conversion still runs.
+- LongitudinalAligner received only a comment correction for the shared schema.
+
+Per-fix regression evidence
+1. VARCHAR hex WKB/WKT/null decoding: 1 baseline failure -> pass.
+2. Quoted attributes/geometry aliases, including geometry-only: 3 -> pass.
+3. Extensive NaN contributor propagation, tobler/DuckDB and allocate_total
+   True/False with Shapely controls: 4 -> pass.
+4. Intensive uncovered NaN, covered/cancellation zero, all backends: 6 -> pass.
+5. Yearless Census dataset paths fail before HTTP: 3 -> pass.
+6. Repeated trailing Census host dots, including encoded spelling: 3 -> pass.
+7. Encoded-separator comment only; no behavior-changing regression claim.
+   Existing root/proxy/encoded-separator controls pass in the self-gate.
+8. 19 new regressions fail individually on origin/develop AND on a copy with
+   only fix 8 reverted (fixes 1-7 retained), then pass on the patched tree:
+   - 9 empty-source cases: extensive/intensive/both x three backends, with
+     no dispatch and matching non-empty schema/dtypes/target attributes.
+   - 6 absent-overlap cases: disjoint/boundary-only x three backends; missing
+     source values outside coverage do not propagate NaN extensive mass.
+   - 3 intensive valid-subset/no-overlap cases x three backends.
+   - 1 real DuckDB empty-geometry-frame case with output CRS conversion.
+   Baselines reproduce NotImplementedException: Data type 'geometry' not
+   recognized. No injected exception substitutes for this reproducer.
+
+Empty-target preservation cannot truthfully be red on origin/develop: the
+requested guard already exists there. Its 6 new controls pass on both trees.
+Three backend-failure propagation controls also pass on both trees. They ensure
+no backend exception is converted into a clean result.
+
+Captured outcomes
+- origin/develop: 39 failed, 9 passed.
+- Only fix 8 reverted, fixes 1-7 retained: 19 failed, 29 passed.
+- Patched Batch-1 regressions + preservation controls: 48 passed.
+- Final hardening consensus + rounds 5-9: 129 passed.
+- Core areal/crosswalk/Census catalog/dataframe_engine + longitudinal consumer:
+  300 passed, 1 skipped.
+- Full touched non-integration sweep with global Django settings:
+  526 passed, 11 failed, 1 skipped, 38 deselected. All 11 failures reproduce
+  on origin/develop with the same settings: 10 PyArrow filesystem-registration
+  errors and 1 Django Apps-not-loaded error. The same 10 parquet cases pass
+  with settings unset; the GeoDjango module skips under that environment.
+- Full touched sweep split by required Django configuration: 528 passed,
+  3 skipped, 38 deselected in the standard environment, then 6 Django-cache
+  tests passed with explicit settings (534 passes across these disjoint groups).
+  This is the same full touched file set; only environment-specific modules
+  run in separate processes. No tests or production code were changed to
+  address the environment failures.
+Core and full touched suites overlap; do not add their counts.
+
+Confirmed-good self-gate: PASS with --spark-boundary-only. It includes prior
+round-9/8/7/6 controls: eager query snapshots, geometry-by-position/duplicate
+columns, conditional spatial loading, DML Counts/prepared statements,
+0.50/0.82 tobler parity, intensive valid-source mean 0.2, crosswalk zero-overlap
+0.1, Census acceptance/rejection, public empty-target ValueError, Snowflake USE
+quoting, DuckDB round-trip, and query-frame consumers including index_points.
+Live Spark was reattempted and failed with java.net.SocketException: Operation
+not permitted, then JAVA_GATEWAY_EXITED. Spark assignment/round-trip passed
+only through the existing session-boundary stub. No live-Spark pass is claimed.
+Snowflake SQL was captured, not sent to a server.
+
+Static/contract review
+AST parse PASS for every changed/new Python file (6). git diff --check PASS.
+SU-1: valid empty/no-overlap inputs short-circuit before dispatch; no exceptions
+are caught or converted into data. Empty target remains an explicit error.
+SU-2: empty semantics, schema/float variables and backend metadata documented.
+SU-4b: no changed catches; guard and backend-failure controls assert exact
+exception types/messages. Malformed geometry/Census error tests still pass.
+writing-claims:1 searches cover public/private dispatch, consumers, geometry
+conversion and Census normalization. No notebook calls areal interpolation or
+CensusCatalogPopulator; this existing documentation gap remains. Other engines'
+WKT methods and compute_area_weights are outside the requested interpolation
+fix. Existing engine notebook WKB prose remains accurate.
+
+Artifacts contain exact commands, interpreter/environment, and raw output:
+batch1-pytest.txt, batch1-self-gate.txt, batch1-red-on-revert.txt,
+batch1-fix8-revert.txt, batch1-static-checks.txt,
+batch1-spark-live-attempt.txt, batch1-git-attempt.txt,
+batch1-environment-baseline.txt and batch1-environment-split.txt.
+Baseline/reverted/patched test files are byte-identical; SHA256 and per-case
+red-to-green comparison appear in batch1-static-checks.txt.
+
+Git outcome
+Fetch failed on sandbox-denied FETCH_HEAD. Creating fix/1373-batch1 from
+origin/develop failed on sandbox-denied index.lock. Commit dry run with the
+requested Dheeraj Chand author also failed on index.lock; no commit was made
+on the existing docs branch. All changes remain uncommitted on
+docs/expand-library-guide. Nothing pushed. Coordinator must branch and commit.
+Suggested commit: fix: harden batch-1 geometry, areal and census contracts

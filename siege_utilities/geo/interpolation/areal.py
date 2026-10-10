@@ -75,7 +75,7 @@ class ArealInterpolationResult:
         n_source: Number of source polygons.
         n_target: Number of target polygons.
         warnings: Any warnings generated during interpolation.
-        backend: Which backend performed the interpolation.
+        backend: Selected backend (not invoked when there is no overlap).
     """
 
     data: gpd.GeoDataFrame
@@ -374,9 +374,12 @@ def interpolate_areal(
         source_gdf: Source GeoDataFrame with attribute columns.
         target_gdf: Target GeoDataFrame defining output geometries.
         extensive_variables: Columns containing totals (population, etc.).
-            These are split proportionally by area overlap.
+            These are split proportionally by area overlap. A missing source
+            value propagates NaN to every target sharing positive overlap area.
+            Targets without positive overlap receive zero allocation.
         intensive_variables: Columns containing rates/densities.
-            These are area-weighted averaged.
+            These are area-weighted averaged over non-missing sources. Targets
+            with no positive overlap area from valid sources receive NaN.
         allocate_total: If True, ensure 100% of source area is allocated
             (only applies to tobler backend).
         n_jobs: Number of parallel jobs (only applies to tobler backend).
@@ -384,6 +387,11 @@ def interpolate_areal(
 
     Returns:
         ArealInterpolationResult with interpolated GeoDataFrame in *crs*.
+        Target columns and row order are preserved; requested variables are
+        floats that replace same-named target columns or are appended in
+        extensive/intensive order.
+        An empty source or no positive-area overlap skips backend execution:
+        extensive values are zero and intensive values are NaN.
 
     Raises:
         ImportError: If no suitable backend is available.
@@ -419,6 +427,17 @@ def interpolate_areal(
     )
 
     def _run_backend(src, tgt, ext_vars, int_vars):
+        # Empty frames can retain a geometry dtype after conversion to WKB,
+        # which DuckDB cannot register. No positive-area overlap also means
+        # there is no mass/rate to interpolate, including boundary-only touches
+        # and per-variable valid-source subsets. Handle these before dispatch.
+        if not _targets_with_valid_overlap(src, tgt).any():
+            result = tgt.copy()
+            for v in ext_vars:
+                result[v] = 0.0
+            for v in int_vars:
+                result[v] = np.nan
+            return result
         if backend == "tobler":
             return _interpolate_tobler(
                 src, tgt, ext_vars, int_vars, allocate_total, n_jobs,
@@ -446,6 +465,26 @@ def interpolate_areal(
         # geometries and fill each variable from its valid-source subset below.
         result_gdf = target.copy()
 
+    # Extensive values represent mass: a missing contributor makes the target
+    # total unknown. Tobler replaces NaN with zero and DuckDB's pandas sum
+    # skips NaN, so restore missingness per variable using actual overlap area.
+    for v in extensive_variables:
+        missing_sources = source[source[v].isna()]
+        if not missing_sources.empty:
+            has_missing = _targets_with_valid_overlap(missing_sources, target)
+            vals = result_gdf[v].to_numpy(dtype=float, copy=True)
+            vals[has_missing] = np.nan
+            result_gdf[v] = vals
+
+    # A real zero rate remains zero. Only absence of positive-area coverage
+    # makes a clean intensive result undefined (including boundary touches).
+    if clean_intensive:
+        has_overlap = _targets_with_valid_overlap(source, target)
+        for v in clean_intensive:
+            vals = result_gdf[v].to_numpy(dtype=float, copy=True)
+            vals[~has_overlap] = np.nan
+            result_gdf[v] = vals
+
     for v in nan_intensive:
         valid = source[source[v].notna()]
         if valid.empty:
@@ -466,7 +505,13 @@ def interpolate_areal(
         vals[~has_valid] = np.nan
         result_gdf[v] = vals
 
-    result_gdf = reproject_if_needed(result_gdf, crs)
+    # Tobler returns only variables + geometry; the other backends preserve
+    # target attributes. Keep the public schema stable across backends, empty
+    # sources, and per-variable NaN subsets, assigning values by target position.
+    output = target.copy()
+    for v in extensive_variables + intensive_variables:
+        output[v] = result_gdf[v].to_numpy(dtype=float, copy=True)
+    result_gdf = reproject_if_needed(output, crs)
 
     return ArealInterpolationResult(
         data=result_gdf,

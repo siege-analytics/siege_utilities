@@ -1,0 +1,24 @@
+AST PASS scripts/verify_batch1_1373.py
+AST PASS siege_utilities/engines/dataframe_engine.py
+AST PASS siege_utilities/geo/census/catalog_populator.py
+AST PASS siege_utilities/geo/interpolation/areal.py
+AST PASS siege_utilities/geo/timeseries/longitudinal_data.py
+AST PASS tests/test_batch1_1373.py
+Parsed all changed/new Python files: 6 PASS
+Unchanged from pre-correction Batch-1 (byte-for-byte): siege_utilities/engines/dataframe_engine.py; SHA256=99425c3ddc03c599d97c09f59f72ef950bc3c6471e314f6e36b9736e0345c4db
+Unchanged from pre-correction Batch-1 (byte-for-byte): siege_utilities/geo/census/catalog_populator.py; SHA256=cbb0b32b3cb23e537049a178b2918adbb19fd6dde07155227992b55ebd15cde7
+Unchanged from pre-correction Batch-1 (byte-for-byte): siege_utilities/geo/interpolation/areal.py; SHA256=b0ed5abe1f6baa889d4c6b066cc1321bb22a57f741b8e68721b68e100e1b0236
+Unchanged from pre-correction Batch-1 (byte-for-byte): scripts/verify_batch1_1373.py; SHA256=a7e092c5ecd0d2adc2d8950744b0c8a2de803081145ebeef94fa472d7999c5e3
+All original 48 Batch-1 cases unchanged: original test file retained verbatim as prefix.
+Production AST differs from pre-correction only in the out projection assignment.
+Length guard and GEOID positional assignment AST unchanged; all exception handlers unchanged.
+SU-1/SU-4b: exception handlers unchanged from origin/develop: siege_utilities/engines/dataframe_engine.py
+SU-1/SU-4b: exception handlers unchanged from origin/develop: siege_utilities/geo/census/catalog_populator.py
+SU-1/SU-4b: exception handlers unchanged from origin/develop: siege_utilities/geo/interpolation/areal.py
+SU-1/SU-4b: exception handlers unchanged from origin/develop: siege_utilities/geo/timeseries/longitudinal_data.py
+git diff --check: PASS
+SU-1 PASS (correction scope): projection introduces no catches or success-shaped failure results.
+SU-2 PASS: carry-only-variables comment matches projection; public interpolate_areal schema remains unchanged.
+SU-4b PASS (correction scope): no raises or handlers changed; length guard unchanged; existing failure propagation and empty-target controls pass.
+writing-claims:1 PASS: values, counts and limitations are tied to captured test/gate output.
+Notebook impact search: rg -n LongitudinalAligner|_apply_areal_interpolation|interpolate_areal notebooks -g *.ipynb: no matches; existing documentation gap.
