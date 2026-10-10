@@ -1139,6 +1139,18 @@ class DuckDBEngine(DataFrameEngine):
         return '"' + str(name).replace('"', '""') + '"'
 
     @staticmethod
+    def _decode_geometry_text(value: str) -> Any:
+        """Decode hex WKB or WKT without hiding malformed geometry errors."""
+        from shapely import wkb as shapely_wkb, wkt as shapely_wkt
+
+        # WKB-hex has a pure hexadecimal head; WKT starts with a geometry
+        # keyword. Do not fall back to WKT after a corrupt WKB parse.
+        head = value[:32].strip() if value else ""
+        if head and all(c in "0123456789abcdefABCDEF" for c in head):
+            return shapely_wkb.loads(value, hex=True)
+        return shapely_wkt.loads(value)
+
+    @staticmethod
     def _geometry_column_positions(relation: Any) -> List[int]:
         """Return zero-based positions, retaining duplicate column identity."""
         return [i for i, dtype in enumerate(relation.types) if str(dtype).upper() == "GEOMETRY"]
@@ -1180,22 +1192,14 @@ class DuckDBEngine(DataFrameEngine):
         if not positions:
             return result
         geom_cols = [result.columns[i] for i in positions]
-        from shapely import wkb as shapely_wkb, wkt as shapely_wkt
+        from shapely import wkb as shapely_wkb
         def _parse_geom(g):
             if g is None:
                 return None
             if isinstance(g, (bytes, bytearray)):
                 return shapely_wkb.loads(bytes(g))
             if isinstance(g, str):
-                # WKB-hex strings are pure hexadecimal; WKT strings
-                # start with a geometry-type keyword (POINT, POLYGON,
-                # MULTIPOLYGON, etc.). Introspect rather than try/
-                # except so a corrupt WKB string doesn't silently fall
-                # through to WKT parsing of garbage.
-                head = g[:32].strip() if g else ""
-                if head and all(c in "0123456789abcdefABCDEF" for c in head):
-                    return shapely_wkb.loads(g, hex=True)
-                return shapely_wkt.loads(g)
+                return self._decode_geometry_text(g)
             # Scalar NA (pd.NA / NaN) or unexpected type -> missing geometry.
             return None
         # Parse every geometry column so a multi-geometry file keeps all of
@@ -1238,7 +1242,7 @@ class DuckDBEngine(DataFrameEngine):
         """Decode the selected WKB column of a materialized query result.
 
         Also accepts typed DuckDB relations (materialized via :meth:`to_pandas`),
-        frames containing WKT or Shapely geometry, and GeoDataFrames.
+        frames containing hex WKB, WKT or Shapely geometry, and GeoDataFrames.
         """
         import geopandas as gpd
         import pandas as pd
@@ -1247,7 +1251,7 @@ class DuckDBEngine(DataFrameEngine):
         if isinstance(df, gpd.GeoDataFrame):
             return reproject_if_needed(df, crs or get_default_crs())
         if isinstance(df, pd.DataFrame) and geometry_col in df.columns:
-            from shapely import wkt as shapely_wkt, wkb as shapely_wkb
+            from shapely import wkb as shapely_wkb
             from shapely.geometry.base import BaseGeometry
             # Predicate must be on the dropped Series -- len(df) > 0 can
             # be true while df[geometry_col] is all-null, which would
@@ -1263,7 +1267,9 @@ class DuckDBEngine(DataFrameEngine):
                         if (g is not None and not pd.isna(g)) else None
                     )
                 else:
-                    geoms = df[geometry_col].apply(lambda g: shapely_wkt.loads(g) if isinstance(g, str) else g)
+                    geoms = df[geometry_col].apply(
+                        lambda g: self._decode_geometry_text(g) if isinstance(g, str) else g
+                    )
                 target_crs = crs or get_default_crs()
                 out = df.copy()
                 out[geometry_col] = gpd.GeoSeries(geoms.values, index=out.index, crs=target_crs)
@@ -1291,7 +1297,7 @@ class DuckDBEngine(DataFrameEngine):
         tbl_name = f"_boundary_{id(gdf) % 100000}"
         self._connection.register(tbl_name, df)
 
-        col_list = ", ".join(f'"{c}"' for c in attr_cols)
+        col_list = ", ".join(self._quote_ident(c) for c in attr_cols)
         # Emit standard WKB (ST_AsWKB) rather than DuckDB's internal GEOMETRY
         # type: fetchdf() would otherwise hand back bytes that are not valid
         # WKB, so to_geodataframe() fails with "Unknown WKB type 0". Guard the
@@ -1299,7 +1305,7 @@ class DuckDBEngine(DataFrameEngine):
         col_prefix = f"{col_list}, " if col_list else ""
         sql = (
             f"SELECT {col_prefix}"
-            f"ST_AsWKB(ST_GeomFromWKB(UNHEX(_geom_wkb))) AS {geometry_col} "
+            f"ST_AsWKB(ST_GeomFromWKB(UNHEX(_geom_wkb))) AS {self._quote_ident(geometry_col)} "
             f"FROM {tbl_name}"
         )
         result = self._connection.execute(sql).fetchdf()

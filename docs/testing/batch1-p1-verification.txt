@@ -1,0 +1,80 @@
+Issue #1373 Batch-1 P1 correction
+
+This report supersedes the pre-correction claim in batch1-verification.txt
+that the LongitudinalAligner change was comment-only. Earlier Batch-1 evidence
+is retained as historical evidence.
+
+Correction
+- _apply_areal_interpolation now copies only extensive_vars + intensive_vars
+  from result.data, then performs the unchanged length guard and positional
+  target GEOID assignment. Boundary metadata cannot become variables in the
+  next chain step or acquire merge suffixes there.
+- This is the sole production AST change from the pre-correction Batch-1 tree.
+  areal.py, dataframe_engine.py and catalog_populator.py remain byte-identical;
+  fixes 1-7 and fix 8's public target.copy() schema/empty behavior are unchanged.
+- Requested variables retain the interpolated values, floating dtypes, index
+  and row order. Same-named target attributes do not replace those values.
+
+Regression evidence (batch1-p1-red-on-revert.txt)
+- Public LongitudinalAligner.align() exercises 2000 -> 2010 -> 2020 with real
+  tobler interpolation and unavailable crosswalks. Every boundary vintage
+  carries numeric ALAND/AWATER. The test also covers 2010 -> 2020 alone and
+  both GEOID and tract_id keys: four cases total.
+- Before correction, both chained cases returned method=failed with
+  Variables not found in source: ['ALAND', 'AWATER']. Single-step cases failed
+  the projected-schema assertion. All four cases fail before correction.
+- Reverting only the projection assignment in an isolated current-tree copy:
+  4 failed, 48 passed. Corrected tree: 52 passed. All four failures match the
+  same test names that pass with the correction; test files are byte-identical.
+- Correct results: method=areal, GEOIDs [T2, T1], population [100.0, 300.0],
+  intensive rate [0.5, 0.5], target index [70, 10]. Values/dtypes/order match
+  result.data exactly. Target pop/rate sentinels (-999) are overwritten by
+  interpolation. ALAND/AWATER remain in the public interpolation output and
+  in unsuffixed source boundary columns, but are absent from aligned output.
+- All original 48 Batch-1 tests remain verbatim; none assumed that the aligner
+  carries boundary metadata, so no existing test required changing.
+
+Self-gate results
+- Batch-1 regressions: 52 passed.
+- Final hardening consensus + rounds 5-9: 129 passed.
+- Core areal/crosswalk/Census catalog/dataframe_engine and longitudinal
+  normalization consensus: 300 passed, 1 skipped.
+- Full touched-area sweep with Django settings unset: 528 passed, 3 skipped,
+  38 deselected (integration). Separate Django cache suite with explicit
+  settings: 6 passed. Total across these disjoint groups: 534 passed.
+  Core and full touched suites overlap; do not add their pass counts.
+- verify_batch1_1373.py --spark-boundary-only: exit 0, all Batch-1 and prior
+  round gates PASS. Live Spark reattempt: exit 1, java.net.SocketException:
+  Operation not permitted, followed by JAVA_GATEWAY_EXITED. Only the existing
+  session-boundary stub passed Spark conversion checks; no live-Spark pass
+  is claimed. Snowflake checks capture SQL without contacting a server.
+- Confirmed-good values: intensive tobler parity 0.50/0.82; per-target NaN
+  [nan, 0.8] across all three backends; extensive NaN propagation; crosswalk
+  zero-overlap 0.1 with method=crosswalk and no areal call; fix 8 empty-target
+  ValueError, empty-source zero extensive/NaN intensive, and no-overlap cases;
+  fixes 1-7 controls all pass.
+
+Static and contract review (batch1-p1-static-checks.txt)
+- AST parse: 6/6 changed/new Python files PASS. git diff --check PASS.
+- SU-1: correction adds no catches or failure-to-success conversion.
+- SU-2: projection comment matches behavior; public areal schema unchanged.
+- SU-4b: exception handlers unchanged from origin/develop, length guard
+  unchanged, existing backend failure and empty-target controls remain green.
+- writing-claims:1: counts and values above are captured outcomes. Notebook
+  search found no LongitudinalAligner/interpolate_areal calls; that existing
+  documentation gap is unchanged.
+
+Git outcome (batch1-p1-git-attempt.txt)
+- Fetch origin develop: blocked writing FETCH_HEAD (Operation not permitted).
+- Create fix/1373-batch1 from origin/develop: blocked creating index.lock.
+- Commit dry run with user.name=Dheeraj Chand and
+  user.email=dheeraj@siegeanalytics.com: blocked creating index.lock.
+- All Batch-1 changes plus this correction remain uncommitted on
+  docs/expand-library-guide. No push attempted. Coordinator must branch and
+  commit. Cached origin/develop is 174a58178eb2fad7075ad906811f95395e2f88aa;
+  HEAD and cached origin/develop have identical committed content.
+
+Current raw evidence: batch1-p1-red-on-revert.txt, batch1-p1-core.txt,
+batch1-p1-consensus-rounds.txt, batch1-p1-touched.txt, batch1-p1-django.txt,
+batch1-p1-self-gate.txt, batch1-p1-spark-live-attempt.txt,
+batch1-p1-static-checks.txt and batch1-p1-git-attempt.txt.

@@ -1,0 +1,418 @@
+
+Reproduce broad-sweep failures on cached origin/develop
+cwd=/private/tmp
+PYTHONPATH=/private/tmp/siege-1373-fix8-baseline-_1h7a12c
+DJANGO_SETTINGS_MODULE=tests.django_project.settings
+Command: /Users/dheerajchand/.pyenv/versions/default_31111/bin/python -m pytest /private/tmp/siege-1373-fix8-baseline-_1h7a12c/tests/test_census_api_client.py::TestDataFetching::test_fetch_county_data /private/tmp/siege-1373-fix8-baseline-_1h7a12c/tests/test_census_api_client.py::TestDataFetching::test_fetch_with_predefined_group /private/tmp/siege-1373-fix8-baseline-_1h7a12c/tests/test_census_api_client.py::TestDataFetching::test_fetch_tract_data_with_moe /private/tmp/siege-1373-fix8-baseline-_1h7a12c/tests/test_census_api_client.py::TestCaching::test_save_and_retrieve_from_cache /private/tmp/siege-1373-fix8-baseline-_1h7a12c/tests/test_census_api_client.py::TestCaching::test_clear_cache /private/tmp/siege-1373-fix8-baseline-_1h7a12c/tests/test_crosswalk.py::TestCrosswalkClient::test_get_crosswalk_with_mock /private/tmp/siege-1373-fix8-baseline-_1h7a12c/tests/test_crosswalk.py::TestCrosswalkClient::test_get_crosswalk_with_state_filter /private/tmp/siege-1373-fix8-baseline-_1h7a12c/tests/test_crosswalk_service_errors.py::test_populate_returns_failed_result_when_load_raises /private/tmp/siege-1373-fix8-baseline-_1h7a12c/tests/test_dataframe_engine.py::TestPandasEngine::test_read_parquet /private/tmp/siege-1373-fix8-baseline-_1h7a12c/tests/test_dataframe_engine.py::TestDuckDBIntegration::test_read_parquet /private/tmp/siege-1373-fix8-baseline-_1h7a12c/tests/test_dataframe_engine.py::TestPandasRoundTrip::test_parquet_round_trip -o addopts= -q --tb=short
+FFFFFFFFFFF                                                              [100%]
+=================================== FAILURES ===================================
+___________________ TestDataFetching.test_fetch_county_data ____________________
+siege-1373-fix8-baseline-_1h7a12c/tests/test_census_api_client.py:409: in test_fetch_county_data
+    df = census_client.fetch_data(
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/census_api_client.py:206: in fetch_data
+    self._save_to_cache(cache_key, df)
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/census_api_client.py:286: in _save_to_cache
+    return self._api._parquet_cache_set(cache_key, df)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/census/api.py:386: in _parquet_cache_set
+    df.to_parquet(cache_file, index=False)
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/util/_decorators.py:333: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/frame.py:3124: in to_parquet
+    return to_parquet(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:482: in to_parquet
+    impl.write(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:229: in write
+    self.api.parquet.write_table(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1987: in write_table
+    with ParquetWriter(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1071: in __init__
+    filesystem, path = _resolve_filesystem_and_path(where, filesystem)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/fs.py:160: in _resolve_filesystem_and_path
+    filesystem = LocalFileSystem(use_mmap=memory_map)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyarrow/_fs.pyx:1138: in pyarrow._fs.LocalFileSystem.__init__
+    ???
+pyarrow/error.pxi:155: in pyarrow.lib.pyarrow_internal_check_status
+    ???
+pyarrow/error.pxi:92: in pyarrow.lib.check_status
+    ???
+E   pyarrow.lib.ArrowKeyError: Attempted to register factory for scheme 'file' but that scheme is already registered.
+------------------------------ Captured log setup ------------------------------
+WARNING  siege_utilities.geo.census.api:api.py:65 No Census API key configured. The Census Bureau API will still work but enforces much lower rate limits (500 requests/day vs 50,000 with a key). Set the CENSUS_API_KEY environment variable or configure a 'census' API key in your siege_utilities user profile.
+______________ TestDataFetching.test_fetch_with_predefined_group _______________
+siege-1373-fix8-baseline-_1h7a12c/tests/test_census_api_client.py:432: in test_fetch_with_predefined_group
+    df = census_client.fetch_data(
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/census_api_client.py:206: in fetch_data
+    self._save_to_cache(cache_key, df)
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/census_api_client.py:286: in _save_to_cache
+    return self._api._parquet_cache_set(cache_key, df)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/census/api.py:386: in _parquet_cache_set
+    df.to_parquet(cache_file, index=False)
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/util/_decorators.py:333: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/frame.py:3124: in to_parquet
+    return to_parquet(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:482: in to_parquet
+    impl.write(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:229: in write
+    self.api.parquet.write_table(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1987: in write_table
+    with ParquetWriter(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1071: in __init__
+    filesystem, path = _resolve_filesystem_and_path(where, filesystem)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/fs.py:160: in _resolve_filesystem_and_path
+    filesystem = LocalFileSystem(use_mmap=memory_map)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyarrow/_fs.pyx:1138: in pyarrow._fs.LocalFileSystem.__init__
+    ???
+pyarrow/error.pxi:155: in pyarrow.lib.pyarrow_internal_check_status
+    ???
+pyarrow/error.pxi:92: in pyarrow.lib.check_status
+    ???
+E   pyarrow.lib.ArrowKeyError: Attempted to register factory for scheme 'file' but that scheme is already registered.
+------------------------------ Captured log setup ------------------------------
+WARNING  siege_utilities.geo.census.api:api.py:65 No Census API key configured. The Census Bureau API will still work but enforces much lower rate limits (500 requests/day vs 50,000 with a key). Set the CENSUS_API_KEY environment variable or configure a 'census' API key in your siege_utilities user profile.
+_______________ TestDataFetching.test_fetch_tract_data_with_moe ________________
+siege-1373-fix8-baseline-_1h7a12c/tests/test_census_api_client.py:453: in test_fetch_tract_data_with_moe
+    df = census_client.fetch_data(
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/census_api_client.py:206: in fetch_data
+    self._save_to_cache(cache_key, df)
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/census_api_client.py:286: in _save_to_cache
+    return self._api._parquet_cache_set(cache_key, df)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/census/api.py:386: in _parquet_cache_set
+    df.to_parquet(cache_file, index=False)
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/util/_decorators.py:333: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/frame.py:3124: in to_parquet
+    return to_parquet(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:482: in to_parquet
+    impl.write(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:229: in write
+    self.api.parquet.write_table(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1987: in write_table
+    with ParquetWriter(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1071: in __init__
+    filesystem, path = _resolve_filesystem_and_path(where, filesystem)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/fs.py:160: in _resolve_filesystem_and_path
+    filesystem = LocalFileSystem(use_mmap=memory_map)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyarrow/_fs.pyx:1138: in pyarrow._fs.LocalFileSystem.__init__
+    ???
+pyarrow/error.pxi:155: in pyarrow.lib.pyarrow_internal_check_status
+    ???
+pyarrow/error.pxi:92: in pyarrow.lib.check_status
+    ???
+E   pyarrow.lib.ArrowKeyError: Attempted to register factory for scheme 'file' but that scheme is already registered.
+------------------------------ Captured log setup ------------------------------
+WARNING  siege_utilities.geo.census.api:api.py:65 No Census API key configured. The Census Bureau API will still work but enforces much lower rate limits (500 requests/day vs 50,000 with a key). Set the CENSUS_API_KEY environment variable or configure a 'census' API key in your siege_utilities user profile.
+________________ TestCaching.test_save_and_retrieve_from_cache _________________
+siege-1373-fix8-baseline-_1h7a12c/tests/test_census_api_client.py:558: in test_save_and_retrieve_from_cache
+    census_client._save_to_cache(cache_key, df)
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/census_api_client.py:286: in _save_to_cache
+    return self._api._parquet_cache_set(cache_key, df)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/census/api.py:386: in _parquet_cache_set
+    df.to_parquet(cache_file, index=False)
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/util/_decorators.py:333: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/frame.py:3124: in to_parquet
+    return to_parquet(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:482: in to_parquet
+    impl.write(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:229: in write
+    self.api.parquet.write_table(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1987: in write_table
+    with ParquetWriter(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1071: in __init__
+    filesystem, path = _resolve_filesystem_and_path(where, filesystem)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/fs.py:160: in _resolve_filesystem_and_path
+    filesystem = LocalFileSystem(use_mmap=memory_map)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyarrow/_fs.pyx:1138: in pyarrow._fs.LocalFileSystem.__init__
+    ???
+pyarrow/error.pxi:155: in pyarrow.lib.pyarrow_internal_check_status
+    ???
+pyarrow/error.pxi:92: in pyarrow.lib.check_status
+    ???
+E   pyarrow.lib.ArrowKeyError: Attempted to register factory for scheme 'file' but that scheme is already registered.
+------------------------------ Captured log setup ------------------------------
+WARNING  siege_utilities.geo.census.api:api.py:65 No Census API key configured. The Census Bureau API will still work but enforces much lower rate limits (500 requests/day vs 50,000 with a key). Set the CENSUS_API_KEY environment variable or configure a 'census' API key in your siege_utilities user profile.
+_________________________ TestCaching.test_clear_cache _________________________
+siege-1373-fix8-baseline-_1h7a12c/tests/test_census_api_client.py:575: in test_clear_cache
+    census_client._save_to_cache('test_key', df)
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/census_api_client.py:286: in _save_to_cache
+    return self._api._parquet_cache_set(cache_key, df)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/census/api.py:386: in _parquet_cache_set
+    df.to_parquet(cache_file, index=False)
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/util/_decorators.py:333: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/frame.py:3124: in to_parquet
+    return to_parquet(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:482: in to_parquet
+    impl.write(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:229: in write
+    self.api.parquet.write_table(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1987: in write_table
+    with ParquetWriter(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1071: in __init__
+    filesystem, path = _resolve_filesystem_and_path(where, filesystem)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/fs.py:160: in _resolve_filesystem_and_path
+    filesystem = LocalFileSystem(use_mmap=memory_map)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyarrow/_fs.pyx:1138: in pyarrow._fs.LocalFileSystem.__init__
+    ???
+pyarrow/error.pxi:155: in pyarrow.lib.pyarrow_internal_check_status
+    ???
+pyarrow/error.pxi:92: in pyarrow.lib.check_status
+    ???
+E   pyarrow.lib.ArrowKeyError: Attempted to register factory for scheme 'file' but that scheme is already registered.
+------------------------------ Captured log setup ------------------------------
+WARNING  siege_utilities.geo.census.api:api.py:65 No Census API key configured. The Census Bureau API will still work but enforces much lower rate limits (500 requests/day vs 50,000 with a key). Set the CENSUS_API_KEY environment variable or configure a 'census' API key in your siege_utilities user profile.
+_______________ TestCrosswalkClient.test_get_crosswalk_with_mock _______________
+siege-1373-fix8-baseline-_1h7a12c/tests/test_crosswalk.py:289: in test_get_crosswalk_with_mock
+    df = crosswalk_client.get_crosswalk(
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/crosswalk/crosswalk_client.py:230: in get_crosswalk
+    self._save_to_cache(df, cache_file)
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/crosswalk/crosswalk_client.py:448: in _save_to_cache
+    df.to_parquet(cache_file, index=False)
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/util/_decorators.py:333: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/frame.py:3124: in to_parquet
+    return to_parquet(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:482: in to_parquet
+    impl.write(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:229: in write
+    self.api.parquet.write_table(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1987: in write_table
+    with ParquetWriter(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1071: in __init__
+    filesystem, path = _resolve_filesystem_and_path(where, filesystem)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/fs.py:160: in _resolve_filesystem_and_path
+    filesystem = LocalFileSystem(use_mmap=memory_map)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyarrow/_fs.pyx:1138: in pyarrow._fs.LocalFileSystem.__init__
+    ???
+pyarrow/error.pxi:155: in pyarrow.lib.pyarrow_internal_check_status
+    ???
+pyarrow/error.pxi:92: in pyarrow.lib.check_status
+    ???
+E   pyarrow.lib.ArrowKeyError: Attempted to register factory for scheme 'file' but that scheme is already registered.
+___________ TestCrosswalkClient.test_get_crosswalk_with_state_filter ___________
+siege-1373-fix8-baseline-_1h7a12c/tests/test_crosswalk.py:308: in test_get_crosswalk_with_state_filter
+    df = crosswalk_client.get_crosswalk(
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/crosswalk/crosswalk_client.py:230: in get_crosswalk
+    self._save_to_cache(df, cache_file)
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/crosswalk/crosswalk_client.py:448: in _save_to_cache
+    df.to_parquet(cache_file, index=False)
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/util/_decorators.py:333: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/frame.py:3124: in to_parquet
+    return to_parquet(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:482: in to_parquet
+    impl.write(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:229: in write
+    self.api.parquet.write_table(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1987: in write_table
+    with ParquetWriter(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1071: in __init__
+    filesystem, path = _resolve_filesystem_and_path(where, filesystem)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/fs.py:160: in _resolve_filesystem_and_path
+    filesystem = LocalFileSystem(use_mmap=memory_map)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyarrow/_fs.pyx:1138: in pyarrow._fs.LocalFileSystem.__init__
+    ???
+pyarrow/error.pxi:155: in pyarrow.lib.pyarrow_internal_check_status
+    ???
+pyarrow/error.pxi:92: in pyarrow.lib.check_status
+    ???
+E   pyarrow.lib.ArrowKeyError: Attempted to register factory for scheme 'file' but that scheme is already registered.
+_____________ test_populate_returns_failed_result_when_load_raises _____________
+siege-1373-fix8-baseline-_1h7a12c/tests/test_crosswalk_service_errors.py:52: in test_populate_returns_failed_result_when_load_raises
+    result = CrosswalkPopulationService().populate(
+/Users/dheerajchand/.pyenv/versions/3.11.11/lib/python3.11/contextlib.py:81: in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/django/services/crosswalk_service.py:165: in populate
+    from ..models.crosswalks import TemporalCrosswalk, CrosswalkDataset
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/django/models/__init__.py:33: in <module>
+    from .base import (
+siege-1373-fix8-baseline-_1h7a12c/siege_utilities/geo/django/models/base.py:20: in <module>
+    class TemporalGeographicFeature(models.Model):
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/django/db/models/base.py:131: in __new__
+    app_config = apps.get_containing_app_config(module)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/django/apps/registry.py:260: in get_containing_app_config
+    self.check_apps_ready()
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/django/apps/registry.py:138: in check_apps_ready
+    raise AppRegistryNotReady("Apps aren't loaded yet.")
+E   django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+______________________ TestPandasEngine.test_read_parquet ______________________
+siege-1373-fix8-baseline-_1h7a12c/tests/test_dataframe_engine.py:110: in test_read_parquet
+    _sample_df().to_parquet(pq_path)
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/util/_decorators.py:333: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/frame.py:3124: in to_parquet
+    return to_parquet(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:482: in to_parquet
+    impl.write(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:229: in write
+    self.api.parquet.write_table(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1987: in write_table
+    with ParquetWriter(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1071: in __init__
+    filesystem, path = _resolve_filesystem_and_path(where, filesystem)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/fs.py:160: in _resolve_filesystem_and_path
+    filesystem = LocalFileSystem(use_mmap=memory_map)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyarrow/_fs.pyx:1138: in pyarrow._fs.LocalFileSystem.__init__
+    ???
+pyarrow/error.pxi:155: in pyarrow.lib.pyarrow_internal_check_status
+    ???
+pyarrow/error.pxi:92: in pyarrow.lib.check_status
+    ???
+E   pyarrow.lib.ArrowKeyError: Attempted to register factory for scheme 'file' but that scheme is already registered.
+___________________ TestDuckDBIntegration.test_read_parquet ____________________
+siege-1373-fix8-baseline-_1h7a12c/tests/test_dataframe_engine.py:291: in test_read_parquet
+    _sample_df().to_parquet(pq_path)
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/util/_decorators.py:333: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/frame.py:3124: in to_parquet
+    return to_parquet(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:482: in to_parquet
+    impl.write(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:229: in write
+    self.api.parquet.write_table(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1987: in write_table
+    with ParquetWriter(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1071: in __init__
+    filesystem, path = _resolve_filesystem_and_path(where, filesystem)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/fs.py:160: in _resolve_filesystem_and_path
+    filesystem = LocalFileSystem(use_mmap=memory_map)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyarrow/_fs.pyx:1138: in pyarrow._fs.LocalFileSystem.__init__
+    ???
+pyarrow/error.pxi:155: in pyarrow.lib.pyarrow_internal_check_status
+    ???
+pyarrow/error.pxi:92: in pyarrow.lib.check_status
+    ???
+E   pyarrow.lib.ArrowKeyError: Attempted to register factory for scheme 'file' but that scheme is already registered.
+_________________ TestPandasRoundTrip.test_parquet_round_trip __________________
+siege-1373-fix8-baseline-_1h7a12c/tests/test_dataframe_engine.py:436: in test_parquet_round_trip
+    _sample_df().to_parquet(pq_path)
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/util/_decorators.py:333: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/core/frame.py:3124: in to_parquet
+    return to_parquet(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:482: in to_parquet
+    impl.write(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pandas/io/parquet.py:229: in write
+    self.api.parquet.write_table(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1987: in write_table
+    with ParquetWriter(
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/parquet/core.py:1071: in __init__
+    filesystem, path = _resolve_filesystem_and_path(where, filesystem)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/pyarrow/fs.py:160: in _resolve_filesystem_and_path
+    filesystem = LocalFileSystem(use_mmap=memory_map)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyarrow/_fs.pyx:1138: in pyarrow._fs.LocalFileSystem.__init__
+    ???
+pyarrow/error.pxi:155: in pyarrow.lib.pyarrow_internal_check_status
+    ???
+pyarrow/error.pxi:92: in pyarrow.lib.check_status
+    ???
+E   pyarrow.lib.ArrowKeyError: Attempted to register factory for scheme 'file' but that scheme is already registered.
+=============================== warnings summary ===============================
+../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: DJANGO_SETTINGS_MODULE
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+    warnings.warn(
+
+tests/test_census_api_client.py::TestDataFetching::test_fetch_county_data
+  <string>:22: DeprecationWarning: UserProfile (dataclass) is deprecated and will be removed in v4.0.0. Use User from siege_utilities.config.models.actor_types instead.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_census_api_client.py::TestDataFetching::test_fetch_county_data
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_census_api_client.py::TestDataFetching::test_fetch_with_predefined_group
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_census_api_client.py::TestDataFetching::test_fetch_tract_data_with_moe
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_census_api_client.py::TestCaching::test_save_and_retrieve_from_cache
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_census_api_client.py::TestCaching::test_clear_cache
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_crosswalk.py::TestCrosswalkClient::test_get_crosswalk_with_mock
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_crosswalk.py::TestCrosswalkClient::test_get_crosswalk_with_state_filter
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_crosswalk_service_errors.py::test_populate_returns_failed_result_when_load_raises
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_dataframe_engine.py::TestPandasEngine::test_read_parquet
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_dataframe_engine.py::TestDuckDBIntegration::test_read_parquet
+FAILED siege-1373-fix8-baseline-_1h7a12c/tests/test_dataframe_engine.py::TestPandasRoundTrip::test_parquet_round_trip
+11 failed, 3 warnings in 1.78s
+
+Exit code: 1
+
+Same cases on patch with DJANGO_SETTINGS_MODULE unset
+Command: /Users/dheerajchand/.pyenv/versions/default_31111/bin/python -m pytest /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_census_api_client.py::TestDataFetching::test_fetch_county_data /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_census_api_client.py::TestDataFetching::test_fetch_with_predefined_group /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_census_api_client.py::TestDataFetching::test_fetch_tract_data_with_moe /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_census_api_client.py::TestCaching::test_save_and_retrieve_from_cache /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_census_api_client.py::TestCaching::test_clear_cache /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_crosswalk.py::TestCrosswalkClient::test_get_crosswalk_with_mock /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_crosswalk.py::TestCrosswalkClient::test_get_crosswalk_with_state_filter /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_crosswalk_service_errors.py::test_populate_returns_failed_result_when_load_raises /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_dataframe_engine.py::TestPandasEngine::test_read_parquet /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_dataframe_engine.py::TestDuckDBIntegration::test_read_parquet /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_dataframe_engine.py::TestPandasRoundTrip::test_parquet_round_trip -o addopts= -q --tb=short
+ERROR: found no collectors for /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_crosswalk_service_errors.py::test_populate_returns_failed_result_when_load_raises
+
+
+=============================== warnings summary ===============================
+../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: DJANGO_SETTINGS_MODULE
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1 skipped, 2 warnings in 0.44s
+
+Exit code: 4
+
+Corrected selector: select skipped GeoDjango module rather than a node unavailable in this environment
+DJANGO_SETTINGS_MODULE unset
+Command: /Users/dheerajchand/.pyenv/versions/default_31111/bin/python -m pytest /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_census_api_client.py::TestDataFetching::test_fetch_county_data /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_census_api_client.py::TestDataFetching::test_fetch_with_predefined_group /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_census_api_client.py::TestDataFetching::test_fetch_tract_data_with_moe /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_census_api_client.py::TestCaching::test_save_and_retrieve_from_cache /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_census_api_client.py::TestCaching::test_clear_cache /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_crosswalk.py::TestCrosswalkClient::test_get_crosswalk_with_mock /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_crosswalk.py::TestCrosswalkClient::test_get_crosswalk_with_state_filter /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_crosswalk_service_errors.py /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_dataframe_engine.py::TestPandasEngine::test_read_parquet /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_dataframe_engine.py::TestDuckDBIntegration::test_read_parquet /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_dataframe_engine.py::TestPandasRoundTrip::test_parquet_round_trip -o addopts= -q --tb=short
+..........                                                               [100%]
+=============================== warnings summary ===============================
+../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: DJANGO_SETTINGS_MODULE
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+    warnings.warn(
+
+tests/test_census_api_client.py::TestDataFetching::test_fetch_county_data
+  <string>:22: DeprecationWarning: UserProfile (dataclass) is deprecated and will be removed in v4.0.0. Use User from siege_utilities.config.models.actor_types instead.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+10 passed, 1 skipped, 3 warnings in 0.56s
+
+Exit code: 0
