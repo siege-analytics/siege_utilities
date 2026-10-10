@@ -9978,7 +9978,7 @@ crosses, overlaps.</p>
 <span class="sig-name descname"><span class="pre">to_geodataframe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geometry_col</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'geometry'</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.engines.DuckDBEngine.to_geodataframe" title="Link to this definition"></a></dt>
 <dd><p>Decode the selected WKB column of a materialized query result.</p>
 <p>Also accepts typed DuckDB relations (materialized via <a class="reference internal" href="#siege_utilities.engines.DuckDBEngine.to_pandas" title="siege_utilities.engines.DuckDBEngine.to_pandas"><code class="xref py py-meth docutils literal notranslate"><span class="pre">to_pandas()</span></code></a>),
-frames containing WKT or Shapely geometry, and GeoDataFrames.</p>
+frames containing hex WKB, WKT or Shapely geometry, and GeoDataFrames.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -11560,7 +11560,7 @@ crosses, overlaps.</p>
 <span class="sig-name descname"><span class="pre">to_geodataframe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geometry_col</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'geometry'</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.engines.dataframe_engine.DuckDBEngine.to_geodataframe" title="Link to this definition"></a></dt>
 <dd><p>Decode the selected WKB column of a materialized query result.</p>
 <p>Also accepts typed DuckDB relations (materialized via <a class="reference internal" href="#siege_utilities.engines.dataframe_engine.DuckDBEngine.to_pandas" title="siege_utilities.engines.dataframe_engine.DuckDBEngine.to_pandas"><code class="xref py py-meth docutils literal notranslate"><span class="pre">to_pandas()</span></code></a>),
-frames containing WKT or Shapely geometry, and GeoDataFrames.</p>
+frames containing hex WKB, WKT or Shapely geometry, and GeoDataFrames.</p>
 </dd></dl>
 
 <dl class="py method">

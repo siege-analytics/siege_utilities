@@ -9965,13 +9965,11 @@
             <span class="n">intensive_variables</span><span class="o">=</span><span class="n">intensive_vars</span> <span class="ow">or</span> <span class="kc">None</span><span class="p">,</span>
         <span class="p">)</span>
 
-        <span class="n">out</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="s2">"geometry"</span><span class="p">)</span>
-        <span class="c1"># interpolate_areal returns one row per target polygon in target order.</span>
-        <span class="c1"># The Tobler backend drops non-geometry target columns (target GEOID</span>
-        <span class="c1"># lost); the Shapely and DuckDB backends retain it. Keying by assignment</span>
-        <span class="c1"># covers both: it creates the column when the backend dropped it and</span>
-        <span class="c1"># overwrites the retained column with the target GEOID in target order.</span>
-        <span class="c1"># The length guard pins the positional alignment all backends return.</span>
+        <span class="c1"># Carry only interpolated variables: target boundary metadata would</span>
+        <span class="c1"># become input variables and collide with boundaries on the next step.</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">extensive_vars</span> <span class="o">+</span> <span class="n">intensive_vars</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="c1"># Assign the caller's GEOID from target boundaries in target row order.</span>
+        <span class="c1"># Guard the positional alignment first.</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">out</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_boundaries</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">"Areal interpolation returned </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">out</span><span class="p">)</span><span class="si">}</span><span class="s2"> rows for "</span>
