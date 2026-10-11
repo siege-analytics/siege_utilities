@@ -1,0 +1,21 @@
+Command: ['/Users/dheerajchand/.pyenv/versions/default_31111/bin/python', '-c', "import sys; from importlib import import_module; sys.path.insert(0, '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/scripts'); import_module('verify_round9_hardening').normalization_and_grammar_controls()"]
+
+census REJECT https://api.census.gov/data%2f2023/cbp: ValueError (full dataset path), no HTTP
+census REJECT https://api.census.gov/%64ata%2F2023/cbp: ValueError (full dataset path), no HTTP
+census ACCEPT https://api.census.gov/%64ata -> https://api.census.gov/data: fetch paths verified
+census ACCEPT https://api.census.gov//%64ata//data/ -> https://api.census.gov/data: fetch paths verified
+census ACCEPT https://proxy/%64ata/%32%30%32%33/census -> https://proxy/data/2023/census/data: fetch paths verified
+census ACCEPT https://proxy/%7e%61%2D%5F%2e -> https://proxy/~a-_./data: fetch paths verified
+census ACCEPT https://proxy/%252f/%3F/%23/%25/%c3%a9/%zz -> https://proxy/%252f/%3F/%23/%25/%c3%a9/%zz/data: fetch paths verified
+prepared grammar 'semi; colon': POINT (1 2)
+prepared grammar 'quote"--/*\t name': POINT (1 2)
+prepared grammar '_p$9': POINT (1 2)
+prepared grammar '\U0001f600p': POINT (1 2)
+DuckDB ASCII and normalized Unicode separators: POINT (1 2)
+mixed-case CTAS/CTE/EXPLAIN/PRAGMA/SET/CALL and literal RETURNING: PASS
+EXECUTE /: clear ParserException
+EXECUTE missing: clear BinderException
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+  warnings.warn(
+
+Exit code: 0

@@ -1,0 +1,32 @@
+cwd=/private/tmp
+Command: import verify_batch1_1373; verify_batch1_1373.batch1_examples()
+Only this function ran, not the entire verification script.
+
+Imported siege_utilities.engines.dataframe_engine: /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/siege_utilities/engines/dataframe_engine.py
+Imported siege_utilities.geo.interpolation.areal: /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/siege_utilities/geo/interpolation/areal.py
+Imported siege_utilities.geo.census.catalog_populator: /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/siege_utilities/geo/census/catalog_populator.py
+Libraries: {'duckdb': '1.4.4', 'tobler': '0.13.0', 'shapely': '2.1.2'}
+1: VARCHAR hex WKB 0101000000000000000000F03F0000000000000040 -> POINT (1 2)
+2: round-trip columns=['a"b', 'geometry'], geometry=POINT (1 2)
+2: round-trip columns=['a"b', 'g"eom'], geometry=POINT (1 2)
+2: round-trip columns=['g"eom'], geometry=POINT (1 2)
+3/4 tobler: extensive [100, NaN] -> [nan, 0.0]; intensive [covered zero, disjoint] -> [0.0, nan]
+3/4 duckdb: extensive [100, NaN] -> [nan, 0.0]; intensive [covered zero, disjoint] -> [0.0, nan]
+3/4 shapely: extensive [100, NaN] -> [nan, 0.0]; intensive [covered zero, disjoint] -> [0.0, nan]
+5: REJECT https://api.census.gov/data/timeseries/govs/schfin: base_url 'https://api.census.gov/data/timeseries/govs/schfin' includes a full dataset path (e.g. '/data/2023/acs/acs5' or '/data/timeseries/govs/schfin'). Pass the API root ending at '/data' or without it -- for example 'https://api.census.gov' or 'https://api.census.gov/data'. _fetch_variables/_fetch_groups append '/{year}/{dataset}/...' themselves.
+6: REJECT https://api.census.gov../data/2023/acs/acs5: base_url 'https://api.census.gov../data/2023/acs/acs5' includes a full dataset path (e.g. '/data/2023/acs/acs5' or '/data/timeseries/govs/schfin'). Pass the API root ending at '/data' or without it -- for example 'https://api.census.gov' or 'https://api.census.gov/data'. _fetch_variables/_fetch_groups append '/{year}/{dataset}/...' themselves.
+6: REJECT https://api.census.gov../data/timeseries/govs/schfin: base_url 'https://api.census.gov../data/timeseries/govs/schfin' includes a full dataset path (e.g. '/data/2023/acs/acs5' or '/data/timeseries/govs/schfin'). Pass the API root ending at '/data' or without it -- for example 'https://api.census.gov' or 'https://api.census.gov/data'. _fetch_variables/_fetch_groups append '/{year}/{dataset}/...' themselves.
+Q5b: REJECT https://api.census.gov/data%2f2023/cbp: base_url 'https://api.census.gov/data%2f2023/cbp' includes a full dataset path (e.g. '/data/2023/acs/acs5' or '/data/timeseries/govs/schfin'). Pass the API root ending at '/data' or without it -- for example 'https://api.census.gov' or 'https://api.census.gov/data'. _fetch_variables/_fetch_groups append '/{year}/{dataset}/...' themselves.
+Q5b: REJECT https://api.census.gov/%64ata%2F2023/cbp: base_url 'https://api.census.gov/%64ata%2F2023/cbp' includes a full dataset path (e.g. '/data/2023/acs/acs5' or '/data/timeseries/govs/schfin'). Pass the API root ending at '/data' or without it -- for example 'https://api.census.gov' or 'https://api.census.gov/data'. _fetch_variables/_fetch_groups append '/{year}/{dataset}/...' themselves.
+Q5b-P1: REJECT https://api.census.gov/%6%34ata/2023/acs/acs5: base_url 'https://api.census.gov/%6%34ata/2023/acs/acs5' includes a full dataset path (e.g. '/data/2023/acs/acs5' or '/data/timeseries/govs/schfin'). Pass the API root ending at '/data' or without it -- for example 'https://api.census.gov' or 'https://api.census.gov/data'. _fetch_variables/_fetch_groups append '/{year}/{dataset}/...' themselves.
+Q5b-P1: REJECT https://api.census.gov/data%2%662023%2%66acs%2%66acs5: base_url 'https://api.census.gov/data%2%662023%2%66acs%2%66acs5' includes a full dataset path (e.g. '/data/2023/acs/acs5' or '/data/timeseries/govs/schfin'). Pass the API root ending at '/data' or without it -- for example 'https://api.census.gov' or 'https://api.census.gov/data'. _fetch_variables/_fetch_groups append '/{year}/{dataset}/...' themselves.
+5/6/7 control: https://api.census.gov -> https://api.census.gov/data; fetch URLs verified
+5/6/7 control: https://api.census.gov/data -> https://api.census.gov/data; fetch URLs verified
+5/6/7 control: https://api.census.gov/data/ -> https://api.census.gov/data; fetch URLs verified
+5/6/7 control: https://api.census.gov//data//data/ -> https://api.census.gov/data; fetch URLs verified
+5/6/7 control: https://proxy/data/census -> https://proxy/data/census/data; fetch URLs verified
+5/6/7 control: https://proxy/data/2023/census -> https://proxy/data/2023/census/data; fetch URLs verified
+5/6/7 control: https://proxy/2023/gw -> https://proxy/2023/gw/data; fetch URLs verified
+5/6/7 control: https://proxy../data/timeseries/govs/schfin -> https://proxy../data/timeseries/govs/schfin/data; fetch URLs verified
+
+PASS

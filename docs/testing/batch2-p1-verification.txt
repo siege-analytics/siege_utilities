@@ -1,0 +1,85 @@
+Batch 2 Q5b — split percent-escape P1 correction
+
+The normalized outbound candidate is prepared with
+requests.models.PreparedRequest.prepare_url(), without HTTP. Its path is
+percent-decoded once for dataset-shape validation under the original Census
+hostname guard. Existing path checks remain, preserving previous rejections
+even when preparation resolves dot segments. The prepared URL is never used
+as the returned base; accepted outbound construction is unchanged.
+
+Both reported smuggles now raise the existing actionable ValueError before HTTP:
+  https://api.census.gov/%6%34ata/2023/acs/acs5
+  https://api.census.gov/data%2%662023%2%66acs%2%66acs5
+
+Wire terminology, verified with Requests 2.32.5 / urllib3 2.6.3:
+- Requests retains %252f in the literal prepared wire path. One path decode
+  yields literal %2f, not '/'. The uppercase control behaves likewise.
+- Requests retains %2F for an encoded slash; the one path decode interprets it
+  as '/'. Validation applies that interpretation without recursive decoding.
+- Preparing the raw input misses the reported smuggles: the existing outbound
+  unreserved decoding first joins their split escapes. Preparation therefore
+  uses the normalized candidate that the fetchers actually build upon.
+- Installed implementation and the upstream preparation source were checked:
+  https://requests.readthedocs.io/en/latest/_modules/requests/models/
+  https://requests.readthedocs.io/en/latest/_modules/requests/utils/
+
+Tests (commands and raw output: batch2-p1-pytest.txt)
+  tests/test_census_catalog_populator.py       12 passed
+  tests/test_batch2_1373.py                   366 passed
+  tests/test_batch1_1373.py                    52 passed (includes 6 Census cases)
+  tests/test_final_hardening_consensus.py      34 passed
+  tests/test_round5_class_hardening.py         16 passed
+  tests/test_round6_class_hardening.py         21 passed
+  tests/test_round7_class_hardening.py         18 passed
+  tests/test_round8_class_hardening.py         15 passed
+  tests/test_round9_class_hardening.py         25 passed
+  TOTAL                                     559 passed; no failures or skips
+Ten configuration/dependency/geometry warnings are recorded in the raw log.
+Interpreter: /Users/dheerajchand/.pyenv/versions/default_31111/bin/python
+Working directory: /private/tmp; PYTHONPATH points to this worktree.
+
+Red-on-revert (batch2-p1-red-on-revert.txt, batch2-p1-red-green-cases.txt)
+- Saved the actual uncommitted pre-correction Batch-2 production bytes:
+  SHA256 b800cc6f8ad52330e91f77517eb3d8f0656936df2bfea6d24711bf58bac784e8.
+- Before correction: 96 new smuggle tests failed with DID NOT RAISE ValueError;
+  270 other tests passed. The new cases cover 16 path variants across 6 host
+  spellings: lower/upper/mixed hex, either/both split digits, literal/encoded
+  separators, empty segments, repeated roots, yearless paths and prefixes.
+- After the green run, reverted only production to those saved Batch-2 bytes:
+  the identical 96 tests failed and 270 passed again.
+- Restored fixed production byte-for-byte: all 366 Batch-2 tests passed
+  (batch2-p1-restored.txt). JUnit test IDs match each red case to its green case.
+
+Compatibility (batch2-p1-fetch-identity.txt)
+- Captured actual populate() variables.json/groups.json URLs on the unchanged
+  Batch-2 code and compared UTF-8 bytes after correction: 46 accepted bases,
+  92 fetch argument URLs and their 92 Requests-prepared URLs stayed identical.
+- Includes host roots, /data, /data/, repeated roots, proxy prefixes (including
+  encoded/split prefixes), %252f/%252F literals, overlong %C0%AF and %E0%80%AF,
+  encoded/literal fullwidth slash, literal '+', and malformed escapes.
+- Earlier direct-separator and legacy-rejection tests remain green.
+- HTTP get was replaced to capture URLs; constructor, populate, fetch assembly,
+  and Requests preparation ran normally. No live Census request was made.
+
+Additional checks (batch2-p1-static-checks.txt)
+- All four changed/new Python files parse; SHA256 hashes recorded.
+- SU-1: exception-handler AST unchanged; no success-shaped error result added.
+- SU-2: documentation distinguishes prepared wire spelling, a single path
+  interpretation and preservation of outbound URL bytes.
+- SU-4b: existing raise AST/type/message unchanged; rejection tests assert the
+  actionable ValueError and no HTTP; existing API-error coverage passed.
+- writing-claims:1: searched Python sources across the repository for URL
+  decoding/preparation and dataset guards. One production Census base guard;
+  both historical verification callers now include the two reported smuggles.
+- Notebook search has no call sites; existing coverage gap remains.
+- git diff --check passed.
+- verify_batch1_1373.batch1_examples and
+  verify_round9_hardening.normalization_and_grammar_controls passed; see
+  batch2-p1-green-verify_*.txt. Only those functions, not entire scripts, ran.
+
+Delivery
+Changes remain uncommitted on fix/1373-batch1 for the coordinator. The previously
+recorded Git metadata sandbox restriction remains applicable (see
+batch2-git-attempt.txt). No branch, commit or push was attempted in this correction.
+Earlier batch2-* evidence files are retained as historical pre-correction logs;
+this report and batch2-p1-* evidence describe the corrected tree.

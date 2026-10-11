@@ -1,0 +1,5 @@
+cwd=/private/tmp
+Interpreter=/Users/dheerajchand/.pyenv/versions/default_31111/bin/python
+PYTHONPATH=/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening
+Cached origin/develop=470ff8aed4ea9f3abe0dad7ac5fb990a87a2d780
+Production file byte-identical to origin/develop; SHA256=cbb0b32b3cb23e537049a178b2918adbb19fd6dde07155227992b55ebd15cde7

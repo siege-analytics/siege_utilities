@@ -1,0 +1,13 @@
+Commands attempted before editing:
+
+$ git fetch origin
+error: cannot open '/Users/dheerajchand/git/siege-analytics/siege_utilities/.git/worktrees/siege_utilities-hardening/FETCH_HEAD': Operation not permitted
+Exit code: 255
+
+$ git switch -c fix/1373-batch2-pct origin/develop
+fatal: Unable to create '/Users/dheerajchand/git/siege-analytics/siege_utilities/.git/worktrees/siege_utilities-hardening/index.lock': Operation not permitted
+Exit code: 128
+
+No permission escalation requested. User explicitly authorized leaving changes
+uncommitted when Git operations are sandbox-blocked. Work stays on the existing
+fix/1373-batch1 branch; no commit or push attempted.

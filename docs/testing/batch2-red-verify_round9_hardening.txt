@@ -1,0 +1,16 @@
+cwd=/private/tmp
+Interpreter=/Users/dheerajchand/.pyenv/versions/default_31111/bin/python
+PYTHONPATH=/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening
+Cached origin/develop=470ff8aed4ea9f3abe0dad7ac5fb990a87a2d780
+Production file byte-identical to origin/develop; SHA256=cbb0b32b3cb23e537049a178b2918adbb19fd6dde07155227992b55ebd15cde7
+Command: ['/Users/dheerajchand/.pyenv/versions/default_31111/bin/python', '-c', "import sys; from importlib import import_module; sys.path.insert(0, '/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/scripts'); import_module('verify_round9_hardening').normalization_and_grammar_controls()"]
+
+/Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+  warnings.warn(
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/scripts/verify_round9_hardening.py", line 70, in normalization_and_grammar_controls
+    raise AssertionError(f"Accepted dataset endpoint {base}")
+AssertionError: Accepted dataset endpoint https://api.census.gov/data%2f2023/cbp
+
+Exit code: 1

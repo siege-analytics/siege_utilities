@@ -1,0 +1,57 @@
+Batch 2 P2 correction: remove raw-path over-rejection
+
+Production change: delete decoded_segments and its validation_paths entry.
+The original segment guard and PreparedRequest prepared-path guard remain.
+AST equivalence verifies no other production semantics changed.
+
+Red/green and baseline evidence:
+- Before production edit: 54 new acceptance regressions failed with the
+  existing full-dataset-path ValueError; all 366 previous Batch-2 tests passed.
+- The same 54 test IDs passed against cached origin/develop
+  470ff8aed4ea9f3abe0dad7ac5fb990a87a2d780 loaded in memory.
+- After correction: those 54 cases and all 366 previous cases passed.
+- Nine acceptance paths across six Census host spellings include the three
+  reported false rejects, encoded/mixed dot segments, and %zz variants.
+  Literal expected normalized roots and prepared paths are pinned in tests.
+
+Required test runs (exact commands/raw output in batch2-p2-pytest.txt):
+  test_batch1_1373.py: 6 passed
+  test_batch2_1373.py: 420 passed
+  test_census_catalog_populator.py: 12 passed
+  test_final_hardening_consensus.py: 34 passed
+  TOTAL: 472 passed, no failures or skips.
+  Batch-1 selection: -k census; 46 unrelated tests deselected.
+  Eight warning occurrences across the two runs: pytest configuration,
+  dependency versions, SciPy casting, and geographic-CRS buffering.
+
+Smuggle and rejection counts from green JUnit:
+  test_encoded_separator_dataset_raises_before_http: 132 passed
+  test_split_escape_dataset_raises_before_http: 96 passed
+  test_legacy_dataset_raises_before_http_control: 90 passed
+  Includes direct %2f/%2F, split data/slashes, split timeseries, canonical
+  and yearless paths, %64ata, equivalent hosts and trailing-dot hosts.
+
+Fetch identity (batch2-p2-fetch-identity.txt):
+- 46 prior accepted bases: 92 fetch argument URLs and 92 prepared URLs
+  match both pre-P2 and origin/develop UTF-8 bytes.
+- 54 restored accepts: 108 fetch argument URLs and 108 prepared URLs
+  match origin/develop UTF-8 bytes.
+- Real constructor/populate/fetch assembly and Requests preparation ran;
+  only HTTP get was replaced. No live Census requests.
+- For /data%2f2023/.. and /data%2f2023/%2e%2e the prepared candidate
+  path is /data. For /data%2f2023/%zz, the literal prepared path is
+  /data%252F2023/%25zz/data; one decode gives /data%2F2023/%zz/data.
+
+Static review (batch2-p2-static-checks.txt):
+- All four modified/untracked Python files parse; SHA256 hashes recorded.
+- SU-1: exception handlers, raises and returns unchanged.
+- SU-2: comments reflect original segments plus prepared-path validation.
+- SU-4b: actionable ValueError type/message and existing error tests retained.
+- writing-claims:1: repository Python scan finds one production Census root
+  guard; redundant raw-decoded view removed. No notebook call sites;
+  existing notebook documentation gap remains.
+- git diff --check passed. Existing verification scripts untouched by P2.
+
+Changes remain uncommitted on fix/1373-batch1 for coordinator commit.
+Git metadata is read-only in this workspace; no commit or push attempted.
+Earlier batch2-* and batch2-p1-* evidence remains historical.

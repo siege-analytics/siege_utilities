@@ -1,0 +1,53 @@
+AST PASS siege_utilities/geo/census/catalog_populator.py; SHA256=996265a6daf99b034c92e43aca2f00743e7ee9f5b6a07d911819f82496181ffb
+AST PASS tests/test_batch2_1373.py; SHA256=7b29dacbe1d245e30fbf975e695fcad284d254b3c7474b2267fe901d683aa83e
+AST PASS scripts/verify_batch1_1373.py; SHA256=5107b9b170e8240871a94d0fc8dc006e00552eb29642db194656f4bb8833e03f
+AST PASS scripts/verify_round9_hardening.py; SHA256=0b59af6c10b4158673b1199b54be72f212f506b163de82b9dda24f0bfef8c2b6
+SU-1: exception handler AST unchanged; no success-shaped failure added.
+SU-2: docstring distinguishes preparation, one reserved-path decode, preserved outbound URL.
+SU-4b: raise AST/type/actionable message unchanged; new tests assert ValueError/message/no HTTP. Existing API-error test included in 559-test gate.
+
+Command: ['rg', '-n', 'unquote\\(|_decode_unreserved|normalize_base_url|full dataset path|PreparedRequest', '.', '-g', '*.py']
+./scripts/verify_round6_hardening.py:113:            assert "full dataset path" in str(exc)
+./scripts/verify_round6_hardening.py:114:            print(f"census REJECT {base}: ValueError (full dataset path)")
+./scripts/verify_round9_hardening.py:48:                    assert "full dataset path" in str(exc)
+./scripts/verify_round9_hardening.py:49:                    print(f"census REJECT {base}: ValueError (full dataset path), no HTTP")
+./scripts/verify_round9_hardening.py:69:                assert "full dataset path" in str(exc)
+./scripts/verify_round9_hardening.py:70:                print(f"census REJECT {base}: ValueError (full dataset path), no HTTP")
+./scripts/verify_batch1_1373.py:72:                assert "full dataset path" in str(exc)
+./scripts/verify_round8_hardening.py:47:            assert "full dataset path" in str(exc)
+./scripts/verify_round8_hardening.py:48:            print(f"census REJECT {base}: ValueError (full dataset path)")
+./scripts/verify_round8_hardening.py:140:            assert "full dataset path" in str(exc)
+./scripts/verify_round8_hardening.py:141:            print(f"census REJECT {base}: ValueError (full dataset path)")
+./tests/test_batch2_1373.py:151:    with pytest.raises(ValueError, match="full dataset path.*Pass the API root"):
+./tests/test_batch2_1373.py:173:    with pytest.raises(ValueError, match="full dataset path.*Pass the API root"):
+./tests/test_batch2_1373.py:189:        assert unquote(prepared.path_url) == f"{path.replace('%25', '%')}{suffix}"
+./tests/test_batch2_1373.py:218:    with pytest.raises(ValueError, match="full dataset path.*Pass the API root"):
+./tests/test_round9_class_hardening.py:72:    with pytest.raises(ValueError, match="full dataset path"):
+./tests/test_batch1_1373.py:120:    with pytest.raises(ValueError, match="full dataset path"):
+./tests/test_batch1_1373.py:130:    with pytest.raises(ValueError, match="full dataset path"):
+./siege_utilities/geo/census/catalog_populator.py:60:        # A full dataset path ("https://api.census.gov/data/2023/acs/acs5")
+./siege_utilities/geo/census/catalog_populator.py:63:        self.base_url = self._normalize_base_url(base_url)
+./siege_utilities/geo/census/catalog_populator.py:67:    def _normalize_base_url(base_url: str) -> str:
+./siege_utilities/geo/census/catalog_populator.py:79:            ValueError: If base_url on api.census.gov includes a full dataset path,
+./siege_utilities/geo/census/catalog_populator.py:90:        hostname = unquote(parts.hostname or "").rstrip(".").lower()
+./siege_utilities/geo/census/catalog_populator.py:93:        def _decode_unreserved(match: re.Match[str]) -> str:
+./siege_utilities/geo/census/catalog_populator.py:98:        path = re.sub(r"%[0-9A-Fa-f]{2}", _decode_unreserved, parts.path)
+./siege_utilities/geo/census/catalog_populator.py:118:        decoded_segments = [s for s in unquote(parts.path).split("/") if s]
+./siege_utilities/geo/census/catalog_populator.py:126:            prepared = requests.models.PreparedRequest()
+./siege_utilities/geo/census/catalog_populator.py:128:            validation_paths.append([s for s in unquote(prepared.path_url).split("/") if s])
+./siege_utilities/geo/census/catalog_populator.py:138:                        f"base_url {base_url!r} includes a full dataset path "
+./tests/test_final_hardening_consensus.py:715:    with pytest.raises(ValueError, match="full dataset path"):
+./tests/test_round5_class_hardening.py:246:        with pytest.raises(ValueError, match="full dataset path"):
+./tests/test_round8_class_hardening.py:98:    with pytest.raises(ValueError, match="full dataset path"):
+
+Exit code: 0
+
+Command: ['rg', '-n', 'CensusCatalogPopulator|catalog_populator|_normalize_base_url', 'notebooks', '-g', '*.ipynb']
+
+Exit code: 1
+
+Command: ['git', 'diff', '--check']
+
+Exit code: 0
+writing-claims:1: codebase scan found one production Census base guard; both existing verification callers now include the smuggles.
+Notebook search: no call sites; existing coverage gap. No notebook edit required by this correction.

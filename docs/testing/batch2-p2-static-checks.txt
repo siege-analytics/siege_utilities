@@ -1,0 +1,70 @@
+Interpreter: /Users/dheerajchand/.pyenv/versions/default_31111/bin/python
+Parse all currently modified/untracked Python files:
+AST PASS scripts/verify_batch1_1373.py SHA256=5107b9b170e8240871a94d0fc8dc006e00552eb29642db194656f4bb8833e03f
+AST PASS scripts/verify_round9_hardening.py SHA256=0b59af6c10b4158673b1199b54be72f212f506b163de82b9dda24f0bfef8c2b6
+AST PASS siege_utilities/geo/census/catalog_populator.py SHA256=ce873c7a4d8620910f56774141025148fe3a642c13a9795e101983c6336e9818
+AST PASS tests/test_batch2_1373.py SHA256=3ea15425a14aea393b3425abed31efe6d38a2f4866ab8b7316a3edbd39d602cb
+AST equivalence PASS: only the raw decoded_segments guard was deleted; other production behavior unchanged.
+P2 untouched: verify_batch1_1373.py
+P2 untouched: verify_round9_hardening.py
+SU-1: exception handlers, raises and return ASTs unchanged; no failure swallowed or success-shaped fallback added.
+SU-2: comments now describe original segments + prepared-path validation; outbound spelling remains separate.
+SU-4b: rejection ValueError type/actionable message unchanged; existing rejection and API-error tests run.
+
+P2 production diff against saved pre-correction bytes:
+--- pre-P2
++++ fixed
+@@ -110,13 +110,11 @@
+         # On the Census host, anything after /data other than repeated root
+         # components is a dataset path, including yearless timeseries paths.
+         # Proxy hosts own their path namespaces, regardless of their spelling.
+-        # Retain the pre-preparation views: resolving '..' must not erase a
+-        # dataset component. Never reparse decoded text as a URL, which could
+-        # remove the original host from the guard.
+-        # Keep the original check too: /data/%2fdata must not become an accepted
+-        # repeated root merely because decoding removes an empty component.
+-        decoded_segments = [s for s in unquote(parts.path).split("/") if s]
+-        validation_paths = [segments, decoded_segments]
++        # Retain the original segment guard so preparation cannot erase a
++        # rejected component (e.g. /data/%2e%2e or /data/%2fdata). Decode reserved
++        # separators only in the prepared path, after Requests handles dot
++        # segments and malformed escapes.
++        validation_paths = [segments]
+         if hostname == "api.census.gov":
+             # Prepare the actual outbound candidate, not the raw input: our
+             # unreserved decoding can join split escapes (%6%34 -> %64).
+
+Command: ['rg', '-n', 'decoded_segments|unquote\\(parts\\.path\\)|_normalize_base_url|full dataset path|PreparedRequest', '.', '-g', '*.py']
+./scripts/verify_batch1_1373.py:72:                assert "full dataset path" in str(exc)
+./scripts/verify_round6_hardening.py:113:            assert "full dataset path" in str(exc)
+./scripts/verify_round6_hardening.py:114:            print(f"census REJECT {base}: ValueError (full dataset path)")
+./scripts/verify_round8_hardening.py:47:            assert "full dataset path" in str(exc)
+./scripts/verify_round8_hardening.py:48:            print(f"census REJECT {base}: ValueError (full dataset path)")
+./scripts/verify_round8_hardening.py:140:            assert "full dataset path" in str(exc)
+./scripts/verify_round8_hardening.py:141:            print(f"census REJECT {base}: ValueError (full dataset path)")
+./scripts/verify_round9_hardening.py:48:                    assert "full dataset path" in str(exc)
+./scripts/verify_round9_hardening.py:49:                    print(f"census REJECT {base}: ValueError (full dataset path), no HTTP")
+./scripts/verify_round9_hardening.py:69:                assert "full dataset path" in str(exc)
+./scripts/verify_round9_hardening.py:70:                print(f"census REJECT {base}: ValueError (full dataset path), no HTTP")
+./tests/test_batch2_1373.py:177:    with pytest.raises(ValueError, match="full dataset path.*Pass the API root"):
+./tests/test_batch2_1373.py:199:    with pytest.raises(ValueError, match="full dataset path.*Pass the API root"):
+./tests/test_batch2_1373.py:272:    with pytest.raises(ValueError, match="full dataset path.*Pass the API root"):
+./tests/test_batch1_1373.py:120:    with pytest.raises(ValueError, match="full dataset path"):
+./tests/test_batch1_1373.py:130:    with pytest.raises(ValueError, match="full dataset path"):
+./tests/test_round9_class_hardening.py:72:    with pytest.raises(ValueError, match="full dataset path"):
+./tests/test_round8_class_hardening.py:98:    with pytest.raises(ValueError, match="full dataset path"):
+./tests/test_round5_class_hardening.py:246:        with pytest.raises(ValueError, match="full dataset path"):
+./tests/test_final_hardening_consensus.py:715:    with pytest.raises(ValueError, match="full dataset path"):
+./siege_utilities/geo/census/catalog_populator.py:60:        # A full dataset path ("https://api.census.gov/data/2023/acs/acs5")
+./siege_utilities/geo/census/catalog_populator.py:63:        self.base_url = self._normalize_base_url(base_url)
+./siege_utilities/geo/census/catalog_populator.py:67:    def _normalize_base_url(base_url: str) -> str:
+./siege_utilities/geo/census/catalog_populator.py:79:            ValueError: If base_url on api.census.gov includes a full dataset path,
+./siege_utilities/geo/census/catalog_populator.py:124:            prepared = requests.models.PreparedRequest()
+./siege_utilities/geo/census/catalog_populator.py:136:                        f"base_url {base_url!r} includes a full dataset path "
+  Exit: 0
+Command: ['rg', '-n', 'CensusCatalogPopulator|catalog_populator|_normalize_base_url', 'notebooks', '-g', '*.ipynb']
+  Exit: 1
+Command: ['git', 'diff', '--check']
+  Exit: 0
+writing-claims:1: repository Python scan finds one production Census root guard; raw decoded_segments view removed.
+Notebook scan: no call sites; existing documentation coverage gap remains.
