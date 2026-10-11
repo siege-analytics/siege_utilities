@@ -257,7 +257,7 @@ def test_spark_from_geodataframe_serializes_coords_as_is(monkeypatch):
 
 
 def test_spark_to_geodataframe_assigns_requested_crs_without_reproject():
-    gpd = pytest.importorskip("geopandas")
+    pytest.importorskip("geopandas")
     import pandas as pd
     from siege_utilities.engines.dataframe_engine import SparkEngine
 
@@ -275,7 +275,7 @@ def test_spark_to_geodataframe_assigns_requested_crs_without_reproject():
 
 
 def test_spark_projected_wkt_roundtrip_is_preserved_not_corrupted():
-    gpd = pytest.importorskip("geopandas")
+    pytest.importorskip("geopandas")
     import math
     import pandas as pd
     from siege_utilities.engines.dataframe_engine import SparkEngine
@@ -723,7 +723,7 @@ def test_duckdb_native_geometry_query_roundtrips():
     # internal GEOMETRY blob, NOT valid WKB. to_geodataframe() must convert it
     # via ST_AsWKB; pre-fix it reached the WKB decoder and raised
     # "GEOSException: Unknown WKB type 0".
-    gpd = pytest.importorskip("geopandas")
+    pytest.importorskip("geopandas")
     pytest.importorskip("duckdb")
     from shapely.geometry import Point
     from siege_utilities.engines.dataframe_engine import DuckDBEngine
@@ -741,7 +741,7 @@ def test_duckdb_native_geometry_query_roundtrips():
 def test_duckdb_read_spatial_native_geometry_roundtrips(tmp_path):
     # read_spatial fetches ST_Read's native GEOMETRY; it must ST_AsWKB it so the
     # decoder gets valid WKB (pre-fix returned corrupt/opaque bytes).
-    gpd = pytest.importorskip("geopandas")
+    pytest.importorskip("geopandas")
     pytest.importorskip("duckdb")
     from shapely.geometry import Point
     from siege_utilities.engines.dataframe_engine import DuckDBEngine

@@ -1152,8 +1152,75 @@ class DuckDBEngine(DataFrameEngine):
 
     @staticmethod
     def _geometry_column_positions(relation: Any) -> List[int]:
-        """Return zero-based positions, retaining duplicate column identity."""
-        return [i for i, dtype in enumerate(relation.types) if str(dtype).upper() == "GEOMETRY"]
+        """Return zero-based positions of SCALAR GEOMETRY columns.
+
+        Match a bare ``GEOMETRY`` or a parametrized ``GEOMETRY('EPSG:4326')``
+        (DuckDB spatial 1.5.x reports the parametrized form where 1.4.x reported
+        the bare name, so an exact-equality check misses it). Do NOT match any
+        array/list form -- bare ``GEOMETRY[]`` / ``GEOMETRY[1]`` OR the
+        CRS-qualified collection ``GEOMETRY('EPSG:4326')[]`` that ``list(geom)``
+        aggregation produces -- because ``ST_AsWKB`` cannot be applied to a
+        geometry array.
+
+        Discriminate on the terminal character, not on the presence of a
+        bracket: a scalar geometry type is bare ``GEOMETRY`` or ends with ``)``
+        (``GEOMETRY(<crs>)``), while every collection spelling ends with ``]``.
+        A custom CRS carried as PROJJSON puts ``[...]`` INSIDE the parentheses
+        (``GEOMETRY('PROJCS[...]')``), so a ``"[" not in up`` guard would wrongly
+        drop a valid scalar geometry; the ``endswith(")")`` test keeps it.
+        """
+        positions = []
+        for i, dtype in enumerate(relation.types):
+            up = str(dtype).upper()
+            if up == "GEOMETRY" or (up.startswith("GEOMETRY(") and up.endswith(")")):
+                positions.append(i)
+        return positions
+
+    @staticmethod
+    def _dedupe_names(names: List[str]) -> List[str]:
+        """Deduplicate column names pandas-style: ``x`` -> ``x``, ``x_1``, ...
+
+        Reproduces the output naming that DuckDB spatial 1.4.x produced natively
+        when a feature property name collided with the geometry column name;
+        1.5.x leaves both columns identically named, so the clash is resolved
+        here instead. The first occurrence keeps the original name.
+        """
+        seen: dict = {}
+        out: List[str] = []
+        for name in names:
+            if name not in seen:
+                seen[name] = 0
+                out.append(name)
+                continue
+            seen[name] += 1
+            candidate = f"{name}_{seen[name]}"
+            while candidate in seen:
+                seen[name] += 1
+                candidate = f"{name}_{seen[name]}"
+            seen[candidate] = 0
+            out.append(candidate)
+        return out
+
+    def _spatial_meta_names(self, path: str) -> List[str]:
+        """Return ST_Read's real column names in column order: attribute
+        ``fields`` followed by ``geometry_fields``.
+
+        Metadata-read failures propagate: a scan failure and a metadata failure
+        must behave consistently (both raise), never silently yield a different
+        schema. An absent or empty layer is an error, not an empty schema.
+        Driver-injected columns that ST_Read_Meta does not list (for example the
+        leading ``OGC_FID`` on DuckDB spatial 1.5.x) are NOT in this list; the
+        caller drops them so the output matches metadata and 1.4.x.
+        """
+        meta_rows = self._connection.sql(
+            "SELECT layers FROM ST_Read_Meta(?)", params=[path]
+        ).fetchall()
+        if not meta_rows or not meta_rows[0][0]:
+            raise ValueError(f"ST_Read_Meta returned no layer for {path!r}")
+        layer = meta_rows[0][0][0]
+        names = [f["name"] for f in (layer.get("fields", []) or [])]
+        names += [g["name"] for g in (layer.get("geometry_fields", []) or [])]
+        return names
 
     def _materialize_geometry_wkb(self, df: Any) -> Any:
         """Eagerly fetch a typed result with columns typed GEOMETRY in WKB.
@@ -1180,15 +1247,45 @@ class DuckDBEngine(DataFrameEngine):
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
         """Read a spatial file via DuckDB's ``ST_Read``.
 
-        **kwargs: Forwarded to :func:`geopandas.read_file` (unused in the
-        current DuckDB path but accepted for interface compatibility).
+        Geometry columns are identified by scalar type, not name, so a feature
+        property named ``geom`` does not shadow the real geometry. The real
+        columns are the attribute ``fields`` plus ``geometry_fields`` reported by
+        ``ST_Read_Meta``. The scan is bound with collision-proof positional
+        aliases (DuckDB spatial 1.5.x rejects a ``SELECT *`` over duplicate
+        source names instead of auto-renaming them); any leading driver-injected
+        column such as ``OGC_FID`` -- which 1.5.x emits, 1.4.x does not, and
+        metadata does not list -- is dropped so the output schema is identical
+        across DuckDB versions. Names are then restored from metadata with
+        pandas-style deduplication, so a clashing ``geom`` property stays
+        addressable while the real geometry becomes ``geom_1``.
+
+        **kwargs: Forwarded for interface compatibility (unused in the current
+        DuckDB path).
         """
         import geopandas as gpd
         from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
         self._ensure_spatial()
-        relation = self._connection.sql("SELECT * FROM ST_Read(?)", params=[path])
+        meta_names = self._spatial_meta_names(path)
+        ncols_expected = len(meta_names)
+        # Collision-proof aliases wide enough for the real columns plus a margin
+        # for any driver-injected columns. The prefix cannot clash with a real
+        # attribute name, and scaling the width to the metadata count means a
+        # legitimate column (even one literally named ``c0``) is always aliased
+        # rather than left to collide with a generated alias.
+        alias_width = ncols_expected + 16
+        aliases = ", ".join(f"__su_geo_col_{i}__" for i in range(alias_width))
+        relation = self._connection.sql(
+            f"SELECT * FROM ST_Read(?) t({aliases})", params=[path]
+        )
         positions = self._geometry_column_positions(relation)
         result = self._materialize_geometry_wkb(relation)
+        # Drop leading driver-injected columns the metadata does not describe.
+        drop = len(result.columns) - ncols_expected
+        if drop > 0:
+            result = result.iloc[:, drop:].copy()
+            positions = [p - drop for p in positions if p >= drop]
+        if ncols_expected > 0 and len(result.columns) == ncols_expected:
+            result.columns = self._dedupe_names(meta_names)
         if not positions:
             return result
         geom_cols = [result.columns[i] for i in positions]

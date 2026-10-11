@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-10-11
+
+Major release. The public surface changes incompatibly (the data.world
+connector and its exports are removed, and several packaging extras changed),
+so this supersedes the never-published 3.24.0 in-repo version and bumps the
+major per Semantic Versioning.
+
 ### BREAKING
 
 - **Removed the data.world connector** (`siege_utilities.analytics.datadotworld_connector`
@@ -70,6 +77,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Census catalog rejects a dataset-path base URL keyed to the Census API host
   with percent-decoded path validation, so an arbitrary proxy prefix is accepted
   while a real dataset endpoint is rejected (#1369).
+- DuckDB engine `read_spatial` is robust across DuckDB spatial 1.4.x and 1.5.x:
+  geometry columns are identified by scalar type (bare `GEOMETRY` or
+  `GEOMETRY(<crs>)`, never a `GEOMETRY[...]` collection), the scan is bound with
+  collision-proof positional aliases so a property named `geom` no longer breaks
+  the `SELECT *` bind on 1.5.x, and the driver-injected `OGC_FID` column that
+  1.5.x emits is dropped so the output schema matches 1.4.x. Metadata-read
+  failures propagate rather than silently changing the schema (#1380).
 
 ### Documentation
 
