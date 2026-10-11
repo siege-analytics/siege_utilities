@@ -4,7 +4,7 @@
 
 **Scope:** ELE-2417 (audit sub-issue 2/6). Consumes [INTENT.md](INTENT.md) and [FAILURE_MODES.md](FAILURE_MODES.md). Ships [ADRs](adr/) for each decision. Snapshot: 2026-04-22 (revised 2026-04-23).
 
-**Cross-references:** strategic intent and principles in [../CLAUDE.md](../CLAUDE.md); hostile-review checks in `claude-configs-public/projects/siege-utilities/skills/hostile-review/`.
+**Cross-references:** strategic intent and principles in [../CLAUDE.md](../CLAUDE.md); hostile-review checks in `claude-configs-public/projects/siege-utilities/skills/hostile-review/`; the reusable design patterns this layer model expresses in [DESIGN_PATTERNS.md](DESIGN_PATTERNS.md).
 
 ## Layer model
 
