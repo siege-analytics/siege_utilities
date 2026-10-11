@@ -8,6 +8,9 @@ it, test it" flow is in [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md#adding-new-funct
 this document covers the extension points where the library's invariants
 are easy to break.
 
+For the *why* behind each extension point, named as reusable design
+patterns, see [DESIGN_PATTERNS.md](DESIGN_PATTERNS.md).
+
 Read [ARCHITECTURE.md](ARCHITECTURE.md) first. The single invariant that
 governs every extension is **imports go DOWN**: Foundation
 (`core/`, `config/`, `files/`, `testing/`) depends on nothing else,

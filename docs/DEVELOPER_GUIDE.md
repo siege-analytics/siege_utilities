@@ -2,7 +2,9 @@
 
 This guide is for developers who want to contribute to siege_utilities,
 extend its functionality, or understand its architecture. For the full
-architectural rationale, see `CLAUDE.md` at the project root.
+architectural rationale, see `CLAUDE.md` at the project root. For the
+recurring design patterns this library is built from, named with
+intent and extension guidance, see [DESIGN_PATTERNS.md](DESIGN_PATTERNS.md).
 
 ## What siege_utilities does
 
