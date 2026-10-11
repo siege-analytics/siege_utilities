@@ -89,6 +89,8 @@ def _catalog_to_dict(catalog: CensusCatalog) -> dict:
             "year": d.year,
             "subject_ids": [s.subject_id for s in d.subjects],
             "table_ids": list(d.tables.keys()),
+            "timeseries_variables": d.timeseries_variables,
+            "timeseries_groups": d.timeseries_groups,
         }
         for d in catalog.datasets.values()
     ]
@@ -163,6 +165,8 @@ def _catalog_from_dict(data: dict) -> CensusCatalog:
                 for tid in d.get("table_ids", [])
                 if catalog.get_table(tid) is not None
             },
+            timeseries_variables=d.get("timeseries_variables"),
+            timeseries_groups=d.get("timeseries_groups"),
         )
         catalog.add_dataset(dataset)
 
