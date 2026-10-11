@@ -4,6 +4,12 @@ Census catalog populator — fetches metadata from Census API discovery endpoint
 Populates CensusCatalog instances from:
 - ``/data/{year}/{dataset}/variables.json`` — variable definitions
 - ``/data/{year}/{dataset}/groups.json`` — concept groupings
+- ``/data/timeseries/{program}/{dataset}/variables.json`` — raw timeseries variables
+- ``/data/timeseries/{program}/{dataset}/groups.json`` — raw timeseries groups
+
+Passing ``year=None`` (the default) selects the yearless timeseries grammar.
+Timeseries metadata is retained without timeseries-native table/subject/family
+modeling; ACS-style grouping does not apply to its flat variable namespace.
 
 Separated from ``catalog.py`` to keep the data model I/O-free.
 """
@@ -40,6 +46,10 @@ _DATASET_PATHS = {
     "dec/sf1": "dec/sf1",
 }
 
+_TIMESERIES_PATHS = {
+    "eits/resconst": "timeseries/eits/resconst",
+}
+
 _VARIABLE_CODE_RE = re.compile(
     r"^[A-Z]{1,3}\d{5}[A-Z]?_\d{3}[EM]?$"
 )
@@ -51,7 +61,8 @@ class CensusCatalogPopulator:
         base_url: str = CENSUS_API_BASE_URL,
         timeout: int = 30,
     ):
-        # The discovery endpoints live under ``/data/{year}/{dataset}/...``;
+        # Discovery endpoints live under ``/data/{year}/{dataset}/...`` or
+        # ``/data/timeseries/{program}/{dataset}/...`` when year is None;
         # ``_fetch_variables`` / ``_fetch_groups`` append that suffix
         # themselves. Normalize the base_url STRUCTURALLY so the final URL
         # has one terminal ``/data`` component and never doubles the dataset path,
@@ -79,8 +90,9 @@ class CensusCatalogPopulator:
             ValueError: If base_url on api.census.gov includes a full dataset path,
                 such as ``/data/2023/acs/acs5`` or
                 ``/data/timeseries/govs/schfin``; the fetchers append
-                ``/{year}/{dataset}/...`` themselves, so such a base_url would
-                double the path. Other hosts accept arbitrary proxy prefixes,
+                ``/{year}/{dataset}/...`` or ``/timeseries/{program}/{dataset}/...``
+                themselves, so such a base_url would double the path.
+                Other hosts accept arbitrary proxy prefixes,
                 including ``/data/2023/gw`` and dataset-shaped paths.
         """
         from urllib.parse import unquote, urlsplit, urlunsplit
@@ -139,7 +151,8 @@ class CensusCatalogPopulator:
                         f"'/data' or without it -- for example "
                         f"'https://api.census.gov' or 'https://api.census.gov/data'. "
                         f"_fetch_variables/_fetch_groups append "
-                        f"'/{{year}}/{{dataset}}/...' themselves."
+                        f"'/{{year}}/{{dataset}}/...' or "
+                        f"'/timeseries/{{program}}/{{dataset}}/...' themselves."
                     )
 
         return normalized_url
@@ -147,10 +160,38 @@ class CensusCatalogPopulator:
     def populate(
         self,
         dataset: str,
-        year: int,
+        year: int | None = None,
         survey_type: str = "",
     ) -> CensusCatalog:
-        dataset_path = _DATASET_PATHS.get(dataset, dataset)
+        """Fetch discovery metadata and populate a catalog.
+
+        Args:
+            dataset: A year-based alias such as ``acs5``, or a timeseries path
+                such as ``eits/resconst`` or ``timeseries/eits/resconst``.
+            year: An integer selects ``{base_url}/{year}/{dataset_path}/``.
+                ``None`` (the default) selects
+                ``{base_url}/timeseries/{program}/{dataset}/``; an existing
+                ``timeseries/`` prefix is preserved without duplication.
+                Both grammars fetch ``variables.json`` and ``groups.json``.
+            survey_type: Dataset survey label; defaults to the input dataset.
+
+        Returns:
+            A catalog containing a dataset whose ID is the input ``dataset``
+            for timeseries, or ``{dataset}_{year}`` for year-based discovery.
+            Timeseries retain raw metadata in ``timeseries_variables`` and
+            ``timeseries_groups`` because ACS-style table/family grouping does
+            not apply. Both fields remain ``None`` for year-based datasets.
+
+        Raises:
+            requests.HTTPError: If either discovery endpoint returns an HTTP
+                error; no partial catalog is returned.
+        """
+        if year is None:
+            dataset_path = _TIMESERIES_PATHS.get(dataset, dataset)
+            if not dataset_path.startswith("timeseries/"):
+                dataset_path = f"timeseries/{dataset_path}"
+        else:
+            dataset_path = _DATASET_PATHS.get(dataset, dataset)
         raw_variables = self._fetch_variables(dataset_path, year)
         raw_groups = self._fetch_groups(dataset_path, year)
 
@@ -165,34 +206,53 @@ class CensusCatalogPopulator:
             catalog.add_subject(subject)
 
         ds = CensusCatalogDataset(
-            dataset_id=f"{dataset}_{year}",
+            dataset_id=dataset if year is None else f"{dataset}_{year}",
             survey_type=survey_type or dataset,
             year=year,
             subjects=subjects,
             tables={t.table_id: t for t in tables},
         )
+        if year is None:
+            ds.timeseries_variables = raw_variables
+            ds.timeseries_groups = raw_groups
         catalog.add_dataset(ds)
 
-        log.info(
-            "Populated catalog for %s/%d: %d tables, %d families, %d subjects",
-            dataset,
-            year,
-            len(catalog.tables),
-            len(catalog.families),
-            len(catalog.subjects),
-        )
+        if year is None:
+            log.info(
+                "Populated catalog for %s: ACS-style table/family grouping does "
+                "not apply to timeseries; retrieved %d raw variables",
+                dataset,
+                len(raw_variables),
+            )
+        else:
+            log.info(
+                "Populated catalog for %s/%d: %d tables, %d families, %d subjects",
+                dataset,
+                year,
+                len(catalog.tables),
+                len(catalog.families),
+                len(catalog.subjects),
+            )
         return catalog
 
-    def _fetch_variables(self, dataset_path: str, year: int) -> dict:
-        url = f"{self.base_url}/{year}/{dataset_path}/variables.json"
+    def _fetch_variables(self, dataset_path: str, year: int | None) -> dict:
+        """Fetch variables; ``year=None`` expects a ``timeseries/...`` path."""
+        if year is None:
+            url = f"{self.base_url}/{dataset_path}/variables.json"
+        else:
+            url = f"{self.base_url}/{year}/{dataset_path}/variables.json"
         log.debug("Fetching variables from %s", url)
         resp = requests.get(url, timeout=self.timeout)
         resp.raise_for_status()
         data = resp.json()
         return data.get("variables", {})
 
-    def _fetch_groups(self, dataset_path: str, year: int) -> list[dict]:
-        url = f"{self.base_url}/{year}/{dataset_path}/groups.json"
+    def _fetch_groups(self, dataset_path: str, year: int | None) -> list[dict]:
+        """Fetch groups; ``year=None`` expects a ``timeseries/...`` path."""
+        if year is None:
+            url = f"{self.base_url}/{dataset_path}/groups.json"
+        else:
+            url = f"{self.base_url}/{year}/{dataset_path}/groups.json"
         log.debug("Fetching groups from %s", url)
         resp = requests.get(url, timeout=self.timeout)
         resp.raise_for_status()

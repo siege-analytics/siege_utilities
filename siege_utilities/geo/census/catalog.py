@@ -142,11 +142,20 @@ class CensusSubject:
 
 @dataclass
 class CensusCatalogDataset:
+    """Dataset metadata; ``year=None`` identifies a yearless timeseries.
+
+    Timeseries discovery retains raw variable and group metadata in
+    ``timeseries_variables`` and ``timeseries_groups``. These fields are
+    ``None`` for year-based datasets; timeseries-native grouping is not modeled.
+    """
+
     dataset_id: str
     survey_type: str
-    year: int
+    year: int | None = None
     subjects: list[CensusSubject] = field(default_factory=list)
     tables: dict[str, CensusTable] = field(default_factory=dict)
+    timeseries_variables: dict | None = None
+    timeseries_groups: list[dict] | None = None
 
 
 def parse_table_id(table_id: str) -> Optional[dict]:
