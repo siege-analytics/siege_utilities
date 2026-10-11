@@ -1603,6 +1603,8 @@
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.census.CensusCatalogDataset.year"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.year</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.census.CensusCatalogDataset.subjects"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.subjects</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.census.CensusCatalogDataset.tables"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.tables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.census.CensusCatalogDataset.timeseries_variables"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.timeseries_variables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.census.CensusCatalogDataset.timeseries_groups"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.timeseries_groups</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.census.CensusCatalogDataset.__init__"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.__init__()</span></code></a></li>
 </ul>
 </li>
@@ -1724,6 +1726,8 @@
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.census.catalog.CensusCatalogDataset.year"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.year</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.census.catalog.CensusCatalogDataset.subjects"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.subjects</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.census.catalog.CensusCatalogDataset.tables"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.tables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.census.catalog.CensusCatalogDataset.timeseries_variables"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.timeseries_variables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.census.catalog.CensusCatalogDataset.timeseries_groups"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.timeseries_groups</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.census.catalog.CensusCatalogDataset.__init__"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.__init__()</span></code></a></li>
 </ul>
 </li>
@@ -25611,14 +25615,31 @@ DATASET level results (those are cross-dataset).</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.census.CensusCatalogPopulator.populate">
-<span class="sig-name descname"><span class="pre">populate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">survey_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/census/catalog_populator.html#CensusCatalogPopulator.populate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.census.CensusCatalogPopulator.populate" title="Link to this definition"></a></dt>
-<dd><dl class="field-list simple">
+<span class="sig-name descname"><span class="pre">populate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">survey_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/census/catalog_populator.html#CensusCatalogPopulator.populate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.census.CensusCatalogPopulator.populate" title="Link to this definition"></a></dt>
+<dd><p>Fetch discovery metadata and populate a catalog.</p>
+<dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>dataset</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
-<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
-<li><p><strong>survey_type</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
+<li><p><strong>dataset</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – A year-based alias such as <code class="docutils literal notranslate"><span class="pre">acs5</span></code>, or a timeseries path
+such as <code class="docutils literal notranslate"><span class="pre">eits/resconst</span></code> or <code class="docutils literal notranslate"><span class="pre">timeseries/eits/resconst</span></code>.</p></li>
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>) – An integer selects <code class="docutils literal notranslate"><span class="pre">{base_url}/{year}/{dataset_path}/</span></code>.
+<code class="docutils literal notranslate"><span class="pre">None</span></code> (the default) selects
+<code class="docutils literal notranslate"><span class="pre">{base_url}/timeseries/{program}/{dataset}/</span></code>; an existing
+<code class="docutils literal notranslate"><span class="pre">timeseries/</span></code> prefix is preserved without duplication.
+Both grammars fetch <code class="docutils literal notranslate"><span class="pre">variables.json</span></code> and <code class="docutils literal notranslate"><span class="pre">groups.json</span></code>.</p></li>
+<li><p><strong>survey_type</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Dataset survey label; defaults to the input dataset.</p></li>
 </ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A catalog containing a dataset whose ID is the input <code class="docutils literal notranslate"><span class="pre">dataset</span></code>
+for timeseries, or <code class="docutils literal notranslate"><span class="pre">{dataset}_{year}</span></code> for year-based discovery.
+Timeseries retain raw metadata in <code class="docutils literal notranslate"><span class="pre">timeseries_variables</span></code> and
+<code class="docutils literal notranslate"><span class="pre">timeseries_groups</span></code> because ACS-style table/family grouping does
+not apply. Both fields remain <code class="docutils literal notranslate"><span class="pre">None</span></code> for year-based datasets.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>requests.HTTPError</strong> – If either discovery endpoint returns an HTTP
+    error; no partial catalog is returned.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference internal" href="#siege_utilities.geo.census.catalog.CensusCatalog" title="siege_utilities.geo.census.catalog.CensusCatalog"><em>CensusCatalog</em></a></p>
@@ -25632,7 +25653,10 @@ DATASET level results (those are cross-dataset).</p></li>
 <dt class="sig sig-object py" id="siege_utilities.geo.census.CensusCatalogDataset">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.census.</span></span><span class="sig-name descname"><span class="pre">CensusCatalogDataset</span></span><a class="reference internal" href="../_modules/siege_utilities/geo/census/catalog.html#CensusCatalogDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.census.CensusCatalogDataset" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.15)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
-<p>CensusCatalogDataset(dataset_id: ‘str’, survey_type: ‘str’, year: ‘int’, subjects: ‘list[CensusSubject]’ = &lt;factory&gt;, tables: ‘dict[str, CensusTable]’ = &lt;factory&gt;)</p>
+<p>Dataset metadata; <code class="docutils literal notranslate"><span class="pre">year=None</span></code> identifies a yearless timeseries.</p>
+<p>Timeseries discovery retains raw variable and group metadata in
+<code class="docutils literal notranslate"><span class="pre">timeseries_variables</span></code> and <code class="docutils literal notranslate"><span class="pre">timeseries_groups</span></code>. These fields are
+<code class="docutils literal notranslate"><span class="pre">None</span></code> for year-based datasets; timeseries-native grouping is not modeled.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.geo.census.CensusCatalogDataset.dataset_id">
 <span class="sig-name descname"><span class="pre">dataset_id</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.geo.census.CensusCatalogDataset.dataset_id" title="Link to this definition"></a></dt>
@@ -25645,7 +25669,7 @@ DATASET level results (those are cross-dataset).</p></li>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.geo.census.CensusCatalogDataset.year">
-<span class="sig-name descname"><span class="pre">year</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><a class="headerlink" href="#siege_utilities.geo.census.CensusCatalogDataset.year" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">year</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#siege_utilities.geo.census.CensusCatalogDataset.year" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -25658,17 +25682,29 @@ DATASET level results (those are cross-dataset).</p></li>
 <span class="sig-name descname"><span class="pre">tables</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#siege_utilities.geo.census.catalog.CensusTable" title="siege_utilities.geo.census.catalog.CensusTable"><span class="pre">CensusTable</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#siege_utilities.geo.census.CensusCatalogDataset.tables" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.geo.census.CensusCatalogDataset.timeseries_variables">
+<span class="sig-name descname"><span class="pre">timeseries_variables</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#siege_utilities.geo.census.CensusCatalogDataset.timeseries_variables" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.geo.census.CensusCatalogDataset.timeseries_groups">
+<span class="sig-name descname"><span class="pre">timeseries_groups</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#siege_utilities.geo.census.CensusCatalogDataset.timeseries_groups" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.census.CensusCatalogDataset.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">survey_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subjects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tables</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.census.CensusCatalogDataset.__init__" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">survey_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subjects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tables</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeseries_variables</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeseries_groups</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.census.CensusCatalogDataset.__init__" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>dataset_id</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
 <li><p><strong>survey_type</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
-<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
 <li><p><strong>subjects</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><em>list</em></a><em>[</em><a class="reference internal" href="#siege_utilities.geo.census.catalog.CensusSubject" title="siege_utilities.geo.census.catalog.CensusSubject"><em>CensusSubject</em></a><em>]</em>)</p></li>
 <li><p><strong>tables</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, </em><a class="reference internal" href="#siege_utilities.geo.census.catalog.CensusTable" title="siege_utilities.geo.census.catalog.CensusTable"><em>CensusTable</em></a><em>]</em>)</p></li>
+<li><p><strong>timeseries_variables</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><em>dict</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>timeseries_groups</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><em>dict</em></a><em>] </em><em>| </em><em>None</em>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -26579,7 +26615,10 @@ DATASET level results (those are cross-dataset).</p></li>
 <dt class="sig sig-object py" id="siege_utilities.geo.census.catalog.CensusCatalogDataset">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.census.catalog.</span></span><span class="sig-name descname"><span class="pre">CensusCatalogDataset</span></span><a class="reference internal" href="../_modules/siege_utilities/geo/census/catalog.html#CensusCatalogDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.census.catalog.CensusCatalogDataset" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.15)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
-<p>CensusCatalogDataset(dataset_id: ‘str’, survey_type: ‘str’, year: ‘int’, subjects: ‘list[CensusSubject]’ = &lt;factory&gt;, tables: ‘dict[str, CensusTable]’ = &lt;factory&gt;)</p>
+<p>Dataset metadata; <code class="docutils literal notranslate"><span class="pre">year=None</span></code> identifies a yearless timeseries.</p>
+<p>Timeseries discovery retains raw variable and group metadata in
+<code class="docutils literal notranslate"><span class="pre">timeseries_variables</span></code> and <code class="docutils literal notranslate"><span class="pre">timeseries_groups</span></code>. These fields are
+<code class="docutils literal notranslate"><span class="pre">None</span></code> for year-based datasets; timeseries-native grouping is not modeled.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.geo.census.catalog.CensusCatalogDataset.dataset_id">
 <span class="sig-name descname"><span class="pre">dataset_id</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.geo.census.catalog.CensusCatalogDataset.dataset_id" title="Link to this definition"></a></dt>
@@ -26592,7 +26631,7 @@ DATASET level results (those are cross-dataset).</p></li>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.geo.census.catalog.CensusCatalogDataset.year">
-<span class="sig-name descname"><span class="pre">year</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><a class="headerlink" href="#siege_utilities.geo.census.catalog.CensusCatalogDataset.year" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">year</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#siege_utilities.geo.census.catalog.CensusCatalogDataset.year" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -26605,17 +26644,29 @@ DATASET level results (those are cross-dataset).</p></li>
 <span class="sig-name descname"><span class="pre">tables</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#siege_utilities.geo.census.catalog.CensusTable" title="siege_utilities.geo.census.catalog.CensusTable"><span class="pre">CensusTable</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#siege_utilities.geo.census.catalog.CensusCatalogDataset.tables" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.geo.census.catalog.CensusCatalogDataset.timeseries_variables">
+<span class="sig-name descname"><span class="pre">timeseries_variables</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#siege_utilities.geo.census.catalog.CensusCatalogDataset.timeseries_variables" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.geo.census.catalog.CensusCatalogDataset.timeseries_groups">
+<span class="sig-name descname"><span class="pre">timeseries_groups</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#siege_utilities.geo.census.catalog.CensusCatalogDataset.timeseries_groups" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.census.catalog.CensusCatalogDataset.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">survey_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subjects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tables</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.census.catalog.CensusCatalogDataset.__init__" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">survey_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subjects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tables</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeseries_variables</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeseries_groups</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.census.catalog.CensusCatalogDataset.__init__" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>dataset_id</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
 <li><p><strong>survey_type</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
-<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
 <li><p><strong>subjects</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><em>list</em></a><em>[</em><a class="reference internal" href="#siege_utilities.geo.census.catalog.CensusSubject" title="siege_utilities.geo.census.catalog.CensusSubject"><em>CensusSubject</em></a><em>]</em>)</p></li>
 <li><p><strong>tables</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, </em><a class="reference internal" href="#siege_utilities.geo.census.catalog.CensusTable" title="siege_utilities.geo.census.catalog.CensusTable"><em>CensusTable</em></a><em>]</em>)</p></li>
+<li><p><strong>timeseries_variables</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><em>dict</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>timeseries_groups</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><em>dict</em></a><em>] </em><em>| </em><em>None</em>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -27161,7 +27212,12 @@ Follows the same cache-dir convention as <code class="xref py py-class docutils 
 <p id="module-siege_utilities.geo.census.catalog_populator">Census catalog populator — fetches metadata from Census API discovery endpoints.</p>
 <p>Populates CensusCatalog instances from:
 - <code class="docutils literal notranslate"><span class="pre">/data/{year}/{dataset}/variables.json</span></code> — variable definitions
-- <code class="docutils literal notranslate"><span class="pre">/data/{year}/{dataset}/groups.json</span></code> — concept groupings</p>
+- <code class="docutils literal notranslate"><span class="pre">/data/{year}/{dataset}/groups.json</span></code> — concept groupings
+- <code class="docutils literal notranslate"><span class="pre">/data/timeseries/{program}/{dataset}/variables.json</span></code> — raw timeseries variables
+- <code class="docutils literal notranslate"><span class="pre">/data/timeseries/{program}/{dataset}/groups.json</span></code> — raw timeseries groups</p>
+<p>Passing <code class="docutils literal notranslate"><span class="pre">year=None</span></code> (the default) selects the yearless timeseries grammar.
+Timeseries metadata is retained without timeseries-native table/subject/family
+modeling; ACS-style grouping does not apply to its flat variable namespace.</p>
 <p>Separated from <code class="docutils literal notranslate"><span class="pre">catalog.py</span></code> to keep the data model I/O-free.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="siege_utilities.geo.census.catalog_populator.CensusCatalogPopulator">
@@ -27182,14 +27238,31 @@ Follows the same cache-dir convention as <code class="xref py py-class docutils 
 
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.census.catalog_populator.CensusCatalogPopulator.populate">
-<span class="sig-name descname"><span class="pre">populate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">survey_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/census/catalog_populator.html#CensusCatalogPopulator.populate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.census.catalog_populator.CensusCatalogPopulator.populate" title="Link to this definition"></a></dt>
-<dd><dl class="field-list simple">
+<span class="sig-name descname"><span class="pre">populate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">survey_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/census/catalog_populator.html#CensusCatalogPopulator.populate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.census.catalog_populator.CensusCatalogPopulator.populate" title="Link to this definition"></a></dt>
+<dd><p>Fetch discovery metadata and populate a catalog.</p>
+<dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>dataset</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
-<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
-<li><p><strong>survey_type</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
+<li><p><strong>dataset</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – A year-based alias such as <code class="docutils literal notranslate"><span class="pre">acs5</span></code>, or a timeseries path
+such as <code class="docutils literal notranslate"><span class="pre">eits/resconst</span></code> or <code class="docutils literal notranslate"><span class="pre">timeseries/eits/resconst</span></code>.</p></li>
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>) – An integer selects <code class="docutils literal notranslate"><span class="pre">{base_url}/{year}/{dataset_path}/</span></code>.
+<code class="docutils literal notranslate"><span class="pre">None</span></code> (the default) selects
+<code class="docutils literal notranslate"><span class="pre">{base_url}/timeseries/{program}/{dataset}/</span></code>; an existing
+<code class="docutils literal notranslate"><span class="pre">timeseries/</span></code> prefix is preserved without duplication.
+Both grammars fetch <code class="docutils literal notranslate"><span class="pre">variables.json</span></code> and <code class="docutils literal notranslate"><span class="pre">groups.json</span></code>.</p></li>
+<li><p><strong>survey_type</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Dataset survey label; defaults to the input dataset.</p></li>
 </ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A catalog containing a dataset whose ID is the input <code class="docutils literal notranslate"><span class="pre">dataset</span></code>
+for timeseries, or <code class="docutils literal notranslate"><span class="pre">{dataset}_{year}</span></code> for year-based discovery.
+Timeseries retain raw metadata in <code class="docutils literal notranslate"><span class="pre">timeseries_variables</span></code> and
+<code class="docutils literal notranslate"><span class="pre">timeseries_groups</span></code> because ACS-style table/family grouping does
+not apply. Both fields remain <code class="docutils literal notranslate"><span class="pre">None</span></code> for year-based datasets.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>requests.HTTPError</strong> – If either discovery endpoint returns an HTTP
+    error; no partial catalog is returned.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference internal" href="#siege_utilities.geo.census.catalog.CensusCatalog" title="siege_utilities.geo.census.catalog.CensusCatalog"><em>CensusCatalog</em></a></p>

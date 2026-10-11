@@ -1600,6 +1600,8 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo.html#siege_utilities.geo.census.CensusCatalogDataset.year"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.year</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo.html#siege_utilities.geo.census.CensusCatalogDataset.subjects"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.subjects</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo.html#siege_utilities.geo.census.CensusCatalogDataset.tables"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.tables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo.html#siege_utilities.geo.census.CensusCatalogDataset.timeseries_variables"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.timeseries_variables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo.html#siege_utilities.geo.census.CensusCatalogDataset.timeseries_groups"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.timeseries_groups</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo.html#siege_utilities.geo.census.CensusCatalogDataset.__init__"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.__init__()</span></code></a></li>
 </ul>
 </li>
@@ -1721,6 +1723,8 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo.html#siege_utilities.geo.census.catalog.CensusCatalogDataset.year"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.year</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo.html#siege_utilities.geo.census.catalog.CensusCatalogDataset.subjects"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.subjects</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo.html#siege_utilities.geo.census.catalog.CensusCatalogDataset.tables"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.tables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo.html#siege_utilities.geo.census.catalog.CensusCatalogDataset.timeseries_variables"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.timeseries_variables</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo.html#siege_utilities.geo.census.catalog.CensusCatalogDataset.timeseries_groups"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.timeseries_groups</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo.html#siege_utilities.geo.census.catalog.CensusCatalogDataset.__init__"><code class="docutils literal notranslate"><span class="pre">CensusCatalogDataset.__init__()</span></code></a></li>
 </ul>
 </li>
@@ -9067,6 +9071,8 @@
             <span class="s2">"year"</span><span class="p">:</span> <span class="n">d</span><span class="o">.</span><span class="n">year</span><span class="p">,</span>
             <span class="s2">"subject_ids"</span><span class="p">:</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">subject_id</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">subjects</span><span class="p">],</span>
             <span class="s2">"table_ids"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">tables</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span>
+            <span class="s2">"timeseries_variables"</span><span class="p">:</span> <span class="n">d</span><span class="o">.</span><span class="n">timeseries_variables</span><span class="p">,</span>
+            <span class="s2">"timeseries_groups"</span><span class="p">:</span> <span class="n">d</span><span class="o">.</span><span class="n">timeseries_groups</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">catalog</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
     <span class="p">]</span>
@@ -9141,6 +9147,8 @@
                 <span class="k">for</span> <span class="n">tid</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"table_ids"</span><span class="p">,</span> <span class="p">[])</span>
                 <span class="k">if</span> <span class="n">catalog</span><span class="o">.</span><span class="n">get_table</span><span class="p">(</span><span class="n">tid</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
             <span class="p">},</span>
+            <span class="n">timeseries_variables</span><span class="o">=</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"timeseries_variables"</span><span class="p">),</span>
+            <span class="n">timeseries_groups</span><span class="o">=</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"timeseries_groups"</span><span class="p">),</span>
         <span class="p">)</span>
         <span class="n">catalog</span><span class="o">.</span><span class="n">add_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
 
