@@ -867,6 +867,71 @@ df = classify_trends(
 
 ---
 
+## ACS tabular bulk fallback
+
+The dual-source client accepts a configured `BulkFileSource` as its secondary:
+
+```python
+from siege_utilities.geo.census.api import CensusAPI
+from siege_utilities.geo.census.dual_source import (
+    ApiSource, BulkFileSource, DualSourceCensusClient,
+)
+
+client = DualSourceCensusClient(
+    ApiSource(CensusAPI()),
+    BulkFileSource(cache_dir=".cache/acs-summary", timeout=15),
+)
+frame, provenance = client.fetch(
+    variables=["B01003_001E", "B19013_001E"],
+    year=2022, dataset="acs5", geography="county", state_fips="06",
+    include_moe=True,
+)
+```
+
+The default policy makes at most three primary source calls on rate limits or
+timeouts, then calls the secondary once. Other primary errors propagate.
+The bulk source also works directly with the same request keywords. Every
+failure raises; a missing table, missing column, malformed table or absent
+requested geography is never returned as an empty success. Provenance records
+`source="bulk"`, the first requested table's URL, and one source-level attempt;
+the client adds prior attempts and sets `degraded=True` when fallback succeeds.
+
+Only ACS detailed-table estimates and margins are supported (`acs1` and
+`acs5`, API variables such as `B01003_001E` and `B01003_001M`). Variable aliases
+resolve through the same `VariableRegistry` as the API. Each table is downloaded
+once per year/period into the cache, with a bounded HTTP connect/read timeout;
+partial downloads are removed on failure. Files have no expiry: remove them
+to refresh. Without `cache_dir`, a temporary cache lasts for the source's lifetime.
+Parsing reads only `GEO_ID` and requested columns in chunks; tables align by GEOID,
+with missing table/geography combinations represented as NaN in the outer join.
+
+For 2022 the population table URLs are:
+
+- [ACS 1-year B01003](https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/1YRData/acsdt1y2022-b01003.dat)
+- [ACS 5-year B01003](https://www2.census.gov/programs-surveys/acs/summary_file/2022/table-based-SF/data/5YRData/acsdt5y2022-b01003.dat)
+
+The service header is `GEO_ID|B01003_E001|B01003_M001`. The source translates
+these into API names, strips the prefix through `US` to retain plain FIPS
+GEOIDs, and places `GEOID`, `NAME` first. Supported geographies are nation,
+state, county, tract, block group and place. State/county FIPS filters operate
+on the FIPS tail. Whole states use `0400000US` and counties use `0500000US`;
+component rows such as `04000A0US06` are excluded. Nation's FIPS tail is empty.
+County filters are supported only for counties, tracts and block groups.
+Tracts and block groups require a state, as they do in `CensusAPI`.
+
+Numeric sentinel values such as `-555555555`, `-666666666`, `-888888888` and
+`-999999999` become NaN, while ordinary negative estimates remain numeric.
+The current API processor itself does not normalize numeric sentinels, so
+raw sentinel-bearing API responses need equivalent cleaning for value parity.
+`NAME` enrichment is deferred: the separate ACS 5-year geography lookup is
+about 87 MB. Bulk results retain an object `NAME` column of missing values;
+estimate/MOE column names, numeric types and FIPS identifiers match the API
+for ordinary values. Geographic names must be joined separately if required.
+
+Notebook impact: no existing notebook references `dual_source`, `BulkFileSource`
+or the variable-translation helpers. This remains a notebook coverage gap;
+the example above and offline tests document the current composition contract.
+
 ## Current Limitations
 
 1. **DHC Tables:** Demographic and Housing Characteristics files not yet integrated

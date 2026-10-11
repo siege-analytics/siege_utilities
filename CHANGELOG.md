@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- ACS table-based Summary File source for the dual-source Census client,
+  with streamed per-table caching, geography filtering, API variable names,
+  numeric estimates/MOEs, sentinel normalization and fallback provenance.
+  Geographic name enrichment is deferred; bulk `NAME` values are missing.
+  (#1385.)
+
 ## [4.0.0] - 2026-10-11
 
 Major release. The public surface changes incompatibly (the data.world

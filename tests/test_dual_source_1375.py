@@ -285,21 +285,22 @@ def test_wrapped_transport_timeout_triggers_default_fallback(
     secondary.fetch.assert_called_once_with(**request_kwargs)
 
 
-def test_bulk_source_names_deferred_parser(request_kwargs):
+def test_bulk_source_propagates_transport_error(request_kwargs, monkeypatch):
     source: CensusDataSource = BulkFileSource()
+    error = Timeout("Summary File timeout")
+    monkeypatch.setattr("requests.get", Mock(side_effect=error))
 
     assert source.name == "bulk"
-    with pytest.raises(NotImplementedError) as raised:
+    with pytest.raises(Timeout, match="Summary File timeout") as raised:
         source.fetch(**request_kwargs)
-    assert str(raised.value) == (
-        "ACS Summary File bulk source not yet implemented; see #1385"
-    )
+    assert raised.value is error
 
 
-def test_deferred_bulk_parser_error_propagates(primary, request_kwargs):
+def test_bulk_transport_error_propagates(primary, request_kwargs, monkeypatch):
     primary.fetch.side_effect = CensusRateLimitError("API exhausted")
+    monkeypatch.setattr("requests.get", Mock(side_effect=Timeout("Summary File timeout")))
 
-    with pytest.raises(NotImplementedError, match="see #1385"):
+    with pytest.raises(Timeout, match="Summary File timeout"):
         DualSourceCensusClient(primary, BulkFileSource()).fetch(
             **request_kwargs,
         )
