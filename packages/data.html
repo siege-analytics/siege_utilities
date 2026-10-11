@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Data &mdash; Siege Utilities 3.24.0 documentation</title>
+  <title>Data &mdash; Siege Utilities 4.0.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=d3bef5a7"></script>
+      <script src="../_static/documentation_options.js?v=3304f9e4"></script>
       <script src="../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/js/theme.js"></script>
@@ -10664,8 +10664,19 @@ for DuckDB-specific options.</p>
 <dt class="sig sig-object py" id="siege_utilities.data.DuckDBEngine.read_spatial">
 <span class="sig-name descname"><span class="pre">read_spatial</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.data.DuckDBEngine.read_spatial" title="Link to this definition"></a></dt>
 <dd><p>Read a spatial file via DuckDB’s <code class="docutils literal notranslate"><span class="pre">ST_Read</span></code>.</p>
-<p><a href="#id7"><span class="problematic" id="id8">**</span></a>kwargs: Forwarded to <a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.read_file.html#geopandas.read_file" title="(in GeoPandas v1.2.1.dev0.dev+g199fc53c8)"><code class="xref py py-func docutils literal notranslate"><span class="pre">geopandas.read_file()</span></code></a> (unused in the
-current DuckDB path but accepted for interface compatibility).</p>
+<p>Geometry columns are identified by scalar type, not name, so a feature
+property named <code class="docutils literal notranslate"><span class="pre">geom</span></code> does not shadow the real geometry. The real
+columns are the attribute <code class="docutils literal notranslate"><span class="pre">fields</span></code> plus <code class="docutils literal notranslate"><span class="pre">geometry_fields</span></code> reported by
+<code class="docutils literal notranslate"><span class="pre">ST_Read_Meta</span></code>. The scan is bound with collision-proof positional
+aliases (DuckDB spatial 1.5.x rejects a <code class="docutils literal notranslate"><span class="pre">SELECT</span> <span class="pre">*</span></code> over duplicate
+source names instead of auto-renaming them); any leading driver-injected
+column such as <code class="docutils literal notranslate"><span class="pre">OGC_FID</span></code> – which 1.5.x emits, 1.4.x does not, and
+metadata does not list – is dropped so the output schema is identical
+across DuckDB versions. Names are then restored from metadata with
+pandas-style deduplication, so a clashing <code class="docutils literal notranslate"><span class="pre">geom</span></code> property stays
+addressable while the real geometry becomes <code class="docutils literal notranslate"><span class="pre">geom_1</span></code>.</p>
+<p><a href="#id7"><span class="problematic" id="id8">**</span></a>kwargs: Forwarded for interface compatibility (unused in the current
+DuckDB path).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
