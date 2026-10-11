@@ -27,6 +27,29 @@ major per Semantic Versioning.
 
 ### Added
 
+- Dual-source Census retrieval framework with provenance. A `CensusDataSource`
+  protocol abstracts a source; `ApiSource` wraps the Census API and exposes an
+  exhausted-timeout cause so the fallback policy recognizes it;
+  `DualSourceCensusClient` retries the primary on configured errors (rate limit,
+  timeout) up to a budget, then tries the secondary once, recording per-request
+  `Provenance` (source, location, attempts, degraded). If both sources fail the
+  last error propagates rather than returning an empty frame. `AlternationPolicy`
+  is pure, validated configuration. (#1375.)
+- ACS table-based Summary File bulk source (`BulkFileSource`), the secondary for
+  the dual-source client: streamed per-table caching, geography filtering, API
+  variable names, numeric estimates and MOEs, sentinel normalization, and
+  fallback provenance. Malformed records (width drift, embedded control bytes,
+  duplicate or BOM-masked headers, quoted delimiters, non-finite tokens) raise
+  rather than returning misaligned or NaN data. Geographic name enrichment is
+  deferred; bulk `NAME` values are missing. (#1385.)
+- First-class yearless Census timeseries support. `CensusCatalogPopulator.populate`
+  accepts `year=None` to discover a Census timeseries dataset, building
+  `{base}/timeseries/<program>/<dataset>/` variables and groups with no injected
+  year; a `_TIMESERIES_PATHS` alias registry maps names like `eits/resconst`.
+  `CensusCatalogDataset.year` becomes `int` or `None` and gains
+  `timeseries_variables` and `timeseries_groups`, retained through the disk-cache
+  round trip. Year-based discovery is unchanged and builds byte-identical URLs.
+  (#1374.)
 - Python 3.13 is now a blocking CI gate (previously allowed to fail). The full
   Linux suite passes on 3.13. Python 3.14 is tested as a non-blocking CI gate
   while its recently released native stack stabilizes. (#1365.)
