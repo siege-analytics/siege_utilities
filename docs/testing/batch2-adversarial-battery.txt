@@ -1,0 +1,77 @@
+cwd=/private/tmp
+Interpreter=/Users/dheerajchand/.pyenv/versions/default_31111/bin/python
+PYTHONPATH=/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening
+Imported fixed module=/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/siege_utilities/geo/census/catalog_populator.py
+Baseline=byte-identical catalog_populator.py from cached origin/develop 470ff8aed4ea9f3abe0dad7ac5fb990a87a2d780
+HTTP replaced only at requests.get; constructor, normalize, populate and fetchers are real.
+ACCEPT; byte-identical to baseline: https://api.census.gov -> ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov/ -> ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov/data -> ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov/data/ -> ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov//data//data/ -> ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov//data/ -> ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov/%64ata -> ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov//%64ata//data/ -> ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov/%64%61%74%61/ -> ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://%61pi.census.gov../%64ata/ -> ['https://%61pi.census.gov../data/2023/acs/acs5/variables.json', 'https://%61pi.census.gov../data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov/data?key=value#fragment -> ['https://api.census.gov/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://proxy/data/census -> ['https://proxy/data/census/data/2023/acs/acs5/variables.json', 'https://proxy/data/census/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://proxy/data/2023/census -> ['https://proxy/data/2023/census/data/2023/acs/acs5/variables.json', 'https://proxy/data/2023/census/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://proxy/2023/gw -> ['https://proxy/2023/gw/data/2023/acs/acs5/variables.json', 'https://proxy/2023/gw/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://proxy/data/2023/gw -> ['https://proxy/data/2023/gw/data/2023/acs/acs5/variables.json', 'https://proxy/data/2023/gw/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://proxy/data/2023/acs/acs5 -> ['https://proxy/data/2023/acs/acs5/data/2023/acs/acs5/variables.json', 'https://proxy/data/2023/acs/acs5/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://proxy../data/timeseries/govs/schfin -> ['https://proxy../data/timeseries/govs/schfin/data/2023/acs/acs5/variables.json', 'https://proxy../data/timeseries/govs/schfin/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://proxy/%64ata/%32%30%32%33/census -> ['https://proxy/data/2023/census/data/2023/acs/acs5/variables.json', 'https://proxy/data/2023/census/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://proxy/%7e%61%2D%5F%2e -> ['https://proxy/~a-_./data/2023/acs/acs5/variables.json', 'https://proxy/~a-_./data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://proxy/data%2f2023%2Facs%2facs5 -> ['https://proxy/data%2f2023%2Facs%2facs5/data/2023/acs/acs5/variables.json', 'https://proxy/data%2f2023%2Facs%2facs5/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://proxy/%64ata%2F%32%30%32%33/census -> ['https://proxy/data%2F2023/census/data/2023/acs/acs5/variables.json', 'https://proxy/data%2F2023/census/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://proxy/%2f%2e%2e%2Fdata%2f2023 -> ['https://proxy/%2f..%2Fdata%2f2023/data/2023/acs/acs5/variables.json', 'https://proxy/%2f..%2Fdata%2f2023/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://proxy/data/%2fdata -> ['https://proxy/data/%2fdata/data/2023/acs/acs5/variables.json', 'https://proxy/data/%2fdata/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://proxy/%252f/%3F/%23/%25/%c3%a9/%zz -> ['https://proxy/%252f/%3F/%23/%25/%c3%a9/%zz/data/2023/acs/acs5/variables.json', 'https://proxy/%252f/%3F/%23/%25/%c3%a9/%zz/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov.proxy/data%2f2023 -> ['https://api.census.gov.proxy/data%2f2023/data/2023/acs/acs5/variables.json', 'https://api.census.gov.proxy/data%2f2023/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://%70roxy../%64ata%2f2023 -> ['https://%70roxy../data%2f2023/data/2023/acs/acs5/variables.json', 'https://%70roxy../data%2f2023/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov/data%252f2023%252facs%252facs5 -> ['https://api.census.gov/data%252f2023%252facs%252facs5/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data%252f2023%252facs%252facs5/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov/data%252F2023%252facs%252Facs5 -> ['https://api.census.gov/data%252F2023%252facs%252Facs5/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data%252F2023%252facs%252Facs5/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov/%2564ata%2f2023 -> ['https://api.census.gov/%2564ata%2f2023/data/2023/acs/acs5/variables.json', 'https://api.census.gov/%2564ata%2f2023/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov/proxy%2fcensus -> ['https://api.census.gov/proxy%2fcensus/data/2023/acs/acs5/variables.json', 'https://api.census.gov/proxy%2fcensus/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov/%2fdata -> ['https://api.census.gov/%2fdata/data/2023/acs/acs5/variables.json', 'https://api.census.gov/%2fdata/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov/data%2fdata -> ['https://api.census.gov/data%2fdata/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data%2fdata/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov/data%2f -> ['https://api.census.gov/data%2f/data/2023/acs/acs5/variables.json', 'https://api.census.gov/data%2f/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov/%2f%2F -> ['https://api.census.gov/%2f%2F/data/2023/acs/acs5/variables.json', 'https://api.census.gov/%2f%2F/data/2023/acs/acs5/groups.json']
+ACCEPT; byte-identical to baseline: https://api.census.gov/proxy/%2e%2e/data -> ['https://api.census.gov/proxy/../data/2023/acs/acs5/variables.json', 'https://api.census.gov/proxy/../data/2023/acs/acs5/groups.json']
+FETCH PARITY: 35 accepted bases; 70 byte-identical fetch URLs
+lowercase: REJECT before HTTP: https://api.census.gov/data%2f2023%2facs%2facs5; baseline ACCEPT -> https://api.census.gov/data%2f2023%2facs%2facs5/data
+uppercase: REJECT before HTTP: https://api.census.gov/data%2F2023%2Facs%2Facs5; baseline ACCEPT -> https://api.census.gov/data%2F2023%2Facs%2Facs5/data
+mixed-case: REJECT before HTTP: https://api.census.gov/data%2f2023%2Facs%2facs5; baseline ACCEPT -> https://api.census.gov/data%2f2023%2Facs%2facs5/data
+leading-encoded-slash: REJECT before HTTP: https://api.census.gov/%2fdata%2f2023%2facs%2facs5; baseline ACCEPT -> https://api.census.gov/%2fdata%2f2023%2facs%2facs5/data
+fully-encoded: REJECT before HTTP: https://api.census.gov/%64%61%74%61%2f%32%30%32%33%2F%61%63%73%2f%61%63%73%35; baseline ACCEPT -> https://api.census.gov/data%2f2023%2Facs%2facs5/data
+batch1-lowercase-bypass: REJECT before HTTP: https://api.census.gov/data%2f2023/cbp; baseline ACCEPT -> https://api.census.gov/data%2f2023/cbp/data
+batch1-unreserved-bypass: REJECT before HTTP: https://api.census.gov/%64ata%2F2023/cbp; baseline ACCEPT -> https://api.census.gov/data%2F2023/cbp/data
+yearless: REJECT before HTTP: https://api.census.gov/data%2ftimeseries%2fgovs%2fschfin; baseline ACCEPT -> https://api.census.gov/data%2ftimeseries%2fgovs%2fschfin/data
+yearless-short: REJECT before HTTP: https://api.census.gov/data%2Ftimeseries; baseline ACCEPT -> https://api.census.gov/data%2Ftimeseries/data
+year-only: REJECT before HTTP: https://api.census.gov/data%2f2023; baseline ACCEPT -> https://api.census.gov/data%2f2023/data
+encoded-empty-segments: REJECT before HTTP: https://api.census.gov/data%2f%2f2023%2f%2facs%2facs5; baseline ACCEPT -> https://api.census.gov/data%2f%2f2023%2f%2facs%2facs5/data
+mixed-empty-segments: REJECT before HTTP: https://api.census.gov//%2fdata%2F/%2f2023//acs%2facs5%2f; baseline ACCEPT -> https://api.census.gov/%2fdata%2F/%2f2023/acs%2facs5%2f/data
+repeated-roots: REJECT before HTTP: https://api.census.gov/data%2fdata%2f2023%2facs%2facs5; baseline ACCEPT -> https://api.census.gov/data%2fdata%2f2023%2facs%2facs5/data
+repeated-yearless-roots: REJECT before HTTP: https://api.census.gov/data%2fdata%2ftimeseries%2fgovs; baseline ACCEPT -> https://api.census.gov/data%2fdata%2ftimeseries%2fgovs/data
+encoded-dot-dot: REJECT before HTTP: https://api.census.gov/data%2f%2e%2e%2f2023%2facs%2facs5; baseline ACCEPT -> https://api.census.gov/data%2f..%2f2023%2facs%2facs5/data
+uppercase-dot-dot: REJECT before HTTP: https://api.census.gov/data%2F%2E%2E%2F2023%2Facs%2Facs5; baseline ACCEPT -> https://api.census.gov/data%2F..%2F2023%2Facs%2Facs5/data
+literal-dot-dot: REJECT before HTTP: https://api.census.gov/data%2f..%2f2023%2facs%2facs5; baseline ACCEPT -> https://api.census.gov/data%2f..%2f2023%2facs%2facs5/data
+literal-dot: REJECT before HTTP: https://api.census.gov/data%2f.%2f2023%2facs%2facs5; baseline ACCEPT -> https://api.census.gov/data%2f.%2f2023%2facs%2facs5/data
+prefix-dot-dot: REJECT before HTTP: https://api.census.gov/prefix%2f%2e%2e%2fdata%2f2023%2facs%2facs5; baseline ACCEPT -> https://api.census.gov/prefix%2f..%2fdata%2f2023%2facs%2facs5/data
+trailing-dot-dot: REJECT before HTTP: https://api.census.gov/data%2f2023%2facs%2facs5%2f..%2f..%2f..; baseline ACCEPT -> https://api.census.gov/data%2f2023%2facs%2facs5%2f..%2f..%2f../data
+prefixed-dataset: REJECT before HTTP: https://api.census.gov/prefix%2fdata%2f2023%2facs%2facs5; baseline ACCEPT -> https://api.census.gov/prefix%2fdata%2f2023%2facs%2facs5/data
+decoded-netloc-lookalike: REJECT before HTTP: https://api.census.gov/%2fproxy%2fdata%2f2023%2facs%2facs5; baseline ACCEPT -> https://api.census.gov/%2fproxy%2fdata%2f2023%2facs%2facs5/data
+DIFFERENTIAL BATTERY: 4800 cases; {'accepted_roots_byte_identical': 3468, 'legacy_rejections_preserved': 576, 'newly_rejected': 756}; PASS
+
+Differential matrix definition (itertools.product):
+Hosts: api.census.gov, %61pi.census.gov, api.census.gov., api.census.gov..,
+       api.census.gov..., %41PI.CENSUS.GOV%2e%2E:443, proxy, api.census.gov.proxy
+First components: data, %64ata, %2564ata, proxy
+Middle components: empty, ., .., %2e%2e, data
+Separators: /, %2f, %2F, %252f, //, %2f%2F
+Suffixes: empty, data, %2fdata, 2023/acs/acs5, timeseries/govs/schfin
+Base: https://{host}/{first}{separator}{middle}{separator}{suffix}
+For each base: invoke actual baseline/fixed CensusCatalogPopulator constructors;
+assert every baseline ValueError persists; compare base_url byte-for-byte for
+inputs accepted by both. Baseline loaded from git show origin/develop module.

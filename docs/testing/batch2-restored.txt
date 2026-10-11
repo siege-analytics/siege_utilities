@@ -1,0 +1,29 @@
+cwd=/private/tmp
+Interpreter=/Users/dheerajchand/.pyenv/versions/default_31111/bin/python
+PYTHONPATH=/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening
+Cached origin/develop=470ff8aed4ea9f3abe0dad7ac5fb990a87a2d780
+Actual production-only revert followed by byte-identical restoration; tests unchanged.
+Test SHA256=11ea3e6385600bd4d61b0fdf834749539ff938cab393fb3da78a16bcf2e0def8
+Original production SHA256=cbb0b32b3cb23e537049a178b2918adbb19fd6dde07155227992b55ebd15cde7
+Fixed production SHA256=b800cc6f8ad52330e91f77517eb3d8f0656936df2bfea6d24711bf58bac784e8
+Command: /Users/dheerajchand/.pyenv/versions/default_31111/bin/python -m pytest /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_batch2_1373.py -o addopts= -q --tb=short --junitxml=/tmp/batch2-restored.xml
+
+........................................................................ [ 28%]
+........................................................................ [ 56%]
+........................................................................ [ 84%]
+.........................................                                [100%]
+=============================== warnings summary ===============================
+../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: DJANGO_SETTINGS_MODULE
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+tests/test_batch2_1373.py::test_encoded_separator_dataset_raises_before_http[lowercase-api.census.gov]
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.3) doesn't match a supported version!
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+----------------- generated xml file: /tmp/batch2-restored.xml -----------------
+257 passed, 2 warnings in 0.54s
+
+Exit code: 0

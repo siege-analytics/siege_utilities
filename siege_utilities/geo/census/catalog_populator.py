@@ -67,9 +67,13 @@ class CensusCatalogPopulator:
     def _normalize_base_url(base_url: str) -> str:
         """Return an API-root base_url with one terminal ``/data`` component.
 
-        Decode only percent-encoded ASCII unreserved path characters before
-        validation and root deduplication. Reserved escapes such as ``%2f``
-        remain encoded and are not treated as structural path separators.
+        Validate the normalized candidate with Requests' URL preparation, then
+        percent-decode that prepared path once to interpret ``%2f`` separators.
+        ``%252f`` remains a literal ``%2f``, never a separator. Retain the original
+        path checks so preparation cannot erase a previously rejected component
+        (for example, by resolving dot segments). Outbound URLs still decode only
+        ASCII unreserved characters and deduplicate terminal roots; preparation
+        is validation-only and never replaces the returned URL.
 
         Raises:
             ValueError: If base_url on api.census.gov includes a full dataset path,
@@ -90,39 +94,55 @@ class CensusCatalogPopulator:
             char = chr(int(match.group()[1:], 16))
             return char if char in unreserved else match.group()
 
-        # Deliberately leave encoded separators (e.g. %2f) encoded: decoding
-        # them into structural separators requires a separate revalidation step.
+        # Preserve the existing outbound spelling, including reserved escapes.
         path = re.sub(r"%[0-9A-Fa-f]{2}", _decode_unreserved, parts.path)
         segments = [s for s in path.split("/") if s]
+
+        # Collapse repeated terminal API-root components after removing empty
+        # slash components; preserve 'data' inside legitimate proxy prefixes.
+        new_segments = segments.copy()
+        while new_segments and new_segments[-1] == "data":
+            new_segments.pop()
+        new_segments.append("data")
+        new_path = "/" + "/".join(new_segments)
+        normalized_url = urlunsplit((parts.scheme, parts.netloc, new_path, "", ""))
 
         # On the Census host, anything after /data other than repeated root
         # components is a dataset path, including yearless timeseries paths.
         # Proxy hosts own their path namespaces, regardless of their spelling.
-        for i, seg in enumerate(segments):
-            if (
-                hostname == "api.census.gov"
-                and seg == "data"
-                and i + 1 < len(segments)
-                and segments[i + 1] != "data"
-            ):
-                raise ValueError(
-                    f"base_url {base_url!r} includes a full dataset path "
-                    f"(e.g. '/data/2023/acs/acs5' or "
-                    f"'/data/timeseries/govs/schfin'). Pass the API root ending at "
-                    f"'/data' or without it -- for example "
-                    f"'https://api.census.gov' or 'https://api.census.gov/data'. "
-                    f"_fetch_variables/_fetch_groups append "
-                    f"'/{{year}}/{{dataset}}/...' themselves."
-                )
+        # Retain the original segment guard so preparation cannot erase a
+        # rejected component (e.g. /data/%2e%2e or /data/%2fdata). Decode reserved
+        # separators only in the prepared path, after Requests handles dot
+        # segments and malformed escapes.
+        validation_paths = [segments]
+        if hostname == "api.census.gov":
+            # Prepare the actual outbound candidate, not the raw input: our
+            # unreserved decoding can join split escapes (%6%34 -> %64).
+            # Requests then handles valid/invalid escapes exactly as at fetch
+            # time. Interpret reserved escapes once, without recursive decoding
+            # or reparsing decoded text as a URL. No HTTP is performed here.
+            prepared = requests.models.PreparedRequest()
+            prepared.prepare_url(normalized_url, None)
+            validation_paths.append([s for s in unquote(prepared.path_url).split("/") if s])
+        for validation_segments in validation_paths:
+            for i, seg in enumerate(validation_segments):
+                if (
+                    hostname == "api.census.gov"
+                    and seg == "data"
+                    and i + 1 < len(validation_segments)
+                    and validation_segments[i + 1] != "data"
+                ):
+                    raise ValueError(
+                        f"base_url {base_url!r} includes a full dataset path "
+                        f"(e.g. '/data/2023/acs/acs5' or "
+                        f"'/data/timeseries/govs/schfin'). Pass the API root ending at "
+                        f"'/data' or without it -- for example "
+                        f"'https://api.census.gov' or 'https://api.census.gov/data'. "
+                        f"_fetch_variables/_fetch_groups append "
+                        f"'/{{year}}/{{dataset}}/...' themselves."
+                    )
 
-        # Collapse repeated terminal API-root components after removing empty
-        # slash components; preserve 'data' inside legitimate proxy prefixes.
-        while segments and segments[-1] == "data":
-            segments.pop()
-        new_segments = segments + ["data"]
-
-        new_path = "/" + "/".join(new_segments)
-        return urlunsplit((parts.scheme, parts.netloc, new_path, "", ""))
+        return normalized_url
 
     def populate(
         self,

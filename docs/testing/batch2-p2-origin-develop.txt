@@ -1,0 +1,16 @@
+Cached origin/develop: 470ff8aed4ea9f3abe0dad7ac5fb990a87a2d780
+Executing the baseline production file in memory; worktree production unchanged.
+Imported worktree module: /Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/siege_utilities/geo/census/catalog_populator.py
+Prior accepted controls captured with identical baseline and pre-P2 fetch/wire URLs: 46
+New acceptance controls captured against baseline: 54
+Command: pytest.main ['/Users/dheerajchand/git/siege-analytics/siege_utilities-hardening/tests/test_batch2_1373.py', '-k', 'prepared_non_dataset', '-o', 'addopts=', '-q', '--tb=short', '--junitxml=/private/tmp/batch2-p2-p5rgqguz/origin.xml']
+......................................................                   [100%]
+=============================== warnings summary ===============================
+../../Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474
+  /Users/dheerajchand/.pyenv/versions/default_31111/lib/python3.11/site-packages/_pytest/config/__init__.py:1474: PytestConfigWarning: Unknown config option: DJANGO_SETTINGS_MODULE
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+-------- generated xml file: /private/tmp/batch2-p2-p5rgqguz/origin.xml --------
+54 passed, 366 deselected, 1 warning in 0.13s

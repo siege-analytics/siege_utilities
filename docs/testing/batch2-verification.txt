@@ -1,0 +1,85 @@
+Batch 2 (Q5b), issue #1373 — local verification
+
+Change
+- Census validation now percent-decodes the original path exactly once, splits
+  on decoded slashes, removes empty segments, and checks dataset shape against
+  the original normalized hostname. It does not reparse decoded text as a URL
+  or resolve dot/dot-dot segments.
+- The unreserved-only guard is retained too: decoding cannot convert an old
+  rejection such as /data/%2fdata into an accepted repeated root.
+- Outbound construction remains unchanged: unreserved-only decoding and
+  terminal /data deduplication. Reserved escapes remain intact in fetch URLs.
+- Both historical verification scripts now reject the encoded dataset paths
+  they previously accepted. Historical Batch-1 evidence files are unchanged.
+
+Baseline and environment
+- Cached origin/develop: 470ff8aed4ea9f3abe0dad7ac5fb990a87a2d780.
+- Initial HEAD: 84c18354 (fix/1373-batch1); entire tree matched cached develop.
+- Interpreter: /Users/dheerajchand/.pyenv/versions/default_31111/bin/python.
+- Python ran from /private/tmp with PYTHONPATH set to this worktree.
+- Fetch and branch creation were blocked by Git metadata write restrictions.
+  The cached ref was not refreshed. See batch2-git-attempt.txt.
+
+Full pytest gate (batch2-pytest.txt; no failures or skips)
+test_census_catalog_populator: 12 passed
+test_batch2_1373: 257 passed
+test_batch1_1373: 52 passed
+test_final_hardening_consensus: 34 passed
+test_round5_class_hardening: 16 passed
+test_round6_class_hardening: 21 passed
+test_round7_class_hardening: 18 passed
+test_round8_class_hardening: 15 passed
+test_round9_class_hardening: 25 passed
+Total: 450 passed
+
+The full Batch-1 file includes its six Census cases. Consensus plus rounds 5-9:
+129 passed. Pytest emitted 10 configuration/dependency/geometry warnings; see
+raw log. No live Census request was made; only requests.get was replaced to
+capture URLs and avoid I/O, while real construction/populate/fetch logic ran.
+
+Red-on-revert
+- First ran identical tests against the unchanged cached-develop production.
+- Then reverted only catalog_populator.py to git show origin/develop:<path>.
+  git diff --exit-code origin/develop -- siege_utilities returned 0, proving
+  the production tree matched that ref during the explicit revert run.
+- 132 encoded-separator cases failed with DID NOT RAISE ValueError; all 125
+  compatibility controls passed. Compatibility controls are intentionally
+  green on both versions and are not claimed as red-on-revert regressions.
+- Restored the fixed production file byte-for-byte: 257 Batch-2 tests passed.
+- Every regression test ID was matched from failed to passed using JUnit XML.
+  See batch2-red-green-cases.txt, batch2-red-on-revert.txt, batch2-restored.txt.
+- Changed verification functions failed on baseline with Accepted dataset path
+  / endpoint and passed on the fix. See batch2-red-verify_*.txt and
+  batch2-green-verify_*.txt. Only those functions were run, not the full scripts.
+
+Adversarial results (batch2-adversarial-battery.txt)
+- REJECT before HTTP: lower/upper/mixed %2f hex; fully encoded paths; yearless
+  paths; encoded empty segments; repeated roots; %2e%2e (including uppercase);
+  literal dots; dots before/inside/after datasets; decoded netloc lookalikes.
+- ACCEPT with identical URL bytes: %252f and %252F literals; encoded proxy
+  segments on proxy hosts; accepted roots and repeated roots; reserved escapes,
+  percent-encoded UTF-8 and malformed escapes already accepted by Batch 1.
+- 35 accepted bases produced 70 fetch URLs byte-identical to captured baseline.
+- 4,800 differential probes: 576 old rejections retained; 3,468 accepted roots
+  unchanged; 756 new rejections. No prior rejection became accepted, and no
+  still-accepted root changed in this matrix.
+
+Checks
+- Four changed/new Python files parse; hashes in batch2-static-checks.txt.
+- SU-1: no production exception handler or success-shaped failure result added.
+- SU-2: decode-once validation and preserved outbound spelling are documented
+  and checked against actual constructor/fetch output.
+- SU-4b: original ValueError type/message AST unchanged; rejection tests assert
+  ValueError, actionable message and no HTTP; existing API-error test passes.
+- writing-claims:1: searched production, tests and scripts for this guard and
+  old encoded-separator expectations; sole production guard changed; both
+  verification-script expectations updated. Search output in static-checks.
+- Notebook impact: no CensusCatalogPopulator/catalog_populator references in
+  notebooks; existing notebook coverage gap, no notebook edits needed here.
+- git diff --check passed.
+
+Delivery
+Work is uncommitted on the existing fix/1373-batch1 branch. Branch creation was
+blocked, so no commit was attempted on the wrong branch. No push attempted.
+Coordinator must create fix/1373-batch2-pct from refreshed origin/develop and
+commit these changes with Dheeraj Chand <dheeraj@siegeanalytics.com> as author.
