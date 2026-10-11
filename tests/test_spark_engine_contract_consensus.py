@@ -63,7 +63,7 @@ def test_distance_single_geometry_still_works():
 def test_from_geodataframe_builds_spark_df_with_wkt():
     """C7: SparkEngine.from_geodataframe must not return the GeoDataFrame."""
     gpd = pytest.importorskip("geopandas")
-    shapely = pytest.importorskip("shapely")
+    pytest.importorskip("shapely")
     from shapely.geometry import Point
 
     eng = _sessionless_engine()

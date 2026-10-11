@@ -20,7 +20,7 @@ def test_read_spatial_property_name_clash_keeps_real_geometry(tmp_path):
     # GEOMETRY` (the real point). Selecting by the name "geom" (pre-fix) grabs
     # the integer and yields active geometry [None]; selecting by introspected
     # GEOMETRY type keeps the real point AND the ordinary property column.
-    gpd = pytest.importorskip("geopandas")
+    pytest.importorskip("geopandas")
     pytest.importorskip("duckdb")
     from shapely.geometry import Point
     from siege_utilities.engines.dataframe_engine import DuckDBEngine
@@ -85,7 +85,7 @@ def test_interpolate_areal_valid_target_keeps_value_when_nan_sibling_present():
 def test_duckdb_public_query_to_geodataframe_native_geometry():
     # The public query boundary materializes WKB before returning to callers.
     import pandas as pd
-    gpd = pytest.importorskip("geopandas")
+    pytest.importorskip("geopandas")
     pytest.importorskip("duckdb")
     from shapely.geometry import Point
     from siege_utilities.engines.dataframe_engine import DuckDBEngine
@@ -253,7 +253,7 @@ def test_duckdb_embedded_quote_identifier_through_public_api():
     # An attribute column named `a"b` alongside a geometry must not break the
     # ST_AsWKB projection. Pre-fix the identifier is emitted un-escaped
     # (`"a"b"`) -> ParserException (and query() also fails to load spatial).
-    gpd = pytest.importorskip("geopandas")
+    pytest.importorskip("geopandas")
     pytest.importorskip("duckdb")
     from shapely.geometry import Point
     from siege_utilities.engines.dataframe_engine import DuckDBEngine

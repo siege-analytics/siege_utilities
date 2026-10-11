@@ -13,6 +13,7 @@ from geopandas.testing import assert_geodataframe_equal
 
 
 def test_to_geodataframe_decodes_hex_wkb_and_wkt():
+    pytest.importorskip("duckdb")
     engines = import_module("siege_utilities.engines.dataframe_engine")
     eng = engines.DuckDBEngine()
     point = Point(1, 2)
@@ -35,6 +36,7 @@ def test_to_geodataframe_decodes_hex_wkb_and_wkt():
 
 @pytest.mark.parametrize("attr,geom", [('a"b', "geometry"), ("value", 'g"eom'), (None, 'g"eom')])
 def test_from_geodataframe_quotes_identifiers(attr, geom):
+    pytest.importorskip("duckdb")
     engines = import_module("siege_utilities.engines.dataframe_engine")
     eng = engines.DuckDBEngine()
     source = gpd.GeoDataFrame(
@@ -52,7 +54,11 @@ def test_from_geodataframe_quotes_identifiers(attr, geom):
 
 
 def select_backend(monkeypatch, areal, backend):
-    # Force public dispatch but execute the actual installed backend.
+    # Skip the duckdb parametrization when duckdb is not installed (e.g. the
+    # no-heavy-deps CI environment) rather than forcing the availability flag
+    # into a NameError. Then force public dispatch onto the installed backend.
+    if backend == "duckdb":
+        pytest.importorskip("duckdb")
     monkeypatch.setattr(areal, "_TOBLER_AVAILABLE", backend == "tobler")
     monkeypatch.setattr(areal, "_DUCKDB_AVAILABLE", backend == "duckdb")
 
