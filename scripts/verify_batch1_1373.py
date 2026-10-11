@@ -60,6 +60,10 @@ def batch1_examples():
         (5, "https://api.census.gov/data/timeseries/govs/schfin"),
         (6, "https://api.census.gov../data/2023/acs/acs5"),
         (6, "https://api.census.gov../data/timeseries/govs/schfin"),
+        ("Q5b", "https://api.census.gov/data%2f2023/cbp"),
+        ("Q5b", "https://api.census.gov/%64ata%2F2023/cbp"),
+        ("Q5b-P1", "https://api.census.gov/%6%34ata/2023/acs/acs5"),
+        ("Q5b-P1", "https://api.census.gov/data%2%662023%2%66acs%2%66acs5"),
     ]:
         with patch.object(census.requests, "get", side_effect=AssertionError("unexpected HTTP")) as request:
             try:
@@ -80,8 +84,6 @@ def batch1_examples():
         ("https://proxy/data/2023/census", "https://proxy/data/2023/census/data"),
         ("https://proxy/2023/gw", "https://proxy/2023/gw/data"),
         ("https://proxy../data/timeseries/govs/schfin", "https://proxy../data/timeseries/govs/schfin/data"),
-        ("https://api.census.gov/data%2f2023/cbp", "https://api.census.gov/data%2f2023/cbp/data"),
-        ("https://api.census.gov/%64ata%2F2023/cbp", "https://api.census.gov/data%2F2023/cbp/data"),
     ]:
         response = Mock()
         response.json.return_value = {"variables": {}, "groups": []}

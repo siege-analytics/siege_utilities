@@ -53,8 +53,24 @@ def round9_findings():
 
 
 def normalization_and_grammar_controls():
-    """Include previously green controls without claiming each was a regression."""
+    """Check Q5b separator rejections and previously green controls."""
     census = import_module("siege_utilities.geo.census.catalog_populator")
+    # Q5b supersedes round 9's acceptance of encoded dataset separators.
+    for base in [
+        "https://api.census.gov/data%2f2023/cbp",
+        "https://api.census.gov/%64ata%2F2023/cbp",
+        "https://api.census.gov/%6%34ata/2023/acs/acs5",
+        "https://api.census.gov/data%2%662023%2%66acs%2%66acs5",
+    ]:
+        with patch.object(census.requests, "get", side_effect=AssertionError("unexpected HTTP")) as request:
+            try:
+                census.CensusCatalogPopulator(base_url=base)
+            except ValueError as exc:
+                assert "full dataset path" in str(exc)
+                print(f"census REJECT {base}: ValueError (full dataset path), no HTTP")
+            else:
+                raise AssertionError(f"Accepted dataset endpoint {base}")
+            request.assert_not_called()
     response = Mock()
     response.json.return_value = {"variables": {}, "groups": []}
     for base, expected in [
@@ -62,8 +78,6 @@ def normalization_and_grammar_controls():
         ("https://api.census.gov//%64ata//data/", "https://api.census.gov/data"),
         ("https://proxy/%64ata/%32%30%32%33/census", "https://proxy/data/2023/census/data"),
         ("https://proxy/%7e%61%2D%5F%2e", "https://proxy/~a-_./data"),
-        ("https://api.census.gov/data%2f2023/cbp", "https://api.census.gov/data%2f2023/cbp/data"),
-        ("https://api.census.gov/%64ata%2F2023/cbp", "https://api.census.gov/data%2F2023/cbp/data"),
         ("https://proxy/%252f/%3F/%23/%25/%c3%a9/%zz", "https://proxy/%252f/%3F/%23/%25/%c3%a9/%zz/data"),
     ]:
         with patch.object(census.requests, "get", return_value=response) as request:
