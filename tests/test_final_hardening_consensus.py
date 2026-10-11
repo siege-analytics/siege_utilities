@@ -355,6 +355,7 @@ def test_snowflake_create_table_quotes_identifiers(monkeypatch):
     # CREATE must quote identifiers to match write_pandas (quoted by default),
     # so the created columns line up with what write_pandas targets. Forcing
     # write_pandas unquoted instead would regress existing case-sensitive tables.
+    pytest.importorskip("snowflake.connector")
     import siege_utilities.analytics.snowflake_connector as sc
     import pandas as pd
 
@@ -382,6 +383,7 @@ def test_snowflake_get_table_info_quotes_identifier(monkeypatch):
     # Finding #5: get_table_info must quote the table identifier so a
     # quoted-created (case-sensitive) table is addressable. DESCRIBE/SELECT
     # must use "table", not bare table (which Snowflake uppercases).
+    pytest.importorskip("snowflake.connector")
     import siege_utilities.analytics.snowflake_connector as sc
 
     executed = []

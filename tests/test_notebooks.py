@@ -247,7 +247,7 @@ def _isolated_kernel(nb_path: Path, cwd: Path):
             os.environ["JUPYTER_PATH"] = old_jupyter_path
 
 
-def _execute_with_nbclient(nb_path: Path, timeout: int, cwd: Path, kernel_name: str):
+def _execute_with_nbclient(nb_path: Path, timeout: int, cwd: Path, kernel_name: str, start_timeout: int = 60):
     """Execute with nbclient when papermill is unavailable.
 
     This keeps notebook execution tests honest in environments that have the
@@ -262,6 +262,7 @@ def _execute_with_nbclient(nb_path: Path, timeout: int, cwd: Path, kernel_name: 
         nbclient.NotebookClient(
             nb,
             timeout=timeout,
+            startup_timeout=start_timeout,
             kernel_name=kernel_name,
             resources={"metadata": {"path": str(cwd)}},
         ).execute()
@@ -279,8 +280,14 @@ def _execute_with_nbclient(nb_path: Path, timeout: int, cwd: Path, kernel_name: 
     return nb
 
 
-def _execute_notebook(nb_path: Path, timeout: int = 300):
-    """Execute a notebook headlessly from an isolated temp cwd."""
+def _execute_notebook(nb_path: Path, timeout: int = 300, start_timeout: int = 60):
+    """Execute a notebook headlessly from an isolated temp cwd.
+
+    ``timeout`` bounds per-cell execution; ``start_timeout`` bounds kernel
+    startup separately so a short cell timeout (used to prove cell-timeout
+    enforcement) does not spuriously fail on a slow runner where kernel
+    startup alone exceeds the cell budget.
+    """
     old_pythonpath = _set_kernel_pythonpath()
     try:
         with tempfile.TemporaryDirectory() as cwd_str:
@@ -296,7 +303,7 @@ def _execute_notebook(nb_path: Path, timeout: int = 300):
                     try:
                         import papermill  # type: ignore[import-not-found]
                     except ImportError:
-                        return _execute_with_nbclient(nb_path, timeout, cwd, kernel_name)
+                        return _execute_with_nbclient(nb_path, timeout, cwd, kernel_name, start_timeout)
 
                     import nbformat
 
@@ -310,7 +317,7 @@ def _execute_notebook(nb_path: Path, timeout: int = 300):
                             request_save_on_cell_execute=True,
                             stdout_file=stdout_file,
                             stderr_file=stderr_file,
-                            start_timeout=timeout,
+                            start_timeout=start_timeout,
                             execution_timeout=timeout,
                         )
                 nb = nbformat.read(out_path, as_version=4)

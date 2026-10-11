@@ -53,7 +53,7 @@ def test_unicode_identifier_characters_are_not_whitespace(char, template):
 
 @pytest.mark.parametrize("query", ["EXECUTE /", "EXECUTE"])
 def test_unextractable_prepared_name_raises_clear_error(query):
-    import duckdb
+    duckdb = pytest.importorskip("duckdb")
 
     eng = engine()
     # Public malformed SQL is rejected by DuckDB before this helper. Exercise
