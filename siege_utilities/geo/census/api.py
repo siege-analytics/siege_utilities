@@ -22,6 +22,7 @@ from siege_utilities.config import (
     CENSUS_RETRY_ATTEMPTS,
 )
 from siege_utilities.config.user_config import get_user_config
+from siege_utilities.core._http import redact_url_secrets
 from .variable_registry import VariableRegistry
 from .dataset_selector import DatasetSelector
 
@@ -107,7 +108,7 @@ class CensusAPI:
             if profile_key:
                 return profile_key
         except (ImportError, OSError, ValueError, KeyError, AttributeError) as e:
-            log.debug(f"Could not get API key from user profile: {e}")
+            log.debug(redact_url_secrets(f"Could not get API key from user profile: {e}"))
 
         env_key = os.environ.get('CENSUS_API_KEY')
         if env_key:
@@ -238,27 +239,26 @@ class CensusAPI:
                     last_exception = CensusRateLimitError(
                         f"Census API rate limit exceeded after {attempt + 1} attempts"
                     )
-                    last_exception.__cause__ = e
                 elif isinstance(e, requests.exceptions.Timeout):
                     log.warning(f"Request timeout (attempt {attempt + 1})")
                     last_exception = CensusAPIError(
                         f"Census API request timed out after {attempt + 1} attempts"
                     )
-                    last_exception.__cause__ = e
                     time.sleep(2 ** attempt)
                 elif isinstance(e, requests.exceptions.RequestException):
-                    log.warning(f"Request failed: {e}")
-                    last_exception = CensusAPIError(f"Census API request failed: {e}")
-                    last_exception.__cause__ = e
+                    log.warning(redact_url_secrets(f"Request failed: {e}"))
+                    last_exception = CensusAPIError(
+                        redact_url_secrets(f"Census API request failed: {e}")
+                    )
                     time.sleep(2 ** attempt)
                 elif isinstance(e, ValueError):
-                    log.error(f"Failed to parse API response: {e}")
-                    raise CensusAPIError(f"Invalid API response: {e}") from e
+                    log.error(redact_url_secrets(f"Failed to parse API response: {e}"))
+                    raise CensusAPIError(redact_url_secrets(f"Invalid API response: {e}")) from None
                 else:
                     raise
 
         if last_exception:
-            raise last_exception
+            raise last_exception from None
         raise CensusAPIError("Census API request failed after all retries")
 
     # ------------------------------------------------------------------
@@ -326,7 +326,10 @@ class CensusAPI:
             try:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
             except (ValueError, TypeError) as exc:
-                log.warning("Could not convert column %s to numeric: %s", col, exc)
+                log.warning(
+                    "Could not convert column %s to numeric: %s",
+                    redact_url_secrets(str(col)), redact_url_secrets(str(exc)),
+                )
         return df
 
     # ------------------------------------------------------------------
@@ -377,7 +380,7 @@ class CensusAPI:
         try:
             return pd.read_parquet(cache_file)
         except (OSError, ValueError, TypeError) as e:
-            log.warning(f"Failed to read cache file: {e}")
+            log.warning(redact_url_secrets(f"Failed to read cache file: {e}"))
             return None
 
     def _parquet_cache_set(self, cache_key: str, df: pd.DataFrame) -> None:
@@ -386,7 +389,7 @@ class CensusAPI:
             df.to_parquet(cache_file, index=False)
             log.debug(f"Cached data to {cache_file}")
         except (OSError, ValueError, TypeError) as e:
-            log.warning(f"Failed to cache data: {e}")
+            log.warning(redact_url_secrets(f"Failed to cache data: {e}"))
 
     def _django_cache_get(self, cache_key: str) -> Optional[pd.DataFrame]:
         try:
@@ -397,7 +400,7 @@ class CensusAPI:
                 return pd.DataFrame(data)
             return None
         except (ImportError, AttributeError, ValueError, TypeError, OSError) as e:
-            log.warning(f"Django cache get failed: {e}")
+            log.warning(redact_url_secrets(f"Django cache get failed: {e}"))
             return None
 
     def _django_cache_set(self, cache_key: str, df: pd.DataFrame) -> None:
@@ -410,7 +413,7 @@ class CensusAPI:
             )
             log.debug(f"Django cache set for {cache_key}")
         except (ImportError, AttributeError, ValueError, TypeError, OSError) as e:
-            log.warning(f"Django cache set failed: {e}")
+            log.warning(redact_url_secrets(f"Django cache set failed: {e}"))
 
     def clear_cache(self) -> None:
         """Clear cached API responses from the parquet file cache.
@@ -427,7 +430,7 @@ class CensusAPI:
                 cache_file.unlink()
             log.info("Cleared Census API cache")
         except OSError as e:
-            log.warning(f"Failed to clear cache: {e}")
+            log.warning(redact_url_secrets(f"Failed to clear cache: {e}"))
 
     # ------------------------------------------------------------------
     # Variable metadata (delegates to registry)
