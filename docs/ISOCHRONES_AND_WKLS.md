@@ -1,4 +1,4 @@
-# Isochrones and WKL Guidance
+# Isochrones and WKLS Guidance
 
 ## Current Position
 
@@ -116,25 +116,25 @@ gdf = su.isochrone_to_geodataframe(geojson)
 gdf = su.isochrone_to_geodataframe(geojson, crs="EPSG:3857")
 ```
 
-## WKL — Well-Known Linestrings (Future Work)
+## WKLS -- Well Known Locations gazetteer
 
-**WKL (Well-Known Linestrings)** refers to the use of standardized
-linestring representations (WKT/WKB) as a portable interchange format
-for spatial operations across heterogeneous compute environments
-(PostGIS, Sedona, Databricks native, DuckDB Spatial).
+**WKLS (Well Known Locations)** is a global admin-boundary gazetteer
+that ships as an optional backend of siege_utilities. It is not future
+work; it is available today.
 
-WKL can be valuable for enterprise-scale geospatial workloads, but
-should be integrated behind a narrow abstraction rather than as a hard
-dependency.
+Install the extra and use the `WklsGazetteer` class:
 
-Recommended implementation model:
+```bash
+pip install siege-utilities[wkls]
+```
 
-1. Define a stable internal adapter interface (`compute_isochrone`, `run_spatial_join`, `resolve_geometry_column`).
-2. Keep `python` and `sedona` backends as baseline open-source paths.
-3. Add a `wkl` adapter as an optional backend selected by runtime config.
-4. Require contract tests so backend swaps preserve output schema and semantics.
-5. For Databricks, prefer WKT/WKB interchange for portability when native spatial support differs by workspace/runtime.
+```python
+from siege_utilities.geo.gazetteers.wkls_gazetteer import WklsGazetteer
 
-This keeps contributors unblocked in open-source environments while
-allowing performance-oriented deployments to opt into WKL-based
-spatial operations.
+gazetteer = WklsGazetteer()
+```
+
+The WKLS gazetteer is selected as the default gazetteer backend when the
+`wkls` extra is installed. It provides global administrative boundary
+lookups behind the standard gazetteer interface, so callers do not need
+to know which backend is resolving a location.

@@ -97,8 +97,8 @@ api_key = get_runtime_secret("census", "api_key")
 
 # Create scope + write secret (uses workspace API)
 client = get_workspace_client(token="dapi...")
-ensure_secret_scope(client, "census")
-put_secret(client, "census", "api_key", "your-key-here")
+ensure_secret_scope("census", client)
+put_secret("census", "api_key", "your-key-here", client)
 ```
 
 ### Spatial Loader Fallback
@@ -212,8 +212,8 @@ sql = build_foreign_table_sql(
     catalog="main",
     schema="lakebase",
     table="census_tracts",
-    pg_schema="public",
-    pg_table="census_tracts",
+    source_schema="public",
+    source_table="census_tracts",
     connection_name="lakebase_prod",
 )
 spark.sql(sql)

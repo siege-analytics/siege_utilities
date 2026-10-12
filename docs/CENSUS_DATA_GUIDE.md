@@ -65,7 +65,7 @@ All Census data products fall into three categories:
 
 1. **PEP controls to Decennial:** Annual population estimates are "benchmarked" to the most recent Decennial count and adjusted forward using births, deaths, and migration data.
 
-2. **ACS uses Decennial boundaries:** ACS data is tabulated using the geographic boundaries from the most recent Decennial Census. When boundaries change (e.g., 2010 → 2020), you need crosswalks.
+2. **ACS uses Decennial boundaries:** ACS data is tabulated using the geographic boundaries from the most recent Decennial Census. When boundaries change (e.g., 2010 -> 2020), you need crosswalks.
 
 3. **ACS and PL measure the same concepts differently:** Both have "Total Population" but:
    - PL: Count as of Census Day (April 1)
@@ -230,26 +230,26 @@ Median Household Income: $65,000 ± $5,000
 START: What do you need?
          │
          ├── Official population count for legal purposes?
-         │         → PL 94-171 (Decennial)
+         │         -> PL 94-171 (Decennial)
          │
          ├── Block-level data?
-         │         → PL 94-171 only
+         │         -> PL 94-171 only
          │
          ├── Race/ethnicity data?
-         │         ├── At block level? → PL 94-171
-         │         └── At tract or higher? → ACS or PL
+         │         ├── At block level? -> PL 94-171
+         │         └── At tract or higher? -> ACS or PL
          │
          ├── Income, education, poverty, commuting?
-         │         → ACS (not in Decennial)
+         │         -> ACS (not in Decennial)
          │
          ├── Small area (tract/block group)?
-         │         → ACS 5-Year
+         │         -> ACS 5-Year
          │
          ├── Current year trends (large area 65K+ pop)?
-         │         → ACS 1-Year
+         │         -> ACS 1-Year
          │
          └── Population for year between decennials?
-                   → PEP (or ACS 1-Year)
+                   -> PEP (or ACS 1-Year)
 ```
 
 ### Quick Reference: Which Dataset Should I Use?
@@ -298,7 +298,7 @@ Census tract boundaries change every 10 years. Comparing 2010 and 2020 data requ
       └───────────┬──────────────────┘
                   │
            CROSSWALK FILE
-     (maps old tracts → new tracts)
+     (maps old tracts -> new tracts)
                   │
                   ▼
         NORMALIZED DATA
@@ -576,11 +576,11 @@ ACS 5-year estimates represent **averages** over the period:
 
 | Dataset | Function | Geography | Variables |
 |---------|----------|-----------|-----------|
-| ACS 5-Year | `get_demographics()` | State → Block Group | All B-tables |
-| ACS 1-Year | `CensusAPIClient.fetch_data(dataset='acs1')` | State → Place | All B-tables |
-| PL 94-171 (API) | `CensusAPIClient.fetch_data(dataset='dec')` | State → Tract | P1-P5, H1 |
-| PL 94-171 (Files) | `get_pl_blocks()`, `get_pl_data()` | State → Block | P1-P5, H1 |
-| PEP | `CensusAPIClient.fetch_data(dataset='pep')` | Limited | Population |
+| ACS 5-Year | `get_demographics()` | State -> Block Group | All B-tables |
+| ACS 1-Year | `CensusAPI.fetch_data(dataset='acs1')` | State -> Place | All B-tables |
+| PL 94-171 (API) | `CensusAPI.fetch_data(dataset='dec')` | State -> Tract | P1-P5, H1 |
+| PL 94-171 (Files) | `get_pl_blocks()`, `get_pl_data()` | State -> Block | P1-P5, H1 |
+| PEP | `CensusAPI.fetch_data(dataset='pep')` | Limited | Population |
 | TIGER/Line | `SpatialDataSource.get_*()` | All levels | Boundaries |
 | Crosswalks | `get_crosswalk()`, `apply_crosswalk()` | Tract | 2010↔2020 |
 | Time-Series | `get_longitudinal_data()` | All API levels | Any variable |
@@ -588,8 +588,8 @@ ACS 5-year estimates represent **averages** over the period:
 ### Usage Examples
 
 ```python
+from siege_utilities.geo.census.api import CensusAPI
 from siege_utilities.geo import (
-    CensusAPIClient,
     get_demographics,
     get_census_data_with_geometry,
     VARIABLE_GROUPS
@@ -604,7 +604,7 @@ df = get_demographics(
 )
 
 # PL 94-171: Redistricting data
-client = CensusAPIClient()
+client = CensusAPI()
 df = client.fetch_data(
     variables='decennial_population',  # Uses P1 variables
     year=2020,
@@ -712,7 +712,8 @@ files = downloader.list_available_files(state='CA', year=2020)
 The `census_api_client` provides predefined variable groups for all PL tables:
 
 ```python
-from siege_utilities.geo import VARIABLE_GROUPS, CensusAPIClient
+from siege_utilities.geo import VARIABLE_GROUPS
+from siege_utilities.geo.census.api import CensusAPI
 
 # Available PL variable groups:
 # - 'pl_p1_race': Total population and race (13 variables)
@@ -725,7 +726,7 @@ from siege_utilities.geo import VARIABLE_GROUPS, CensusAPIClient
 # - 'pl_voting_age': Voting age population subset (7 variables)
 
 # Get tract-level data with full PL support
-client = CensusAPIClient()
+client = CensusAPI()
 df = client.fetch_data(
     variables='pl_redistricting_core',
     year=2020,

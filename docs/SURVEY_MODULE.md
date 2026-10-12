@@ -1,6 +1,6 @@
 # Survey Module — Design Reference
 
-`siege_utilities.survey` is a professional survey/crosstab report engine for Python 3.12+.
+`siege_utilities.survey` is a professional survey/crosstab report engine for Python 3.11+.
 It produces polished tables, charts, and geographic representations from respondent-level
 DataFrames, and assembles them into structured report arguments that can be rendered to
 PDF, PowerPoint, or Google Slides.
@@ -98,7 +98,7 @@ chain = build_chain(
 ```
 
 `Chain.to_dataframe()` renders the cross-tab as a display-ready wide `DataFrame`.
-`Chain.to_argument(headline, narrative)` converts it directly to an `Argument`.
+`chain_to_argument(chain, headline=..., narrative=...)` converts it directly to an `Argument`.
 
 ### View
 
@@ -218,7 +218,7 @@ We chose **Option B** for these reasons:
 
 | Factor | Assessment |
 |---|---|
-| Maintenance status | [weightipy 0.4.2](https://pypi.org/project/weightipy/) released February 2026; Python 3.12 explicit; pandas 3.0 compatible |
+| Maintenance status | [weightipy 0.4.2](https://pypi.org/project/weightipy/) released February 2026; Python 3.12 explicit; pandas 3.0 compatible (siege_utilities pins pandas <3.0 regardless, per #1365) |
 | Scope match | weightipy does exactly one thing — raking — and does it correctly |
 | Implementation risk | IPF convergence edge cases (non-integer weights, impossible targets, sparse cells) are non-trivial; weightipy has been tested against them |
 | Wheel size | weightipy is a pure-Python package with no binary dependencies |
@@ -234,7 +234,7 @@ The `[survey]` extra keeps `weightipy` out of the core install:
 
 ```toml
 [project.optional-dependencies]
-survey = ["weightipy>=0.4.0"]
+survey = ["weightipy>=0.4.0", "pandas>=2.0.0,<3.0", "scipy>=1.11.0"]
 ```
 
 ```bash
@@ -398,7 +398,8 @@ cluster.add_chain(party_chain).add_chain(issues_chain)
 stack.add_cluster(cluster)
 
 # 5. Convert to Arguments for rendering
-party_arg = party_chain.to_argument(
+party_arg = chain_to_argument(
+    party_chain,
     headline="Party ID by County",
     narrative="Democrats hold a 20-point advantage in Travis County.",
 )
@@ -414,7 +415,7 @@ client = GoogleWorkspaceClient.from_service_account()
 pres_id = create_report_from_arguments(
     client,
     title="TX Senate Donor Intelligence — 2024 Cycle",
-    arguments=[party_arg, issues_chain.to_argument("Top Issues", "...")],
+    arguments=[party_arg, chain_to_argument(issues_chain, headline="Top Issues", narrative="...")],
     theme_presentation_id="YOUR_TEMPLATE_PRES_ID",
 )
 ```

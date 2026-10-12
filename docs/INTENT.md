@@ -17,7 +17,7 @@ Status column: **Aligned** (behavior matches intent), **Divergent** (discrepancy
 | Module | Purpose | Status | Planned change |
 |---|---|---|---|
 | `admin/` | Manage profile-directory layout + migrations | Aligned | — |
-| `analytics/` | Third-party connectors (GA, Facebook, Snowflake, Data.world, Google Workspace) | Aligned | D1 wrapper rename |
+| `analytics/` | Third-party connectors (GA, Facebook, Snowflake, Google Workspace) | Aligned | D1 wrapper rename |
 | `conf/` | Foundational settings singleton + hard-coded defaults | Aligned | — |
 | `config/` | Re-exports `conf.settings` + canonical constants (census, FIPS, credentials, pydantic models) | Aligned | — |
 | `configs/` | On-disk config data (palettes, branding templates); not a Python package | Aligned | — |

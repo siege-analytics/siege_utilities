@@ -36,10 +36,12 @@ The canonical workflow is: **address → geocoder → GEOID → boundary → ove
 
 .. code-block:: python
 
-   from siege_utilities.geo.geocoding import geocode_address
+   from siege_utilities.geo.geocoding import geocode_addresses_with_nominatim
 
-   result = geocode_address("1600 Pennsylvania Ave NW, Washington, DC")
-   # Returns lat/lon coordinates for spatial operations
+   results = geocode_addresses_with_nominatim(
+       ["1600 Pennsylvania Ave NW, Washington, DC"]
+   )
+   # Returns a list of {"address", "lat", "lon"} dicts for spatial operations
 
 2. Normalize a GEOID
 ~~~~~~~~~~~~~~~~~~~~
@@ -49,16 +51,16 @@ The canonical workflow is: **address → geocoder → GEOID → boundary → ove
    from siege_utilities.geo.geoid_utils import normalize_geoid
 
    # Census GEOIDs are the universal join key
-   geoid = normalize_geoid("06037", level="county")  # Los Angeles County
+   geoid = normalize_geoid("06037", "county")  # Los Angeles County
 
 3. Download Census Boundaries
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-   from siege_utilities.geo.spatial_data import census_source
+   from siege_utilities.geo.spatial_data import CensusDataSource
 
-   counties = census_source.get_geographic_boundaries(
+   counties = CensusDataSource().get_geographic_boundaries(
        year=2020,
        geographic_level="county",
        state_fips="06",
@@ -71,8 +73,8 @@ The canonical workflow is: **address → geocoder → GEOID → boundary → ove
 
    from siege_utilities.geo.providers.boundary_providers import resolve_boundary_provider
 
-   provider = resolve_boundary_provider("census_tiger")
-   boundary = provider.get_boundary(state_fips="06", level="county", year=2020)
+   provider = resolve_boundary_provider("US")
+   boundary = provider.get_boundary("county", identifier="06")
 
 5. Set a Project-Wide CRS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -90,16 +92,16 @@ Same analysis at different scales without rewriting:
 
 .. code-block:: python
 
-   from siege_utilities.engines import DataFrameEngine
+   from siege_utilities.engines import get_engine
 
    # pandas for exploration
-   engine = DataFrameEngine("pandas")
+   engine = get_engine("pandas")
 
    # DuckDB for medium scale
-   engine = DataFrameEngine("duckdb")
+   engine = get_engine("duckdb")
 
    # Spark for distribution
-   engine = DataFrameEngine("spark")
+   engine = get_engine("spark")
 
 Credential Management
 ---------------------
@@ -110,7 +112,7 @@ Credentials come from environment variables first, with 1Password CLI fallback:
 
    from siege_utilities.config.credential_manager import get_credential
 
-   api_key = get_credential("CENSUS_API_KEY")
+   api_key = get_credential("CENSUS_API_KEY", "default")
 
 Lazy Loading
 ------------
