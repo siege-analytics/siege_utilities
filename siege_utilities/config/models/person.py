@@ -605,19 +605,22 @@ def _convert_to_yaml_safe(obj: Any) -> Any:
         return obj
 
 
-def _strip_sensitive_fields(data: dict) -> dict:
-    """Strip sensitive credential data from a dictionary."""
+def _strip_sensitive_fields(data: Any) -> Any:
+    """Redact credential names and secret suffixes throughout nested exports."""
+    if isinstance(data, list):
+        return [_strip_sensitive_fields(item) for item in data]
+    if not isinstance(data, dict):
+        return data
+
     sensitive_keys = {'password', 'api_key', 'token', 'secret', 'api_keys',
+                      'client_secret', 'access_token', 'refresh_token', 'private_key',
                       'google_analytics_key', 'facebook_business_key', 'census_api_key',
                       'postgresql_connection', 'duckdb_path'}
+    sensitive_suffixes = ('_secret', '_token', '_key', 'password')
     result = {}
     for k, v in data.items():
-        if k in sensitive_keys:
+        if isinstance(k, str) and (k in sensitive_keys or k.endswith(sensitive_suffixes)):
             result[k] = '***REDACTED***' if v else v
-        elif isinstance(v, dict):
-            result[k] = _strip_sensitive_fields(v)
-        elif isinstance(v, list):
-            result[k] = [_strip_sensitive_fields(item) if isinstance(item, dict) else item for item in v]
         else:
-            result[k] = v
+            result[k] = _strip_sensitive_fields(v)
     return result
