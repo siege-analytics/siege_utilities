@@ -1,10 +1,9 @@
-"""
-Secure shell command execution utilities.
+"""Execute argv commands with an allow-list and conservative argument checks.
 
-SECURITY NOTE: This module previously contained critical vulnerabilities.
-All shell execution now includes proper validation and sanitization.
+These checks are a guardrail, not a sandbox or a guarantee of read-only behavior.
 """
 
+import os
 import subprocess
 import logging
 import shlex
@@ -30,35 +29,48 @@ class SecurityError(Exception):
     pass
 
 
-# Whitelist of allowed base commands
-# Only safe, read-only commands are permitted by default
+# Command names are restricted; their options are not exhaustively validated.
 ALLOWED_COMMANDS = {
     'ls', 'pwd', 'echo', 'cat', 'head', 'tail', 'wc', 'grep',
-    'find', 'which', 'whoami', 'date', 'hostname', 'uname'
+    'which', 'whoami', 'date', 'hostname', 'uname'
 }
 
 
 def validate_command_safety(command: Union[str, List[str]],
                             allow_list: Optional[set] = None) -> List[str]:
     """
-    Validate that a command is safe to execute.
+    Apply command-name, character, traversal, and known sensitive-path checks.
 
-    Args:
-        command: Command string or list to validate
-        allow_list: Optional custom whitelist of allowed commands
+    Arguments are checked using expanded, normalized and resolved path forms,
+    but returned unchanged. This is not a filesystem sandbox: command options,
+    recursive reads and filesystem changes after validation are not controlled.
+    A custom allow-list delegates command semantics to the caller.
 
-    Returns:
-        Validated command as list of strings
+    Parameters
+    ----------
+    command : str or list[str]
+        Command string or argv list to validate.
+    allow_list : set, optional
+        Custom allowed command names, replacing the default allow-list.
 
-    Raises:
-        SecurityError: If command contains forbidden elements
-        ValueError: If command is invalid
+    Returns
+    -------
+    list[str]
+        Validated argv with argument text unchanged.
 
-    Security checks:
+    Raises
+    ------
+    SecurityError
+        If the command contains forbidden elements.
+    ValueError
+        If the command is empty or has invalid quoting.
+
+    Notes
+    -----
     - Validates command against whitelist
-    - Blocks command injection characters (;, &, |, $, `, newlines)
-    - Blocks path traversal attempts
-    - Blocks access to sensitive system files
+    - Rejects selected shell metacharacters, including redirection characters
+    - Rejects argument text containing '..'
+    - Rejects known sensitive paths and .ssh path components, including aliases
     """
     if not command:
         raise ValueError("Command cannot be empty")
@@ -88,7 +100,15 @@ def validate_command_safety(command: Union[str, List[str]],
         )
 
     # Validate all command components
-    dangerous_chars = [';', '&', '|', '$', '`', '\n', '\r', '(', ')']
+    dangerous_chars = [';', '&', '|', '$', '`', '\n', '\r', '(', ')', '<', '>']
+    sensitive_paths = ['/etc/passwd', '/etc/shadow', '/etc/sudoers',
+                       '~/.ssh', '/root', '/var/log']
+    sensitive_forms = {
+        form
+        for path in sensitive_paths
+        for form in (os.path.normpath(os.path.expanduser(path)),
+                     os.path.realpath(os.path.expanduser(path)))
+    }
 
     for part in parts:
         # Check for command injection characters
@@ -102,11 +122,15 @@ def validate_command_safety(command: Union[str, List[str]],
         if '..' in part:
             raise SecurityError(f"Path traversal detected: {part}")
 
-        # Check for access to sensitive system files
-        sensitive_paths = ['/etc/passwd', '/etc/shadow', '/etc/sudoers',
-                          '~/.ssh', '/root', '/var/log']
-        for sensitive in sensitive_paths:
-            if sensitive in part:
+        # Check both lexical and resolved forms so symlinks cannot hide a path.
+        # Also inspect --option=path values without treating the option as a path.
+        path_values = [part, part.split('=', 1)[-1]]
+        for path in path_values:
+            expanded = os.path.expanduser(path)
+            forms = (os.path.normpath(expanded), os.path.realpath(expanded))
+            if any('.ssh' in form.split(os.sep) or
+                   any(sensitive in form for sensitive in sensitive_forms)
+                   for form in forms):
                 raise SecurityError(
                     f"Access to sensitive path forbidden: {part}"
                 )
@@ -118,36 +142,44 @@ def run_subprocess(command_list: Union[str, List[str]],
                   allow_list: Optional[set] = None,
                   timeout: int = 30) -> str:
     """
-    Run a shell command as a subprocess with security validation.
+    Run an argv command after applying validate_command_safety.
 
-    SECURITY: This function now validates all commands against a whitelist
-    and blocks dangerous operations. Only read-only commands are allowed
-    by default.
+    Execution uses shell=False, so shell syntax is not interpreted. Validation
+    restricts command names and selected argument patterns; it does not promise
+    read-only behavior or exhaustive validation of each program's options.
 
-    Args:
-        command_list: The command to run, as a list or string
-        allow_list: Optional custom whitelist of allowed commands
-        timeout: Command timeout in seconds (default: 30)
+    Parameters
+    ----------
+    command_list : str or list[str]
+        Command string or argv list to run.
+    allow_list : set, optional
+        Custom allowed command names, replacing the default allow-list.
+    timeout : int, default 30
+        Command timeout in seconds.
 
-    Returns:
-        The command output (stdout if successful, stderr if failed)
-        Arguments and output are omitted from logs. Raised diagnostics omit
-        command details and captured output, which may contain credentials.
+    Returns
+    -------
+    str
+        The command output (stdout if successful, stderr if failed, with an
+        error logged for a nonzero exit status). Arguments and output are
+        omitted from logs. Raised diagnostics omit command details and
+        captured output, which may contain credentials.
 
-    Raises:
-        SecurityError: If command fails security validation
-        ValueError: If command is invalid
-        subprocess.TimeoutExpired: If command times out
+    Raises
+    ------
+    SecurityError
+        If the command fails validation.
+    ValueError
+        If the command is invalid.
+    subprocess.TimeoutExpired
+        If the command times out.
+    OSError
+        If the command cannot be executed.
 
-    Example:
-        >>> output = run_subprocess("ls -la")  # doctest: +SKIP
-        >>> output = run_subprocess("rm -rf /")  # doctest: +SKIP
+    Examples
+    --------
+    >>> output = run_subprocess("ls -la")  # doctest: +SKIP
 
-    Security Changes:
-        - Previously used shell=True with no validation (CRITICAL VULNERABILITY)
-        - Now validates all commands against whitelist
-        - Blocks command injection, path traversal, sensitive file access
-        - Uses shell=False by default for safety
     """
     try:
         # Validate command security
