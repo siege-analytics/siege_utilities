@@ -123,7 +123,8 @@ class VTD(CensusTIGERBoundary):
     voting-age population data.  They approximate but don't exactly match
     election precincts.
 
-    GEOID: 11 digits = state (2) + county (3) + VTD (6)
+    GEOID: 11 characters = state digits (2) + county digits (3) + VTD (6).
+    The VTD component accepts ASCII letters, digits, and hyphens.
     Example: "06037001234" for VTD 001234 in LA County, CA
 
     Enhanced fields support enterprise-compatible workflows:
@@ -202,8 +203,8 @@ class VTD(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(geoid__regex=r"^\d{11}$"),
-                name="vtd_geoid_11_digits",
+                condition=models.Q(geoid__regex=r"^\d{5}[0-9A-Za-z-]{6}$"),
+                name="vtd_geoid_format",
             ),
         ]
 
