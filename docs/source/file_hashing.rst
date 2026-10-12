@@ -14,13 +14,7 @@ Module Overview
 Functions
 ---------
 
-.. autofunction:: siege_utilities.files.hashing.calculate_md5
-   :noindex:
-
-.. autofunction:: siege_utilities.files.hashing.calculate_sha1
-   :noindex:
-
-.. autofunction:: siege_utilities.files.hashing.calculate_sha256
+.. autofunction:: siege_utilities.files.hashing.get_file_hash
    :noindex:
 
 .. autofunction:: siege_utilities.files.hashing.calculate_file_hash
@@ -39,15 +33,15 @@ Basic file hashing:
    import siege_utilities
    
    # Calculate MD5 hash
-   md5_hash = siege_utilities.calculate_md5('document.pdf')
+   md5_hash = siege_utilities.get_file_hash('document.pdf', 'md5')
    print(f"MD5: {md5_hash}")
-   
+
    # Calculate SHA256 hash
-   sha256_hash = siege_utilities.calculate_sha256('document.pdf')
+   sha256_hash = siege_utilities.get_file_hash('document.pdf', 'sha256')
    print(f"SHA256: {sha256_hash}")
-   
+
    # Calculate SHA1 hash
-   sha1_hash = siege_utilities.calculate_sha1('document.pdf')
+   sha1_hash = siege_utilities.get_file_hash('document.pdf', 'sha1')
    print(f"SHA1: {sha1_hash}")
 
 Generic hashing with algorithm selection:
@@ -55,22 +49,22 @@ Generic hashing with algorithm selection:
 .. code-block:: python
 
    # Use generic hash function
-   hash_value = siege_utilities.calculate_file_hash('data.csv', algorithm='sha256')
+   hash_value = siege_utilities.get_file_hash('data.csv', algorithm='sha256')
    print(f"Hash: {hash_value}")
-   
+
    # Available algorithms: md5, sha1, sha256, sha512
    algorithms = ['md5', 'sha1', 'sha256']
    hashes = {}
-   
+
    for algo in algorithms:
-       hashes[algo] = siege_utilities.calculate_file_hash('large_file.dat', algorithm=algo)
+       hashes[algo] = siege_utilities.get_file_hash('large_file.dat', algorithm=algo)
    
    for algo, hash_val in hashes.items():
        print(f"{algo.upper()}: {hash_val}")
 
 File integrity verification:
 
-.. code_block:: python
+.. code-block:: python
 
    # Verify file integrity
    original_hash = "a1b2c3d4e5f6..."
@@ -83,7 +77,7 @@ File integrity verification:
 
 Batch processing:
 
-.. code_block:: python
+.. code-block:: python
 
    import os
    
@@ -94,8 +88,8 @@ Batch processing:
    for filename in files_to_hash:
        if os.path.exists(filename):
            hash_results[filename] = {
-               'md5': siege_utilities.calculate_md5(filename),
-               'sha256': siege_utilities.calculate_sha256(filename)
+               'md5': siege_utilities.get_file_hash(filename, 'md5'),
+               'sha256': siege_utilities.get_file_hash(filename, 'sha256')
            }
    
    # Display results
@@ -109,7 +103,7 @@ Unit Tests
 
 The file hashing module has comprehensive test coverage:
 
-.. code_block:: text
+.. code-block:: text
 
    ✅ test_file_hashing.py - All file hashing tests pass
    

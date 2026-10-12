@@ -62,23 +62,16 @@ Run specific test modules:
    pytest tests/test_core_logging.py -v
    pytest tests/test_file_operations.py -v
 
-Test Runner Script
+Common Invocations
 ~~~~~~~~~~~~~~~~~
 
-Use the interactive test runner:
+Run the test suite with pytest:
 
 .. code-block:: bash
 
-   python run_tests.py
-
-Or run specific test types:
-
-.. code-block:: bash
-
-   python run_tests.py --coverage    # With coverage reporting
-   python run_tests.py --fast        # Fast tests only
-   python run_tests.py --parallel    # Parallel execution
-   python run_tests.py --debug       # Debug mode
+   pytest                                 # Run all tests
+   pytest --cov=siege_utilities           # With coverage reporting
+   pytest -n auto                         # Parallel execution (requires pytest-xdist)
 
 Coverage and Reporting
 ~~~~~~~~~~~~~~~~~~~~~~

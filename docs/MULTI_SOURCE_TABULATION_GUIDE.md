@@ -1,7 +1,7 @@
 # Multi-Source Spatial Data Tabulation Guide
 
 This document covers the theory and practice of joining data from multiple
-geographic data sources — Census ACS, NCES EDGE, NLRB, and RDH — at shared
+geographic data sources -- Census ACS, NCES EDGE, NLRB, and RDH -- at shared
 geographic levels. It is the companion reference for
 `notebooks/20_Multi_Source_Spatial_Tabulation.ipynb`.
 
@@ -28,12 +28,12 @@ that look precise but are statistically meaningless.
 
 | Source | Module | Native Geography | Update Cadence | Error Model |
 |--------|--------|-------------------|---------------|-------------|
-| Census ACS 5-year | `geo.census_api_client` | Block group → State | Annual (rolling 5-year window) | Sampling MoE on every estimate |
-| Census ACS 1-year | `geo.census_api_client` | County → State (pop ≥ 65k) | Annual | Wider MoE than 5-year |
-| Census Decennial | `geo.census_api_client` | Block → State | Every 10 years | Complete enumeration (no MoE) |
-| Census TIGER | `geo.spatial_data` | Block → State | Annual | Boundary precision ± meters |
+| Census ACS 5-year | `geo.census.api` (CensusAPI) | Block group -> State | Annual (rolling 5-year window) | Sampling MoE on every estimate |
+| Census ACS 1-year | `geo.census.api` (CensusAPI) | County -> State (pop >= 65k) | Annual | Wider MoE than 5-year |
+| Census Decennial | `geo.census.api` (CensusAPI) | Block -> State | Every 10 years | Complete enumeration (no MoE) |
+| Census TIGER | `geo.spatial_data` | Block -> State | Annual | Boundary precision ± meters |
 | NCES EDGE | `geo.nces_download` | School point / Locale polygon | Annual (school year) | Geocoding accuracy varies |
-| NLRB | `geo.django.services.nlrb_service` | State → Region | Static (changes rarely) | No error — administrative definition |
+| NLRB | `geo.django.services.nlrb_service` | State -> Region | Static (changes rarely) | No error -- administrative definition |
 | RDH | `data.redistricting_data_hub` | Precinct / District | Per redistricting cycle | Boundary digitization error |
 
 ### Key distinction: estimates vs. counts vs. boundaries
@@ -57,7 +57,7 @@ Census ACS county data  ──GEOID──▶  Census TIGER county boundaries
 ```
 
 This is the simplest and most reliable join. No spatial operations needed. The only
-risk is **vintage mismatch** — a 2020-vintage GEOID may not exist in 2010 boundaries
+risk is **vintage mismatch** -- a 2020-vintage GEOID may not exist in 2010 boundaries
 (tracts split, merged, or renumbered).
 
 **MoE**: Preserved exactly. No additional error from the join itself.
@@ -80,7 +80,7 @@ The NLRB divides at the county level, but public data only provides state-level
 assignments. You must either pick a primary region (lowest number) or accept
 double-counting.
 
-### 2.3 Spatial Join — Point in Polygon
+### 2.3 Spatial Join -- Point in Polygon
 
 **When to use**: Point data (schools) needs to be assigned to area data (districts, counties).
 
@@ -96,7 +96,7 @@ NCES school points  ──gpd.sjoin(predicate='within')──▶  RDH district p
 **Best practice**: Use `predicate='within'` for strict containment. Use `predicate='intersects'`
 only when you want boundary-touching points included.
 
-### 2.4 Spatial Join — Centroid in Polygon
+### 2.4 Spatial Join -- Centroid in Polygon
 
 **When to use**: Assigning areas (counties) to other areas (districts) when one
 area is much smaller than the other.
@@ -110,11 +110,11 @@ entirely to District A, even if part of the county is in District B.
 
 **When this fails**: When the source unit (county) is large relative to the target
 unit (district). Fairfax County, VA spans parts of multiple congressional districts.
-Its centroid lands in one, so the others get zero Fairfax population — badly wrong.
+Its centroid lands in one, so the others get zero Fairfax population -- badly wrong.
 
 **MoE**: The geometric approximation error dominates. MoE from ACS is secondary.
 
-### 2.5 Spatial Overlay — Area-Weighted Interpolation
+### 2.5 Spatial Overlay -- Area-Weighted Interpolation
 
 **When to use**: Assigning area data (tract demographics) to non-nesting areas
 (districts) with population weighting.
@@ -123,7 +123,7 @@ Its centroid lands in one, so the others get zero Fairfax population — badly w
 Census tract demographics  ──demographic_profile()──▶  District-level aggregations
 ```
 
-This is the `demographic_profile()` function in `redistricting_data_hub.py`.
+This is the `geo.providers.redistricting_data_hub.demographic_profile` function in `geo/providers/redistricting_data_hub.py`.
 It computes the geometric intersection of each tract with each district, then
 allocates tract population proportionally by intersection area.
 
@@ -153,8 +153,8 @@ The coefficient of variation (CV) is: `CV = (SE / E) * 100`
 | CV | Reliability | Action |
 |----|-------------|--------|
 | < 12% | High | Use freely |
-| 12–40% | Medium | Use with caution, report CV |
-| > 40% | Low | Suppress or flag — too noisy to be useful |
+| 12-40% | Medium | Use with caution, report CV |
+| > 40% | Low | Suppress or flag -- too noisy to be useful |
 
 ### 3.2 Propagation Rules
 
@@ -172,7 +172,7 @@ geographic levels, this is approximately true. For variables from the same
 table at the same geography, the estimates may be correlated and this formula
 is an approximation.
 
-**Example** (NB20 Part 3 — tract populations by locale):
+**Example** (NB20 Part 3 -- tract populations by locale):
 
 ```python
 locale_pop = tracts.groupby("locale_category").agg(
@@ -227,7 +227,7 @@ for the MoE of an aggregate median.
 
 **Practical approach for NB20**: When grouping tracts by locale category, we
 report `mean(median_income)` as a summary statistic and label it clearly as
-"average of tract-level medians" — not the true median for the locale category.
+"average of tract-level medians" -- not the true median for the locale category.
 
 ### 3.3 MoE in Cross-Source Joins
 
@@ -237,7 +237,7 @@ from the Census side, propagated through whatever aggregation the join requires.
 
 | Join Type | MoE Source | Propagation |
 |-----------|-----------|-------------|
-| GEOID join | Census only | No change — 1:1 join |
+| GEOID join | Census only | No change -- 1:1 join |
 | FIPS lookup + sum | Census only | Root-sum-of-squares |
 | Spatial join (point in polygon) | Census only | Root-sum-of-squares for sums |
 | Spatial overlay | Census + interpolation error | See §5 |
@@ -246,7 +246,7 @@ from the Census side, propagated through whatever aggregation the join requires.
 
 Small-area ACS estimates (block groups, small tracts) often have CVs above 40%.
 When you aggregate these to a custom geography (locale category, congressional
-district), the aggregation reduces CV (more data points → tighter estimates),
+district), the aggregation reduces CV (more data points -> tighter estimates),
 but not always enough.
 
 **Rule of thumb**: If your aggregation zone contains fewer than ~20 tracts or
@@ -257,7 +257,7 @@ but not always enough.
 se = moe / 1.645
 cv = (se / estimate) * 100
 if cv > 40:
-    warnings.warn(f"CV={cv:.0f}% — estimate is unreliable")
+    warnings.warn(f"CV={cv:.0f}% -- estimate is unreliable")
 ```
 
 ---
@@ -270,7 +270,7 @@ The Modifiable Areal Unit Problem (MAUP) states that the results of spatial
 analysis depend on how you draw the boundaries of your analysis zones.
 Aggregate the same data into different zones and you get different results.
 
-This is not a bug — it is an inherent property of spatial data. But it means
+This is not a bug -- it is an inherent property of spatial data. But it means
 that cross-source tabulations produce results that are **contingent on the
 chosen geography**, not universal truths.
 
@@ -282,9 +282,9 @@ Each data source in NB20 has a native scale:
 |--------|-------------|------------|
 | Census ACS | Tract (~4,000 people) | High |
 | NCES locale | Locale territory (12 types nationally) | Very low |
-| NLRB | Region (~6–12 states) | Very low |
+| NLRB | Region (~6-12 states) | Very low |
 | RDH district | Congressional district (~760k people) | Medium |
-| County | County (~100k–10M people) | Medium |
+| County | County (~100k-10M people) | Medium |
 
 When you cross-tabulate, the result inherits the **coarsest resolution**
 of any participating source. Census tracts crossed with NLRB regions
@@ -310,10 +310,10 @@ scale mismatches:
 | Column | Source Scale | County Scale | Mismatch Severity |
 |--------|-------------|-------------|-------------------|
 | `total_pop` | Exact (Census) | Native | None |
-| `median_income` | Tract estimate | County aggregate | Medium — average of medians |
-| `school_count` | School point | Count in county | None — exact count |
-| `nlrb_region` | State | All counties same | None — uniform within state |
-| `congressional_district` | District | Centroid approximation | **High** — counties split across districts |
+| `median_income` | Tract estimate | County aggregate | Medium -- average of medians |
+| `school_count` | School point | Count in county | None -- exact count |
+| `nlrb_region` | State | All counties same | None -- uniform within state |
+| `congressional_district` | District | Centroid approximation | **High** -- counties split across districts |
 
 The `congressional_district` column is the weakest link. For states with
 many small counties (VA has 133), most counties fit within a single district
@@ -328,7 +328,7 @@ TX), it breaks badly.
 
 Census tracts and congressional districts have independent boundaries.
 A tract may overlap two districts. To assign tract demographics to districts,
-you must *interpolate* — split the tract's population between the districts
+you must *interpolate* -- split the tract's population between the districts
 proportionally.
 
 ### 5.2 Area-Weighted Interpolation (AWI)
@@ -340,7 +340,7 @@ each tract:
 pop_district_from_tract = pop_tract * (area_intersection / area_tract)
 ```
 
-`demographic_profile()` in `redistricting_data_hub.py` uses this approach.
+`geo.providers.redistricting_data_hub.demographic_profile` in `geo/providers/redistricting_data_hub.py` uses this approach.
 
 **When it works well**: Dense urban tracts where population is roughly uniform.
 
@@ -361,10 +361,10 @@ studies suggest:
 
 | Condition | Typical Error |
 |-----------|---------------|
-| Small source zones (tracts) → large targets (districts) | 2–5% |
-| Large source zones (counties) → small targets (tracts) | 10–30% |
-| Rural areas with clustered population | 15–50% |
-| Dense urban areas | 1–3% |
+| Small source zones (tracts) -> large targets (districts) | 2-5% |
+| Large source zones (counties) -> small targets (tracts) | 10-30% |
+| Rural areas with clustered population | 15-50% |
+| Dense urban areas | 1-3% |
 
 **Practical guidance**: If more than 20% of your source zone area lies
 outside the target zone, flag the result. If more than 50%, don't use AWI.
@@ -400,11 +400,11 @@ Data sources have different reference periods:
 
 | Source | Reference Period | Example |
 |--------|-----------------|---------|
-| ACS 5-year 2022 | Jan 2018 – Dec 2022 | Income, poverty, education |
-| ACS 1-year 2022 | Jan 2022 – Dec 2022 | Same variables, less precision |
+| ACS 5-year 2022 | Jan 2018 - Dec 2022 | Income, poverty, education |
+| ACS 1-year 2022 | Jan 2022 - Dec 2022 | Same variables, less precision |
 | Decennial 2020 | April 1, 2020 | Total population, race, Hispanic origin |
-| NCES 2023 | 2022–2023 school year | School locations, locale codes |
-| RDH enacted plans | Varies (2021–2023 for current cycle) | District boundaries |
+| NCES 2023 | 2022-2023 school year | School locations, locale codes |
+| RDH enacted plans | Varies (2021-2023 for current cycle) | District boundaries |
 | NLRB regions | Current (rarely changes) | Region boundaries |
 
 ### 6.2 Matching Rules
@@ -414,14 +414,14 @@ Data sources have different reference periods:
    boundaries are updated annually. Use the same year for both.
 
 2. **NCES school year should bracket the ACS reference period.** NCES
-   2022–2023 data pairs well with ACS 2022 (5-year: 2018–2022).
+   2022-2023 data pairs well with ACS 2022 (5-year: 2018-2022).
 
 3. **RDH enacted plans are valid for the redistricting cycle.** Plans
-   enacted in 2021–2022 are valid through the 2030 Census. Use them
+   enacted in 2021-2022 are valid through the 2030 Census. Use them
    with any ACS data from that decade.
 
 4. **Decennial data is a snapshot.** Do not combine 2020 Decennial block
-   counts with 2022 ACS tract estimates and sum them — they measure
+   counts with 2022 ACS tract estimates and sum them -- they measure
    different things at different times.
 
 ### 6.3 Population Change Between Vintages
@@ -434,7 +434,7 @@ shifted. This matters most for:
 - College towns (seasonal population swings)
 
 **Practical approach**: For cross-source tabulation, pick one Census vintage
-and stick with it. ACS 5-year is the safest default — broad coverage, annual
+and stick with it. ACS 5-year is the safest default -- broad coverage, annual
 updates, decent MoE at tract level.
 
 ---
@@ -448,7 +448,7 @@ updates, decent MoE at tract level.
 **Method**:
 1. Download tract-level ACS income data with geometry
 2. Download NCES locale boundaries
-3. Spatial join: tract centroids → locale polygons (1:1 assignment)
+3. Spatial join: tract centroids -> locale polygons (1:1 assignment)
 4. Group by `locale_category`, sum populations, propagate MoE
 
 **MoE handling**: Sum MoE via root-sum-of-squares for population totals.
@@ -463,11 +463,11 @@ Aggregated CVs will be low (< 5%).
 
 **Method**:
 1. Fetch state-level population (ACS or Decennial)
-2. Map state abbreviation → primary NLRB region
+2. Map state abbreviation -> primary NLRB region
 3. Sum population by region, propagate MoE
 
 **MoE handling**: State-level ACS population estimates have very low CVs (< 1%).
-Root-sum-of-squares across 2–6 states per region yields negligible MoE.
+Root-sum-of-squares across 2-6 states per region yields negligible MoE.
 
 **Scale**: NLRB regions are very coarse. This tabulation is only useful for
 national-level comparisons, not sub-state analysis.
@@ -479,7 +479,7 @@ national-level comparisons, not sub-state analysis.
 **Method**:
 1. Fetch tract-level ACS demographics with geometry
 2. Fetch enacted plan boundaries (RDH or Census CD)
-3. Spatial overlay via `demographic_profile()` — area-weighted interpolation
+3. Spatial overlay via `demographic_profile()` -- area-weighted interpolation
 
 **MoE handling**: Propagate ACS MoE through the area-weighted sum. Add a
 caveat about areal interpolation error. Validate against PL 94-171 block-level
@@ -492,14 +492,14 @@ data when available.
 **Goal**: How many city/suburban/town/rural schools are in each district?
 
 **Method**:
-1. Spatial join: school points → district polygons
+1. Spatial join: school points -> district polygons
 2. Cross-tabulate by `locale_category`
 
-**MoE handling**: No MoE — school counts are exact within the NCES universe
+**MoE handling**: No MoE -- school counts are exact within the NCES universe
 (public schools only). The only error is geocoding accuracy for schools near
 district boundaries.
 
-**Scale**: Good — school points are precise and districts are well-defined.
+**Scale**: Good -- school points are precise and districts are well-defined.
 
 ### 7.5 Unified County-Level Tabulation
 
@@ -509,7 +509,7 @@ district boundaries.
 
 **MoE handling**: Census columns carry MoE. School counts are exact. NLRB
 region is a label (no MoE). Congressional district assignment is approximate
-(centroid method — no formal MoE, but may be wrong for split counties).
+(centroid method -- no formal MoE, but may be wrong for split counties).
 
 **Scale**: County is a reasonable common denominator for most states.
 For states with very large counties (San Bernardino, AZ counties), the
@@ -526,7 +526,7 @@ Cross-source tabulation is powerful but not always appropriate. Avoid it when:
    ACS data (block groups, small tracts) in sparsely populated areas.
 
 2. **The scale mismatch is too large.** Assigning NLRB region-level labor
-   data to individual tracts is meaningless — the data doesn't vary at
+   data to individual tracts is meaningless -- the data doesn't vary at
    that resolution.
 
 3. **The temporal gap is too wide.** Combining 2010 Decennial data with
@@ -561,8 +561,8 @@ Cross-source tabulation is powerful but not always appropriate. Avoid it when:
 
 ## Related
 
-- **[NB04](../notebooks/04_Spatial_Data_Census_Boundaries.ipynb)** — Census TIGER boundaries, GEOIDs, crosswalks
-- **[NB15](../notebooks/15_Census_Demographics_Integration.ipynb)** — Census convenience functions
-- **[NB19](../notebooks/19_NLRB_Data_Integration.ipynb)** — NLRB region data integration
-- **[NB20](../notebooks/20_Multi_Source_Spatial_Tabulation.ipynb)** — Cross-source tabulation notebook
-- **[CENSUS_DATA_GUIDE.md](CENSUS_DATA_GUIDE.md)** — Census variable codes and dataset selection
+- **[NB04](../notebooks/04_Spatial_Data_Census_Boundaries.ipynb)** -- Census TIGER boundaries, GEOIDs, crosswalks
+- **[NB15](../notebooks/15_Census_Demographics_Integration.ipynb)** -- Census convenience functions
+- **[NB19](../notebooks/19_NLRB_Data_Integration.ipynb)** -- NLRB region data integration
+- **[NB20](../notebooks/20_Multi_Source_Spatial_Tabulation.ipynb)** -- Cross-source tabulation notebook
+- **[CENSUS_DATA_GUIDE.md](CENSUS_DATA_GUIDE.md)** -- Census variable codes and dataset selection
