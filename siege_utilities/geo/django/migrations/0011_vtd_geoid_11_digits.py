@@ -11,7 +11,9 @@ Pre-author state measurement (authoring-against-state:6):
 - enterprise_geo.geo_censustiger_voter_tabulation_district (electinfo
   loader table, measured by Spatial Hub 2026-06-24): 158,444 rows across
   49 states, 100% 11-char geoid, vtdst component 6 chars, ZERO 8-char
-  rows. Confirms the 11-char direction conclusively.
+  rows. This established LENGTH only, not that every character is a digit.
+  VTDST can contain letters and hyphens; the digits-only constraint below
+  rejects those valid values and is replaced by migration 0013.
 - Consuming-path note: that loader table is NOT this Django model's
   physical table. This model binds to whatever DB the consuming app's
   Django settings configure (in the library's own test context, the
@@ -21,7 +23,8 @@ Pre-author state measurement (authoring-against-state:6):
 - Downstream consumers applying this migration against a populated VTD
   table: real Census VTD GEOIDs are 11-char, so any pre-existing 8-char
   rows are malformed and must be re-derived as state(2)+county(3)+VTDST(6),
-  NOT zero-padded, before this AddConstraint will validate.
+  NOT zero-padded. Valid alphanumeric rows also fail this AddConstraint;
+  databases blocked at 0011 need remediation before they can reach 0013.
 """
 
 from django.db import migrations, models
