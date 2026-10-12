@@ -26,6 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Set `CENSUS_API_KEY` in the environment instead. (#1402)
 - `scripts/release_manager.py --token` is rejected without echoing its value.
   Set `PYPI_API_TOKEN` in the environment for CLI uploads and releases. (#1402)
+- `UserConfigManager` now creates configuration directories with mode 0700
+  and atomically saves `user_config.yaml` with mode 0600, including when
+  replacing an existing file. The temporary fallback moves from
+  `$TMPDIR/siege_utilities/config` (or `/tmp/siege_utilities/config`) to
+  `tempfile.gettempdir()/siege_utilities-<uid>`. Pre-existing fallback paths
+  that are symlinks, are not directories, belong to another uid, or are
+  group/other-writable are rejected with `ValueError` before loading or
+  saving credentials. Shared config directories lose group/other access;
+  use a private `SIEGE_USER_CONFIG_DIR` if the fallback is unsafe. Old
+  fallback files are not migrated or trusted automatically. (#1452)
 
 ### Security
 

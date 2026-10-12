@@ -22,18 +22,28 @@ remaining eight handlers plus a complementary L117 permutation.
 from __future__ import annotations
 
 import logging
+import os
 import stat
+import tempfile
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 import pytest
+import yaml
 
 from siege_utilities.config.user_config import (
     UserConfigManager,
     UserProfile,
     get_download_directory,
 )
+
+
+@pytest.fixture(autouse=True)
+def isolated_config_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep constructor side effects and cached tempfile paths inside the test."""
+    monkeypatch.setenv("SIEGE_USER_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setattr(tempfile, "tempdir", None)
 
 
 # ---------------------------------------------------------------------------
@@ -191,14 +201,10 @@ def test_line_174_save_os_error_logged_not_raised(
     monkeypatch.setenv("SIEGE_USER_CONFIG_DIR", str(tmp_path))
     mgr = UserConfigManager()
 
-    original_open = open
+    def disk_full(*args: Any, **kwargs: Any) -> Any:
+        raise OSError("disk full")
 
-    def boom_open(path: Any, *args: Any, **kwargs: Any) -> Any:
-        if str(path).endswith("user_config.yaml"):
-            raise OSError("disk full")
-        return original_open(path, *args, **kwargs)
-
-    monkeypatch.setattr("builtins.open", boom_open)
+    monkeypatch.setattr(tempfile, "NamedTemporaryFile", disk_full)
 
     with caplog.at_level(logging.ERROR, logger="siege_utilities.config.user_config"):
         mgr._save_user_profile()
@@ -354,3 +360,231 @@ def test_line_449_mkdir_os_error_falls_through_to_writability_check(
             get_download_directory(specific_path=str(unwritable / "subdir"))
     finally:
         unwritable.chmod(stat.S_IRWXU)
+
+
+@pytest.mark.parametrize("service", ["census", "google_analytics", "facebook_business"])
+def test_api_key_file_and_directory_modes_under_umask_022(
+    tmp_path: Path, service: str,
+) -> None:
+    """Credential files must be 0600 even with the usual 022 process umask."""
+    previous_umask = os.umask(0o022)
+    try:
+        mgr = UserConfigManager(config_dir=tmp_path / "private-config")
+        mgr.set_api_key(service, "test-key")
+    finally:
+        os.umask(previous_umask)
+
+    file_mode = os.stat(mgr.user_config_file).st_mode & 0o777
+    assert file_mode == 0o600, f"file mode is {file_mode:04o}, expected 0600"
+    assert os.stat(mgr.config_dir).st_mode & 0o777 == 0o700
+    assert UserConfigManager(config_dir=mgr.config_dir).get_api_key(service) == "test-key"
+
+
+def test_initial_config_file_and_directory_are_private(tmp_path: Path) -> None:
+    """First construction writes a private file before any credential setter."""
+    previous_umask = os.umask(0o022)
+    try:
+        mgr = UserConfigManager(config_dir=tmp_path / "private-config")
+    finally:
+        os.umask(previous_umask)
+
+    assert stat.S_IMODE(mgr.config_dir.stat().st_mode) == 0o700
+    assert stat.S_IMODE(mgr.user_config_file.stat().st_mode) == 0o600
+
+
+def test_database_save_tightens_existing_file_and_directory(tmp_path: Path) -> None:
+    """Previously world-readable configs become private when saved again."""
+    config_dir = tmp_path / "config"
+    config_dir.mkdir(mode=0o755)
+    config_dir.chmod(0o755)
+    config_file = config_dir / "user_config.yaml"
+    config_file.write_text("preferred_download_directory: /unused\n", encoding="utf-8")
+    config_file.chmod(0o644)
+    mgr = UserConfigManager(config_dir=config_dir)
+    connection = "postgresql://test:dummy-password@localhost/test"
+    mgr.set_database_connection("postgresql", connection)
+
+    assert stat.S_IMODE(config_file.stat().st_mode) == 0o600
+    assert stat.S_IMODE(config_dir.stat().st_mode) == 0o700
+    assert yaml.safe_load(config_file.read_text())["postgresql_connection"] == connection
+
+
+@pytest.fixture
+def fallback_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path, Path]:
+    """Both fallback layouts let the same refusal tests expose v4.0.0."""
+    temp_root = tmp_path / "temp"
+    temp_root.mkdir()
+    monkeypatch.setenv("TMPDIR", str(temp_root))
+    monkeypatch.setattr(tempfile, "tempdir", str(temp_root))
+    blocked = tmp_path / "not-a-directory"
+    blocked.write_text("block primary config directory creation", encoding="utf-8")
+    legacy = temp_root / "siege_utilities" / "config"
+    fallback = temp_root / f"siege_utilities-{os.getuid()}"
+    return blocked, legacy, fallback
+
+
+def test_fallback_uses_private_per_uid_directory(
+    fallback_paths: tuple[Path, Path, Path],
+) -> None:
+    primary, legacy, fallback = fallback_paths
+    previous_umask = os.umask(0o022)
+    try:
+        mgr = UserConfigManager(config_dir=primary)
+        mgr.set_api_key("census", "test-key")
+    finally:
+        os.umask(previous_umask)
+
+    assert mgr.config_dir == fallback
+    assert stat.S_IMODE(fallback.stat().st_mode) == 0o700
+    assert fallback.stat().st_uid == os.getuid()
+    assert stat.S_IMODE(mgr.user_config_file.stat().st_mode) == 0o600
+    assert not legacy.exists()
+
+
+@pytest.mark.parametrize("mode", [0o777, 0o770, 0o707], ids=["0777", "0770", "0707"])
+def test_unsafe_fallback_permissions_raise(
+    fallback_paths: tuple[Path, Path, Path], mode: int,
+) -> None:
+    """A planted writable fallback must be refused before reading or chmod."""
+    primary, legacy, fallback = fallback_paths
+    for directory in (legacy, fallback):
+        directory.mkdir(parents=True)
+        directory.chmod(mode)
+        (directory / "user_config.yaml").write_text("username: planted\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Unsafe fallback config directory.*group/other-writable"):
+        UserConfigManager(config_dir=primary)
+
+    assert stat.S_IMODE(fallback.stat().st_mode) == mode
+    assert (fallback / "user_config.yaml").read_text() == "username: planted\n"
+
+
+def test_unsafe_fallback_permissions_raise_when_home_resolution_fails(
+    fallback_paths: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    primary, legacy, fallback = fallback_paths
+    for directory in (legacy, fallback):
+        directory.mkdir(parents=True)
+        directory.chmod(0o777)
+        (directory / "user_config.yaml").write_text(
+            "preferred_download_directory: /unused\n", encoding="utf-8",
+        )
+    monkeypatch.delenv("SIEGE_USER_CONFIG_DIR")
+
+    def missing_home() -> Path:
+        raise RuntimeError("could not determine home directory")
+
+    monkeypatch.setattr(Path, "home", staticmethod(missing_home))
+    with pytest.raises(ValueError, match="Unsafe fallback config directory"):
+        UserConfigManager()
+
+
+def test_fallback_symlink_raises_without_touching_target(
+    fallback_paths: tuple[Path, Path, Path], tmp_path: Path,
+) -> None:
+    primary, legacy, fallback = fallback_paths
+    target = tmp_path / "target"
+    target.mkdir(mode=0o700)
+    legacy.parent.mkdir()
+    legacy.symlink_to(target, target_is_directory=True)
+    fallback.symlink_to(target, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="Unsafe fallback config directory.*real directory"):
+        UserConfigManager(config_dir=primary)
+
+    assert list(target.iterdir()) == []
+    assert fallback.is_symlink()
+
+
+def test_fallback_regular_file_raises(fallback_paths: tuple[Path, Path, Path]) -> None:
+    primary, legacy, fallback = fallback_paths
+    legacy.parent.mkdir()
+    legacy.write_text("planted", encoding="utf-8")
+    fallback.write_text("planted", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Unsafe fallback config directory.*real directory"):
+        UserConfigManager(config_dir=primary)
+
+    assert fallback.read_text() == "planted"
+
+
+def test_fallback_wrong_owner_raises(
+    fallback_paths: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Simulate a foreign st_uid; a real cross-uid chown needs privileges."""
+    primary, legacy, fallback = fallback_paths
+    for directory in (legacy, fallback):
+        directory.mkdir(mode=0o700, parents=True)
+    original_lstat = Path.lstat
+
+    def foreign_owner(path: Path) -> os.stat_result:
+        metadata = original_lstat(path)
+        if path == fallback:
+            fields = list(metadata)
+            fields[4] = os.getuid() + 1
+            return os.stat_result(fields)
+        return metadata
+
+    monkeypatch.setattr(Path, "lstat", foreign_owner)
+    with pytest.raises(ValueError, match=f"Unsafe fallback config directory.*owned by uid {os.getuid()}"):
+        UserConfigManager(config_dir=primary)
+
+    assert list(fallback.iterdir()) == []
+
+
+def test_read_only_fallback_does_not_load_unvalidated_config(
+    fallback_paths: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An OSError preparing fallback must not permit reading a planted config."""
+    primary, legacy, fallback = fallback_paths
+    for directory in (legacy, fallback):
+        directory.mkdir(parents=True)
+        (directory / "user_config.yaml").write_text("username: planted\n", encoding="utf-8")
+
+    def denied(*args: Any, **kwargs: Any) -> None:
+        raise PermissionError("directory access denied")
+
+    monkeypatch.setattr(Path, "mkdir", denied)
+    mgr = UserConfigManager(config_dir=primary)
+
+    assert mgr._read_only is True
+    assert mgr.user_profile.username == ""
+
+
+@pytest.mark.parametrize("error", [OSError("disk full"), yaml.YAMLError("serialization failed")])
+def test_failed_atomic_save_preserves_file_and_removes_temporary_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture, error: Exception,
+) -> None:
+    mgr = UserConfigManager(config_dir=tmp_path / "config")
+    mgr.set_api_key("census", "original-key")
+    original = mgr.user_config_file.read_bytes()
+
+    def failed_dump(*args: Any, **kwargs: Any) -> None:
+        raise error
+
+    monkeypatch.setattr(yaml, "dump", failed_dump)
+    with caplog.at_level(logging.ERROR, logger="siege_utilities.config.user_config"):
+        mgr.set_api_key("census", "replacement-key")
+
+    assert mgr.user_config_file.read_bytes() == original
+    assert list(mgr.config_dir.iterdir()) == [mgr.user_config_file]
+    assert "Failed to save user config" in caplog.text
+
+
+def test_atomic_replace_error_preserves_file_and_removes_temporary_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture,
+) -> None:
+    mgr = UserConfigManager(config_dir=tmp_path / "config")
+    original = mgr.user_config_file.read_bytes()
+
+    def denied(*args: Any, **kwargs: Any) -> None:
+        raise PermissionError("replacement denied")
+
+    monkeypatch.setattr(os, "replace", denied)
+    with caplog.at_level(logging.ERROR, logger="siege_utilities.config.user_config"):
+        mgr.set_api_key("census", "replacement-key")
+
+    assert mgr.user_config_file.read_bytes() == original
+    assert list(mgr.config_dir.iterdir()) == [mgr.user_config_file]
+    assert "Failed to save user config" in caplog.text

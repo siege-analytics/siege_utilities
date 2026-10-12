@@ -5,6 +5,8 @@ Enhanced with Pydantic validation while maintaining backward compatibility.
 """
 
 import logging
+import stat
+import tempfile
 import threading
 import warnings
 import yaml
@@ -87,7 +89,7 @@ class UserProfile:
     enable_logging: bool = True
     log_level: str = "INFO"
     
-    # API Keys (encrypted)
+    # API Keys (stored in plaintext; protected by filesystem permissions)
     google_analytics_key: str = ""
     facebook_business_key: str = ""
     census_api_key: str = ""
@@ -109,20 +111,23 @@ class UserConfigManager:
 
         Args:
             config_dir: Directory containing user configuration files
+
+        Raises:
+            ValueError: If the temporary fallback directory is unsafe.
         """
         self._read_only = False
         self.config_dir = config_dir or self._resolve_config_dir()
+        fallback = self._fallback_config_dir()
         try:
-            self.config_dir.mkdir(parents=True, exist_ok=True)
+            self._prepare_config_dir(self.config_dir, fallback=self.config_dir == fallback)
         except (PermissionError, OSError) as exc:
-            fallback = Path(os.environ.get("TMPDIR", "/tmp")) / "siege_utilities" / "config"
             log.warning(
                 "Cannot create config dir %s (%s); falling back to %s",
                 self.config_dir, exc, fallback,
             )
             self.config_dir = fallback
             try:
-                self.config_dir.mkdir(parents=True, exist_ok=True)
+                self._prepare_config_dir(self.config_dir, fallback=True)
             except (PermissionError, OSError):
                 log.warning("Fallback config dir %s also unwritable; running read-only", fallback)
                 self._read_only = True
@@ -135,6 +140,33 @@ class UserConfigManager:
             self._save_user_profile()
 
     @staticmethod
+    def _fallback_config_dir() -> Path:
+        return Path(tempfile.gettempdir()) / f"siege_utilities-{os.getuid()}"
+
+    @staticmethod
+    def _prepare_config_dir(config_dir: Path, *, fallback: bool) -> None:
+        """Create a private directory, validating shared-temp paths before use."""
+        try:
+            config_dir.mkdir(mode=0o700, parents=True)
+        except FileExistsError:
+            # A pre-existing fallback must be validated before chmod or reads.
+            if not fallback and not config_dir.is_dir():
+                raise
+        if fallback:
+            metadata = config_dir.lstat()
+            if (
+                not stat.S_ISDIR(metadata.st_mode)
+                or metadata.st_uid != os.getuid()
+                or metadata.st_mode & 0o022
+            ):
+                raise ValueError(
+                    f"Unsafe fallback config directory {config_dir}: must be a real "
+                    f"directory owned by uid {os.getuid()} and not group/other-writable. "
+                    "Set SIEGE_USER_CONFIG_DIR to a private directory."
+                )
+        config_dir.chmod(0o700)
+
+    @staticmethod
     def _resolve_config_dir() -> Path:
         env_override = os.environ.get("SIEGE_USER_CONFIG_DIR")
         if env_override:
@@ -142,10 +174,13 @@ class UserConfigManager:
         try:
             return Path.home() / ".siege_utilities" / "config"
         except (RuntimeError, KeyError):
-            return Path(os.environ.get("TMPDIR", "/tmp")) / "siege_utilities" / "config"
+            return UserConfigManager._fallback_config_dir()
     
     def _load_user_profile(self) -> UserProfile:
         """Load user profile from configuration file."""
+        if self._read_only:
+            # Directory preparation failed; do not read an unvalidated fallback.
+            return UserProfile()
         if self.user_config_file.exists():
             try:
                 with open(self.user_config_file, 'r', encoding='utf-8') as f:
@@ -165,12 +200,23 @@ class UserConfigManager:
         """Save user profile to configuration file."""
         if self._read_only:
             return
+        temporary_file = None
         try:
             config_dict = asdict(self.user_profile)
             # Convert tuples to lists for YAML compatibility
             config_dict = self._convert_to_yaml_safe(config_dict)
-            with open(self.user_config_file, 'w', encoding='utf-8') as f:
-                yaml.dump(config_dict, f, default_flow_style=False)
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode='w', encoding='utf-8', dir=self.config_dir,
+                    prefix='.user_config.', suffix='.tmp', delete=False,
+                ) as f:
+                    temporary_file = Path(f.name)
+                    os.fchmod(f.fileno(), 0o600)
+                    yaml.dump(config_dict, f, default_flow_style=False)
+                os.replace(temporary_file, self.user_config_file)
+            finally:
+                if temporary_file is not None:
+                    temporary_file.unlink(missing_ok=True)
         except (OSError, yaml.YAMLError, TypeError) as e:
             log.error(f"Failed to save user config: {e}")
 
