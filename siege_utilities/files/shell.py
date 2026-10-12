@@ -69,7 +69,7 @@ def validate_command_safety(command: Union[str, List[str]],
     -----
     - Validates command against whitelist
     - Rejects selected shell metacharacters, including redirection characters
-    - Rejects argument text containing '..'
+    - Rejects '..' path components
     - Rejects known sensitive paths and .ssh path components, including aliases
     """
     if not command:
@@ -118,10 +118,6 @@ def validate_command_safety(command: Union[str, List[str]],
                     f"Forbidden character '{char}' in command component: {part}"
                 )
 
-        # Check for path traversal
-        if '..' in part:
-            raise SecurityError(f"Path traversal detected: {part}")
-
         # Check both lexical and resolved forms so symlinks cannot hide a path.
         # Also inspect --option=path values without treating the option as a path.
         path_values = [part, part.split('=', 1)[-1]]
@@ -129,11 +125,14 @@ def validate_command_safety(command: Union[str, List[str]],
             expanded = os.path.expanduser(path)
             forms = (os.path.normpath(expanded), os.path.realpath(expanded))
             if any('.ssh' in form.split(os.sep) or
-                   any(sensitive in form for sensitive in sensitive_forms)
+                   any(form == sensitive or form.startswith(sensitive + os.sep)
+                       for sensitive in sensitive_forms)
                    for form in forms):
                 raise SecurityError(
                     f"Access to sensitive path forbidden: {part}"
                 )
+            if '..' in path.replace(os.sep, '/').split('/'):
+                raise SecurityError(f"Path traversal detected: {part}")
 
     return parts
 
