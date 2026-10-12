@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### BREAKING
+
+- Credential resolution now defaults to env -> 1Password -> service-scoped
+  files -> Keychain -> prompt. Unscoped credential files are no longer searched.
+  Move files to a service directory (for example `postgres/password.txt`) or
+  use a service-prefixed filename such as `postgres_password.txt`; set
+  `backend_priority` explicitly to change backend precedence. (#1402)
+- 1Password updates refuse all Login items because CLI JSON cannot establish
+  passkey absence and template edits can delete passkeys. Missing/unknown
+  categories, SSH Key/Document items, attachments, and passkey/SSHKEY/OTP/TOTP/file
+  fields are also refused with `SiegeConfigError`. Use the 1Password app for
+  these edits. Newly created Login items are subject to the same update guard.
+  Other edits preserve the full item JSON and verify the saved field before
+  reporting success; failed persistence checks raise `SiegeConfigError`. (#1402)
+
 ## [4.0.0] - 2026-10-11
 
 Major release. The public surface changes incompatibly (the data.world

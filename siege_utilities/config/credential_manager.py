@@ -137,6 +137,42 @@ def _safe_error(error: Exception) -> str:
     return _redact(type(error).__name__)
 
 
+def _op_edit_refusal_reason(item: Dict[str, Any]) -> Optional[str]:
+    """Fail closed when CLI JSON cannot establish safe template replacement."""
+    category = item.get('category')
+    if not isinstance(category, str):
+        return "missing or unsupported category; cannot establish passkey safety"
+    if category == 'LOGIN':
+        return ("LOGIN items can contain passkeys, but op 2.34.0 item get JSON "
+                "and --fields expose no reliable passkey-absence signal; "
+                "JSON template edits can delete passkeys")
+    if category in ('SSH_KEY', 'DOCUMENT'):
+        return "SSH key or document material cannot be safely round-tripped by this JSON edit path"
+    # Unknown/new categories may carry material the CLI omits, including passkeys.
+    if category not in {
+        'API_CREDENTIAL', 'BANK_ACCOUNT', 'CREDIT_CARD', 'CRYPTO_WALLET',
+        'DATABASE', 'DRIVER_LICENSE', 'EMAIL_ACCOUNT', 'IDENTITY',
+        'MEDICAL_RECORD', 'MEMBERSHIP', 'OUTDOOR_LICENSE', 'PASSPORT',
+        'PASSWORD', 'REWARD_PROGRAM', 'SECURE_NOTE', 'SERVER',
+        'SOCIAL_SECURITY_NUMBER', 'SOFTWARE_LICENSE', 'WIRELESS_ROUTER',
+    }:
+        return "missing or unsupported category; cannot establish passkey safety"
+    if item.get('files'):
+        return "document/file attachments are not fully represented in item JSON"
+    if item.get('passkey') or item.get('passkeys'):
+        return "passkey material is not supported by JSON templates"
+    fields = item.get('fields')
+    if not isinstance(fields, list) or any(not isinstance(entry, dict) for entry in fields):
+        return "invalid item fields; cannot establish safe JSON replacement"
+    for entry in fields:
+        if entry.get('type') in ('PASSKEY', 'SSHKEY', 'OTP', 'TOTP', 'FILE', 'DOCUMENT'):
+            return ("passkey, SSH key, document, or OTP/TOTP field present; "
+                    "this edit path does not guarantee its JSON round-trip")
+    if not isinstance(item.get('id'), str) or not item['id']:
+        return "missing item ID; cannot safely target the inspected item"
+    return None
+
+
 class CredentialManager:
     """
     Unified credential management system with fallback hierarchy.
@@ -518,7 +554,7 @@ class CredentialManager:
             raise RuntimeError(
                 f"1Password CLI (`op item get {name} --field={field}`) "
                 f"exited with code {result.returncode}: "
-                f"{(result.stderr or result.stdout)[:200]!r}. "
+                f"{_redact(result.stderr or result.stdout, max_len=200)!r}. "
                 f"Resolve the 1Password CLI state before falling back "
                 f"to other backends."
             )
@@ -592,6 +628,11 @@ class CredentialManager:
 
         Returns:
             True if successful, False otherwise
+
+        Raises:
+            SiegeConfigError: An existing 1Password item cannot be safely
+                replaced as JSON, or its updated value cannot be verified.
+                See ``_store_in_1password`` for the supported edit scope.
         """
         if backend == '1password' and self.available_backends.get('1password'):
             return self._store_in_1password(service, username, value, field,
@@ -607,28 +648,71 @@ class CredentialManager:
     def _store_in_1password(self, service: str, username: str, value: str, field: str,
                             vault: Optional[str] = None,
                             account: Optional[str] = None) -> bool:
-        """Store credential in 1Password."""
+        """Store a credential using JSON on stdin, never secret argv values.
+
+        For edits, fetch the complete item JSON and change only the target
+        field's value (or append a concealed field when absent). op 2.34.0
+        documents ``op item edit ITEM`` with piped JSON, without ``-`` or
+        ``--template``. Read the field back before reporting success.
+
+        JSON templates overwrite passkeys. Neither item JSON nor --fields
+        provides a documented, reliable passkey-absence signal, so ALL LOGIN
+        edits are refused, including password-only Logins. Missing/unknown
+        categories are also refused. SSH_KEY/DOCUMENT categories, attachments,
+        and passkey/SSHKEY/OTP/TOTP/file fields are conservatively refused:
+        this path does not guarantee their round-trip, even though CLI
+        templates support OTP values. Use the 1Password app for these edits.
+        Creation still uses LOGIN, so subsequent edits of those items require
+        the app. A read-back check cannot detect data omitted by item JSON.
+
+        Raises SiegeConfigError on unsafe edits or failed persistence checks.
+        CLI/JSON errors return False with a diagnostic that omits secrets.
+        """
         try:
             op_flags = self._build_op_flags(vault=vault, account=account)
 
-            # Check if item exists, update or create
-            existing = self._get_from_1password(service, field, vault=vault, account=account)
-
-            if existing:
-                # JSON edits replace the item; retain its other fields and metadata.
+            # Determine existence from the item, not a possibly empty/missing
+            # password. Resolve the same service-name variations as retrieval.
+            item = None
+            for name in [service, f"{service} API", f"{service} Credentials",
+                         f"{service.replace('-', ' ').title()} API",
+                         f"{service.replace('-', ' ').title()} Credentials"]:
                 current = subprocess.run(
-                    ['op', 'item', 'get', service, '--format=json'] + op_flags,
-                    capture_output=True, text=True, check=True, timeout=60,
+                    ['op', 'item', 'get', name, '--format=json'] + op_flags,
+                    capture_output=True, text=True, timeout=60,
                 )
+                if current.returncode == 1:
+                    continue
+                current.check_returncode()
                 item = json.loads(current.stdout)
+                if not isinstance(item, dict):
+                    raise SiegeConfigError(f"Refusing to update 1Password item {service!r}: invalid item JSON")
+                break
+
+            editing = item is not None
+            if editing:
+                reason = _op_edit_refusal_reason(item)
+                if reason:
+                    raise SiegeConfigError(
+                        f"Refusing to update 1Password item {service!r}: {reason}. "
+                        "Use the 1Password app to update this item without losing material."
+                    )
                 fields = item['fields']
-                target = next((entry for entry in fields
-                               if entry.get('id') == field or entry.get('label') == field), None)
+                matches = [entry for entry in fields if entry.get('id') == field]
+                if not matches:
+                    matches = [entry for entry in fields if entry.get('label') == field]
+                if len(matches) > 1:
+                    raise SiegeConfigError(
+                        f"Refusing to update 1Password item {service!r}: ambiguous target field; use its ID"
+                    )
+                target = matches[0] if matches else None
                 if target is None:
-                    target = {'label': field}
+                    target = {'label': field, 'type': 'CONCEALED'}
                     fields.append(target)
-                target.update(type='CONCEALED', value=value)
-                cmd = ['op', 'item', 'edit', service] + op_flags
+                target['value'] = value
+                # Pin the edit and verification to the item actually inspected.
+                item_id = item['id']
+                cmd = ['op', 'item', 'edit', item_id] + op_flags
             else:
                 secret_field = {'id': field, 'label': field, 'type': 'CONCEALED', 'value': value}
                 if field == 'password':
@@ -650,6 +734,21 @@ class CredentialManager:
             )
 
             if result.returncode == 0:
+                if editing:
+                    verified = subprocess.run(
+                        ['op', 'item', 'get', item_id, '--format=json'] + op_flags,
+                        capture_output=True, text=True, check=True, timeout=60,
+                    )
+                    saved = json.loads(verified.stdout)
+                    saved_fields = saved['fields']
+                    matches = [entry for entry in saved_fields
+                               if (entry.get('id') == target['id'] if target.get('id')
+                                   else entry.get('label') == field)]
+                    if len(matches) != 1 or matches[0].get('value') != value:
+                        raise SiegeConfigError(
+                            f"1Password item {service!r}: edit did not persist the requested field value; "
+                            "check the item in the 1Password app"
+                        )
                 log_info(f"Stored {field} for {service} in 1Password")
                 return True
             else:
@@ -1014,6 +1113,11 @@ def store_credential(service: str, username: str, value: str,
 
     Returns:
         True if successful
+
+    Raises:
+        SiegeConfigError: A 1Password edit is unsafe or its value fails
+            verification. Login items are refused because CLI JSON cannot
+            establish passkey absence; use the 1Password app for these edits.
     """
     manager = _get_default_manager(vault=vault, account=account)
     return manager.store_credential(service, username, value, field, backend,

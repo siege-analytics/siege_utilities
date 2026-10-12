@@ -22,7 +22,9 @@ import json
 import logging
 import os
 import shlex
+import socket
 import subprocess
+from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch, Mock, MagicMock
 
@@ -50,6 +52,17 @@ from siege_utilities.exceptions import SiegeConfigError
 # =============================================================================
 # FIXTURES
 # =============================================================================
+
+@pytest.fixture(autouse=True)
+def _no_external_io(monkeypatch):
+    """All CLI responses are fixtures; an accidental live call fails locally."""
+    def reject(*args, **kwargs):
+        pytest.fail('Unexpected external I/O: mock the CLI or network dependency')
+
+    monkeypatch.setattr(subprocess, 'run', reject)
+    monkeypatch.setattr(socket.socket, 'connect', reject)
+    monkeypatch.setattr(socket, 'create_connection', reject)
+
 
 @pytest.fixture(autouse=True)
 def _reset_default_manager_cache():
@@ -825,22 +838,24 @@ class TestStoreIn1Password:
         manager, mock_run = manager_with_account
 
         mock_run.reset_mock()
-        # _get_from_1password succeeds (item exists)
+        item = {'id': 'item-id', 'category': 'DATABASE', 'fields': [
+            {'id': 'password', 'type': 'CONCEALED', 'value': 'old_value'},
+        ]}
+        saved = deepcopy(item)
+        saved['fields'][0]['value'] = 'new_pass'
         mock_run.side_effect = [
-            Mock(returncode=0, stdout='old_value\n', stderr=''),  # lookup succeeds
-            subprocess.CompletedProcess([], 0, json.dumps({'fields': [
-                {'id': 'password', 'type': 'CONCEALED', 'value': 'old_value'},
-            ]}), ''),
+            subprocess.CompletedProcess([], 0, json.dumps(item), ''),
             Mock(returncode=0, stdout='updated\n', stderr=''),  # edit succeeds
+            subprocess.CompletedProcess([], 0, json.dumps(saved), ''),
         ]
 
         result = manager._store_in_1password('test-svc', 'user', 'new_pass', 'password')
         assert result is True
 
-        # Last call should be 'op item edit'
-        edit_call = mock_run.call_args_list[-1]
+        edit_call = mock_run.call_args_list[-2]
         cmd = edit_call[0][0]
-        assert 'edit' in cmd
+        assert cmd == ['op', 'item', 'edit', 'item-id',
+                       '--vault=Employee', '--account=Siege_Analytics']
 
     def test_store_returns_false_on_failure(self, manager_with_account):
         manager, mock_run = manager_with_account
@@ -1646,7 +1661,7 @@ class TestGetGAServiceAccountCredentials:
     """
 
     @patch('siege_utilities.config.credential_manager.CredentialManager.get_credential')
-    def test_raises_when_first_field_missing(self, mock_get):
+    def test_raises_when_first_field_missing(self, mock_get, mock_op_available):
         mock_get.side_effect = CredentialNotFoundError(
             'google-analytics-sa', 'client_email', [('1password', 'no credential found')]
         )
@@ -1656,7 +1671,7 @@ class TestGetGAServiceAccountCredentials:
         assert excinfo.value.service == 'google-analytics-sa'
 
     @patch('siege_utilities.config.credential_manager.CredentialManager.get_credential')
-    def test_raises_when_partial_field_missing(self, mock_get):
+    def test_raises_when_partial_field_missing(self, mock_get, mock_op_available):
         def side_effect(service, username, field, *args, **kwargs):
             if field == 'private_key':
                 raise CredentialNotFoundError(
@@ -1670,7 +1685,7 @@ class TestGetGAServiceAccountCredentials:
         assert excinfo.value.field == 'private_key'
 
     @patch('siege_utilities.config.credential_manager.CredentialManager.get_credential')
-    def test_returns_dict_when_all_fields_found(self, mock_get):
+    def test_returns_dict_when_all_fields_found(self, mock_get, mock_op_available):
         mock_get.side_effect = lambda service, username, field, *a, **kw: f'value-for-{field}'
         result = get_ga_service_account_credentials()
         assert result == {
@@ -1838,21 +1853,203 @@ def isolated_credentials(tmp_path, monkeypatch):
         yield manager, run
 
 
+@pytest.fixture
+def op_edit_cli(isolated_credentials):
+    """Model stored item JSON, separately from the edit command's exit status.
+
+    Shape follows the DATABASE example in 1Password's item JSON template docs:
+    https://www.1password.dev/cli/item-template-json
+    Values are synthetic. No live CLI or vault is used.
+    """
+    manager, run = isolated_credentials
+    stored = {
+        'id': 'item-id', 'title': 'svc', 'category': 'DATABASE', 'version': 3,
+        'vault': {'id': 'vault-id', 'name': 'Private'},
+        'tags': ['keep-tag'], 'urls': [{'primary': True, 'href': 'https://example.test'}],
+        'sections': [{'id': 'section-id', 'label': 'Credentials'}],
+        'fields': [
+            {'id': 'credential', 'label': 'token', 'type': 'STRING', 'value': 'old',
+             'section': {'id': 'section-id'}},
+            {'id': 'notesPlain', 'type': 'STRING', 'purpose': 'NOTES', 'value': 'keep notes'},
+            {'id': 'username', 'type': 'STRING', 'value': 'keep user'},
+            {'id': 'other', 'label': 'other', 'type': 'CONCEALED', 'value': 'keep secret'},
+        ],
+    }
+
+    def respond(cmd, **kwargs):
+        if cmd[:3] == ['op', 'item', 'get']:
+            # Keep the old field lookup realistic when proving red-on-revert.
+            output = json.dumps(stored) if '--format=json' in cmd else 'old'
+            return subprocess.CompletedProcess(cmd, 0, output, '')
+        if cmd[:3] == ['op', 'item', 'edit']:
+            updated = json.loads(kwargs['input'])
+            stored.clear()
+            stored.update(updated)
+            return subprocess.CompletedProcess(cmd, 0, json.dumps(stored), '')
+        pytest.fail('Unexpected command: only item get/edit is valid for this fixture')
+
+    run.side_effect = respond
+    return manager, run, stored
+
+
+def test_op_edit_json_stdin_persistence_contract(op_edit_cli):
+    """Assert 2.34.0's documented pipe form AND unchanged non-target JSON.
+
+    `op item edit --help`: cat updatedLogin.json | op item edit oldLogin.
+    The command accepts a name or ID, with no '-' or '--template'. Round 1
+    already used this syntax; pinning the ID, preserving the target's type,
+    and requiring a read-back are the additional regression assertions.
+    """
+    manager, run, stored = op_edit_cli
+    expected = deepcopy(stored)
+    expected['fields'][0]['value'] = _SECRET
+    assert manager.store_credential('svc', 'unused-user', _SECRET, field='credential',
+                                    vault='Employee', account='Siege_Analytics') is True
+    assert stored == expected
+    edits = [call for call in run.call_args_list if call.args[0][:3] == ['op', 'item', 'edit']]
+    assert len(edits) == 1
+    edit = edits[0]
+    flags = ['--vault=Employee', '--account=Siege_Analytics']
+    assert edit.args[0] == ['op', 'item', 'edit', 'item-id'] + flags
+    assert json.loads(edit.kwargs['input']) == expected
+    assert edit.kwargs['text'] is True
+    assert edit.kwargs['capture_output'] is True
+    assert _SECRET not in repr([call.args for call in run.call_args_list])
+    assert run.call_args.args[0] == ['op', 'item', 'get', 'item-id', '--format=json'] + flags
+    assert run.call_args.kwargs['check'] is True
+
+
+def test_op_edit_noop_raises_instead_of_reporting_success(op_edit_cli, caplog):
+    manager, run, stored = op_edit_cli
+    before = deepcopy(stored)
+    respond = run.side_effect
+
+    def no_op(cmd, **kwargs):
+        if cmd[:3] == ['op', 'item', 'edit']:
+            return subprocess.CompletedProcess(cmd, 0, json.dumps(stored), '')
+        return respond(cmd, **kwargs)
+
+    run.side_effect = no_op
+    with pytest.raises(SiegeConfigError, match='svc.*did not persist') as exc:
+        manager.store_credential('svc', 'user', _SECRET, field='credential')
+    assert stored == before
+    assert _SECRET not in str(exc.value)
+    assert 'Stored credential' not in caplog.text
+
+
+@pytest.mark.parametrize('password_present', [True, False])
+def test_op_edit_passkey_guard_refuses_login_without_signal(op_edit_cli, password_present):
+    """Real passkey-bearing Login JSON can omit ALL passkey metadata.
+
+    Sanitized shape from the CLI output in this first-person report:
+    https://www.1password.community/developers-69/indicating-unsupported-fields-in-cli-1651
+    Its app JSON contains a passkey, but its CLI JSON has only ordinary fields.
+    The guard must also run when the password is empty or absent.
+    """
+    manager, run, stored = op_edit_cli
+    stored.update(category='LOGIN', fields=[
+        {'id': 'username', 'type': 'STRING', 'purpose': 'USERNAME', 'value': 'example'},
+        {'id': 'notesPlain', 'type': 'STRING', 'purpose': 'NOTES'},
+    ])
+    if password_present:
+        stored['fields'].append({'id': 'password', 'type': 'CONCEALED',
+                                 'purpose': 'PASSWORD', 'value': ''})
+    before = deepcopy(stored)
+    with pytest.raises(SiegeConfigError, match='svc.*LOGIN.*passkeys') as exc:
+        manager.store_credential('svc', 'user', _SECRET)
+    assert 'no reliable passkey-absence signal' in str(exc.value)
+    assert '1Password app' in str(exc.value)
+    assert stored == before
+    assert all(call.args[0][:3] == ['op', 'item', 'get'] for call in run.call_args_list)
+    assert _SECRET not in str(exc.value)
+
+
+@pytest.mark.parametrize('material,reason', [
+    ({'category': 'SSH_KEY'}, 'SSH key or document'),
+    ({'category': 'DOCUMENT'}, 'SSH key or document'),
+    ({'category': None}, 'cannot establish passkey safety'),
+    ({'category': 'FUTURE_CATEGORY'}, 'cannot establish passkey safety'),
+    ({'files': [{'id': 'file-id', 'name': 'attachment', 'size': 42}]}, 'attachments'),
+    ({'passkeys': [{'credentialId': 'example'}]}, 'passkey material'),
+    ({'fields': [{'id': 'private_key', 'type': 'SSHKEY', 'value': _SECRET}]}, 'SSH key'),
+    ({'fields': [{'id': 'otp', 'type': 'OTP', 'value': 'otpauth://totp/example'}]}, 'OTP/TOTP'),
+    ({'fields': [{'id': 'passkey', 'type': 'PASSKEY'}]}, 'passkey'),
+    ({'fields': None}, 'invalid item fields'),
+    ({'id': None}, 'missing item ID'),
+])
+def test_op_edit_refuses_non_roundtrippable_material(op_edit_cli, material, reason):
+    manager, run, stored = op_edit_cli
+    stored.update(material)
+    before = deepcopy(stored)
+    with pytest.raises(SiegeConfigError, match=f'svc.*{reason}') as exc:
+        manager.store_credential('svc', 'user', _SECRET, field='credential')
+    assert stored == before
+    assert all('input' not in call.kwargs for call in run.call_args_list)
+    assert _SECRET not in str(exc.value)
+
+
+@pytest.mark.parametrize('value', ['', None])
+def test_op_edit_empty_or_missing_field_updates_existing_item(op_edit_cli, value):
+    manager, run, stored = op_edit_cli
+    stored['fields'][0]['value'] = value
+    assert manager.store_credential('svc', 'user', _SECRET, field='credential') is True
+    assert stored['fields'][0]['value'] == _SECRET
+    assert not any('create' in call.args[0] for call in run.call_args_list)
+
+
+def test_op_edit_adds_missing_field_without_dropping_others(op_edit_cli):
+    manager, _, stored = op_edit_cli
+    before = deepcopy(stored['fields'])
+    assert manager.store_credential('svc', 'user', _SECRET, field='new-secret') is True
+    assert stored['fields'] == before + [
+        {'label': 'new-secret', 'type': 'CONCEALED', 'value': _SECRET},
+    ]
+
+
+def test_op_edit_ambiguous_label_raises_before_write(op_edit_cli):
+    manager, run, stored = op_edit_cli
+    stored['fields'].append({'id': 'second-token', 'label': 'token', 'type': 'STRING'})
+    with pytest.raises(SiegeConfigError, match='svc.*ambiguous target field'):
+        manager.store_credential('svc', 'user', _SECRET, field='token')
+    assert all('input' not in call.kwargs for call in run.call_args_list)
+
+
+def test_op_edit_invalid_item_shape_raises_before_write(isolated_credentials):
+    manager, run = isolated_credentials
+    run.return_value = subprocess.CompletedProcess([], 0, '[]', '')
+    with pytest.raises(SiegeConfigError, match='svc.*invalid item JSON'):
+        manager.store_credential('svc', 'user', _SECRET)
+    assert all('input' not in call.kwargs for call in run.call_args_list)
+
+
+@pytest.mark.parametrize('stream', ['stderr', 'stdout'])
+def test_op_retrieve_error_redacts_diagnostics(isolated_credentials, stream):
+    manager, run = isolated_credentials
+    output = {'stdout': '', 'stderr': '', stream: f'password={_SECRET}'}
+    run.return_value = subprocess.CompletedProcess([], 2, **output)
+    with pytest.raises(RuntimeError, match='exited with code 2') as exc:
+        manager._get_from_1password('svc', 'password')
+    assert _SECRET not in str(exc.value)
+    assert '[REDACTED]' in str(exc.value)
+
+
 @pytest.fixture(params=['op-create', 'op-edit', 'keychain', 'oauth', 'service-account'])
 def credential_write(request, isolated_credentials, tmp_path):
     """Return each write entry point with realistic subprocess response shapes."""
     manager, run = isolated_credentials
     kind = request.param
-    item = {'id': 'item-id', 'title': 'svc', 'category': 'LOGIN', 'fields': [
+    item = {'id': 'item-id', 'title': 'svc', 'category': 'DATABASE', 'fields': [
         {'id': 'password', 'label': 'password', 'type': 'CONCEALED', 'value': 'old'},
         {'id': 'notesPlain', 'type': 'STRING', 'value': 'retain this field'},
     ]}
 
     def respond(cmd, **kwargs):
-        if '--format=json' in cmd:
-            return subprocess.CompletedProcess(cmd, 0, json.dumps(item), '')
         if cmd[:3] == ['op', 'item', 'get'] and kind == 'op-create':
             return subprocess.CompletedProcess(cmd, 1, '', 'item not found')
+        if '--format=json' in cmd:
+            return subprocess.CompletedProcess(cmd, 0, json.dumps(item), '')
+        if cmd[:3] == ['op', 'item', 'edit']:
+            item.update(json.loads(kwargs['input']))
         return subprocess.CompletedProcess(cmd, 0, _SECRET, '')
 
     run.side_effect = respond
