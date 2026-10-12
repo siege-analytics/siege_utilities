@@ -449,10 +449,12 @@ def run_command(command: Union[str, List[str]],
                 allow_list: Optional[set] = None,
                 unsafe: bool = False) -> subprocess.CompletedProcess:
     """
-    Run a shell command with security validation and proper error handling.
+    Run an argv command with optional command and argument validation.
 
     SECURITY: This function now validates commands by default. Only whitelisted
-    commands are allowed unless unsafe=True is explicitly set.
+    commands are allowed unless unsafe=True is explicitly set. Validation
+    rejects selected characters and known sensitive paths; it is not a
+    sandbox and does not guarantee read-only behavior.
 
     Args:
         command: Command to run (string or list)
@@ -460,7 +462,7 @@ def run_command(command: Union[str, List[str]],
         timeout: Timeout in seconds (default: 30)
         capture_output: Whether to capture command output
         allow_list: Optional custom whitelist of allowed commands
-        unsafe: If True, bypass the allow-list check. The command is
+        unsafe: If True, bypass command and argument validation. The command is
             still executed via argv (shell=False) — string commands are
             shlex-split and run without shell expansion. Use this when
             you legitimately need a binary that isn't in the allow-list,
@@ -485,7 +487,7 @@ def run_command(command: Union[str, List[str]],
     Security Changes:
         - Previously used shell=True with no validation (CRITICAL VULNERABILITY)
         - Now validates all commands against whitelist by default
-        - Blocks command injection, path traversal, sensitive file access
+        - Rejects selected metacharacters, '..', and known sensitive paths
         - Use unsafe=True ONLY with trusted input in trusted environments
     """
     try:
