@@ -241,7 +241,7 @@ updates = {"metadata": {"status": "inactive"}}
 success = siege_utilities.update_connection_profile(conn_id, updates, "config")
 
 # Test connection
-result = siege_utilities.test_connection(conn_id, "config")
+result = siege_utilities.verify_connection_profile(conn_id, "config")
 if result['success']:
     print(f"Connection successful! Response time: {result['response_time_ms']}ms")
 
@@ -331,7 +331,7 @@ if validation['warnings']:
 
 ```python
 # Test notebook connection
-result = siege_utilities.test_connection(notebook_conn_id, "config")
+result = siege_utilities.verify_connection_profile(notebook_conn_id, "config")
 if result['success']:
     print("✅ Notebook connection successful")
     print(f"   Response time: {result['response_time_ms']}ms")
@@ -339,7 +339,7 @@ else:
     print(f"❌ Connection failed: {result['error']}")
 
 # Test Spark connection
-result = siege_utilities.test_connection(spark_conn_id, "config")
+result = siege_utilities.verify_connection_profile(spark_conn_id, "config")
 if result['success']:
     print(f"✅ Spark connection successful (version: {result['spark_version']})")
 ```
@@ -400,7 +400,7 @@ if client is None:
     print("Client profile not found")
 
 # Handle connection test failures
-result = siege_utilities.test_connection(conn_id, "config")
+result = siege_utilities.verify_connection_profile(conn_id, "config")
 if not result['success']:
     print(f"Connection test failed: {result['error']}")
 ```

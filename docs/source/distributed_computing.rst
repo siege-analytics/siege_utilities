@@ -44,17 +44,19 @@ Basic HDFS configuration:
    import siege_utilities
    
    # Create local HDFS configuration
-   local_config = siege_utilities.create_local_config()
+   local_config = siege_utilities.create_local_config(data_path="/data")
    print(local_config)
-   
+
    # Create cluster configuration
    cluster_config = siege_utilities.create_cluster_config(
+       data_path="/data",
        namenode='hdfs://namenode:8020',
        username='hdfs'
    )
-   
+
    # Create geocoding-specific configuration
    geo_config = siege_utilities.create_geocoding_config(
+       data_path="/data",
        api_key='your_api_key',
        rate_limit=1000
    )
@@ -83,11 +85,14 @@ HDFS operations:
 
 .. code-block:: python
 
+   # Build a configuration first
+   cfg = siege_utilities.create_local_config("/data")
+
    # Create HDFS operations instance
-   hdfs_ops = siege_utilities.create_hdfs_operations()
-   
+   hdfs_ops = siege_utilities.create_hdfs_operations(cfg)
+
    # Setup distributed environment
-   siege_utilities.setup_distributed_environment()
+   siege_utilities.setup_distributed_environment(cfg)
    
    # Check HDFS status (method on operations instance)
    status = hdfs_ops.check_hdfs_status()

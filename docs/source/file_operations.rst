@@ -20,13 +20,13 @@ Functions
 .. autofunction:: siege_utilities.files.operations.move_file
    :noindex:
 
-.. autofunction:: siege_utilities.files.operations.delete_file
+.. autofunction:: siege_utilities.files.operations.remove_tree
    :noindex:
 
-.. autofunction:: siege_utilities.files.operations.create_directory
+.. autofunction:: siege_utilities.files.operations.ensure_directory_exists
    :noindex:
 
-.. autofunction:: siege_utilities.files.operations.list_files
+.. autofunction:: siege_utilities.files.operations.list_directory
    :noindex:
 
 Usage Examples
@@ -45,13 +45,13 @@ Basic file operations:
    siege_utilities.move_file('old_name.txt', 'new_name.txt')
    
    # Delete a file
-   siege_utilities.delete_file('unwanted_file.txt')
-   
+   siege_utilities.remove_tree('unwanted_file.txt')
+
    # Create directory
-   siege_utilities.create_directory('new_folder')
-   
+   siege_utilities.ensure_directory_exists('new_folder')
+
    # List files in directory
-   files = siege_utilities.list_files('data_folder')
+   files = siege_utilities.list_directory('data_folder')
    print(f"Found {len(files)} files")
 
 Batch file processing:
@@ -65,10 +65,10 @@ Batch file processing:
    output_dir = 'processed_files'
    
    # Create output directory
-   siege_utilities.create_directory(output_dir)
-   
+   siege_utilities.ensure_directory_exists(output_dir)
+
    # Process all files
-   for filename in siege_utilities.list_files(source_dir):
+   for filename in siege_utilities.list_directory(source_dir):
        if filename.endswith('.txt'):
            source_path = os.path.join(source_dir, filename)
            dest_path = os.path.join(output_dir, f"processed_{filename}")

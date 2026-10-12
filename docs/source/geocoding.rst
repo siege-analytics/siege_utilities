@@ -14,16 +14,10 @@ Module Overview
 Functions
 ---------
 
-.. autofunction:: siege_utilities.geo.geocoding.geocode_address
+.. autofunction:: siege_utilities.geo.geocoding.geocode_addresses_with_nominatim
    :noindex:
 
-.. autofunction:: siege_utilities.geo.geocoding.reverse_geocode
-   :noindex:
-
-.. autofunction:: siege_utilities.geo.geocoding.calculate_distance
-   :noindex:
-
-.. autofunction:: siege_utilities.geo.geocoding.validate_coordinates
+.. autofunction:: siege_utilities.geo.geocoding.use_nominatim_geocoder
    :noindex:
 
 Usage Examples
@@ -31,77 +25,51 @@ Usage Examples
 
 Basic geocoding:
 
-.. code_block:: python
+.. code-block:: python
 
-   import siege_utilities
-   
-   # Geocode an address
-   coordinates = siege_utilities.geocode_address("1600 Pennsylvania Avenue, Washington, DC")
-   print(f"Coordinates: {coordinates}")
-   
-   # Reverse geocode coordinates
-   address = siege_utilities.reverse_geocode(38.8977, -77.0365)
-   print(f"Address: {address}")
+   from siege_utilities.geo.geocoding import geocode_addresses_with_nominatim
 
-Distance calculations:
-
-.. code_block:: python
-
-   # Calculate distance between two points
-   lat1, lon1 = 40.7128, -74.0060  # New York
-   lat2, lon2 = 34.0522, -118.2437  # Los Angeles
-   
-   distance = siege_utilities.calculate_distance(lat1, lon1, lat2, lon2)
-   print(f"Distance: {distance:.2f} km")
-
-Coordinate validation:
-
-.. code_block:: python
-
-   # Validate coordinates
-   coordinates = [
-       (40.7128, -74.0060),    # Valid: New York
-       (91.0000, 180.0000),    # Invalid: Latitude > 90
-       (0.0000, 0.0000),      # Valid: Equator/Prime Meridian
-       (-90.0000, -180.0000)   # Valid: South Pole/Date Line
-   ]
-   
-   for lat, lon in coordinates:
-       is_valid = siege_utilities.validate_coordinates(lat, lon)
-       status = "Valid" if is_valid else "Invalid"
-       print(f"({lat}, {lon}): {status}")
+   # Geocode one or more addresses (pass a list)
+   results = geocode_addresses_with_nominatim(
+       ["1600 Pennsylvania Avenue, Washington, DC"]
+   )
+   for result in results:
+       print(f"{result['address']}: ({result['lat']}, {result['lon']})")
 
 Batch geocoding:
 
-.. code_block:: python
+.. code-block:: python
 
-   # Process multiple addresses
+   from siege_utilities.geo.geocoding import geocode_addresses_with_nominatim
+
+   # Process multiple addresses in one call
    addresses = [
        "Times Square, New York, NY",
        "Golden Gate Bridge, San Francisco, CA",
        "Statue of Liberty, New York, NY"
    ]
-   
-   geocoded_results = {}
-   for address in addresses:
-       try:
-           coords = siege_utilities.geocode_address(address)
-           geocoded_results[address] = coords
-       except Exception as e:
-           print(f"Failed to geocode {address}: {e}")
-   
-   # Display results
-   for address, coords in geocoded_results.items():
-       print(f"{address}: {coords}")
+
+   results = geocode_addresses_with_nominatim(addresses)
+
+   # Each result is a dict with "address", "lat", and "lon".
+   # Addresses with no match have lat/lon set to None.
+   for result in results:
+       print(f"{result['address']}: ({result['lat']}, {result['lon']})")
+
+.. note::
+
+   Reverse geocoding, distance calculations, and coordinate validation are
+   not provided as standalone helpers. Nominatim batch geocoding via
+   ``geocode_addresses_with_nominatim`` is the supported geocoding entry point.
 
 Unit Tests
 ----------
 
 The geocoding module has comprehensive test coverage:
 
-.. code_block:: text
+.. code-block:: text
 
-   ✅ test_geocoding.py - All geocoding tests pass
+   test_geocoding.py - All geocoding tests pass
    
    Test Coverage:
    - Address geocoding functionality

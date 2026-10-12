@@ -109,9 +109,9 @@ Azure Databricks cannot install GDAL. The `databricks/` bridge pattern
 solution:
 
 ```python
-from siege_utilities.databricks import get_databricks_client
+from siege_utilities.databricks import get_workspace_client
 
-client = get_databricks_client()
+client = get_workspace_client()
 ```
 
 ### Snowflake (first-class target)
@@ -126,17 +126,19 @@ expertise — what data exists, where it lives, how to access it — not domain
 analysis.
 
 ```python
-# Political: DDL and entities for political geography
-from siege_utilities.political import get_redistricting_plan
+# Political: DDL and entities for political geography.
+# The reader API queries political tables through an engine, e.g.
+# readers.redistricting_plans(engine, ...), readers.seats(engine, ...).
+from siege_utilities.political import readers
 
 # Education: NCES data downloads
-from siege_utilities.education import download_nces_data
+from siege_utilities.education import NCESFiles
 
 # Survey: pipeline composition (Chain, weights, significance)
 from siege_utilities.survey import Chain
 
 # Analytics: third-party connectors (GA, data sources)
-from siege_utilities.analytics import create_ga_connector
+from siege_utilities.analytics import create_ga_connector_with_service_account
 ```
 
 ## 6. Configuration and Profiles
@@ -199,13 +201,13 @@ from siege_utilities.geo import get_census_boundaries  # raises ImportError if G
 ### Configuration Issues
 
 ```python
-from siege_utilities.config import get_default_profile_location
+from siege_utilities import get_default_profile_location
 
 profile_dir = get_default_profile_location()
 print(f"Profile directory: {profile_dir}")
 
 # Create default profiles if needed
-from siege_utilities.config import create_default_profiles
+from siege_utilities import create_default_profiles
 create_default_profiles()
 ```
 
