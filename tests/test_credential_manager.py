@@ -19,13 +19,16 @@ Covers:
 """
 
 import json
+import logging
 import os
+import shlex
 import subprocess
 from pathlib import Path
 from unittest.mock import patch, Mock, MagicMock
 
 import pytest
 
+from siege_utilities.config import credential_manager as cm
 from siege_utilities.config.credential_manager import (
     CredentialManager,
     CredentialNotFoundError,
@@ -154,7 +157,7 @@ class TestCredentialManagerInit:
 
     def test_default_backend_priority(self, mock_op_available):
         manager = CredentialManager()
-        assert manager.backend_priority == ['files', 'env', '1password', 'keychain', 'prompt']
+        assert manager.backend_priority == ['env', '1password', 'files', 'keychain', 'prompt']
 
     def test_custom_backend_priority(self, mock_op_available):
         manager = CredentialManager(backend_priority=['env', 'files'])
@@ -351,7 +354,7 @@ class TestGetFromFiles:
 
     def test_reads_service_section(self, manager_files_only, tmp_cred_dir):
         manager, _ = manager_files_only
-        cred_file = tmp_cred_dir / "credentials.json"
+        cred_file = tmp_cred_dir / "myservice_credentials.json"
         cred_file.write_text(json.dumps({
             "myservice": {"api_key": "svc_key_123"}
         }))
@@ -394,7 +397,7 @@ class TestGetFromFiles:
                                           additional_paths=[Path('/nonexistent/path')])
         assert result is None
 
-    def test_wildcard_pattern_matching(self, manager_files_only, tmp_cred_dir):
+    def test_exact_service_client_secret_matching(self, manager_files_only, tmp_cred_dir):
         manager, _ = manager_files_only
         cred_file = tmp_cred_dir / "client_secret_myservice.json"
         cred_file.write_text(json.dumps({
@@ -403,7 +406,6 @@ class TestGetFromFiles:
 
         result = manager._get_from_files('myservice', 'user', 'client_id',
                                           additional_paths=[tmp_cred_dir])
-        # The client_secret_*.json wildcard pattern should match
         assert result == 'wildcard_id'
 
     def test_service_section_non_dict_value(self, manager_files_only, tmp_cred_dir):
@@ -826,6 +828,9 @@ class TestStoreIn1Password:
         # _get_from_1password succeeds (item exists)
         mock_run.side_effect = [
             Mock(returncode=0, stdout='old_value\n', stderr=''),  # lookup succeeds
+            subprocess.CompletedProcess([], 0, json.dumps({'fields': [
+                {'id': 'password', 'type': 'CONCEALED', 'value': 'old_value'},
+            ]}), ''),
             Mock(returncode=0, stdout='updated\n', stderr=''),  # edit succeeds
         ]
 
@@ -1807,3 +1812,246 @@ class TestRedact:
         from siege_utilities.config.credential_manager import _redact
         # str() coercion should keep this working
         assert _redact(123) == "123"
+
+
+# =============================================================================
+# CREDENTIAL TRANSPORT AND SERVICE ISOLATION REGRESSIONS
+# =============================================================================
+
+_SECRET = 'short!42'
+
+
+@pytest.fixture
+def isolated_credentials(tmp_path, monkeypatch):
+    """Keep credential lookups and logging inside the test process."""
+    manager = CredentialManager(
+        credential_paths=[tmp_path], detect_backends=False,
+        include_default_paths=False, create_default_paths=False,
+    )
+    manager.available_backends.update({'1password': True, 'keychain': True, 'prompt': False})
+    monkeypatch.setattr(os, 'environ', {})
+    logger = logging.getLogger('credential_security_test')
+    for name, method in [('log_info', logger.info), ('log_warning', logger.warning),
+                         ('log_error', logger.error)]:
+        monkeypatch.setattr(cm, name, method)
+    with patch.object(cm.subprocess, 'run', autospec=True) as run:
+        yield manager, run
+
+
+@pytest.fixture(params=['op-create', 'op-edit', 'keychain', 'oauth', 'service-account'])
+def credential_write(request, isolated_credentials, tmp_path):
+    """Return each write entry point with realistic subprocess response shapes."""
+    manager, run = isolated_credentials
+    kind = request.param
+    item = {'id': 'item-id', 'title': 'svc', 'category': 'LOGIN', 'fields': [
+        {'id': 'password', 'label': 'password', 'type': 'CONCEALED', 'value': 'old'},
+        {'id': 'notesPlain', 'type': 'STRING', 'value': 'retain this field'},
+    ]}
+
+    def respond(cmd, **kwargs):
+        if '--format=json' in cmd:
+            return subprocess.CompletedProcess(cmd, 0, json.dumps(item), '')
+        if cmd[:3] == ['op', 'item', 'get'] and kind == 'op-create':
+            return subprocess.CompletedProcess(cmd, 1, '', 'item not found')
+        return subprocess.CompletedProcess(cmd, 0, _SECRET, '')
+
+    run.side_effect = respond
+    oauth = {'installed': {'client_id': 'client-id', 'client_secret': _SECRET,
+                          'auth_uri': 'https://example.test/auth',
+                          'token_uri': 'https://example.test/token',
+                          'redirect_uris': ['http://localhost']}}
+    sa = {'type': 'service_account', 'project_id': 'project-id',
+          'private_key_id': 'key-id', 'private_key': f'BEGIN\n{_SECRET}\nEND',
+          'client_email': 'account@example.test', 'client_id': 'client-id',
+          'auth_uri': 'https://example.test/auth', 'token_uri': 'https://example.test/token'}
+    sa_file = tmp_path / 'service-account.json'
+    sa_file.write_text(json.dumps(sa))
+    writes = {
+        'op-create': lambda: manager.store_credential('svc', 'user', _SECRET),
+        'op-edit': lambda: manager.store_credential('svc', 'user', _SECRET),
+        'keychain': lambda: manager.store_credential('svc', 'user', _SECRET, backend='keychain'),
+        'oauth': lambda: manager.store_google_analytics_credentials(oauth),
+        'service-account': lambda: store_ga_service_account_from_file(sa_file),
+    }
+    return kind, manager, run, writes[kind]
+
+
+def test_store_and_retrieve_keep_secrets_off_every_argv(credential_write):
+    kind, manager, run, write = credential_write
+    assert write() is True
+    run.side_effect = lambda cmd, **kwargs: subprocess.CompletedProcess(cmd, 0, _SECRET, '')
+    manager.backend_priority = ['keychain'] if kind == 'keychain' else ['1password']
+    assert manager.get_credential('svc', 'user') == _SECRET
+    assert run.call_count >= 2
+    for call in run.call_args_list:
+        assert _SECRET not in repr(call.args[0])
+        assert _SECRET.encode().hex() not in repr(call.args[0])
+
+    writes = [call for call in run.call_args_list if 'input' in call.kwargs]
+    assert len(writes) == 1
+    call = writes[0]
+    if kind == 'keychain':
+        assert call.args[0] == ['security', '-i']
+        command = shlex.split(call.kwargs['input'])
+        assert bytes.fromhex(command[command.index('-X') + 1]).decode() == _SECRET
+    else:
+        payload = json.loads(call.kwargs['input'])
+        fields = {entry.get('label', entry.get('id')): entry for entry in payload['fields']}
+        field = {'oauth': 'client_secret', 'service-account': 'private_key'}.get(kind, 'password')
+        assert _SECRET in fields[field]['value']
+        assert fields[field]['type'] == 'CONCEALED'
+        if kind == 'op-edit':
+            assert fields['notesPlain']['value'] == 'retain this field'
+        else:
+            assert call.args[0][3] == '-'
+        if kind in ('oauth', 'service-account'):
+            assert _SECRET in fields['raw_json']['value']
+            assert fields['raw_json']['type'] == 'CONCEALED'
+
+
+@pytest.mark.parametrize('failure', ['timeout', 'called-process', 'nonzero'])
+def test_store_failures_never_log_argv_or_secrets(credential_write, caplog, failure):
+    _, _, run, write = credential_write
+    respond = run.side_effect
+    attempted = []
+
+    def fail_write(cmd, **kwargs):
+        if cmd[:3] == ['op', 'item', 'get']:
+            return respond(cmd, **kwargs)
+        attempted.append(cmd)
+        if failure == 'timeout':
+            raise subprocess.TimeoutExpired(cmd, 60, output=_SECRET, stderr=_SECRET)
+        if failure == 'called-process':
+            raise subprocess.CalledProcessError(2, cmd, output=_SECRET, stderr=_SECRET)
+        if kwargs.get('check'):
+            raise subprocess.CalledProcessError(2, cmd, output=_SECRET, stderr=_SECRET)
+        return subprocess.CompletedProcess(cmd, 2, _SECRET, _SECRET)
+
+    run.side_effect = fail_write
+    with caplog.at_level(logging.ERROR):
+        assert write() is False
+    assert attempted
+    assert caplog.records
+    assert _SECRET not in caplog.text
+    assert repr(attempted[0]) not in caplog.text
+    assert all(record.exc_info is None for record in caplog.records)
+
+
+@pytest.mark.parametrize('service,username', [('bad\nservice', 'user'), ('svc', 'bad\ruser'),
+                                             ('bad\0service', 'user')])
+def test_keychain_invalid_identifiers_fail_before_launch(isolated_credentials, caplog, service, username):
+    manager, run = isolated_credentials
+    assert manager.store_credential(service, username, _SECRET, backend='keychain') is False
+    run.assert_not_called()
+    assert 'must not contain line breaks or NUL' in caplog.text
+    assert _SECRET not in caplog.text
+
+
+def test_keychain_oversized_stdin_fails_before_launch(isolated_credentials, caplog):
+    manager, run = isolated_credentials
+    assert manager.store_credential('svc', 'user', _SECRET * 400, backend='keychain') is False
+    run.assert_not_called()
+    assert 'stdin limit' in caplog.text
+    assert _SECRET not in caplog.text
+
+
+def test_keychain_stdin_preserves_quotes_backslashes_and_multiline_secret(isolated_credentials):
+    manager, run = isolated_credentials
+    run.return_value = subprocess.CompletedProcess([], 0, '', '')
+    service = 'svc "quoted" \\ path'
+    username = "user's name"
+    secret = 'line one\nline "two" \\ \t \u2603\0'
+    assert manager.store_credential(service, username, secret, backend='keychain') is True
+    assert run.call_args.args[0] == ['security', '-i']
+    command = run.call_args.kwargs['input']
+    assert command.count('\n') == 1
+    args = shlex.split(command)
+    assert args[args.index('-s') + 1] == service
+    assert args[args.index('-a') + 1] == username
+    assert bytes.fromhex(args[args.index('-X') + 1]).decode() == secret
+
+
+def test_op_edit_invalid_json_logs_failure(isolated_credentials, caplog):
+    manager, run = isolated_credentials
+    run.return_value = subprocess.CompletedProcess([], 0, _SECRET, '')
+    assert manager.store_credential('svc', 'user', _SECRET) is False
+    assert 'JSONDecodeError' in caplog.text
+    assert _SECRET not in caplog.text
+
+
+@pytest.mark.parametrize('filename,contents', [
+    ('password.txt', _SECRET),
+    ('credentials.json', json.dumps({'service-a': {'password': _SECRET}})),
+    ('client_secret_service-a.json', json.dumps({'installed': {'password': _SECRET}})),
+])
+def test_service_b_missing_never_returns_service_a_files(isolated_credentials, tmp_path, filename, contents):
+    manager, _ = isolated_credentials
+    manager.backend_priority = ['files']
+    service_a = tmp_path / 'service-a'
+    service_a.mkdir()
+    (service_a / 'password.txt').write_text(_SECRET)
+    (tmp_path / filename).write_text(contents)
+    assert manager._get_from_files('service-b', 'user', 'password') != _SECRET
+    with pytest.raises(CredentialNotFoundError, match='service-b') as exc:
+        manager.get_credential('service-b', 'user')
+    assert exc.value.attempts == [('files', 'no credential found')]
+
+
+@pytest.mark.parametrize('filename', ['service-b/password.txt', 'service-b/credentials.json'])
+def test_service_directory_selects_only_requested_service(isolated_credentials, tmp_path, filename):
+    manager, _ = isolated_credentials
+    manager.backend_priority = ['files']
+    (tmp_path / 'password.txt').write_text(_SECRET)
+    target = tmp_path / filename
+    target.parent.mkdir()
+    target.write_text(json.dumps({'password': 'service-b-value'}) if target.suffix == '.json'
+                      else 'service-b-value')
+    assert manager.get_credential('service-b', 'user') == 'service-b-value'
+
+
+@pytest.mark.parametrize('backend', ['env', '1password'])
+def test_default_resolution_prefers_env_and_op_over_files(isolated_credentials, tmp_path, monkeypatch, backend):
+    manager, run = isolated_credentials
+    (tmp_path / 'svc_password.txt').write_text(_SECRET)
+    (tmp_path / 'password.txt').write_text(_SECRET)
+    if backend == 'env':
+        monkeypatch.setenv('SVC_PASSWORD', 'selected-value')
+    run.return_value = subprocess.CompletedProcess([], 0, 'selected-value', '')
+    assert manager.get_credential('svc', 'user') == 'selected-value'
+    if backend == 'env':
+        run.assert_not_called()
+
+
+@pytest.mark.parametrize('failure', [subprocess.TimeoutExpired, subprocess.CalledProcessError])
+def test_list_failures_omit_command_and_output(isolated_credentials, caplog, failure):
+    manager, run = isolated_credentials
+    command = ['op', 'item', 'list', '--tags=siege-utilities']
+    errors = {
+        subprocess.TimeoutExpired: subprocess.TimeoutExpired(command, 60, output=_SECRET, stderr=_SECRET),
+        subprocess.CalledProcessError: subprocess.CalledProcessError(2, command, output=_SECRET, stderr=_SECRET),
+    }
+    run.side_effect = errors[failure]
+    assert manager.list_stored_credentials() == []
+    assert 'Error listing 1Password credentials' in caplog.text
+    assert repr(command) not in caplog.text
+    assert _SECRET not in caplog.text
+
+
+@pytest.mark.parametrize('failure', [subprocess.TimeoutExpired, subprocess.CalledProcessError])
+def test_oauth_file_wrapper_failures_omit_command_and_output(
+        isolated_credentials, tmp_path, monkeypatch, caplog, failure):
+    manager, _ = isolated_credentials
+    credential_file = tmp_path / 'oauth.json'
+    credential_file.write_text(json.dumps({'installed': {'client_secret': _SECRET}}))
+    command = ['op', 'item', 'create', '--category=API Credential']
+    errors = {
+        subprocess.TimeoutExpired: subprocess.TimeoutExpired(command, 60, output=_SECRET, stderr=_SECRET),
+        subprocess.CalledProcessError: subprocess.CalledProcessError(2, command, output=_SECRET, stderr=_SECRET),
+    }
+    monkeypatch.setattr(cm, 'CredentialManager', lambda **kwargs: manager)
+    with patch.object(manager, 'store_google_analytics_credentials', side_effect=errors[failure]):
+        assert store_ga_credentials_from_file(credential_file) is False
+    assert credential_file.exists()
+    assert 'Error storing GA credentials from file' in caplog.text
+    assert repr(command) not in caplog.text
+    assert _SECRET not in caplog.text
