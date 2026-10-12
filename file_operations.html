@@ -8886,7 +8886,7 @@
 <li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-structure">Test Structure</a></li>
 <li class="toctree-l2"><a class="reference internal" href="testing_guide.html#running-tests">Running Tests</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
-<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#common-invocations">Common Invocations</a></li>
 <li class="toctree-l3"><a class="reference internal" href="testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
 <li class="toctree-l3"><a class="reference internal" href="testing_guide.html#parallel-execution">Parallel Execution</a></li>
 </ul>
@@ -9707,6 +9707,88 @@ and access to sensitive system files.</p>
 </div>
 </dd></dl>
 
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.files.operations.</span></span><span class="sig-name descname"><span class="pre">remove_tree</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/files/operations.html#remove_tree"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Remove a file or directory tree safely.</p>
+<p>SECURITY: Validates paths to prevent removing sensitive system files.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference internal" href="packages/conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>) – Path to file or directory to remove</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#FileNotFoundError" title="(in Python v3.15)"><strong>FileNotFoundError</strong></a> – If path does not exist</p></li>
+<li><p><a class="reference internal" href="packages/files.html#siege_utilities.files.validation.PathSecurityError" title="siege_utilities.files.validation.PathSecurityError"><strong>PathSecurityError</strong></a> – If path fails security validation</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#OSError" title="(in Python v3.15)"><strong>OSError</strong></a> – If removal fails</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">remove_tree</span><span class="p">(</span><span class="s2">"temp_directory"</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">remove_tree</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">"old_files"</span><span class="p">))</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.files.operations.</span></span><span class="sig-name descname"><span class="pre">ensure_directory_exists</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">directory</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/files/operations.html#ensure_directory_exists"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Ensure a directory exists, creating it if necessary.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference internal" href="packages/conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>) – Path to directory</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Path object for the directory</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="packages/files.html#siege_utilities.files.validation.PathSecurityError" title="siege_utilities.files.validation.PathSecurityError"><strong>PathSecurityError</strong></a> – If path fails security validation.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="packages/conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.files.operations.</span></span><span class="sig-name descname"><span class="pre">list_directory</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pattern</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'*'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_dirs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_files</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/files/operations.html#list_directory"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>List contents of a directory with optional filtering.</p>
+<p>SECURITY: Validates directory path to prevent traversal attacks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference internal" href="packages/conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>) – Directory path to list</p></li>
+<li><p><strong>pattern</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Glob pattern for filtering files</p></li>
+<li><p><strong>include_dirs</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – Whether to include directories</p></li>
+<li><p><strong>include_files</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – Whether to include files</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of Path objects</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#FileNotFoundError" title="(in Python v3.15)"><strong>FileNotFoundError</strong></a> – If directory does not exist or is not a directory</p></li>
+<li><p><a class="reference internal" href="packages/files.html#siege_utilities.files.validation.PathSecurityError" title="siege_utilities.files.validation.PathSecurityError"><strong>PathSecurityError</strong></a> – If path fails security validation</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#OSError" title="(in Python v3.15)"><strong>OSError</strong></a> – If directory cannot be read</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.15)"><em>List</em></a>[<a class="reference internal" href="packages/conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>]</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">files</span> <span class="o">=</span> <span class="n">list_directory</span><span class="p">(</span><span class="s2">"data"</span><span class="p">,</span> <span class="s2">"*.csv"</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dirs</span> <span class="o">=</span> <span class="n">list_directory</span><span class="p">(</span><span class="s2">"logs"</span><span class="p">,</span> <span class="n">include_files</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
 </section>
 <section id="usage-examples">
 <h2>Usage Examples<a class="headerlink" href="#usage-examples" title="Link to this heading"></a></h2>
@@ -9720,13 +9802,13 @@ and access to sensitive system files.</p>
 <span class="n">siege_utilities</span><span class="o">.</span><span class="n">move_file</span><span class="p">(</span><span class="s1">'old_name.txt'</span><span class="p">,</span> <span class="s1">'new_name.txt'</span><span class="p">)</span>
 
 <span class="c1"># Delete a file</span>
-<span class="n">siege_utilities</span><span class="o">.</span><span class="n">delete_file</span><span class="p">(</span><span class="s1">'unwanted_file.txt'</span><span class="p">)</span>
+<span class="n">siege_utilities</span><span class="o">.</span><span class="n">remove_tree</span><span class="p">(</span><span class="s1">'unwanted_file.txt'</span><span class="p">)</span>
 
 <span class="c1"># Create directory</span>
-<span class="n">siege_utilities</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="s1">'new_folder'</span><span class="p">)</span>
+<span class="n">siege_utilities</span><span class="o">.</span><span class="n">ensure_directory_exists</span><span class="p">(</span><span class="s1">'new_folder'</span><span class="p">)</span>
 
 <span class="c1"># List files in directory</span>
-<span class="n">files</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">list_files</span><span class="p">(</span><span class="s1">'data_folder'</span><span class="p">)</span>
+<span class="n">files</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">list_directory</span><span class="p">(</span><span class="s1">'data_folder'</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">)</span><span class="si">}</span><span class="s2"> files"</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -9738,10 +9820,10 @@ and access to sensitive system files.</p>
 <span class="n">output_dir</span> <span class="o">=</span> <span class="s1">'processed_files'</span>
 
 <span class="c1"># Create output directory</span>
-<span class="n">siege_utilities</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="n">output_dir</span><span class="p">)</span>
+<span class="n">siege_utilities</span><span class="o">.</span><span class="n">ensure_directory_exists</span><span class="p">(</span><span class="n">output_dir</span><span class="p">)</span>
 
 <span class="c1"># Process all files</span>
-<span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">list_files</span><span class="p">(</span><span class="n">source_dir</span><span class="p">):</span>
+<span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">list_directory</span><span class="p">(</span><span class="n">source_dir</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">filename</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">'.txt'</span><span class="p">):</span>
         <span class="n">source_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
         <span class="n">dest_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"processed_</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>

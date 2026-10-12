@@ -8886,7 +8886,7 @@
 <li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-structure">Test Structure</a></li>
 <li class="toctree-l2"><a class="reference internal" href="testing_guide.html#running-tests">Running Tests</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
-<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#common-invocations">Common Invocations</a></li>
 <li class="toctree-l3"><a class="reference internal" href="testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
 <li class="toctree-l3"><a class="reference internal" href="testing_guide.html#parallel-execution">Parallel Execution</a></li>
 </ul>
@@ -9146,6 +9146,40 @@ and access to sensitive system files (through get_file_hash).</p>
 <h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
 <dl class="py function">
 <dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.files.hashing.</span></span><span class="sig-name descname"><span class="pre">get_file_hash</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">algorithm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sha256'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/files/hashing.html#get_file_hash"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Generate hash for a file using specified algorithm.</p>
+<p>SECURITY: This function validates paths to prevent path traversal attacks
+and access to sensitive system files.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_path</strong> – Path to the file (str or Path object)</p></li>
+<li><p><strong>algorithm</strong> – Hash algorithm to use (‘sha256’, ‘md5’, ‘sha1’, etc.)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Hash as hexadecimal string</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#FileNotFoundError" title="(in Python v3.15)"><strong>FileNotFoundError</strong></a> – If file does not exist or is not a file</p></li>
+<li><p><a class="reference internal" href="packages/files.html#siege_utilities.files.validation.PathSecurityError" title="siege_utilities.files.validation.PathSecurityError"><strong>PathSecurityError</strong></a> – If path fails security validation</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#OSError" title="(in Python v3.15)"><strong>OSError</strong></a> – If file cannot be read</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If algorithm is not supported</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a></p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">hash_val</span> <span class="o">=</span> <span class="n">get_file_hash</span><span class="p">(</span><span class="s2">"data.txt"</span><span class="p">,</span> <span class="s2">"sha256"</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.files.hashing.</span></span><span class="sig-name descname"><span class="pre">calculate_file_hash</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/files/hashing.html#calculate_file_hash"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
 <dd><p>Alias for get_file_hash with SHA256 - for backward compatibility.</p>
 <dl class="field-list simple">
@@ -9198,21 +9232,21 @@ and access to sensitive system files (through get_file_hash).</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">siege_utilities</span>
 
 <span class="c1"># Calculate MD5 hash</span>
-<span class="n">md5_hash</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">calculate_md5</span><span class="p">(</span><span class="s1">'document.pdf'</span><span class="p">)</span>
+<span class="n">md5_hash</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">get_file_hash</span><span class="p">(</span><span class="s1">'document.pdf'</span><span class="p">,</span> <span class="s1">'md5'</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"MD5: </span><span class="si">{</span><span class="n">md5_hash</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
 <span class="c1"># Calculate SHA256 hash</span>
-<span class="n">sha256_hash</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">calculate_sha256</span><span class="p">(</span><span class="s1">'document.pdf'</span><span class="p">)</span>
+<span class="n">sha256_hash</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">get_file_hash</span><span class="p">(</span><span class="s1">'document.pdf'</span><span class="p">,</span> <span class="s1">'sha256'</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"SHA256: </span><span class="si">{</span><span class="n">sha256_hash</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
 <span class="c1"># Calculate SHA1 hash</span>
-<span class="n">sha1_hash</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">calculate_sha1</span><span class="p">(</span><span class="s1">'document.pdf'</span><span class="p">)</span>
+<span class="n">sha1_hash</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">get_file_hash</span><span class="p">(</span><span class="s1">'document.pdf'</span><span class="p">,</span> <span class="s1">'sha1'</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"SHA1: </span><span class="si">{</span><span class="n">sha1_hash</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Generic hashing with algorithm selection:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Use generic hash function</span>
-<span class="n">hash_value</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">calculate_file_hash</span><span class="p">(</span><span class="s1">'data.csv'</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="s1">'sha256'</span><span class="p">)</span>
+<span class="n">hash_value</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">get_file_hash</span><span class="p">(</span><span class="s1">'data.csv'</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="s1">'sha256'</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Hash: </span><span class="si">{</span><span class="n">hash_value</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
 <span class="c1"># Available algorithms: md5, sha1, sha256, sha512</span>
@@ -9220,18 +9254,61 @@ and access to sensitive system files (through get_file_hash).</p>
 <span class="n">hashes</span> <span class="o">=</span> <span class="p">{}</span>
 
 <span class="k">for</span> <span class="n">algo</span> <span class="ow">in</span> <span class="n">algorithms</span><span class="p">:</span>
-    <span class="n">hashes</span><span class="p">[</span><span class="n">algo</span><span class="p">]</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">calculate_file_hash</span><span class="p">(</span><span class="s1">'large_file.dat'</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="n">algo</span><span class="p">)</span>
+    <span class="n">hashes</span><span class="p">[</span><span class="n">algo</span><span class="p">]</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">get_file_hash</span><span class="p">(</span><span class="s1">'large_file.dat'</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="n">algo</span><span class="p">)</span>
 
 <span class="k">for</span> <span class="n">algo</span><span class="p">,</span> <span class="n">hash_val</span> <span class="ow">in</span> <span class="n">hashes</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">algo</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">hash_val</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>File integrity verification:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Verify file integrity</span>
+<span class="n">original_hash</span> <span class="o">=</span> <span class="s2">"a1b2c3d4e5f6..."</span>
+<span class="n">is_valid</span> <span class="o">=</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">verify_file_integrity</span><span class="p">(</span><span class="s1">'document.pdf'</span><span class="p">,</span> <span class="n">original_hash</span><span class="p">,</span> <span class="s1">'sha256'</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">is_valid</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"File integrity verified!"</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"File may be corrupted or modified"</span><span class="p">)</span>
+</pre></div>
+</div>
 <p>Batch processing:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+<span class="c1"># Process multiple files</span>
+<span class="n">files_to_hash</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'file1.txt'</span><span class="p">,</span> <span class="s1">'file2.txt'</span><span class="p">,</span> <span class="s1">'file3.txt'</span><span class="p">]</span>
+<span class="n">hash_results</span> <span class="o">=</span> <span class="p">{}</span>
+
+<span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">files_to_hash</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+        <span class="n">hash_results</span><span class="p">[</span><span class="n">filename</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">'md5'</span><span class="p">:</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">get_file_hash</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">'md5'</span><span class="p">),</span>
+            <span class="s1">'sha256'</span><span class="p">:</span> <span class="n">siege_utilities</span><span class="o">.</span><span class="n">get_file_hash</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">'sha256'</span><span class="p">)</span>
+        <span class="p">}</span>
+
+<span class="c1"># Display results</span>
+<span class="k">for</span> <span class="n">filename</span><span class="p">,</span> <span class="n">hashes</span> <span class="ow">in</span> <span class="n">hash_results</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="se">\n</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">:"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  MD5: </span><span class="si">{</span><span class="n">hashes</span><span class="p">[</span><span class="s1">'md5'</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  SHA256: </span><span class="si">{</span><span class="n">hashes</span><span class="p">[</span><span class="s1">'sha256'</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</pre></div>
+</div>
 </section>
 <section id="unit-tests">
 <h2>Unit Tests<a class="headerlink" href="#unit-tests" title="Link to this heading"></a></h2>
 <p>The file hashing module has comprehensive test coverage:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>✅ test_file_hashing.py - All file hashing tests pass
+
+Test Coverage:
+- MD5 hash calculation
+- SHA1 hash calculation
+- SHA256 hash calculation
+- Generic hash function with algorithm selection
+- File integrity verification
+- Error handling for missing files
+- Performance with large files
+- Hash consistency across multiple calls
+</pre></div>
+</div>
 <p>Test Results: All file hashing tests pass successfully with comprehensive coverage.</p>
 </section>
 </section>

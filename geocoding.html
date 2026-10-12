@@ -8888,7 +8888,7 @@
 <li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-structure">Test Structure</a></li>
 <li class="toctree-l2"><a class="reference internal" href="testing_guide.html#running-tests">Running Tests</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
-<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#common-invocations">Common Invocations</a></li>
 <li class="toctree-l3"><a class="reference internal" href="testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
 <li class="toctree-l3"><a class="reference internal" href="testing_guide.html#parallel-execution">Parallel Execution</a></li>
 </ul>
@@ -9492,17 +9492,120 @@ for an empty/None <code class="docutils literal notranslate"><span class="pre">a
 </section>
 <section id="functions">
 <h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.geocoding.</span></span><span class="sig-name descname"><span class="pre">geocode_addresses_with_nominatim</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">addresses</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">country_codes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_retries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">server_url</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/geo/geocoding.html#geocode_addresses_with_nominatim"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Batch-geocode a list of addresses using Nominatim.</p>
+<p>Calls <a class="reference internal" href="packages/geo.html#siege_utilities.geo.geocoding.get_coordinates" title="siege_utilities.geo.geocoding.get_coordinates"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_coordinates()</span></code></a> for each address sequentially with
+Nominatim’s built-in rate limiting (1 s for public, 50 ms for
+self-hosted).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>addresses</strong> – Iterable of address strings.</p></li>
+<li><p><strong>country_codes</strong> – Optional country code filter (defaults to US).</p></li>
+<li><p><strong>max_retries</strong> – Retry attempts per address.</p></li>
+<li><p><strong>server_url</strong> – Optional custom Nominatim server URL.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of <code class="docutils literal notranslate"><span class="pre">{&quot;address&quot;:</span> <span class="pre">str,</span> <span class="pre">&quot;lat&quot;:</span> <span class="pre">float,</span> <span class="pre">&quot;lon&quot;:</span> <span class="pre">float}</span></code> dicts.
+Addresses that returned no match have <code class="docutils literal notranslate"><span class="pre">lat</span></code> and <code class="docutils literal notranslate"><span class="pre">lon</span></code> set to
+<code class="docutils literal notranslate"><span class="pre">None</span></code>.  Addresses that raised <a class="reference internal" href="packages/geo.html#siege_utilities.geo.geocoding.GeocodingError" title="siege_utilities.geo.geocoding.GeocodingError"><code class="xref py py-class docutils literal notranslate"><span class="pre">GeocodingError</span></code></a> are
+logged and included with <code class="docutils literal notranslate"><span class="pre">None</span></code> coordinates.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.geocoding.</span></span><span class="sig-name descname"><span class="pre">use_nominatim_geocoder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query_address</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">country_codes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_retries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">server_url</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/siege_utilities/geo/geocoding.html#use_nominatim_geocoder"><span class="viewcode-link"><span class="pre">[source]</span></span></a></dt>
+<dd><p>Geocode an address using Nominatim with proper rate limiting and error handling.
+Returns the result as a JSON string for Spark UDF compatibility.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>query_address</strong> – The address to geocode</p></li>
+<li><p><strong>id</strong> – An identifier for tracking</p></li>
+<li><p><strong>country_codes</strong> – Optional country code filter (defaults to US)</p></li>
+<li><p><strong>max_retries</strong> – Number of retry attempts for transient errors</p></li>
+<li><p><strong>server_url</strong> – Optional custom Nominatim server URL (e.g.,
+“<a class="reference external" href="http://nominatim.nominatim.svc.cluster.local">http://nominatim.nominatim.svc.cluster.local</a>” for self-hosted).
+Defaults to None (public OSM Nominatim with rate limiting).
+When set, rate limiting is skipped (self-hosted servers
+don’t require it).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>JSON string of the geocoding result, or <code class="docutils literal notranslate"><span class="pre">None</span></code> when Nominatim
+returned no match for the address (a legitimate non-error outcome).</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">query_address</span></code> is empty or None.</p></li>
+<li><p><a class="reference internal" href="packages/geo.html#siege_utilities.geo.geocoding.GeocodingError" title="siege_utilities.geo.geocoding.GeocodingError"><strong>GeocodingError</strong></a> – If geocoding failed due to a network, service, or
+    parse error after retries (i.e., the geocoder could not even
+    attempt to match). Wraps the underlying geopy exception via
+    <code class="docutils literal notranslate"><span class="pre">__cause__</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
 </section>
 <section id="usage-examples">
 <h2>Usage Examples<a class="headerlink" href="#usage-examples" title="Link to this heading"></a></h2>
 <p>Basic geocoding:</p>
-<p>Distance calculations:</p>
-<p>Coordinate validation:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.geo.geocoding</span><span class="w"> </span><span class="kn">import</span> <span class="n">geocode_addresses_with_nominatim</span>
+
+<span class="c1"># Geocode one or more addresses (pass a list)</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">geocode_addresses_with_nominatim</span><span class="p">(</span>
+    <span class="p">[</span><span class="s2">"1600 Pennsylvania Avenue, Washington, DC"</span><span class="p">]</span>
+<span class="p">)</span>
+<span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">'address'</span><span class="p">]</span><span class="si">}</span><span class="s2">: (</span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">'lat'</span><span class="p">]</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">'lon'</span><span class="p">]</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+</pre></div>
+</div>
 <p>Batch geocoding:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.geo.geocoding</span><span class="w"> </span><span class="kn">import</span> <span class="n">geocode_addresses_with_nominatim</span>
+
+<span class="c1"># Process multiple addresses in one call</span>
+<span class="n">addresses</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">"Times Square, New York, NY"</span><span class="p">,</span>
+    <span class="s2">"Golden Gate Bridge, San Francisco, CA"</span><span class="p">,</span>
+    <span class="s2">"Statue of Liberty, New York, NY"</span>
+<span class="p">]</span>
+
+<span class="n">results</span> <span class="o">=</span> <span class="n">geocode_addresses_with_nominatim</span><span class="p">(</span><span class="n">addresses</span><span class="p">)</span>
+
+<span class="c1"># Each result is a dict with "address", "lat", and "lon".</span>
+<span class="c1"># Addresses with no match have lat/lon set to None.</span>
+<span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">'address'</span><span class="p">]</span><span class="si">}</span><span class="s2">: (</span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">'lat'</span><span class="p">]</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">'lon'</span><span class="p">]</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Reverse geocoding, distance calculations, and coordinate validation are
+not provided as standalone helpers. Nominatim batch geocoding via
+<code class="docutils literal notranslate"><span class="pre">geocode_addresses_with_nominatim</span></code> is the supported geocoding entry point.</p>
+</div>
 </section>
 <section id="unit-tests">
 <h2>Unit Tests<a class="headerlink" href="#unit-tests" title="Link to this heading"></a></h2>
 <p>The geocoding module has comprehensive test coverage:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>test_geocoding.py - All geocoding tests pass
+
+Test Coverage:
+- Address geocoding functionality
+- Reverse geocoding (coordinates to address)
+- Distance calculations between coordinates
+- Coordinate validation (latitude/longitude bounds)
+- Error handling for invalid addresses
+- API rate limiting and error handling
+- Coordinate precision and accuracy
+</pre></div>
+</div>
 <p>Test Results: All geocoding tests pass successfully with comprehensive coverage.</p>
 </section>
 </section>

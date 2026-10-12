@@ -8886,7 +8886,7 @@
 <li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-structure">Test Structure</a></li>
 <li class="toctree-l2"><a class="reference internal" href="testing_guide.html#running-tests">Running Tests</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
-<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#common-invocations">Common Invocations</a></li>
 <li class="toctree-l3"><a class="reference internal" href="testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
 <li class="toctree-l3"><a class="reference internal" href="testing_guide.html#parallel-execution">Parallel Execution</a></li>
 </ul>
@@ -8999,7 +8999,7 @@
 <section id="installation">
 <h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
 <p>Install the required dependencies:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>siege_utilities/reporting/requirements_bivariate_choropleth.txt
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>siege-utilities<span class="o">[</span>reporting<span class="o">]</span>
 </pre></div>
 </div>
 <p>Required packages include:
@@ -9307,19 +9307,22 @@
 <h2>Integration Examples<a class="headerlink" href="#integration-examples" title="Link to this heading"></a></h2>
 <section id="google-analytics-integration">
 <h3>Google Analytics Integration<a class="headerlink" href="#google-analytics-integration" title="Link to this heading"></a></h3>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.analytics.google_analytics</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleAnalyticsConnector</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.analytics.google_analytics</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">create_ga_connector_with_service_account</span><span class="p">,</span>
+<span class="p">)</span>
 
-<span class="c1"># Initialize connector</span>
-<span class="n">ga_connector</span> <span class="o">=</span> <span class="n">GoogleAnalyticsConnector</span><span class="p">(</span>
-    <span class="n">credentials_path</span><span class="o">=</span><span class="s1">'credentials.json'</span><span class="p">,</span>
-    <span class="n">property_id</span><span class="o">=</span><span class="s1">'your_property_id'</span>
+<span class="c1"># Initialize connector with service-account credentials</span>
+<span class="n">ga_connector</span> <span class="o">=</span> <span class="n">create_ga_connector_with_service_account</span><span class="p">(</span>
+    <span class="n">service_account_data</span><span class="o">=</span><span class="n">service_account_dict</span>
 <span class="p">)</span>
 
 <span class="c1"># Retrieve geographic data</span>
-<span class="n">ga_data</span> <span class="o">=</span> <span class="n">ga_connector</span><span class="o">.</span><span class="n">batch_retrieve_ga_data</span><span class="p">(</span>
-    <span class="n">metrics</span><span class="o">=</span><span class="p">[</span><span class="s1">'sessions'</span><span class="p">,</span> <span class="s1">'bounce_rate'</span><span class="p">],</span>
+<span class="n">ga_data</span> <span class="o">=</span> <span class="n">ga_connector</span><span class="o">.</span><span class="n">get_ga4_data</span><span class="p">(</span>
+    <span class="n">property_id</span><span class="o">=</span><span class="s1">'your_property_id'</span><span class="p">,</span>
+    <span class="n">start_date</span><span class="o">=</span><span class="s1">'2023-01-01'</span><span class="p">,</span>
+    <span class="n">end_date</span><span class="o">=</span><span class="s1">'2023-12-31'</span><span class="p">,</span>
+    <span class="n">metrics</span><span class="o">=</span><span class="p">[</span><span class="s1">'sessions'</span><span class="p">,</span> <span class="s1">'bounceRate'</span><span class="p">],</span>
     <span class="n">dimensions</span><span class="o">=</span><span class="p">[</span><span class="s1">'country'</span><span class="p">,</span> <span class="s1">'region'</span><span class="p">],</span>
-    <span class="n">date_range</span><span class="o">=</span><span class="p">[</span><span class="s1">'2023-01-01'</span><span class="p">,</span> <span class="s1">'2023-12-31'</span><span class="p">]</span>
 <span class="p">)</span>
 
 <span class="c1"># Create geographic visualization</span>
@@ -9334,18 +9337,33 @@
 </section>
 <section id="database-integration">
 <h3>Database Integration<a class="headerlink" href="#database-integration" title="Link to this heading"></a></h3>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.config.databases</span><span class="w"> </span><span class="kn">import</span> <span class="n">DatabaseConnector</span>
-
-<span class="c1"># Initialize database connector</span>
-<span class="n">db_connector</span> <span class="o">=</span> <span class="n">DatabaseConnector</span><span class="p">(</span>
-    <span class="n">connection_string</span><span class="o">=</span><span class="s1">'postgresql://user:password@localhost/dbname'</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.config.databases</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">create_database_config</span><span class="p">,</span>
+    <span class="n">create_spark_session_with_databases</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="c1"># Query customer data</span>
-<span class="n">customer_data</span> <span class="o">=</span> <span class="n">db_connector</span><span class="o">.</span><span class="n">execute_query</span><span class="p">(</span><span class="s2">"""</span>
+<span class="c1"># config/databases.py is function-based: define a config, then build a</span>
+<span class="c1"># Spark session wired for that database.</span>
+<span class="n">create_database_config</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s1">'analytics'</span><span class="p">,</span>
+    <span class="n">connection_type</span><span class="o">=</span><span class="s1">'postgres'</span><span class="p">,</span>
+    <span class="n">host</span><span class="o">=</span><span class="s1">'localhost'</span><span class="p">,</span>
+    <span class="n">port</span><span class="o">=</span><span class="mi">5432</span><span class="p">,</span>
+    <span class="n">database</span><span class="o">=</span><span class="s1">'dbname'</span><span class="p">,</span>
+    <span class="n">username</span><span class="o">=</span><span class="s1">'user'</span><span class="p">,</span>
+    <span class="n">password</span><span class="o">=</span><span class="s1">'password'</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">spark</span> <span class="o">=</span> <span class="n">create_spark_session_with_databases</span><span class="p">(</span>
+    <span class="n">app_name</span><span class="o">=</span><span class="s1">'CustomerAnalysis'</span><span class="p">,</span>
+    <span class="n">database_names</span><span class="o">=</span><span class="p">[</span><span class="s1">'analytics'</span><span class="p">],</span>
+<span class="p">)</span>
+
+<span class="c1"># Query customer data through Spark</span>
+<span class="n">customer_data</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">sql</span><span class="p">(</span><span class="s2">"""</span>
 <span class="s2">    SELECT state, COUNT(*) as customers, AVG(revenue) as avg_revenue</span>
 <span class="s2">    FROM customers GROUP BY state</span>
-<span class="s2">"""</span><span class="p">)</span>
+<span class="s2">"""</span><span class="p">)</span><span class="o">.</span><span class="n">toPandas</span><span class="p">()</span>
 
 <span class="c1"># Create customer analysis map</span>
 <span class="n">chart</span> <span class="o">=</span> <span class="n">chart_gen</span><span class="o">.</span><span class="n">create_bivariate_choropleth_matplotlib</span><span class="p">(</span>

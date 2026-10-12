@@ -22,7 +22,7 @@ Install the required dependencies:
 
 .. code-block:: bash
 
-    pip install -r siege_utilities/reporting/requirements_bivariate_choropleth.txt
+    pip install siege-utilities[reporting]
 
 Required packages include:
 - geopandas
@@ -349,19 +349,22 @@ Google Analytics Integration
 
 .. code-block:: python
 
-    from siege_utilities.analytics.google_analytics import GoogleAnalyticsConnector
+    from siege_utilities.analytics.google_analytics import (
+        create_ga_connector_with_service_account,
+    )
 
-    # Initialize connector
-    ga_connector = GoogleAnalyticsConnector(
-        credentials_path='credentials.json',
-        property_id='your_property_id'
+    # Initialize connector with service-account credentials
+    ga_connector = create_ga_connector_with_service_account(
+        service_account_data=service_account_dict
     )
 
     # Retrieve geographic data
-    ga_data = ga_connector.batch_retrieve_ga_data(
-        metrics=['sessions', 'bounce_rate'],
+    ga_data = ga_connector.get_ga4_data(
+        property_id='your_property_id',
+        start_date='2023-01-01',
+        end_date='2023-12-31',
+        metrics=['sessions', 'bounceRate'],
         dimensions=['country', 'region'],
-        date_range=['2023-01-01', '2023-12-31']
     )
 
     # Create geographic visualization
@@ -377,18 +380,33 @@ Database Integration
 
 .. code-block:: python
 
-    from siege_utilities.config.databases import DatabaseConnector
-
-    # Initialize database connector
-    db_connector = DatabaseConnector(
-        connection_string='postgresql://user:password@localhost/dbname'
+    from siege_utilities.config.databases import (
+        create_database_config,
+        create_spark_session_with_databases,
     )
 
-    # Query customer data
-    customer_data = db_connector.execute_query("""
+    # config/databases.py is function-based: define a config, then build a
+    # Spark session wired for that database.
+    create_database_config(
+        name='analytics',
+        connection_type='postgres',
+        host='localhost',
+        port=5432,
+        database='dbname',
+        username='user',
+        password='password',
+    )
+
+    spark = create_spark_session_with_databases(
+        app_name='CustomerAnalysis',
+        database_names=['analytics'],
+    )
+
+    # Query customer data through Spark
+    customer_data = spark.sql("""
         SELECT state, COUNT(*) as customers, AVG(revenue) as avg_revenue
         FROM customers GROUP BY state
-    """)
+    """).toPandas()
 
     # Create customer analysis map
     chart = chart_gen.create_bivariate_choropleth_matplotlib(

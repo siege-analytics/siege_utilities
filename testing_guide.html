@@ -8888,7 +8888,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#test-structure">Test Structure</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#running-tests">Running Tests</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#basic-test-execution">Basic Test Execution</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#common-invocations">Common Invocations</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#coverage-and-reporting">Coverage and Reporting</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#parallel-execution">Parallel Execution</a></li>
 </ul>
@@ -8992,7 +8992,7 @@
 <li><p><a class="reference internal" href="#running-tests" id="id3">Running Tests</a></p>
 <ul>
 <li><p><a class="reference internal" href="#basic-test-execution" id="id4">Basic Test Execution</a></p></li>
-<li><p><a class="reference internal" href="#test-runner-script" id="id5">Test Runner Script</a></p></li>
+<li><p><a class="reference internal" href="#common-invocations" id="id5">Common Invocations</a></p></li>
 <li><p><a class="reference internal" href="#coverage-and-reporting" id="id6">Coverage and Reporting</a></p></li>
 <li><p><a class="reference internal" href="#parallel-execution" id="id7">Parallel Execution</a></p></li>
 </ul>
@@ -9107,17 +9107,12 @@ pytest<span class="w"> </span>tests/test_file_operations.py<span class="w"> </sp
 </pre></div>
 </div>
 </section>
-<section id="test-runner-script">
-<h3><a class="toc-backref" href="#id5" role="doc-backlink">Test Runner Script</a><a class="headerlink" href="#test-runner-script" title="Link to this heading"></a></h3>
-<p>Use the interactive test runner:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>run_tests.py
-</pre></div>
-</div>
-<p>Or run specific test types:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>run_tests.py<span class="w"> </span>--coverage<span class="w">    </span><span class="c1"># With coverage reporting</span>
-python<span class="w"> </span>run_tests.py<span class="w"> </span>--fast<span class="w">        </span><span class="c1"># Fast tests only</span>
-python<span class="w"> </span>run_tests.py<span class="w"> </span>--parallel<span class="w">    </span><span class="c1"># Parallel execution</span>
-python<span class="w"> </span>run_tests.py<span class="w"> </span>--debug<span class="w">       </span><span class="c1"># Debug mode</span>
+<section id="common-invocations">
+<h3><a class="toc-backref" href="#id5" role="doc-backlink">Common Invocations</a><a class="headerlink" href="#common-invocations" title="Link to this heading"></a></h3>
+<p>Run the test suite with pytest:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytest<span class="w">                                 </span><span class="c1"># Run all tests</span>
+pytest<span class="w"> </span>--cov<span class="o">=</span>siege_utilities<span class="w">           </span><span class="c1"># With coverage reporting</span>
+pytest<span class="w"> </span>-n<span class="w"> </span>auto<span class="w">                         </span><span class="c1"># Parallel execution (requires pytest-xdist)</span>
 </pre></div>
 </div>
 </section>

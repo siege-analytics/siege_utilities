@@ -67,7 +67,7 @@ retry logic, and domain-specific exceptions (``IsochroneError``,
    set_default_crs("EPSG:2263")  # NY State Plane
 
    # Get a 15-minute walk isochrone (returned in your default CRS)
-   isochrone = get_isochrone(lat=40.7128, lon=-74.0060, minutes=15)
+   isochrone = get_isochrone(latitude=40.7128, longitude=-74.0060, travel_time_minutes=15)
 
 See ``docs/ISOCHRONES_AND_WKLS.md`` for full details on provider configuration,
 timeout handling, and the ``crs`` parameter available on all spatial-returning functions.
@@ -173,10 +173,10 @@ Quick Start
 
    .. code-block:: python
 
-      from siege_utilities.geo.spatial_data import census_source
-      
+      from siege_utilities.geo.spatial_data import CensusDataSource
+
       # Download county boundaries for California
-      counties = census_source.get_geographic_boundaries(
+      counties = CensusDataSource().get_geographic_boundaries(
           year=2020,
           geographic_level="county",
           state_fips="06"

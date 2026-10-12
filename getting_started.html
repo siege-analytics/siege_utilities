@@ -8888,7 +8888,7 @@
 <li class="toctree-l2"><a class="reference internal" href="testing_guide.html#test-structure">Test Structure</a></li>
 <li class="toctree-l2"><a class="reference internal" href="testing_guide.html#running-tests">Running Tests</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="testing_guide.html#basic-test-execution">Basic Test Execution</a></li>
-<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#test-runner-script">Test Runner Script</a></li>
+<li class="toctree-l3"><a class="reference internal" href="testing_guide.html#common-invocations">Common Invocations</a></li>
 <li class="toctree-l3"><a class="reference internal" href="testing_guide.html#coverage-and-reporting">Coverage and Reporting</a></li>
 <li class="toctree-l3"><a class="reference internal" href="testing_guide.html#parallel-execution">Parallel Execution</a></li>
 </ul>
@@ -9012,10 +9012,12 @@ pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"gdal
 <p>The canonical workflow is: <strong>address → geocoder → GEOID → boundary → overlay → report</strong>.</p>
 <section id="geocode-an-address">
 <h3>1. Geocode an Address<a class="headerlink" href="#geocode-an-address" title="Link to this heading"></a></h3>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.geo.geocoding</span><span class="w"> </span><span class="kn">import</span> <span class="n">geocode_address</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.geo.geocoding</span><span class="w"> </span><span class="kn">import</span> <span class="n">geocode_addresses_with_nominatim</span>
 
-<span class="n">result</span> <span class="o">=</span> <span class="n">geocode_address</span><span class="p">(</span><span class="s2">"1600 Pennsylvania Ave NW, Washington, DC"</span><span class="p">)</span>
-<span class="c1"># Returns lat/lon coordinates for spatial operations</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">geocode_addresses_with_nominatim</span><span class="p">(</span>
+    <span class="p">[</span><span class="s2">"1600 Pennsylvania Ave NW, Washington, DC"</span><span class="p">]</span>
+<span class="p">)</span>
+<span class="c1"># Returns a list of {"address", "lat", "lon"} dicts for spatial operations</span>
 </pre></div>
 </div>
 </section>
@@ -9024,15 +9026,15 @@ pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"gdal
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.geo.geoid_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">normalize_geoid</span>
 
 <span class="c1"># Census GEOIDs are the universal join key</span>
-<span class="n">geoid</span> <span class="o">=</span> <span class="n">normalize_geoid</span><span class="p">(</span><span class="s2">"06037"</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s2">"county"</span><span class="p">)</span>  <span class="c1"># Los Angeles County</span>
+<span class="n">geoid</span> <span class="o">=</span> <span class="n">normalize_geoid</span><span class="p">(</span><span class="s2">"06037"</span><span class="p">,</span> <span class="s2">"county"</span><span class="p">)</span>  <span class="c1"># Los Angeles County</span>
 </pre></div>
 </div>
 </section>
 <section id="download-census-boundaries">
 <h3>3. Download Census Boundaries<a class="headerlink" href="#download-census-boundaries" title="Link to this heading"></a></h3>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.geo.spatial_data</span><span class="w"> </span><span class="kn">import</span> <span class="n">census_source</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.geo.spatial_data</span><span class="w"> </span><span class="kn">import</span> <span class="n">CensusDataSource</span>
 
-<span class="n">counties</span> <span class="o">=</span> <span class="n">census_source</span><span class="o">.</span><span class="n">get_geographic_boundaries</span><span class="p">(</span>
+<span class="n">counties</span> <span class="o">=</span> <span class="n">CensusDataSource</span><span class="p">()</span><span class="o">.</span><span class="n">get_geographic_boundaries</span><span class="p">(</span>
     <span class="n">year</span><span class="o">=</span><span class="mi">2020</span><span class="p">,</span>
     <span class="n">geographic_level</span><span class="o">=</span><span class="s2">"county"</span><span class="p">,</span>
     <span class="n">state_fips</span><span class="o">=</span><span class="s2">"06"</span><span class="p">,</span>
@@ -9044,8 +9046,8 @@ pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"gdal
 <h3>4. Use Pluggable Boundary Providers<a class="headerlink" href="#use-pluggable-boundary-providers" title="Link to this heading"></a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.geo.providers.boundary_providers</span><span class="w"> </span><span class="kn">import</span> <span class="n">resolve_boundary_provider</span>
 
-<span class="n">provider</span> <span class="o">=</span> <span class="n">resolve_boundary_provider</span><span class="p">(</span><span class="s2">"census_tiger"</span><span class="p">)</span>
-<span class="n">boundary</span> <span class="o">=</span> <span class="n">provider</span><span class="o">.</span><span class="n">get_boundary</span><span class="p">(</span><span class="n">state_fips</span><span class="o">=</span><span class="s2">"06"</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s2">"county"</span><span class="p">,</span> <span class="n">year</span><span class="o">=</span><span class="mi">2020</span><span class="p">)</span>
+<span class="n">provider</span> <span class="o">=</span> <span class="n">resolve_boundary_provider</span><span class="p">(</span><span class="s2">"US"</span><span class="p">)</span>
+<span class="n">boundary</span> <span class="o">=</span> <span class="n">provider</span><span class="o">.</span><span class="n">get_boundary</span><span class="p">(</span><span class="s2">"county"</span><span class="p">,</span> <span class="n">identifier</span><span class="o">=</span><span class="s2">"06"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -9061,16 +9063,16 @@ pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"gdal
 <section id="engine-agnostic-dataframes">
 <h2>Engine-Agnostic DataFrames<a class="headerlink" href="#engine-agnostic-dataframes" title="Link to this heading"></a></h2>
 <p>Same analysis at different scales without rewriting:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.engines</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataFrameEngine</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.engines</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_engine</span>
 
 <span class="c1"># pandas for exploration</span>
-<span class="n">engine</span> <span class="o">=</span> <span class="n">DataFrameEngine</span><span class="p">(</span><span class="s2">"pandas"</span><span class="p">)</span>
+<span class="n">engine</span> <span class="o">=</span> <span class="n">get_engine</span><span class="p">(</span><span class="s2">"pandas"</span><span class="p">)</span>
 
 <span class="c1"># DuckDB for medium scale</span>
-<span class="n">engine</span> <span class="o">=</span> <span class="n">DataFrameEngine</span><span class="p">(</span><span class="s2">"duckdb"</span><span class="p">)</span>
+<span class="n">engine</span> <span class="o">=</span> <span class="n">get_engine</span><span class="p">(</span><span class="s2">"duckdb"</span><span class="p">)</span>
 
 <span class="c1"># Spark for distribution</span>
-<span class="n">engine</span> <span class="o">=</span> <span class="n">DataFrameEngine</span><span class="p">(</span><span class="s2">"spark"</span><span class="p">)</span>
+<span class="n">engine</span> <span class="o">=</span> <span class="n">get_engine</span><span class="p">(</span><span class="s2">"spark"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -9079,7 +9081,7 @@ pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"gdal
 <p>Credentials come from environment variables first, with 1Password CLI fallback:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.config.credential_manager</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_credential</span>
 
-<span class="n">api_key</span> <span class="o">=</span> <span class="n">get_credential</span><span class="p">(</span><span class="s2">"CENSUS_API_KEY"</span><span class="p">)</span>
+<span class="n">api_key</span> <span class="o">=</span> <span class="n">get_credential</span><span class="p">(</span><span class="s2">"CENSUS_API_KEY"</span><span class="p">,</span> <span class="s2">"default"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
