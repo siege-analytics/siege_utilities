@@ -16,6 +16,12 @@ from scripts.check_subprocess_safety import main, scan_file
     ('import os as platform\nplatform.popen("cmd")', 'os.popen'),
     ('from os import system as execute\nexecute("cmd")', 'os.system'),
     ('from os import popen\npopen("cmd")', 'os.popen'),
+    ('import subprocess\nsubprocess.getoutput("cmd")', 'subprocess.getoutput'),
+    ('import subprocess\nsubprocess.getstatusoutput("cmd")', 'subprocess.getstatusoutput'),
+    ('import subprocess as sp\nsp.getoutput("cmd")', 'subprocess.getoutput'),
+    ('import subprocess as sp\nsp.getstatusoutput("cmd")', 'subprocess.getstatusoutput'),
+    ('from subprocess import getoutput as run\nrun("cmd")', 'subprocess.getoutput'),
+    ('from subprocess import getstatusoutput as run\nrun("cmd")', 'subprocess.getstatusoutput'),
 ])
 def test_forbidden_call_fails_guard(tmp_path, capsys, source, label):
     path = tmp_path / 'module.py'

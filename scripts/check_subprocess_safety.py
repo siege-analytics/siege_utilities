@@ -3,9 +3,10 @@
 
 Run ``python scripts/check_subprocess_safety.py [root]``. The default root is
 siege_utilities/. Exits 1 for subprocess calls with shell other than literal
-False, or any os.system/os.popen call. Import aliases and from-imports are
-recognized; comments and strings are ignored. This is a static class guard,
-not data-flow analysis of dynamically assigned callables or **kwargs.
+False, or any os.system/os.popen or subprocess.getoutput/getstatusoutput call.
+Import aliases and from-imports are recognized; comments and strings are
+ignored. This is a static class guard, not data-flow analysis of dynamically
+assigned callables or **kwargs.
 Unreadable or unparseable sources fail the check instead of being skipped.
 """
 
@@ -42,7 +43,10 @@ def scan_file(path: Path) -> list[tuple[int, str]]:
         if not isinstance(node, ast.Call):
             continue
         name = _qualified_name(node.func, aliases)
-        if name in {"os.system", "os.popen"}:
+        if name in {
+            "os.system", "os.popen",
+            "subprocess.getoutput", "subprocess.getstatusoutput",
+        }:
             violations.append((node.lineno, f"{name} is forbidden; use argv execution"))
         elif name.startswith("subprocess.") or name == "Popen":
             for keyword in node.keywords:
