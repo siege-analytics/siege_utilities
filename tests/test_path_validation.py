@@ -1,4 +1,7 @@
-"""Tests for siege_utilities.files.validation — path security validation (#578)."""
+"""Tests for siege_utilities.files.validation and path containment (#1528)."""
+
+import os
+from pathlib import Path
 
 import pytest
 
@@ -21,11 +24,13 @@ class TestIsPathTraversalAttempt:
     def test_home_tilde_detected(self):
         assert is_path_traversal_attempt("~/secret.txt") is True
 
-    def test_url_encoded_traversal_detected(self):
-        assert is_path_traversal_attempt("data/%2e%2e/etc") is True
+    def test_percent_encoded_dots_are_literal(self):
+        """Local filenames stay literal (writing-tests:1 correction, #1528)."""
+        assert is_path_traversal_attempt("data/%2e%2e/etc") is False
 
-    def test_url_encoded_slash_detected(self):
-        assert is_path_traversal_attempt("data%2ffile.txt") is True
+    def test_percent_encoded_slash_is_literal(self):
+        """Local filenames stay literal (writing-tests:1 correction, #1528)."""
+        assert is_path_traversal_attempt("data%2ffile.txt") is False
 
     def test_null_byte_detected(self):
         assert is_path_traversal_attempt("file.txt\x00.jpg") is True
@@ -146,3 +151,176 @@ class TestSafeJoinPaths:
     def test_base_directory_enforced(self, tmp_path):
         with pytest.raises(PathSecurityError, match="outside base directory"):
             safe_join_paths("/tmp", "file.txt", base_directory=str(tmp_path))
+
+
+class TestPathSafetyRegressions:
+    """Corrected allow/deny cases must fail with the v4.0.0 validator."""
+
+    @pytest.mark.parametrize("name", [
+        "report..final.csv",
+        "v1..2/",
+        "dl/name%2Fwith.csv",
+        "dl/name%2fwith.csv",
+        "dl/%2e%2e/data.csv",
+        "dl/%2E%2E/data.csv",
+        "paid_rsa",
+        "paid_dsa",
+        "paid_ecdsa",
+    ])
+    def test_literal_local_names_allowed(self, tmp_path, monkeypatch, name):
+        monkeypatch.chdir(tmp_path)
+        expected = tmp_path.resolve() / name
+
+        assert validate_safe_path(name, base_directory=tmp_path) == expected
+        assert safe_join_paths(tmp_path, name) == expected
+        assert is_path_traversal_attempt(name) is False
+        assert is_sensitive_path(expected) is False
+
+    @pytest.mark.parametrize("cwd", ["/root", "/dev/shm"])
+    @pytest.mark.parametrize("with_base", [False, True])
+    def test_container_working_directory_allowed(self, monkeypatch, cwd, with_base):
+        # Simulate the container cwd without creating or accessing files there.
+        with monkeypatch.context() as patch:
+            patch.setattr(os, "getcwd", lambda: cwd)
+            result = validate_safe_path(
+                "data.csv", base_directory=cwd if with_base else None,
+            )
+
+        assert result == Path(cwd) / "data.csv"
+
+    @pytest.mark.parametrize("component", [
+        "/etc/cron.d/evil",
+        Path("/etc/cron.d/evil"),
+        "C:/outside/file.csv",
+        r"C:\outside\file.csv",
+        "C:outside.csv",
+        r"\outside\file.csv",
+        r"\\server\share\file.csv",
+    ])
+    def test_later_absolute_or_drive_component_raises(self, component):
+        with pytest.raises(PathSecurityError, match="Absolute or drive-qualified"):
+            safe_join_paths("data", component)
+
+    def test_absolute_second_component_with_base_raises(self, tmp_path):
+        # Even an absolute component inside the base must not discard its prefix.
+        with pytest.raises(PathSecurityError, match="Absolute or drive-qualified"):
+            safe_join_paths(tmp_path, tmp_path / "file.csv", base_directory=tmp_path)
+
+    def test_unlisted_absolute_second_component_raises(self, tmp_path):
+        # Use a real unblocked destination on every host, including macOS.
+        with pytest.raises(PathSecurityError, match="Absolute or drive-qualified"):
+            safe_join_paths("data", tmp_path / "outside.csv")
+
+    def test_default_base_rejects_symlink_escape(self, tmp_path):
+        base = tmp_path / "data"
+        base.mkdir()
+        sibling = tmp_path / "data-outside"
+        sibling.mkdir()
+        (base / "link").symlink_to(sibling, target_is_directory=True)
+
+        with pytest.raises(PathSecurityError, match="outside base directory"):
+            safe_join_paths(base, "link", "file.csv")
+
+    @pytest.mark.parametrize("filename", ["name%2Fwith.csv", "%2e%2e.csv"])
+    def test_generated_url_filename_is_literal(self, tmp_path, filename):
+        from siege_utilities.files.remote import generate_local_path_from_url
+
+        local_path = generate_local_path_from_url(
+            f"https://example.com/{filename}", tmp_path, as_string=False,
+        )
+
+        assert validate_safe_path(local_path, base_directory=tmp_path) == tmp_path / filename
+        assert local_path.name == filename
+
+    def test_ssh_directory_itself_is_sensitive(self, tmp_path):
+        with pytest.raises(PathSecurityError, match="sensitive path"):
+            validate_safe_path(tmp_path / ".ssh", base_directory=tmp_path)
+
+    def test_empty_base_still_enforces_containment(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(PathSecurityError, match="outside base directory"):
+            validate_safe_path(tmp_path.parent / "outside.csv", base_directory="")
+
+
+class TestPathSafetyProtection:
+    """Existing protections remain enforced when false positives are removed."""
+
+    @pytest.mark.parametrize("path", [
+        "/etc/cron.d/x", "/home/u/.bashrc", "/etc/sudoers.d/x",
+    ])
+    def test_base_rejects_absolute_escape(self, tmp_path, path):
+        # macOS resolves /etc to the separately blocked /private/etc.
+        with pytest.raises(PathSecurityError, match="outside base directory|sensitive path"):
+            validate_safe_path(path, base_directory=tmp_path)
+
+    @pytest.mark.parametrize("path", [
+        "../../etc/passwd",
+        r"..\..\etc\passwd",
+        "data/./../outside.csv",
+        "C:../outside.csv",
+        "//../share/file.csv",
+    ])
+    def test_real_parent_component_raises(self, tmp_path, path):
+        with pytest.raises(PathSecurityError, match="traversal"):
+            validate_safe_path(path, base_directory=tmp_path)
+        with pytest.raises(PathSecurityError, match="traversal"):
+            safe_join_paths(tmp_path, path, base_directory=tmp_path)
+
+    @pytest.mark.parametrize("name", ["id_rsa", "id_dsa", "id_ecdsa", ".ssh/config"])
+    def test_sensitive_target_under_base_raises(self, tmp_path, name):
+        with pytest.raises(PathSecurityError, match="sensitive path"):
+            validate_safe_path(tmp_path / name, base_directory=tmp_path)
+        with pytest.raises(PathSecurityError, match="sensitive path"):
+            safe_join_paths(tmp_path, name)
+
+    @pytest.mark.parametrize("path", [
+        "/root/.bash_history", "/root/.zsh_history",
+        "/dev/mem", "/dev/kmem", "/dev/port",
+    ])
+    def test_explicit_sensitive_files_still_raise(self, path):
+        with pytest.raises(PathSecurityError, match="sensitive path"):
+            validate_safe_path(path, base_directory=Path(path).parent)
+
+    def test_base_rejects_sibling_with_same_prefix(self, tmp_path):
+        base = tmp_path / "data"
+
+        with pytest.raises(PathSecurityError, match="outside base directory"):
+            validate_safe_path(tmp_path / "data-outside" / "file.csv", base_directory=base)
+
+    def test_explicit_base_rejects_symlink_escape(self, tmp_path):
+        base = tmp_path / "data"
+        base.mkdir()
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        (base / "link").symlink_to(outside, target_is_directory=True)
+
+        with pytest.raises(PathSecurityError, match="outside base directory"):
+            validate_safe_path(base / "link" / "file.csv", base_directory=base)
+        with pytest.raises(PathSecurityError, match="outside base directory"):
+            safe_join_paths(base, "link", "file.csv", base_directory=base)
+
+    def test_symlink_within_base_allowed(self, tmp_path):
+        (tmp_path / "target").mkdir()
+        (tmp_path / "link").symlink_to(tmp_path / "target", target_is_directory=True)
+
+        assert safe_join_paths(tmp_path, "link", "file.csv") == tmp_path / "target" / "file.csv"
+
+    def test_relative_join_with_explicit_base_uses_cwd(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+
+        assert safe_join_paths("data", "file.csv", base_directory=tmp_path) == (
+            tmp_path / "data" / "file.csv"
+        )
+
+    @pytest.mark.parametrize("error_type", [OSError, RuntimeError, TypeError])
+    def test_resolution_failure_is_reported(self, monkeypatch, error_type):
+        def fail_resolve(self, strict=False):
+            raise error_type("cannot resolve path")
+
+        monkeypatch.setattr(Path, "resolve", fail_resolve)
+
+        assert is_sensitive_path("data.csv") is True
+        with pytest.raises(ValueError, match="Invalid path: data.csv - cannot resolve path") as exc:
+            validate_safe_path("data.csv")
+        assert isinstance(exc.value.__cause__, error_type)
