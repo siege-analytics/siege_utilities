@@ -515,6 +515,15 @@ class PrecinctElectionResult(models.Model):
     class Meta:
         verbose_name = "Precinct Election Result"
         verbose_name_plural = "Precinct Election Results"
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "state_fips", "election_year", "precinct_id", "office",
+                    "party", "candidate_name", "data_source",
+                ],
+                name="precinct_result_identity_uniq",
+            ),
+        ]
         indexes = [
             models.Index(fields=["state_fips", "election_year"]),
             models.Index(fields=["precinct_id", "election_year"]),

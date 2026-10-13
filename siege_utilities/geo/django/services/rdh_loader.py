@@ -9,6 +9,7 @@ redistricting Django models.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional
 
@@ -190,7 +191,13 @@ class RDHLoaderService:
         year: Optional[str] = None,
         plan=None,
     ) -> RDHLoadResult:
-        """Fetch and load precinct election results.
+        """Replace the RDH precinct results for one state and election year.
+
+        Read VEST general-election columns (GYYEEEPNNN). Store the three-letter
+        candidate code in candidate_name; full surnames are not in the file.
+        Missing or blank vote cells count as zero. Totals include every
+        candidate in the office prefix, including unrecognized parties.
+        Geometry is expected in WGS 84 (EPSG:4326).
 
         Parameters
         ----------
@@ -206,12 +213,21 @@ class RDHLoaderService:
         Returns
         -------
         RDHLoadResult
+            Number of replacement rows created, or errors if RDH has no file.
+
+        Raises
+        ------
+        ValueError
+            If the state, precinct identifiers, or VEST columns are invalid,
+            or no results match election_year. Existing rows remain intact.
         """
         from siege_utilities.geo.providers.redistricting_data_hub import fetch_precinct_results
         from siege_utilities.geo.django.models.boundaries import State
         from siege_utilities.geo.django.models.redistricting import PrecinctElectionResult
+        import pandas as pd
 
         result = RDHLoadResult(operation="load_precinct_results")
+        state_fips = self._state_abbr_to_fips(state)
 
         try:
             gdf = fetch_precinct_results(state, year=year or str(election_year), client=self.client)
@@ -219,7 +235,6 @@ class RDHLoaderService:
             result.errors.append(str(e))
             return result
 
-        state_fips = self._state_abbr_to_fips(state)
         state_obj = State.objects.filter(state_fips=state_fips).first()
 
         # Identify columns
@@ -230,18 +245,28 @@ class RDHLoaderService:
             gdf, ["PRECINCT_NAME", "PREC_NAME", "NAME", "precinct_name"]
         )
 
-        # Find vote columns — look for party-prefixed columns
+        if gdf.empty:
+            raise ValueError(f"No precinct results for {state} {election_year}")
+        if precinct_col is None:
+            raise ValueError("Could not identify a precinct identifier column")
+        precinct_ids = gdf[precinct_col].astype(str).str.strip()
+        if gdf[precinct_col].isna().any() or precinct_ids.eq("").any():
+            raise ValueError("Precinct identifiers must not be missing or blank")
+        if precinct_ids.duplicated().any():
+            raise ValueError("Duplicate precinct identifiers in RDH results")
+
+        year_prefix = f"G{election_year % 100:02d}"
         vote_cols = [
             c for c in gdf.columns
-            if any(
-                c.upper().startswith(p)
-                for p in ("G20PRE", "G18GOV", "G22GOV", "G20USS", "G22USS")
-            )
+            if c.upper().startswith(year_prefix)
         ]
+        if not vote_cols:
+            raise ValueError(f"No VEST vote columns for election year {election_year}")
+        parsed_cols = {col: self._parse_vote_column(col) for col in vote_cols}
 
         records = []
         for _, row in gdf.iterrows():
-            precinct_id = str(row[precinct_col]) if precinct_col else str(_)
+            precinct_id = str(row[precinct_col]).strip()
             precinct_name = str(row[name_col]) if name_col else ""
 
             geom = None
@@ -253,28 +278,18 @@ class RDHLoaderService:
                     geos_geom = MultiPolygon(geos_geom, srid=4326)
                 geom = geos_geom
 
-            # Create a record for each vote column found
-            if vote_cols:
-                for col in vote_cols:
-                    party, office = self._parse_vote_column(col)
-                    votes = int(row[col]) if row[col] is not None else 0
-                    records.append(PrecinctElectionResult(
-                        plan=plan,
-                        state=state_obj,
-                        state_fips=state_fips,
-                        precinct_id=precinct_id,
-                        precinct_name=precinct_name,
-                        geometry=geom,
-                        election_year=election_year,
-                        office=office,
-                        party=party,
-                        votes=votes,
-                        data_source="rdh",
-                    ))
-            else:
-                # Fallback: store as a single record with total votes
-                total_col = self._find_column(gdf, ["TOTAL", "TOTVOTES", "total_votes"])
-                total = int(row[total_col]) if total_col and row[total_col] is not None else 0
+            votes_by_col = {}
+            totals = {}
+            for col in vote_cols:
+                raw = row[col]
+                votes = 0 if pd.isna(raw) or (isinstance(raw, str) and not raw.strip()) else int(raw)
+                votes_by_col[col] = votes
+                prefix = col.upper()[:6]
+                totals[prefix] = totals.get(prefix, 0) + votes
+
+            for col, (party, office) in parsed_cols.items():
+                votes = votes_by_col[col]
+                total = totals[col.upper()[:6]]
                 records.append(PrecinctElectionResult(
                     plan=plan,
                     state=state_obj,
@@ -283,15 +298,22 @@ class RDHLoaderService:
                     precinct_name=precinct_name,
                     geometry=geom,
                     election_year=election_year,
-                    office="president",
-                    party="TOTAL",
-                    votes=total,
+                    office=office,
+                    party=party,
+                    candidate_name=col.upper()[7:10],
+                    votes=votes,
+                    total_votes=total,
+                    vote_share=votes / total if total else None,
                     data_source="rdh",
                 ))
 
-        if records:
-            PrecinctElectionResult.objects.bulk_create(records, batch_size=500)
-            result.records_created = len(records)
+        # Replace the source snapshot only after all input has been parsed.
+        # The transaction restores the previous snapshot if insertion fails.
+        PrecinctElectionResult.objects.filter(
+            state_fips=state_fips, election_year=election_year, data_source="rdh",
+        ).delete()
+        PrecinctElectionResult.objects.bulk_create(records, batch_size=500)
+        result.records_created = len(records)
 
         logger.info("Loaded %d precinct results for %s %d", len(records), state, election_year)
         return result
@@ -515,9 +537,10 @@ class RDHLoaderService:
 
     @staticmethod
     def _parse_vote_column(col: str) -> tuple[str, str]:
-        """Parse a vote column name like G20PREDEM into (party, office)."""
+        """Parse a VEST GYYEEEPNNN column into (party, office)."""
         col_upper = col.upper()
-        # Common patterns: G20PREDEM, G20PREREP, G18GOVDEM, G20USSDEM
+        if re.fullmatch(r"G[0-9]{2}[A-Z]{7}", col_upper) is None:
+            raise ValueError(f"Invalid VEST vote column: {col!r}; expected GYYEEEPNNN")
         office_map = {
             "PRE": "president",
             "GOV": "governor",
@@ -526,22 +549,11 @@ class RDHLoaderService:
             "SOS": "secretary_of_state",
             "ATG": "attorney_general",
         }
-        party = "OTHER"
-        office = "president"
-        if len(col_upper) >= 6:
-            office_code = col_upper[3:6]
-            office = office_map.get(office_code, "president")
-        if col_upper.endswith("DEM"):
-            party = "DEM"
-        elif col_upper.endswith("REP"):
-            party = "REP"
-        elif col_upper.endswith("LIB"):
-            party = "LIB"
-        elif col_upper.endswith("GRN"):
-            party = "GRN"
-        elif col_upper.endswith("IND"):
-            party = "IND"
-        return party, office
+        office_code = col_upper[3:6]
+        if office_code not in office_map:
+            raise ValueError(f"Unsupported VEST office {office_code!r} in column {col!r}")
+        party_map = {"D": "DEM", "R": "REP", "L": "LIB", "G": "GRN", "I": "IND"}
+        return party_map.get(col_upper[6], "OTHER"), office_map[office_code]
 
     @staticmethod
     def _state_abbr_to_fips(abbr: str) -> str:
@@ -559,7 +571,10 @@ class RDHLoaderService:
             "VA": "51", "WA": "53", "WV": "54", "WI": "55", "WY": "56",
             "DC": "11", "PR": "72",
         }
-        return _map.get(abbr.upper(), "00")
+        normalized = abbr.strip().upper()
+        if normalized not in _map:
+            raise ValueError(f"Unknown state abbreviation: {abbr!r}")
+        return _map[normalized]
 
     @staticmethod
     def _fips_to_state_abbr(fips: str) -> str:
