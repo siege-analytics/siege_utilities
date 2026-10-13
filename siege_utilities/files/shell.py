@@ -4,6 +4,7 @@ These checks are a guardrail, not a sandbox or a guarantee of read-only behavior
 """
 
 import os
+import re
 import subprocess
 import logging
 import shlex
@@ -37,12 +38,14 @@ ALLOWED_COMMANDS = {
 
 
 def validate_command_safety(command: Union[str, List[str]],
-                            allow_list: Optional[set] = None) -> List[str]:
+                            allow_list: Optional[set] = None,
+                            cwd: str | os.PathLike[str] | None = None) -> List[str]:
     """
     Apply command-name, character, traversal, and known sensitive-path checks.
 
-    Arguments are checked using expanded, normalized and resolved path forms,
-    but returned unchanged. This is not a filesystem sandbox: command options,
+    Operands and attached option values are checked using expanded, normalized
+    and resolved path forms relative to cwd, but returned unchanged.
+    This is not a filesystem sandbox: command options,
     recursive reads and filesystem changes after validation are not controlled.
     A custom allow-list delegates command semantics to the caller.
 
@@ -52,6 +55,9 @@ def validate_command_safety(command: Union[str, List[str]],
         Command string or argv list to validate.
     allow_list : set, optional
         Custom allowed command names, replacing the default allow-list.
+    cwd : str or os.PathLike, optional
+        Working directory used for execution and relative path checks.
+        Defaults to the current process directory.
 
     Returns
     -------
@@ -101,7 +107,7 @@ def validate_command_safety(command: Union[str, List[str]],
 
     # Validate all command components
     dangerous_chars = [';', '&', '|', '$', '`', '\n', '\r', '(', ')', '<', '>']
-    sensitive_paths = ['/etc/passwd', '/etc/shadow', '/etc/sudoers',
+    sensitive_paths = ['/etc/passwd', '/etc/passwd-', '/etc/sudoers', '/etc/sudoers.d',
                        '~/.ssh', '/root', '/var/log']
     sensitive_forms = {
         form
@@ -109,6 +115,13 @@ def validate_command_safety(command: Union[str, List[str]],
         for form in (os.path.normpath(os.path.expanduser(path)),
                      os.path.realpath(os.path.expanduser(path)))
     }
+    # Shadow databases and their sibling backups share these filename prefixes.
+    sensitive_prefixes = tuple(
+        form
+        for path in ('/etc/shadow', '/etc/gshadow')
+        for form in (os.path.normpath(path), os.path.realpath(path))
+    )
+    base_directory = os.getcwd() if cwd is None else os.path.abspath(os.path.expanduser(cwd))
 
     for part in parts:
         # Check for command injection characters
@@ -119,12 +132,17 @@ def validate_command_safety(command: Union[str, List[str]],
                 )
 
         # Check both lexical and resolved forms so symlinks cannot hide a path.
-        # Also inspect --option=path values without treating the option as a path.
+        # Inspect --option=path and -Xvalue without treating the option as a path.
         path_values = [part, part.split('=', 1)[-1]]
+        short_option = re.fullmatch(r'-[A-Za-z](.+)', part)
+        if short_option:
+            path_values.append(short_option.group(1))
         for path in path_values:
-            expanded = os.path.expanduser(path)
+            expanded = os.path.join(base_directory, os.path.expanduser(path))
             forms = (os.path.normpath(expanded), os.path.realpath(expanded))
             if any('.ssh' in form.split(os.sep) or
+                   form.startswith(sensitive_prefixes) or
+                   (form.startswith('/proc/') and form.endswith('/environ')) or
                    any(form == sensitive or form.startswith(sensitive + os.sep)
                        for sensitive in sensitive_forms)
                    for form in forms):

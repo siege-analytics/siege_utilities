@@ -458,7 +458,7 @@ def run_command(command: Union[str, List[str]],
 
     Args:
         command: Command to run (string or list)
-        cwd: Working directory for the command
+        cwd: Working directory for execution and relative operand validation
         timeout: Timeout in seconds (default: 30)
         capture_output: Whether to capture command output
         allow_list: Optional custom whitelist of allowed commands
@@ -528,10 +528,19 @@ def run_command(command: Union[str, List[str]],
         else:
             command_list = list(command)
 
+        # Resolve cwd before checking operands so validation and execution agree.
+        validated_cwd = None
+        if cwd is not None:
+            try:
+                from siege_utilities.files.validation import validate_safe_path
+                validated_cwd = str(validate_safe_path(cwd, allow_absolute=True))
+            except ImportError:
+                validated_cwd = str(cwd)
+
         # Security validation (unless explicitly bypassed)
         if not unsafe:
             try:
-                validated_command = validate_command_safety(command_list, allow_list)
+                validated_command = validate_command_safety(command_list, allow_list, cwd=validated_cwd)
                 command_to_run = validated_command
             except (SecurityError, ValueError) as e:
                 log.error("Security validation failed (command omitted)")
@@ -548,15 +557,6 @@ def run_command(command: Union[str, List[str]],
                 "argv-level execution preserved (no shell expansion)"
             )
             command_to_run = command_list
-
-        # Validate cwd if provided
-        validated_cwd = None
-        if cwd is not None:
-            try:
-                from siege_utilities.files.validation import validate_safe_path
-                validated_cwd = str(validate_safe_path(cwd, allow_absolute=True))
-            except ImportError:
-                validated_cwd = str(cwd)
 
         # Execute command. shell=False unconditionally — argv list, no
         # /bin/sh interpretation of the command string.

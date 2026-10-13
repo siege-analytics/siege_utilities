@@ -3,7 +3,8 @@
 
 Run ``python scripts/check_subprocess_safety.py [root]``. The default root is
 siege_utilities/. Exits 1 for subprocess calls with shell other than literal
-False, or any os.system/os.popen or subprocess.getoutput/getstatusoutput call.
+False, or any os.system/os.popen, os.spawn*/os.exec*,
+asyncio.create_subprocess_shell or subprocess.getoutput/getstatusoutput call.
 Import aliases and from-imports are recognized; comments and strings are
 ignored. This is a static class guard, not data-flow analysis of dynamically
 assigned callables or **kwargs.
@@ -32,9 +33,9 @@ def scan_file(path: Path) -> list[tuple[int, str]]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name in {"subprocess", "os"}:
+                if alias.name in {"subprocess", "os", "asyncio"}:
                     aliases[alias.asname or alias.name] = alias.name
-        elif isinstance(node, ast.ImportFrom) and node.module in {"subprocess", "os"}:
+        elif isinstance(node, ast.ImportFrom) and node.module in {"subprocess", "os", "asyncio"}:
             for alias in node.names:
                 aliases[alias.asname or alias.name] = f"{node.module}.{alias.name}"
 
@@ -45,8 +46,9 @@ def scan_file(path: Path) -> list[tuple[int, str]]:
         name = _qualified_name(node.func, aliases)
         if name in {
             "os.system", "os.popen",
+            "asyncio.create_subprocess_shell",
             "subprocess.getoutput", "subprocess.getstatusoutput",
-        }:
+        } or name.startswith(("os.spawn", "os.exec")):
             violations.append((node.lineno, f"{name} is forbidden; use argv execution"))
         elif name.startswith("subprocess.") or name == "Popen":
             for keyword in node.keywords:

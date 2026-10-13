@@ -1,6 +1,7 @@
 """Tests for siege_utilities.files.shell — command security validation (#578)."""
 
 import subprocess
+from unittest.mock import patch
 
 import pytest
 
@@ -13,6 +14,36 @@ from siege_utilities.files.shell import (
 
 
 class TestValidateCommandSafety:
+
+    @pytest.mark.parametrize("path", [
+        '/etc/shadow-', '/etc/shadow.bak', '/etc/shadow.old',
+        '/etc/gshadow', '/etc/gshadow-', '/etc/gshadow.bak',
+        '/etc/passwd-', '/etc//passwd-',
+        '/etc/sudoers.d', '/etc/sudoers.d/90-cloud-init-users',
+    ])
+    def test_review_sensitive_sibling_raises(self, path):
+        with pytest.raises(SecurityError, match="sensitive path"):
+            validate_command_safety(['cat', path])
+
+    @pytest.mark.parametrize("command", ['date', 'grep'])
+    @pytest.mark.parametrize("path", ['/etc/shadow', '/etc/passwd', '/etc//passwd'])
+    def test_review_attached_short_option_raises(self, command, path):
+        with pytest.raises(SecurityError, match="sensitive path"):
+            validate_command_safety([command, '-f' + path])
+
+    @pytest.mark.parametrize("target", ['/etc/gshadow', '/proc/self/environ'])
+    def test_review_short_option_symlink_raises(self, monkeypatch, tmp_path, target):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / 'patterns').symlink_to(target)
+        with pytest.raises(SecurityError, match="sensitive path"):
+            validate_command_safety(['grep', '-fpatterns', 'input.txt'])
+
+    @pytest.mark.parametrize("path", [
+        '/proc/self/environ', '/proc/1/environ', '/proc//self/./environ',
+    ])
+    def test_review_proc_environ_raises(self, path):
+        with pytest.raises(SecurityError, match="sensitive path"):
+            validate_command_safety(['cat', path])
 
     @pytest.mark.parametrize("command", [
         'find . -delete',
@@ -45,6 +76,14 @@ class TestValidateCommandSafety:
     ])
     def test_sensitive_path_neighbor_is_allowed(self, path):
         command = ['cat', path]
+        assert validate_command_safety(command) == command
+
+    @pytest.mark.parametrize("argument", [
+        '-f/var/logrotate.conf', '-f/rootfs/data.csv',
+        '/etc/sudoers.draft', '/proc/self/status', '/tmp/proc/self/environ',
+    ])
+    def test_sensitive_family_neighbor_is_allowed(self, argument):
+        command = ['grep', argument]
         assert validate_command_safety(command) == command
 
     def test_traversal_to_sensitive_path_raises(self, monkeypatch, tmp_path):
@@ -130,6 +169,21 @@ class TestValidateCommandSafety:
 
 
 class TestRunSubprocess:
+
+    @pytest.mark.parametrize("command", [
+        ['date', '-f/etc/passwd'], ['date', '-f/etc//passwd'],
+        ['grep', '-f/etc/shadow', '-r', '.'],
+        ['cat', '/proc/self/environ'], ['cat', '/proc/1/environ'],
+    ])
+    def test_review_read_bypass_raises_before_execution(self, command):
+        result = subprocess.CompletedProcess(command, 0, stdout='', stderr='')
+        with patch('subprocess.run', return_value=result) as run, patch('subprocess.Popen') as popen:
+            popen.return_value.communicate.return_value = (b'', b'')
+            popen.return_value.returncode = 0
+            with pytest.raises(SecurityError, match="sensitive path"):
+                run_subprocess(command)
+            run.assert_not_called()
+            popen.assert_not_called()
 
     def test_allowed_command_succeeds(self):
         output = run_subprocess("echo hello")

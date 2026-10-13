@@ -22,6 +22,11 @@ from scripts.check_subprocess_safety import main, scan_file
     ('import subprocess as sp\nsp.getstatusoutput("cmd")', 'subprocess.getstatusoutput'),
     ('from subprocess import getoutput as run\nrun("cmd")', 'subprocess.getoutput'),
     ('from subprocess import getstatusoutput as run\nrun("cmd")', 'subprocess.getstatusoutput'),
+    ('import asyncio\nasyncio.create_subprocess_shell("cmd")', 'asyncio.create_subprocess_shell'),
+    ('import asyncio as aio\naio.create_subprocess_shell("cmd")', 'asyncio.create_subprocess_shell'),
+    ('from asyncio import create_subprocess_shell as run\nrun("cmd")', 'asyncio.create_subprocess_shell'),
+    ('from os import spawnlp as run\nrun(0, "sh", "sh", "-c", "cmd")', 'os.spawnlp'),
+    ('import os as platform\nplatform.execvp("sh", ["sh", "-c", "cmd"])', 'os.execvp'),
 ])
 def test_forbidden_call_fails_guard(tmp_path, capsys, source, label):
     path = tmp_path / 'module.py'
@@ -32,13 +37,24 @@ def test_forbidden_call_fails_guard(tmp_path, capsys, source, label):
     assert 'FAIL: 1 subprocess safety violation(s) in 1 files' in output
 
 
+@pytest.mark.parametrize('family', ['spawn', 'exec'])
+@pytest.mark.parametrize('suffix', ['l', 'le', 'lp', 'lpe', 'v', 've', 'vp', 'vpe'])
+def test_low_level_process_family_fails_guard(tmp_path, family, suffix):
+    path = tmp_path / 'module.py'
+    name = f'os.{family}{suffix}'
+    path.write_text(f'import os\n{name}(*args)')
+    assert scan_file(path) == [(2, f'{name} is forbidden; use argv execution')]
+
+
 def test_argv_calls_and_quoted_examples_pass_guard(tmp_path, capsys):
     path = tmp_path / 'module.py'
     path.write_text('''
 import subprocess as sp
+import asyncio as aio
 from subprocess import Popen
 sp.run(["echo", "ok"], shell=False)
 Popen(["echo", "ok"])
+aio.create_subprocess_exec("echo", "ok")
 # os.system("cmd")
 example = 'subprocess.run("cmd", shell=True)'
 ''')
