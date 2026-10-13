@@ -21,6 +21,14 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _VEST_VOTE_COLUMN_RE = re.compile(r"^G[0-9]{2}[A-Z]{4}[A-Z0-9]{3}$")
+_VEST_OFFICE_MAP = {
+    "PRE": "president",
+    "GOV": "governor",
+    "USS": "senate",
+    "USH": "house",
+    "SOS": "secretary_of_state",
+    "ATG": "attorney_general",
+}
 
 __all__ = [
     'RDHLoadResult',
@@ -198,10 +206,11 @@ class RDHLoaderService:
 
         Read VEST general-election columns (GYYEEEPNNN). Store the three-character
         alphanumeric candidate code in candidate_name; full surnames are not in
-        the file. Skip non-conforming year-prefixed columns with logged warnings
-        recorded in the result. Missing or blank vote cells count as zero. Totals
-        include every conforming candidate column in the office prefix,
-        including unrecognized parties.
+        the file. Skip non-conforming year-prefixed columns and columns with
+        unmapped offices with logged warnings recorded in the result. Missing
+        or blank vote cells count as zero. Totals include every conforming
+        candidate column in each mapped office prefix, including unrecognized
+        parties.
         Geometry is expected in WGS 84 (EPSG:4326).
 
         Parameters
@@ -224,9 +233,9 @@ class RDHLoaderService:
         Raises
         ------
         ValueError
-            If the state or precinct identifiers are invalid, a conforming
-            VEST column has an unsupported office, or no conforming vote columns
-            match election_year. Existing rows remain intact.
+            If the state or precinct identifiers are invalid, or no conforming
+            vote columns with mapped offices match election_year. Existing
+            rows remain intact.
         """
         from siege_utilities.geo.providers.redistricting_data_hub import fetch_precinct_results
         from siege_utilities.geo.django.models.boundaries import State
@@ -273,10 +282,16 @@ class RDHLoaderService:
                     f"Skipping non-conforming VEST vote column {col!r} for "
                     f"{state} {election_year}; expected {_VEST_VOTE_COLUMN_RE.pattern}"
                 )
-                logger.warning(warning)
-                result.warnings.append(warning)
+            elif col_upper[3:6] not in _VEST_OFFICE_MAP:
+                warning = (
+                    f"Skipping VEST vote column {col!r} for {state} {election_year}; "
+                    f"unmapped office {col_upper[3:6]!r}"
+                )
+            else:
+                vote_cols.append(col)
                 continue
-            vote_cols.append(col)
+            logger.warning(warning)
+            result.warnings.append(warning)
         if not vote_cols:
             raise ValueError(f"No VEST vote columns for election year {election_year}")
         parsed_cols = {col: self._parse_vote_column(col) for col in vote_cols}
@@ -558,19 +573,11 @@ class RDHLoaderService:
         col_upper = col.upper()
         if _VEST_VOTE_COLUMN_RE.fullmatch(col_upper) is None:
             raise ValueError(f"Invalid VEST vote column: {col!r}; expected GYYEEEPNNN")
-        office_map = {
-            "PRE": "president",
-            "GOV": "governor",
-            "USS": "senate",
-            "USH": "house",
-            "SOS": "secretary_of_state",
-            "ATG": "attorney_general",
-        }
         office_code = col_upper[3:6]
-        if office_code not in office_map:
+        if office_code not in _VEST_OFFICE_MAP:
             raise ValueError(f"Unsupported VEST office {office_code!r} in column {col!r}")
         party_map = {"D": "DEM", "R": "REP", "L": "LIB", "G": "GRN", "I": "IND"}
-        return party_map.get(col_upper[6], "OTHER"), office_map[office_code]
+        return party_map.get(col_upper[6], "OTHER"), _VEST_OFFICE_MAP[office_code]
 
     @staticmethod
     def _state_abbr_to_fips(abbr: str) -> str:

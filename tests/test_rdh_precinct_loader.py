@@ -233,13 +233,41 @@ class TestPrecinctLoading:
         assert not results.filter(candidate_name="WRI").exists()
         assert PrecinctElectionResult.objects.filter(pk__in=unrelated, votes=9).count() == 3
 
-    def test_unsupported_vote_column_office_raises(self, loader, precinct_data):
-        precinct_data["G20XYZDABC"] = [1, 2]
-        with pytest.raises(ValueError, match="Unsupported VEST office 'XYZ'"):
-            loader.load_precinct_results("VA", 2020)
-        assert not PrecinctElectionResult.objects.exists()
+    @pytest.mark.parametrize(
+        "column,office_code",
+        [("G20TREDABC", "TRE"), ("g20audrdef", "AUD"), ("G20XYZDABC", "XYZ")],
+    )
+    def test_unmapped_office_column_is_skipped_and_warned_without_losing_votes(
+        self, loader, precinct_data, caplog, column, office_code
+    ):
+        """Under #1592 and SU-1, an unmapped office is an observable omission."""
+        precinct_data[column] = [1, 2]
 
-    @pytest.mark.parametrize("remaining_column", ["OTHER_COLUMN", "G20PRE_TOTAL"])
+        with caplog.at_level(logging.WARNING, logger=RDHLoaderService.__module__):
+            result = loader.load_precinct_results("VA", 2020)
+
+        assert result.success
+        assert result.errors == []
+        assert result.records_created == 6
+        assert len(result.warnings) == 1
+        warning = result.warnings[0]
+        assert f"Skipping VEST vote column {column!r}" in warning
+        assert f"unmapped office {office_code!r}" in warning
+        assert "VA 2020" in warning
+        assert (RDHLoaderService.__module__, logging.WARNING, warning) in caplog.record_tuples
+        assert list(
+            PrecinctElectionResult.objects.order_by("precinct_id", "candidate_name")
+            .values_list("precinct_id", "office", "candidate_name", "votes", "total_votes")
+        ) == [
+            ("001", "president", "BID", 100, 185),
+            ("001", "president", "TRU", 80, 185),
+            ("001", "president", "WRI", 5, 185),
+            ("002", "president", "BID", 20, 50),
+            ("002", "president", "TRU", 30, 50),
+            ("002", "president", "WRI", 0, 50),
+        ]
+
+    @pytest.mark.parametrize("remaining_column", ["OTHER_COLUMN", "G20PRE_TOTAL", "G20TREDABC"])
     def test_missing_year_columns_raises_and_preserves_previous_load(
         self, loader, precinct_data, remaining_column
     ):
@@ -330,6 +358,12 @@ class TestPrecinctLoading:
 def test_malformed_vote_column_parser_raises(column):
     with pytest.raises(ValueError, match="Invalid VEST vote column"):
         RDHLoaderService._parse_vote_column(column)
+
+
+def test_unsupported_vote_column_office_parser_raises():
+    """The parser retains its invariant; batch discovery skips unmapped offices."""
+    with pytest.raises(ValueError, match="Unsupported VEST office 'XYZ' in column 'G20XYZDABC'"):
+        RDHLoaderService._parse_vote_column("G20XYZDABC")
 
 
 def test_precinct_unique_constraint_migration_state_matches_model():
