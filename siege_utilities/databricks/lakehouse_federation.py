@@ -75,7 +75,9 @@ def build_foreign_table_sql(
     # source_ref goes inside a single-quoted SQL string literal. Even
     # though the identifier validator already rejects single quotes,
     # escape defensively in case a future relaxation allows them.
-    source_ref = escape_sql_string_literal(f"{source_schema}.{resolved_source}")
+    source_ref = escape_sql_string_literal(
+        f"{source_schema}.{resolved_source}", dialect="databricks"
+    )
     return (
         f"CREATE FOREIGN TABLE IF NOT EXISTS {fq_table}\n"
         f"USING CONNECTION {quote_ident(connection_name)}\n"

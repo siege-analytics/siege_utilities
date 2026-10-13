@@ -1684,7 +1684,7 @@ class SparkEngine(DataFrameEngine):
         df.createOrReplaceTempView(lv)
         if isinstance(other, (BaseGeometry, str)):
             wkt_str = other.wkt if isinstance(other, BaseGeometry) else other
-            wkt_escaped = escape_string_literal(wkt_str)
+            wkt_escaped = escape_string_literal(wkt_str, dialect="spark")
             sql = (
                 f"SELECT *, ST_Distance(ST_GeomFromText({geometry_col}), "
                 f"ST_GeomFromText('{wkt_escaped}')) AS _distance FROM {lv}"

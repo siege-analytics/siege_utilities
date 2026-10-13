@@ -189,21 +189,37 @@ def escape_sql_string_literal(value: str, *, dialect: str = "standard") -> str:
       re-import -- defensive escaping in case the row data is later
       hand-edited.
 
-    The escape rule is the SQL standard: replace ``'`` with ``''``. For
-    MySQL (``dialect="mysql"``), backslashes are also doubled because
-    MySQL treats ``\\`` as an escape character by default
-    (``NO_BACKSLASH_ESCAPES`` off).
+    The ``standard`` dialect replaces ``'`` with ``''`` and leaves
+    backslashes unchanged, as required by PostgreSQL with
+    ``standard_conforming_strings=on``. Do not use it for Spark SQL.
+    The ``spark``, ``hive``, ``databricks``, ``snowflake`` and ``mysql``
+    dialects double backslashes, then backslash-escape single quotes.
+    These require backslash escapes to be enabled (Spark's default
+    ``spark.sql.parser.escapedStringLiterals=false``; MySQL's
+    ``NO_BACKSLASH_ESCAPES`` off).
 
     NUL bytes are rejected -- most drivers refuse to send them anyway
     and they can split a query in C-string-aware backends.
 
-    Args:
-        value: The string to escape.
-        dialect: ``"standard"`` (default) or ``"mysql"``.
+    Parameters
+    ----------
+    value : str
+        The string to escape.
+    dialect : str, optional
+        ``"standard"`` (default), ``"spark"``, ``"hive"``,
+        ``"databricks"``, ``"snowflake"`` or ``"mysql"`` (case-insensitive).
 
-    Raises:
-        TypeError: *value* is not a string.
-        ValueError: *value* contains a NUL byte or *dialect* is unknown.
+    Returns
+    -------
+    str
+        Escaped content, without surrounding single quotes.
+
+    Raises
+    ------
+    TypeError
+        *value* is not a string.
+    ValueError
+        *value* contains a NUL byte or *dialect* is unknown.
     """
     if not isinstance(value, str):
         raise TypeError(
@@ -213,7 +229,7 @@ def escape_sql_string_literal(value: str, *, dialect: str = "standard") -> str:
         raise ValueError("escape_sql_string_literal: NUL byte in string literal")
 
     dialect_lower = dialect.lower()
-    if dialect_lower == "mysql":
+    if dialect_lower in {"spark", "hive", "databricks", "snowflake", "mysql"}:
         value = value.replace("\\", "\\\\")
         return value.replace("'", "\\'")
     if dialect_lower == "standard":
