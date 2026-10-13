@@ -47,21 +47,31 @@ def test_district_geoid_constraint_accepts_tiger_codes(model, geoid):
 @pytest.mark.parametrize(
     "model,geoid",
     [
+        (CongressionalDistrict, "26zz"),
+        (StateLegislativeUpper, "0200a"),
+        (StateLegislativeLower, "2701a"),
+    ],
+)
+def test_district_geoid_constraint_accepts_lowercase_codes(model, geoid):
+    """Uppercase examples do not establish a Census letter-case restriction."""
+    assert re.fullmatch(_geoid_pattern(model), geoid)
+
+
+@pytest.mark.parametrize(
+    "model,geoid",
+    [
         (CongressionalDistrict, "260"),
         (CongressionalDistrict, "26001"),
         (CongressionalDistrict, "2AZZ"),
-        (CongressionalDistrict, "26zz"),
         (CongressionalDistrict, "261-"),
         (CongressionalDistrict, "26_1"),
         (StateLegislativeUpper, "020A"),
         (StateLegislativeUpper, "02000A"),
         (StateLegislativeUpper, "0A00A"),
-        (StateLegislativeUpper, "0200a"),
         (StateLegislativeUpper, "020_A"),
         (StateLegislativeLower, "271A"),
         (StateLegislativeLower, "27001A"),
         (StateLegislativeLower, "2A01A"),
-        (StateLegislativeLower, "2701a"),
         (StateLegislativeLower, "2701!"),
     ],
 )

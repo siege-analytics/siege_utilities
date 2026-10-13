@@ -9,10 +9,10 @@ Census 2025 Geographic Reference Files Legal Values, PDF p. 9, lists
 CDCURFP codes including ZZ and permits alphanumeric characters plus dash
 for SLDUST/SLDLST, including ZZZ (unassigned districts):
 https://www2.census.gov/geo/pdfs/maps-data/data/2025GRF_legal_values.pdf
-Thus hyphens belong in SLD codes, but not CD codes. Uppercase follows the
-published district-code convention; these references do not explicitly
-state a letter-case restriction for SLD codes. These checks enforce the
-GEOID shape, not the set of district numbers assigned in a given vintage.
+Thus hyphens belong in SLD codes, but not CD codes. These references do not
+specify uppercase-only codes. Accept both ASCII letter cases rather than
+infer a restriction from uppercase examples, as in 0013. These checks
+enforce the GEOID shape, not the district numbers assigned in a given vintage.
 
 Each constraint swap is one ALTER TABLE with NOT VALID. A separate
 VALIDATE CONSTRAINT scans existing rows after releasing ACCESS EXCLUSIVE;
@@ -49,7 +49,7 @@ class Migration(migrations.Migration):
                 DROP CONSTRAINT IF EXISTS "cd_geoid_4_digits",
                 DROP CONSTRAINT IF EXISTS "cd_geoid_format",
                 ADD CONSTRAINT "cd_geoid_format"
-                CHECK ("geoid" ~ '^\d{2}[0-9A-Z]{2}$') NOT VALID
+                CHECK ("geoid" ~ '^\d{2}[0-9A-Za-z]{2}$') NOT VALID
             """,
             reverse_sql=r"""
                 ALTER TABLE "siege_geo_congressionaldistrict"
@@ -66,7 +66,7 @@ class Migration(migrations.Migration):
                 migrations.AddConstraint(
                     model_name="congressionaldistrict",
                     constraint=models.CheckConstraint(
-                        condition=models.Q(geoid__regex=r"^\d{2}[0-9A-Z]{2}$"),
+                        condition=models.Q(geoid__regex=r"^\d{2}[0-9A-Za-z]{2}$"),
                         name="cd_geoid_format",
                     ),
                 ),
@@ -92,7 +92,7 @@ class Migration(migrations.Migration):
                 DROP CONSTRAINT IF EXISTS "sldu_geoid_5_digits",
                 DROP CONSTRAINT IF EXISTS "sldu_geoid_format",
                 ADD CONSTRAINT "sldu_geoid_format"
-                CHECK ("geoid" ~ '^\d{2}[0-9A-Z-]{3}$') NOT VALID
+                CHECK ("geoid" ~ '^\d{2}[0-9A-Za-z-]{3}$') NOT VALID
             """,
             reverse_sql=r"""
                 ALTER TABLE "siege_geo_statelegislativeupper"
@@ -109,7 +109,7 @@ class Migration(migrations.Migration):
                 migrations.AddConstraint(
                     model_name="statelegislativeupper",
                     constraint=models.CheckConstraint(
-                        condition=models.Q(geoid__regex=r"^\d{2}[0-9A-Z-]{3}$"),
+                        condition=models.Q(geoid__regex=r"^\d{2}[0-9A-Za-z-]{3}$"),
                         name="sldu_geoid_format",
                     ),
                 ),
@@ -135,7 +135,7 @@ class Migration(migrations.Migration):
                 DROP CONSTRAINT IF EXISTS "sldl_geoid_5_digits",
                 DROP CONSTRAINT IF EXISTS "sldl_geoid_format",
                 ADD CONSTRAINT "sldl_geoid_format"
-                CHECK ("geoid" ~ '^\d{2}[0-9A-Z-]{3}$') NOT VALID
+                CHECK ("geoid" ~ '^\d{2}[0-9A-Za-z-]{3}$') NOT VALID
             """,
             reverse_sql=r"""
                 ALTER TABLE "siege_geo_statelegislativelower"
@@ -152,7 +152,7 @@ class Migration(migrations.Migration):
                 migrations.AddConstraint(
                     model_name="statelegislativelower",
                     constraint=models.CheckConstraint(
-                        condition=models.Q(geoid__regex=r"^\d{2}[0-9A-Z-]{3}$"),
+                        condition=models.Q(geoid__regex=r"^\d{2}[0-9A-Za-z-]{3}$"),
                         name="sldl_geoid_format",
                     ),
                 ),
