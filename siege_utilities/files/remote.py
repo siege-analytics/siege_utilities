@@ -9,6 +9,8 @@ import platform
 from pathlib import Path
 from typing import Union
 
+from siege_utilities.core._http import redact_url_secrets
+
 try:
     import requests
     REQUESTS_AVAILABLE = True
@@ -45,7 +47,7 @@ def _safe_content_length(response) -> int:
     try:
         return int(raw)
     except (ValueError, TypeError):
-        log.warning("Malformed Content-Length header: %r", raw)
+        log.warning("Malformed Content-Length header: %r", redact_url_secrets(str(raw)))
         return 0
 
 def _get_ssl_verify_path():
@@ -258,7 +260,7 @@ def generate_local_path_from_url(url: str, directory_path: FilePath,
     remote_filename = parsed_url.path.split('/')[-1]
 
     if not remote_filename:
-        raise ValueError(f"Could not extract filename from URL: {url}")
+        raise ValueError(redact_url_secrets(f"Could not extract filename from URL: {url}"))
 
     try:
         from siege_utilities.files.validation import validate_directory_path
@@ -269,7 +271,7 @@ def generate_local_path_from_url(url: str, directory_path: FilePath,
     dir_path.mkdir(parents=True, exist_ok=True)
 
     local_path = dir_path / remote_filename
-    log.info(f'Generated local path: {local_path}')
+    log.info(redact_url_secrets(f'Generated local path: {local_path}'))
 
     if as_string:
         return str(local_path)
@@ -312,7 +314,7 @@ def download_file_with_retry(url: str, local_filename: FilePath,
     for attempt in range(max_retries + 1):
         try:
             if attempt > 0:
-                log.info(f'Retry attempt {attempt}/{max_retries} for {url}')
+                log.info(redact_url_secrets(f'Retry attempt {attempt}/{max_retries} for {url}'))
                 time.sleep(retry_delay)
 
             return download_file(url, local_filename, **kwargs)
@@ -320,12 +322,12 @@ def download_file_with_retry(url: str, local_filename: FilePath,
         except requests.exceptions.SSLError:
             raise
         except (OSError, ConnectionError, ValueError) as e:
-            log.warning(f'Download attempt {attempt + 1} failed: {e}')
-            last_error = e
+            log.warning(redact_url_secrets(f'Download attempt {attempt + 1} failed: {e}'))
+            last_error = ConnectionError(redact_url_secrets(str(e)))
 
-    raise ConnectionError(
+    raise ConnectionError(redact_url_secrets(
         f"Download failed after {max_retries + 1} attempts for {url}"
-    ) from last_error
+    )) from last_error
 
 def get_file_info(url: str, timeout: int = 10) -> dict:
     """
@@ -349,14 +351,20 @@ def get_file_info(url: str, timeout: int = 10) -> dict:
     """
     _check_requests_dependency()
 
-    log.debug(f'Getting file info for {url}')
+    log.debug(redact_url_secrets(f'Getting file info for {url}'))
 
-    response = requests.head(url, timeout=timeout, allow_redirects=True)
+    error = None
+    try:
+        response = requests.head(url, timeout=timeout, allow_redirects=True)
+    except requests.exceptions.RequestException as exc:
+        error = type(exc)(redact_url_secrets(str(exc)))
+    if error is not None:
+        raise error from None
 
     if not response.ok:
-        raise ConnectionError(
+        raise ConnectionError(redact_url_secrets(
             f"Failed to get file info: HTTP {response.status_code} for {url}"
-        )
+        ))
 
     info = {
         'url': url,
@@ -366,7 +374,7 @@ def get_file_info(url: str, timeout: int = 10) -> dict:
         'etag': response.headers.get('etag')
     }
 
-    log.debug(f'File info for {url}: {info}')
+    log.debug(redact_url_secrets(f'File info for {url}: {info}'))
     return info
 
 def is_downloadable(url: str, timeout: int = 10) -> bool:
@@ -391,13 +399,15 @@ def is_downloadable(url: str, timeout: int = 10) -> bool:
         if info['size'] > 0:
             return True
     except (ConnectionError, OSError, ValueError) as exc:
-        log.warning("is_downloadable: file info check failed for %s: %s", url, exc)
+        log.warning("is_downloadable: file info check failed for %s: %s",
+                    redact_url_secrets(url), redact_url_secrets(str(exc)))
 
     try:
         response = requests.get(url, stream=True, timeout=timeout)
         return response.ok
     except (OSError, ValueError) as exc:
-        log.warning("is_downloadable: GET request failed for %s: %s", url, exc)
+        log.warning("is_downloadable: GET request failed for %s: %s",
+                    redact_url_secrets(url), redact_url_secrets(str(exc)))
         return False
 
 __all__ = [

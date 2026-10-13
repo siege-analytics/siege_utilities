@@ -253,7 +253,8 @@ class CensusAPI:
                     time.sleep(2 ** attempt)
                 elif isinstance(e, ValueError):
                     log.error(redact_url_secrets(f"Failed to parse API response: {e}"))
-                    raise CensusAPIError(redact_url_secrets(f"Invalid API response: {e}")) from None
+                    last_exception = CensusAPIError(redact_url_secrets(f"Invalid API response: {e}"))
+                    break
                 else:
                     raise
 

@@ -327,11 +327,15 @@ class RDHClient:
         if year:
             params["year"] = str(year)
 
+        error = None
         try:
             resp = self._session.get(self.base_url, params=params, timeout=60)
             resp.raise_for_status()
         except requests.RequestException as e:
-            raise ConnectionError(redact_url_secrets(f"RDH API request failed: {e}")) from None
+            error = ConnectionError(redact_url_secrets(f"RDH API request failed: {e}"))
+        if error is not None:
+            # Raising outside the handler avoids retaining the credential-bearing context.
+            raise error from None
 
         raw_data = resp.json()
         # The RDH WP API returns error envelopes as HTTP 200 with a
@@ -450,6 +454,7 @@ class RDHClient:
             return dest
 
         log_info(redact_url_secrets(f"RDH: Downloading {filename}..."))
+        error = None
         try:
             resp = self._session.get(
                 url, params=self._auth_params(url), timeout=300, stream=True
@@ -462,8 +467,10 @@ class RDHClient:
         except requests.RequestException as e:
             message = redact_url_secrets(f"RDH download failed: {e}")
             log_error(message)
-            e.args = (message,)
-            raise e from None
+            error = type(e)(message)
+        if error is not None:
+            # A fresh exception drops request/response URLs and suppressed context.
+            raise error from None
 
         log_info(redact_url_secrets(f"RDH: Saved {filename} ({dest.stat().st_size:,} bytes)"))
 

@@ -411,10 +411,11 @@ class InstagramConnector:
             try:
                 return resp.json()
             except ValueError:
-                raise SocialMediaError(
+                error = SocialMediaError(
                     f"Instagram API returned non-JSON response on {method} {safe_url}: "
                     f"{redact_url_secrets(resp.text)[:200]!r}"
-                ) from None
+                )
+            raise error from None
 
         raise SocialMediaError(
             f"Instagram API {method} {safe_url} failed after {self._retry_attempts} "

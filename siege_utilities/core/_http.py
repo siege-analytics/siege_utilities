@@ -6,6 +6,7 @@ from urllib.parse import unquote_plus
 
 _SENSITIVE_QUERY_PARAMS = frozenset({
     "key", "password", "access_token", "token", "sig", "client_secret",
+    "apikey", "api_key", "secret", "x-amz-signature", "auth",
 })
 _QUERY_PARAM = re.compile(r"([?&])([^=&#\s'\"<>]+)=([^&#\s'\"<>]*)")
 
