@@ -20,6 +20,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_VEST_VOTE_COLUMN_RE = re.compile(r"^G[0-9]{2}[A-Z]{4}[A-Z0-9]{3}$")
+
 __all__ = [
     'RDHLoadResult',
     'RDHLoaderService',
@@ -28,13 +30,14 @@ __all__ = [
 
 @dataclass
 class RDHLoadResult:
-    """Result of an RDH load operation."""
+    """Result of an RDH load operation; warnings describe recoverable omissions."""
 
     operation: str
     records_created: int = 0
     records_updated: int = 0
     records_skipped: int = 0
     errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     @property
     def total_processed(self) -> int:
@@ -193,10 +196,12 @@ class RDHLoaderService:
     ) -> RDHLoadResult:
         """Replace the RDH precinct results for one state and election year.
 
-        Read VEST general-election columns (GYYEEEPNNN). Store the three-letter
-        candidate code in candidate_name; full surnames are not in the file.
-        Missing or blank vote cells count as zero. Totals include every
-        candidate in the office prefix, including unrecognized parties.
+        Read VEST general-election columns (GYYEEEPNNN). Store the three-character
+        alphanumeric candidate code in candidate_name; full surnames are not in
+        the file. Skip non-conforming year-prefixed columns with logged warnings
+        recorded in the result. Missing or blank vote cells count as zero. Totals
+        include every conforming candidate column in the office prefix,
+        including unrecognized parties.
         Geometry is expected in WGS 84 (EPSG:4326).
 
         Parameters
@@ -213,13 +218,15 @@ class RDHLoaderService:
         Returns
         -------
         RDHLoadResult
-            Number of replacement rows created, or errors if RDH has no file.
+            Number of replacement rows created, warnings for skipped columns,
+            or errors if RDH has no file. Warnings do not mark the load failed.
 
         Raises
         ------
         ValueError
-            If the state, precinct identifiers, or VEST columns are invalid,
-            or no results match election_year. Existing rows remain intact.
+            If the state or precinct identifiers are invalid, a conforming
+            VEST column has an unsupported office, or no conforming vote columns
+            match election_year. Existing rows remain intact.
         """
         from siege_utilities.geo.providers.redistricting_data_hub import fetch_precinct_results
         from siege_utilities.geo.django.models.boundaries import State
@@ -256,10 +263,20 @@ class RDHLoaderService:
             raise ValueError("Duplicate precinct identifiers in RDH results")
 
         year_prefix = f"G{election_year % 100:02d}"
-        vote_cols = [
-            c for c in gdf.columns
-            if c.upper().startswith(year_prefix)
-        ]
+        vote_cols = []
+        for col in gdf.columns:
+            col_upper = col.upper()
+            if not col_upper.startswith(year_prefix):
+                continue
+            if _VEST_VOTE_COLUMN_RE.fullmatch(col_upper) is None:
+                warning = (
+                    f"Skipping non-conforming VEST vote column {col!r} for "
+                    f"{state} {election_year}; expected {_VEST_VOTE_COLUMN_RE.pattern}"
+                )
+                logger.warning(warning)
+                result.warnings.append(warning)
+                continue
+            vote_cols.append(col)
         if not vote_cols:
             raise ValueError(f"No VEST vote columns for election year {election_year}")
         parsed_cols = {col: self._parse_vote_column(col) for col in vote_cols}
@@ -539,7 +556,7 @@ class RDHLoaderService:
     def _parse_vote_column(col: str) -> tuple[str, str]:
         """Parse a VEST GYYEEEPNNN column into (party, office)."""
         col_upper = col.upper()
-        if re.fullmatch(r"G[0-9]{2}[A-Z]{7}", col_upper) is None:
+        if _VEST_VOTE_COLUMN_RE.fullmatch(col_upper) is None:
             raise ValueError(f"Invalid VEST vote column: {col!r}; expected GYYEEEPNNN")
         office_map = {
             "PRE": "president",

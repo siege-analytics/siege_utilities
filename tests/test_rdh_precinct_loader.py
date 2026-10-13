@@ -1,5 +1,7 @@
 """Behavioral regressions for #1592, using the real ORM and PostGIS."""
 
+import logging
+
 import geopandas as gpd
 import pandas as pd
 import pytest
@@ -109,6 +111,59 @@ class TestPrecinctLoading:
         assert senate.vote_share == 0.4
         assert (write_in.party, write_in.votes) == ("OTHER", 5)
 
+    def test_digit_bearing_candidate_code_loads_with_positional_party_and_office(
+        self, loader, precinct_data
+    ):
+        precinct_data["G20USSDSM2"] = [10, 5]
+        precinct_data["G20USSDWAR"] = [15, 5]
+
+        result = loader.load_precinct_results("VA", 2020)
+
+        assert result.success
+        assert result.warnings == []
+        assert result.records_created == 10
+        assert list(
+            PrecinctElectionResult.objects.filter(office="senate")
+            .order_by("precinct_id", "candidate_name")
+            .values_list("precinct_id", "party", "candidate_name", "votes", "total_votes")
+        ) == [
+            ("001", "DEM", "SM2", 10, 25),
+            ("001", "DEM", "WAR", 15, 25),
+            ("002", "DEM", "SM2", 5, 10),
+            ("002", "DEM", "WAR", 5, 10),
+        ]
+        smith = PrecinctElectionResult.objects.get(precinct_id="001", candidate_name="SM2")
+        assert smith.vote_share == 0.4
+
+    @pytest.mark.parametrize("column", ["G20PREDEM", "G20XYZZZZZZ", "G20PRE_TOTAL"])
+    def test_non_conforming_year_column_is_skipped_and_warned_without_losing_votes(
+        self, loader, precinct_data, caplog, column
+    ):
+        precinct_data[column] = ["not a vote", 9000]
+
+        with caplog.at_level(logging.WARNING, logger=RDHLoaderService.__module__):
+            result = loader.load_precinct_results("VA", 2020)
+
+        assert result.success
+        assert result.errors == []
+        assert result.records_created == 6
+        assert len(result.warnings) == 1
+        warning = result.warnings[0]
+        assert f"Skipping non-conforming VEST vote column {column!r}" in warning
+        assert "VA 2020" in warning
+        assert (RDHLoaderService.__module__, logging.WARNING, warning) in caplog.record_tuples
+        assert list(
+            PrecinctElectionResult.objects.order_by("precinct_id", "candidate_name")
+            .values_list("precinct_id", "candidate_name", "votes", "total_votes")
+        ) == [
+            ("001", "BID", 100, 185),
+            ("001", "TRU", 80, 185),
+            ("001", "WRI", 5, 185),
+            ("002", "BID", 20, 50),
+            ("002", "TRU", 30, 50),
+            ("002", "WRI", 0, 50),
+        ]
+
     @pytest.mark.parametrize("missing", [float("nan"), None, pd.NA, "", "  "])
     def test_missing_vote_cell_is_zero_without_losing_other_votes(
         self, loader, precinct_data, missing
@@ -178,22 +233,19 @@ class TestPrecinctLoading:
         assert not results.filter(candidate_name="WRI").exists()
         assert PrecinctElectionResult.objects.filter(pk__in=unrelated, votes=9).count() == 3
 
-    @pytest.mark.parametrize(
-        "column,message",
-        [
-            ("G20PREDEM", "Invalid VEST vote column"),
-            ("G20XYZDABC", "Unsupported VEST office 'XYZ'"),
-        ],
-    )
-    def test_invalid_vote_column_raises(self, loader, precinct_data, column, message):
-        precinct_data[column] = [1, 2]
-        with pytest.raises(ValueError, match=message):
+    def test_unsupported_vote_column_office_raises(self, loader, precinct_data):
+        precinct_data["G20XYZDABC"] = [1, 2]
+        with pytest.raises(ValueError, match="Unsupported VEST office 'XYZ'"):
             loader.load_precinct_results("VA", 2020)
         assert not PrecinctElectionResult.objects.exists()
 
-    def test_missing_year_columns_raises_and_preserves_previous_load(self, loader, precinct_data):
+    @pytest.mark.parametrize("remaining_column", ["OTHER_COLUMN", "G20PRE_TOTAL"])
+    def test_missing_year_columns_raises_and_preserves_previous_load(
+        self, loader, precinct_data, remaining_column
+    ):
         loader.load_precinct_results("VA", 2020)
         precinct_data.drop(columns=["G20PREDBID", "G20PRERTRU", "G20PREOWRI"], inplace=True)
+        precinct_data[remaining_column] = [185, 50]
         with pytest.raises(ValueError, match="No VEST vote columns for election year 2020"):
             loader.load_precinct_results("VA", 2020)
         assert PrecinctElectionResult.objects.aggregate(total=Sum("votes"))["total"] == 235
@@ -272,6 +324,12 @@ class TestPrecinctLoading:
         ):
             PrecinctElectionResult.objects.create(**fields)
         assert PrecinctElectionResult.objects.count() == 1
+
+
+@pytest.mark.parametrize("column", ["G20PREDEM", "G20PR1DBID", "G20PRE1BID"])
+def test_malformed_vote_column_parser_raises(column):
+    with pytest.raises(ValueError, match="Invalid VEST vote column"):
+        RDHLoaderService._parse_vote_column(column)
 
 
 def test_precinct_unique_constraint_migration_state_matches_model():
