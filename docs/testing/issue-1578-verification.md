@@ -27,9 +27,9 @@ Interpreter: /Users/dheerajchand/.pyenv/versions/default_31111/bin/python
 
 ```text
 python -m pytest tests/test_stage_boundaries_s3.py tests/test_stage_boundaries_s3_errors.py --no-cov -q
-Fixed implementation: 21 passed
-Stashed implementation, identical to v4.0.0: 15 failed, 6 passed
-Restored implementation: 21 passed
+Fixed implementation: 22 passed
+v4.0.0 implementation: 15 failed, 7 passed
+Restored implementation: 22 passed
 ```
 
 A separate baseline run isolated the core regressions from ancillary
@@ -38,7 +38,7 @@ Parquet/error-path checks:
 ```text
 python -m pytest tests/test_stage_boundaries_s3.py --no-cov -q --tb=no \
   -k 'no_flags or endpoint_default or credential_flags or environment_chain or shared_profile or default_aws_endpoint or serializes_before'
-v4.0.0: 11 failed, 9 deselected
+v4.0.0: 11 failed (trimmed)
 ```
 
 The core test names are:
@@ -54,7 +54,8 @@ The core test names are:
 The bounded-consumption test refuses to yield the next batch until the
 first has been serialized. Output tests read real Parquet and GeoJSON,
 including a null-geometry first batch and a partial final batch. Error
-checks cover missing dependencies, database interruption, upload credential
+checks directly trigger optional import handlers, missing dependencies,
+database interruption, upload credential
 failure, and bucket-creation denial. AWS sessions are real but isolated;
 no live S3 service or database is contacted.
 

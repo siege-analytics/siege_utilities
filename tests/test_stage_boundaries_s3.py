@@ -3,6 +3,7 @@
 import argparse
 import builtins
 import json
+import runpy
 from contextlib import closing
 from pathlib import Path
 from unittest.mock import create_autospec
@@ -284,10 +285,19 @@ def test_upload_error_propagates_and_removes_temporary_files(command, export_set
     assert all(not path.exists() for path in s3.sources)
 
 
-def test_handle_raises_when_geopandas_missing(command, monkeypatch):
-    monkeypatch.setattr(stage, "gpd", None)
-    with pytest.raises(CommandError, match="geopandas is required.*siege_utilities"):
-        command.handle()
+@pytest.mark.parametrize("dependency", ["boto3", "geopandas"])
+def test_optional_import_error_raises_with_install_hint(monkeypatch, dependency):
+    original_import = builtins.__import__
+
+    def missing_dependency(name, *args, **kwargs):
+        if name == dependency:
+            raise ImportError(f"test: {dependency} unavailable")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", missing_dependency)
+    isolated_module = runpy.run_path(stage.__file__)
+    with pytest.raises(CommandError, match=f"{dependency} is required.*siege_utilities"):
+        isolated_module["Command"]().handle()
 
 
 def test_parquet_dependency_error_has_install_hint(command, export_setup, monkeypatch):
