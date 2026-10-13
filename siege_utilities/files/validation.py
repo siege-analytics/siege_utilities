@@ -28,13 +28,14 @@ class PathSecurityError(Exception):
     pass
 
 
-# Sensitive system paths that should never be accessed
+# Sensitive system paths, subject to the /dev and /root exceptions below.
 SENSITIVE_PATHS = {
     # Unix/Linux sensitive files
     '/etc/passwd',
     '/etc/shadow',
     '/etc/sudoers',
     '/etc/ssh',
+    '/root',
     '/root/.bash_history',
     '/root/.zsh_history',
     '/var/log/auth.log',
@@ -54,9 +55,7 @@ SENSITIVE_PATHS = {
     # Kernel and system
     '/proc',
     '/sys',
-    '/dev/mem',
-    '/dev/kmem',
-    '/dev/port',
+    '/dev',
 
     # macOS specific
     '/System',
@@ -104,15 +103,27 @@ def is_path_traversal_attempt(path: FilePath) -> bool:
     )
 
 
-def is_sensitive_path(path: FilePath) -> bool:
+def is_sensitive_path(path: FilePath, base_directory: Optional[FilePath] = None) -> bool:
     """
     Check if a path points to or contains a sensitive system location.
 
-    Args:
-        path: Path to check
+    Under /dev, only /dev/shm and its descendants and the exact pseudo-devices
+    /dev/null, /dev/zero, /dev/random, and /dev/urandom escape the directory ban.
+    The /root tree is blocked unless the resolved cwd or base_directory is
+    exactly /root. Other sensitive-path checks still apply in both cases.
 
-    Returns:
-        True if path is sensitive
+    Parameters
+    ----------
+    path : str or Path
+        Path to check, resolved before applying the blocklist.
+    base_directory : str or Path, optional
+        Operating base for the /root exception; this function does not enforce
+        containment. Relative paths still resolve against the cwd.
+
+    Returns
+    -------
+    bool
+        True if the path is sensitive or cannot be resolved.
 
     Example:
         >>> is_sensitive_path("/etc/passwd")
@@ -131,6 +142,20 @@ def is_sensitive_path(path: FilePath) -> bool:
 
             # Exact match or parent directory
             if path_str == sensitive_resolved or path_str.startswith(sensitive_resolved + os.sep):
+                if sensitive == '/dev' and (
+                    path_str in {'/dev/null', '/dev/zero', '/dev/random', '/dev/urandom'}
+                    or path_obj == Path('/dev/shm')
+                    or Path('/dev/shm') in path_obj.parents
+                ):
+                    continue
+                if sensitive == '/root' and (
+                    Path.cwd().resolve() == Path('/root')
+                    or (
+                        base_directory is not None
+                        and Path(base_directory).resolve() == Path('/root')
+                    )
+                ):
+                    continue
                 return True
 
         # Check for .ssh anywhere in path
@@ -164,6 +189,8 @@ def validate_safe_path(path: FilePath,
     Without base_directory, the blocklist is not a sandbox: absolute paths
     outside the listed sensitive locations are allowed by default. Supply
     a trusted base for untrusted paths. Percent sequences are kept literal.
+    The /dev and /root exceptions follow is_sensitive_path, including the
+    requirement that the resolved cwd or base equal /root for its tree exception.
     Checks describe the filesystem at validation time; they do not prevent
     concurrent symlink changes between validation and a subsequent operation.
 
@@ -230,7 +257,7 @@ def validate_safe_path(path: FilePath,
         resolved_path = path_obj.resolve()
 
         # Check if resolved path is sensitive
-        if is_sensitive_path(resolved_path):
+        if is_sensitive_path(resolved_path, base_directory=base_directory):
             raise PathSecurityError(
                 f"Access to sensitive path blocked: {resolved_path}"
             )

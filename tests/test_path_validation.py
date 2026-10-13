@@ -324,3 +324,88 @@ class TestPathSafetyProtection:
         with pytest.raises(ValueError, match="Invalid path: data.csv - cannot resolve path") as exc:
             validate_safe_path("data.csv")
         assert isinstance(exc.value.__cause__, error_type)
+
+
+class TestSensitivePathCarveOuts:
+    """Default-deny regressions and container compatibility controls."""
+
+    @pytest.mark.parametrize("path", [
+        "/dev", "/dev/sda", "/dev/nvme0n1", "/dev/disk0", "/dev/tty",
+        "/dev/shm-backup/x", "/dev/null/x", "/dev/urandom-backup",
+    ])
+    def test_unlisted_dev_path_raises_without_base(self, path):
+        with pytest.raises(PathSecurityError, match="Access to sensitive path blocked"):
+            validate_safe_path(path)
+        assert is_sensitive_path(path) is True
+
+    @pytest.mark.parametrize("path", [
+        "/dev/shm", "/dev/shm/x", "/dev/shm/subdir/data.csv",
+        "/dev/null", "/dev/zero", "/dev/random", "/dev/urandom",
+    ])
+    def test_benign_dev_path_allowed_without_base(self, path):
+        assert validate_safe_path(path) == Path(path).resolve()
+        assert is_sensitive_path(path) is False
+
+    @pytest.mark.parametrize("path", [
+        "/root", "/root/data.csv", "/root/.aws/credentials", "/root/.netrc",
+        "/root/.kube/config", "/root/.docker/config.json", "/root/.pgpass",
+    ])
+    def test_root_tree_raises_for_unrelated_caller(self, tmp_path, monkeypatch, path):
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(PathSecurityError, match="Access to sensitive path blocked"):
+            validate_safe_path(path)
+        assert is_sensitive_path(path) is True
+
+    @pytest.mark.parametrize("directory", ["/root/work", "/root-backup"])
+    def test_root_child_or_prefix_base_does_not_exempt_tree(self, monkeypatch, directory):
+        with monkeypatch.context() as patch:
+            patch.setattr(os, "getcwd", lambda: directory)
+            with pytest.raises(PathSecurityError, match="Access to sensitive path blocked"):
+                validate_safe_path("/root/.aws/credentials", base_directory=directory)
+            assert is_sensitive_path("/root/.aws/credentials") is True
+
+    def test_root_base_allows_data_from_unrelated_cwd(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+
+        assert validate_safe_path("/root/data.csv", base_directory="/root") == Path("/root/data.csv")
+        assert safe_join_paths("/root", "data.csv") == Path("/root/data.csv")
+        assert is_sensitive_path("/root/data.csv", base_directory="/root") is False
+
+    def test_resolved_root_cwd_allows_data(self, tmp_path, monkeypatch):
+        root_alias = tmp_path / "root-alias"
+        root_alias.symlink_to("/root", target_is_directory=True)
+
+        with monkeypatch.context() as patch:
+            patch.setattr(os, "getcwd", lambda: str(root_alias))
+            assert validate_safe_path("/root/data.csv") == Path("/root/data.csv")
+
+    def test_resolved_root_base_allows_data_from_unrelated_cwd(self, tmp_path, monkeypatch):
+        root_alias = tmp_path / "root-alias"
+        root_alias.symlink_to("/root", target_is_directory=True)
+        monkeypatch.chdir(tmp_path)
+
+        assert validate_safe_path(root_alias / "data.csv", base_directory=root_alias) == Path("/root/data.csv")
+
+    @pytest.mark.parametrize("target", ["/dev/sda", "/root/.aws/credentials"])
+    def test_symlink_to_sensitive_tree_raises_without_base(self, tmp_path, monkeypatch, target):
+        link = tmp_path / "alias"
+        link.symlink_to(target)
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(PathSecurityError, match="Access to sensitive path blocked"):
+            validate_safe_path(link)
+
+    @pytest.mark.parametrize("target", ["/dev/shm/x", "/dev/null"])
+    def test_symlink_to_benign_dev_path_allowed(self, tmp_path, target):
+        link = tmp_path / "alias"
+        link.symlink_to(target)
+
+        assert validate_safe_path(link) == Path(target).resolve()
+
+    @pytest.mark.parametrize("cwd", ["/root", "/dev/shm"])
+    def test_carve_out_keeps_other_sensitive_checks(self, monkeypatch, cwd):
+        with monkeypatch.context() as patch:
+            patch.setattr(os, "getcwd", lambda: cwd)
+            with pytest.raises(PathSecurityError, match="Access to sensitive path blocked"):
+                validate_safe_path(".ssh/config", base_directory=cwd)
