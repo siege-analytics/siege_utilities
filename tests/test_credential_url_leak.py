@@ -24,6 +24,14 @@ from siege_utilities.geo.providers.redistricting_data_hub import RDHClient
 SECRET = "SENTINEL_SECRET_abc123"
 
 
+@pytest.fixture(autouse=True)
+def _force_log_capture(caplog):
+    """Keep diagnostic assertions independent of ambient logging levels."""
+    # requests-mock logs raw fixture URLs at DEBUG, outside client diagnostics.
+    caplog.set_level(logging.INFO, logger="requests_mock.adapter")
+    caplog.set_level(logging.DEBUG)
+
+
 @pytest.fixture
 def requests_mock():
     with requests_mock_module.Mocker(case_sensitive=True) as mocker:
