@@ -79,7 +79,7 @@ def test_populate_locale_boundaries_advances_updated_at_on_update(db):
             "locale_subcategory": ["city_large"],
             "name": ["New Name"],
         },
-        geometry=[_make_polygon()],
+        geometry=gpd.GeoSeries.from_wkt([_make_polygon().wkt]),
         crs="EPSG:4326",
     )
 
@@ -140,7 +140,7 @@ def test_populate_locale_boundaries_flushes_updates_mid_loop(db):
             "locale_subcategory": ["city_large"] * n_rows,
             "name": [f"Updated {code}" for code in range(20, 20 + n_rows)],
         },
-        geometry=[_make_polygon()] * n_rows,
+        geometry=gpd.GeoSeries.from_wkt([_make_polygon().wkt] * n_rows),
         crs="EPSG:4326",
     )
 

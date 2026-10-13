@@ -279,6 +279,88 @@ jobs:
         name: codecov-umbrella
         fail_ci_if_error: false
 
+  test-postgis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgis:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: siege_geo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d siege_geo"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DJANGO_SETTINGS_MODULE: tests.django_project.settings
+      SIEGE_AUTO_INIT_DIRS: "false"
+      SIEGE_TEST_POSTGIS: "1"
+      SIEGE_TEST_DB_HOST: localhost
+      SIEGE_TEST_DB_PORT: "5432"
+      SIEGE_TEST_DB_NAME: siege_geo
+      SIEGE_TEST_DB_USER: postgres
+      SIEGE_TEST_DB_PASSWORD: postgres
+      SIEGE_UTILITIES_TEST_PG_DSN: postgresql://postgres:postgres@localhost:5432/siege_geo
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install system geospatial libraries
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          gdal-bin libgdal-dev libgeos-dev libproj-dev
+
+    - name: Install UV
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install geo + geodjango + schema + dev
+      run: |
+        sed -i "s/\"gdal>=3.6,<4\"/\"gdal==$(gdal-config --version)\"/g" pyproject.toml
+        grep -qE '"gdal==[0-9]' pyproject.toml || { echo "gdal pin rewrite failed"; exit 1; }
+        uv sync --extra geo --extra gdal --extra geodjango --extra dev --extra schema
+
+    - name: Apply siege_geo migrations to PostGIS
+      run: uv run python -m django migrate siege_geo --noinput
+
+    - name: Run database tests against live PostGIS
+      run: |
+        uv run python - <<'PY'
+        import django
+        import psycopg
+        django.setup()
+        from django.db import connection
+        assert connection.vendor == "postgresql", connection.vendor
+        assert connection.settings_dict["ENGINE"] == "django.contrib.gis.db.backends.postgis", connection.settings_dict["ENGINE"]
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT PostGIS_Full_Version()")
+            print(cursor.fetchone()[0])
+        PY
+        uv run pytest -o addopts='' -v --junitxml=postgis-results.xml \
+          tests/test_django_temporal_models_orm.py \
+          tests/test_nces_service_bulk_update_timestamp.py \
+          tests/test_nces_service_enrich_districts.py \
+          siege_utilities/schema/tests/test_migration_runner_integration.py
+        uv run python - <<'PY'
+        from xml.etree import ElementTree
+        cases = ElementTree.parse("postgis-results.xml").findall(".//testcase")
+        assert cases, "PostGIS job did not run any database tests"
+        skipped = [case.attrib["name"] for case in cases if case.find("skipped") is not None]
+        assert not skipped, f"PostGIS database tests must not skip: {skipped}"
+        PY
+
   test-pydantic-v1:
     runs-on: ubuntu-latest
     name: "pydantic v1 compat"
