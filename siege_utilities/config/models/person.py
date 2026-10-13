@@ -14,6 +14,7 @@ from .credential import Credential, OnePasswordCredential
 from .google_account import GoogleAccount
 from .oauth_integration import OAuthIntegration
 from .database_connection import DatabaseConnection
+from ._sensitivity import SECRET_FIELD_NAME
 
 __all__ = ["Person"]
 
@@ -612,7 +613,6 @@ def _convert_to_yaml_safe(obj: Any) -> Any:
 
 
 _REDACTED = '***REDACTED***'
-_SECRET_NAME = re.compile(r'(secret|token|password|_keys?$|connection$)', re.IGNORECASE)
 _PUBLIC_METADATA_KEYS = frozenset({
     'public_key', 'partition_key', 'sort_key', 'cache_key', 'idempotency_key',
     'token_type', 'token_file', 'onepassword_credentials',
@@ -624,7 +624,7 @@ def _sensitive_name(name: Any) -> bool:
     return (
         isinstance(name, str)
         and name.lower() not in _PUBLIC_METADATA_KEYS
-        and _SECRET_NAME.search(name) is not None
+        and SECRET_FIELD_NAME.search(name) is not None
     )
 
 
@@ -634,6 +634,8 @@ def _strip_sensitive_fields(data: Any) -> Any:
     A field's ``json_schema_extra['sensitive']`` declares its policy. True
     redacts the entire value; False explicitly permits a non-secret field.
     Unmarked secret-like names fail closed, including in free-form metadata.
+    Secrets with innocuous names (e.g. ``pin`` or ``material``) are covered
+    only by an explicit ``sensitive`` marker, not by the name floor.
     Empty values remain empty, and public containers are still traversed.
     """
     if isinstance(data, BaseModel):

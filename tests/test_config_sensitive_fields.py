@@ -3,16 +3,15 @@
 import importlib
 import inspect
 import pkgutil
-import re
 
 from pydantic import BaseModel, create_model
 import pytest
 
 import siege_utilities.config.models as models
 from siege_utilities.config.models import actor_types
+from siege_utilities.config.models._sensitivity import SECRET_FIELD_NAME
 
 
-_SECRET_FIELD_NAME = re.compile(r"(secret|token|password|_key$|connection$)", re.IGNORECASE)
 _NON_SECRET_FIELDS = frozenset({
     ("Person", "onepassword_credentials"),  # References, not stored credentials.
     ("GoogleAccount", "token_file"),  # Path to a token file, not its contents.
@@ -28,7 +27,7 @@ def _assert_config_secret_fields_marked() -> None:
             if not issubclass(model, BaseModel) or model.__module__ != module.__name__:
                 continue
             for name, field in model.model_fields.items():
-                if not _SECRET_FIELD_NAME.search(name):
+                if not SECRET_FIELD_NAME.search(name):
                     continue
                 metadata = field.json_schema_extra
                 marked = isinstance(metadata, dict) and metadata.get("sensitive") is True
@@ -46,11 +45,18 @@ def test_config_secret_fields_marked() -> None:
     _assert_config_secret_fields_marked()
 
 
-def test_field_marker_guard_raises_for_unmarked_webhook_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("name", [
+    "webhook_secret", "bot_token", "signing_key", "api_keys",
+    "connection_string", "connectionString", "passphrase", "apikey", "apiKey",
+    "privateKey", "passwd", "pwd", "dsn",
+])
+def test_field_marker_guard_raises_for_unmarked_secret(
+    monkeypatch: pytest.MonkeyPatch, name: str,
+) -> None:
     injected = create_model(
         "InjectedUser", __base__=actor_types.User, __module__=actor_types.__name__,
-        webhook_secret=(str, "sentinel-webhook"),
+        **{name: (str, "sentinel-secret")},
     )
     monkeypatch.setattr(actor_types, "InjectedUser", injected, raising=False)
-    with pytest.raises(AssertionError, match=r"InjectedUser\.webhook_secret"):
+    with pytest.raises(AssertionError, match=rf"InjectedUser\.{name}"):
         _assert_config_secret_fields_marked()

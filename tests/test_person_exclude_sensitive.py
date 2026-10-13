@@ -131,6 +131,11 @@ def _export(
 
 
 ALL_SURFACES = ["to_dict", "to_yaml", "export_entities"]
+SECRET_NAMES = (
+    "webhook_secret", "bot_token", "signing_key", "api_keys",
+    "connection_string", "connectionString", "passphrase", "apikey", "apiKey",
+    "privateKey", "passwd", "pwd", "dsn",
+)
 
 
 @pytest.mark.parametrize("surface", ALL_SURFACES)
@@ -207,6 +212,7 @@ def test_exclude_sensitive_preserves_free_form_metadata_keys(
         "cache_key": "cache-ghi789",
         "sort_key": "sort-jkl012",
         "idempotency_key": "idem-mno345",
+        "token_type": "Bearer",
     }
     actor.oauth_integrations[0].metadata = dict(legit_metadata)
 
@@ -246,25 +252,38 @@ def test_base_person_exclude_sensitive_redacts_nested_secrets(
 
 @pytest.mark.parametrize("surface", ALL_SURFACES)
 @pytest.mark.parametrize("marked", [True, False], ids=["marked", "unmarked"])
-def test_subclass_secret_fields_are_redacted(surface: str, marked: bool) -> None:
+@pytest.mark.parametrize("name", SECRET_NAMES)
+def test_subclass_secret_fields_are_redacted(surface: str, marked: bool, name: str) -> None:
     """New subclass fields cannot leak, even when their markers are missing."""
     policy = {"json_schema_extra": {"sensitive": True}} if marked else {}
     extended_user = create_model(
         "WebhookUser", __base__=User,
-        **{name: (str, Field(**policy)) for name in ("webhook_secret", "bot_token", "signing_key")},
+        **{name: (str, Field(**policy))},
     )
     person = extended_user(
         person_id="webhook-user", name="Webhook User", email="webhook@example.com",
-        username="webhook_user", webhook_secret="sentinel-webhook",
-        bot_token="sentinel-bot", signing_key="sentinel-signing",
+        username="webhook_user", **{name: "sentinel-secret"},
     )
     original, _ = _export(person, surface, exclude_sensitive=False)
     data, text = _export(person, surface, exclude_sensitive=True)
-    assert [data[name] for name in ("webhook_secret", "bot_token", "signing_key")] == [
-        "***REDACTED***", "***REDACTED***", "***REDACTED***",
-    ]
+    assert data[name] == "***REDACTED***"
     assert "sentinel-" not in text
     assert _export(person, surface, exclude_sensitive=False)[0] == original
+
+
+@pytest.mark.parametrize("surface", ALL_SURFACES)
+@pytest.mark.parametrize("name", [
+    "public_key", "partition_key", "sort_key", "cache_key", "idempotency_key", "token_type",
+])
+def test_subclass_public_fields_survive_name_floor(surface: str, name: str) -> None:
+    extended_user = create_model("PublicUser", __base__=User, **{name: (str, ...)})
+    person = extended_user(
+        person_id="public-user", name="Public User", email="public@example.com",
+        username="public_user", **{name: "public-value"},
+    )
+    data, text = _export(person, surface, exclude_sensitive=True)
+    assert data[name] == "public-value"
+    assert "public-value" in text
 
 
 @pytest.mark.parametrize("surface", ALL_SURFACES)
@@ -342,19 +361,23 @@ def test_user_and_profile_secrets_redacted(surface: str) -> None:
 
 
 @pytest.mark.parametrize("surface", ALL_SURFACES)
-def test_metadata_secret_names_redacted_recursively(actor: Person, surface: str) -> None:
+@pytest.mark.parametrize("name", SECRET_NAMES)
+def test_metadata_secret_names_redacted_recursively(actor: Person, surface: str, name: str) -> None:
     actor.oauth_integrations[0].metadata = {
         "items": [{"api_secret": "sentinel-api-secret", "nested": {
             "bot_token": "sentinel-bot-token", "signing_key": "sentinel-signing-key",
             "public_key": "public", "token_type": "Bearer",
+            name: "sentinel-secret",
         }}],
     }
     data, text = _export(actor, surface, exclude_sensitive=True)
+    assert "sentinel-secret" not in text
     assert "sentinel-" not in json.dumps(data["oauth_integrations"][0]["metadata"])
     assert data["oauth_integrations"][0]["metadata"] == {
         "items": [{"api_secret": "***REDACTED***", "nested": {
             "bot_token": "***REDACTED***", "signing_key": "***REDACTED***",
             "public_key": "public", "token_type": "Bearer",
+            name: "***REDACTED***",
         }}],
     }
 
