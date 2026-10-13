@@ -11,12 +11,13 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 
 from siege_utilities.conf import settings
 
 if TYPE_CHECKING:
     import geopandas as gpd
+    from django.db.models import Model
 
 logger = logging.getLogger(__name__)
 
@@ -221,6 +222,29 @@ class BoundaryPopulationService:
 
         return gdf
 
+    def _bulk_create_with_savepoints(
+        self, model: type[Model], objects: list[Model]
+    ) -> tuple[int, list[str]]:
+        """Insert a batch, retrying rows only after a rolled-back integrity failure."""
+        try:
+            with transaction.atomic():
+                model.objects.bulk_create(objects)
+            return len(objects), []
+        except IntegrityError:
+            # The batch savepoint must roll back before any retry queries run.
+            created = 0
+            errors = []
+            for obj in objects:
+                try:
+                    with transaction.atomic():
+                        model.objects.bulk_create([obj])
+                    created += 1
+                except IntegrityError as exc:
+                    error = f"GEOID {obj.geoid}: {exc}"
+                    logger.warning("Skipping %s", error)
+                    errors.append(error)
+            return created, errors
+
     @transaction.atomic
     def populate(
         self,
@@ -241,7 +265,9 @@ class BoundaryPopulationService:
             batch_size: Number of records per database batch
 
         Returns:
-            PopulationResult with statistics
+            PopulationResult with statistics. Rows rejected by database integrity
+            constraints are logged with their GEOID, counted as skipped, and
+            included in errors; valid rows are retained.
         """
         from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 
@@ -328,7 +354,8 @@ class BoundaryPopulationService:
                     # Update
                     for key, value in kwargs.items():
                         setattr(existing, key, value)
-                    existing.save()
+                    with transaction.atomic():
+                        existing.save()
                     updated += 1
                 else:
                     # Create
@@ -336,20 +363,31 @@ class BoundaryPopulationService:
 
                     # Batch create
                     if len(objects_to_create) >= batch_size:
-                        model.objects.bulk_create(
-                            objects_to_create, ignore_conflicts=True
+                        batch_created, batch_errors = self._bulk_create_with_savepoints(
+                            model, objects_to_create
                         )
-                        created += len(objects_to_create)
+                        created += batch_created
+                        skipped += len(batch_errors)
+                        errors.extend(batch_errors)
                         objects_to_create = []
 
+            except IntegrityError as e:
+                error = f"GEOID {geoid}: {e}"
+                logger.warning("Skipping %s", error)
+                errors.append(error)
+                skipped += 1
             except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
                 logger.error(f"Error processing record {idx}: {e}")
                 errors.append(f"Record {idx}: {e}")
 
         # Create remaining
         if objects_to_create:
-            model.objects.bulk_create(objects_to_create, ignore_conflicts=True)
-            created += len(objects_to_create)
+            batch_created, batch_errors = self._bulk_create_with_savepoints(
+                model, objects_to_create
+            )
+            created += batch_created
+            skipped += len(batch_errors)
+            errors.extend(batch_errors)
 
         logger.info(
             f"Populated {geography_type}: {created} created, {updated} updated, {skipped} skipped"

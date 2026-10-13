@@ -470,7 +470,8 @@ class CongressionalDistrict(CensusTIGERBoundary):
     """
     Congressional District boundary.
 
-    GEOID: 4 digits = state (2) + district (2)
+    GEOID: 4 characters = state digits (2) + uppercase district code (2).
+    District codes include ZZ for areas with no district assigned.
     Example: "0614" for California's 14th district
 
     Note: District numbers change after reapportionment (every 10 years).
@@ -511,8 +512,8 @@ class CongressionalDistrict(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(geoid__regex=r"^\d{4}$"),
-                name="cd_geoid_4_digits",
+                condition=models.Q(geoid__regex=r"^\d{2}[0-9A-Z]{2}$"),
+                name="cd_geoid_format",
             ),
         ]
 

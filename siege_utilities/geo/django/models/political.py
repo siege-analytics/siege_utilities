@@ -23,7 +23,8 @@ class StateLegislativeUpper(CensusTIGERBoundary):
     """
     State Legislative District — Upper Chamber (Senate).
 
-    GEOID: 5 digits = state (2) + district (3)
+    GEOID: 5 characters = state digits (2) + district code (3).
+    District codes accept uppercase letters, digits, and hyphens, including ZZZ.
     Example: "06001" for California State Senate District 1
     """
 
@@ -50,8 +51,8 @@ class StateLegislativeUpper(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(geoid__regex=r"^\d{5}$"),
-                name="sldu_geoid_5_digits",
+                condition=models.Q(geoid__regex=r"^\d{2}[0-9A-Z-]{3}$"),
+                name="sldu_geoid_format",
             ),
         ]
 
@@ -71,7 +72,8 @@ class StateLegislativeLower(CensusTIGERBoundary):
     """
     State Legislative District — Lower Chamber (House/Assembly).
 
-    GEOID: 5 digits = state (2) + district (3)
+    GEOID: 5 characters = state digits (2) + district code (3).
+    District codes accept uppercase letters, digits, and hyphens, including ZZZ.
     Example: "06001" for California State Assembly District 1
     """
 
@@ -98,8 +100,8 @@ class StateLegislativeLower(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(geoid__regex=r"^\d{5}$"),
-                name="sldl_geoid_5_digits",
+                condition=models.Q(geoid__regex=r"^\d{2}[0-9A-Z-]{3}$"),
+                name="sldl_geoid_format",
             ),
         ]
 
