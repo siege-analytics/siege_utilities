@@ -30,6 +30,7 @@ Example usage:
 """
 
 import logging
+import re
 from typing import Dict, Optional, Union
 
 import pandas as pd
@@ -40,6 +41,8 @@ from siege_utilities.config.census_constants import (
 )
 
 log = logging.getLogger(__name__)
+
+_VTD_GEOID_RE = re.compile(r"^\d{5}[0-9A-Za-z./-]{6}$")
 
 
 # =============================================================================
@@ -91,8 +94,10 @@ class GEOIDValidator:
     """
     Callable validator for GEOID fields.
 
-    Validates that a GEOID is digits-only and the correct length for the
-    given geography level.
+    Validates the length and alphabet for the given geography level.
+    VTD GEOIDs have a five-digit FIPS prefix and six VTDST characters:
+    ASCII digits, letters, periods, slashes, or hyphens. Other levels
+    require digits only.
 
     Usage in Django models:
         geoid = CharField(validators=[GEOIDValidator('tract')])
@@ -109,7 +114,13 @@ class GEOIDValidator:
             raise ValidationError(
                 f"GEOID must be a non-empty string, got {type(value).__name__}"
             )
-        if not value.isdigit():
+        if self.geography_level == "vtd":
+            if not _VTD_GEOID_RE.fullmatch(value):
+                raise ValidationError(
+                    "VTD GEOID must contain 5 digits followed by 6 ASCII "
+                    f"letters, digits, periods, slashes, or hyphens, got '{value}'"
+                )
+        elif not value.isdigit():
             raise ValidationError(
                 f"GEOID must contain only digits, got '{value}'"
             )
@@ -467,6 +478,10 @@ def validate_geoid(
     may be normalizable via normalize_geoid(), but it would fail joins against
     Census shapefiles.
 
+    VTD GEOIDs allow ASCII digits, letters, periods, slashes, and hyphens
+    in the six-character VTDST tail after the five-digit FIPS prefix.
+    Every other geography level requires digits only.
+
     Args:
         geoid: GEOID string to validate
         geography_level: Expected geography level
@@ -490,8 +505,7 @@ def validate_geoid(
     # Remove whitespace
     geoid = geoid.strip()
 
-    # Check if all digits
-    if not geoid.isdigit():
+    if not geoid:
         return False
 
     # Resolve to canonical name and get expected length
@@ -502,6 +516,13 @@ def validate_geoid(
     expected_length = GEOID_LENGTHS.get(geography_lower)
 
     if expected_length is None:
+        return False
+
+    if geography_lower == "vtd":
+        candidate = geoid if strict else geoid.zfill(expected_length)
+        return _VTD_GEOID_RE.fullmatch(candidate) is not None
+
+    if not geoid.isdigit():
         return False
 
     if strict:
