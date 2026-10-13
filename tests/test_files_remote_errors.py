@@ -3,7 +3,8 @@
 Forces:
 - generate_local_path_from_url ValueError when no filename in the URL
 - download_file_with_retry: the (OSError, ConnectionError, ValueError) retry
-  handler and the final ConnectionError after attempts are exhausted
+  handler and the final ConnectionError after attempts are exhausted;
+  SSL failures propagate immediately without retrying or changing their type
 - get_file_info ConnectionError on a non-ok HTTP response
 - is_downloadable: both except handlers (info-check and GET) -> returns False
 - download_file: an SSL verification failure with verify_ssl=True raises and
@@ -106,6 +107,32 @@ def test_generate_local_path_rejects_url_without_filename(url, tmp_path):
     with pytest.raises(ValueError) as exc_info:
         remote.generate_local_path_from_url(url, tmp_path)
     assert "Could not extract filename" in str(exc_info.value)
+
+
+def test_download_file_with_retry_ssl_failure_raises_without_retry(tmp_path, monkeypatch):
+    """SSL failures must bypass the OSError retry handler unchanged."""
+    out = tmp_path / "f.zip"
+    calls = []
+    ssl_error = remote.requests.exceptions.SSLError("certificate verify failed")
+
+    def fake_get(url, **kwargs):
+        calls.append(kwargs)
+        raise ssl_error
+
+    monkeypatch.setattr(remote.requests, "get", fake_get)
+
+    with pytest.raises(remote.requests.exceptions.SSLError, match="certificate verify failed") as exc_info:
+        try:
+            remote.download_file_with_retry(
+                "https://example.test/f.zip", out, verify_ssl=True, retry_delay=0,
+            )
+        finally:
+            # Check side effects even if the wrapper raises the wrong exception.
+            assert len(calls) == 1
+            assert all(c.get("verify") is not False for c in calls)
+            assert not out.exists()
+
+    assert exc_info.value is ssl_error
 
 
 def test_download_file_with_retry_raises_after_attempts(tmp_path, monkeypatch):

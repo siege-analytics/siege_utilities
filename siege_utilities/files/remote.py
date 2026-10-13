@@ -296,6 +296,9 @@ def download_file_with_retry(url: str, local_filename: FilePath,
         The local filename as a string
 
     Raises:
+        requests.exceptions.SSLError: If SSL verification fails; raised
+            immediately without retry unless download_file handles an
+            explicitly allowed insecure fallback
         ConnectionError: If all retry attempts fail
         requests.exceptions.RequestException: If all retry attempts fail
 
@@ -314,6 +317,8 @@ def download_file_with_retry(url: str, local_filename: FilePath,
 
             return download_file(url, local_filename, **kwargs)
 
+        except requests.exceptions.SSLError:
+            raise
         except (OSError, ConnectionError, ValueError) as e:
             log.warning(f'Download attempt {attempt + 1} failed: {e}')
             last_error = e
