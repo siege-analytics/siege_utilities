@@ -27,7 +27,7 @@ Release workflow (12 steps):
     8. Resolve release notes
     9. Merge develop → main (gitflow)
    10. Tag on main + push
-   11. Upload to PyPI (always — requires PYPI_API_TOKEN or --token)
+   11. Upload to PyPI (always - requires PYPI_API_TOKEN in the environment)
    12. Create GitHub release (unless --skip-github)
 """
 
@@ -353,7 +353,7 @@ def upload_to_pypi(repository: str = 'pypi', token: Optional[str] = None,
     """
     resolved_token = token or os.environ.get('PYPI_API_TOKEN')
     if not resolved_token:
-        logger.error("No PyPI token provided (use --token or PYPI_API_TOKEN env var)")
+        logger.error("No PyPI token provided (set PYPI_API_TOKEN in the environment)")
         return False
 
     dist_dir = PROJECT_ROOT / 'dist'
@@ -366,14 +366,26 @@ def upload_to_pypi(repository: str = 'pypi', token: Optional[str] = None,
         logger.info(f"[DRY RUN] Would upload {len(dist_files)} file(s) to {repository}")
         return True
 
-    cmd = [sys.executable, '-m', 'twine', 'upload',
-           '--username', '__token__', '--password', resolved_token]
+    cmd = [sys.executable, '-m', 'twine', 'upload']
     if repository == 'testpypi':
         cmd.extend(['--repository', 'testpypi'])
     cmd.extend([str(f) for f in dist_files])
+    upload_env = os.environ.copy()
+    upload_env.update(TWINE_USERNAME='__token__', TWINE_PASSWORD=resolved_token)
 
     logger.info(f"Uploading to {repository}...")
-    result = subprocess.run(cmd, cwd=PROJECT_ROOT, timeout=60)
+    # Twine diagnostics can echo credentials; retain only the exit status.
+    try:
+        result = subprocess.run(
+            cmd, cwd=PROJECT_ROOT, timeout=60, env=upload_env,
+            capture_output=True, text=True,
+        )
+    except subprocess.TimeoutExpired as exc:
+        logger.error("PyPI upload timed out (diagnostics omitted)")
+        raise subprocess.TimeoutExpired('twine upload', exc.timeout) from None
+    except OSError as exc:
+        logger.error("PyPI upload could not start (diagnostics omitted)")
+        raise OSError(exc.errno, 'PyPI upload could not start (details redacted)') from None
     if result.returncode == 0:
         logger.info(f"Upload to {repository} succeeded")
         return True
@@ -692,6 +704,13 @@ def create_github_release(version: str, notes: str, dry_run: bool = False) -> bo
     return result.returncode == 0
 
 
+def _reject_cli_token(value: str) -> None:
+    # ArgumentTypeError keeps argparse from echoing the rejected secret value.
+    raise argparse.ArgumentTypeError(
+        "--token is no longer supported; set PYPI_API_TOKEN in the environment"
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description="Release Manager for Siege Utilities")
     parser.add_argument('--check', action='store_true', help='Check version consistency')
@@ -714,8 +733,8 @@ def main():
                         help='Upload to PyPI after --build (always on during --release)')
     parser.add_argument('--repository', choices=['pypi', 'testpypi'], default='pypi',
                         help='PyPI repository target (default: pypi)')
-    parser.add_argument('--token', type=str,
-                        help='PyPI API token (or set PYPI_API_TOKEN env var)')
+    parser.add_argument('--token', type=_reject_cli_token,
+                        help='Removed; set PYPI_API_TOKEN in the environment')
     parser.add_argument('--dry-run', action='store_true',
                         help='Show actions without executing side effects')
     parser.add_argument('--clean', action='store_true',
@@ -757,7 +776,7 @@ def main():
         if not validate_build():
             sys.exit(1)
         if args.pypi:
-            if not upload_to_pypi(args.repository, args.token, args.dry_run):
+            if not upload_to_pypi(args.repository, dry_run=args.dry_run):
                 sys.exit(1)
 
     elif args.test:
@@ -775,11 +794,11 @@ def main():
             parser.error("--release requires --release-notes or --changelog")
 
         # Early check: PyPI token must be available (upload is mandatory)
-        pypi_token = args.token or os.environ.get('PYPI_API_TOKEN')
+        pypi_token = os.environ.get('PYPI_API_TOKEN')
         if not pypi_token and not args.dry_run:
             parser.error(
                 "--release requires a PyPI token. "
-                "Set PYPI_API_TOKEN env var or pass --token."
+                "Set PYPI_API_TOKEN in the environment."
             )
 
         # 1. Check consistency
@@ -903,7 +922,7 @@ def main():
 
         # 11. Upload to PyPI (mandatory for releases)
         logger.info("Step 11/12: PyPI upload...")
-        if not upload_to_pypi(args.repository, args.token, args.dry_run):
+        if not upload_to_pypi(args.repository, dry_run=args.dry_run):
             logger.error("PyPI upload failed")
             sys.exit(1)
 
