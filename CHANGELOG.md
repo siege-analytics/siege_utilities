@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reporting success; failed persistence checks raise `SiegeConfigError`. (#1402)
 - `populate_demographics --api-key` is rejected without echoing its value.
   Set `CENSUS_API_KEY` in the environment instead. (#1402)
+- `scripts/release_manager.py --token` is rejected without echoing its value.
+  Set `PYPI_API_TOKEN` in the environment for CLI uploads and releases. (#1402)
 
 ### Security
 

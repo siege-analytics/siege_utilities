@@ -4,6 +4,7 @@ import errno
 import logging
 import os
 import subprocess
+import sys
 import traceback
 from unittest.mock import Mock
 
@@ -41,6 +42,71 @@ def pypi_upload(tmp_path, monkeypatch):
     run = Mock(spec=subprocess.run)
     monkeypatch.setattr(release_manager.subprocess, 'run', run)
     return run
+
+
+@pytest.mark.parametrize('token_args', [
+    ['--token', SECRET],
+    [f'--token={SECRET}'],
+], ids=['separate-value', 'equals-value'])
+def test_release_manager_rejects_cli_token_without_echo(
+    monkeypatch, capsys, caplog, token_args,
+):
+    monkeypatch.setenv('PYPI_API_TOKEN', 'environment-token')
+    monkeypatch.setattr(sys, 'argv', ['release_manager.py', '--check', *token_args])
+
+    with pytest.raises(SystemExit) as exc:
+        release_manager.main()
+
+    captured = capsys.readouterr()
+    assert exc.value.code == 2
+    assert 'usage:' in captured.err
+    assert '--token is no longer supported' in captured.err
+    assert 'set PYPI_API_TOKEN in the environment' in captured.err
+    diagnostics = captured.out + captured.err + caplog.text
+    assert SECRET not in diagnostics
+    assert SECRET not in ''.join(traceback.format_exception(exc.value))
+
+
+def test_release_manager_upload_reads_pypi_token_from_env(
+    pypi_upload, monkeypatch, capsys, caplog,
+):
+    monkeypatch.setattr(sys, 'argv', ['release_manager.py', '--build', '--pypi'])
+    monkeypatch.setattr(release_manager, 'build_package', lambda: True)
+    monkeypatch.setattr(release_manager, 'validate_build', lambda: True)
+    pypi_upload.return_value = subprocess.CompletedProcess(['twine'], 0, '', '')
+
+    release_manager.main()
+
+    pypi_upload.assert_called_once()
+    assert pypi_upload.call_args.kwargs['env']['TWINE_PASSWORD'] == SECRET
+    assert SECRET not in repr(pypi_upload.call_args.args)
+    captured = capsys.readouterr()
+    assert SECRET not in captured.out + captured.err + caplog.text
+    assert 'Upload to pypi succeeded' in caplog.text
+
+
+def test_pypi_upload_missing_token_points_to_env(monkeypatch, caplog):
+    monkeypatch.delenv('PYPI_API_TOKEN', raising=False)
+
+    assert release_manager.upload_to_pypi() is False
+
+    assert 'set PYPI_API_TOKEN in the environment' in caplog.text
+    assert '--token' not in caplog.text
+
+
+def test_release_manager_missing_token_points_to_env(monkeypatch, capsys):
+    monkeypatch.delenv('PYPI_API_TOKEN', raising=False)
+    monkeypatch.setattr(sys, 'argv', [
+        'release_manager.py', '--release', '--bump-type', 'patch', '--changelog',
+    ])
+
+    with pytest.raises(SystemExit) as exc:
+        release_manager.main()
+
+    assert exc.value.code == 2
+    error = capsys.readouterr().err.split('error:', 1)[1]
+    assert 'Set PYPI_API_TOKEN in the environment' in error
+    assert '--token' not in error
 
 
 @pytest.mark.parametrize('repository', ['pypi', 'testpypi'])
