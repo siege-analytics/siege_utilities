@@ -388,20 +388,34 @@ class UserConfigManager:
     
     def export_config(self, output_path: str):
         """
-        Export user configuration to a file.
+        Export user configuration without secrets to a private file.
         
         Args:
             output_path: Path to export configuration
         """
+        temporary_file = None
         try:
             config_data = asdict(self.user_profile)
             # Remove sensitive information
             config_data.pop('google_analytics_key', None)
             config_data.pop('facebook_business_key', None)
             config_data.pop('census_api_key', None)
+            config_data.pop('postgresql_connection', None)
+            config_data.pop('duckdb_path', None)
             
-            with open(output_path, 'w', encoding='utf-8') as f:
-                yaml.dump(config_data, f, default_flow_style=False)
+            target = Path(output_path)
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode='w', encoding='utf-8', dir=target.parent,
+                    prefix='.user_config.', suffix='.tmp', delete=False,
+                ) as f:
+                    temporary_file = Path(f.name)
+                    os.fchmod(f.fileno(), 0o600)
+                    yaml.dump(config_data, f, default_flow_style=False)
+                os.replace(temporary_file, target)
+            finally:
+                if temporary_file is not None:
+                    temporary_file.unlink(missing_ok=True)
 
             log.info(f"Configuration exported to: {output_path}")
         except (OSError, yaml.YAMLError) as e:

@@ -250,6 +250,81 @@ def test_line_361_export_os_error_logged_not_raised(
     assert any("Failed to export configuration" in r.message for r in caplog.records)
 
 
+def test_export_config_scrubs_database_secrets_and_writes_0600(tmp_path: Path) -> None:
+    """Shareable exports must omit database secrets and be private under umask 022."""
+    mgr = UserConfigManager(config_dir=tmp_path / "config")
+    password = "export-sentinel-password"
+    connection = f"postgresql://test:{password}@localhost/test"
+    duckdb_path = "/private/export-sentinel.duckdb"
+    mgr.update_user_profile(
+        username="export-user",
+        postgresql_connection=connection,
+        duckdb_path=duckdb_path,
+        google_analytics_key="google-test-key",
+        facebook_business_key="facebook-test-key",
+        census_api_key="census-test-key",
+    )
+    original_profile = mgr.user_config_file.read_bytes()
+    output = tmp_path / "export.yaml"
+    previous_umask = os.umask(0o022)
+    try:
+        mgr.export_config(str(output))
+    finally:
+        os.umask(previous_umask)
+
+    exported = output.read_text(encoding="utf-8")
+    # Report both defects even when scrubbing fails before the mode check.
+    assert {
+        "password_present": password in exported,
+        "dsn_present": connection in exported,
+        "duckdb_path_present": duckdb_path in exported,
+        "mode": oct(stat.S_IMODE(output.stat().st_mode)),
+    } == {
+        "password_present": False,
+        "dsn_present": False,
+        "duckdb_path_present": False,
+        "mode": oct(0o600),
+    }
+    assert "postgresql_connection:" not in exported
+    assert "duckdb_path:" not in exported
+    assert "google_analytics_key:" not in exported
+    assert "facebook_business_key:" not in exported
+    assert "census_api_key:" not in exported
+    assert "username: export-user" in exported
+    assert mgr.user_profile.postgresql_connection == connection
+    assert mgr.user_profile.duckdb_path == duckdb_path
+    assert mgr.user_config_file.read_bytes() == original_profile
+
+
+@pytest.mark.parametrize(
+    ("operation", "error"),
+    [
+        ("yaml.dump", yaml.YAMLError("serialization failed")),
+        ("os.replace", PermissionError("replacement denied")),
+    ],
+)
+def test_failed_export_preserves_file_and_removes_temporary_file(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture,
+    operation: str, error: Exception,
+) -> None:
+    """Serialization or replacement failure must log and leave the old export intact."""
+    mgr = UserConfigManager(config_dir=tmp_path / "config")
+    export_dir = tmp_path / "exports"
+    export_dir.mkdir()
+    output = export_dir / "export.yaml"
+    output.write_text("username: original\n", encoding="utf-8")
+
+    with patch(
+        f"siege_utilities.config.user_config.{operation}", side_effect=error,
+    ), caplog.at_level(logging.INFO, logger="siege_utilities.config.user_config"):
+        mgr.export_config(str(output))
+
+    assert output.read_text(encoding="utf-8") == "username: original\n"
+    assert list(export_dir.iterdir()) == [output]
+    assert "Failed to export configuration" in caplog.text
+    assert "Configuration exported to:" not in caplog.text
+
+
 # ---------------------------------------------------------------------------
 # L382 — import_config: OSError/YAMLError/AttributeError → log.error
 # ---------------------------------------------------------------------------
