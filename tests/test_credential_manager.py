@@ -54,6 +54,16 @@ from siege_utilities.exceptions import SiegeConfigError
 # =============================================================================
 
 @pytest.fixture(autouse=True)
+def _force_log_capture(caplog, monkeypatch):
+    """Keep diagnostic assertions independent of ambient logging state."""
+    # isolated_credentials redirects the production log helpers here.
+    logger = logging.getLogger('credential_security_test')
+    monkeypatch.setattr(logger, 'propagate', True)
+    caplog.set_level(logging.DEBUG, logger=logger.name)
+    caplog.set_level(logging.DEBUG)
+
+
+@pytest.fixture(autouse=True)
 def _no_external_io(monkeypatch):
     """All CLI responses are fixtures; an accidental live call fails locally."""
     def reject(*args, **kwargs):
