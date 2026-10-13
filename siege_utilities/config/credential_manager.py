@@ -79,6 +79,12 @@ _REDACT_PATTERNS = [
 ]
 
 
+def _validate_cli_value(value: str, name: str) -> None:
+    """Reject option-like values without exposing credential contents."""
+    if value.startswith('-'):
+        raise ValueError(f"{name} must not start with '-'")
+
+
 class CredentialNotFoundError(LookupError):
     """Raised by ``get_credential`` when no configured backend yields a value.
 
@@ -307,6 +313,8 @@ class CredentialManager:
             Credential value as a string.
 
         Raises:
+            ValueError: If a CLI backend receives a service or username
+                starting with '-'.
             CredentialNotFoundError: when every configured + available backend
                 was consulted and none had the credential. The error's
                 ``attempts`` list names each backend and its outcome
@@ -478,6 +486,7 @@ class CredentialManager:
             vault: Vault override (falls back to default_vault)
             account: Account override (falls back to default_account)
         """
+        _validate_cli_value(service, 'service')
         op_flags = self._build_op_flags(vault=vault, account=account)
         names_to_try = [
             service,
@@ -524,6 +533,8 @@ class CredentialManager:
         transport / permission errors so the caller doesn't silently
         fall through to the next backend.
         """
+        _validate_cli_value(service, 'service')
+        _validate_cli_value(username, 'username')
         result = subprocess.run([
             'security', 'find-generic-password',
             '-s', service,
@@ -584,6 +595,10 @@ class CredentialManager:
 
         Returns:
             True if successful, False otherwise
+
+        Raises:
+            ValueError: If a CLI service/field name, or a Keychain username
+                or credential value, starts with '-'.
         """
         if backend == '1password' and self.available_backends.get('1password'):
             return self._store_in_1password(service, username, value, field,
@@ -599,7 +614,9 @@ class CredentialManager:
     def _store_in_1password(self, service: str, username: str, value: str, field: str,
                             vault: Optional[str] = None,
                             account: Optional[str] = None) -> bool:
-        """Store credential in 1Password."""
+        """Store credential in 1Password; reject option-like service/field names."""
+        _validate_cli_value(service, 'service')
+        _validate_cli_value(field, 'field')
         try:
             op_flags = self._build_op_flags(vault=vault, account=account)
 
@@ -636,7 +653,10 @@ class CredentialManager:
             return False
 
     def _store_in_keychain(self, service: str, username: str, value: str) -> bool:
-        """Store credential in Apple Keychain."""
+        """Store a Keychain credential; reject values starting with a dash."""
+        _validate_cli_value(service, 'service')
+        _validate_cli_value(username, 'username')
+        _validate_cli_value(value, 'value')
         try:
             result = subprocess.run([
                 'security', 'add-generic-password',
@@ -1171,11 +1191,13 @@ def get_google_service_account_from_1password(item_title: str = "Google Analytic
         Service account credentials dictionary.
 
     Raises:
+        ValueError: If item_title starts with '-'.
         subprocess.CalledProcessError: If 1Password CLI fails (item not found,
             auth required, etc.)
         subprocess.TimeoutExpired: If the ``op`` command exceeds 60 s.
         OSError: If the ``op`` binary cannot be executed.
     """
+    _validate_cli_value(item_title, 'item_title')
     op_flags = []
     if vault:
         op_flags.append(f'--vault={vault}')
@@ -1230,9 +1252,11 @@ def get_google_oauth_from_1password(
     Raises:
         subprocess.CalledProcessError: If 1Password CLI fails.
         subprocess.TimeoutExpired: If the ``op`` command exceeds 60 s.
-        ValueError: If the item exists but lacks client_id or client_secret.
+        ValueError: If item_title starts with '-', or the item exists but lacks
+            client_id or client_secret.
         OSError: If the ``op`` binary cannot be executed.
     """
+    _validate_cli_value(item_title, 'item_title')
     op_flags = []
     if vault:
         op_flags.append(f'--vault={vault}')
@@ -1298,12 +1322,14 @@ def get_google_oauth_document_from_1password(
         Parsed client secret dict (contains ``"installed"`` or ``"web"`` key).
 
     Raises:
+        ValueError: If item_title starts with '-'.
         subprocess.CalledProcessError: If 1Password CLI fails (item not found,
             auth required, etc.)
         subprocess.TimeoutExpired: If the ``op`` command exceeds 60 s.
         json.JSONDecodeError: If the document content is not valid JSON.
         OSError: If the ``op`` binary cannot be executed.
     """
+    _validate_cli_value(item_title, 'item_title')
     cmd = ['op', 'document', 'get', item_title]
     if vault:
         cmd.append(f'--vault={vault}')

@@ -9,6 +9,7 @@ import re
 
 from siege_utilities.core.logging import log_info, log_warning
 from siege_utilities.exceptions import GitError
+from .validation import validate_branch_name
 from ._utils import run_git_command
 
 __all__ = [
@@ -185,7 +186,8 @@ def start_feature_workflow(
     repo_path: str = ".",
     auto_push: bool = True
 ) -> Dict[str, Union[str, bool, Dict[str, str]]]:
-    """Start a new feature development workflow."""
+    """Start a feature workflow; reject invalid base branch names."""
+    base_branch = validate_branch_name(base_branch)
 
     # Validate feature name
     validation = validate_branch_naming(f"feature/{feature_name}")
@@ -237,7 +239,9 @@ def complete_feature_workflow(
     squash: bool = True,
     delete_branch: bool = True
 ) -> Dict[str, Union[str, bool, Dict[str, str]]]:
-    """Complete a feature development workflow."""
+    """Complete a feature workflow; reject invalid feature/target branch names."""
+    feature_branch = validate_branch_name(feature_branch)
+    target_branch = validate_branch_name(target_branch)
 
     try:
         # Ensure we're on target branch
@@ -304,7 +308,8 @@ def hotfix_workflow(
     repo_path: str = ".",
     auto_push: bool = True
 ) -> Dict[str, Union[str, bool, Dict[str, str]]]:
-    """Start a hotfix workflow for urgent fixes."""
+    """Start a hotfix workflow; reject invalid base branch names."""
+    base_branch = validate_branch_name(base_branch)
 
     # Validate hotfix name
     validation = validate_branch_naming(f"hotfix/{hotfix_name}")
@@ -355,7 +360,8 @@ def release_workflow(
     repo_path: str = ".",
     auto_push: bool = True
 ) -> Dict[str, Union[str, bool, Dict[str, str]]]:
-    """Start a release workflow for version releases."""
+    """Start a release workflow; reject invalid base branch names."""
+    base_branch = validate_branch_name(base_branch)
 
     # Validate version format (semantic versioning, with optional v prefix and pre-release)
     if not re.match(r'^v?\d+\.\d+\.\d+(-rc\.\d+)?$', version):
