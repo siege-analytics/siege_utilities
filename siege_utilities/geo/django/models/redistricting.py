@@ -476,13 +476,30 @@ class PrecinctElectionResult(models.Model):
         db_index=True,
         validators=[MinValueValidator(1900), MaxValueValidator(2050)],
     )
+    election_type = models.CharField(
+        max_length=1,
+        default="G",
+        help_text="VEST election type (G general, S special, R runoff, C recount, P primary)",
+    )
     office = models.CharField(
         max_length=30,
         choices=OFFICE_CHOICES,
     )
+    district = models.CharField(
+        max_length=2,
+        blank=True,
+        default="",
+        help_text="VEST House district (two digits or AL); blank for statewide offices",
+    )
     party = models.CharField(
         max_length=50,
         help_text="Political party (DEM, REP, LIB, GRN, IND, etc.)",
+    )
+    party_code = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        help_text="Raw VEST party letter; legacy rows retain unmapped party labels",
     )
     candidate_name = models.CharField(
         max_length=255,
@@ -518,8 +535,8 @@ class PrecinctElectionResult(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=[
-                    "state_fips", "election_year", "precinct_id", "office",
-                    "party", "candidate_name", "data_source",
+                    "state_fips", "election_year", "election_type", "precinct_id",
+                    "office", "district", "party_code", "candidate_name", "data_source",
                 ],
                 name="precinct_result_identity_uniq",
             ),

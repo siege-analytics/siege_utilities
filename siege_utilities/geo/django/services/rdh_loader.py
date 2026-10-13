@@ -20,12 +20,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_VEST_VOTE_COLUMN_RE = re.compile(r"^G[0-9]{2}[A-Z]{4}[A-Z0-9]{3}$")
+_VEST_VOTE_COLUMN_RE = re.compile(r"^[GSRCP][0-9]{2}(?:[A-Z]{3}|H[0-9]{2})[A-Z][A-Z0-9]{3}$")
+_VEST_HOUSE_RE = re.compile(r"^H(?:[0-9]{2}|AL)$")
 _VEST_OFFICE_MAP = {
     "PRE": "president",
     "GOV": "governor",
     "USS": "senate",
-    "USH": "house",
     "SOS": "secretary_of_state",
     "ATG": "attorney_general",
 }
@@ -204,14 +204,21 @@ class RDHLoaderService:
     ) -> RDHLoadResult:
         """Replace the RDH precinct results for one state and election year.
 
-        Read VEST general-election columns (GYYEEEPNNN). Store the three-character
-        alphanumeric candidate code in candidate_name; full surnames are not in
-        the file. Skip non-conforming year-prefixed columns and columns with
-        unmapped offices with logged warnings recorded in the result. Missing
+        Read VEST vote columns (TYYOOOPCCC), including general, special, runoff,
+        recount and primary elections. Store the raw election type, House
+        district (two digits or AL), and party letter in the result identity.
+        Known party display labels do not replace the source party code.
+        Store the three-character alphanumeric candidate code in candidate_name;
+        full surnames are not in the file. Skip non-conforming year-prefixed
+        columns and columns with unmapped offices with logged warnings recorded
+        in the result. Missing
         or blank vote cells count as zero. Totals include every conforming
         candidate column in each mapped office prefix, including unrecognized
         parties.
-        Geometry is expected in WGS 84 (EPSG:4326).
+        Prefer GEOID20/GEOID10/GEOID precinct identifiers, then county-qualified
+        VTD and precinct codes. WARDID also needs its municipality when supplied.
+        Every resolved identifier must be nonblank and unique within the state.
+        Geometry is expected in WGS 84 (EPSG:4326) and stored as 2D boundaries.
 
         Parameters
         ----------
@@ -254,35 +261,29 @@ class RDHLoaderService:
         state_obj = State.objects.filter(state_fips=state_fips).first()
 
         # Identify columns
-        precinct_col = self._find_column(
-            gdf, ["PRECINCT", "PREC_ID", "VTDST", "precinct_id", "VTD", "PCTNUM"]
-        )
         name_col = self._find_column(
-            gdf, ["PRECINCT_NAME", "PREC_NAME", "NAME", "precinct_name"]
+            gdf, ["PRECINCT_NAME", "PREC_NAME", "PRECINCT_N", "NAME20", "NAME", "precinct_name"]
         )
 
         if gdf.empty:
             raise ValueError(f"No precinct results for {state} {election_year}")
-        if precinct_col is None:
-            raise ValueError("Could not identify a precinct identifier column")
-        precinct_ids = gdf[precinct_col].astype(str).str.strip()
-        if gdf[precinct_col].isna().any() or precinct_ids.eq("").any():
-            raise ValueError("Precinct identifiers must not be missing or blank")
-        if precinct_ids.duplicated().any():
-            raise ValueError("Duplicate precinct identifiers in RDH results")
+        precinct_ids = self._resolve_precinct_ids(gdf)
 
-        year_prefix = f"G{election_year % 100:02d}"
+        year_prefixes = tuple(f"{kind}{election_year % 100:02d}" for kind in "GSRCP")
         vote_cols = []
         for col in gdf.columns:
             col_upper = col.upper()
-            if not col_upper.startswith(year_prefix):
+            if not col_upper.startswith(year_prefixes):
                 continue
             if _VEST_VOTE_COLUMN_RE.fullmatch(col_upper) is None:
                 warning = (
                     f"Skipping non-conforming VEST vote column {col!r} for "
                     f"{state} {election_year}; expected {_VEST_VOTE_COLUMN_RE.pattern}"
                 )
-            elif col_upper[3:6] not in _VEST_OFFICE_MAP:
+            elif (
+                col_upper[3:6] not in _VEST_OFFICE_MAP
+                and _VEST_HOUSE_RE.fullmatch(col_upper[3:6]) is None
+            ):
                 warning = (
                     f"Skipping VEST vote column {col!r} for {state} {election_year}; "
                     f"unmapped office {col_upper[3:6]!r}"
@@ -297,15 +298,15 @@ class RDHLoaderService:
         parsed_cols = {col: self._parse_vote_column(col) for col in vote_cols}
 
         records = []
-        for _, row in gdf.iterrows():
-            precinct_id = str(row[precinct_col]).strip()
+        for precinct_id, (_, row) in zip(precinct_ids, gdf.iterrows()):
             precinct_name = str(row[name_col]) if name_col else ""
 
             geom = None
             if row.geometry is not None and not row.geometry.is_empty:
                 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
+                from shapely import force_2d
 
-                geos_geom = GEOSGeometry(row.geometry.wkt, srid=4326)
+                geos_geom = GEOSGeometry(force_2d(row.geometry).wkt, srid=4326)
                 if geos_geom.geom_type == "Polygon":
                     geos_geom = MultiPolygon(geos_geom, srid=4326)
                 geom = geos_geom
@@ -330,8 +331,11 @@ class RDHLoaderService:
                     precinct_name=precinct_name,
                     geometry=geom,
                     election_year=election_year,
+                    election_type=col.upper()[0],
                     office=office,
+                    district=col.upper()[4:6] if office == "house" else "",
                     party=party,
+                    party_code=col.upper()[6],
                     candidate_name=col.upper()[7:10],
                     votes=votes,
                     total_votes=total,
@@ -549,6 +553,59 @@ class RDHLoaderService:
 
     # -- Helpers --------------------------------------------------------------
 
+    @classmethod
+    def _resolve_precinct_ids(cls, gdf) -> list[str]:
+        """Resolve a complete statewide key from observed VEST identifier fields.
+
+        Try whole-file alternatives, never row numbers or per-row substitutions.
+        County-local VTDs are qualified even when this file happens to be unique.
+        GA's CTYSOSID is an alternative when PRECINCT_I includes missing codes.
+        """
+        county_col = cls._find_column(gdf, [
+            "COUNTYFP20", "COUNTYFP10", "COUNTYFP", "CNTY_FIPS", "COUNTY_FIPS",
+            "FIPS2", "CDE_COUNTY", "COUNTY", "CNTY", "CNTY_NAME", "LOCALITY",
+        ])
+        municipality_col = cls._find_column(gdf, ["MCD_FIPS", "MCD", "MCD_NAME"])
+        candidates = []
+        for name in [
+            "GEOID20", "GEOID10", "GEOID", "VTDST20", "VTDST10", "PRECINCT",
+            "PRECINCT_I", "SOSPRECINC", "WARDID", "CTYSOSID", "PREC_ID",
+            "VTDST", "precinct_id", "VTD", "PCTNUM",
+        ]:
+            col = cls._find_column(gdf, [name])
+            if col is None:
+                continue
+            parts = [col]
+            if not name.startswith("GEOID"):
+                if name == "WARDID" and municipality_col:
+                    parts.insert(0, municipality_col)
+                if county_col:
+                    parts.insert(0, county_col)
+            candidates.append(parts)
+        if not candidates:
+            raise ValueError("Could not identify a precinct identifier column")
+
+        failures = []
+        for columns in candidates:
+            parts = gdf[columns].astype(str).apply(lambda s: s.str.strip())
+            if gdf[columns].isna().any().any() or parts.eq("").any().any():
+                failures.append(f"{columns}: Precinct identifiers must not be missing or blank")
+                continue
+            # Escape the separator so component boundaries cannot alias.
+            parts = parts.apply(
+                lambda s: s.str.replace("%", "%25", regex=False).str.replace(":", "%3A", regex=False)
+            )
+            ids = parts.agg(":".join, axis=1)
+            if ids.duplicated().any():
+                failures.append(f"{columns}: Duplicate precinct identifiers")
+                continue
+            if ids.str.len().gt(60).any():
+                failures.append(f"{columns}: Precinct identifiers exceed 60 characters")
+                continue
+            logger.info("Resolved statewide precinct identifiers from %s", columns)
+            return ids.tolist()
+        raise ValueError("Cannot resolve statewide precinct identifiers; " + "; ".join(failures))
+
     @staticmethod
     def _find_column(gdf, candidates: list[str]) -> Optional[str]:
         """Find first matching column name (case-insensitive)."""
@@ -569,15 +626,16 @@ class RDHLoaderService:
 
     @staticmethod
     def _parse_vote_column(col: str) -> tuple[str, str]:
-        """Parse a VEST GYYEEEPNNN column into (party, office)."""
+        """Parse a VEST TYYOOOPCCC column into (party display label, office)."""
         col_upper = col.upper()
         if _VEST_VOTE_COLUMN_RE.fullmatch(col_upper) is None:
-            raise ValueError(f"Invalid VEST vote column: {col!r}; expected GYYEEEPNNN")
+            raise ValueError(f"Invalid VEST vote column: {col!r}; expected TYYOOOPCCC")
         office_code = col_upper[3:6]
-        if office_code not in _VEST_OFFICE_MAP:
+        office = "house" if _VEST_HOUSE_RE.fullmatch(office_code) else _VEST_OFFICE_MAP.get(office_code)
+        if office is None:
             raise ValueError(f"Unsupported VEST office {office_code!r} in column {col!r}")
         party_map = {"D": "DEM", "R": "REP", "L": "LIB", "G": "GRN", "I": "IND"}
-        return party_map.get(col_upper[6], "OTHER"), _VEST_OFFICE_MAP[office_code]
+        return party_map.get(col_upper[6], col_upper[6]), office
 
     @staticmethod
     def _state_abbr_to_fips(abbr: str) -> str:

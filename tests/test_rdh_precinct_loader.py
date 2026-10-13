@@ -39,6 +39,172 @@ def loader(monkeypatch, precinct_data, tmp_path):
 
 @pytest.mark.django_db
 class TestPrecinctLoading:
+    def test_vest_zero_z_boundary_loads_into_2d_postgis(self, loader, precinct_data):
+        # VA 2020 VEST boundaries have Z=0; the model stores a 2D footprint.
+        polygon = Polygon([(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 0, 0)])
+        precinct_data.loc[0, "geometry"] = polygon
+        result = loader.load_precinct_results("VA", 2020)
+        row = PrecinctElectionResult.objects.get(precinct_id="001", party="DEM")
+        assert result.records_created == 6
+        assert not row.geometry.hasz
+        assert row.geometry.srid == 4326
+        assert row.geometry[0].coords == (((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 0.0)),)
+
+    def test_real_house_columns_retain_district_and_reload_idempotently(self, loader, precinct_data):
+        precinct_data["G20HALRYOU"] = [40, 4]
+        precinct_data["G20H01DSMI"] = [10, 1]
+        precinct_data["G20H01RJON"] = [15, 2]
+        precinct_data["G20H05DSMI"] = [30, 3]
+        first = loader.load_precinct_results("VA", 2020)
+        second = loader.load_precinct_results("VA", 2020)
+
+        assert first.records_created == second.records_created == 14
+        assert first.warnings == second.warnings == []
+        assert PrecinctElectionResult.objects.count() == 14
+        assert list(PrecinctElectionResult.objects.filter(precinct_id="001", office="house")
+                    .order_by("district", "party_code")
+                    .values_list("district", "party_code", "candidate_name", "votes", "total_votes")) == [
+            ("01", "D", "SMI", 10, 25), ("01", "R", "JON", 15, 25),
+            ("05", "D", "SMI", 30, 30), ("AL", "R", "YOU", 40, 40),
+        ]
+        assert PrecinctElectionResult.objects.get(
+            precinct_id="001", district="01", party_code="D"
+        ).vote_share == 0.4
+
+    def test_mn_2018_governor_party_collision_preserves_raw_letters(self, loader, precinct_data):
+        # VEST 2018 documentation.txt, Minnesota: all five governor columns.
+        precinct_data["G18GOVDWAL"] = [100, 20]
+        precinct_data["G18GOVRJOH"] = [80, 30]
+        precinct_data["G18GOVLWEL"] = [3, 1]
+        precinct_data["G18GOVCWRI"] = [7, 2]
+        precinct_data["G18GOVOWRI"] = [5, 0]
+        first = loader.load_precinct_results("MN", 2018)
+        second = loader.load_precinct_results("MN", 2018)
+
+        assert first.records_created == second.records_created == 10
+        assert PrecinctElectionResult.objects.count() == 10
+        assert list(PrecinctElectionResult.objects.filter(precinct_id="001", candidate_name="WRI")
+                    .order_by("party_code").values_list("party_code", "party", "votes", "total_votes")) == [
+            ("C", "C", 7, 195), ("O", "O", 5, 195),
+        ]
+        assert PrecinctElectionResult.objects.aggregate(total=Sum("votes"))["total"] == 248
+
+    def test_special_and_general_senate_load_distinctly(self, loader, precinct_data):
+        precinct_data["S20USSDWAR"] = [40, 4]
+        precinct_data["G20USSDOSS"] = [60, 6]
+        # Same candidate in both election types must also remain distinct.
+        precinct_data["S20USSDOSS"] = [10, 1]
+        first = loader.load_precinct_results("GA", 2020)
+        second = loader.load_precinct_results("GA", 2020)
+
+        assert first.records_created == second.records_created == 12
+        assert first.warnings == second.warnings == []
+        assert PrecinctElectionResult.objects.count() == 12
+        assert list(PrecinctElectionResult.objects.filter(precinct_id="001", office="senate")
+                    .order_by("election_type", "candidate_name")
+                    .values_list("election_type", "candidate_name", "votes", "total_votes")) == [
+            ("G", "OSS", 60, 60), ("S", "OSS", 10, 50), ("S", "WAR", 40, 50),
+        ]
+
+    @pytest.mark.parametrize("election_type", ["R", "C", "P"])
+    def test_other_election_types_load_and_warn_for_skipped_columns(
+        self, loader, precinct_data, election_type, caplog
+    ):
+        precinct_data[f"{election_type}20PREDBID"] = [10, 1]
+        malformed = f"{election_type}20PRE_TOTAL"
+        unmapped = f"{election_type}20TREDABC"
+        precinct_data[malformed] = [900, 90]
+        precinct_data[unmapped] = [800, 80]
+        precinct_data["R21USSDWAR"] = [700, 70]
+        with caplog.at_level(logging.WARNING, logger=RDHLoaderService.__module__):
+            result = loader.load_precinct_results("VA", 2020)
+        assert result.records_created == 8
+        row = PrecinctElectionResult.objects.get(precinct_id="001", election_type=election_type)
+        assert (row.party_code, row.votes, row.total_votes) == ("D", 10, 10)
+        assert len(result.warnings) == 2
+        assert malformed in result.warnings[0] and unmapped in result.warnings[1]
+        assert all(warning in caplog.text for warning in result.warnings)
+
+    @pytest.mark.parametrize("column", ["GEOID20", "VTDST20", "PRECINCT_I", "SOSPRECINC", "WARDID"])
+    def test_real_precinct_id_columns_resolve_statewide(self, loader, precinct_data, column):
+        precinct_data.rename(columns={"PRECINCT": column}, inplace=True)
+        result = loader.load_precinct_results("VA", 2020)
+        assert result.records_created == 6
+        assert set(PrecinctElectionResult.objects.values_list("precinct_id", flat=True)) == {"001", "002"}
+
+    @pytest.mark.parametrize("column", ["PRECINCT", "PRECINCT_I", "SOSPRECINC", "VTDST20", "WARDID"])
+    def test_county_qualifies_cross_county_duplicate_precincts(self, loader, precinct_data, column):
+        precinct_data.rename(columns={"PRECINCT": column}, inplace=True)
+        precinct_data[column] = ["001", "001"]
+        precinct_data["COUNTYFP20"] = ["001", "003"]
+        precinct_data.index = [7, 7]  # DataFrame index is not part of precinct identity.
+        loader.load_precinct_results("VA", 2020)
+        loader.load_precinct_results("VA", 2020)
+        assert PrecinctElectionResult.objects.count() == 6
+        assert set(PrecinctElectionResult.objects.values_list("precinct_id", flat=True)) == {
+            "001:001", "003:001",
+        }
+        assert PrecinctElectionResult.objects.aggregate(total=Sum("votes"))["total"] == 235
+
+    def test_geoid_preferred_over_county_local_precinct_and_vtd(self, loader, precinct_data):
+        precinct_data["PRECINCT"] = ["001", "001"]
+        precinct_data["VTDST20"] = ["ACWO01", "ACWO01"]
+        precinct_data["GEOID20"] = ["33019ACWO01", "33017ACWO01"]
+        precinct_data["COUNTYFP20"] = ["019", "017"]
+        loader.load_precinct_results("NH", 2020)
+        assert set(PrecinctElectionResult.objects.values_list("precinct_id", flat=True)) == {
+            "33019ACWO01", "33017ACWO01",
+        }
+
+    def test_wisconsin_wards_include_municipality(self, loader, precinct_data):
+        precinct_data.rename(columns={"PRECINCT": "WARDID"}, inplace=True)
+        precinct_data["WARDID"] = ["0060", "0060"]
+        precinct_data["CNTY_FIPS"] = ["55035", "55035"]
+        precinct_data["MCD_FIPS"] = ["5503522300", "5503522301"]
+        loader.load_precinct_results("WI", 2020)
+        assert set(PrecinctElectionResult.objects.values_list("precinct_id", flat=True)) == {
+            "55035:5503522300:0060", "55035:5503522301:0060",
+        }
+
+    def test_georgia_missing_precinct_code_uses_county_sos_id(self, loader, precinct_data):
+        precinct_data.rename(columns={"PRECINCT": "PRECINCT_I"}, inplace=True)
+        precinct_data["PRECINCT_I"] = [None, None]
+        precinct_data["FIPS2"] = ["215", "053"]
+        precinct_data["CTYSOSID"] = ["FTBEN2", "FTBEN2"]
+        loader.load_precinct_results("GA", 2020)
+        assert set(PrecinctElectionResult.objects.values_list("precinct_id", flat=True)) == {
+            "215:FTBEN2", "053:FTBEN2",
+        }
+
+    @pytest.mark.parametrize("county", [None, "", "  "])
+    def test_missing_county_identifier_raises_and_preserves_snapshot(self, loader, precinct_data, county):
+        loader.load_precinct_results("VA", 2020)
+        precinct_data["COUNTYFP"] = [county, "003"]
+        with pytest.raises(ValueError, match="Cannot resolve statewide precinct identifiers.*missing or blank"):
+            loader.load_precinct_results("VA", 2020)
+        assert PrecinctElectionResult.objects.aggregate(total=Sum("votes"))["total"] == 235
+
+    def test_duplicate_within_county_raises(self, loader, precinct_data):
+        precinct_data["COUNTYFP"] = ["001", "001"]
+        precinct_data["PRECINCT"] = ["001", "001"]
+        with pytest.raises(ValueError, match="Cannot resolve statewide.*Duplicate precinct identifiers"):
+            loader.load_precinct_results("VA", 2020)
+        assert not PrecinctElectionResult.objects.exists()
+
+    def test_overlong_statewide_identifier_raises(self, loader, precinct_data):
+        precinct_data["PRECINCT"] = ["A" * 61, "002"]
+        with pytest.raises(ValueError, match="Precinct identifiers exceed 60 characters"):
+            loader.load_precinct_results("VA", 2020)
+        assert not PrecinctElectionResult.objects.exists()
+
+    def test_identifier_separator_does_not_merge_components(self, loader, precinct_data):
+        precinct_data["COUNTY"] = ["a:b", "a"]
+        precinct_data["PRECINCT"] = ["c", "b:c"]
+        loader.load_precinct_results("VA", 2020)
+        assert set(PrecinctElectionResult.objects.values_list("precinct_id", flat=True)) == {
+            "a%3Ab:c", "a:b%3Ac",
+        }
+
     def test_reloading_same_fixture_preserves_vote_sum(self, loader):
         first = loader.load_precinct_results("VA", 2020)
         before = PrecinctElectionResult.objects.aggregate(total=Sum("votes"))["total"]
@@ -72,10 +238,10 @@ class TestPrecinctLoading:
         [
             (2016, "G16PREDCLI", "president", "DEM", "CLI"),
             (2026, "G26GOVRSMI", "governor", "REP", "SMI"),
-            (2024, "G24USHLDOE", "house", "LIB", "DOE"),
+            (2024, "G24H01LDOE", "house", "LIB", "DOE"),
             (2024, "G24USSGDOE", "senate", "GRN", "DOE"),
             (2024, "g24sosidoe", "secretary_of_state", "IND", "DOE"),
-            (2024, "G24ATGOWRI", "attorney_general", "OTHER", "WRI"),
+            (2024, "G24ATGOWRI", "attorney_general", "O", "WRI"),
         ],
     )
     def test_discovers_requested_year_and_office(
@@ -109,7 +275,7 @@ class TestPrecinctLoading:
         assert president.vote_share == pytest.approx(100 / 185)
         assert senate.total_votes == 25
         assert senate.vote_share == 0.4
-        assert (write_in.party, write_in.votes) == ("OTHER", 5)
+        assert (write_in.party, write_in.votes) == ("O", 5)
 
     def test_digit_bearing_candidate_code_loads_with_positional_party_and_office(
         self, loader, precinct_data
@@ -353,6 +519,16 @@ class TestPrecinctLoading:
             PrecinctElectionResult.objects.create(**fields)
         assert PrecinctElectionResult.objects.count() == 1
 
+    def test_party_display_label_is_not_part_of_identity(self):
+        fields = dict(
+            state_fips="27", election_year=2018, election_type="G", precinct_id="001",
+            office="governor", district="", party_code="C", candidate_name="WRI", votes=7,
+        )
+        PrecinctElectionResult.objects.create(**fields, party="C")
+        with pytest.raises(IntegrityError, match="precinct_result_identity_uniq"), transaction.atomic():
+            PrecinctElectionResult.objects.create(**fields, party="Grassroots-Legalize Cannabis")
+        assert PrecinctElectionResult.objects.count() == 1
+
 
 @pytest.mark.parametrize("column", ["G20PREDEM", "G20PR1DBID", "G20PRE1BID"])
 def test_malformed_vote_column_parser_raises(column):
@@ -375,9 +551,11 @@ def test_precinct_unique_constraint_migration_state_matches_model():
     assert constraints[0].fields == (
         "state_fips",
         "election_year",
+        "election_type",
         "precinct_id",
         "office",
-        "party",
+        "district",
+        "party_code",
         "candidate_name",
         "data_source",
     )
@@ -396,8 +574,8 @@ def test_precinct_unique_migration_uses_reversible_concurrent_index(direction):
         "apply": [
             'DROP INDEX CONCURRENTLY IF EXISTS "precinct_result_identity_idx";',
             'CREATE UNIQUE INDEX CONCURRENTLY "precinct_result_identity_idx" '
-            'ON "siege_geo_precinctelectionresult" ("state_fips", "election_year", "precinct_id", '
-            '"office", "party", "candidate_name", "data_source");',
+            'ON "siege_geo_precinctelectionresult" ("state_fips", "election_year", "election_type", "precinct_id", '
+            '"office", "district", "party_code", "candidate_name", "data_source");',
             'ALTER TABLE "siege_geo_precinctelectionresult" ADD CONSTRAINT '
             '"precinct_result_identity_uniq" UNIQUE USING INDEX "precinct_result_identity_idx";',
         ],
@@ -406,7 +584,10 @@ def test_precinct_unique_migration_uses_reversible_concurrent_index(direction):
             'DROP INDEX CONCURRENTLY IF EXISTS "precinct_result_identity_idx";',
         ],
     }
-    assert statements == expected[direction]
+    # Column creation/backfill precede the concurrent index; reversal removes
+    # those columns only after detaching the constraint.
+    index_statements = [sql for sql in statements if "precinct_result_identity_" in sql]
+    assert index_statements == expected[direction]
 
 
 @pytest.fixture
@@ -419,7 +600,7 @@ def precinct_migration_without_constraint(transactional_db):
     try:
         yield migration, state
     finally:
-        PrecinctElectionResult.objects.all().delete()
+        state.apps.get_model("siege_geo", "PrecinctElectionResult").objects.all().delete()
         with connection.schema_editor(atomic=False) as editor:
             migration.unapply(state, editor)
         with connection.schema_editor(atomic=False) as editor:
@@ -430,6 +611,7 @@ def test_migration_rejects_existing_duplicates_and_retries_after_reconciliation(
     precinct_migration_without_constraint,
 ):
     migration, state = precinct_migration_without_constraint
+    legacy_model = state.apps.get_model("siege_geo", "PrecinctElectionResult")
     fields = dict(
         state_fips="51",
         election_year=2024,
@@ -440,8 +622,8 @@ def test_migration_rejects_existing_duplicates_and_retries_after_reconciliation(
         votes=10,
         data_source="rdh",
     )
-    original = PrecinctElectionResult.objects.create(**fields)
-    duplicate = PrecinctElectionResult.objects.create(**fields)
+    original = legacy_model.objects.create(**fields)
+    duplicate = legacy_model.objects.create(**fields)
 
     with (
         pytest.raises(IntegrityError, match="could not create unique index"),
@@ -455,10 +637,39 @@ def test_migration_rejects_existing_duplicates_and_retries_after_reconciliation(
         migration.apply(state, editor)
     assert PrecinctElectionResult.objects.get().pk == original.pk
     with pytest.raises(IntegrityError, match="precinct_result_identity_uniq"), transaction.atomic():
-        PrecinctElectionResult.objects.create(**fields)
+        PrecinctElectionResult.objects.create(**fields, party_code="D")
 
     with connection.schema_editor(atomic=False) as editor:
         migration.unapply(state, editor)
-    assert PrecinctElectionResult.objects.get().votes == 10
-    PrecinctElectionResult.objects.create(**fields)
-    assert PrecinctElectionResult.objects.count() == 2
+    assert legacy_model.objects.get().votes == 10
+    legacy_model.objects.create(**fields)
+    assert legacy_model.objects.count() == 2
+
+
+def test_migration_backfills_legacy_party_without_guessing_unknown_letters(
+    precinct_migration_without_constraint,
+):
+    migration, state = precinct_migration_without_constraint
+    legacy_model = state.apps.get_model("siege_geo", "PrecinctElectionResult")
+    fields = dict(
+        state_fips="27", election_year=2018, precinct_id="001", office="governor",
+        candidate_name="WRI", votes=7,
+    )
+    legacy_model.objects.bulk_create([
+        legacy_model(**fields, party="DEM"),
+        legacy_model(**fields, party="REP"),
+        legacy_model(**fields, party="OTHER"),
+        legacy_model(**fields, party="C"),
+    ])
+    with connection.schema_editor(atomic=False) as editor:
+        migration.apply(state, editor)
+    assert list(PrecinctElectionResult.objects.order_by("party_code")
+                .values_list("election_type", "district", "party_code", "party", "votes")) == [
+        ("G", "", "C", "C", 7), ("G", "", "D", "DEM", 7),
+        ("G", "", "OTHER", "OTHER", 7), ("G", "", "R", "REP", 7),
+    ]
+    with connection.schema_editor(atomic=False) as editor:
+        migration.unapply(state, editor)
+    assert list(legacy_model.objects.order_by("party").values_list("party", "votes")) == [
+        ("C", 7), ("DEM", 7), ("OTHER", 7), ("REP", 7),
+    ]
