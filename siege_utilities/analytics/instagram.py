@@ -20,6 +20,7 @@ import pathlib
 import time
 from datetime import date, datetime
 from typing import Any, Mapping
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import pandas as pd
 
@@ -35,6 +36,7 @@ from siege_utilities.analytics._social_protocol import (
     SocialMediaError,
     SocialMediaRateLimitError,
 )
+from siege_utilities.core._http import redact_url_secrets
 
 log = logging.getLogger(__name__)
 
@@ -103,6 +105,7 @@ class InstagramConnector:
         self._session.headers.update({
             "Accept": "application/json",
             "User-Agent": "siege_utilities/InstagramConnector",
+            "Authorization": f"Bearer {self._access_token}",
         })
         log.info("InstagramConnector initialised (API %s)", API_VERSION)
 
@@ -343,8 +346,18 @@ class InstagramConnector:
         params: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Send an authenticated request to an absolute URL."""
-        req_params = dict(params) if params else {}
-        req_params["access_token"] = self._access_token
+        req_params = {
+            key: value for key, value in (params or {}).items()
+            if key.lower() != "access_token"
+        }
+        # Graph paging links can repeat the token; authenticate via the header.
+        parts = urlsplit(url)
+        query = [
+            (key, value) for key, value in parse_qsl(parts.query, keep_blank_values=True)
+            if key.lower() != "access_token"
+        ]
+        url = urlunsplit(parts._replace(query=urlencode(query)))
+        safe_url = redact_url_secrets(url)
         last_exc: BaseException | None = None
 
         for attempt in range(1, self._retry_attempts + 1):
@@ -355,10 +368,10 @@ class InstagramConnector:
                     timeout=self._timeout,
                 )
             except requests.exceptions.RequestException as exc:
-                last_exc = exc
+                last_exc = SocialMediaError(redact_url_secrets(str(exc)))
                 log.warning(
                     "Instagram %s %s attempt %d/%d failed: %s",
-                    method, url, attempt, self._retry_attempts, exc,
+                    method, safe_url, attempt, self._retry_attempts, str(last_exc),
                 )
                 if attempt < self._retry_attempts:
                     time.sleep(self._retry_backoff ** attempt)
@@ -373,17 +386,17 @@ class InstagramConnector:
             if resp.status_code == 429:
                 retry_after = self._parse_retry_after(resp)
                 raise SocialMediaRateLimitError(
-                    f"Instagram API rate limit hit on {method} {url}.",
+                    f"Instagram API rate limit hit on {method} {safe_url}.",
                     retry_after=retry_after,
                 )
 
             if 500 <= resp.status_code < 600:
                 last_exc = SocialMediaError(
-                    f"Instagram API {resp.status_code} on {method} {url}."
+                    f"Instagram API {resp.status_code} on {method} {safe_url}."
                 )
                 log.warning(
                     "Instagram %s %s 5xx %d attempt %d/%d",
-                    method, url, resp.status_code, attempt, self._retry_attempts,
+                    method, safe_url, resp.status_code, attempt, self._retry_attempts,
                 )
                 if attempt < self._retry_attempts:
                     time.sleep(self._retry_backoff ** attempt)
@@ -397,14 +410,14 @@ class InstagramConnector:
 
             try:
                 return resp.json()
-            except ValueError as exc:
+            except ValueError:
                 raise SocialMediaError(
-                    f"Instagram API returned non-JSON response on {method} {url}: "
-                    f"{resp.text[:200]!r}"
-                ) from exc
+                    f"Instagram API returned non-JSON response on {method} {safe_url}: "
+                    f"{redact_url_secrets(resp.text)[:200]!r}"
+                ) from None
 
         raise SocialMediaError(
-            f"Instagram API {method} {url} failed after {self._retry_attempts} "
+            f"Instagram API {method} {safe_url} failed after {self._retry_attempts} "
             f"attempts: {last_exc}"
         )
 
@@ -412,9 +425,11 @@ class InstagramConnector:
     def _extract_error_message(resp: requests.Response) -> str:
         try:
             body = resp.json()
-            return body.get("error", {}).get("message", resp.text[:200])
+            return redact_url_secrets(str(body.get("error", {}).get(
+                "message", redact_url_secrets(resp.text)[:200],
+            )))
         except ValueError:
-            return resp.text[:200]
+            return redact_url_secrets(resp.text)[:200]
 
     @staticmethod
     def _parse_retry_after(resp: requests.Response) -> float | None:

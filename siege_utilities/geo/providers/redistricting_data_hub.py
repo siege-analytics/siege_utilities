@@ -37,6 +37,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlparse
 
+from siege_utilities.core._http import redact_url_secrets
+
 try:
     import pandas as pd
     HAS_PANDAS = True
@@ -246,9 +248,13 @@ class RDHClient:
         """
         if not (self.username and self.password):
             return {}
-        host = urlparse(url).netloc.lower()
-        base_host = urlparse(self.base_url).netloc.lower()
-        if host and (host == base_host or host.endswith("redistrictingdatahub.org")):
+        host = urlparse(url).hostname
+        base_host = urlparse(self.base_url).hostname
+        if host and (
+            host == base_host
+            or host == "redistrictingdatahub.org"
+            or host.endswith(".redistrictingdatahub.org")
+        ):
             return {"username": self.username, "password": self.password}
         return {}
 
@@ -325,7 +331,7 @@ class RDHClient:
             resp = self._session.get(self.base_url, params=params, timeout=60)
             resp.raise_for_status()
         except requests.RequestException as e:
-            raise ConnectionError(f"RDH API request failed: {e}") from e
+            raise ConnectionError(redact_url_secrets(f"RDH API request failed: {e}")) from None
 
         raw_data = resp.json()
         # The RDH WP API returns error envelopes as HTTP 200 with a
@@ -338,7 +344,7 @@ class RDHClient:
             msg = raw_data.get("message", raw_data.get("code", ""))
             if "0 states" in str(msg) or "unknown states" in str(msg):
                 return []  # documented "no datasets for these states" case
-            raise ValueError(f"RDH API error: {msg}")
+            raise ValueError(redact_url_secrets(f"RDH API error: {msg}"))
         if not isinstance(raw_data, list):
             raw_data = raw_data.get("data", []) if isinstance(raw_data, dict) else []
 
@@ -440,24 +446,26 @@ class RDHClient:
         dest = output_dir / filename
 
         if use_cache and dest.exists():
-            log_info(f"RDH: Using cached {filename}")
+            log_info(redact_url_secrets(f"RDH: Using cached {filename}"))
             return dest
 
-        log_info(f"RDH: Downloading {filename}...")
+        log_info(redact_url_secrets(f"RDH: Downloading {filename}..."))
         try:
             resp = self._session.get(
                 url, params=self._auth_params(url), timeout=300, stream=True
             )
             resp.raise_for_status()
+
+            with open(dest, "wb") as f:
+                for chunk in resp.iter_content(chunk_size=8192):
+                    f.write(chunk)
         except requests.RequestException as e:
-            log_error(f"RDH download failed: {e}")
-            raise
+            message = redact_url_secrets(f"RDH download failed: {e}")
+            log_error(message)
+            e.args = (message,)
+            raise e from None
 
-        with open(dest, "wb") as f:
-            for chunk in resp.iter_content(chunk_size=8192):
-                f.write(chunk)
-
-        log_info(f"RDH: Saved {filename} ({dest.stat().st_size:,} bytes)")
+        log_info(redact_url_secrets(f"RDH: Saved {filename} ({dest.stat().st_size:,} bytes)"))
 
         # Auto-extract ZIP files
         if dest.suffix.lower() == ".zip":
@@ -473,7 +481,7 @@ class RDHClient:
         with zipfile.ZipFile(zip_path, "r") as zf:
             zf.extractall(extract_dir)
 
-        log_info(f"RDH: Extracted to {extract_dir}")
+        log_info(redact_url_secrets(f"RDH: Extracted to {extract_dir}"))
         return extract_dir
 
     # -- Loading into DataFrames ----------------------------------------------
