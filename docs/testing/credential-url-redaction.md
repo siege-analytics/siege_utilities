@@ -61,6 +61,65 @@ round-1 cases remain. `tests/test_credential_url_guard.py` tests the package sca
 allowlist specificity, each sensitive spelling in both construction forms,
 dictionary mutations/aliases, and CLI failure followed by success on removal.
 
+## Round 3 coverage
+
+The redactor and independent guard also protect signature, x-goog-signature
+and x-amz-security-token case-insensitively. Fragment fields use the same
+redaction as query fields. Percent-encoded delimiters (%3F, %26, %23) and
+separators (%3D) are recognized without decoding the surrounding diagnostic
+text. Nonsecret outer fields no longer hide encoded nested URLs. Commas and
+closing parentheses remain outside the redacted value.
+
+The guard checks params= on HTTP method calls, including requests import
+aliases, with the same dictionary assignment/update/alias tracking as
+urlencode. Unresolved mappings require an exact expression exemption with a
+reason. Function arguments remain unresolved even if another function assigns
+a nonsecret dictionary with the same name. This conservative file-level scan
+does not infer arbitrary function return values or perform control-flow analysis.
+
+RDH's listing request (including the _auth_params assignment) and download
+request have separate exemptions documenting query authentication, redacted
+diagnostics, and fresh exceptions. Instagram's forwarding expression is also
+reviewed. Twelve other existing forwarding expressions have explicit reasons
+covering header authentication or public endpoint filters. These entries
+document that caller-supplied secret query values are not sanitized by those
+generic wrappers; they do not claim new redaction coverage there.
+
+With the round-3 tests retained and only core/_http.py restored to 63694f9a:
+
+```text
+pytest tests/test_credential_url_leak.py --no-cov -q -k redact_url_secrets
+74 failed, 61 passed, 69 deselected
+```
+
+With only scripts/check_credential_urls.py restored to 63694f9a:
+
+```text
+pytest tests/test_credential_url_guard.py --no-cov -q -k 'injected or tracks_query or unresolved_params'
+44 failed, 40 passed, 4 deselected
+```
+
+Both commands exit 1 on behavioral assertions. Restoring the implementation
+passes the leak, guard, and remote-error suites: 298 passed. The _http cases
+live in test_credential_url_leak.py. All prior leak scenarios remain covered.
+The CLI tests verify exit 1 for sensitive params dictionaries, Signature
+f-strings, and unresolved authentication helpers, then exit 0 on file removal.
+Notebook impact is limited to private diagnostic handling; no public contract
+changes or direct notebook callers of core._http were found.
+
+Rebase onto develop at 154589e9 retained the #1641 _force_log_capture fixture
+unchanged. The client logger fixture depends on it and no longer overrides
+the root DEBUG capture with INFO. The conflict was confined to these fixtures;
+the remaining round-2 and round-3 changes replayed unchanged. Forcing a
+CRITICAL root level and logging.disable(CRITICAL) before every leak test still
+passes all 204 cases.
+
+After rebase, the full affected-client command below passes 577 tests in a
+clean detached worktree. The original worktree again produced six PyArrow
+duplicate filesystem registration errors, with 571 tests passing; the clean
+worktree used identical source and the same pinned interpreter. Lint ratchet
+phases 1-4, test file hygiene and the blocking I/O checks pass.
+
 ## Reproduction and results
 
 All pytest commands used `/Users/dheerajchand/.pyenv/versions/default_31111/bin/python`

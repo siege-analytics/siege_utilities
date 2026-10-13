@@ -338,13 +338,41 @@ def test_instagram_non_json_error_redacts_url_and_body(instagram, requests_mock,
 @pytest.mark.parametrize("parameter", [
     "key", "password", "access_token", "token", "apiKey", "apikey", "api_key",
     "API_KEY", "%61piKey", "secret", "SECRET", "sig", "X-Amz-Signature",
-    "client_secret", "auth",
+    "client_secret", "auth", "Signature", "SIGNATURE", "x-goog-signature",
+    "X-Goog-Signature", "x-amz-security-token", "X-Amz-Security-Token",
 ])
-def test_redact_url_secrets_sensitive_parameters(parameter):
+@pytest.mark.parametrize("delimiter", ["?", "&", "#"])
+@pytest.mark.parametrize("suffix", ["&x=1", ""])
+def test_redact_url_secrets_sensitive_parameters(parameter, delimiter, suffix):
     from siege_utilities.core._http import redact_url_secrets
 
-    assert redact_url_secrets(f"https://h/p?{parameter}=S&x=1") == (
-        f"https://h/p?{parameter}=[REDACTED]&x=1"
+    assert redact_url_secrets(f"https://h/p{delimiter}{parameter}=S{suffix}") == (
+        f"https://h/p{delimiter}{parameter}=[REDACTED]{suffix}"
+    )
+
+
+@pytest.mark.parametrize("query, expected", [
+    ("%3Fkey%3DS", "%3Fkey%3D[REDACTED]"),
+    ("%3fkey%3dS%26x%3d1", "%3fkey%3d[REDACTED]%26x%3d1"),
+    ("%3Fx%3D1%26token%3DS", "%3Fx%3D1%26token%3D[REDACTED]"),
+    ("%23access_token%3DS", "%23access_token%3D[REDACTED]"),
+    ("%3F%61piKey%3DS%26token%3DS", "%3F%61piKey%3D[REDACTED]%26token%3D[REDACTED]"),
+    ("%3FSignature%3DS&x=1", "%3FSignature%3D[REDACTED]&x=1"),
+    ("%3Fx%3D1", "%3Fx%3D1"),
+])
+def test_redact_url_secrets_nested_urls(query, expected):
+    from siege_utilities.core._http import redact_url_secrets
+
+    prefix = "https://h/p?next=https%3A%2F%2Fx%2Fy"
+    assert redact_url_secrets(prefix + query) == prefix + expected
+
+
+@pytest.mark.parametrize("punctuation", [", retrying", ")"])
+def test_redact_url_secrets_preserves_trailing_punctuation(punctuation):
+    from siege_utilities.core._http import redact_url_secrets
+
+    assert redact_url_secrets(f"failed (https://h/p?token=S{punctuation}") == (
+        f"failed (https://h/p?token=[REDACTED]{punctuation}"
     )
 
 
