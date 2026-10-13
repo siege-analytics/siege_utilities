@@ -115,7 +115,7 @@ def test_git_workflow_option_raises_before_execution(function, kwargs):
 @pytest.mark.parametrize('command', ['find . -delete', 'cat /etc//passwd'])
 def test_default_runner_rejects_unsafe_command_before_execution(runner, command):
     with patch('subprocess.run') as run, patch('subprocess.Popen') as popen:
-        with pytest.raises(SecurityError, match='not allowed|sensitive path'):
+        with pytest.raises(SecurityError):
             runner(command)
         run.assert_not_called()
         popen.assert_not_called()

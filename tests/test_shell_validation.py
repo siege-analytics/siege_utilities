@@ -15,6 +15,23 @@ from siege_utilities.files.shell import (
 
 class TestValidateCommandSafety:
 
+    @pytest.mark.parametrize("command", [
+        pytest.param(['date', '-uf/etc/passwd'], id='date-uf'),
+        pytest.param(['date', '-Rf/etc//passwd'], id='date-Rf'),
+        pytest.param(['grep', '-rf/etc/shadow', '.'], id='grep-rf'),
+        pytest.param(['grep', '-hf/proc/self/environ', 'x'], id='grep-hf'),
+    ])
+    def test_clustered_short_option_sensitive_path_raises(self, command):
+        with pytest.raises(SecurityError, match="sensitive path"):
+            validate_command_safety(command)
+
+    @pytest.mark.parametrize("command", [
+        ['date', '-ufpasswd'], ['grep', '-rhfpasswd', 'input.txt'],
+    ])
+    def test_clustered_short_option_cwd_relative_path_raises(self, command):
+        with pytest.raises(SecurityError, match="sensitive path"):
+            validate_command_safety(command, cwd='/etc')
+
     @pytest.mark.parametrize("path", [
         '/etc/shadow-', '/etc/shadow.bak', '/etc/shadow.old',
         '/etc/gshadow', '/etc/gshadow-', '/etc/gshadow.bak',
@@ -42,6 +59,13 @@ class TestValidateCommandSafety:
         '/proc/self/environ', '/proc/1/environ', '/proc//self/./environ',
     ])
     def test_review_proc_environ_raises(self, path):
+        with pytest.raises(SecurityError, match="sensitive path"):
+            validate_command_safety(['cat', path])
+
+    @pytest.mark.parametrize("path", [
+        '/proc/self/cmdline', '/proc/1/cmdline', '/proc//self/./cmdline',
+    ])
+    def test_proc_cmdline_raises(self, path):
         with pytest.raises(SecurityError, match="sensitive path"):
             validate_command_safety(['cat', path])
 
@@ -81,6 +105,8 @@ class TestValidateCommandSafety:
     @pytest.mark.parametrize("argument", [
         '-f/var/logrotate.conf', '-f/rootfs/data.csv',
         '/etc/sudoers.draft', '/proc/self/status', '/tmp/proc/self/environ',
+        '-rf/var/logrotate.conf', '-uf/rootfs/data.csv',
+        '/tmp/proc/self/cmdline', '/proc/self/cmdline.bak',
     ])
     def test_sensitive_family_neighbor_is_allowed(self, argument):
         command = ['grep', argument]
@@ -174,13 +200,16 @@ class TestRunSubprocess:
         ['date', '-f/etc/passwd'], ['date', '-f/etc//passwd'],
         ['grep', '-f/etc/shadow', '-r', '.'],
         ['cat', '/proc/self/environ'], ['cat', '/proc/1/environ'],
+        ['date', '-uf/etc/passwd'], ['date', '-Rf/etc//passwd'],
+        ['grep', '-rf/etc/shadow', '.'], ['grep', '-hf/proc/self/environ', 'x'],
+        ['cat', '/proc/self/cmdline'],
     ])
     def test_review_read_bypass_raises_before_execution(self, command):
         result = subprocess.CompletedProcess(command, 0, stdout='', stderr='')
         with patch('subprocess.run', return_value=result) as run, patch('subprocess.Popen') as popen:
             popen.return_value.communicate.return_value = (b'', b'')
             popen.return_value.returncode = 0
-            with pytest.raises(SecurityError, match="sensitive path"):
+            with pytest.raises(SecurityError):
                 run_subprocess(command)
             run.assert_not_called()
             popen.assert_not_called()

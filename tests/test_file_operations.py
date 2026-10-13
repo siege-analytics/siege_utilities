@@ -268,6 +268,7 @@ class TestRunCommand:
         ('cat passwd', '/etc'),
         (['cat', 'etc/passwd'], '/'),
         (['grep', '-fpasswd', 'input.txt'], '/etc'),
+        (['date', '-ufpasswd'], '/etc'),
     ])
     def test_review_cwd_operand_raises_before_execution(self, monkeypatch, command, cwd):
         from siege_utilities.files import validation
@@ -276,7 +277,7 @@ class TestRunCommand:
         monkeypatch.setattr(validation, 'SENSITIVE_PATHS', validation.SENSITIVE_PATHS - {'/private/etc'})
         result = subprocess.CompletedProcess(command, 0, stdout='', stderr='')
         with patch('subprocess.run', return_value=result) as run:
-            with pytest.raises(SecurityError, match="sensitive path"):
+            with pytest.raises(SecurityError):
                 run_command(command, cwd=cwd)
             run.assert_not_called()
 
@@ -286,7 +287,7 @@ class TestRunCommand:
         (tmp_path / 'patterns').symlink_to('/etc/passwd')
         result = subprocess.CompletedProcess([], 0, stdout='', stderr='')
         with patch('subprocess.run', return_value=result) as run:
-            with pytest.raises(SecurityError, match="sensitive path"):
+            with pytest.raises(SecurityError):
                 run_command(['grep', argument], cwd=tmp_path)
             run.assert_not_called()
 

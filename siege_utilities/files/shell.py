@@ -4,7 +4,6 @@ These checks are a guardrail, not a sandbox or a guarantee of read-only behavior
 """
 
 import os
-import re
 import subprocess
 import logging
 import shlex
@@ -132,17 +131,16 @@ def validate_command_safety(command: Union[str, List[str]],
                 )
 
         # Check both lexical and resolved forms so symlinks cannot hide a path.
-        # Inspect --option=path and -Xvalue without treating the option as a path.
+        # A short-option value can begin after any letter in a getopt cluster.
         path_values = [part, part.split('=', 1)[-1]]
-        short_option = re.fullmatch(r'-[A-Za-z](.+)', part)
-        if short_option:
-            path_values.append(short_option.group(1))
+        if part.startswith('-') and not part.startswith('--'):
+            path_values.extend(part[k:] for k in range(2, len(part)))
         for path in path_values:
             expanded = os.path.join(base_directory, os.path.expanduser(path))
             forms = (os.path.normpath(expanded), os.path.realpath(expanded))
             if any('.ssh' in form.split(os.sep) or
                    form.startswith(sensitive_prefixes) or
-                   (form.startswith('/proc/') and form.endswith('/environ')) or
+                   (form.startswith('/proc/') and form.endswith(('/environ', '/cmdline'))) or
                    any(form == sensitive or form.startswith(sensitive + os.sep)
                        for sensitive in sensitive_forms)
                    for form in forms):
