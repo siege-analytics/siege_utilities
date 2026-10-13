@@ -33,12 +33,14 @@ class SocialMediaAccount(BaseModel):
         description="Display name for the account"
     )
     access_token: str = Field(
+        json_schema_extra={"sensitive": True},
         min_length=20,
         max_length=500,
         description="Access token for API authentication"
     )
     refresh_token: Optional[str] = Field(
-        None,
+        json_schema_extra={"sensitive": True},
+        default=None,
         max_length=500,
         description="Refresh token for token renewal"
     )

@@ -90,6 +90,7 @@ class GoogleAccount(BaseModel):
         description="1Password item reference or file path for service account JSON",
     )
     token_file: Optional[str] = Field(
+        json_schema_extra={"sensitive": False},
         default=None,
         max_length=500,
         description="Path to cached OAuth token file",

@@ -73,6 +73,7 @@ class OAuthIntegration(BaseModel):
         description="OAuth client ID"
     )
     client_secret: str = Field(
+        json_schema_extra={"sensitive": True},
         min_length=10,
         max_length=200,
         description="OAuth client secret"
@@ -87,16 +88,19 @@ class OAuthIntegration(BaseModel):
     
     # Token Information
     access_token: Optional[str] = Field(
+        json_schema_extra={"sensitive": True},
         default=None,
         max_length=2000,
         description="OAuth access token"
     )
     refresh_token: Optional[str] = Field(
+        json_schema_extra={"sensitive": True},
         default=None,
         max_length=2000,
         description="OAuth refresh token"
     )
     token_type: str = Field(
+        json_schema_extra={"sensitive": False},
         default="Bearer",
         description="Token type (usually 'Bearer')"
     )

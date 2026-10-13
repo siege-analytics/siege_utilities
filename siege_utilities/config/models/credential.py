@@ -61,21 +61,25 @@ class Credential(BaseModel):
         description="Username (if applicable)"
     )
     password: Optional[str] = Field(
+        json_schema_extra={"sensitive": True},
         default=None,
         max_length=500,
         description="Password (if applicable)"
     )
     api_key: Optional[str] = Field(
+        json_schema_extra={"sensitive": True},
         default=None,
         max_length=500,
         description="API key (if applicable)"
     )
     token: Optional[str] = Field(
+        json_schema_extra={"sensitive": True},
         default=None,
         max_length=1000,
         description="OAuth token or other token (if applicable)"
     )
     secret: Optional[str] = Field(
+        json_schema_extra={"sensitive": True},
         default=None,
         max_length=500,
         description="Secret key (if applicable)"

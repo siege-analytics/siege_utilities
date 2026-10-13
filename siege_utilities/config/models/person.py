@@ -78,6 +78,7 @@ class Person(BaseModel):
         description="Database connections for this person"
     )
     onepassword_credentials: List[OnePasswordCredential] = Field(
+        json_schema_extra={"sensitive": False},
         default_factory=list,
         description="1Password credential references"
     )
@@ -556,11 +557,8 @@ class Person(BaseModel):
     # YAML Serialization Methods
     def to_dict(self, exclude_sensitive: bool = False) -> dict:
         """Convert to dictionary, optionally stripping sensitive credential data."""
-        data = self.model_dump()
-        data = _convert_to_yaml_safe(data)
-        if exclude_sensitive:
-            data = _strip_sensitive_fields(data)
-        return data
+        data = _strip_sensitive_fields(self) if exclude_sensitive else self.model_dump()
+        return _convert_to_yaml_safe(data)
 
     def to_yaml(self, path: Optional[Path] = None, exclude_sensitive: bool = False) -> str:
         """Serialize to YAML string, optionally writing to a file."""
@@ -574,11 +572,19 @@ class Person(BaseModel):
 
     @classmethod
     def from_yaml(cls, yaml_str_or_path: Union[str, Path]) -> 'Person':
-        """Deserialize from a YAML string or file path."""
+        """Deserialize from a YAML string or file path.
+
+        Raises
+        ------
+        ValueError
+            If the document contains redacted placeholders. Use an
+            unredacted export to restore credentials.
+        """
         source = yaml_str_or_path
         if isinstance(source, Path) or (isinstance(source, str) and '\n' not in source and Path(source).exists()):
             source = Path(source).read_text()
         data = yaml.safe_load(source)
+        _reject_redacted_values(data)
         return cls(**data)
 
     model_config = {
@@ -605,19 +611,66 @@ def _convert_to_yaml_safe(obj: Any) -> Any:
         return obj
 
 
-def _strip_sensitive_fields(data: dict) -> dict:
-    """Strip sensitive credential data from a dictionary."""
-    sensitive_keys = {'password', 'api_key', 'token', 'secret', 'api_keys',
-                      'google_analytics_key', 'facebook_business_key', 'census_api_key',
-                      'postgresql_connection', 'duckdb_path'}
-    result = {}
-    for k, v in data.items():
-        if k in sensitive_keys:
-            result[k] = '***REDACTED***' if v else v
-        elif isinstance(v, dict):
-            result[k] = _strip_sensitive_fields(v)
-        elif isinstance(v, list):
-            result[k] = [_strip_sensitive_fields(item) if isinstance(item, dict) else item for item in v]
-        else:
-            result[k] = v
-    return result
+_REDACTED = '***REDACTED***'
+_SECRET_NAME = re.compile(r'(secret|token|password|_keys?$|connection$)', re.IGNORECASE)
+_PUBLIC_METADATA_KEYS = frozenset({
+    'public_key', 'partition_key', 'sort_key', 'cache_key', 'idempotency_key',
+    'token_type', 'token_file', 'onepassword_credentials',
+})
+
+
+def _sensitive_name(name: Any) -> bool:
+    """Conservatively classify unmarked fields and free-form metadata keys."""
+    return (
+        isinstance(name, str)
+        and name.lower() not in _PUBLIC_METADATA_KEYS
+        and _SECRET_NAME.search(name) is not None
+    )
+
+
+def _strip_sensitive_fields(data: Any) -> Any:
+    """Walk live model fields before serialization so subclass markers survive.
+
+    A field's ``json_schema_extra['sensitive']`` declares its policy. True
+    redacts the entire value; False explicitly permits a non-secret field.
+    Unmarked secret-like names fail closed, including in free-form metadata.
+    Empty values remain empty, and public containers are still traversed.
+    """
+    if isinstance(data, BaseModel):
+        result = {}
+        for name, field in type(data).model_fields.items():
+            if field.exclude:
+                continue
+            value = getattr(data, name)
+            extra = field.json_schema_extra
+            policy = extra.get('sensitive') if isinstance(extra, dict) else None
+            sensitive = policy is True or (policy is not False and _sensitive_name(name))
+            result[name] = (
+                _REDACTED if value else value
+            ) if sensitive else _strip_sensitive_fields(value)
+        if data.model_extra:
+            result.update(_strip_sensitive_fields(data.model_extra))
+        return result
+    if isinstance(data, dict):
+        return {
+            name: (_REDACTED if value else value) if _sensitive_name(name)
+            else _strip_sensitive_fields(value)
+            for name, value in data.items()
+        }
+    if isinstance(data, (list, tuple)):
+        return [_strip_sensitive_fields(item) for item in data]
+    return data
+
+
+def _reject_redacted_values(data: Any) -> None:
+    """Reject placeholders anywhere in an import before constructing models."""
+    if isinstance(data, str) and data.strip() == _REDACTED:
+        raise ValueError(
+            'Cannot import redacted values (***REDACTED***); use an unredacted export.'
+        )
+    if isinstance(data, dict):
+        for value in data.values():
+            _reject_redacted_values(value)
+    elif isinstance(data, (list, tuple)):
+        for value in data:
+            _reject_redacted_values(value)
