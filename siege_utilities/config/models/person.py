@@ -605,30 +605,19 @@ def _convert_to_yaml_safe(obj: Any) -> Any:
         return obj
 
 
-def _strip_sensitive_fields(data: Any) -> Any:
-    """Redact declared credential fields throughout nested exports.
-
-    Redaction is driven by the models' declared secret field names, not by
-    suffix-matching every nested key. Free-form metadata keys such as
-    ``public_key``, ``partition_key``, or ``cache_key`` therefore round-trip
-    unchanged, while real credential fields (OAuth ``client_secret`` /
-    ``access_token`` / ``refresh_token``, Credential ``password`` / ``api_key``
-    / ``token`` / ``secret``, DatabaseConnection ``password``, and the user
-    profile API keys) are redacted wherever they appear in the nested export.
-    """
-    if isinstance(data, list):
-        return [_strip_sensitive_fields(item) for item in data]
-    if not isinstance(data, dict):
-        return data
-
-    sensitive_keys = {'password', 'api_key', 'api_keys', 'token', 'secret',
-                      'client_secret', 'access_token', 'refresh_token', 'private_key',
+def _strip_sensitive_fields(data: dict) -> dict:
+    """Strip sensitive credential data from a dictionary."""
+    sensitive_keys = {'password', 'api_key', 'token', 'secret', 'api_keys',
                       'google_analytics_key', 'facebook_business_key', 'census_api_key',
                       'postgresql_connection', 'duckdb_path'}
     result = {}
     for k, v in data.items():
-        if isinstance(k, str) and k in sensitive_keys:
+        if k in sensitive_keys:
             result[k] = '***REDACTED***' if v else v
-        else:
+        elif isinstance(v, dict):
             result[k] = _strip_sensitive_fields(v)
+        elif isinstance(v, list):
+            result[k] = [_strip_sensitive_fields(item) if isinstance(item, dict) else item for item in v]
+        else:
+            result[k] = v
     return result
