@@ -4,13 +4,28 @@ Management command to populate Census demographic data.
 Usage:
     python manage.py populate_demographics --year 2022 --type tract --state 06 --variables income
     python manage.py populate_demographics --year 2022 --type county --state 06 --variables all
+
+Configure the API key through CENSUS_API_KEY; --api-key is rejected to keep
+credentials out of process listings and scheduler command logs.
 """
+
+import logging
+import os
 
 from django.core.management.base import BaseCommand, CommandError
 
 from siege_utilities.geo.django.services import DemographicPopulationService
 
 __all__ = ['Command']
+
+logger = logging.getLogger(__name__)
+
+
+def _reject_cli_api_key(value: str) -> None:
+    # Reject the legacy option without argparse echoing its secret value.
+    message = "--api-key is no longer supported; set CENSUS_API_KEY in the environment"
+    logger.error(message)
+    raise CommandError(message)
 
 
 class Command(BaseCommand):
@@ -65,8 +80,8 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             "--api-key",
-            type=str,
-            help="Census API key (or use CENSUS_API_KEY env var)",
+            type=_reject_cli_api_key,
+            help="Removed; set CENSUS_API_KEY in the environment",
         )
         parser.add_argument(
             "--update",
@@ -104,7 +119,9 @@ class Command(BaseCommand):
         state_input = options["state"]
         variables = options["variables"]
         dataset = options.get("dataset", "acs5")
-        api_key = options.get("api_key")
+        if options.get("api_key") is not None:
+            _reject_cli_api_key(options["api_key"])
+        api_key = os.environ.get("CENSUS_API_KEY")
         update_existing = options.get("update", False)
         batch_size = options.get("batch_size", 500)
 

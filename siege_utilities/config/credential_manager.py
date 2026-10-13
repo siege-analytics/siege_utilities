@@ -662,8 +662,8 @@ class CredentialManager:
         and passkey/SSHKEY/OTP/TOTP/file fields are conservatively refused:
         this path does not guarantee their round-trip, even though CLI
         templates support OTP values. Use the 1Password app for these edits.
-        Creation still uses LOGIN, so subsequent edits of those items require
-        the app. A read-back check cannot detect data omitted by item JSON.
+        New items use API_CREDENTIAL so subsequent rotations remain editable.
+        A read-back check cannot detect data omitted by item JSON.
 
         Raises SiegeConfigError on unsafe edits or failed persistence checks.
         CLI/JSON errors return False with a diagnostic that omits secrets.
@@ -715,16 +715,14 @@ class CredentialManager:
                 cmd = ['op', 'item', 'edit', item_id] + op_flags
             else:
                 secret_field = {'id': field, 'label': field, 'type': 'CONCEALED', 'value': value}
-                if field == 'password':
-                    secret_field['purpose'] = 'PASSWORD'
                 item = {'fields': [
                     {'id': 'username', 'label': 'username', 'type': 'STRING',
-                     'purpose': 'USERNAME', 'value': username},
+                     'value': username},
                     secret_field,
                 ]}
                 cmd = [
                     'op', 'item', 'create', '-',
-                    '--category=login',
+                    '--category=API Credential',
                     f'--title={service}',
                     f'--tags=siege-utilities,{service}'
                 ] + op_flags

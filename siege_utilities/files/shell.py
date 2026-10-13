@@ -131,6 +131,8 @@ def run_subprocess(command_list: Union[str, List[str]],
 
     Returns:
         The command output (stdout if successful, stderr if failed)
+        Arguments and output are omitted from logs. Raised diagnostics omit
+        command details and captured output, which may contain credentials.
 
     Raises:
         SecurityError: If command fails security validation
@@ -161,39 +163,40 @@ def run_subprocess(command_list: Union[str, List[str]],
 
         try:
             stdout, stderr = p.communicate(timeout=timeout)
-        except subprocess.TimeoutExpired as e:
+        except subprocess.TimeoutExpired:
             p.kill()
             stdout, stderr = p.communicate()
+            log_error("Subprocess timed out (arguments and output omitted)")
             raise subprocess.TimeoutExpired(
-                validated_command, timeout,
-                output=stdout, stderr=stderr
-            ) from e
+                '[REDACTED]', timeout,
+            ) from None
 
         returncode = p.returncode
 
         if returncode != 0:
             output = stderr.decode('utf-8')
             message = (
-                f'Subprocess {validated_command} failed with return code {returncode}. '
+                f'Subprocess failed with return code {returncode} (arguments and output omitted)'
             )
-            message += f'stderr: {output}'
             log_error(message)
             return output
         else:
             output = stdout.decode('utf-8')
             message = (
-                f'Subprocess {validated_command} completed with return code {returncode}. '
+                f'Subprocess completed with return code {returncode} (arguments and output omitted)'
             )
-            message += f'stdout: {output}'
             log_info(message)
             return output
 
-    except (SecurityError, ValueError) as e:
-        log_error(f"Security validation failed: {e}")
-        raise
+    except SecurityError:
+        log_error("Security validation failed (command omitted)")
+        raise SecurityError('Security validation failed (command redacted)') from None
+    except ValueError:
+        log_error("Invalid command or output (details omitted)")
+        raise ValueError('Invalid command or output (details redacted)') from None
     except OSError as e:
-        log_error(f"Command execution failed: {e}")
-        raise
+        log_error("Command execution failed (details omitted)")
+        raise OSError(e.errno, 'Command execution failed (details redacted)') from None
 
 
 __all__ = [

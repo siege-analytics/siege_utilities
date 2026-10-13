@@ -468,6 +468,8 @@ def run_command(command: Union[str, List[str]],
 
     Returns:
         CompletedProcess object on success or non-zero exit.
+        Arguments and output are omitted from logs. Raised diagnostics omit
+        command details and captured output, which may contain credentials.
 
     Raises:
         SecurityError: If command fails security validation (when unsafe=False).
@@ -530,8 +532,8 @@ def run_command(command: Union[str, List[str]],
                 validated_command = validate_command_safety(command_list, allow_list)
                 command_to_run = validated_command
             except (SecurityError, ValueError) as e:
-                log.error(f"Security validation failed: {e}")
-                raise
+                log.error("Security validation failed (command omitted)")
+                raise type(e)("Security validation failed (command redacted)") from None
         else:
             # Unsafe mode: skip the allow-list but still run the command
             # via argv (shell=False). Bypassing the whitelist is the
@@ -566,20 +568,24 @@ def run_command(command: Union[str, List[str]],
         )
 
         if result.returncode == 0:
-            log.info(f"Command succeeded: {command}")
+            log.info("Command succeeded (arguments and output omitted)")
         else:
-            log.warning(f"Command failed with code {result.returncode}: {command}")
-            if result.stderr:
-                log.warning(f"Error output: {result.stderr}")
+            log.warning(f"Command failed with code {result.returncode} (arguments and output omitted)")
 
         return result
 
-    except subprocess.TimeoutExpired:
-        log.error(f"Command timed out: {command}")
-        raise
-    except (OSError, ValueError) as e:
-        log.error(f"Failed to run command {command}: {e}")
-        raise
+    except subprocess.TimeoutExpired as e:
+        log.error("Command timed out (arguments and output omitted)")
+        raise subprocess.TimeoutExpired('[REDACTED]', e.timeout) from None
+    except OSError as e:
+        log.error("Failed to run command (details omitted)")
+        raise OSError(e.errno, 'Failed to run command (details redacted)') from None
+    except ValueError:
+        log.error("Invalid command or execution parameters (details omitted)")
+        raise ValueError(
+            'Invalid command or execution parameters; check quoting and shell metacharacters '
+            '(details redacted)'
+        ) from None
 
 # Backward compatibility aliases
 rmtree = remove_tree

@@ -366,14 +366,26 @@ def upload_to_pypi(repository: str = 'pypi', token: Optional[str] = None,
         logger.info(f"[DRY RUN] Would upload {len(dist_files)} file(s) to {repository}")
         return True
 
-    cmd = [sys.executable, '-m', 'twine', 'upload',
-           '--username', '__token__', '--password', resolved_token]
+    cmd = [sys.executable, '-m', 'twine', 'upload']
     if repository == 'testpypi':
         cmd.extend(['--repository', 'testpypi'])
     cmd.extend([str(f) for f in dist_files])
+    upload_env = os.environ.copy()
+    upload_env.update(TWINE_USERNAME='__token__', TWINE_PASSWORD=resolved_token)
 
     logger.info(f"Uploading to {repository}...")
-    result = subprocess.run(cmd, cwd=PROJECT_ROOT, timeout=60)
+    # Twine diagnostics can echo credentials; retain only the exit status.
+    try:
+        result = subprocess.run(
+            cmd, cwd=PROJECT_ROOT, timeout=60, env=upload_env,
+            capture_output=True, text=True,
+        )
+    except subprocess.TimeoutExpired as exc:
+        logger.error("PyPI upload timed out (diagnostics omitted)")
+        raise subprocess.TimeoutExpired('twine upload', exc.timeout) from None
+    except OSError as exc:
+        logger.error("PyPI upload could not start (diagnostics omitted)")
+        raise OSError(exc.errno, 'PyPI upload could not start (details redacted)') from None
     if result.returncode == 0:
         logger.info(f"Upload to {repository} succeeded")
         return True

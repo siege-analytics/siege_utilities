@@ -1902,6 +1902,78 @@ def op_edit_cli(isolated_credentials):
     return manager, run, stored
 
 
+@pytest.fixture
+def op_create_and_rotate_cli(isolated_credentials):
+    """Persist the category selected by create, then serve it to the real edit guard.
+
+    Support both legacy field stdin and JSON stdin so v4.0.0 fails on its
+    LOGIN category rather than a mock protocol mismatch. The response fixture
+    is a sanitized op 2.34.0 item create --dry-run --format=json preview,
+    captured with synthetic values on 2026-10-13; no live item was created.
+    """
+    manager, run = isolated_credentials
+    stored = {}
+    template = json.loads((Path(__file__).parent / 'data' / 'op_api_credential_dry_run.json').read_text())
+
+    def respond(cmd, **kwargs):
+        action = cmd[2]
+        if action == 'get':
+            if not stored:
+                return subprocess.CompletedProcess(cmd, 1, '', 'item not found')
+            output = json.dumps(stored) if '--format=json' in cmd else stored['fields'][2]['value']
+            return subprocess.CompletedProcess(cmd, 0, output, '')
+        if action == 'create':
+            category = next(arg.split('=', 1)[1] for arg in cmd if arg.startswith('--category='))
+            stored.update(deepcopy(template))
+            stored['category'] = category.upper().replace(' ', '_')
+        elif action != 'edit':
+            pytest.fail('Unexpected command: only item get/create/edit is valid for this fixture')
+        payload = kwargs['input']
+        if payload.startswith('{'):
+            incoming = json.loads(payload)
+            if action == 'create':
+                for field in stored['fields']:
+                    supplied = next((entry for entry in incoming['fields']
+                                     if entry['id'] == field['id']), None)
+                    if supplied is not None:
+                        field['value'] = supplied['value']
+            else:
+                stored.update(incoming)
+        else:
+            stored['fields'][2]['value'] = payload
+        return subprocess.CompletedProcess(cmd, 0, json.dumps(stored), '')
+
+    run.side_effect = respond
+    return manager, run, stored
+
+
+def test_created_credential_can_rotate_through_edit_guard(op_create_and_rotate_cli, caplog):
+    manager, run, stored = op_create_and_rotate_cli
+    scope = {'vault': 'rotation-vault', 'account': 'rotation-account'}
+    assert manager.store_credential('svc', 'user', 'initial-value', **scope) is True
+    assert stored['category'] == 'API_CREDENTIAL'
+    # API Credential fields must not carry Login's USERNAME/PASSWORD purposes:
+    # the real CLI rejects that payload as duplicate username fields.
+    create_fields = json.loads(run.call_args.kwargs['input'])['fields']
+    assert all('purpose' not in field for field in create_fields)
+    initial_fields = deepcopy(stored['fields'])
+    assert manager.store_credential('svc', 'user', _SECRET, **scope) is True
+    assert stored['id'] == 'created-id'
+    assert stored['category'] == 'API_CREDENTIAL'
+    assert stored['fields'][:2] == initial_fields[:2]
+    assert stored['fields'][2] == dict(initial_fields[2], value=_SECRET)
+    actions = [call.args[0][2] for call in run.call_args_list]
+    assert actions.count('create') == 1
+    assert actions.count('edit') == 1
+    assert run.call_args.args[0] == [
+        'op', 'item', 'get', 'created-id', '--format=json',
+        '--vault=rotation-vault', '--account=rotation-account',
+    ]
+    assert _SECRET not in repr([call.args for call in run.call_args_list])
+    assert caplog.records
+    assert _SECRET not in caplog.text
+
+
 def test_op_edit_json_stdin_persistence_contract(op_edit_cli):
     """Assert 2.34.0's documented pipe form AND unchanged non-target JSON.
 

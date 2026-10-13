@@ -18,9 +18,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   passkey absence and template edits can delete passkeys. Missing/unknown
   categories, SSH Key/Document items, attachments, and passkey/SSHKEY/OTP/TOTP/file
   fields are also refused with `SiegeConfigError`. Use the 1Password app for
-  these edits. Newly created Login items are subject to the same update guard.
+  these edits. New items use API Credential so password rotation stays editable;
+  existing Login items still require the app.
   Other edits preserve the full item JSON and verify the saved field before
   reporting success; failed persistence checks raise `SiegeConfigError`. (#1402)
+- `populate_demographics --api-key` is rejected without echoing its value.
+  Set `CENSUS_API_KEY` in the environment instead. (#1402)
+
+### Security
+
+- PyPI uploads pass credentials through the child environment and capture
+  diagnostics. `run_command` and `run_subprocess` log status only, omitting all
+  arguments and output rather than guessing which values are secrets. Their
+  exceptions retain failure types and timeout/errno information without raw
+  command details or output; returned output remains available to callers. (#1402)
 
 ## [4.0.0] - 2026-10-11
 
