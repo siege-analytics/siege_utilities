@@ -266,10 +266,7 @@ jobs:
     - name: Test with pytest
       run: |
         uv run pytest tests/ -v --cov=siege_utilities --cov-report=xml --cov-fail-under=45 \
-          --ignore=tests/test_notebooks.py \
-          --ignore=tests/test_django_temporal_models_orm.py \
-          --ignore=tests/test_nces_service_bulk_update_timestamp.py \
-          --ignore=tests/test_nces_service_enrich_districts.py
+          -m "not integration and not postgis" --ignore=tests/test_notebooks.py
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
@@ -278,6 +275,108 @@ jobs:
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
+
+  test-postgis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgis:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: siege_geo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d siege_geo"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DJANGO_SETTINGS_MODULE: tests.django_project.settings
+      SIEGE_AUTO_INIT_DIRS: "false"
+      SIEGE_TEST_POSTGIS: "1"
+      SIEGE_TEST_DB_HOST: localhost
+      SIEGE_TEST_DB_PORT: "5432"
+      SIEGE_TEST_DB_NAME: siege_geo
+      SIEGE_TEST_DB_USER: postgres
+      SIEGE_TEST_DB_PASSWORD: postgres
+      SIEGE_UTILITIES_TEST_PG_DSN: postgresql://postgres:postgres@localhost:5432/siege_geo
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install system geospatial libraries
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          gdal-bin libgdal-dev libgeos-dev libproj-dev
+
+    - name: Install UV
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install all test dependencies + GDAL + schema
+      run: |
+        sed -i "s/\"gdal>=3.6,<4\"/\"gdal==$(gdal-config --version)\"/g" pyproject.toml
+        grep -qE '"gdal==[0-9]' pyproject.toml || { echo "gdal pin rewrite failed"; exit 1; }
+        uv sync --extra all --extra gdal --extra dev --extra schema
+
+    - name: Apply siege_geo migrations to PostGIS
+      run: uv run python -m django migrate siege_geo --noinput
+
+    - name: Run database tests against live PostGIS
+      run: |
+        uv run python - <<'PY'
+        import django
+        import psycopg
+        django.setup()
+        from django.db import connection
+        assert connection.vendor == "postgresql", connection.vendor
+        assert connection.settings_dict["ENGINE"] == "django.contrib.gis.db.backends.postgis", connection.settings_dict["ENGINE"]
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT PostGIS_Full_Version()")
+            print(cursor.fetchone()[0])
+        PY
+        # Collect the entire test tree: new PostGIS-marked modules run without
+        # another hand-maintained file-list edit. The collection hook fails
+        # if a Django DB test is accidentally added without the marker.
+        uv run pytest -o addopts='' -v -m postgis --junitxml=postgis-results.xml
+        uv run python - <<'PY'
+        from pathlib import Path
+        from xml.etree import ElementTree
+
+        cases = ElementTree.parse("postgis-results.xml").findall(".//testcase")
+        selected = []
+        for case in cases:
+            # Full-tree collection may importorskip an unrelated optional
+            # module before -m can deselect it. Never exempt a marked DB
+            # module (or an unknown module): that would hide a hollow lane.
+            name = case.attrib.get("name", "")
+            collection_skip = (
+                case.find("skipped") is not None
+                and not case.attrib.get("classname")
+                and not name.startswith("test_")
+            )
+            if collection_skip:
+                source = Path(name.replace(".", "/") + ".py")
+                if source.is_file():
+                    text = source.read_text(encoding="utf-8")
+                    if "pytest.mark.postgis" not in text and "SIEGE_UTILITIES_TEST_PG_DSN" not in text:
+                        print(f"Unrelated optional module skipped during collection: {source}")
+                        continue
+            selected.append(case)
+        assert len(selected) >= 55, f"Expected at least 55 live PostGIS cases, got {len(selected)}"
+        skipped = [case.attrib.get("name") for case in selected if case.find("skipped") is not None]
+        assert not skipped, f"PostGIS database tests must not skip: {skipped}"
+        PY
 
   test-pydantic-v1:
     runs-on: ubuntu-latest

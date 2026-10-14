@@ -65,6 +65,14 @@ DATABASES = {
     }
 }
 
+# CI opts in by setting SIEGE_TEST_POSTGIS (presence, regardless of value).
+# Connection parameters remain SIEGE_TEST_DB_HOST/PORT/NAME/USER/PASSWORD.
+# Without the selector, preserve the existing GDAL-dependent backend above.
+if "SIEGE_TEST_POSTGIS" in os.environ:
+    if not _HAS_GDAL:
+        raise ImproperlyConfigured("SIEGE_TEST_POSTGIS requires GDAL; install the geospatial system libraries")
+    DATABASES["default"]["ENGINE"] = "django.contrib.gis.db.backends.postgis"
+
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",

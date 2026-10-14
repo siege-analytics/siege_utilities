@@ -34,6 +34,7 @@ except (ImportError, RuntimeError, ImproperlyConfigured, OSError):
     HAS_GDAL = False
 
 pytestmark = [
+    pytest.mark.postgis,
     pytest.mark.django_db,
     pytest.mark.requires_gdal,
     pytest.mark.skipif(not HAS_GDAL, reason="GDAL/PostGIS not available"),
@@ -47,6 +48,33 @@ pytestmark = [
 def _make_polygon():
     """Simple test polygon."""
     return MultiPolygon(Polygon(((0, 0), (1, 0), (1, 1), (0, 1), (0, 0))))
+
+
+def test_postgis_rejects_invalid_vtd_geoid(db):
+    """Require a real PostgreSQL CHECK rejection after a spatial round trip."""
+    from django.db import connection, transaction
+
+    from siege_utilities.geo.django.models import VTD
+
+    assert connection.settings_dict["ENGINE"] == "django.contrib.gis.db.backends.postgis"
+    fields = {
+        "name": "Test VTD",
+        "vintage_year": 2020,
+        "state_fips": "06",
+        "county_fips": "037",
+        "geometry": _make_polygon(),
+    }
+    valid = VTD.objects.create(geoid="0603700000A", vtd_code="00000A", **fields)
+    valid.refresh_from_db()
+    assert valid.geometry.equals(_make_polygon())
+    assert valid.geometry.srid == 4326
+
+    with pytest.raises(IntegrityError) as rejected:
+        with transaction.atomic():
+            VTD.objects.create(geoid="0603700000_", vtd_code="00000_", **fields)
+
+    assert rejected.value.__cause__.diag.constraint_name == "vtd_geoid_format"
+    assert not VTD.objects.filter(geoid="0603700000_").exists()
 
 
 @pytest.fixture

@@ -33,10 +33,13 @@ from siege_utilities.schema.migration_runner import (
 
 _DSN_ENV = "SIEGE_UTILITIES_TEST_PG_DSN"
 
-pytestmark = pytest.mark.skipif(
-    psycopg is None or not os.environ.get(_DSN_ENV),
-    reason=f"requires psycopg and ${_DSN_ENV}",
-)
+pytestmark = [
+    pytest.mark.postgis,
+    pytest.mark.skipif(
+        psycopg is None or not os.environ.get(_DSN_ENV),
+        reason=f"requires psycopg and ${_DSN_ENV}",
+    ),
+]
 
 
 @pytest.fixture
