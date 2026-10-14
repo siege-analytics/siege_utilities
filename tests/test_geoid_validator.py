@@ -146,9 +146,9 @@ class TestBoundaryModelConstraints:
         "Block": ("block_geoid_15_digits", r"^\d{15}$"),
         "Place": ("place_geoid_7_digits", r"^\d{7}$"),
         "ZCTA": ("zcta_geoid_5_digits", r"^\d{5}$"),
-        "CongressionalDistrict": ("cd_geoid_4_digits", r"^\d{4}$"),
-        "StateLegislativeUpper": ("sldu_geoid_5_digits", r"^\d{5}$"),
-        "StateLegislativeLower": ("sldl_geoid_5_digits", r"^\d{5}$"),
+        "CongressionalDistrict": ("cd_geoid_format", r"^\d{2}[0-9A-Za-z]{2}$"),
+        "StateLegislativeUpper": ("sldu_geoid_format", r"^\d{2}[0-9A-Za-z-]{3}$"),
+        "StateLegislativeLower": ("sldl_geoid_format", r"^\d{2}[0-9A-Za-z-]{3}$"),
         "VTD": ("vtd_geoid_format", r"^\d{5}[0-9A-Za-z-]{6}$"),
     }
 
