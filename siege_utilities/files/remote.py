@@ -99,11 +99,20 @@ def _get_progress_bar(*args, **kwargs):
 def download_file(url: str, local_filename: FilePath,
                  chunk_size: int = 8192,
                  timeout: int = 30,
-                 verify_ssl: bool = True) -> str:
+                 verify_ssl: bool = True,
+                 allow_insecure_fallback: bool = False) -> str:
     """
     Download a file from a URL to a local file with progress bar.
 
     SECURITY: Validates local file path to prevent path traversal attacks.
+
+    SSL behavior: when verify_ssl is True (the default), SSL certificate
+    verification is enforced. If verification fails the original SSLError is
+    re-raised and nothing is written -- there is no silent retry with
+    verification disabled. An insecure retry only happens when the caller
+    explicitly sets allow_insecure_fallback=True, which downgrades to an
+    unverified connection (vulnerable to man-in-the-middle) and is logged at
+    ERROR. Leave it at the default False unless you fully accept that risk.
 
     Args:
         url: The URL to download from
@@ -111,6 +120,9 @@ def download_file(url: str, local_filename: FilePath,
         chunk_size: Size of chunks to download at once
         timeout: Request timeout in seconds
         verify_ssl: Whether to verify SSL certificates
+        allow_insecure_fallback: If True, an SSL failure triggers an explicit
+            retry with verification disabled (insecure; logged at ERROR).
+            Defaults to False, in which case SSL failures are raised.
 
     Returns:
         The local filename as a string
@@ -118,6 +130,8 @@ def download_file(url: str, local_filename: FilePath,
     Raises:
         PathSecurityError: If local path fails security validation
         ConnectionError: If HTTP request fails (non-2xx status)
+        requests.exceptions.SSLError: If SSL verification fails and
+            allow_insecure_fallback is False
         requests.exceptions.Timeout: If request times out
         requests.exceptions.RequestException: If request fails
         OSError: If file write fails
@@ -174,7 +188,16 @@ def download_file(url: str, local_filename: FilePath,
             return str(local_path)
 
     except requests.exceptions.SSLError as e:
-        log.warning(f'SSL verification failed for {url}, retrying without verification: {e}')
+        if not allow_insecure_fallback:
+            log.error(
+                f'SSL verification failed for {url}; refusing insecure retry. '
+                f'Pass allow_insecure_fallback=True to override (insecure): {e}'
+            )
+            raise
+        log.error(
+            f'SSL verification failed for {url}; retrying WITHOUT verification '
+            f'because allow_insecure_fallback=True (insecure, MITM-exposed): {e}'
+        )
         with requests.get(url, stream=True, allow_redirects=True,
                        timeout=timeout, verify=False,
                        headers=headers) as response:
@@ -265,12 +288,17 @@ def download_file_with_retry(url: str, local_filename: FilePath,
         local_filename: The local path where the file should be saved
         max_retries: Maximum number of retry attempts
         retry_delay: Delay between retries in seconds
-        **kwargs: Additional arguments passed to download_file
+        **kwargs: Additional arguments passed to download_file. SSL behavior is
+            inherited: verify_ssl defaults to True and SSL failures raise unless
+            allow_insecure_fallback=True is passed through explicitly.
 
     Returns:
         The local filename as a string
 
     Raises:
+        requests.exceptions.SSLError: If SSL verification fails; raised
+            immediately without retry unless download_file handles an
+            explicitly allowed insecure fallback
         ConnectionError: If all retry attempts fail
         requests.exceptions.RequestException: If all retry attempts fail
 
@@ -289,6 +317,8 @@ def download_file_with_retry(url: str, local_filename: FilePath,
 
             return download_file(url, local_filename, **kwargs)
 
+        except requests.exceptions.SSLError:
+            raise
         except (OSError, ConnectionError, ValueError) as e:
             log.warning(f'Download attempt {attempt + 1} failed: {e}')
             last_error = e

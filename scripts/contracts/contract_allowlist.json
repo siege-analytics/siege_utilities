@@ -49,6 +49,7 @@
     "discover_boundary_types",
     "download_data",
     "download_dataset",
+    "download_file",
     "download_osm_data",
     "generate_chart_from_dataframe",
     "get_available_boundary_types",
