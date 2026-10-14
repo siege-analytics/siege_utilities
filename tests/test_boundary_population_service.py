@@ -4,6 +4,7 @@ ORM tests require PostGIS; configure SIEGE_TEST_DB_* as documented in
 tests/django_project/settings.py. Only the Census fetch is mocked.
 """
 
+import os
 from unittest.mock import patch
 
 import geopandas as gpd
@@ -36,6 +37,21 @@ from siege_utilities.geo.django.services.population_service import (
 pytestmark = pytest.mark.requires_gdal
 
 
+POSTGIS_REMEDIATION = (
+    "Set SIEGE_TEST_POSTGIS=1 with SIEGE_TEST_DB_HOST/PORT/NAME/USER/PASSWORD "
+    "pointing to a reachable PostGIS test database, then run "
+    "pytest tests/test_boundary_population_service.py -m postgis --no-cov."
+)
+
+
+def live_postgis(test):
+    """Route real ORM tests to the service lane; keep pure tests generic."""
+    test = pytest.mark.postgis(test)
+    return pytest.mark.skipif(
+        os.environ.get("SIEGE_TEST_POSTGIS") != "1", reason=POSTGIS_REMEDIATION
+    )(test)
+
+
 @pytest.fixture
 def county_gdf():
     return gpd.GeoDataFrame(
@@ -63,6 +79,7 @@ def fetch():
         yield mock
 
 
+@live_postgis
 @pytest.mark.django_db
 @pytest.mark.parametrize("column_case", ["lower", "upper"])
 def test_populate_county_creates_two_rows_from_fetch_result(fetch, county_gdf, column_case):
@@ -111,6 +128,7 @@ def test_every_command_type_has_a_fetch_level():
     assert set(Command.GEOGRAPHY_TYPES) == set(BoundaryPopulationService.GEOGRAPHIC_LEVELS)
 
 
+@live_postgis
 @pytest.mark.django_db
 def test_populate_raises_download_failure_with_diagnostics(fetch):
     fetch.return_value = BoundaryFetchResult.fail(
@@ -128,6 +146,7 @@ def test_populate_raises_download_failure_with_diagnostics(fetch):
     assert models.County.objects.count() == 0
 
 
+@live_postgis
 @pytest.mark.django_db
 @pytest.mark.parametrize("missing", ["result", "geodataframe", "empty"])
 def test_populate_raises_on_missing_boundaries_before_normalizing(fetch, county_gdf, missing):
@@ -150,6 +169,7 @@ def test_populate_raises_on_missing_boundaries_before_normalizing(fetch, county_
     assert models.County.objects.count() == 0
 
 
+@live_postgis
 @pytest.mark.django_db
 @pytest.mark.parametrize("error_type", [TypeError, OSError, ImportError])
 def test_populate_propagates_fetch_exceptions(fetch, error_type):
@@ -159,6 +179,7 @@ def test_populate_propagates_fetch_exceptions(fetch, error_type):
         BoundaryPopulationService().populate("county", 2020, "06")
 
 
+@live_postgis
 @pytest.mark.django_db
 def test_populate_propagates_normalization_type_error(fetch, county_gdf):
     fetch.return_value = BoundaryFetchResult.ok(county_gdf)
@@ -169,6 +190,7 @@ def test_populate_propagates_normalization_type_error(fetch, county_gdf):
             service.populate("county", 2020, "06")
 
 
+@live_postgis
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "geography_type,message",
@@ -209,6 +231,7 @@ def parents(make_boundary):
     }
 
 
+@live_postgis
 def test_link_block_parents_uses_real_fk_and_links_all_parents(make_boundary, parents):
     block = make_boundary(models.Block, "060371011001001")
     other_state = make_boundary(models.Block, "480371011001001")
@@ -229,6 +252,7 @@ def test_link_block_parents_uses_real_fk_and_links_all_parents(make_boundary, pa
     assert service.link_parent_relationships("block", 2020, "06") == 0
 
 
+@live_postgis
 @pytest.mark.parametrize(
     "geography_type,model,geoid,parent_fields",
     [
@@ -258,6 +282,7 @@ def test_link_all_fips_parents(
         assert getattr(child, field) == parents[field]
 
 
+@live_postgis
 def test_link_missing_state_preserves_existing_county(make_boundary, parents):
     tract = make_boundary(models.Tract, "06037101200", county=parents["county"])
 
@@ -268,6 +293,7 @@ def test_link_missing_state_preserves_existing_county(make_boundary, parents):
     assert tract.county == parents["county"]
 
 
+@live_postgis
 def test_link_missing_parents_does_not_use_another_vintage(make_boundary):
     make_boundary(models.State, "06", year=2019)
     county = make_boundary(models.County, "06037")
