@@ -6,10 +6,18 @@ requesting a Django DB fixture without the marker must fail collection, not
 silently run only in the wrong lane or disappear from the service lane.
 """
 
+from functools import lru_cache
+
 import pytest
 
 
-_DB_FIXTURES = frozenset({"db", "transactional_db"})
+_DB_FIXTURES = frozenset({"db", "transactional_db", "pg_dsn"})
+
+
+@lru_cache(maxsize=None)
+def _uses_live_postgres_dsn(path):
+    """Catch directly connected tests whose skip gate uses the project's DSN."""
+    return "SIEGE_UTILITIES_TEST_PG_DSN" in path.read_text(encoding="utf-8")
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -24,11 +32,12 @@ def pytest_collection_modifyitems(items):
             # fixture closure; only an explicit request is a DB contract.
             or "django_db_blocker" in item._fixtureinfo.argnames
             or item.get_closest_marker("django_db") is not None
+            or _uses_live_postgres_dsn(item.path)
         )
         and item.get_closest_marker("postgis") is None
     ]
     if missing:
         raise pytest.UsageError(
-            "Django DB tests require @pytest.mark.postgis and a live "
+            "Live DB tests require @pytest.mark.postgis and a live "
             "PostGIS lane; unmarked tests:\n" + "\n".join(missing)
         )
