@@ -350,10 +350,31 @@ jobs:
         # if a Django DB test is accidentally added without the marker.
         uv run pytest -o addopts='' -v -m postgis --junitxml=postgis-results.xml
         uv run python - <<'PY'
+        from pathlib import Path
         from xml.etree import ElementTree
+
         cases = ElementTree.parse("postgis-results.xml").findall(".//testcase")
-        assert cases, "PostGIS job did not run any database tests"
-        skipped = [case.attrib["name"] for case in cases if case.find("skipped") is not None]
+        selected = []
+        for case in cases:
+            # Full-tree collection may importorskip an unrelated optional
+            # module before -m can deselect it. Never exempt a marked DB
+            # module (or an unknown module): that would hide a hollow lane.
+            name = case.attrib.get("name", "")
+            collection_skip = (
+                case.find("skipped") is not None
+                and not case.attrib.get("classname")
+                and not name.startswith("test_")
+            )
+            if collection_skip:
+                source = Path(name.replace(".", "/") + ".py")
+                if source.is_file():
+                    text = source.read_text(encoding="utf-8")
+                    if "pytest.mark.postgis" not in text and "SIEGE_UTILITIES_TEST_PG_DSN" not in text:
+                        print(f"Unrelated optional module skipped during collection: {source}")
+                        continue
+            selected.append(case)
+        assert len(selected) >= 55, f"Expected at least 55 live PostGIS cases, got {len(selected)}"
+        skipped = [case.attrib.get("name") for case in selected if case.find("skipped") is not None]
         assert not skipped, f"PostGIS database tests must not skip: {skipped}"
         PY
 
