@@ -142,6 +142,8 @@ def test_populate_keeps_valid_rows_after_update_check_failure(
     """An UPDATE IntegrityError must roll back before the next row's query."""
     _supply_rows(service, monkeypatch, ["27001"])
     service.populate("sldl", 2024, "27")
+    # Exclude the seed call's summary from the update assertion.
+    caplog.clear()
     _supply_rows(service, monkeypatch, ["27001", "27002"], [-1, 2])
     with caplog.at_level(logging.WARNING):
         result = service.populate("sldl", 2024, "27", update_existing=True)
@@ -150,6 +152,7 @@ def test_populate_keeps_valid_rows_after_update_check_failure(
     assert boundary_table.objects.get(geoid="27002").area_land == 2
     assert (result.records_created, result.records_updated, result.records_skipped) == (1, 0, 1)
     assert len(result.errors) == len(caplog.records) == 1
+    assert caplog.records[0].levelno == logging.WARNING
     assert "27001" in caplog.text
 
 
