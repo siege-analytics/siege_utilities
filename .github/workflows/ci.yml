@@ -266,10 +266,7 @@ jobs:
     - name: Test with pytest
       run: |
         uv run pytest tests/ -v --cov=siege_utilities --cov-report=xml --cov-fail-under=45 \
-          --ignore=tests/test_notebooks.py \
-          --ignore=tests/test_django_temporal_models_orm.py \
-          --ignore=tests/test_nces_service_bulk_update_timestamp.py \
-          --ignore=tests/test_nces_service_enrich_districts.py
+          -m "not postgis" --ignore=tests/test_notebooks.py
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
@@ -326,11 +323,11 @@ jobs:
         curl -LsSf https://astral.sh/uv/install.sh | sh
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-    - name: Install geo + geodjango + schema + dev
+    - name: Install all test dependencies + GDAL + schema
       run: |
         sed -i "s/\"gdal>=3.6,<4\"/\"gdal==$(gdal-config --version)\"/g" pyproject.toml
         grep -qE '"gdal==[0-9]' pyproject.toml || { echo "gdal pin rewrite failed"; exit 1; }
-        uv sync --extra geo --extra gdal --extra geodjango --extra dev --extra schema
+        uv sync --extra all --extra gdal --extra dev --extra schema
 
     - name: Apply siege_geo migrations to PostGIS
       run: uv run python -m django migrate siege_geo --noinput
@@ -348,11 +345,10 @@ jobs:
             cursor.execute("SELECT PostGIS_Full_Version()")
             print(cursor.fetchone()[0])
         PY
-        uv run pytest -o addopts='' -v --junitxml=postgis-results.xml \
-          tests/test_django_temporal_models_orm.py \
-          tests/test_nces_service_bulk_update_timestamp.py \
-          tests/test_nces_service_enrich_districts.py \
-          siege_utilities/schema/tests/test_migration_runner_integration.py
+        # Collect the entire test tree: new PostGIS-marked modules run without
+        # another hand-maintained file-list edit. The collection hook fails
+        # if a Django DB test is accidentally added without the marker.
+        uv run pytest -o addopts='' -v -m postgis --junitxml=postgis-results.xml
         uv run python - <<'PY'
         from xml.etree import ElementTree
         cases = ElementTree.parse("postgis-results.xml").findall(".//testcase")

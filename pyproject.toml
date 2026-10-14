@@ -365,6 +365,7 @@ siege_utilities = ["py.typed"]
 markers = [
     "core: tests for core modules (logging, strings, files, config)",
     "geo: tests requiring geopandas/shapely",
+    "postgis: database tests run against the live PostGIS service; never mock or skip in that lane",
     "requires_gdal: tests requiring GDAL libraries",
     "requires_spark: tests requiring PySpark",
     "integration: tests requiring network/API access",

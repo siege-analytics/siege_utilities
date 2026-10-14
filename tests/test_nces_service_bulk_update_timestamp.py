@@ -29,6 +29,7 @@ except (ImportError, RuntimeError, ImproperlyConfigured, OSError):
     HAS_GDAL = False
 
 pytestmark = [
+    pytest.mark.postgis,
     pytest.mark.django_db,
     pytest.mark.requires_gdal,
     pytest.mark.skipif(not HAS_GDAL, reason="GDAL/PostGIS not available"),
