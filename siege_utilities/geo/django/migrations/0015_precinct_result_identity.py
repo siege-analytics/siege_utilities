@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
     atomic = False
 
     dependencies = [
-        ("siege_geo", "0013_vtd_geoid_charclass"),
+        ("siege_geo", "0014_district_geoid_charclass"),
     ]
 
     operations = [

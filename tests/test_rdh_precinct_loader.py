@@ -37,6 +37,7 @@ def loader(monkeypatch, precinct_data, tmp_path):
         yield RDHLoaderService(client=client)
 
 
+@pytest.mark.postgis
 @pytest.mark.django_db
 class TestPrecinctLoading:
     def test_vest_zero_z_boundary_loads_into_2d_postgis(self, loader, precinct_data):
@@ -561,10 +562,11 @@ def test_precinct_unique_constraint_migration_state_matches_model():
     )
 
 
+@pytest.mark.postgis
 @pytest.mark.parametrize("direction", ["apply", "unapply"])
 def test_precinct_unique_migration_uses_reversible_concurrent_index(direction):
     loader = MigrationLoader(None)
-    migration = loader.disk_migrations["siege_geo", "0014_precinct_result_identity"]
+    migration = loader.disk_migrations["siege_geo", "0015_precinct_result_identity"]
     state = loader.project_state(migration.dependencies)
     assert migration.atomic is False
     with connection.schema_editor(collect_sql=True, atomic=False) as editor:
@@ -593,7 +595,7 @@ def test_precinct_unique_migration_uses_reversible_concurrent_index(direction):
 @pytest.fixture
 def precinct_migration_without_constraint(transactional_db):
     loader = MigrationLoader(None)
-    migration = loader.disk_migrations["siege_geo", "0014_precinct_result_identity"]
+    migration = loader.disk_migrations["siege_geo", "0015_precinct_result_identity"]
     state = loader.project_state(migration.dependencies)
     with connection.schema_editor(atomic=False) as editor:
         migration.unapply(state, editor)
@@ -607,6 +609,7 @@ def precinct_migration_without_constraint(transactional_db):
             migration.apply(state, editor)
 
 
+@pytest.mark.postgis
 def test_migration_rejects_existing_duplicates_and_retries_after_reconciliation(
     precinct_migration_without_constraint,
 ):
@@ -646,6 +649,7 @@ def test_migration_rejects_existing_duplicates_and_retries_after_reconciliation(
     assert legacy_model.objects.count() == 2
 
 
+@pytest.mark.postgis
 def test_migration_backfills_legacy_party_without_guessing_unknown_letters(
     precinct_migration_without_constraint,
 ):

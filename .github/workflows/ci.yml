@@ -220,20 +220,6 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    services:
-      postgis:
-        image: postgis/postgis:17-3.5
-        env:
-          POSTGRES_DB: siege_geo
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d siege_geo"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     # 3.14 runs as a non-blocking gate while its recently released native stack
     # (numba / apache-sedona / pyspark wheels) stabilizes. 3.11-3.13 block.
     continue-on-error: ${{ matrix.python-version == '3.14' }}
@@ -278,8 +264,6 @@ jobs:
         uv run flake8 siege_utilities --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     
     - name: Test with pytest
-      env:
-        SIEGE_TEST_DB_PASSWORD: postgres
       run: |
         uv run pytest tests/ -v --cov=siege_utilities --cov-report=xml --cov-fail-under=45 \
           -m "not integration and not postgis" --ignore=tests/test_notebooks.py
@@ -559,7 +543,6 @@ jobs:
           --ignore=tests/test_google_analytics_connector.py \
           --ignore=tests/test_google_workspace.py \
           --ignore=tests/test_redistricting_models.py \
-          --ignore=tests/test_rdh_precinct_loader.py \
           --ignore=tests/test_notebooks.py \
           --ignore=tests/test_django_temporal_models_orm.py \
           --ignore=tests/test_nces_service_bulk_update_timestamp.py \
