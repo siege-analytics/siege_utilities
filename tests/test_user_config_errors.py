@@ -625,6 +625,69 @@ def test_no_uid_without_appdata_or_home_fails_closed(
         UserConfigManager()
 
 
+@pytest.mark.parametrize("attack", ["loose_mode", "symlink", "foreign_owner"])
+def test_explicit_predictable_fallback_still_rejects_plant(
+    fallback_paths: tuple[Path, Path, Path], tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch, attack: str,
+) -> None:
+    """Passing the predictable fallback directly must not bypass its guard."""
+    _, _, fallback = fallback_paths
+    target = tmp_path / "target"
+    if attack == "symlink":
+        target.mkdir(mode=0o700)
+        fallback.symlink_to(target, target_is_directory=True)
+    else:
+        fallback.mkdir(mode=0o700)
+        if attack == "loose_mode":
+            fallback.chmod(0o777)
+        else:
+            original_lstat = Path.lstat
+
+            def foreign_owner(path: Path) -> os.stat_result:
+                metadata = original_lstat(path)
+                if path == fallback:
+                    fields = list(metadata)
+                    fields[4] = os.getuid() + 1
+                    return os.stat_result(fields)
+                return metadata
+
+            monkeypatch.setattr(Path, "lstat", foreign_owner)
+
+    with pytest.raises(ValueError, match="Unsafe fallback config directory"):
+        UserConfigManager(config_dir=fallback)
+    if attack == "loose_mode":
+        assert stat.S_IMODE(fallback.stat().st_mode) == 0o777
+    if attack == "symlink":
+        assert list(target.iterdir()) == []
+
+
+def test_explicit_temp_alias_still_validates_predictable_fallback(
+    fallback_paths: tuple[Path, Path, Path], tmp_path: Path,
+) -> None:
+    """A symlinked alias of /tmp must not hide the predictable uid leaf."""
+    _, _, fallback = fallback_paths
+    fallback.mkdir(mode=0o700)
+    fallback.chmod(0o777)
+    alias = tmp_path / "temp-alias"
+    alias.symlink_to(fallback.parent, target_is_directory=True)
+    with pytest.raises(ValueError, match="Unsafe fallback config directory"):
+        UserConfigManager(config_dir=alias / fallback.name)
+    assert stat.S_IMODE(fallback.stat().st_mode) == 0o777
+
+
+def test_env_predictable_fallback_remains_guarded(
+    fallback_paths: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The already-safe env route still rejects a planted 0777 fallback."""
+    _, _, fallback = fallback_paths
+    fallback.mkdir(mode=0o777)
+    fallback.chmod(0o777)
+    monkeypatch.setenv("SIEGE_USER_CONFIG_DIR", str(fallback))
+    with pytest.raises(ValueError, match="Unsafe fallback config directory"):
+        UserConfigManager()
+    assert stat.S_IMODE(fallback.stat().st_mode) == 0o777
+
+
 @pytest.mark.parametrize("mode", [0o777, 0o770, 0o707], ids=["0777", "0770", "0707"])
 def test_unsafe_fallback_permissions_raise(
     fallback_paths: tuple[Path, Path, Path], mode: int,

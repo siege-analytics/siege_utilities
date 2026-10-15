@@ -123,7 +123,11 @@ class UserConfigManager:
         fallback = self._fallback_config_dir() if config_dir is None else None
         try:
             self._prepare_config_dir(
-                self.config_dir, fallback=fallback is not None and self.config_dir == fallback,
+                self.config_dir,
+                fallback=(
+                    (fallback is not None and self.config_dir == fallback)
+                    or self._is_posix_temp_fallback_path(self.config_dir)
+                ),
             )
         except (PermissionError, OSError) as exc:
             if fallback is None:
@@ -163,6 +167,16 @@ class UserConfigManager:
                     "SIEGE_USER_CONFIG_DIR to a private path."
                 ) from exc
         return Path(tempfile.gettempdir()) / f"siege_utilities-{os.getuid()}"
+
+    @staticmethod
+    def _is_posix_temp_fallback_path(config_dir: Path) -> bool:
+        """Recognize the predictable uid path even when supplied explicitly."""
+        if os.name != "posix" or not hasattr(os, "getuid"):
+            return False
+        return (
+            config_dir.name == f"siege_utilities-{os.getuid()}"
+            and config_dir.parent.resolve() == Path(tempfile.gettempdir()).resolve()
+        )
 
     @staticmethod
     def _prepare_config_dir(config_dir: Path, *, fallback: bool) -> None:

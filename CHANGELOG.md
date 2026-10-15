@@ -33,8 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tempfile.gettempdir()/siege_utilities-<uid>`. Pre-existing fallback paths
   that are symlinks, are not directories, belong to another uid, or are
   group/other-writable are rejected with `ValueError` before loading or
-  saving credentials. Shared config directories lose group/other access;
-  use a private `SIEGE_USER_CONFIG_DIR` if the fallback is unsafe. Old
+  saving credentials, even if passed explicitly as `config_dir` (including
+  aliases of the predictable temp path). Shared config directories lose
+  group/other access; use a private `SIEGE_USER_CONFIG_DIR` if the fallback
+  is unsafe. Old
   fallback files are not migrated or trusted automatically. Platforms without
   a POSIX uid use per-user Windows LocalAppData/AppData instead of shared temp;
   Windows file privacy depends on the user's inherited ACLs, not POSIX chmod.
