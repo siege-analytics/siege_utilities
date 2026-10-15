@@ -1,8 +1,24 @@
 # Issue 1592, round 4 verification
 
+## Current develop refresh (2026-10-15)
+
+Rebased on fully green develop `097839bd` (#1649); `0015_precinct_result_identity`
+now depends on `0014_district_geoid_charclass`, giving `siege_geo` one
+migration leaf. Removed the branch's duplicate generic Python-matrix PostGIS
+service: the shared marker-based live job selects all new ORM and SQL cases,
+while generic CI retains pure parser/state checks. A temporary isolated
+PostgreSQL 17/PostGIS 3.6 instance applied migrations through 0015 in order;
+`makemigrations siege_geo --check --dry-run` reported no changes. Fresh
+detached-committed-tree verification: 155 selected live cases passed (70 from
+this PR), with zero selected DB skips; the one `msal` skip is an unrelated
+optional module-level collection skip, explicitly exempted by the live-lane
+JUnit policy. Generic selection passed 32 pure loader/model cases, 70 live
+cases deselected. These results do not replace full current-head CI and
+independent review before merge.
+
 The loader identity is (state_fips, election_year, election_type,
 precinct_id, office, district, party_code, candidate_name, data_source).
-The amended, unmerged 0014 migration mirrors the model fields and
+The amended, unmerged 0015 migration mirrors the model fields and
 constraint, remains non-atomic, builds the unique index concurrently,
 and reverses the constraint and added columns. Column creation and
 backfill can be retried after an index-build failure. Existing known
