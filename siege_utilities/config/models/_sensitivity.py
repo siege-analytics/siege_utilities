@@ -11,6 +11,11 @@ _SECRET_WORDS = frozenset({
 })
 _SECRET_INFIXES = ("secret", "token", "password", "passwd", "apikey", "privatekey", "accesskey")
 _PUBLIC_WORD_PREFIXES = ("secretar", "tokeniz")  # secretary, secretariat, tokenizer, tokenized
+# A public-looking prefix must not hide another secret indicator later in the
+# same run-together word (e.g. secretarypassword or tokenizersessionkey).
+_PUBLIC_PREFIX_SECRET_INFIXES = _SECRET_INFIXES + (
+    "key", "credential", "passphrase", "pwd", "dsn", "session", "cookie", "jwt",
+)
 _SECRET_COMPOUNDS = frozenset(
     prefix + suffix
     for prefix in ("api", "access", "secret", "private", "signing", "ssh")
@@ -23,6 +28,16 @@ _METADATA_QUALIFIERS = frozenset({
     "count", "policy", "min", "max", "length", "type", "version",
 })
 _PUBLIC_NAMES = frozenset({"token_file", "onepassword_credentials"})
+
+
+def _has_secret_infix(token: str) -> bool:
+    if not any(word in token for word in _SECRET_INFIXES):
+        return False
+    for prefix in _PUBLIC_WORD_PREFIXES:
+        if token.startswith(prefix):
+            remainder = token[len(prefix):]
+            return any(word in remainder for word in _PUBLIC_PREFIX_SECRET_INFIXES)
+    return True
 
 
 class _SecretFieldName:
@@ -45,10 +60,7 @@ class _SecretFieldName:
             if (
                 token not in _SECRET_WORDS
                 and token not in _SECRET_COMPOUNDS
-                and not (
-                    any(word in token for word in _SECRET_INFIXES)
-                    and not token.startswith(_PUBLIC_WORD_PREFIXES)
-                )
+                and not _has_secret_infix(token)
             ):
                 continue
             neighbors = set(tokens[max(0, index - 1):index] + tokens[index + 1:index + 2])

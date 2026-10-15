@@ -701,7 +701,7 @@ class Organization(BaseModel):
     def to_yaml(self, path: Optional[Path] = None, exclude_sensitive: bool = False) -> str:
         """Serialize to YAML string, optionally writing to a file."""
         data = self.to_dict(exclude_sensitive=exclude_sensitive)
-        yaml_str = yaml.dump(data, default_flow_style=False, sort_keys=False)
+        yaml_str = yaml.safe_dump(data, default_flow_style=False, sort_keys=False)
         if path is not None:
             path = Path(path)
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -872,7 +872,7 @@ class Collaboration(BaseModel):
     def to_yaml(self, path: Optional[Path] = None, exclude_sensitive: bool = False) -> str:
         """Serialize to YAML string, optionally writing to a file."""
         data = self.to_dict(exclude_sensitive=exclude_sensitive)
-        yaml_str = yaml.dump(data, default_flow_style=False, sort_keys=False)
+        yaml_str = yaml.safe_dump(data, default_flow_style=False, sort_keys=False)
         if path is not None:
             path = Path(path)
             path.parent.mkdir(parents=True, exist_ok=True)

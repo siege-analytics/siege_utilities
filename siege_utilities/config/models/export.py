@@ -72,7 +72,7 @@ def export_entities(
         ]
 
     document = _convert_to_yaml_safe(document)
-    yaml_str = yaml.dump(document, default_flow_style=False, sort_keys=False)
+    yaml_str = yaml.safe_dump(document, default_flow_style=False, sort_keys=False)
 
     if path is not None:
         path = Path(path)

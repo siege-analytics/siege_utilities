@@ -9,7 +9,8 @@ Sharing exports without secrets
 
 ``Person.to_dict``, ``Person.to_yaml`` and ``export_entities`` accept
 ``exclude_sensitive=True``. Redaction walks live models, including subclass
-fields, nested dictionaries and lists. A field declared with
+fields, nested dataclasses and plain objects, dictionaries and lists. YAML
+exports use safe mappings rather than Python-object constructor tags. A field declared with
 ``Field(json_schema_extra={"sensitive": True})`` is redacted in full. An
 explicit ``sensitive=False`` preserves the field while still walking its
 contents.
@@ -27,8 +28,9 @@ redact. Secret plurals and compounds such as ``secrets``, ``passwords``,
 ``clientsecret`` and ``accesstoken`` also redact. Run-together tokens containing
 secret, token, password, passwd, apikey, privatekey or accesskey redact too,
 including ``secretaccesskey``, ``googleapikey`` and ``passwordhash``.
-``secretary``, ``secretariat``, ``tokenizer`` and ``tokenized`` remain public.
-Other compounds ending in ``key`` or ``keys`` require a known secret prefix
+``secretary``, ``secretariat``, ``tokenizer`` and ``tokenized`` remain public,
+but they do not exempt an additional secret indicator in the same joined name:
+``secretarypassword`` and ``tokenizersecret`` redact. Other compounds ending in ``key`` or ``keys`` require a known secret prefix
 (api, access, secret, private, signing or ssh); ``sessionid`` is also recognized.
 Names such as ``monkey``, ``turkey`` and ``hockey`` remain public.
 
@@ -40,6 +42,8 @@ Secret query and fragment parameters are also scrubbed, including
 example, ``https://host/path?access_token=value&page=1`` becomes
 ``https://host/path?access_token=***REDACTED***&page=1``. The same placeholder
 is used for these values, including in JDBC URLs and nested metadata.
+Percent-encoded nested redirect URL userinfo is decoded in layers for password
+scrubbing while non-credential redirect parameters keep their original value.
 
 Secrets inside JSON-encoded strings are **not redacted** by name. Store these
 secrets in dictionary fields or fields explicitly marked ``sensitive=True``.

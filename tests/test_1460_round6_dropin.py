@@ -15,6 +15,9 @@ ROUND6_SECRET_NAMES = (
     "secretaccesskey", "awssecretaccesskey", "apikeyid", "xapikey",
     "googleapikey", "censusapikey", "privatekeypem", "privatekeyid",
     "secretkeyid", "clientsecretkey", "secretvalue", "tokenvalue", "passwordhash",
+    "secretarypassword", "tokenizersecret", "tokenizedapikey",
+    "secretariataccesskey", "secretarycredentialvalue", "tokenizersessionkey",
+    "secretpasswordtokenizer",
 )
 # Must stay public.
 ROUND6_PUBLIC_NAMES = (
@@ -55,3 +58,12 @@ def test_round6_run_together_names_flagged_by_guard_classifier(name):
 @pytest.mark.parametrize("name", ROUND6_PUBLIC_NAMES)
 def test_round6_public_names_not_flagged(name):
     assert SECRET_FIELD_NAME.search(name) is None
+
+
+@pytest.mark.parametrize("surface", ["to_dict", "to_yaml", "export_entities"])
+@pytest.mark.parametrize("name", ["secretary", "tokenizer", "secretariat"])
+def test_round6_benign_public_values_preserved(surface, name):
+    value = "public-sentinel-r6"
+    data, text = _export(_user(**{name: value}), surface)
+    assert data[name] == value
+    assert value in text

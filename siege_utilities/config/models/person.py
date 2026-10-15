@@ -5,6 +5,8 @@ Base Person model with comprehensive validation and credential management.
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
+from dataclasses import fields, is_dataclass
+from enum import Enum
 from pathlib import Path
 import re
 
@@ -567,7 +569,7 @@ class Person(BaseModel):
     def to_yaml(self, path: Optional[Path] = None, exclude_sensitive: bool = False) -> str:
         """Serialize to YAML string, optionally writing to a file."""
         data = self.to_dict(exclude_sensitive=exclude_sensitive)
-        yaml_str = yaml.dump(data, default_flow_style=False, sort_keys=False)
+        yaml_str = yaml.safe_dump(data, default_flow_style=False, sort_keys=False)
         if path is not None:
             path = Path(path)
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -604,13 +606,17 @@ def _convert_to_yaml_safe(obj: Any) -> Any:
         return {k: _convert_to_yaml_safe(v) for k, v in obj.items()}
     elif isinstance(obj, (list, tuple)):
         return [_convert_to_yaml_safe(item) for item in obj]
+    elif is_dataclass(obj) and not isinstance(obj, type):
+        return {field.name: _convert_to_yaml_safe(getattr(obj, field.name))
+                for field in fields(obj)}
     elif isinstance(obj, Path):
         return str(obj)
     elif isinstance(obj, datetime):
         return obj.isoformat()
-    elif hasattr(obj, 'value') and isinstance(obj, type(obj)):
-        # Enum types
+    elif isinstance(obj, Enum):
         return obj.value
+    elif hasattr(obj, '__dict__') and not isinstance(obj, type):
+        return _convert_to_yaml_safe(vars(obj))
     else:
         return obj
 
@@ -656,6 +662,9 @@ def _strip_sensitive_fields(data: Any) -> Any:
         if data.model_extra:
             result.update(_strip_sensitive_fields(data.model_extra))
         return result
+    if is_dataclass(data) and not isinstance(data, type):
+        return _strip_sensitive_fields({field.name: getattr(data, field.name)
+                                        for field in fields(data)})
     if isinstance(data, dict):
         return {
             name: (_REDACTED if value else value) if _sensitive_name(name)
@@ -667,6 +676,8 @@ def _strip_sensitive_fields(data: Any) -> Any:
     if isinstance(data, str):
         data = _URL_PASSWORD.sub(lambda match: match[1] + _REDACTED + match[2], data)
         return redact_url_secrets(data, replacement=_REDACTED)
+    if hasattr(data, '__dict__') and not isinstance(data, type):
+        return _strip_sensitive_fields(vars(data))
     return data
 
 
