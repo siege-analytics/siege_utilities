@@ -9,7 +9,8 @@ _SECRET_WORDS = frozenset({
     "auth", "authorization", "bearer", "jwt", "cookie", "session",
     "credential", "credentials", "pem", "cert",
 })
-_SECRET_SUFFIXES = ("secret", "secrets", "token", "tokens", "password", "passwords", "passwd")
+_SECRET_INFIXES = ("secret", "token", "password", "passwd", "apikey", "privatekey", "accesskey")
+_PUBLIC_WORD_PREFIXES = ("secretar", "tokeniz")  # secretary, secretariat, tokenizer, tokenized
 _SECRET_COMPOUNDS = frozenset(
     prefix + suffix
     for prefix in ("api", "access", "secret", "private", "signing", "ssh")
@@ -43,8 +44,11 @@ class _SecretFieldName:
         for index, token in enumerate(tokens):
             if (
                 token not in _SECRET_WORDS
-                and not token.endswith(_SECRET_SUFFIXES)
                 and token not in _SECRET_COMPOUNDS
+                and not (
+                    any(word in token for word in _SECRET_INFIXES)
+                    and not token.startswith(_PUBLIC_WORD_PREFIXES)
+                )
             ):
                 continue
             neighbors = set(tokens[max(0, index - 1):index] + tokens[index + 1:index + 2])

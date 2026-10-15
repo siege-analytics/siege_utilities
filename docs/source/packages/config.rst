@@ -24,10 +24,13 @@ as ``primary_key`` and ``public_key``. These exclusions apply per token:
 ``public_key_secret`` still redacts.
 Trailing digits are ignored on each token, so ``apiKey2`` and ``password2``
 redact. Secret plurals and compounds such as ``secrets``, ``passwords``,
-``clientsecret`` and ``accesstoken`` also redact. Compounds ending in
-``key`` or ``keys`` require a known secret prefix (api, access, secret,
-private, signing or ssh); ``sessionid`` is also recognized. Names such as
-``monkey``, ``turkey`` and ``hockey`` remain public.
+``clientsecret`` and ``accesstoken`` also redact. Run-together tokens containing
+secret, token, password, passwd, apikey, privatekey or accesskey redact too,
+including ``secretaccesskey``, ``googleapikey`` and ``passwordhash``.
+``secretary``, ``secretariat``, ``tokenizer`` and ``tokenized`` remain public.
+Other compounds ending in ``key`` or ``keys`` require a known secret prefix
+(api, access, secret, private, signing or ssh); ``sessionid`` is also recognized.
+Names such as ``monkey``, ``turkey`` and ``hockey`` remain public.
 
 String values containing URL userinfo passwords are scrubbed regardless of
 their field name: ``https://user:password@host/path`` becomes
