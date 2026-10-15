@@ -1,10 +1,12 @@
 """Tests for siege_utilities.files.shell — command security validation (#578)."""
 
+import os
 import subprocess
 from unittest.mock import patch
 
 import pytest
 
+from siege_utilities.files.operations import run_command
 from siege_utilities.files.shell import (
     SecurityError,
     ALLOWED_COMMANDS,
@@ -229,3 +231,56 @@ class TestRunSubprocess:
     def test_timeout_raises(self):
         with pytest.raises(subprocess.TimeoutExpired):
             run_subprocess("sleep 10", allow_list={"sleep"}, timeout=1)
+
+
+_NOT_A_LIVE_PID = 2 ** 22 + 1  # above default pid_max; resolves only in a future child
+
+
+@pytest.mark.skipif(not os.path.isdir('/proc/self'), reason='needs Linux procfs')
+@pytest.mark.parametrize('argv', [
+    ['cat', '/proc/self/cwd/passwd'],
+    ['cat', '/proc/thread-self/cwd/passwd'],
+    ['cat', f'/proc/{_NOT_A_LIVE_PID}/cwd/passwd'],
+    ['cat', f'/proc/{_NOT_A_LIVE_PID}/root/etc/passwd'],
+    ['grep', '--file=/proc/self/cwd/passwd', 'x'],
+    ['cat', '{tmp}/here/passwd'],
+])
+def test_proc_context_link_raises_before_execution(tmp_path, monkeypatch, argv):
+    from siege_utilities.files import validation
+    monkeypatch.setattr(validation, 'SENSITIVE_PATHS', validation.SENSITIVE_PATHS - {'/private/etc'})
+    (tmp_path / 'here').symlink_to('/proc/self/cwd')
+    argv = [a.format(tmp=tmp_path) for a in argv]
+    done = subprocess.CompletedProcess(argv, 0, stdout='', stderr='')
+    with patch('subprocess.run', return_value=done) as run:
+        with pytest.raises(SecurityError):
+            run_command(argv, cwd='/etc')
+        run.assert_not_called()
+
+
+@pytest.mark.parametrize('argv', [['cat', '~/passwd'], ['grep', '-f~/passwd', 'x']])
+def test_literal_tilde_entry_raises_before_execution(tmp_path, argv):
+    # argv is not shell-expanded: the child opens <cwd>/~/passwd literally.
+    (tmp_path / '~').symlink_to('/etc')
+    done = subprocess.CompletedProcess(argv, 0, stdout='', stderr='')
+    with patch('subprocess.run', return_value=done) as run:
+        with pytest.raises(SecurityError):
+            run_command(argv, cwd=tmp_path)
+        run.assert_not_called()
+
+
+@pytest.mark.parametrize('argv', [
+    ['cat', '/proc/self/status'], ['cat', '/proc/cpuinfo'],
+    ['ls', '-la', '~'], ['cat', 'report~'], ['ls', '-la'],
+])
+def test_proc_and_tilde_neighbors_allowed(tmp_path, argv):
+    assert validate_command_safety(argv, cwd=tmp_path) == argv
+
+
+def test_proc_context_link_readlink_error_fails_closed(tmp_path):
+    from siege_utilities.files.shell import _crosses_proc_context_link
+
+    alias = tmp_path.resolve() / 'alias'
+    alias.symlink_to('/proc/self/cwd')
+    with patch('os.readlink', side_effect=OSError('link unavailable')) as readlink:
+        assert _crosses_proc_context_link(str(alias)) is True
+    readlink.assert_called_once_with(str(alias))

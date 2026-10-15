@@ -36,14 +36,53 @@ ALLOWED_COMMANDS = {
 }
 
 
+# /proc/<pid>/<entry> links whose target depends on which process opens them.
+# The validator runs in the parent, so it cannot resolve them as the child will.
+_PROC_CONTEXT_ENTRIES = frozenset({'cwd', 'root', 'fd', 'task', 'map_files'})
+
+
+def _crosses_proc_context_link(path: str, max_hops: int = 40) -> bool:
+    """Return True if resolving path enters /proc/<pid>/{cwd,root,fd,task,map_files}."""
+    pending = [c for c in path.split(os.sep) if c]
+    current = os.sep
+    hops = 0
+    while pending:
+        component = pending.pop(0)
+        if component == '.':
+            continue
+        if component == '..':
+            current = os.path.dirname(current)
+            continue
+        candidate = os.path.join(current, component)
+        segments = candidate.split(os.sep)
+        if len(segments) >= 4 and segments[1] == 'proc' and segments[3] in _PROC_CONTEXT_ENTRIES:
+            return True
+        if os.path.islink(candidate):
+            hops += 1
+            if hops > max_hops:
+                return True
+            try:
+                target = os.readlink(candidate)
+            except OSError:
+                return True
+            pending = [c for c in target.split(os.sep) if c] + pending
+            if target.startswith(os.sep):
+                current = os.sep
+            continue
+        current = candidate
+    return False
+
+
 def validate_command_safety(command: Union[str, List[str]],
                             allow_list: Optional[set] = None,
                             cwd: str | os.PathLike[str] | None = None) -> List[str]:
     """
     Apply command-name, character, traversal, and known sensitive-path checks.
 
-    Operands and attached option values are checked using expanded, normalized
-    and resolved path forms relative to cwd, but returned unchanged.
+    Operands and attached option values are checked using literal, expanded,
+    normalized and resolved path forms relative to cwd, but returned unchanged.
+    Process-relative /proc links (/proc/<pid>/cwd, root, fd, task, map_files)
+    are rejected because they resolve differently in the child.
     This is not a filesystem sandbox: command options,
     recursive reads and filesystem changes after validation are not controlled.
     A custom allow-list delegates command semantics to the caller.
@@ -136,17 +175,22 @@ def validate_command_safety(command: Union[str, List[str]],
         if part.startswith('-') and not part.startswith('--'):
             path_values.extend(part[k:] for k in range(2, len(part)))
         for path in path_values:
-            expanded = os.path.join(base_directory, os.path.expanduser(path))
-            forms = (os.path.normpath(expanded), os.path.realpath(expanded))
-            if any('.ssh' in form.split(os.sep) or
-                   form.startswith(sensitive_prefixes) or
-                   (form.startswith('/proc/') and form.endswith(('/environ', '/cmdline'))) or
-                   any(form == sensitive or form.startswith(sensitive + os.sep)
-                       for sensitive in sensitive_forms)
-                   for form in forms):
-                raise SecurityError(
-                    f"Access to sensitive path forbidden: {part}"
-                )
+            for spelling in dict.fromkeys((path, os.path.expanduser(path))):
+                expanded = os.path.join(base_directory, spelling)
+                if _crosses_proc_context_link(expanded):
+                    raise SecurityError(
+                        f"Access to sensitive path forbidden: {part}"
+                    )
+                forms = (os.path.normpath(expanded), os.path.realpath(expanded))
+                if any('.ssh' in form.split(os.sep) or
+                       form.startswith(sensitive_prefixes) or
+                       (form.startswith('/proc/') and form.endswith(('/environ', '/cmdline'))) or
+                       any(form == sensitive or form.startswith(sensitive + os.sep)
+                           for sensitive in sensitive_forms)
+                       for form in forms):
+                    raise SecurityError(
+                        f"Access to sensitive path forbidden: {part}"
+                    )
             if '..' in path.replace(os.sep, '/').split('/'):
                 raise SecurityError(f"Path traversal detected: {part}")
 
