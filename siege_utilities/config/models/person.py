@@ -10,6 +10,8 @@ import re
 
 import yaml
 
+from siege_utilities.core._http import redact_url_secrets
+
 from .credential import Credential, OnePasswordCredential
 from .google_account import GoogleAccount
 from .oauth_integration import OAuthIntegration
@@ -634,9 +636,10 @@ def _strip_sensitive_fields(data: Any) -> Any:
     Secrets with innocuous names (e.g. ``pin`` or ``material``) are covered
     only by an explicit ``sensitive`` marker, not by the name floor.
     Empty values remain empty, and public containers are still traversed.
-    URL userinfo passwords are redacted in string values regardless of the
-    field name. Secrets inside JSON-encoded strings are NOT redacted by
-    name: store them in dict fields or explicitly marked sensitive fields.
+    URL userinfo passwords and secret query/fragment parameters are redacted
+    in string values regardless of the field name. Secrets inside JSON-encoded
+    strings are NOT redacted by name: store them in dict fields or explicitly
+    marked sensitive fields.
     """
     if isinstance(data, BaseModel):
         result = {}
@@ -662,7 +665,8 @@ def _strip_sensitive_fields(data: Any) -> Any:
     if isinstance(data, (list, tuple)):
         return [_strip_sensitive_fields(item) for item in data]
     if isinstance(data, str):
-        return _URL_PASSWORD.sub(lambda match: match[1] + _REDACTED + match[2], data)
+        data = _URL_PASSWORD.sub(lambda match: match[1] + _REDACTED + match[2], data)
+        return redact_url_secrets(data, replacement=_REDACTED)
     return data
 
 

@@ -32,11 +32,11 @@ def _query_key(raw: str) -> str:
     return raw.lower()
 
 
-def redact_url_secrets(text: str) -> str:
-    """Redact query/fragment secrets, including percent-encoded nested URLs."""
+def redact_url_secrets(text: str, *, replacement: str = "[REDACTED]") -> str:
+    """Redact query/fragment secrets with the caller's placeholder, preserving URL encoding."""
     return _QUERY_PARAM.sub(
         lambda match: (
-            f"{match[1]}{match[2]}{match[3]}[REDACTED]"
+            f"{match[1]}{match[2]}{match[3]}{replacement}"
             if _query_key(match[2]) in _SENSITIVE_QUERY_PARAMS
             else match[0]
         ),

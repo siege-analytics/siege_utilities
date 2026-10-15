@@ -362,6 +362,75 @@ def test_url_redacted_import_raises(surface: str) -> None:
         restore(source)
 
 
+_QUERY_SECRET_URLS = (
+    "https://api.example/x?access_token=sentinel-query&page=1",
+    "https://api.example/x?api_key=sentinel-query",
+    "https://bucket.example/o?X-Amz-Signature=sentinel-query",
+    "jdbc:postgresql://db.example/x?user=svc&password=sentinel-query",
+    "https://api.example/x#access_token=sentinel-query&state=public",
+    "https://api.example/x?page=1#api_key=sentinel-query&state=public",
+    "https://api.example/x?access_token=sentinel-query&access_token=sentinel-query#password=sentinel-query",
+    "https://api.example/x?%61pi%5Fkey=sentinel-query&page=1",
+    "https://api.example/x?next=https%3A%2F%2Finner.example%2Fx%3Ftoken%3Dsentinel-query%26page%3D2&lang=en",
+    "https://svc:sentinel-query@api.example/x?api_key=sentinel-query#part",
+)
+
+
+@pytest.mark.parametrize("surface", ALL_SURFACES)
+@pytest.mark.parametrize("url", _QUERY_SECRET_URLS)
+def test_url_query_and_fragment_secrets_preserve_public_parts(surface: str, url: str) -> None:
+    url_user = create_model("URLUser", __base__=User, endpoint=(str, ...))
+    credential = Credential(
+        name="metadata", credential_type=CredentialType.API_KEY, service="analytics",
+        metadata={"items": [{"endpoint": url}]},
+    )
+    person = url_user(
+        person_id="url-user", name="URL User", email="url@example.com",
+        username="url_user", endpoint=url, credentials=[credential],
+    )
+    data, text = _export(person, surface, exclude_sensitive=True)
+    expected = url.replace("sentinel-query", "***REDACTED***")
+    assert data["endpoint"] == expected
+    assert data["credentials"][0]["metadata"]["items"][0]["endpoint"] == expected
+    assert "sentinel-query" not in text
+    assert _export(person, surface, exclude_sensitive=False)[0]["endpoint"] == url
+
+
+@pytest.mark.parametrize("surface", ["from_yaml", "import_entities"])
+@pytest.mark.parametrize("url", _QUERY_SECRET_URLS)
+def test_url_query_and_fragment_redacted_import_raises(surface: str, url: str) -> None:
+    person = User(
+        person_id="url-user", name="URL User", email="url@example.com", username="url_user",
+        credentials=[Credential(
+            name="metadata", credential_type=CredentialType.API_KEY, service="analytics",
+            metadata={"items": [{"endpoint": url}]},
+        )],
+    )
+    source = person.to_yaml(exclude_sensitive=True) if surface == "from_yaml" else export_entities(
+        users=[person], exclude_sensitive=True,
+    )
+    restore = User.from_yaml if surface == "from_yaml" else import_entities
+    with pytest.raises(ValueError, match="Cannot import redacted values"):
+        restore(source)
+
+
+@pytest.mark.parametrize("url", [
+    "https://api.example/x?token_count=2&password_policy=strict#public_key=public%2Bkey",
+    "https://api.example/x?author=public&keyboard=en#monkey=public&turkey=public&hockey=public",
+    "https://api.example/x?secretary=public&tokenizer=public#token_type=Bearer",
+    "https://api.example/x?note=[REDACTED]&page=1#section",
+])
+def test_public_url_parameters_round_trip(url: str) -> None:
+    person = User(
+        person_id="url-user", name="URL User", email="url@example.com", username="url_user",
+        website=url,
+    )
+    assert person.to_dict(exclude_sensitive=True)["website"] == url
+    restored = import_entities(export_entities(users=[person], exclude_sensitive=True))["users"][0]
+    assert restored.model_dump() == person.model_dump()
+    assert User.from_yaml(person.to_yaml(exclude_sensitive=True)).model_dump() == person.model_dump()
+
+
 @pytest.mark.parametrize("surface", ALL_SURFACES)
 def test_marked_fields_redacted_in_nested_model_subclasses(surface: str, oauth: OAuthIntegration) -> None:
     """Markers on runtime types work even for names with no secret suffix."""

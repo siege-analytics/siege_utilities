@@ -4,11 +4,17 @@ import re
 
 
 _SECRET_WORDS = frozenset({
-    "secret", "token", "tokens", "password", "passphrase", "passwd", "pwd",
+    "secret", "secrets", "token", "tokens", "password", "passwords", "passphrase", "passwd", "pwd",
     "dsn", "key", "keys", "apikey", "privatekey", "connection", "connectionstring",
     "auth", "authorization", "bearer", "jwt", "cookie", "session",
     "credential", "credentials", "pem", "cert",
 })
+_SECRET_SUFFIXES = ("secret", "secrets", "token", "tokens", "password", "passwords", "passwd")
+_SECRET_COMPOUNDS = frozenset(
+    prefix + suffix
+    for prefix in ("api", "access", "secret", "private", "signing", "ssh")
+    for suffix in ("key", "keys")
+) | {"sessionid"}
 _PUBLIC_KEY_QUALIFIERS = frozenset({
     "primary", "foreign", "sort", "partition", "cache", "idempotency", "public",
 })
@@ -19,7 +25,7 @@ _PUBLIC_NAMES = frozenset({"token_file", "onepassword_credentials"})
 
 
 class _SecretFieldName:
-    """Classify whole name tokens; keep the shared search/None interface."""
+    """Classify name tokens and secret compounds with a shared search interface."""
 
     def search(self, name: str) -> str | None:
         """Return the first secret token, or None for a non-secret name.
@@ -33,9 +39,13 @@ class _SecretFieldName:
         name = re.sub(r"[-.\s]+", "_", name).lower()
         if name in _PUBLIC_NAMES:
             return None
-        tokens = [token for token in name.split("_") if token]
+        tokens = [token.rstrip("0123456789") for token in name.split("_") if token]
         for index, token in enumerate(tokens):
-            if token not in _SECRET_WORDS:
+            if (
+                token not in _SECRET_WORDS
+                and not token.endswith(_SECRET_SUFFIXES)
+                and token not in _SECRET_COMPOUNDS
+            ):
                 continue
             neighbors = set(tokens[max(0, index - 1):index] + tokens[index + 1:index + 2])
             before = tokens[index - 1] if index else None

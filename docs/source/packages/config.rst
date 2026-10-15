@@ -22,10 +22,21 @@ Adjacent count, policy, min, max, length, type and version qualifiers describe
 non-secret metadata. Relational and public key qualifiers preserve names such
 as ``primary_key`` and ``public_key``. These exclusions apply per token:
 ``public_key_secret`` still redacts.
+Trailing digits are ignored on each token, so ``apiKey2`` and ``password2``
+redact. Secret plurals and compounds such as ``secrets``, ``passwords``,
+``clientsecret`` and ``accesstoken`` also redact. Compounds ending in
+``key`` or ``keys`` require a known secret prefix (api, access, secret,
+private, signing or ssh); ``sessionid`` is also recognized. Names such as
+``monkey``, ``turkey`` and ``hockey`` remain public.
 
 String values containing URL userinfo passwords are scrubbed regardless of
 their field name: ``https://user:password@host/path`` becomes
 ``https://user:***REDACTED***@host/path``. The rest of the URL is preserved.
+Secret query and fragment parameters are also scrubbed, including
+``access_token``, ``api_key``, ``X-Amz-Signature`` and ``password``. For
+example, ``https://host/path?access_token=value&page=1`` becomes
+``https://host/path?access_token=***REDACTED***&page=1``. The same placeholder
+is used for these values, including in JDBC URLs and nested metadata.
 
 Secrets inside JSON-encoded strings are **not redacted** by name. Store these
 secrets in dictionary fields or fields explicitly marked ``sensitive=True``.

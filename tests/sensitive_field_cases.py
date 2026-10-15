@@ -12,6 +12,8 @@ SECRET_NAMES = (
     "pem", "cert", "cert_pem", "key_pem", "signing_pem", "key",
     "api.key", "private key", "Authorization", "ACCESS_KEY_ID", "SSHKey",
     "public_key_secret", "token_count_password",
+    "apiKey2", "password2", "db_password1", "apikeys", "secrets", "passwords",
+    "clientsecret", "accesstoken", "refreshtoken", "secretkey", "accesskey", "sessionid",
 )
 
 PUBLIC_NAMES = (
@@ -21,4 +23,5 @@ PUBLIC_NAMES = (
     "token_type", "keyboard", "monkey", "keys_count", "api_version",
     "token_version", "password_length", "min_tokens", "primaryKey", "public-key",
     "token.count", "password policy",
+    "author", "turkey", "hockey",
 )
