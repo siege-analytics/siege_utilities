@@ -140,6 +140,7 @@ class User(Person):
 
     # Multi-source credential references
     source_credentials: Dict[str, str] = Field(
+        json_schema_extra={"sensitive": False},
         default_factory=dict,
         description="Map of source_id to credential reference (e.g. {'fec': 'FEC_API_KEY', 'census': 'CENSUS_KEY'})"
     )
@@ -481,6 +482,7 @@ class Collaborator(Person):
         description="Services this collaborator can access"
     )
     restricted_credentials: List[str] = Field(
+        json_schema_extra={"sensitive": False},
         default_factory=list,
         description="Credentials this collaborator cannot access"
     )
@@ -780,6 +782,7 @@ class Collaboration(BaseModel):
     
     # Access Control
     shared_credentials: List[str] = Field(
+        json_schema_extra={"sensitive": False},
         default_factory=list,
         description="List of credential names shared in this collaboration"
     )

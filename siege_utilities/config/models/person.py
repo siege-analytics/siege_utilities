@@ -67,6 +67,7 @@ class Person(BaseModel):
     
     # Credentials & Access
     credentials: List[Credential] = Field(
+        json_schema_extra={"sensitive": False},
         default_factory=list,
         description="List of credentials for this person"
     )
@@ -613,17 +614,13 @@ def _convert_to_yaml_safe(obj: Any) -> Any:
 
 
 _REDACTED = '***REDACTED***'
-_PUBLIC_METADATA_KEYS = frozenset({
-    'public_key', 'partition_key', 'sort_key', 'cache_key', 'idempotency_key',
-    'token_type', 'token_file', 'onepassword_credentials',
-})
+_URL_PASSWORD = re.compile(r'([a-zA-Z][a-zA-Z0-9+.-]*://[^\s/:?#@]*:)[^\s/?#]*(@)')
 
 
 def _sensitive_name(name: Any) -> bool:
     """Conservatively classify unmarked fields and free-form metadata keys."""
     return (
         isinstance(name, str)
-        and name.lower() not in _PUBLIC_METADATA_KEYS
         and SECRET_FIELD_NAME.search(name) is not None
     )
 
@@ -637,6 +634,9 @@ def _strip_sensitive_fields(data: Any) -> Any:
     Secrets with innocuous names (e.g. ``pin`` or ``material``) are covered
     only by an explicit ``sensitive`` marker, not by the name floor.
     Empty values remain empty, and public containers are still traversed.
+    URL userinfo passwords are redacted in string values regardless of the
+    field name. Secrets inside JSON-encoded strings are NOT redacted by
+    name: store them in dict fields or explicitly marked sensitive fields.
     """
     if isinstance(data, BaseModel):
         result = {}
@@ -661,12 +661,14 @@ def _strip_sensitive_fields(data: Any) -> Any:
         }
     if isinstance(data, (list, tuple)):
         return [_strip_sensitive_fields(item) for item in data]
+    if isinstance(data, str):
+        return _URL_PASSWORD.sub(lambda match: match[1] + _REDACTED + match[2], data)
     return data
 
 
 def _reject_redacted_values(data: Any) -> None:
     """Reject placeholders anywhere in an import before constructing models."""
-    if isinstance(data, str) and data.strip() == _REDACTED:
+    if isinstance(data, str) and _REDACTED in data:
         raise ValueError(
             'Cannot import redacted values (***REDACTED***); use an unredacted export.'
         )

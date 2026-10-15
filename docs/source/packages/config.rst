@@ -4,6 +4,40 @@ Config
 User and project configuration: credentials, database connections, client
 profiles, project management.
 
+Sharing exports without secrets
+-------------------------------
+
+``Person.to_dict``, ``Person.to_yaml`` and ``export_entities`` accept
+``exclude_sensitive=True``. Redaction walks live models, including subclass
+fields, nested dictionaries and lists. A field declared with
+``Field(json_schema_extra={"sensitive": True})`` is redacted in full. An
+explicit ``sensitive=False`` preserves the field while still walking its
+contents.
+
+Unmarked names use the same token-aware classifier as the field-marker guard.
+CamelCase boundaries, hyphens, dots and spaces are normalized to underscores,
+then whole tokens identify credentials such as ``accessKey``, ``api-key``,
+``authorization``, ``session_cookie``, ``credentials``, ``pem`` and bare ``key``.
+Adjacent count, policy, min, max, length, type and version qualifiers describe
+non-secret metadata. Relational and public key qualifiers preserve names such
+as ``primary_key`` and ``public_key``. These exclusions apply per token:
+``public_key_secret`` still redacts.
+
+String values containing URL userinfo passwords are scrubbed regardless of
+their field name: ``https://user:password@host/path`` becomes
+``https://user:***REDACTED***@host/path``. The rest of the URL is preserved.
+
+Secrets inside JSON-encoded strings are **not redacted** by name. Store these
+secrets in dictionary fields or fields explicitly marked ``sensitive=True``.
+For example, use ``{"client_secret": value}`` as a dictionary, rather than
+encoding that dictionary as a string in an unmarked field. Secrets under
+innocuous names also require an explicit sensitivity marker.
+
+``from_yaml`` and ``import_entities`` reject values containing
+``***REDACTED***``, including scrubbed URLs, so placeholders cannot overwrite
+credentials. Use an unredacted export for backups and restoration. Exports
+containing only public values can round-trip with ``exclude_sensitive=True``.
+
 .. automodule:: siege_utilities.config
    :members:
    :show-inheritance:

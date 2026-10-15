@@ -28,6 +28,7 @@ from siege_utilities.config.models.oauth_integration import OAuthIntegration
 from siege_utilities.config.models.person import Person
 from siege_utilities.config.models.social_media_account import SocialMediaAccount
 from siege_utilities.config.models.user_profile import UserProfile
+from tests.sensitive_field_cases import PUBLIC_NAMES, SECRET_NAMES
 
 
 # Secret sentinel values. Each appears only in a declared credential field so
@@ -131,11 +132,7 @@ def _export(
 
 
 ALL_SURFACES = ["to_dict", "to_yaml", "export_entities"]
-SECRET_NAMES = (
-    "webhook_secret", "bot_token", "signing_key", "api_keys",
-    "connection_string", "connectionString", "passphrase", "apikey", "apiKey",
-    "privateKey", "passwd", "pwd", "dsn",
-)
+
 
 
 @pytest.mark.parametrize("surface", ALL_SURFACES)
@@ -272,9 +269,7 @@ def test_subclass_secret_fields_are_redacted(surface: str, marked: bool, name: s
 
 
 @pytest.mark.parametrize("surface", ALL_SURFACES)
-@pytest.mark.parametrize("name", [
-    "public_key", "partition_key", "sort_key", "cache_key", "idempotency_key", "token_type",
-])
+@pytest.mark.parametrize("name", PUBLIC_NAMES)
 def test_subclass_public_fields_survive_name_floor(surface: str, name: str) -> None:
     extended_user = create_model("PublicUser", __base__=User, **{name: (str, ...)})
     person = extended_user(
@@ -284,6 +279,87 @@ def test_subclass_public_fields_survive_name_floor(surface: str, name: str) -> N
     data, text = _export(person, surface, exclude_sensitive=True)
     assert data[name] == "public-value"
     assert "public-value" in text
+
+
+@pytest.mark.parametrize("name", PUBLIC_NAMES)
+def test_public_fields_round_trip_through_redacted_export(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
+    from siege_utilities.config.models import export
+
+    public_user = create_model("PublicUser", __base__=User, **{name: (str, ...)})
+    # The importer resolves its User class here; use the same schema as the exporter.
+    monkeypatch.setattr(export, "User", public_user)
+    person = public_user(
+        person_id="public-user", name="Public User", email="public@example.com",
+        username="public_user", **{name: "public-value"},
+    )
+    restored = import_entities(export_entities(users=[person], exclude_sensitive=True))["users"][0]
+    assert getattr(restored, name) == "public-value"
+    assert restored.model_dump() == person.model_dump()
+
+
+def test_public_metadata_round_trips_through_redacted_export() -> None:
+    credential = Credential(
+        name="public-credential", credential_type=CredentialType.API_KEY, service="analytics",
+        metadata=dict.fromkeys(PUBLIC_NAMES, "public-value"),
+    )
+    person = User(
+        person_id="metadata-user", name="Metadata User", email="metadata@example.com",
+        username="metadata_user", credentials=[credential],
+    )
+    restored = import_entities(export_entities(users=[person], exclude_sensitive=True))["users"][0]
+    assert restored.credentials[0].metadata == credential.metadata
+    assert restored.model_dump() == person.model_dump()
+
+
+@pytest.mark.parametrize("surface", ALL_SURFACES)
+@pytest.mark.parametrize("name", ["database_url", "webhook_url"])
+@pytest.mark.parametrize("url,expected", [
+    ("postgresql://svc:sentinel-password@db.example:5432/x?sslmode=require#frag",
+     "postgresql://svc:***REDACTED***@db.example:5432/x?sslmode=require#frag"),
+    ("https://bot:sentinel%40password@hooks.example/x?channel=public#frag",
+     "https://bot:***REDACTED***@hooks.example/x?channel=public#frag"),
+    ("postgresql+psycopg://svc:sentinel:password@[::1]:5432/x",
+     "postgresql+psycopg://svc:***REDACTED***@[::1]:5432/x"),
+    ("https://hooks.example/x?channel=public#frag", "https://hooks.example/x?channel=public#frag"),
+    ("https://bot@hooks.example/x", "https://bot@hooks.example/x"),
+])
+def test_url_userinfo_password_redacted(surface: str, name: str, url: str, expected: str) -> None:
+    url_user = create_model("URLUser", __base__=User, **{name: (str, ...)})
+    person = url_user(
+        person_id="url-user", name="URL User", email="url@example.com",
+        username="url_user", **{name: url},
+    )
+    data, _ = _export(person, surface, exclude_sensitive=True)
+    assert data[name] == expected
+    assert _export(person, surface, exclude_sensitive=False)[0][name] == url
+
+
+@pytest.mark.parametrize("surface", ALL_SURFACES)
+def test_url_userinfo_redacted_inside_nested_values(surface: str, oauth: OAuthIntegration) -> None:
+    oauth.metadata = {"items": [{"webhook_url": "https://bot:sentinel-password@hooks.example/x"}]}
+    person = User(
+        person_id="url-user", name="URL User", email="url@example.com",
+        username="url_user", oauth_integrations=[oauth],
+    )
+    data, text = _export(person, surface, exclude_sensitive=True)
+    assert data["oauth_integrations"][0]["metadata"]["items"][0]["webhook_url"] == (
+        "https://bot:***REDACTED***@hooks.example/x"
+    )
+    assert "sentinel-password" not in text
+
+
+@pytest.mark.parametrize("surface", ["from_yaml", "import_entities"])
+def test_url_redacted_import_raises(surface: str) -> None:
+    person = User(
+        person_id="url-user", name="URL User", email="url@example.com", username="url_user",
+        website="https://bot:sentinel-password@hooks.example/x",
+    )
+    source = person.to_yaml(exclude_sensitive=True) if surface == "from_yaml" else export_entities(
+        users=[person], exclude_sensitive=True,
+    )
+    restore = User.from_yaml if surface == "from_yaml" else import_entities
+    with pytest.raises(ValueError, match="Cannot import redacted values"):
+        restore(source)
 
 
 @pytest.mark.parametrize("surface", ALL_SURFACES)

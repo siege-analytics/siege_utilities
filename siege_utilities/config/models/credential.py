@@ -236,6 +236,7 @@ class OnePasswordCredential(BaseModel):
     
     # Credential reference
     credential_name: str = Field(
+        json_schema_extra={"sensitive": False},
         min_length=1,
         max_length=100,
         description="Name of the credential in 1Password"
