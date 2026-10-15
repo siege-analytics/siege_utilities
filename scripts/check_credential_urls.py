@@ -218,6 +218,33 @@ def credential_url_sites(source: str, path: str) -> list[Site]:
             return set()
         return {UNRESOLVED_PARAMS}
 
+    def forwarded_params(expr: ast.AST, seen: frozenset[str] = frozenset()) -> set[str]:
+        """Resolve the params entry of a **kwargs mapping; unknown mappings need review."""
+        if isinstance(expr, ast.Name) and expr.id not in seen and expr.id in bindings:
+            return set().union(*(forwarded_params(value, seen | {expr.id})
+                                 for value in bindings[expr.id]))
+        if isinstance(expr, ast.Dict):
+            result = set()
+            for key, value in zip(expr.keys, expr.values):
+                if key is None:
+                    result |= forwarded_params(value, seen)
+                elif isinstance(key, ast.Constant) and key.value == "params":
+                    result |= keys(value)
+                elif not (isinstance(key, ast.Constant) and isinstance(key.value, str)):
+                    result.add(UNRESOLVED_PARAMS)
+            return result
+        if isinstance(expr, ast.Call) and isinstance(expr.func, ast.Name) and expr.func.id == "dict":
+            result = set()
+            for keyword in expr.keywords:
+                if keyword.arg == "params":
+                    result |= keys(keyword.value)
+                elif keyword.arg is None:
+                    result |= forwarded_params(keyword.value, seen)
+            for argument in expr.args:
+                result |= forwarded_params(argument, seen)
+            return result
+        return {UNRESOLVED_PARAMS}
+
     sites = []
 
     def visit(node: ast.AST, scope: tuple[str, ...] = ()) -> None:
@@ -242,6 +269,16 @@ def credential_url_sites(source: str, path: str) -> list[Site]:
                 for keyword in node.keywords:
                     if keyword.arg == "params":
                         parameters |= keys(keyword.value)
+                    elif keyword.arg is None:
+                        parameters |= forwarded_params(keyword.value)
+                # Session.request(method, url, params, ...) accepts params positionally.
+                is_session_request = (
+                    isinstance(node.func, ast.Attribute) and name == "request"
+                    and not (isinstance(node.func.value, ast.Name)
+                             and node.func.value.id in requests_modules)
+                )
+                if is_session_request and len(node.args) > 2:
+                    parameters |= keys(node.args[2])
                 is_requests_get = (
                     isinstance(node.func, ast.Name) and name in positional_gets
                     or isinstance(node.func, ast.Attribute) and name == "get"

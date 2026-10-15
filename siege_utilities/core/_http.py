@@ -11,7 +11,7 @@ from ._sensitivity import SECRET_FIELD_NAME
 _ALWAYS_SENSITIVE_QUERY_PARAMS = frozenset({
     "sig", "signature", "x-amz-signature", "x-goog-signature",
 })
-_URL_USERINFO = re.compile(r'([a-zA-Z][a-zA-Z0-9+.-]*://[^\s/:?#@]*:)[^\s/?#]*(@)')
+_URL_USERINFO = re.compile(r'(://[^\s/:?#@]*:)[^\s/?#]*(@)')
 _QUERY_PARAM = re.compile(
     r"[?&#]([^=?&#\s'\"<>,)]+)=",
 )

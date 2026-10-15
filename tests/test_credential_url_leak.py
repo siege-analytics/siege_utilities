@@ -378,6 +378,19 @@ def test_redact_url_secrets_sensitive_parameters(parameter, delimiter, suffix):
     )
 
 
+@pytest.mark.parametrize("text", [
+    "trace " + "0123456789abcdef" * 16384 + " progress 100%25",
+    "https://h/p?q=" + "a" * 262144 + "%41",
+])
+def test_redact_url_secrets_is_linear_on_long_alphanumeric_runs(text):
+    import time
+    from siege_utilities.core._http import redact_url_secrets
+
+    started = time.perf_counter()
+    assert redact_url_secrets(text) == text
+    assert time.perf_counter() - started < 5
+
+
 @pytest.mark.parametrize("query, expected", [
     ("%3Fkey%3DS", "%3Fkey%3D[REDACTED]"),
     ("%3fkey%3dS%26x%3d1", "%3fkey%3d[REDACTED]%26x%3d1"),

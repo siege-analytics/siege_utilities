@@ -59,7 +59,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or punctuation. Nested URLs are decoded up to a fixed limit before their
   secrets are removed, with excessive encoding redacted in full. The credential
   URL guard also checks positional requests.get params, Request construction,
-  setdefault, and in-place dictionary merges. (#1400)
+  setdefault, and in-place dictionary merges. Userinfo matching avoids quadratic
+  scans of long alphanumeric runs. The guard follows params forwarded through
+  kwargs and positional Session.request calls. (#1400)
 - PyPI uploads pass credentials through the child environment and capture
   diagnostics. `run_command` and `run_subprocess` log status only, omitting all
   arguments and output rather than guessing which values are secrets. Their

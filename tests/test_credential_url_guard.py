@@ -96,6 +96,10 @@ def test_guard_rejects_injected_leak(tmp_path, parameter, construction):
     'from requests import Request as Build\nBuild("GET", url, params={"api_key": k})',
     'p = {}\np.setdefault("api_key", k)\nrequests.get(url, params=p)',
     'p = {}\np |= {"api_key": k}\nrequests.get(url, params=p)',
+    'requests.get(url, **{"params": {"api_key": k}})',
+    'kw = {"params": {"api_key": k}}\nrequests.get(url, **kw)',
+    'kw = dict(params={"api_key": k})\nrequests.request("GET", url, **kw)',
+    'session.request("GET", url, {"api_key": k})',
 ])
 def test_guard_tracks_query_construction_variants(build, tmp_path):
     (tmp_path / "client.py").write_text(build)
@@ -108,6 +112,14 @@ def test_guard_tracks_query_construction_variants(build, tmp_path):
     sites = credential_url_sites(build, "client.py")
     assert len(sites) == 1
     assert sites[0].parameters == (("api_key",) if "api_key" in build else ("apikey",))
+
+
+@pytest.mark.parametrize("build", [
+    'kw = {"timeout": 5}\nrequests.get(url, **kw)',
+    'session.request("GET", url, {"q": 1})',
+])
+def test_guard_ignores_benign_forwarded_kwargs(build):
+    assert credential_url_sites(build, "client.py") == []
 
 
 @pytest.mark.parametrize("build", [
