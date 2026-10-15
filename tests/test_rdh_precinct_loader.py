@@ -1,6 +1,8 @@
 """Behavioral regressions for #1592, using the real ORM and PostGIS."""
 
+import json
 import logging
+from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
@@ -37,6 +39,187 @@ def loader(monkeypatch, precinct_data, tmp_path):
         yield RDHLoaderService(client=client)
 
 
+@pytest.fixture
+def vest_data(monkeypatch):
+    def read(state, year):
+        path = Path(__file__).parent / "fixtures" / "vest" / f"{state.lower()}_{year}.json"
+        rows = json.loads(path.read_text())["rows"]
+        frame = gpd.GeoDataFrame(rows, geometry=[None] * len(rows), crs="EPSG:4326")
+        monkeypatch.setattr(rdh, "fetch_precinct_results", lambda *args, **kwargs: frame)
+        return frame
+    return read
+
+
+@pytest.mark.postgis
+@pytest.mark.django_db
+class TestForwardFix:
+    def test_ga_next_year_runoffs_load_distinctly_and_reload(self, loader, vest_data):
+        frame = vest_data("GA", 2020)
+        first = loader.load_precinct_results("GA", 2020)
+        before = list(PrecinctElectionResult.objects.order_by("precinct_id", "election_year",
+                      "election_type", "party_code", "candidate_name")
+                      .values_list("precinct_id", "election_year", "election_type", "party_code",
+                                   "candidate_name", "votes", "total_votes"))
+        second = loader.load_precinct_results("GA", 2020)
+        assert first.records_created == second.records_created
+        assert before == list(PrecinctElectionResult.objects.order_by("precinct_id", "election_year",
+                              "election_type", "party_code", "candidate_name")
+                              .values_list("precinct_id", "election_year", "election_type", "party_code",
+                                           "candidate_name", "votes", "total_votes"))
+        senate = PrecinctElectionResult.objects.filter(office="senate")
+        assert set(senate.values_list("election_year", "election_type")) == {
+            (2020, "G"), (2020, "S"), (2021, "R"),
+        }
+        runoff = senate.filter(election_year=2021, election_type="R")
+        assert set(runoff.values_list("candidate_name", flat=True)) == {"PER", "OSS", "LOE", "WAR"}
+        assert runoff.count() == 8
+        assert runoff.aggregate(n=Sum("votes"))["n"] == frame.filter(regex="^R21USS").sum().sum()
+        assert all(any(col in w for w in first.warnings) for col in ["R21PSCRMCD", "R21PSCDBLA"])
+
+    def test_runoff_reload_removes_missing_columns_and_preserves_other_scopes(self, loader, vest_data):
+        frame = vest_data("GA", 2020)
+        loader.load_precinct_results("GA", 2020)
+        unrelated = PrecinctElectionResult.objects.create(
+            state_fips="13", election_year=2021, election_type="G", precinct_id="other",
+            office="senate", party_code="D", candidate_name="ABC", votes=9, data_source="rdh",
+        )
+        assert PrecinctElectionResult.objects.filter(election_year=2021, election_type="R").count() == 8
+        frame.drop(columns=list(frame.filter(regex="^R21")), inplace=True)
+        loader.load_precinct_results("GA", 2020)
+        assert not PrecinctElectionResult.objects.filter(election_type="R").exists()
+        assert PrecinctElectionResult.objects.get(pk=unrelated.pk).votes == 9
+
+    @pytest.mark.parametrize("column", ["G18PREDBID", "S22USSDWAR", "C21PREDBID", "P19PRE_TOTAL"])
+    def test_other_year_omissions_are_warned(self, loader, precinct_data, column):
+        precinct_data[column] = [1, 2]
+        result = loader.load_precinct_results("VA", 2020)
+        assert any(column in warning for warning in result.warnings)
+        assert result.records_created == 6
+
+    def test_dc_delegate_loads_as_house_and_shadow_offices_are_warned(self, loader, vest_data):
+        frame = vest_data("DC", 2020)
+        result = loader.load_precinct_results("DC", 2020)
+        house = PrecinctElectionResult.objects.filter(office="house")
+        assert house.filter(candidate_name="NOR", district="AL").count() == 2
+        assert house.count() == 18
+        assert house.aggregate(n=Sum("votes"))["n"] == frame.filter(regex="^G20DEL").sum().sum()
+        assert not house.filter(candidate_name="OWO").exists()
+        assert not PrecinctElectionResult.objects.filter(office="senate").exists()
+        assert all(any(col in w and "shadow" in w for w in result.warnings)
+                   for col in frame.filter(regex="^G20(?:USS|HAL)"))
+
+    def test_dc_mapping_does_not_change_other_states(self, loader, vest_data):
+        vest_data("DC", 2020)
+        result = loader.load_precinct_results("DE", 2020)
+        assert PrecinctElectionResult.objects.filter(office="house", candidate_name="OWO").count() == 2
+        assert PrecinctElectionResult.objects.filter(office="senate", candidate_name="STR").count() == 2
+        assert not PrecinctElectionResult.objects.filter(candidate_name="NOR").exists()
+        assert any("G20DELDNOR" in w and "unmapped office" in w for w in result.warnings)
+
+    @pytest.mark.parametrize("year,identities", [(2018, 23), (2020, 15)])
+    def test_mn_vtdid_is_statewide_and_preserves_all_identities(self, loader, vest_data, year, identities):
+        frame = vest_data("MN", year)
+        first = loader.load_precinct_results("MN", year)
+        frame.sort_values("VTDID", ascending=False, inplace=True)
+        second = loader.load_precinct_results("MN", year)
+        assert first.records_created == second.records_created == 2 * identities
+        assert set(PrecinctElectionResult.objects.values_list("precinct_id", flat=True)) == {
+            "270010005", "270010010",
+        }
+        assert PrecinctElectionResult.objects.filter(precinct_id="270010005").count() == identities
+        assert PrecinctElectionResult.objects.aggregate(n=Sum("votes"))["n"] == (
+            frame.filter(regex=r"^[GS]\d{2}(?:PRE|USS|GOV|SOS|ATG)").sum().sum()
+        )
+
+    def test_mn_2018_vtdid_governor_write_ins_remain_distinct(self, loader, vest_data):
+        vest_data("MN", 2018)
+        loader.load_precinct_results("MN", 2018)
+        rows = PrecinctElectionResult.objects.filter(
+            precinct_id="270010005", office="governor", candidate_name="WRI",
+        )
+        assert set(rows.values_list("party_code", flat=True)) == {"C", "O"}
+
+    @pytest.mark.parametrize("column", ["GEOID16", "GEOID18", "VTDST16", "VTDST18"])
+    def test_older_vest_id_variants_load(self, loader, precinct_data, column):
+        precinct_data.rename(columns={"PRECINCT": column}, inplace=True)
+        loader.load_precinct_results("VA", 2020)
+        assert set(PrecinctElectionResult.objects.values_list("precinct_id", flat=True)) == {"001", "002"}
+
+    @pytest.mark.parametrize("column", ["GEOID20", "PRECINCT"])
+    def test_existing_id_precedes_added_vtdid(self, loader, precinct_data, column):
+        precinct_data.rename(columns={"PRECINCT": column}, inplace=True)
+        precinct_data["COUNTYFP"] = ["001", "003"]
+        precinct_data["VTDID"] = ["270010005", "270010010"]
+        loader.load_precinct_results("VA", 2020)
+        expected = {"001", "002"} if column == "GEOID20" else {"001:001", "003:002"}
+        assert set(PrecinctElectionResult.objects.values_list("precinct_id", flat=True)) == expected
+
+    def test_mt_skips_three_blank_zero_vote_rows_and_preserves_sum(self, loader, vest_data):
+        frame = vest_data("MT", 2020)
+        first = loader.load_precinct_results("MT", 2020)
+        second = loader.load_precinct_results("MT", 2020)
+        assert first.records_created == second.records_created == 28
+        assert first.records_skipped == second.records_skipped == 3
+        assert any("3" in w and "blank" in w and "zero" in w for w in first.warnings)
+        assert PrecinctElectionResult.objects.values("precinct_id").distinct().count() == 2
+        assert PrecinctElectionResult.objects.aggregate(n=Sum("votes"))["n"] == (
+            frame.filter(regex="^G20(?:PRE|USS|HAL|GOV|ATG|SOS)").sum().sum()
+        )
+
+    @pytest.mark.parametrize("column,value", [
+        ("G20PREDBID", 1), ("G20AUDRDOW", 1), ("R21USSDWAR", 1),
+        ("G19PREDBID", 1), ("G20PRE_TOTAL", "invalid"), ("G20PREDBID", 0.5),
+    ])
+    def test_blank_id_with_any_nonzero_or_invalid_vote_raises(self, loader, vest_data, column, value):
+        frame = vest_data("MT", 2020)
+        frame[column] = frame.get(column, pd.Series(0, index=frame.index)).astype(object)
+        frame.loc[2, column] = value
+        with pytest.raises(ValueError, match="Cannot resolve statewide precinct identifiers.*missing or blank"):
+            loader.load_precinct_results("MT", 2020)
+        assert not PrecinctElectionResult.objects.exists()
+
+    def test_unknown_party_letters_warn_and_preserve_raw_identity(self, loader, vest_data, caplog):
+        frame = vest_data("RI", 2020)
+        with caplog.at_level(logging.WARNING, logger=RDHLoaderService.__module__):
+            result = loader.load_precinct_results("RI", 2020)
+        unknown = [col for col in frame if col.startswith("G20") and col[6] in "AOS"]
+        assert {col[6] for col in unknown} == {"A", "O", "S"}
+        assert all(any(col in w and repr(col[6]) in w and "unmapped party" in w
+                       for w in result.warnings) for col in unknown)
+        assert all(w in caplog.text for w in result.warnings)
+        assert set(PrecinctElectionResult.objects.filter(party_code__in=["A", "O", "S"])
+                   .values_list("party_code", flat=True)) == {"A", "O", "S"}
+        assert PrecinctElectionResult.objects.aggregate(n=Sum("votes"))["n"] == frame.filter(regex="^G20").sum().sum()
+
+    def test_complete_id_candidate_keeps_zero_vote_rows(self, loader, vest_data):
+        frame = vest_data("MT", 2020)
+        frame["VTDID"] = ["a", "b", "c", "d", "e"]
+        result = loader.load_precinct_results("MT", 2020)
+        assert result.records_created == 70
+        assert result.records_skipped == 0
+        assert set(PrecinctElectionResult.objects.values_list("precinct_id", flat=True)) == set("abcde")
+
+    def test_zero_vote_omissions_keep_alignment_with_duplicate_dataframe_index(self, loader, vest_data):
+        frame = vest_data("MT", 2020)
+        frame.sort_values("SOSPRECINC", na_position="first", inplace=True)
+        frame.index = [7] * len(frame)
+        result = loader.load_precinct_results("MT", 2020)
+        assert result.records_created == 28 and result.records_skipped == 3
+        assert PrecinctElectionResult.objects.get(
+            precinct_id="063:BONNER 89", candidate_name="BID",
+        ).votes == 112
+
+    def test_all_blank_zero_vote_ids_raise_and_preserve_prior_snapshot(self, loader, vest_data):
+        frame = vest_data("MT", 2020)
+        loader.load_precinct_results("MT", 2020)
+        before = PrecinctElectionResult.objects.aggregate(n=Sum("votes"))["n"]
+        frame.drop(index=[0, 1], inplace=True)
+        with pytest.raises(ValueError, match="Cannot resolve statewide precinct identifiers"):
+            loader.load_precinct_results("MT", 2020)
+        assert PrecinctElectionResult.objects.count() == 28
+        assert PrecinctElectionResult.objects.aggregate(n=Sum("votes"))["n"] == before
+
+
 @pytest.mark.postgis
 @pytest.mark.django_db
 class TestPrecinctLoading:
@@ -60,7 +243,8 @@ class TestPrecinctLoading:
         second = loader.load_precinct_results("VA", 2020)
 
         assert first.records_created == second.records_created == 14
-        assert first.warnings == second.warnings == []
+        assert first.warnings == second.warnings
+        assert len(first.warnings) == 1 and "G20PREOWRI" in first.warnings[0]
         assert PrecinctElectionResult.objects.count() == 14
         assert list(PrecinctElectionResult.objects.filter(precinct_id="001", office="house")
                     .order_by("district", "party_code")
@@ -99,7 +283,8 @@ class TestPrecinctLoading:
         second = loader.load_precinct_results("GA", 2020)
 
         assert first.records_created == second.records_created == 12
-        assert first.warnings == second.warnings == []
+        assert first.warnings == second.warnings
+        assert len(first.warnings) == 1 and "G20PREOWRI" in first.warnings[0]
         assert PrecinctElectionResult.objects.count() == 12
         assert list(PrecinctElectionResult.objects.filter(precinct_id="001", office="senate")
                     .order_by("election_type", "candidate_name")
@@ -108,9 +293,10 @@ class TestPrecinctLoading:
         ]
 
     @pytest.mark.parametrize("election_type", ["R", "C", "P"])
-    def test_other_election_types_load_and_warn_for_skipped_columns(
+    def test_other_election_types_and_next_year_runoff_load_with_skip_warnings(
         self, loader, precinct_data, election_type, caplog
     ):
+        """SU-1 and #1592 require next-year runoff columns to be observable."""
         precinct_data[f"{election_type}20PREDBID"] = [10, 1]
         malformed = f"{election_type}20PRE_TOTAL"
         unmapped = f"{election_type}20TREDABC"
@@ -119,11 +305,17 @@ class TestPrecinctLoading:
         precinct_data["R21USSDWAR"] = [700, 70]
         with caplog.at_level(logging.WARNING, logger=RDHLoaderService.__module__):
             result = loader.load_precinct_results("VA", 2020)
-        assert result.records_created == 8
-        row = PrecinctElectionResult.objects.get(precinct_id="001", election_type=election_type)
+        assert result.records_created == 10
+        row = PrecinctElectionResult.objects.get(
+            precinct_id="001", election_type=election_type, election_year=2020,
+        )
         assert (row.party_code, row.votes, row.total_votes) == ("D", 10, 10)
-        assert len(result.warnings) == 2
-        assert malformed in result.warnings[0] and unmapped in result.warnings[1]
+        assert PrecinctElectionResult.objects.get(
+            precinct_id="001", election_year=2021, election_type="R",
+        ).votes == 700
+        skips = [warning for warning in result.warnings if warning.startswith("Skipping")]
+        assert len(skips) == 2
+        assert malformed in skips[0] and unmapped in skips[1]
         assert all(warning in caplog.text for warning in result.warnings)
 
     @pytest.mark.parametrize("column", ["GEOID20", "VTDST20", "PRECINCT_I", "SOSPRECINC", "WARDID"])
@@ -287,7 +479,7 @@ class TestPrecinctLoading:
         result = loader.load_precinct_results("VA", 2020)
 
         assert result.success
-        assert result.warnings == []
+        assert len(result.warnings) == 1 and "G20PREOWRI" in result.warnings[0]
         assert result.records_created == 10
         assert list(
             PrecinctElectionResult.objects.filter(office="senate")
@@ -314,8 +506,8 @@ class TestPrecinctLoading:
         assert result.success
         assert result.errors == []
         assert result.records_created == 6
-        assert len(result.warnings) == 1
-        warning = result.warnings[0]
+        assert len(result.warnings) == 2
+        warning = next(w for w in result.warnings if w.startswith("Skipping"))
         assert f"Skipping non-conforming VEST vote column {column!r}" in warning
         assert "VA 2020" in warning
         assert (RDHLoaderService.__module__, logging.WARNING, warning) in caplog.record_tuples
@@ -416,8 +608,8 @@ class TestPrecinctLoading:
         assert result.success
         assert result.errors == []
         assert result.records_created == 6
-        assert len(result.warnings) == 1
-        warning = result.warnings[0]
+        assert len(result.warnings) == 2
+        warning = next(w for w in result.warnings if w.startswith("Skipping"))
         assert f"Skipping VEST vote column {column!r}" in warning
         assert f"unmapped office {office_code!r}" in warning
         assert "VA 2020" in warning
