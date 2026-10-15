@@ -88,11 +88,38 @@ def test_guard_rejects_injected_leak(tmp_path, parameter, construction):
     'from requests import get as fetch\nfetch(url, params={"apiKey": credential})',
     'url = f"https://h/cb#apiKey={credential}"',
     'url = f"https://h/p?next=https%3A%2F%2Fx%3FapiKey%3D{credential}"',
+    'requests.get(url, {"api_key": k})',
+    'from requests import get as fetch\nfetch(url, {"api_key": k})',
+    'from requests.api import get as fetch\nfetch(url, {"api_key": k})',
+    'import requests as req\nreq.get(url, {"api_key": k})',
+    'requests.Request("GET", url, params={"api_key": k}).prepare()',
+    'from requests import Request as Build\nBuild("GET", url, params={"api_key": k})',
+    'p = {}\np.setdefault("api_key", k)\nrequests.get(url, params=p)',
+    'p = {}\np |= {"api_key": k}\nrequests.get(url, params=p)',
+    'requests.get(url, **{"params": {"api_key": k}})',
+    'kw = {"params": {"api_key": k}}\nrequests.get(url, **kw)',
+    'kw = dict(params={"api_key": k})\nrequests.request("GET", url, **kw)',
+    'session.request("GET", url, {"api_key": k})',
 ])
-def test_guard_tracks_query_construction_variants(build):
+def test_guard_tracks_query_construction_variants(build, tmp_path):
+    (tmp_path / "client.py").write_text(build)
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/check_credential_urls.py"), str(tmp_path)],
+        capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 1
+    assert "1 unreviewed sites" in result.stdout
     sites = credential_url_sites(build, "client.py")
     assert len(sites) == 1
-    assert sites[0].parameters == ("apikey",)
+    assert sites[0].parameters == (("api_key",) if "api_key" in build else ("apikey",))
+
+
+@pytest.mark.parametrize("build", [
+    'kw = {"timeout": 5}\nrequests.get(url, **kw)',
+    'session.request("GET", url, {"q": 1})',
+])
+def test_guard_ignores_benign_forwarded_kwargs(build):
+    assert credential_url_sites(build, "client.py") == []
 
 
 @pytest.mark.parametrize("build", [
@@ -124,6 +151,32 @@ session.get(url, params={})
 session.post(url, params=dict(state="VA"))
 '''
     assert credential_url_sites(source, "client.py") == []
+
+
+@pytest.mark.parametrize("source", [
+    'requests.post(url, data={"api_key": k})',
+    'requests.post(url, json={"api_key": k})',
+    'p = {}; p.setdefault("api_key", k); requests.post(url, data=p)',
+    'p = {}; p |= {"api_key": k}; requests.post(url, json=p)',
+    'requests.Request("POST", url, data={"api_key": k}, json={"password": k})',
+    'requests.get(url, {"state": "VA"})',
+    'requests.get(url, None)',
+    'requests.Request("GET", url, params={"state": "VA"})',
+    'requests.Request("GET", url, params=None)',
+    'p = {}; p.setdefault("state", "VA"); requests.get(url, params=p)',
+    'p = {}; p |= {"state": "VA"}; requests.get(url, params=p)',
+    'mapping.get("key", {"api_key": k})',
+    'httpx.get(url, headers={"Authorization": "Bearer " + k})',
+])
+def test_guard_ignores_body_fields_and_benign_params(source, tmp_path):
+    assert credential_url_sites(source, "client.py") == []
+    (tmp_path / "client.py").write_text(source)
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/check_credential_urls.py"), str(tmp_path)],
+        capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0
+    assert "0 unreviewed sites" in result.stdout
 
 
 @pytest.mark.parametrize("source, parameter", [

@@ -1,7 +1,8 @@
 """Internal helpers for safe HTTP diagnostics."""
 
 import re
-from urllib.parse import quote, unquote, unquote_plus
+from collections.abc import Iterator
+from urllib.parse import unquote, unquote_plus
 
 from ._sensitivity import SECRET_FIELD_NAME
 
@@ -10,23 +11,19 @@ from ._sensitivity import SECRET_FIELD_NAME
 _ALWAYS_SENSITIVE_QUERY_PARAMS = frozenset({
     "sig", "signature", "x-amz-signature", "x-goog-signature",
 })
-# Stop at encoded delimiters even when nested URLs have multiple encoding
-# layers. Preserve the original escaping in diagnostic text.
-_ENCODED_BOUNDARY = r"%(?:25)*(?:3f|26|23)"
-_ENCODED_EQUALS = r"%(?:25)*3d"
-_URL_USERINFO = re.compile(r'([a-zA-Z][a-zA-Z0-9+.-]*://[^\s/:?#@]*:)[^\s/?#]*(@)')
+_URL_USERINFO = re.compile(r'(://[^\s/:?#@]*:)[^\s/?#]*(@)')
 _QUERY_PARAM = re.compile(
-    rf"([?&#]|{_ENCODED_BOUNDARY})"
-    rf"((?:(?!{_ENCODED_EQUALS}|{_ENCODED_BOUNDARY})[^=?&#\s'\"<>,)])+)"
-    rf"(=|{_ENCODED_EQUALS})"
-    rf"((?:(?!{_ENCODED_BOUNDARY})[^?&#\s'\"<>,)])*)",
-    re.IGNORECASE,
+    r"[?&#]([^=?&#\s'\"<>,)]+)=",
 )
+_SECRET_VALUE = re.compile(r"[^&#\s'\"<>]*")
+_OUTER_VALUE = re.compile(r"[^?&#\s'\"<>]*")
+_ENCODED_BYTE = re.compile(r"%[0-9a-f]{2}|.", re.IGNORECASE | re.DOTALL)
+_MAX_ENCODING_LAYERS = 32
 
 
 def _query_key(raw: str) -> str | None:
     """Decode a parameter name, or fail closed if it exceeds the layer bound."""
-    for _ in range(32):
+    for _ in range(_MAX_ENCODING_LAYERS):
         if "%" not in raw:
             break
         decoded = unquote_plus(raw)
@@ -38,38 +35,63 @@ def _query_key(raw: str) -> str | None:
     return raw.lower()
 
 
-def _redact_encoded_userinfo(value: str, replacement: str) -> str:
-    """Inspect encoded nested URLs while retaining non-secret query values."""
+def _query_fields(text: str) -> Iterator[tuple[int, int, int, bool]]:
+    """Yield fields, consuming sensitive values before scanning nested URLs."""
+    position = 0
+    while match := _QUERY_PARAM.search(text, position):
+        key = _query_key(match[1])
+        sensitive = (key is None or SECRET_FIELD_NAME.search(key) is not None
+                     or key in _ALWAYS_SENSITIVE_QUERY_PARAMS)
+        value_pattern = _SECRET_VALUE if sensitive else _OUTER_VALUE
+        end = value_pattern.match(text, match.end()).end()
+        yield match.start(), match.end(), end, sensitive
+        position = end
+
+
+def _redact_encoded_value(value: str, replacement: str) -> str:
+    """Decode to a bounded fixed point, retaining offsets into the original."""
+    if "%" not in value:
+        return value
     decoded = value
-    for layers in range(1, 33):
-        next_value = unquote(decoded)
+    offsets = list(range(len(value) + 1))
+    spans = set()
+    for _ in range(_MAX_ENCODING_LAYERS):
+        # Latin-1 keeps one character per decoded byte. Only ASCII URL syntax
+        # is inspected; original UTF-8 bytes and escape casing remain intact.
+        tokens = list(_ENCODED_BYTE.finditer(decoded))
+        next_value = "".join(unquote(token[0], encoding="latin-1") for token in tokens)
         if next_value == decoded:
             break
+        offsets = [offsets[token.start()] for token in tokens] + [offsets[-1]]
         decoded = next_value
-        redacted = _URL_USERINFO.sub(
-            lambda match: match[1] + replacement + match[2], decoded,
-        )
-        if redacted != decoded:
-            encoded_marker = replacement
-            for _ in range(layers):
-                redacted = quote(redacted, safe="")
-                encoded_marker = quote(encoded_marker, safe="")
-            # Keep the placeholder literal so config import rejects this value.
-            return redacted.replace(encoded_marker, replacement)
-    if unquote(decoded) != decoded:
-        # A deeper opaque value cannot be certified safe within the bound.
+        for _, start, end, sensitive in _query_fields(decoded):
+            if sensitive:
+                spans.add((offsets[start], offsets[end]))
+        for match in _URL_USERINFO.finditer(decoded):
+            spans.add((offsets[match.end(1)], offsets[match.start(2)]))
+    if unquote(decoded, encoding="latin-1") != decoded:
         return replacement
-    return value
+
+    # Earlier layers can identify a whole secret containing encoded delimiters.
+    # Merge overlapping spans so later decoding cannot expose its tail again.
+    parts = []
+    position = 0
+    for start, end in sorted(spans, key=lambda span: (span[0], -span[1])):
+        if start >= position:
+            parts.extend((value[position:start], replacement))
+        position = max(position, end)
+    parts.append(value[position:])
+    return "".join(parts)
 
 
 def redact_url_secrets(text: str, *, replacement: str = "[REDACTED]") -> str:
     """Redact query/fragment secrets and encoded nested URL userinfo."""
-    def scrub(match: re.Match[str]) -> str:
-        key = _query_key(match[2])
-        prefix = f"{match[1]}{match[2]}{match[3]}"
-        if (key is None or SECRET_FIELD_NAME.search(key) is not None
-                or key in _ALWAYS_SENSITIVE_QUERY_PARAMS):
-            return prefix + replacement
-        return prefix + _redact_encoded_userinfo(match[4], replacement)
-
-    return _QUERY_PARAM.sub(scrub, text)
+    parts = []
+    position = 0
+    for field_start, start, end, sensitive in _query_fields(text):
+        parts.append(_redact_encoded_value(text[position:field_start], replacement))
+        parts.append(text[field_start:start])
+        parts.append(replacement if sensitive else _redact_encoded_value(text[start:end], replacement))
+        position = end
+    parts.append(_redact_encoded_value(text[position:], replacement))
+    return "".join(parts)
