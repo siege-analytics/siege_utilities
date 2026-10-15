@@ -9,7 +9,7 @@ import re
 
 import pytest
 
-from siege_utilities.geo.geoid_utils import GEOIDValidator
+from siege_utilities.geo.geoid_utils import GEOID_LENGTHS, GEOIDValidator
 
 # Skip Django-dependent tests if GDAL is not available (CI without geospatial libs)
 try:
@@ -72,6 +72,42 @@ class TestGEOIDValidator:
         """An 11-digit tract GEOID should pass validation."""
         validator = GEOIDValidator("tract")
         assert validator("06037101100") is None
+
+    @pytest.mark.parametrize(
+        "geoid",
+        [
+            "0100500008A", "010110001-1", "01001000001", "0100500008a",
+            "01001ZZZZZZ", "010130012.2", "05081000L/C",
+        ],
+    )
+    def test_vtd_validator_accepts_tiger_codes(self, geoid):
+        """Real VTDST codes include letters, hyphens, periods, and slashes."""
+        assert GEOIDValidator("vtd")(geoid) is None
+
+    @pytest.mark.parametrize(
+        "geoid",
+        [
+            "010050008A", "01005000008A", "0100500008_", "0100500008 ",
+            "A100500008A", "01A0500008A", "0100500008\u00e9",
+        ],
+    )
+    def test_vtd_validator_rejects_invalid_codes(self, geoid):
+        """Widening VTDST must preserve length, prefix, and alphabet checks."""
+        from django.core.exceptions import ValidationError
+
+        with pytest.raises(ValidationError, match="VTD GEOID must contain"):
+            GEOIDValidator("vtd")(geoid)
+
+    @pytest.mark.parametrize(
+        "level,length",
+        [(level, length) for level, length in GEOID_LENGTHS.items() if level != "vtd"],
+    )
+    def test_non_vtd_validator_rejects_letters(self, level, length):
+        """The VTD exception must not relax any other geography level."""
+        from django.core.exceptions import ValidationError
+
+        with pytest.raises(ValidationError, match="only digits"):
+            GEOIDValidator(level)("0" * (length - 1) + "A")
 
     def test_invalid_geoid_wrong_length(self):
         """GEOID with wrong length should raise ValidationError."""
@@ -149,7 +185,7 @@ class TestBoundaryModelConstraints:
         "CongressionalDistrict": ("cd_geoid_format", r"^\d{2}[0-9A-Za-z]{2}$"),
         "StateLegislativeUpper": ("sldu_geoid_format", r"^\d{2}[0-9A-Za-z-]{3}$"),
         "StateLegislativeLower": ("sldl_geoid_format", r"^\d{2}[0-9A-Za-z-]{3}$"),
-        "VTD": ("vtd_geoid_format", r"^\d{5}[0-9A-Za-z-]{6}$"),
+        "VTD": ("vtd_geoid_format", r"^\d{5}[0-9A-Za-z./-]{6}$"),
     }
 
     @pytest.mark.parametrize(
@@ -188,6 +224,8 @@ class TestBoundaryModelConstraints:
             ("01001000001", True),
             ("0100500008a", True),
             ("01001ZZZZZZ", True),
+            ("010130012.2", True),
+            ("05081000L/C", True),
             ("010050008A", False),
             ("01005000008A", False),
             ("0100500008_", False),
@@ -211,6 +249,41 @@ class TestBoundaryModelConstraints:
             f"VTD constraint {pattern!r}: {geoid!r}, expected accepted={accepted}"
         )
 
+    @pytest.mark.postgis
+    @pytest.mark.django_db
+    @pytest.mark.parametrize(
+        "geoid,accepted",
+        [
+            ("010130012.2", True),
+            ("05081000L/C", True),
+            ("0100500008_", False),
+            ("A100500008A", False),
+        ],
+    )
+    def test_vtd_live_database_constraint_accepts_tiger_codes(self, geoid, accepted):
+        """Prove the migrated PostgreSQL CHECK accepts and rejects real writes."""
+        from django.contrib.gis.geos import MultiPolygon, Polygon
+        from django.db import IntegrityError, transaction
+
+        from siege_utilities.geo.django.models import VTD
+
+        values = {
+            "geoid": geoid,
+            "name": "VTD check probe",
+            "vintage_year": 2020,
+            "state_fips": geoid[:2],
+            "county_fips": geoid[2:5],
+            "vtd_code": geoid[5:],
+            "geometry": MultiPolygon(Polygon(((0, 0), (1, 0), (1, 1), (0, 0)))),
+        }
+        if accepted:
+            row = VTD.objects.create(**values)
+            assert VTD.objects.filter(pk=row.pk, geoid=geoid).exists()
+        else:
+            with pytest.raises(IntegrityError, match="vtd_geoid_format"):
+                with transaction.atomic():
+                    VTD.objects.create(**values)
+
     def test_vtd_migration_state_matches_model(self):
         """The migration graph must end with the model's corrected constraint."""
         from django.db.migrations.loader import MigrationLoader
@@ -223,21 +296,35 @@ class TestBoundaryModelConstraints:
         assert constraints == VTD._meta.constraints
 
     @pytest.mark.parametrize(
-        "direction,removed,added,pattern",
+        "migration_name,direction,removed,added,pattern",
         [
-            ("apply", "vtd_geoid_11_digits", "vtd_geoid_format", r"^\d{5}[0-9A-Za-z-]{6}$"),
-            ("unapply", "vtd_geoid_format", "vtd_geoid_11_digits", r"^\d{11}$"),
+            (
+                "0013_vtd_geoid_charclass", "apply",
+                "vtd_geoid_11_digits", "vtd_geoid_format", r"^\d{5}[0-9A-Za-z-]{6}$",
+            ),
+            (
+                "0013_vtd_geoid_charclass", "unapply",
+                "vtd_geoid_format", "vtd_geoid_11_digits", r"^\d{11}$",
+            ),
+            (
+                "0016_vtd_geoid_period_slash", "apply",
+                "vtd_geoid_format", "vtd_geoid_format", r"^\d{5}[0-9A-Za-z./-]{6}$",
+            ),
+            (
+                "0016_vtd_geoid_period_slash", "unapply",
+                "vtd_geoid_format", "vtd_geoid_format", r"^\d{5}[0-9A-Za-z-]{6}$",
+            ),
         ],
     )
     def test_vtd_migration_validates_after_constraint_swap(
-        self, direction, removed, added, pattern
+        self, migration_name, direction, removed, added, pattern
     ):
         """Forward and reverse SQL release the swap lock before scanning rows."""
         from django.db import connection
         from django.db.migrations.loader import MigrationLoader
 
         loader = MigrationLoader(None)
-        migration = loader.disk_migrations["siege_geo", "0013_vtd_geoid_charclass"]
+        migration = loader.disk_migrations["siege_geo", migration_name]
         state = loader.project_state(migration.dependencies)
         assert migration.atomic is False
         with connection.schema_editor(collect_sql=True, atomic=migration.atomic) as editor:

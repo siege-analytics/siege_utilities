@@ -126,7 +126,7 @@ class VTD(CensusTIGERBoundary):
     election precincts.
 
     GEOID: 11 characters = state digits (2) + county digits (3) + VTD (6).
-    The VTD component accepts ASCII letters, digits, and hyphens.
+    The VTD component accepts ASCII letters, digits, periods, slashes, and hyphens.
     Example: "06037001234" for VTD 001234 in LA County, CA
 
     Enhanced fields support enterprise-compatible workflows:
@@ -205,7 +205,7 @@ class VTD(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(geoid__regex=r"^\d{5}[0-9A-Za-z-]{6}$"),
+                condition=models.Q(geoid__regex=r"^\d{5}[0-9A-Za-z./-]{6}$"),
                 name="vtd_geoid_format",
             ),
         ]

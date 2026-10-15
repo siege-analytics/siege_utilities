@@ -7,6 +7,9 @@ https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2020pl/TGRSHP2020PL_
 These sections do not specify uppercase-only codes. Accept both ASCII
 letter cases rather than infer a restriction from uppercase examples.
 Hyphens occur in real TIGER codes such as 010110001-1.
+This migration's alphabet is incomplete: real VTDST codes also contain
+periods and slashes (010130012.2 and 05081000L/C). The forward migration
+0016_vtd_geoid_period_slash includes them; operations below remain unchanged.
 
 Use PostgreSQL NOT VALID followed by a separate VALIDATE CONSTRAINT to
 avoid scanning the populated table under ACCESS EXCLUSIVE. atomic=False
