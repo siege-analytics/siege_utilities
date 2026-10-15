@@ -103,6 +103,49 @@ def test_handle_uses_boto3_environment_chain(command, aws_session, monkeypatch, 
     client.close()
 
 
+@pytest.mark.parametrize(
+    "service_endpoint,global_endpoint,cli_endpoint,ignore_configured,expected",
+    [
+        (None, "https://global.example.test", None, None, "https://global.example.test"),
+        ("https://service.example.test", "https://global.example.test", None,
+         None, "https://service.example.test"),
+        ("https://service.example.test", "https://global.example.test",
+         "https://cli.example.test", None, "https://cli.example.test"),
+        ("https://service.example.test", "https://global.example.test", None,
+         "true", None),
+    ],
+)
+def test_handle_forwards_endpoint_on_older_boto3(
+    command, aws_session, monkeypatch, service_endpoint, global_endpoint,
+    cli_endpoint, ignore_configured, expected,
+):
+    """The minimum supported boto3 may not read AWS_ENDPOINT_URL itself."""
+    if service_endpoint is None:
+        monkeypatch.delenv("AWS_ENDPOINT_URL_S3", raising=False)
+    else:
+        monkeypatch.setenv("AWS_ENDPOINT_URL_S3", service_endpoint)
+    monkeypatch.setenv("AWS_ENDPOINT_URL", global_endpoint)
+    if ignore_configured is None:
+        monkeypatch.delenv("AWS_IGNORE_CONFIGURED_ENDPOINT_URLS", raising=False)
+    else:
+        monkeypatch.setenv("AWS_IGNORE_CONFIGURED_ENDPOINT_URLS", ignore_configured)
+
+    calls = []
+    client = object()
+
+    def client_without_environment_endpoint(service_name, **kwargs):
+        calls.append((service_name, kwargs))
+        return client
+
+    monkeypatch.setattr(stage.boto3, "client", client_without_environment_endpoint)
+    exports = []
+    monkeypatch.setattr(command, "_export_type", lambda s3, *a, **kw: exports.append(s3))
+    flags = [] if cli_endpoint is None else ["--endpoint-url", cli_endpoint]
+    command.handle(**options(command, "--dry-run", *flags))
+    assert calls == [("s3", {"endpoint_url": expected})]
+    assert exports == [client]
+
+
 def test_handle_uses_shared_profile_credentials(command, aws_session, monkeypatch, tmp_path):
     for name in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"):
         monkeypatch.delenv(name)

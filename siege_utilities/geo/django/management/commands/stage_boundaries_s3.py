@@ -22,6 +22,7 @@ Usage:
 """
 
 import json
+import os
 import tempfile
 from contextlib import ExitStack
 from pathlib import Path
@@ -131,10 +132,18 @@ class Command(BaseCommand):
         output_format = options["format"]
         dry_run = options["dry_run"]
 
-        s3 = boto3.client(
-            "s3",
-            endpoint_url=options["endpoint_url"],
-        )
+        # boto3's supported floor predates AWS_ENDPOINT_URL support. Resolve
+        # configured endpoints here so an older SDK cannot silently send a
+        # MinIO-targeted export to the default AWS S3 endpoint instead.
+        endpoint_url = options["endpoint_url"]
+        if endpoint_url is None and os.environ.get(
+            "AWS_IGNORE_CONFIGURED_ENDPOINT_URLS", ""
+        ).lower() != "true":
+            endpoint_url = (
+                os.environ.get("AWS_ENDPOINT_URL_S3")
+                or os.environ.get("AWS_ENDPOINT_URL")
+            )
+        s3 = boto3.client("s3", endpoint_url=endpoint_url)
 
         # Ensure bucket exists
         if not dry_run:

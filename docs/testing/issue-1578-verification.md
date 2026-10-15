@@ -9,8 +9,12 @@ list, one GeoDataFrame, and one complete GeoJSON string.
 Credentials now resolve through boto3's standard provider chain, including
 AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN, shared profiles,
 and roles. Both --secret-key and --access-key are removed. --endpoint-url
-is an optional override with default None; otherwise boto3 resolves
-AWS_ENDPOINT_URL or its normal AWS endpoint.
+is an optional override with default None. The command explicitly forwards
+AWS_ENDPOINT_URL_S3 (service-specific) ahead of AWS_ENDPOINT_URL to cover the
+supported boto3 floor (>=1.28.0), which predates endpoint environment support.
+AWS_IGNORE_CONFIGURED_ENDPOINT_URLS=true disables both environment endpoints
+but not an explicit --endpoint-url override; without configured endpoints,
+boto3 selects its normal AWS endpoint. Credentials still use boto3's chain.
 
 The export consumes 500-row GeoDataFrames and writes Parquet row groups and
 GeoJSON features to temporary files. Both files finish before upload.
@@ -40,6 +44,14 @@ python -m pytest tests/test_stage_boundaries_s3.py --no-cov -q --tb=no \
   -k 'no_flags or endpoint_default or credential_flags or environment_chain or shared_profile or default_aws_endpoint or serializes_before'
 v4.0.0: 11 failed (trimmed)
 ```
+
+The supported boto3 floor exposed an additional endpoint regression: before
+explicit forwarding, a client shim that models an older boto3 received
+`endpoint_url=None` despite `AWS_ENDPOINT_URL` / `AWS_ENDPOINT_URL_S3`
+being set (2 failures, 2 other precedence cases passed). After repair, all
+four precedence cases pass; the exact rebased-tree S3 test module passes
+25 cases under the GDAL-equipped interpreter. These test client-call args
+without contacting S3 and preserve the existing real boto3 session tests.
 
 The core test names are:
 
