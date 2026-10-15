@@ -91,16 +91,19 @@ class UserProfile(BaseModel):
     
     # API Keys with format validation
     google_analytics_key: str = Field(
+        json_schema_extra={"sensitive": True},
         default="",
         max_length=100,
         description="Google Analytics API key"
     )
     facebook_business_key: str = Field(
+        json_schema_extra={"sensitive": True},
         default="",
         max_length=100,
         description="Facebook Business API key"
     )
     census_api_key: str = Field(
+        json_schema_extra={"sensitive": True},
         default="",
         max_length=100,
         description="Census API key"
@@ -113,11 +116,13 @@ class UserProfile(BaseModel):
         description="Default database type"
     )
     postgresql_connection: str = Field(
+        json_schema_extra={"sensitive": True},
         default="",
         max_length=500,
         description="PostgreSQL connection string"
     )
     duckdb_path: str = Field(
+        json_schema_extra={"sensitive": True},
         default="",
         max_length=500,
         description="DuckDB database path"

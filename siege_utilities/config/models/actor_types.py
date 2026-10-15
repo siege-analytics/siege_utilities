@@ -10,7 +10,7 @@ import re
 
 import yaml
 
-from .person import Person, _convert_to_yaml_safe, _strip_sensitive_fields
+from .person import Person, _convert_to_yaml_safe, _strip_sensitive_fields, _reject_redacted_values
 from .branding_config import BrandingConfig
 from .report_preferences import ReportPreferences
 
@@ -101,16 +101,19 @@ class User(Person):
     
     # API Keys (moved from base Person for user-specific access)
     google_analytics_key: str = Field(
+        json_schema_extra={"sensitive": True},
         default="",
         max_length=100,
         description="Google Analytics API key"
     )
     facebook_business_key: str = Field(
+        json_schema_extra={"sensitive": True},
         default="",
         max_length=100,
         description="Facebook Business API key"
     )
     census_api_key: str = Field(
+        json_schema_extra={"sensitive": True},
         default="",
         max_length=100,
         description="Census API key"
@@ -123,11 +126,13 @@ class User(Person):
         description="Default database type"
     )
     postgresql_connection: str = Field(
+        json_schema_extra={"sensitive": True},
         default="",
         max_length=500,
         description="PostgreSQL connection string"
     )
     duckdb_path: str = Field(
+        json_schema_extra={"sensitive": True},
         default="",
         max_length=500,
         description="DuckDB database path"
@@ -135,6 +140,7 @@ class User(Person):
 
     # Multi-source credential references
     source_credentials: Dict[str, str] = Field(
+        json_schema_extra={"sensitive": False},
         default_factory=dict,
         description="Map of source_id to credential reference (e.g. {'fec': 'FEC_API_KEY', 'census': 'CENSUS_KEY'})"
     )
@@ -476,6 +482,7 @@ class Collaborator(Person):
         description="Services this collaborator can access"
     )
     restricted_credentials: List[str] = Field(
+        json_schema_extra={"sensitive": False},
         default_factory=list,
         description="Credentials this collaborator cannot access"
     )
@@ -688,16 +695,13 @@ class Organization(BaseModel):
     # YAML Serialization Methods
     def to_dict(self, exclude_sensitive: bool = False) -> dict:
         """Convert to dictionary, optionally stripping sensitive fields."""
-        data = self.model_dump()
-        data = _convert_to_yaml_safe(data)
-        if exclude_sensitive:
-            data = _strip_sensitive_fields(data)
-        return data
+        data = _strip_sensitive_fields(self) if exclude_sensitive else self.model_dump()
+        return _convert_to_yaml_safe(data)
 
     def to_yaml(self, path: Optional[Path] = None, exclude_sensitive: bool = False) -> str:
         """Serialize to YAML string, optionally writing to a file."""
         data = self.to_dict(exclude_sensitive=exclude_sensitive)
-        yaml_str = yaml.dump(data, default_flow_style=False, sort_keys=False)
+        yaml_str = yaml.safe_dump(data, default_flow_style=False, sort_keys=False)
         if path is not None:
             path = Path(path)
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -706,11 +710,19 @@ class Organization(BaseModel):
 
     @classmethod
     def from_yaml(cls, yaml_str_or_path: Union[str, Path]) -> 'Organization':
-        """Deserialize from a YAML string or file path."""
+        """Deserialize from a YAML string or file path.
+
+        Raises
+        ------
+        ValueError
+            If the document contains redacted placeholders. Use an
+            unredacted export to restore credentials.
+        """
         source = yaml_str_or_path
         if isinstance(source, Path) or (isinstance(source, str) and '\n' not in source and Path(source).exists()):
             source = Path(source).read_text()
         data = yaml.safe_load(source)
+        _reject_redacted_values(data)
         return cls(**data)
 
 
@@ -770,6 +782,7 @@ class Collaboration(BaseModel):
     
     # Access Control
     shared_credentials: List[str] = Field(
+        json_schema_extra={"sensitive": False},
         default_factory=list,
         description="List of credential names shared in this collaboration"
     )
@@ -853,16 +866,13 @@ class Collaboration(BaseModel):
     # YAML Serialization Methods
     def to_dict(self, exclude_sensitive: bool = False) -> dict:
         """Convert to dictionary, optionally stripping sensitive fields."""
-        data = self.model_dump()
-        data = _convert_to_yaml_safe(data)
-        if exclude_sensitive:
-            data = _strip_sensitive_fields(data)
-        return data
+        data = _strip_sensitive_fields(self) if exclude_sensitive else self.model_dump()
+        return _convert_to_yaml_safe(data)
 
     def to_yaml(self, path: Optional[Path] = None, exclude_sensitive: bool = False) -> str:
         """Serialize to YAML string, optionally writing to a file."""
         data = self.to_dict(exclude_sensitive=exclude_sensitive)
-        yaml_str = yaml.dump(data, default_flow_style=False, sort_keys=False)
+        yaml_str = yaml.safe_dump(data, default_flow_style=False, sort_keys=False)
         if path is not None:
             path = Path(path)
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -871,9 +881,17 @@ class Collaboration(BaseModel):
 
     @classmethod
     def from_yaml(cls, yaml_str_or_path: Union[str, Path]) -> 'Collaboration':
-        """Deserialize from a YAML string or file path."""
+        """Deserialize from a YAML string or file path.
+
+        Raises
+        ------
+        ValueError
+            If the document contains redacted placeholders. Use an
+            unredacted export to restore credentials.
+        """
         source = yaml_str_or_path
         if isinstance(source, Path) or (isinstance(source, str) and '\n' not in source and Path(source).exists()):
             source = Path(source).read_text()
         data = yaml.safe_load(source)
+        _reject_redacted_values(data)
         return cls(**data)

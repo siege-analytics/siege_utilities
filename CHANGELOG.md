@@ -41,6 +41,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a POSIX uid use per-user Windows LocalAppData/AppData instead of shared temp;
   Windows file privacy depends on the user's inherited ACLs, not POSIX chmod.
   (#1452)
+- `Person.from_yaml` and `import_entities` now reject imported string values
+  containing `***REDACTED***` (including nested mapping/list values and
+  scrubbed URLs), rather than restoring those placeholders as credentials.
+  The redaction guard does not inspect mapping keys. `exclude_sensitive=True`
+  exports write `***REDACTED***` for redacted fields; use an unredacted export
+  for restoration. These input values were previously accepted. (#1460)
 
 ### Security
 
@@ -49,6 +55,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   arguments and output rather than guessing which values are secrets. Their
   exceptions retain failure types and timeout/errno information without raw
   command details or output; returned output remains available to callers. (#1402)
+- `exclude_sensitive=True` now recursively redacts credentials across live
+  models, subclass fields, nested dataclasses and plain objects, dictionaries
+  and lists. YAML exports use safe mappings instead of Python-object tags.
+  One shared `SECRET_FIELD_NAME` classifier covers both config field names and
+  URL query/fragment keys, with a provider-signature alias floor. URL userinfo,
+  nested percent-encoded redirect passwords and secret query values are
+  scrubbed without discarding benign URL context; decoding is bounded and
+  fails closed. JSON-encoded strings still need an explicit sensitive marker
+  or structured dictionary fields to redact secrets by name. (#1460)
 
 ## [4.0.0] - 2026-10-11
 

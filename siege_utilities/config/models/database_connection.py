@@ -56,6 +56,7 @@ class DatabaseConnection(BaseModel):
         description="Database username"
     )
     password: str = Field(
+        json_schema_extra={"sensitive": True},
         min_length=8,
         max_length=100,
         description="Database password (minimum 8 characters)"
@@ -65,6 +66,7 @@ class DatabaseConnection(BaseModel):
         description="Enable SSL connection"
     )
     connection_timeout: int = Field(
+        json_schema_extra={"sensitive": False},
         default=30,
         ge=1,
         le=300,

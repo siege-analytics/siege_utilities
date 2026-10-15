@@ -5,15 +5,20 @@ Base Person model with comprehensive validation and credential management.
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
+from dataclasses import fields, is_dataclass
+from enum import Enum
 from pathlib import Path
 import re
 
 import yaml
 
+from siege_utilities.core._http import redact_url_secrets
+
 from .credential import Credential, OnePasswordCredential
 from .google_account import GoogleAccount
 from .oauth_integration import OAuthIntegration
 from .database_connection import DatabaseConnection
+from ._sensitivity import SECRET_FIELD_NAME
 
 __all__ = ["Person"]
 
@@ -66,6 +71,7 @@ class Person(BaseModel):
     
     # Credentials & Access
     credentials: List[Credential] = Field(
+        json_schema_extra={"sensitive": False},
         default_factory=list,
         description="List of credentials for this person"
     )
@@ -78,6 +84,7 @@ class Person(BaseModel):
         description="Database connections for this person"
     )
     onepassword_credentials: List[OnePasswordCredential] = Field(
+        json_schema_extra={"sensitive": False},
         default_factory=list,
         description="1Password credential references"
     )
@@ -556,16 +563,13 @@ class Person(BaseModel):
     # YAML Serialization Methods
     def to_dict(self, exclude_sensitive: bool = False) -> dict:
         """Convert to dictionary, optionally stripping sensitive credential data."""
-        data = self.model_dump()
-        data = _convert_to_yaml_safe(data)
-        if exclude_sensitive:
-            data = _strip_sensitive_fields(data)
-        return data
+        data = _strip_sensitive_fields(self) if exclude_sensitive else self.model_dump()
+        return _convert_to_yaml_safe(data)
 
     def to_yaml(self, path: Optional[Path] = None, exclude_sensitive: bool = False) -> str:
         """Serialize to YAML string, optionally writing to a file."""
         data = self.to_dict(exclude_sensitive=exclude_sensitive)
-        yaml_str = yaml.dump(data, default_flow_style=False, sort_keys=False)
+        yaml_str = yaml.safe_dump(data, default_flow_style=False, sort_keys=False)
         if path is not None:
             path = Path(path)
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -574,11 +578,19 @@ class Person(BaseModel):
 
     @classmethod
     def from_yaml(cls, yaml_str_or_path: Union[str, Path]) -> 'Person':
-        """Deserialize from a YAML string or file path."""
+        """Deserialize from a YAML string or file path.
+
+        Raises
+        ------
+        ValueError
+            If the document contains redacted placeholders. Use an
+            unredacted export to restore credentials.
+        """
         source = yaml_str_or_path
         if isinstance(source, Path) or (isinstance(source, str) and '\n' not in source and Path(source).exists()):
             source = Path(source).read_text()
         data = yaml.safe_load(source)
+        _reject_redacted_values(data)
         return cls(**data)
 
     model_config = {
@@ -594,30 +606,90 @@ def _convert_to_yaml_safe(obj: Any) -> Any:
         return {k: _convert_to_yaml_safe(v) for k, v in obj.items()}
     elif isinstance(obj, (list, tuple)):
         return [_convert_to_yaml_safe(item) for item in obj]
+    elif is_dataclass(obj) and not isinstance(obj, type):
+        return {field.name: _convert_to_yaml_safe(getattr(obj, field.name))
+                for field in fields(obj)}
     elif isinstance(obj, Path):
         return str(obj)
     elif isinstance(obj, datetime):
         return obj.isoformat()
-    elif hasattr(obj, 'value') and isinstance(obj, type(obj)):
-        # Enum types
+    elif isinstance(obj, Enum):
         return obj.value
+    elif hasattr(obj, '__dict__') and not isinstance(obj, type):
+        return _convert_to_yaml_safe(vars(obj))
     else:
         return obj
 
 
-def _strip_sensitive_fields(data: dict) -> dict:
-    """Strip sensitive credential data from a dictionary."""
-    sensitive_keys = {'password', 'api_key', 'token', 'secret', 'api_keys',
-                      'google_analytics_key', 'facebook_business_key', 'census_api_key',
-                      'postgresql_connection', 'duckdb_path'}
-    result = {}
-    for k, v in data.items():
-        if k in sensitive_keys:
-            result[k] = '***REDACTED***' if v else v
-        elif isinstance(v, dict):
-            result[k] = _strip_sensitive_fields(v)
-        elif isinstance(v, list):
-            result[k] = [_strip_sensitive_fields(item) if isinstance(item, dict) else item for item in v]
-        else:
-            result[k] = v
-    return result
+_REDACTED = '***REDACTED***'
+_URL_PASSWORD = re.compile(r'([a-zA-Z][a-zA-Z0-9+.-]*://[^\s/:?#@]*:)[^\s/?#]*(@)')
+
+
+def _sensitive_name(name: Any) -> bool:
+    """Conservatively classify unmarked fields and free-form metadata keys."""
+    return (
+        isinstance(name, str)
+        and SECRET_FIELD_NAME.search(name) is not None
+    )
+
+
+def _strip_sensitive_fields(data: Any) -> Any:
+    """Walk live model fields before serialization so subclass markers survive.
+
+    A field's ``json_schema_extra['sensitive']`` declares its policy. True
+    redacts the entire value; False explicitly permits a non-secret field.
+    Unmarked secret-like names fail closed, including in free-form metadata.
+    Secrets with innocuous names (e.g. ``pin`` or ``material``) are covered
+    only by an explicit ``sensitive`` marker, not by the name floor.
+    Empty values remain empty, and public containers are still traversed.
+    URL userinfo passwords and secret query/fragment parameters are redacted
+    in string values regardless of the field name. Secrets inside JSON-encoded
+    strings are NOT redacted by name: store them in dict fields or explicitly
+    marked sensitive fields.
+    """
+    if isinstance(data, BaseModel):
+        result = {}
+        for name, field in type(data).model_fields.items():
+            if field.exclude:
+                continue
+            value = getattr(data, name)
+            extra = field.json_schema_extra
+            policy = extra.get('sensitive') if isinstance(extra, dict) else None
+            sensitive = policy is True or (policy is not False and _sensitive_name(name))
+            result[name] = (
+                _REDACTED if value else value
+            ) if sensitive else _strip_sensitive_fields(value)
+        if data.model_extra:
+            result.update(_strip_sensitive_fields(data.model_extra))
+        return result
+    if is_dataclass(data) and not isinstance(data, type):
+        return _strip_sensitive_fields({field.name: getattr(data, field.name)
+                                        for field in fields(data)})
+    if isinstance(data, dict):
+        return {
+            name: (_REDACTED if value else value) if _sensitive_name(name)
+            else _strip_sensitive_fields(value)
+            for name, value in data.items()
+        }
+    if isinstance(data, (list, tuple)):
+        return [_strip_sensitive_fields(item) for item in data]
+    if isinstance(data, str):
+        data = _URL_PASSWORD.sub(lambda match: match[1] + _REDACTED + match[2], data)
+        return redact_url_secrets(data, replacement=_REDACTED)
+    if hasattr(data, '__dict__') and not isinstance(data, type):
+        return _strip_sensitive_fields(vars(data))
+    return data
+
+
+def _reject_redacted_values(data: Any) -> None:
+    """Reject placeholders anywhere in an import before constructing models."""
+    if isinstance(data, str) and _REDACTED in data:
+        raise ValueError(
+            'Cannot import redacted values (***REDACTED***); use an unredacted export.'
+        )
+    if isinstance(data, dict):
+        for value in data.values():
+            _reject_redacted_values(value)
+    elif isinstance(data, (list, tuple)):
+        for value in data:
+            _reject_redacted_values(value)

@@ -9,7 +9,11 @@ subclass that uses person.py's own import), so the bug shipped uncaught
 and was caught only by flake8, not by a behavior test. See ticket #1064.
 """
 
+from pydantic import Field
+import pytest
+
 from siege_utilities.config.models.actor_types import Organization, Collaboration
+from siege_utilities.config.models.export import export_entities
 
 
 def _org() -> Organization:
@@ -53,3 +57,22 @@ def test_exclude_sensitive_preserves_non_sensitive_fields():
     # executed (rather than erroring) and left non-sensitive data intact.
     org = _org()
     assert org.to_dict(exclude_sensitive=True) == org.to_dict(exclude_sensitive=False)
+
+
+@pytest.mark.parametrize("factory", [_org, _collab])
+def test_actor_from_yaml_raises_for_redacted_value(factory):
+    actor = factory()
+    actor.notes = "***REDACTED***"
+    with pytest.raises(ValueError, match="Cannot import redacted values"):
+        type(actor).from_yaml(actor.to_yaml())
+
+
+@pytest.mark.parametrize("factory,group", [(_org, "organizations"), (_collab, "collaborations")])
+def test_actor_subclass_export_redacts_marked_field(factory, group):
+    class ExtendedActor(type(factory())):
+        material: str = Field(json_schema_extra={"sensitive": True})
+
+    actor = ExtendedActor(**factory().model_dump(), material="sentinel-material")
+    assert actor.to_dict(exclude_sensitive=True)["material"] == "***REDACTED***"
+    assert "sentinel-material" not in export_entities(**{group: [actor]}, exclude_sensitive=True)
+    assert "sentinel-material" in export_entities(**{group: [actor]}, exclude_sensitive=False)
