@@ -5,6 +5,8 @@ Enhanced with Pydantic validation while maintaining backward compatibility.
 """
 
 import logging
+import stat
+import tempfile
 import threading
 import warnings
 import yaml
@@ -87,7 +89,7 @@ class UserProfile:
     enable_logging: bool = True
     log_level: str = "INFO"
     
-    # API Keys (encrypted)
+    # API Keys (stored in plaintext; protected by filesystem permissions)
     google_analytics_key: str = ""
     facebook_business_key: str = ""
     census_api_key: str = ""
@@ -101,6 +103,8 @@ class UserConfigManager:
     """
     Manages user configuration and preferences.
     Handles user profiles, default settings, and configuration persistence.
+    POSIX writes enforce 0700 directories and 0600 files. On Windows, the
+    per-user AppData default inherits the user's ACL; chmod is not an ACL check.
     """
     
     def __init__(self, config_dir: Optional[Path] = None):
@@ -109,20 +113,32 @@ class UserConfigManager:
 
         Args:
             config_dir: Directory containing user configuration files
+
+        Raises:
+            ValueError: If a safe per-user fallback cannot be determined.
         """
         self._read_only = False
-        self.config_dir = config_dir or self._resolve_config_dir()
+        self.config_dir = Path(config_dir) if config_dir is not None else self._resolve_config_dir()
+        # An explicit, writable directory must never depend on a POSIX uid.
+        fallback = self._fallback_config_dir() if config_dir is None else None
         try:
-            self.config_dir.mkdir(parents=True, exist_ok=True)
+            self._prepare_config_dir(
+                self.config_dir,
+                fallback=(
+                    (fallback is not None and self.config_dir == fallback)
+                    or self._is_posix_temp_fallback_path(self.config_dir)
+                ),
+            )
         except (PermissionError, OSError) as exc:
-            fallback = Path(os.environ.get("TMPDIR", "/tmp")) / "siege_utilities" / "config"
+            if fallback is None:
+                fallback = self._fallback_config_dir()
             log.warning(
                 "Cannot create config dir %s (%s); falling back to %s",
                 self.config_dir, exc, fallback,
             )
             self.config_dir = fallback
             try:
-                self.config_dir.mkdir(parents=True, exist_ok=True)
+                self._prepare_config_dir(self.config_dir, fallback=True)
             except (PermissionError, OSError):
                 log.warning("Fallback config dir %s also unwritable; running read-only", fallback)
                 self._read_only = True
@@ -135,17 +151,75 @@ class UserConfigManager:
             self._save_user_profile()
 
     @staticmethod
+    def _fallback_config_dir() -> Path:
+        if not hasattr(os, "getuid"):
+            # On Windows, the per-user AppData directory carries the user's ACL.
+            # A shared %TEMP% path has no portable POSIX uid/mode to validate.
+            for name in ("LOCALAPPDATA", "APPDATA"):
+                root = os.environ.get(name)
+                if root and Path(root).is_absolute():
+                    return Path(root) / "siege_utilities" / "config"
+            try:
+                return Path.home() / "AppData" / "Local" / "siege_utilities" / "config"
+            except (RuntimeError, KeyError, OSError) as exc:
+                raise ValueError(
+                    "Cannot locate a private user config directory; set "
+                    "SIEGE_USER_CONFIG_DIR to a private path."
+                ) from exc
+        return Path(tempfile.gettempdir()) / f"siege_utilities-{os.getuid()}"
+
+    @staticmethod
+    def _is_posix_temp_fallback_path(config_dir: Path) -> bool:
+        """Recognize the predictable uid path even when supplied explicitly."""
+        if os.name != "posix" or not hasattr(os, "getuid"):
+            return False
+        return (
+            config_dir.name == f"siege_utilities-{os.getuid()}"
+            and config_dir.parent.resolve() == Path(tempfile.gettempdir()).resolve()
+        )
+
+    @staticmethod
+    def _prepare_config_dir(config_dir: Path, *, fallback: bool) -> None:
+        """Prepare a config directory; validate fallback paths before reading."""
+        try:
+            config_dir.mkdir(mode=0o700, parents=True)
+        except FileExistsError:
+            # A pre-existing fallback must be validated before chmod or reads.
+            if not fallback and not config_dir.is_dir():
+                raise
+        if fallback:
+            metadata = config_dir.lstat()
+            if not stat.S_ISDIR(metadata.st_mode):
+                raise ValueError(f"Unsafe fallback config directory {config_dir}: not a real directory")
+            if hasattr(os, "getuid") and (
+                metadata.st_uid != os.getuid() or metadata.st_mode & 0o022
+            ):
+                raise ValueError(
+                    f"Unsafe fallback config directory {config_dir}: must be owned "
+                    f"by uid {os.getuid()} and not group/other-writable. "
+                    "Set SIEGE_USER_CONFIG_DIR to a private directory."
+                )
+        # chmod is not an ACL guarantee on Windows; AppData inherits the user's ACL.
+        if os.name == "posix":
+            config_dir.chmod(0o700)
+
+    @staticmethod
     def _resolve_config_dir() -> Path:
         env_override = os.environ.get("SIEGE_USER_CONFIG_DIR")
         if env_override:
             return Path(env_override)
+        if not hasattr(os, "getuid"):
+            return UserConfigManager._fallback_config_dir()
         try:
             return Path.home() / ".siege_utilities" / "config"
         except (RuntimeError, KeyError):
-            return Path(os.environ.get("TMPDIR", "/tmp")) / "siege_utilities" / "config"
+            return UserConfigManager._fallback_config_dir()
     
     def _load_user_profile(self) -> UserProfile:
         """Load user profile from configuration file."""
+        if self._read_only:
+            # Directory preparation failed; do not read an unvalidated fallback.
+            return UserProfile()
         if self.user_config_file.exists():
             try:
                 with open(self.user_config_file, 'r', encoding='utf-8') as f:
@@ -165,12 +239,24 @@ class UserConfigManager:
         """Save user profile to configuration file."""
         if self._read_only:
             return
+        temporary_file = None
         try:
             config_dict = asdict(self.user_profile)
             # Convert tuples to lists for YAML compatibility
             config_dict = self._convert_to_yaml_safe(config_dict)
-            with open(self.user_config_file, 'w', encoding='utf-8') as f:
-                yaml.dump(config_dict, f, default_flow_style=False)
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode='w', encoding='utf-8', dir=self.config_dir,
+                    prefix='.user_config.', suffix='.tmp', delete=False,
+                ) as f:
+                    temporary_file = Path(f.name)
+                    if os.name == "posix":
+                        os.fchmod(f.fileno(), 0o600)
+                    yaml.dump(config_dict, f, default_flow_style=False)
+                os.replace(temporary_file, self.user_config_file)
+            finally:
+                if temporary_file is not None:
+                    temporary_file.unlink(missing_ok=True)
         except (OSError, yaml.YAMLError, TypeError) as e:
             log.error(f"Failed to save user config: {e}")
 
@@ -342,20 +428,35 @@ class UserConfigManager:
     
     def export_config(self, output_path: str):
         """
-        Export user configuration to a file.
+        Export user configuration without secrets (POSIX 0600; Windows parent ACL).
         
         Args:
             output_path: Path to export configuration
         """
+        temporary_file = None
         try:
             config_data = asdict(self.user_profile)
             # Remove sensitive information
             config_data.pop('google_analytics_key', None)
             config_data.pop('facebook_business_key', None)
             config_data.pop('census_api_key', None)
+            config_data.pop('postgresql_connection', None)
+            config_data.pop('duckdb_path', None)
             
-            with open(output_path, 'w', encoding='utf-8') as f:
-                yaml.dump(config_data, f, default_flow_style=False)
+            target = Path(output_path)
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode='w', encoding='utf-8', dir=target.parent,
+                    prefix='.user_config.', suffix='.tmp', delete=False,
+                ) as f:
+                    temporary_file = Path(f.name)
+                    if os.name == "posix":
+                        os.fchmod(f.fileno(), 0o600)
+                    yaml.dump(config_data, f, default_flow_style=False)
+                os.replace(temporary_file, target)
+            finally:
+                if temporary_file is not None:
+                    temporary_file.unlink(missing_ok=True)
 
             log.info(f"Configuration exported to: {output_path}")
         except (OSError, yaml.YAMLError) as e:
