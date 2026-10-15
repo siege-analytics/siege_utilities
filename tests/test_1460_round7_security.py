@@ -9,6 +9,8 @@ from pydantic import ConfigDict, Field
 
 from siege_utilities.config.models.actor_types import User
 from siege_utilities.config.models.export import export_entities, import_entities
+from siege_utilities.core._http import redact_url_secrets
+from tests.sensitive_field_cases import PUBLIC_NAMES, SECRET_NAMES
 
 
 @dataclass
@@ -106,6 +108,75 @@ def test_excessively_encoded_nested_redirect_fails_closed():
     website = _user(website="https://h/p?redirect=" + nested).to_dict(exclude_sensitive=True)["website"]
     assert website == "https://h/p?redirect=***REDACTED***"
     assert "synthetic-pass" not in website
+
+
+@pytest.mark.parametrize("surface", ["to_dict", "to_yaml", "export_entities"])
+@pytest.mark.parametrize("key", [
+    "refresh_token", "id_token", "session_token", "authorization", "password2",
+    "clientSecret", "x-api-key", "refresh%5Ftoken", "refresh%255Ftoken",
+    "apiKey", "access_token", "X-Amz-Signature",
+])
+def test_url_query_and_fragment_share_config_secret_classifier(key, surface):
+    website = f"https://h/p?{key}=synthetic-r7&keep=public#{key}=synthetic-r7"
+    user = _user(website=website)
+    if surface == "to_dict":
+        data = user.to_dict(exclude_sensitive=True)
+    elif surface == "to_yaml":
+        data = yaml.safe_load(user.to_yaml(exclude_sensitive=True))
+    else:
+        data = yaml.safe_load(export_entities(users=[user], exclude_sensitive=True))["entities"]["users"][0]
+    url = data["website"]
+    assert "synthetic-r7" not in url
+    assert url.count("***REDACTED***") == 2
+    assert "&keep=public#" in url
+    with pytest.raises(ValueError, match="Cannot import redacted values"):
+        if surface == "export_entities":
+            import_entities(export_entities(users=[user], exclude_sensitive=True))
+        else:
+            UserWithObjects.from_yaml(user.to_yaml(exclude_sensitive=True))
+
+
+@pytest.mark.parametrize("key", SECRET_NAMES)
+def test_all_model_secret_names_are_url_query_secrets(key):
+    encoded_key = quote(key, safe="")
+    url = f"https://h/p?{encoded_key}=synthetic-r7&keep=public"
+    assert redact_url_secrets(url, replacement="***REDACTED***") == (
+        f"https://h/p?{encoded_key}=***REDACTED***&keep=public"
+    )
+    assert _user(website=url).to_dict(exclude_sensitive=True)["website"] == (
+        f"https://h/p?{encoded_key}=***REDACTED***&keep=public"
+    )
+
+
+def test_excessively_encoded_query_name_fails_closed():
+    key = "".join(f"%{ord(char):02X}" for char in "refresh_token")
+    for _ in range(35):
+        key = quote(key, safe="")
+    url = f"https://h/p?{key}=synthetic-r7&keep=public"
+    scrubbed = _user(website=url).to_dict(exclude_sensitive=True)["website"]
+    assert "synthetic-r7" not in scrubbed
+    assert scrubbed.endswith("=***REDACTED***&keep=public")
+
+
+@pytest.mark.parametrize("key", PUBLIC_NAMES)
+def test_all_model_public_names_remain_public_url_query_values(key):
+    encoded_key = quote(key, safe="")
+    url = f"https://h/p?{encoded_key}=public-r7&keep=public"
+    assert redact_url_secrets(url, replacement="***REDACTED***") == url
+    assert _user(website=url).to_dict(exclude_sensitive=True)["website"] == url
+
+
+@pytest.mark.parametrize("surface", ["to_dict", "to_yaml", "export_entities"])
+def test_benign_query_names_remain_byte_exact(surface):
+    website = "https://h/p?page=1&redirect=https%3A%2F%2Fu%2Fp&key_count=2#page=3"
+    user = _user(website=website)
+    if surface == "to_dict":
+        data = user.to_dict(exclude_sensitive=True)
+    elif surface == "to_yaml":
+        data = yaml.safe_load(user.to_yaml(exclude_sensitive=True))
+    else:
+        data = yaml.safe_load(export_entities(users=[user], exclude_sensitive=True))["entities"]["users"][0]
+    assert data["website"] == website
 
 
 @pytest.mark.parametrize("surface", ["to_dict", "to_yaml", "export_entities"])

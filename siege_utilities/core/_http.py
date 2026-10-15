@@ -3,11 +3,12 @@
 import re
 from urllib.parse import quote, unquote, unquote_plus
 
+from ._sensitivity import SECRET_FIELD_NAME
 
-_SENSITIVE_QUERY_PARAMS = frozenset({
-    "key", "password", "access_token", "token", "sig", "client_secret",
-    "apikey", "api_key", "secret", "x-amz-signature", "auth",
-    "signature", "x-goog-signature", "x-amz-security-token",
+
+# Provider abbreviations that cannot be inferred from a standalone word.
+_ALWAYS_SENSITIVE_QUERY_PARAMS = frozenset({
+    "sig", "signature", "x-amz-signature", "x-goog-signature",
 })
 # Stop at encoded delimiters even when nested URLs have multiple encoding
 # layers. Preserve the original escaping in diagnostic text.
@@ -23,13 +24,17 @@ _QUERY_PARAM = re.compile(
 )
 
 
-def _query_key(raw: str) -> str:
-    """Decode only a parameter name, never an entire diagnostic or URL."""
-    while "%" in raw:
+def _query_key(raw: str) -> str | None:
+    """Decode a parameter name, or fail closed if it exceeds the layer bound."""
+    for _ in range(32):
+        if "%" not in raw:
+            break
         decoded = unquote_plus(raw)
         if decoded == raw:
             break
         raw = decoded
+    if "%" in raw and unquote_plus(raw) != raw:
+        return None
     return raw.lower()
 
 
@@ -59,12 +64,12 @@ def _redact_encoded_userinfo(value: str, replacement: str) -> str:
 
 def redact_url_secrets(text: str, *, replacement: str = "[REDACTED]") -> str:
     """Redact query/fragment secrets and encoded nested URL userinfo."""
-    return _QUERY_PARAM.sub(
-        lambda match: (
-            f"{match[1]}{match[2]}{match[3]}{replacement}"
-            if _query_key(match[2]) in _SENSITIVE_QUERY_PARAMS
-            else f"{match[1]}{match[2]}{match[3]}"
-                 f"{_redact_encoded_userinfo(match[4], replacement)}"
-        ),
-        text,
-    )
+    def scrub(match: re.Match[str]) -> str:
+        key = _query_key(match[2])
+        prefix = f"{match[1]}{match[2]}{match[3]}"
+        if (key is None or SECRET_FIELD_NAME.search(key) is not None
+                or key in _ALWAYS_SENSITIVE_QUERY_PARAMS):
+            return prefix + replacement
+        return prefix + _redact_encoded_userinfo(match[4], replacement)
+
+    return _QUERY_PARAM.sub(scrub, text)

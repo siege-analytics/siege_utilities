@@ -37,8 +37,10 @@ Names such as ``monkey``, ``turkey`` and ``hockey`` remain public.
 String values containing URL userinfo passwords are scrubbed regardless of
 their field name: ``https://user:password@host/path`` becomes
 ``https://user:***REDACTED***@host/path``. The rest of the URL is preserved.
-Secret query and fragment parameters are also scrubbed, including
-``access_token``, ``api_key``, ``X-Amz-Signature`` and ``password``. For
+Secret query and fragment parameters use the same name classifier as model
+fields (plus provider signature aliases), including ``refresh_token``,
+``id_token``, ``clientSecret``, ``access_token``, ``api_key``,
+``X-Amz-Signature`` and ``password``. For
 example, ``https://host/path?access_token=value&page=1`` becomes
 ``https://host/path?access_token=***REDACTED***&page=1``. The same placeholder
 is used for these values, including in JDBC URLs and nested metadata.
