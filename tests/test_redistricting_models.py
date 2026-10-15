@@ -354,13 +354,16 @@ class TestImports:
 
 class TestRDHLoaderServiceHelpers:
 
-    def test_state_abbr_to_fips(self):
+    def test_state_abbr_to_fips_rejects_unknown_state(self):
+        """#1592 / SU-1: an unknown state must raise, never become FIPS 00."""
         from siege_utilities.geo.django.services.rdh_loader import RDHLoaderService
 
         assert RDHLoaderService._state_abbr_to_fips("VA") == "51"
         assert RDHLoaderService._state_abbr_to_fips("CA") == "06"
         assert RDHLoaderService._state_abbr_to_fips("DC") == "11"
-        assert RDHLoaderService._state_abbr_to_fips("XX") == "00"
+        with pytest.raises(ValueError, match="Unknown state abbreviation: 'XX'"):
+            RDHLoaderService._state_abbr_to_fips("XX")
+        assert RDHLoaderService._state_abbr_to_fips(" va ") == "51"
 
     def test_fips_to_state_abbr(self):
         from siege_utilities.geo.django.services.rdh_loader import RDHLoaderService
@@ -369,21 +372,22 @@ class TestRDHLoaderServiceHelpers:
         assert RDHLoaderService._fips_to_state_abbr("06") == "CA"
         assert RDHLoaderService._fips_to_state_abbr("99") == "XX"
 
-    def test_parse_vote_column(self):
+    def test_parse_vest_vote_column_uses_positional_party(self):
+        """#1592 / writing-tests:1: replace the bugged party-suffix examples."""
         from siege_utilities.geo.django.services.rdh_loader import RDHLoaderService
 
-        party, office = RDHLoaderService._parse_vote_column("G20PREDEM")
+        party, office = RDHLoaderService._parse_vote_column("G20PREDBID")
         assert party == "DEM"
         assert office == "president"
 
-        party, office = RDHLoaderService._parse_vote_column("G20PREREP")
+        party, office = RDHLoaderService._parse_vote_column("G20PRERTRU")
         assert party == "REP"
         assert office == "president"
 
-        party, office = RDHLoaderService._parse_vote_column("G18GOVDEM")
+        party, office = RDHLoaderService._parse_vote_column("G18GOVDABR")
         assert party == "DEM"
         assert office == "governor"
 
-        party, office = RDHLoaderService._parse_vote_column("G20USSLIB")
+        party, office = RDHLoaderService._parse_vote_column("G20USSLHAZ")
         assert party == "LIB"
         assert office == "senate"
