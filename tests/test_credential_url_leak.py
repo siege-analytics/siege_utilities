@@ -5,6 +5,7 @@ import traceback
 from io import BytesIO
 from datetime import date
 from urllib.error import HTTPError, URLError
+from urllib.parse import quote
 
 import pytest
 import requests
@@ -199,6 +200,31 @@ def test_rdh_stream_error_redacts_password(rdh, requests_mock, caplog, monkeypat
     assert "RDH download failed" in caplog.text
 
 
+@pytest.mark.parametrize("delimiter", ["&", "#", "?"])
+@pytest.mark.parametrize("operation", ["list_datasets", "download_dataset"])
+def test_rdh_transport_error_redacts_entire_password(
+    tmp_path, monkeypatch, caplog, delimiter, operation,
+):
+    def refused_connection(*args, **kwargs):
+        raise OSError("synthetic connection refused")
+
+    monkeypatch.setattr("urllib3.util.connection.create_connection", refused_connection)
+    password = f"p{delimiter}ss{SECRET}"
+    with RDHClient(username="test@example.org", password=password, cache_dir=tmp_path) as client:
+        client._session.trust_env = False
+        error_type = ConnectionError if operation == "list_datasets" else requests.ConnectionError
+        args = () if operation == "list_datasets" else ("https://redistrictingdatahub.org/files/data.csv",)
+        with pytest.raises(error_type, match="synthetic connection refused") as caught:
+            getattr(client, operation)(*args)
+
+    assert_safe_diagnostics(caught.value, caplog)
+    assert "password=[REDACTED]" in str(caught.value)
+    assert caught.value.__context__ is None
+    assert caught.value.__cause__ is None
+    if operation == "download_dataset":
+        assert "RDH download failed" in caplog.text
+
+
 def test_rdh_error_envelope_redacts_password(rdh, requests_mock, caplog):
     requests_mock.get(rdh.base_url, json={
         "code": "rest_cannot_access",
@@ -373,12 +399,62 @@ def test_redact_url_secrets_nested_urls(query, expected):
     assert redact_url_secrets(prefix + query) == prefix + expected
 
 
-@pytest.mark.parametrize("punctuation", [", retrying", ")"])
-def test_redact_url_secrets_preserves_trailing_punctuation(punctuation):
+@pytest.mark.parametrize("parameter, middle", [
+    ("password", quote("&", safe="")), ("password", quote("#", safe="")),
+    ("password", quote("?", safe="")), ("password", quote("&x=", safe="")),
+    ("token", "?"), ("token", ","), ("token", ")"),
+])
+def test_redact_url_secrets_consumes_entire_sensitive_value(parameter, middle):
+    from siege_utilities.core._http import redact_url_secrets
+
+    query = f"?{parameter}=ab{middle}S"
+    assert redact_url_secrets(query) == f"?{parameter}=[REDACTED]"
+
+
+@pytest.mark.parametrize("query, expected", [
+    ("?next=https%253A%252F%252Fx%252Fy%253Fkey%253DS",
+     "?next=https%253A%252F%252Fx%252Fy%253Fkey%253D[REDACTED]"),
+    ("?next=https%253A%252F%252Fx%252Fy%253Fa%253D1%2526key%253DS",
+     "?next=https%253A%252F%252Fx%252Fy%253Fa%253D1%2526key%253D[REDACTED]"),
+    ("?next=https%3A%2F%2Fx%2Fy%3Fkey%3DS",
+     "?next=https%3A%2F%2Fx%2Fy%3Fkey%3D[REDACTED]"),
+    ("?next=https%253A%252F%252Fx%252Fy%25%33%46key%25%33%44S",
+     "?next=https%253A%252F%252Fx%252Fy%25%33%46key%25%33%44[REDACTED]"),
+    ("%3Fkey%3DS", "%3Fkey%3D[REDACTED]"),
+    ("?next=https%3A%2F%2Fx%3Fpassword%3Dab%2526S",
+     "?next=https%3A%2F%2Fx%3Fpassword%3D[REDACTED]"),
+    ("?next=https%3A%2F%2Fx%3Ftoken%3Dab,S",
+     "?next=https%3A%2F%2Fx%3Ftoken%3D[REDACTED]"),
+    ("?next=https%3A%2F%2Fx%3Ftoken%3Dab)S",
+     "?next=https%3A%2F%2Fx%3Ftoken%3D[REDACTED]"),
+    ("?next=https%3A%2F%2Fx%3Fkey%3D%26keep%3D%25",
+     "?next=https%3A%2F%2Fx%3Fkey%3D[REDACTED]%26keep%3D%25"),
+    ("?next=plain%20public", "?next=plain%20public"),
+])
+def test_redact_url_secrets_decodes_nested_values_to_fixed_point(query, expected):
+    from siege_utilities.core._http import redact_url_secrets
+
+    assert redact_url_secrets(query) == expected
+
+
+def test_redact_url_secrets_excessive_nested_encoding_fails_closed():
+    from siege_utilities.core._http import redact_url_secrets
+
+    nested = "https://x/y?key=S"
+    for _ in range(35):
+        nested = quote(nested, safe="")
+    assert redact_url_secrets("?next=" + nested + "&keep=public") == (
+        "?next=[REDACTED]&keep=public"
+    )
+
+
+@pytest.mark.parametrize("punctuation, remainder", [(", retrying", " retrying"), (")", "")])
+def test_redact_url_secrets_consumes_ambiguous_trailing_punctuation(punctuation, remainder):
+    """A comma or parenthesis may be part of a secret, not diagnostic syntax."""
     from siege_utilities.core._http import redact_url_secrets
 
     assert redact_url_secrets(f"failed (https://h/p?token=S{punctuation}") == (
-        f"failed (https://h/p?token=[REDACTED]{punctuation}"
+        f"failed (https://h/p?token=[REDACTED]{remainder}"
     )
 
 

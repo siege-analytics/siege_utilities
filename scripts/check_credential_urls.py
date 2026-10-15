@@ -28,7 +28,7 @@ SENSITIVE = frozenset({
     "signature", "x-goog-signature", "x-amz-security-token",
 })
 QUERY_FIELD = re.compile(r"[?&#]([^=&#\s]+)=")
-HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete", "head", "options", "request"})
+HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete", "head", "options", "request", "Request"})
 UNRESOLVED_PARAMS = "<unresolved params>"
 
 # (package-relative path, qualified function, canonical AST expression): reason.
@@ -138,11 +138,17 @@ def credential_url_sites(source: str, path: str) -> list[Site]:
     docstrings = set()
     encoders = {"urlencode"}
     request_functions = set(HTTP_METHODS)
+    requests_modules = {"requests"}
+    positional_gets = set()
     for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            requests_modules.update(alias.asname or alias.name for alias in node.names
+                                    if alias.name == "requests")
         if isinstance(node, ast.ImportFrom) and node.module == "urllib.parse":
             encoders.update(alias.asname or alias.name for alias in node.names if alias.name == "urlencode")
         if isinstance(node, ast.ImportFrom) and node.module in {"requests", "requests.api"}:
             request_functions.update(alias.asname or alias.name for alias in node.names if alias.name in HTTP_METHODS)
+            positional_gets.update(alias.asname or alias.name for alias in node.names if alias.name == "get")
         if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
             if (node.body and isinstance(node.body[0], ast.Expr)
                     and isinstance(node.body[0].value, ast.Constant)
@@ -161,12 +167,21 @@ def credential_url_sites(source: str, path: str) -> list[Site]:
                     bindings.setdefault(target.value.id, []).append(ast.Dict(
                         keys=[target.slice], values=[node.value],
                     ))
+        if (isinstance(node, ast.AugAssign) and isinstance(node.op, ast.BitOr)
+                and isinstance(node.target, ast.Name)):
+            bindings.setdefault(node.target.id, []).append(node.value)
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
             if node.func.attr == "update" and isinstance(node.func.value, ast.Name):
                 bindings.setdefault(node.func.value.id, []).extend(node.args)
                 bindings[node.func.value.id].append(ast.Dict(
                     keys=[ast.Constant(kw.arg) for kw in node.keywords],
                     values=[kw.value for kw in node.keywords],
+                ))
+            if (node.func.attr == "setdefault" and isinstance(node.func.value, ast.Name)
+                    and node.args):
+                bindings.setdefault(node.func.value.id, []).append(ast.Dict(
+                    keys=[node.args[0]],
+                    values=[node.args[1] if len(node.args) > 1 else ast.Constant(None)],
                 ))
 
     def keys(expr: ast.AST, seen: frozenset[str] = frozenset()) -> set[str]:
@@ -227,7 +242,15 @@ def credential_url_sites(source: str, path: str) -> list[Site]:
                 for keyword in node.keywords:
                     if keyword.arg == "params":
                         parameters |= keys(keyword.value)
-                        unresolved_params = UNRESOLVED_PARAMS in parameters
+                is_requests_get = (
+                    isinstance(node.func, ast.Name) and name in positional_gets
+                    or isinstance(node.func, ast.Attribute) and name == "get"
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id in requests_modules
+                )
+                if is_requests_get and len(node.args) > 1:
+                    parameters |= keys(node.args[1])
+                unresolved_params = UNRESOLVED_PARAMS in parameters
         parameters &= SENSITIVE
         if unresolved_params:
             parameters.add(UNRESOLVED_PARAMS)
