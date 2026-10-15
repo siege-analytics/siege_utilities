@@ -2,6 +2,7 @@
 
 import logging
 import traceback
+from io import BytesIO
 from datetime import date
 from urllib.error import HTTPError, URLError
 
@@ -377,9 +378,9 @@ def test_redact_url_secrets_preserves_trailing_punctuation(punctuation):
 
 
 @pytest.mark.parametrize("failure", ["http", "transport", "timeout", "stream", "ssl"])
-@pytest.mark.parametrize("ssl_retry", [False, True])
+@pytest.mark.parametrize("insecure_opt_in", [False, True])
 def test_remote_download_error_redacts_token(
-    tmp_path, requests_mock, caplog, monkeypatch, failure, ssl_retry,
+    tmp_path, requests_mock, caplog, monkeypatch, failure, insecure_opt_in,
 ):
     caplog.set_level(logging.INFO)
     url = f"https://example.org/f.zip?token={SECRET}"
@@ -394,7 +395,7 @@ def test_remote_download_error_redacts_token(
         "stream": {"content": b"data"},
     }
     responses = [errors[failure]]
-    if ssl_retry:
+    if insecure_opt_in:
         responses.insert(0, {"exc": requests.exceptions.SSLError(f"SSL failed: {url}")})
     requests_mock.get(url, responses)
     if failure == "stream":
@@ -405,30 +406,75 @@ def test_remote_download_error_redacts_token(
         monkeypatch.setattr(requests.Response, "iter_content", failed_stream)
 
     with pytest.raises((ConnectionError, requests.RequestException)) as caught:
-        remote.download_file(url, tmp_path / "f.zip")
+        remote.download_file(url, tmp_path / "f.zip",
+                             allow_insecure_fallback=insecure_opt_in)
 
     assert_safe_diagnostics(caught.value, caplog)
     assert "Downloading" in caplog.text
     assert "token=[REDACTED]" in caplog.text
-    assert requests_mock.call_count == (2 if failure == "ssl" else 1 + ssl_retry)
+    assert requests_mock.call_count == (2 if insecure_opt_in else 1)
+    if insecure_opt_in:
+        assert any(record.levelno == logging.ERROR for record in caplog.records)
     assert requests_mock.last_request.qs["token"] == [SECRET]
 
 
-@pytest.mark.parametrize("ssl_retry", [False, True])
-def test_remote_download_success_redacts_token(tmp_path, requests_mock, caplog, ssl_retry):
+@pytest.mark.parametrize("insecure_opt_in", [False, True])
+def test_remote_download_success_redacts_token(
+    tmp_path, requests_mock, caplog, insecure_opt_in,
+):
     caplog.set_level(logging.INFO)
     url = f"https://example.org/f.zip?token={SECRET}"
     responses = [{"content": b"data"}]
-    if ssl_retry:
+    if insecure_opt_in:
         responses.insert(0, {"exc": requests.exceptions.SSLError(f"SSL failed: {url}")})
     requests_mock.get(url, responses)
 
-    result = remote.download_file(url, tmp_path / "f.zip")
+    result = remote.download_file(url, tmp_path / "f.zip",
+                                  allow_insecure_fallback=insecure_opt_in)
 
     assert result == str(tmp_path / "f.zip")
     assert (tmp_path / "f.zip").read_bytes() == b"data"
     assert_safe_diagnostics(None, caplog)
     assert "Successfully downloaded" in caplog.text
+    assert requests_mock.call_count == (2 if insecure_opt_in else 1)
+    if insecure_opt_in:
+        assert any(record.levelno == logging.ERROR for record in caplog.records)
+
+
+@pytest.mark.parametrize("insecure_opt_in", [False, True])
+def test_remote_ssl_secret_request_never_downgrades_by_default(
+    tmp_path, monkeypatch, caplog, insecure_opt_in,
+):
+    url = f"https://example.org/f.zip?token={SECRET}"
+    request = requests.Request("GET", url).prepare()
+    original = requests.exceptions.SSLError("certificate verify failed", request=request)
+    calls = []
+
+    def get(url_arg, **kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            raise original
+        response = requests.Response()
+        response.status_code = 200
+        response.raw = BytesIO(b"downloaded")
+        return response
+
+    monkeypatch.setattr(remote.requests, "get", get)
+    path = tmp_path / "f.zip"
+    if insecure_opt_in:
+        assert remote.download_file(url, path, allow_insecure_fallback=True) == str(path)
+        assert path.read_bytes() == b"downloaded"
+        assert len(calls) == 2 and calls[1]["verify"] is False
+        assert_safe_diagnostics(None, caplog)
+    else:
+        with pytest.raises(requests.exceptions.SSLError) as caught:
+            remote.download_file(url, path)
+        assert caught.value is not original  # detach its credential-bearing request
+        assert not path.exists()
+        assert len(calls) == 1
+        assert_safe_diagnostics(caught.value, caplog)
+    assert calls[0]["verify"] is not False
+    assert any(record.levelno == logging.ERROR for record in caplog.records)
 
 
 @pytest.mark.parametrize("failure", ["http", "transport"])

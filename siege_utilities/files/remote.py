@@ -98,6 +98,19 @@ def _get_progress_bar(*args, **kwargs):
     else:
         return _DummyProgressBar(*args, **kwargs)
 
+def _ssl_diagnostic_needs_redaction(error, url: str) -> bool:
+    """Keep a safe SSLError's identity, but detach credential-bearing diagnostics."""
+    values = [url, str(error)]
+    for nested in (
+        error.__cause__, error.__context__,
+        getattr(error, "request", None), getattr(error, "response", None),
+        getattr(error, "reason", None),
+    ):
+        if nested is not None:
+            values.extend((str(nested), str(getattr(nested, "url", ""))))
+    return any(redact_url_secrets(value) != value for value in values)
+
+
 def download_file(url: str, local_filename: FilePath,
                  chunk_size: int = 8192,
                  timeout: int = 30,
@@ -144,7 +157,7 @@ def download_file(url: str, local_filename: FilePath,
     """
     _check_requests_dependency()
 
-    log.info(f'Downloading {url} to {local_filename}')
+    log.info(redact_url_secrets(f'Downloading {url} to {local_filename}'))
 
     try:
         from siege_utilities.files.validation import validate_safe_path
@@ -157,15 +170,16 @@ def download_file(url: str, local_filename: FilePath,
     ssl_verify = _get_ssl_verify_path() if verify_ssl else False
     headers = {'User-Agent': 'siege_utilities/1.0 (Census/GIS data client)'}
 
+    pending_error = None
+    retry_without_ssl = False
     try:
         with requests.get(url, stream=True, allow_redirects=True,
-                         timeout=timeout, verify=ssl_verify,
-                         headers=headers) as response:
-
+                          timeout=timeout, verify=ssl_verify,
+                          headers=headers) as response:
             if not response.ok:
-                raise ConnectionError(
+                raise ConnectionError(redact_url_secrets(
                     f"Download failed: HTTP {response.status_code} - {response.reason} for {url}"
-                )
+                ))
 
             total_size = _safe_content_length(response)
             if total_size > 0:
@@ -175,62 +189,77 @@ def download_file(url: str, local_filename: FilePath,
 
             with open(local_path, 'wb') as file:
                 with _get_progress_bar(
-                    total=total_size,
-                    unit='B',
-                    unit_scale=True,
-                    desc=local_path.name,
-                    ascii=True
+                    total=total_size, unit='B', unit_scale=True,
+                    desc=local_path.name, ascii=True
                 ) as progress_bar:
                     for chunk in response.iter_content(chunk_size=chunk_size):
                         if chunk:
                             file.write(chunk)
                             progress_bar.update(len(chunk))
 
-            log.info(f'Successfully downloaded {url} to {local_path}')
+            log.info(redact_url_secrets(f'Successfully downloaded {url} to {local_path}'))
             return str(local_path)
 
-    except requests.exceptions.SSLError as e:
+    except requests.exceptions.SSLError as exc:
         if not allow_insecure_fallback:
-            log.error(
+            log.error(redact_url_secrets(
                 f'SSL verification failed for {url}; refusing insecure retry. '
-                f'Pass allow_insecure_fallback=True to override (insecure): {e}'
-            )
-            raise
-        log.error(
-            f'SSL verification failed for {url}; retrying WITHOUT verification '
-            f'because allow_insecure_fallback=True (insecure, MITM-exposed): {e}'
-        )
-        with requests.get(url, stream=True, allow_redirects=True,
-                       timeout=timeout, verify=False,
-                       headers=headers) as response:
+                f'Pass allow_insecure_fallback=True to override (insecure): {exc}'
+            ))
+            if not _ssl_diagnostic_needs_redaction(exc, url):
+                raise  # Preserve the original safe SSLError and fail closed.
+            pending_error = type(exc)(redact_url_secrets(str(exc)))
+        else:
+            log.error(redact_url_secrets(
+                f'SSL verification failed for {url}; retrying WITHOUT verification '
+                f'because allow_insecure_fallback=True (insecure, MITM-exposed): {exc}'
+            ))
+            retry_without_ssl = True
+    except requests.exceptions.RequestException as exc:
+        pending_error = type(exc)(redact_url_secrets(str(exc)))
 
-            if not response.ok:
-                raise ConnectionError(
-                    f"Download failed without SSL: HTTP {response.status_code} - "
-                    f"{response.reason} for {url}"
-                ) from e
+    # Raise outside the except block so raw request/response/context objects
+    # cannot escape through an exception chain when the URL carries secrets.
+    if pending_error is not None:
+        raise pending_error from None
 
-            total_size = _safe_content_length(response)
-            if total_size > 0:
-                log.info(f'Download started without SSL, file size: {total_size} bytes')
-            else:
-                log.info('Download started without SSL, file size unknown')
+    if retry_without_ssl:
+        pending_error = None
+        try:
+            with requests.get(url, stream=True, allow_redirects=True,
+                              timeout=timeout, verify=False,
+                              headers=headers) as response:
+                if not response.ok:
+                    raise ConnectionError(redact_url_secrets(
+                        f"Download failed without SSL: HTTP {response.status_code} - "
+                        f"{response.reason} for {url}"
+                    ))
 
-            with open(local_path, 'wb') as file:
-                with _get_progress_bar(
-                    total=total_size,
-                    unit='B',
-                    unit_scale=True,
-                    desc=f"{local_path.name} (no SSL)",
-                    ascii=True
-                ) as progress_bar:
-                    for chunk in response.iter_content(chunk_size=chunk_size):
-                        if chunk:
-                            file.write(chunk)
-                            progress_bar.update(len(chunk))
+                total_size = _safe_content_length(response)
+                if total_size > 0:
+                    log.info(f'Download started without SSL, file size: {total_size} bytes')
+                else:
+                    log.info('Download started without SSL, file size unknown')
 
-            log.info(f'Successfully downloaded {url} to {local_path} without SSL verification')
-            return str(local_path)
+                with open(local_path, 'wb') as file:
+                    with _get_progress_bar(
+                        total=total_size, unit='B', unit_scale=True,
+                        desc=f"{local_path.name} (no SSL)", ascii=True
+                    ) as progress_bar:
+                        for chunk in response.iter_content(chunk_size=chunk_size):
+                            if chunk:
+                                file.write(chunk)
+                                progress_bar.update(len(chunk))
+
+                log.info(redact_url_secrets(
+                    f'Successfully downloaded {url} to {local_path} without SSL verification'
+                ))
+                return str(local_path)
+        except requests.exceptions.RequestException as exc:
+            pending_error = type(exc)(redact_url_secrets(str(exc)))
+        if pending_error is not None:
+            raise pending_error from None
+
 
 def generate_local_path_from_url(url: str, directory_path: FilePath,
                                 as_string: bool = True) -> Union[Path, str]:

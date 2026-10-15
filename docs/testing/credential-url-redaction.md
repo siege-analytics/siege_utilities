@@ -2,7 +2,28 @@
 
 This forward fix addresses the five required changes in
 [issue #1400's independent review](https://github.com/siege-analytics/siege_utilities/issues/1400#issuecomment-6134848943).
-The base is 58f7ac2d. The v4.0.0 regression baseline is 9c3463b1.
+The original review used base 58f7ac2d and v4.0.0 regression baseline 9c3463b1.
+The current refresh is based on develop ff4e2901 (#1645).
+
+# Current develop refresh (2026-10-14)
+
+#1640's fail-closed SSL contract takes precedence over the old #1649 retry:
+`download_file` keeps TLS verification by default and re-raises the original
+SSLError when its diagnostics are safe. A credential-bearing SSL error instead
+raises a fresh, redacted SSLError outside the handler, with no credential-bearing
+request/response/context. Only explicit `allow_insecure_fallback=True` makes a
+second request with `verify=False`. Both SSL ERROR paths redact the URL and
+exception. The fallback request's HTTP and transport errors are also redacted
+without chaining the original SSL exception. A sentinel test proves one request
+by default, two only after opt-in, correct verification arguments, safe logs,
+and safe exception traversal even when the original message is safe but its
+`request.url` carries a token.
+
+Focused leak/guard/remote suite: 303 passed. Adjacent credential suite: 528
+passed. Full affected-client suite below: 582 passed, 3 unrelated warnings.
+Commands use `-o addopts='' -p no:cacheprovider --no-cov` and Python 3.11.
+The historical round-2/round-3 results below predate #1640 and must not be
+read as permission for automatic insecure retry.
 
 `files/remote.py` redacts download start/success, SSL retry, retry-attempt,
 filename-validation, HEAD metadata, malformed-header, and downloadability
@@ -35,8 +56,9 @@ The blocking `test_no_unreviewed_credential_urls` scans every Python file in
 `siege_utilities/` using `scripts/check_credential_urls.py`. The AST guard flags
 literal/f-string sensitive query fields and urlencode dictionaries, including
 assignment, update and alias forms. It requires a specific path, function and
-expression exemption with a reason. Only the reviewed Census and TAMU query
-construction expressions are exempt. Construction is conservatively flagged
+expression exemption with a reason. The current allowlist includes the
+reviewed Census, TAMU, RDH and Instagram expressions, plus documented
+header-authenticated/public-endpoint forwarding sites. Construction is conservatively flagged
 without requiring proof of a diagnostic sink because HTTP libraries can expose
 URLs in errors. This is a construction guard, not interprocedural taint analysis;
 dynamically computed parameter names are outside its detection scope.
@@ -44,7 +66,9 @@ dynamically computed parameter names are outside its detection scope.
 New regression tests in `tests/test_credential_url_leak.py`:
 
 - `test_remote_download_error_redacts_token` (HTTP 403, transport, timeout,
-  stream and SSL errors, with and without an initial SSL failure)
+  stream and SSL errors, with an initial SSL failure only on explicit opt-in)
+- `test_remote_ssl_secret_request_never_downgrades_by_default` (detached
+  credential-bearing SSL exception and opt-in-only `verify=False`)
 - `test_remote_download_success_redacts_token`
 - `test_remote_retry_error_redacts_token`
 - `test_remote_file_info_error_redacts_token`
