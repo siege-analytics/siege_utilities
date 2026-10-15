@@ -99,16 +99,25 @@ def _get_progress_bar(*args, **kwargs):
         return _DummyProgressBar(*args, **kwargs)
 
 def _ssl_diagnostic_needs_redaction(error, url: str) -> bool:
-    """Keep a safe SSLError's identity, but detach credential-bearing diagnostics."""
-    values = [url, str(error)]
-    for nested in (
-        error.__cause__, error.__context__,
-        getattr(error, "request", None), getattr(error, "response", None),
-        getattr(error, "reason", None),
-    ):
-        if nested is not None:
-            values.extend((str(nested), str(getattr(nested, "url", ""))))
-    return any(redact_url_secrets(value) != value for value in values)
+    """Detach an SSLError when any nested diagnostic can reveal URL secrets."""
+    pending = [url, error]
+    seen = set()
+    while pending:
+        value = pending.pop()
+        if value is None or id(value) in seen:
+            continue
+        seen.add(id(value))
+        text = str(value)
+        if redact_url_secrets(text) != text:
+            return True
+        if isinstance(value, BaseException):
+            pending.extend(getattr(value, "args", ()))
+        for attribute in ("__cause__", "__context__", "request", "response",
+                          "reason", "url", "full_url", "doc"):
+            nested = getattr(value, attribute, None)
+            if nested is not None:
+                pending.append(nested)
+    return False
 
 
 def download_file(url: str, local_filename: FilePath,

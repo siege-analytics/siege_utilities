@@ -360,6 +360,11 @@ def test_redact_url_secrets_sensitive_parameters(parameter, delimiter, suffix):
     ("%3F%61piKey%3DS%26token%3DS", "%3F%61piKey%3D[REDACTED]%26token%3D[REDACTED]"),
     ("%3FSignature%3DS&x=1", "%3FSignature%3D[REDACTED]&x=1"),
     ("%3Fx%3D1", "%3Fx%3D1"),
+    ("%253Ftoken%253DS", "%253Ftoken%253D[REDACTED]"),
+    ("%253Fx%253D1%2526token%253DS", "%253Fx%253D1%2526token%253D[REDACTED]"),
+    ("%253F%2561piKey%253DS", "%253F%2561piKey%253D[REDACTED]"),
+    ("%25253Ftoken%25253DS", "%25253Ftoken%25253D[REDACTED]"),
+    ("%25253F%252561piKey%25253DS", "%25253F%252561piKey%25253D[REDACTED]"),
 ])
 def test_redact_url_secrets_nested_urls(query, expected):
     from siege_utilities.core._http import redact_url_secrets
@@ -441,6 +446,29 @@ def test_remote_download_success_redacts_token(
         assert any(record.levelno == logging.ERROR for record in caplog.records)
 
 
+def test_remote_ssl_nested_cause_request_is_detached(tmp_path, monkeypatch, caplog):
+    safe_url = "https://example.org/file.zip"
+    secret_url = f"{safe_url}?token={SECRET}"
+    request = requests.Request("GET", secret_url).prepare()
+    cause = requests.ConnectionError("inner safe", request=request)
+    original = requests.exceptions.SSLError("certificate verify failed")
+    original.__cause__ = cause
+    calls = []
+
+    def get(url_arg, **kwargs):
+        calls.append(kwargs)
+        raise original
+
+    monkeypatch.setattr(remote.requests, "get", get)
+    with pytest.raises(requests.exceptions.SSLError) as caught:
+        remote.download_file(safe_url, tmp_path / "file.zip")
+
+    assert caught.value is not original
+    assert len(calls) == 1 and calls[0]["verify"] is not False
+    assert_safe_diagnostics(caught.value, caplog)
+    assert any(record.levelno == logging.ERROR for record in caplog.records)
+
+
 @pytest.mark.parametrize("insecure_opt_in", [False, True])
 def test_remote_ssl_secret_request_never_downgrades_by_default(
     tmp_path, monkeypatch, caplog, insecure_opt_in,
@@ -475,6 +503,31 @@ def test_remote_ssl_secret_request_never_downgrades_by_default(
         assert_safe_diagnostics(caught.value, caplog)
     assert calls[0]["verify"] is not False
     assert any(record.levelno == logging.ERROR for record in caplog.records)
+
+
+@pytest.mark.parametrize("insecure_opt_in", [False, True])
+def test_remote_ssl_double_encoded_nested_token_is_not_logged(
+    tmp_path, monkeypatch, caplog, insecure_opt_in,
+):
+    url = ("https://h/p?next=https%253A%252F%252Finner%252Fp"
+           f"%253Ftoken%253D{SECRET}")
+    calls = []
+
+    def get(url_arg, **kwargs):
+        calls.append(kwargs)
+        raise requests.exceptions.SSLError("certificate verify failed")
+
+    monkeypatch.setattr(remote.requests, "get", get)
+    with pytest.raises(requests.exceptions.SSLError) as caught:
+        remote.download_file(url, tmp_path / "file.zip",
+                             allow_insecure_fallback=insecure_opt_in)
+
+    assert len(calls) == (2 if insecure_opt_in else 1)
+    assert calls[0]["verify"] is not False
+    if insecure_opt_in:
+        assert calls[1]["verify"] is False
+    assert_safe_diagnostics(caught.value, caplog)
+    assert "token%253D[REDACTED]" in caplog.text
 
 
 @pytest.mark.parametrize("failure", ["http", "transport"])

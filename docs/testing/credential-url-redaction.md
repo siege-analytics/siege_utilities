@@ -17,10 +17,15 @@ exception. The fallback request's HTTP and transport errors are also redacted
 without chaining the original SSL exception. A sentinel test proves one request
 by default, two only after opt-in, correct verification arguments, safe logs,
 and safe exception traversal even when the original message is safe but its
-`request.url` carries a token.
+`request.url` carries a token. After independent hostile review, the check now
+traverses nested cause/context/request/response/reason graphs before retaining
+an original SSLError, and the redactor handles multiply encoded nested URL
+boundaries and parameter names without decoding the entire diagnostic. Both
+reported counterexamples were reproduced red before repair and are now green;
+both SSL ERROR paths also have an encoded-token sentinel.
 
-Focused leak/guard/remote suite: 303 passed. Adjacent credential suite: 528
-passed. Full affected-client suite below: 582 passed, 3 unrelated warnings.
+Focused leak/guard/remote suite: 311 passed. Adjacent credential suite: 536
+passed. Full affected-client suite below: 590 passed, 3 unrelated warnings.
 Commands use `-o addopts='' -p no:cacheprovider --no-cov` and Python 3.11.
 The historical round-2/round-3 results below predate #1640 and must not be
 read as permission for automatic insecure retry.
