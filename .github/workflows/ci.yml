@@ -258,6 +258,9 @@ jobs:
         grep -qE '"gdal==[0-9]' pyproject.toml || { echo "gdal pin rewrite failed (gdal-config missing or pin literal changed)"; exit 1; }
         uv sync --extra all --extra gdal --extra dev
 
+    - name: Install DuckDB spatial for real integration tests
+      run: uv run python scripts/prepare_duckdb_spatial.py
+
     - name: Lint with flake8
       run: |
         uv run flake8 siege_utilities --count --select=E9,F63,F7,F82 --show-source --statistics
@@ -745,6 +748,9 @@ jobs:
         sed -i "s/\"gdal>=3.6,<4\"/\"gdal==$(gdal-config --version)\"/g" pyproject.toml
         grep -qE '"gdal==[0-9]' pyproject.toml || { echo "gdal pin rewrite failed (gdal-config missing or pin literal changed)"; exit 1; }
         uv sync --extra all --extra gdal --extra dev
+
+    - name: Install DuckDB spatial for real integration tests
+      run: uv run python scripts/prepare_duckdb_spatial.py
 
     - name: Run Battle Testing Suite
       run: |

@@ -47,28 +47,48 @@ def test_spatial_load_failure_does_not_disable_ordinary_sql():
 
 
 def test_spatial_installs_only_after_missing_local_extension(monkeypatch):
+    """Prove the retry order without relying on a cached DuckDB extension."""
     duckdb = pytest.importorskip("duckdb")
     conn = duckdb.connect()
     actions = []
+    bindings = []
 
     class Connection:
         def __getattr__(self, name):
             return getattr(conn, name)
 
         def execute(self, sql):
-            actions.append(sql)
-            if actions == ["LOAD spatial"]:
-                raise duckdb.IOException("Extension not found locally")
-            if sql == "INSTALL spatial":
-                return conn  # The test uses the cached real extension; no download.
+            if sql in {"LOAD spatial", "INSTALL spatial"}:
+                actions.append(sql)
+                if actions == ["LOAD spatial"]:
+                    raise duckdb.IOException("Extension not found locally")
+                # Simulate successful INSTALL and second LOAD. Actual spatial
+                # queries are covered by the real-extension integration tests.
+                return conn
             return conn.execute(sql)
+
+        def sql(self, statement):
+            if "ST_Point" in statement.query:
+                bindings.append(statement.query)
+                if len(bindings) == 1:
+                    raise duckdb.CatalogException(
+                        'Scalar Function "ST_Point" exists in the spatial extension'
+                    )
+                return conn.sql("SELECT 1 AS geometry")
+            return conn.sql(statement)
 
     monkeypatch.setattr(duckdb, "connect", lambda **kwargs: Connection())
     try:
         eng = engine()
-        gdf = eng.to_geodataframe(eng.query("SELECT ST_Point(1, 2) AS geometry"))
-        assert gdf.geometry.iloc[0].wkt == "POINT (1 2)"
+        assert actions == []  # Plain SQL must not load or install spatial.
+        assert eng.query("SELECT 42 AS answer").to_dict("list") == {"answer": [42]}
+        assert actions == []
+        assert eng.query("SELECT ST_Point(1, 2) AS geometry").to_dict("list") == {
+            "geometry": [1]
+        }
+        assert len(bindings) == 2
         assert actions == ["LOAD spatial", "INSTALL spatial", "LOAD spatial"]
+        assert eng._spatial_loaded is True
     finally:
         conn.close()
 
