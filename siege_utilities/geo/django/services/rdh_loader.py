@@ -394,10 +394,13 @@ class RDHLoaderService:
 
         # Replace the source snapshot only after all input has been parsed.
         # The transaction restores the previous snapshot if insertion fails.
-        PrecinctElectionResult.objects.filter(
-            Q(election_year=election_year) | Q(election_year=election_year + 1, election_type="R"),
-            state_fips=state_fips, data_source="rdh",
-        ).delete()
+        scope = Q(election_year=election_year)
+        runoff_offices = {
+            office for col, (_, office) in parsed_cols.items() if column_years[col] == election_year + 1
+        }
+        if runoff_offices:
+            scope |= Q(election_year=election_year + 1, election_type="R", office__in=runoff_offices)
+        PrecinctElectionResult.objects.filter(scope, state_fips=state_fips, data_source="rdh").delete()
         PrecinctElectionResult.objects.bulk_create(records, batch_size=500)
         result.records_created = len(records)
 

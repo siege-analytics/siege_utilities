@@ -84,10 +84,26 @@ class TestForwardFix:
             office="senate", party_code="D", candidate_name="ABC", votes=9, data_source="rdh",
         )
         assert PrecinctElectionResult.objects.filter(election_year=2021, election_type="R").count() == 8
-        frame.drop(columns=list(frame.filter(regex="^R21")), inplace=True)
+        frame.drop(columns=["R21USSRLOE", "R21USSDWAR"], inplace=True)
         loader.load_precinct_results("GA", 2020)
-        assert not PrecinctElectionResult.objects.filter(election_type="R").exists()
+        runoff = PrecinctElectionResult.objects.filter(election_year=2021, election_type="R")
+        assert not runoff.filter(candidate_name__in=["LOE", "WAR"]).exists()
+        assert set(runoff.values_list("candidate_name", flat=True)) == {"PER", "OSS"}
+        assert runoff.count() == 4
         assert PrecinctElectionResult.objects.get(pk=unrelated.pk).votes == 9
+
+    def test_prior_year_reload_preserves_next_year_files_runoffs(self, loader, precinct_data, monkeypatch):
+        """VEST la_2019 carries R19GOV/R19SOS; la_2018 has no R19 columns and must not delete them."""
+        base = precinct_data[["PRECINCT", "NAME", "geometry"]]
+        la_2019 = base.assign(G19GOVDEDW=[10, 1], R19GOVDEDW=[20, 2], R19GOVRRIS=[30, 3])
+        la_2018 = base.assign(G18SOSRARD=[5, 4], R18SOSRARD=[6, 7])
+        monkeypatch.setattr(rdh, "fetch_precinct_results", lambda *args, **kwargs: la_2019)
+        loader.load_precinct_results("LA", 2019)
+        assert PrecinctElectionResult.objects.filter(election_year=2019, election_type="R").count() == 4
+        monkeypatch.setattr(rdh, "fetch_precinct_results", lambda *args, **kwargs: la_2018)
+        loader.load_precinct_results("LA", 2018)
+        assert PrecinctElectionResult.objects.filter(election_year=2019, election_type="R").count() == 4
+        assert PrecinctElectionResult.objects.filter(election_year=2019).aggregate(n=Sum("votes"))["n"] == 66
 
     @pytest.mark.parametrize("column", ["G18PREDBID", "S22USSDWAR", "C21PREDBID", "P19PRE_TOTAL"])
     def test_other_year_omissions_are_warned(self, loader, precinct_data, column):
