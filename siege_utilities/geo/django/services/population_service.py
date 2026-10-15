@@ -229,6 +229,7 @@ class BoundaryPopulationService:
             "CDFP": "district_number",
             "CD116FP": "district_number",
             "CD118FP": "district_number",
+            "CDSESSN": "congress_number",
             # Common
             "GEOID": "GEOID",
             "GEOID20": "GEOID",
@@ -303,9 +304,11 @@ class BoundaryPopulationService:
             batch_size: Number of records per database batch
 
         Returns:
-            PopulationResult with statistics. Rows rejected by database integrity
-            constraints are logged with their GEOID, counted as skipped, and
-            included in errors; valid rows are retained.
+            PopulationResult with statistics. Rows rejected by validation or
+            database integrity constraints are logged with their GEOID, counted
+            as skipped, and included in errors; valid rows are retained. CD
+            session codes are normalized using the TIGER year's Congress before
+            identity lookup, with mismatched CDSESSN or embedded sessions rejected.
 
         Raises:
             ValueError: If geography_type is unknown or unsupported.
@@ -317,6 +320,12 @@ class BoundaryPopulationService:
         model = self._get_model(geography_type)
         if not model:
             raise ValueError(f"Unknown geography type: {geography_type}")
+
+        congress_number = None
+        if geography_type.lower() == "cd":
+            from siege_utilities.geo.spatial_data import YEAR_TO_CONGRESS
+
+            congress_number = YEAR_TO_CONGRESS.get(year)
 
         gdf = self._download_boundaries(geography_type, year, state_fips)
         gdf = self._normalize_geodataframe(gdf, geography_type)
@@ -333,8 +342,16 @@ class BoundaryPopulationService:
             try:
                 geoid = str(row.get("GEOID", ""))
                 if not geoid:
-                    skipped += 1
-                    continue
+                    raise ValueError("Missing GEOID")
+
+                if geography_type.lower() == "cd":
+                    source_congress = row.get("congress_number")
+                    if source_congress is not None and str(source_congress) != str(congress_number):
+                        raise ValueError(
+                            f"CDSESSN {source_congress} does not match "
+                            f"Congress {congress_number} for TIGER year {year}"
+                        )
+                    geoid = model.normalize_geoid(geoid, congress_number)
 
                 # Check if exists
                 existing = model.objects.filter(geoid=geoid, vintage_year=year).first()
@@ -361,6 +378,8 @@ class BoundaryPopulationService:
                     "area_water": row.get("AWATER"),
                 }
                 kwargs.update(parsed)
+                if geography_type.lower() == "cd":
+                    kwargs["congress_number"] = congress_number
 
                 # Add model-specific fields
                 if hasattr(model, "abbreviation") and "abbreviation" in row:
@@ -399,8 +418,10 @@ class BoundaryPopulationService:
                 errors.append(error)
                 skipped += 1
             except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
-                logger.error(f"Error processing record {idx}: {e}")
-                errors.append(f"Record {idx}: {e}")
+                error = f"Record {idx}, GEOID {geoid}: {e}"
+                logger.warning("Skipping %s", error)
+                errors.append(error)
+                skipped += 1
 
         # Create remaining
         if objects_to_create:

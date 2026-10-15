@@ -123,7 +123,10 @@ def test_district_migration_validates_after_constraint_swap(direction):
     for offset, (model, old_name) in enumerate(expected):
         new_name = model._meta.constraints[0].name
         removed, added = (old_name, new_name) if direction == "apply" else (new_name, old_name)
-        pattern = _geoid_pattern(model) if direction == "apply" else (
+        pattern = dict(
+            loader.project_state([("siege_geo", "0014_district_geoid_charclass")])
+            .models["siege_geo", model._meta.model_name].options["constraints"][0].condition.children
+        )["geoid__regex"] if direction == "apply" else (
             r"^\d{4}$" if model is CongressionalDistrict else r"^\d{5}$"
         )
         swap, validate = editor.collected_sql[2 * offset:2 * offset + 2]
@@ -135,3 +138,31 @@ def test_district_migration_validates_after_constraint_swap(direction):
         assert validate == (
             f'ALTER TABLE "{model._meta.db_table}" VALIDATE CONSTRAINT "{added}";'
         )
+
+
+def test_cd112_migration_is_single_leaf_and_matches_model():
+    from django.db.migrations.loader import MigrationLoader
+
+    loader = MigrationLoader(None)
+    assert loader.graph.leaf_nodes("siege_geo") == [("siege_geo", "0017_cd112_geoid_format")]
+    assert loader.disk_migrations["siege_geo", "0017_cd112_geoid_format"].dependencies == [
+        ("siege_geo", "0016_vtd_geoid_period_slash"),
+    ]
+
+
+@pytest.mark.parametrize("direction", ["apply", "unapply"])
+def test_cd112_migration_swaps_then_validates_in_both_directions(direction):
+    from django.db import connection
+    from django.db.migrations.loader import MigrationLoader
+
+    loader = MigrationLoader(None)
+    migration = loader.disk_migrations["siege_geo", "0017_cd112_geoid_format"]
+    before = loader.project_state(migration.dependencies)
+    assert migration.atomic is False
+    with connection.schema_editor(collect_sql=True, atomic=False) as editor:
+        getattr(migration, direction)(before, editor)
+    swap, validate = editor.collected_sql
+    pattern = _geoid_pattern(CongressionalDistrict) if direction == "apply" else r"^\d{2}[0-9A-Za-z]{2}$"
+    assert f'CHECK ("geoid" ~ \'{pattern}\') NOT VALID' in swap
+    assert 'DROP CONSTRAINT IF EXISTS "cd_geoid_format"' in swap
+    assert validate == 'ALTER TABLE "siege_geo_congressionaldistrict" VALIDATE CONSTRAINT "cd_geoid_format";'

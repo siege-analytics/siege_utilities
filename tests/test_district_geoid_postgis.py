@@ -41,7 +41,7 @@ POSTGIS_REMEDIATION = (
 
 
 @pytest.fixture
-def district_postgis(django_db_blocker):
+def district_postgis(django_db_blocker, request):
     """Create historical tables in a disposable schema without migrating public."""
     if os.environ.get("SIEGE_TEST_POSTGIS") != "1":
         pytest.skip(POSTGIS_REMEDIATION)
@@ -74,7 +74,9 @@ def district_postgis(django_db_blocker):
                     cursor.execute(f'SET search_path TO "{schema}", public')
                 connections["default"] = local
                 loader = MigrationLoader(None)
-                migration = loader.disk_migrations["siege_geo", "0014_district_geoid_charclass"]
+                migration = loader.disk_migrations[
+                    "siege_geo", getattr(request, "param", "0014_district_geoid_charclass")
+                ]
                 before = loader.project_state(migration.dependencies)
                 with local.schema_editor() as editor:
                     for name in (
@@ -97,7 +99,7 @@ def _create_district(model, geoid, vintage_year=2024):
         vintage_year=vintage_year,
         name="District " + geoid,
         state_fips=geoid[:2],
-        district_number=geoid[2:2 + model._meta.get_field("district_number").max_length],
+        district_number=geoid[-model._meta.get_field("district_number").max_length:],
         geometry=MultiPolygon(Polygon(((0, 0), (1, 0), (1, 1), (0, 0))), srid=4326),
     )
 
@@ -186,3 +188,113 @@ def test_district_migration_postgis_checks_and_unique(
         )
         assert cursor.fetchall() == [(old_name, True)]
     assert model.objects.count() == 2
+
+
+@pytest.mark.parametrize("district_postgis", ["0017_cd112_geoid_format"], indirect=True)
+def test_cd112_forward_migration_accepts_real_codes_and_reverses(district_postgis):
+    connection, migration, before = district_postgis
+    model = CongressionalDistrict
+    raw_codes = ["0111201", "4811227", "0611253", "0211200"]
+    _create_district(model, "26ZZ")
+    with pytest.raises(IntegrityError, match="cd_geoid_format"), transaction.atomic():
+        _create_district(model, raw_codes[0])
+
+    assert not migration.atomic and connection.get_autocommit()
+    with connection.schema_editor(atomic=False) as editor:
+        migration.apply(before.clone(), editor)
+    for geoid in raw_codes:
+        _create_district(model, geoid)
+    pattern = dict(model._meta.constraints[0].condition.children)["geoid__regex"]
+    with connection.cursor() as cursor:
+        cursor.execute(
+            'SELECT count(*) FROM "siege_geo_congressionaldistrict" WHERE geoid !~ %s',
+            [r"^\d{2}[0-9A-Za-z]{2}$"],
+        )
+        assert cursor.fetchone() == (4,)
+        cursor.execute(
+            'SELECT count(*) FROM "siege_geo_congressionaldistrict" WHERE geoid !~ %s', [pattern]
+        )
+        assert cursor.fetchone() == (0,)
+        cursor.execute(
+            "SELECT convalidated FROM pg_constraint WHERE conrelid = %s::regclass AND conname = %s",
+            [model._meta.db_table, "cd_geoid_format"],
+        )
+        assert cursor.fetchone() == (True,)
+    for invalid in ["0111301", "01112ZZ", "01112!1", "0A11201", "2601!", "01112001"]:
+        with pytest.raises(IntegrityError, match="cd_geoid_format"), transaction.atomic():
+            _create_district(model, invalid)
+
+    with pytest.raises(IntegrityError, match="cd_geoid_format"):
+        with connection.schema_editor(atomic=False) as editor:
+            migration.unapply(before.clone(), editor)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            'DELETE FROM "siege_geo_congressionaldistrict" WHERE geoid = ANY(%s)', [raw_codes]
+        )
+    with connection.schema_editor(atomic=False) as editor:
+        migration.unapply(before.clone(), editor)
+    with pytest.raises(IntegrityError, match="cd_geoid_format"), transaction.atomic():
+        _create_district(model, raw_codes[0])
+    assert list(model.objects.values_list("geoid", flat=True)) == ["26ZZ"]
+
+
+@pytest.mark.parametrize("district_postgis", ["0017_cd112_geoid_format"], indirect=True)
+@pytest.mark.parametrize("batch_size", [1, 100])
+def test_cd_loader_normalizes_before_lookup_and_counts_rejections(
+    district_postgis, monkeypatch, caplog, batch_size
+):
+    import logging
+
+    import geopandas as gpd
+    from shapely.geometry import Polygon as ShapelyPolygon
+
+    from siege_utilities.geo.django.services.population_service import BoundaryPopulationService
+
+    service = BoundaryPopulationService()
+    raw_codes = ["0111201", "4811227", "0611253", "0211200", "0111302", "2601!", ""]
+    frame = gpd.GeoDataFrame(
+        {"GEOID": raw_codes, "NAME": raw_codes, "CDSESSN": ["112"] * len(raw_codes)},
+        geometry=[ShapelyPolygon(((0, 0), (1, 0), (1, 1), (0, 0)))] * len(raw_codes),
+        crs="EPSG:4326",
+    )
+    monkeypatch.setattr(service, "_download_boundaries", lambda *args: frame)
+    with caplog.at_level(logging.WARNING):
+        result = service.populate("cd", 2011, batch_size=batch_size)
+    assert (result.records_created, result.records_skipped, result.total_processed) == (4, 3, 7)
+    assert len(result.errors) == 3
+    assert "0111302" in caplog.text and "2601!" in caplog.text and "Missing GEOID" in caplog.text
+    assert set(CongressionalDistrict.objects.values_list("geoid", "district_number", "congress_number")) == {
+        ("0101", "01", 112), ("4827", "27", 112), ("0653", "53", 112), ("0200", "00", 112),
+    }
+    # Both input forms must find the same identities, even during updates.
+    frame = frame.iloc[:4].copy()
+    frame["NAME"] = "Updated"
+    updated = service.populate("cd", 2011, update_existing=True)
+    assert (updated.records_created, updated.records_updated, updated.records_skipped) == (0, 4, 0)
+    frame["GEOID"] = ["0101", "4827", "0653", "0200"]
+    skipped = service.populate("cd", 2011)
+    assert (skipped.records_created, skipped.records_skipped) == (0, 4)
+    assert CongressionalDistrict.objects.filter(name="Updated").count() == 4
+
+
+@pytest.mark.parametrize("district_postgis", ["0017_cd112_geoid_format"], indirect=True)
+def test_cd_loader_counts_source_session_mismatch(district_postgis, monkeypatch, caplog):
+    import logging
+
+    import geopandas as gpd
+    from shapely.geometry import Polygon as ShapelyPolygon
+
+    from siege_utilities.geo.django.services.population_service import BoundaryPopulationService
+
+    service = BoundaryPopulationService()
+    frame = gpd.GeoDataFrame(
+        {"geoid": ["0111201", "0211200"], "cdsessn": ["113", "112"]},
+        geometry=[ShapelyPolygon(((0, 0), (1, 0), (1, 1), (0, 0)))] * 2, crs="EPSG:4326",
+    )
+    monkeypatch.setattr(service, "_download_boundaries", lambda *args: frame)
+    with caplog.at_level(logging.WARNING):
+        result = service.populate("cd", 2011)
+    assert (result.records_created, result.records_skipped, result.total_processed) == (1, 1, 2)
+    assert len(result.errors) == 1 and "CDSESSN 113" in result.errors[0]
+    assert "0111201" in caplog.text
+    assert list(CongressionalDistrict.objects.values_list("geoid", flat=True)) == ["0200"]

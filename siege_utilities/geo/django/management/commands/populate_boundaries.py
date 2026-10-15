@@ -6,6 +6,9 @@ Usage:
     python manage.py populate_boundaries --year 2020 --type tract --state 06
     python manage.py populate_boundaries --year 2020 --type tract --state CA
     python manage.py populate_boundaries --year 2020 --type all --state 06
+
+Any skipped row or reported error makes the command exit nonzero after the
+counts are printed. Use --update when reloading existing boundaries.
 """
 
 from typing import Optional
@@ -129,6 +132,7 @@ class Command(BaseCommand):
 
         total_created = 0
         total_updated = 0
+        total_skipped = 0
         total_errors = []
 
         for gtype in types_to_process:
@@ -153,24 +157,17 @@ class Command(BaseCommand):
 
             total_created += result.records_created
             total_updated += result.records_updated
+            total_skipped += result.records_skipped
             total_errors.extend(result.errors)
 
-            if result.success:
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"  {gtype}: {result.records_created} created, "
-                        f"{result.records_updated} updated, "
-                        f"{result.records_skipped} skipped"
-                    )
-                )
-            else:
-                self.stdout.write(
-                    self.style.ERROR(
-                        f"  {gtype}: {len(result.errors)} errors"
-                    )
-                )
-                for error in result.errors[:5]:  # Show first 5 errors
-                    self.stdout.write(self.style.ERROR(f"    - {error}"))
+            style = self.style.ERROR if result.errors or result.records_skipped else self.style.SUCCESS
+            self.stdout.write(style(
+                f"  {gtype}: {result.records_created} created, "
+                f"{result.records_updated} updated, "
+                f"{result.records_skipped} skipped, {len(result.errors)} errors"
+            ))
+            for error in result.errors[:5]:  # Show first 5 errors
+                self.stdout.write(self.style.ERROR(f"    - {error}"))
 
             # Link parents if requested
             if link_parents and gtype != "state":
@@ -182,13 +179,21 @@ class Command(BaseCommand):
 
         # Summary
         self.stdout.write("")
+        style = self.style.ERROR if total_errors or total_skipped else self.style.SUCCESS
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Total: {total_created} created, {total_updated} updated"
+            style(
+                f"Total: {total_created} created, {total_updated} updated, "
+                f"{total_skipped} skipped"
             )
         )
 
         if total_errors:
             self.stdout.write(
                 self.style.WARNING(f"Total errors: {len(total_errors)}")
+            )
+
+        if total_errors or total_skipped:
+            raise CommandError(
+                f"Boundary population incomplete: {total_skipped} skipped, "
+                f"{len(total_errors)} errors"
             )
