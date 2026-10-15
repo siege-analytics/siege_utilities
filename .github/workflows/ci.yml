@@ -204,6 +204,19 @@ jobs:
         python scripts/check_unbounded_io.py . --exclude-tests
         python scripts/check_unbounded_io.py tests
 
+  subprocess-safety:
+    runs-on: ubuntu-latest
+    name: "subprocess command safety"
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    - name: Reject shell execution in the library
+      run: |
+        python scripts/check_subprocess_safety.py
+
   error-path-coverage:
     runs-on: ubuntu-latest
     name: "error-path test coverage (SU-4b)"

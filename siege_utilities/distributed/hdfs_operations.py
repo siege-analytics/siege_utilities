@@ -198,7 +198,7 @@ class AbstractHDFSOperations:
         """Sync local directory/file to HDFS with proper verification.
 
         Raises:
-            ValueError: If no data path is provided.
+            ValueError: If no data path is provided or a CLI path starts with '-'.
             FileNotFoundError: If the local path does not exist.
             RuntimeError: If HDFS is not accessible or sync verification fails.
             subprocess.CalledProcessError: If an HDFS command fails.
@@ -209,10 +209,10 @@ class AbstractHDFSOperations:
         if local_path is None:
             raise ValueError('No data path provided')
         local_path = pathlib.Path(local_path)
+        if str(local_path).startswith('-'):
+            raise ValueError("local_path must not start with '-'")
         if not local_path.exists():
             raise FileNotFoundError(f'Local path not found: {local_path}')
-        if not self.check_hdfs_status():
-            raise RuntimeError('HDFS not accessible')
         if local_path.is_file():
             hdfs_directory = (self.config.hdfs_base_directory +
                 f'{hdfs_subdir}/')
@@ -221,6 +221,10 @@ class AbstractHDFSOperations:
             hdfs_directory = (self.config.hdfs_base_directory +
                 f'{hdfs_subdir}/{local_path.name}/')
             hdfs_full_path = hdfs_directory
+        if hdfs_directory.startswith('-'):
+            raise ValueError("hdfs_directory must not start with '-'")
+        if not self.check_hdfs_status():
+            raise RuntimeError('HDFS not accessible')
         self.config.log_info(f'Syncing: {local_path} -> {hdfs_full_path}')
         subprocess.run(['hdfs', 'dfs', '-mkdir', '-p', hdfs_directory],
             check=True, timeout=60)
