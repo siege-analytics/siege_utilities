@@ -2,7 +2,9 @@
 
 import logging
 import traceback
+from io import BytesIO
 from datetime import date
+from urllib.error import HTTPError, URLError
 
 import pytest
 import requests
@@ -19,6 +21,9 @@ from siege_utilities.analytics.instagram import (
 from siege_utilities.geo.census import api as census_api
 from siege_utilities.geo.census_api_client import CensusAPIError
 from siege_utilities.geo.providers.redistricting_data_hub import RDHClient
+from siege_utilities.files import remote
+from siege_utilities.geo.providers import tamu_batch
+from siege_utilities.geo.providers.batch_geocoder import AddressInput
 
 
 SECRET = "SENTINEL_SECRET_abc123"
@@ -32,6 +37,15 @@ def _force_log_capture(caplog):
     caplog.set_level(logging.DEBUG)
 
 
+@pytest.fixture(autouse=True)
+def enable_client_logging(monkeypatch, caplog, _force_log_capture):
+    # Django's disable_existing_loggers must not make caplog assertions vacuous.
+    for name in (census_api.__name__, remote.__name__, tamu_batch.__name__,
+                 "siege_utilities.analytics.instagram", "siege_utilities"):
+        monkeypatch.setattr(logging.getLogger(name), "disabled", False)
+        caplog.set_level(logging.DEBUG, logger=name)
+
+
 @pytest.fixture
 def requests_mock():
     with requests_mock_module.Mocker(case_sensitive=True) as mocker:
@@ -42,7 +56,10 @@ def requests_mock():
 def census(tmp_path, monkeypatch):
     monkeypatch.setattr(census_api, "CENSUS_RETRY_ATTEMPTS", 2)
     monkeypatch.setattr(census_api.time, "sleep", lambda _: None)
-    return census_api.CensusAPI(api_key=SECRET, cache_dir=tmp_path)
+    client = census_api.CensusAPI(api_key=SECRET, cache_dir=tmp_path)
+    # Construction may initialize Django and disable pre-existing loggers.
+    monkeypatch.setattr(census_api.log, "disabled", False)
+    return client
 
 
 @pytest.fixture
@@ -60,15 +77,29 @@ def instagram():
 
 
 def assert_safe_diagnostics(exc, caplog):
-    assert SECRET not in str(exc)
     assert SECRET not in caplog.text
     assert SECRET not in repr([(record.msg, record.args) for record in caplog.records])
     assert SECRET not in "".join(traceback.format_exception(exc))
+    pending = [exc]
+    seen = set()
+    while pending:
+        current = pending.pop()
+        if current is None or id(current) in seen:
+            continue
+        seen.add(id(current))
+        assert SECRET not in str(current)
+        assert SECRET not in repr(getattr(current, "args", ()))
+        assert SECRET not in str(getattr(current, "url", ""))
+        assert SECRET not in str(getattr(current, "full_url", ""))
+        assert SECRET not in str(getattr(current, "doc", ""))
+        for attribute in ("__cause__", "__context__", "request", "response", "reason"):
+            pending.append(getattr(current, attribute, None))
 
 
 @pytest.mark.parametrize("parameter", [
     "key", "password", "access_token", "token", "sig", "client_secret",
     "ACCESS_TOKEN", "%61ccess_token",
+    "apiKey", "api_key", "APIKEY", "secret", "X-Amz-Signature", "auth",
 ])
 def test_census_request_error_redacts_query_values(census, requests_mock, caplog, parameter):
     url = census._build_url(["B01001_001E"], 2023, "acs5", "state", None, None)
@@ -125,25 +156,32 @@ def test_census_parse_error_redacts_url(census, requests_mock, caplog, monkeypat
 
 
 @pytest.mark.parametrize("operation", ["list", "download"])
-@pytest.mark.parametrize("failure", ["transport", "http"])
+@pytest.mark.parametrize("failure", ["transport", "http403", "http404"])
 def test_rdh_request_error_redacts_password(rdh, requests_mock, caplog, operation, failure):
     caplog.set_level(logging.INFO)
     url = rdh.base_url if operation == "list" else "https://redistrictingdatahub.org/files/data.csv"
     failed_url = f"{url}?password={SECRET}&format=csv"
     response = (
-        {"exc": requests.ConnectionError(MaxRetryError(None, failed_url, "connection refused"))}
-        if failure == "transport" else {"status_code": 403}
+        {"exc": requests.ConnectionError(
+            MaxRetryError(None, failed_url, "connection refused"),
+            request=requests.Request("GET", failed_url).prepare(),
+        )}
+        if failure == "transport" else {"status_code": int(failure[4:])}
     )
     requests_mock.get(url, **response)
     action = rdh.list_datasets if operation == "list" else lambda: rdh.download_dataset(url)
     download_error = requests.ConnectionError if failure == "transport" else requests.HTTPError
     error_type = ConnectionError if operation == "list" else download_error
 
-    with pytest.raises(error_type, match="connection refused|403") as caught:
+    with pytest.raises(error_type, match="connection refused|403|404") as caught:
         action()
 
     assert_safe_diagnostics(caught.value, caplog)
     assert requests_mock.last_request.qs["password"] == [SECRET]
+    assert type(caught.value) is error_type
+    assert caught.value.__context__ is None
+    assert getattr(caught.value, "request", None) is None
+    assert getattr(caught.value, "response", None) is None
 
 
 def test_rdh_stream_error_redacts_password(rdh, requests_mock, caplog, monkeypatch):
@@ -296,3 +334,302 @@ def test_instagram_non_json_error_redacts_url_and_body(instagram, requests_mock,
         instagram._request_url("GET", url)
 
     assert_safe_diagnostics(caught.value, caplog)
+
+
+@pytest.mark.parametrize("parameter", [
+    "key", "password", "access_token", "token", "apiKey", "apikey", "api_key",
+    "API_KEY", "%61piKey", "secret", "SECRET", "sig", "X-Amz-Signature",
+    "client_secret", "auth", "Signature", "SIGNATURE", "x-goog-signature",
+    "X-Goog-Signature", "x-amz-security-token", "X-Amz-Security-Token",
+])
+@pytest.mark.parametrize("delimiter", ["?", "&", "#"])
+@pytest.mark.parametrize("suffix", ["&x=1", ""])
+def test_redact_url_secrets_sensitive_parameters(parameter, delimiter, suffix):
+    from siege_utilities.core._http import redact_url_secrets
+
+    assert redact_url_secrets(f"https://h/p{delimiter}{parameter}=S{suffix}") == (
+        f"https://h/p{delimiter}{parameter}=[REDACTED]{suffix}"
+    )
+
+
+@pytest.mark.parametrize("query, expected", [
+    ("%3Fkey%3DS", "%3Fkey%3D[REDACTED]"),
+    ("%3fkey%3dS%26x%3d1", "%3fkey%3d[REDACTED]%26x%3d1"),
+    ("%3Fx%3D1%26token%3DS", "%3Fx%3D1%26token%3D[REDACTED]"),
+    ("%23access_token%3DS", "%23access_token%3D[REDACTED]"),
+    ("%3F%61piKey%3DS%26token%3DS", "%3F%61piKey%3D[REDACTED]%26token%3D[REDACTED]"),
+    ("%3FSignature%3DS&x=1", "%3FSignature%3D[REDACTED]&x=1"),
+    ("%3Fx%3D1", "%3Fx%3D1"),
+    ("%253Ftoken%253DS", "%253Ftoken%253D[REDACTED]"),
+    ("%253Fx%253D1%2526token%253DS", "%253Fx%253D1%2526token%253D[REDACTED]"),
+    ("%253F%2561piKey%253DS", "%253F%2561piKey%253D[REDACTED]"),
+    ("%25253Ftoken%25253DS", "%25253Ftoken%25253D[REDACTED]"),
+    ("%25253F%252561piKey%25253DS", "%25253F%252561piKey%25253D[REDACTED]"),
+])
+def test_redact_url_secrets_nested_urls(query, expected):
+    from siege_utilities.core._http import redact_url_secrets
+
+    prefix = "https://h/p?next=https%3A%2F%2Fx%2Fy"
+    assert redact_url_secrets(prefix + query) == prefix + expected
+
+
+@pytest.mark.parametrize("punctuation", [", retrying", ")"])
+def test_redact_url_secrets_preserves_trailing_punctuation(punctuation):
+    from siege_utilities.core._http import redact_url_secrets
+
+    assert redact_url_secrets(f"failed (https://h/p?token=S{punctuation}") == (
+        f"failed (https://h/p?token=[REDACTED]{punctuation}"
+    )
+
+
+@pytest.mark.parametrize("failure", ["http", "transport", "timeout", "stream", "ssl"])
+@pytest.mark.parametrize("insecure_opt_in", [False, True])
+def test_remote_download_error_redacts_token(
+    tmp_path, requests_mock, caplog, monkeypatch, failure, insecure_opt_in,
+):
+    caplog.set_level(logging.INFO)
+    url = f"https://example.org/f.zip?token={SECRET}"
+    request = requests.Request("GET", url).prepare()
+    errors = {
+        "http": {"status_code": 403, "reason": f"Forbidden for {url}"},
+        "transport": {"exc": requests.ConnectionError(
+            MaxRetryError(None, url, "connection refused"), request=request,
+        )},
+        "timeout": {"exc": requests.Timeout(f"Timed out: {url}", request=request)},
+        "ssl": {"exc": requests.exceptions.SSLError(f"SSL failed: {url}", request=request)},
+        "stream": {"content": b"data"},
+    }
+    responses = [errors[failure]]
+    if insecure_opt_in:
+        responses.insert(0, {"exc": requests.exceptions.SSLError(f"SSL failed: {url}")})
+    requests_mock.get(url, responses)
+    if failure == "stream":
+        def failed_stream(response, **kwargs):
+            raise requests.exceptions.ChunkedEncodingError(
+                f"Broken stream: {response.url}", response=response,
+            )
+        monkeypatch.setattr(requests.Response, "iter_content", failed_stream)
+
+    with pytest.raises((ConnectionError, requests.RequestException)) as caught:
+        remote.download_file(url, tmp_path / "f.zip",
+                             allow_insecure_fallback=insecure_opt_in)
+
+    assert_safe_diagnostics(caught.value, caplog)
+    assert "Downloading" in caplog.text
+    assert "token=[REDACTED]" in caplog.text
+    assert requests_mock.call_count == (2 if insecure_opt_in else 1)
+    if insecure_opt_in:
+        assert any(record.levelno == logging.ERROR for record in caplog.records)
+    assert requests_mock.last_request.qs["token"] == [SECRET]
+
+
+@pytest.mark.parametrize("insecure_opt_in", [False, True])
+def test_remote_download_success_redacts_token(
+    tmp_path, requests_mock, caplog, insecure_opt_in,
+):
+    caplog.set_level(logging.INFO)
+    url = f"https://example.org/f.zip?token={SECRET}"
+    responses = [{"content": b"data"}]
+    if insecure_opt_in:
+        responses.insert(0, {"exc": requests.exceptions.SSLError(f"SSL failed: {url}")})
+    requests_mock.get(url, responses)
+
+    result = remote.download_file(url, tmp_path / "f.zip",
+                                  allow_insecure_fallback=insecure_opt_in)
+
+    assert result == str(tmp_path / "f.zip")
+    assert (tmp_path / "f.zip").read_bytes() == b"data"
+    assert_safe_diagnostics(None, caplog)
+    assert "Successfully downloaded" in caplog.text
+    assert requests_mock.call_count == (2 if insecure_opt_in else 1)
+    if insecure_opt_in:
+        assert any(record.levelno == logging.ERROR for record in caplog.records)
+
+
+def test_remote_ssl_nested_cause_request_is_detached(tmp_path, monkeypatch, caplog):
+    safe_url = "https://example.org/file.zip"
+    secret_url = f"{safe_url}?token={SECRET}"
+    request = requests.Request("GET", secret_url).prepare()
+    cause = requests.ConnectionError("inner safe", request=request)
+    original = requests.exceptions.SSLError("certificate verify failed")
+    original.__cause__ = cause
+    calls = []
+
+    def get(url_arg, **kwargs):
+        calls.append(kwargs)
+        raise original
+
+    monkeypatch.setattr(remote.requests, "get", get)
+    with pytest.raises(requests.exceptions.SSLError) as caught:
+        remote.download_file(safe_url, tmp_path / "file.zip")
+
+    assert caught.value is not original
+    assert len(calls) == 1 and calls[0]["verify"] is not False
+    assert_safe_diagnostics(caught.value, caplog)
+    assert any(record.levelno == logging.ERROR for record in caplog.records)
+
+
+@pytest.mark.parametrize("insecure_opt_in", [False, True])
+def test_remote_ssl_secret_request_never_downgrades_by_default(
+    tmp_path, monkeypatch, caplog, insecure_opt_in,
+):
+    url = f"https://example.org/f.zip?token={SECRET}"
+    request = requests.Request("GET", url).prepare()
+    original = requests.exceptions.SSLError("certificate verify failed", request=request)
+    calls = []
+
+    def get(url_arg, **kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            raise original
+        response = requests.Response()
+        response.status_code = 200
+        response.raw = BytesIO(b"downloaded")
+        return response
+
+    monkeypatch.setattr(remote.requests, "get", get)
+    path = tmp_path / "f.zip"
+    if insecure_opt_in:
+        assert remote.download_file(url, path, allow_insecure_fallback=True) == str(path)
+        assert path.read_bytes() == b"downloaded"
+        assert len(calls) == 2 and calls[1]["verify"] is False
+        assert_safe_diagnostics(None, caplog)
+    else:
+        with pytest.raises(requests.exceptions.SSLError) as caught:
+            remote.download_file(url, path)
+        assert caught.value is not original  # detach its credential-bearing request
+        assert not path.exists()
+        assert len(calls) == 1
+        assert_safe_diagnostics(caught.value, caplog)
+    assert calls[0]["verify"] is not False
+    assert any(record.levelno == logging.ERROR for record in caplog.records)
+
+
+@pytest.mark.parametrize("insecure_opt_in", [False, True])
+def test_remote_ssl_double_encoded_nested_token_is_not_logged(
+    tmp_path, monkeypatch, caplog, insecure_opt_in,
+):
+    url = ("https://h/p?next=https%253A%252F%252Finner%252Fp"
+           f"%253Ftoken%253D{SECRET}")
+    calls = []
+
+    def get(url_arg, **kwargs):
+        calls.append(kwargs)
+        raise requests.exceptions.SSLError("certificate verify failed")
+
+    monkeypatch.setattr(remote.requests, "get", get)
+    with pytest.raises(requests.exceptions.SSLError) as caught:
+        remote.download_file(url, tmp_path / "file.zip",
+                             allow_insecure_fallback=insecure_opt_in)
+
+    assert len(calls) == (2 if insecure_opt_in else 1)
+    assert calls[0]["verify"] is not False
+    if insecure_opt_in:
+        assert calls[1]["verify"] is False
+    assert_safe_diagnostics(caught.value, caplog)
+    assert "token%253D[REDACTED]" in caplog.text
+
+
+@pytest.mark.parametrize("failure", ["http", "transport"])
+def test_remote_retry_error_redacts_token(tmp_path, requests_mock, caplog, failure):
+    caplog.set_level(logging.INFO)
+    url = f"https://example.org/f.zip?token={SECRET}"
+    response = ({"status_code": 403} if failure == "http" else
+                {"exc": requests.ConnectionError(f"Connection refused: {url}")})
+    requests_mock.get(url, **response)
+    with pytest.raises(ConnectionError, match="failed after 2 attempts") as caught:
+        remote.download_file_with_retry(url, tmp_path / "f.zip", max_retries=1, retry_delay=0)
+    assert_safe_diagnostics(caught.value, caplog)
+    assert "Retry attempt" in caplog.text
+    assert "Download attempt" in caplog.text
+
+
+@pytest.mark.parametrize("failure", ["http", "transport"])
+def test_remote_file_info_error_redacts_token(requests_mock, caplog, failure):
+    caplog.set_level(logging.DEBUG)
+    url = f"https://example.org/f.zip?token={SECRET}"
+    response = ({"status_code": 403} if failure == "http" else
+                {"exc": requests.ConnectionError(f"Connection refused: {url}")})
+    requests_mock.head(url, **response)
+    with pytest.raises((ConnectionError, requests.RequestException)) as caught:
+        remote.get_file_info(url)
+    assert_safe_diagnostics(caught.value, caplog)
+    assert "Getting file info" in caplog.text
+
+
+def test_remote_file_info_success_redacts_token(requests_mock, caplog):
+    caplog.set_level(logging.DEBUG)
+    url = f"https://example.org/f.zip?token={SECRET}"
+    requests_mock.head(url, headers={"content-length": "3"})
+    info = remote.get_file_info(url)
+    assert info["url"] == url
+    assert info["size"] == 3
+    assert_safe_diagnostics(None, caplog)
+    assert "File info for" in caplog.text
+
+
+def test_remote_invalid_filename_redacts_token(tmp_path, caplog):
+    with pytest.raises(ValueError, match="Could not extract filename") as caught:
+        remote.generate_local_path_from_url(f"https://example.org/?token={SECRET}", tmp_path)
+    assert_safe_diagnostics(caught.value, caplog)
+
+
+def test_remote_is_downloadable_error_redacts_token(requests_mock, caplog):
+    url = f"https://example.org/f.zip?token={SECRET}"
+    requests_mock.head(url, exc=requests.ConnectionError(f"HEAD failed: {url}"))
+    requests_mock.get(url, exc=requests.ConnectionError(f"GET failed: {url}"))
+    assert remote.is_downloadable(url) is False
+    assert_safe_diagnostics(None, caplog)
+    assert "file info check failed" in caplog.text
+    assert "GET request failed" in caplog.text
+
+
+def test_remote_malformed_header_redacts_token(requests_mock, caplog):
+    url = f"https://example.org/f.zip?token={SECRET}"
+    requests_mock.head(url, headers={"content-length": url})
+    assert remote.get_file_info(url)["size"] == 0
+    assert_safe_diagnostics(None, caplog)
+    assert "Malformed Content-Length" in caplog.text
+
+
+@pytest.mark.parametrize("failure", ["http", "transport", "parse"])
+def test_tamu_request_error_redacts_api_key(monkeypatch, caplog, failure):
+    client = tamu_batch.TAMUBatchGeocoder(api_key=SECRET, rate_limit=0, max_retries=1)
+    addr = AddressInput(street="123 Main St", city="Chicago", state="IL", input_id="test")
+    calls = []
+
+    def failing_urlopen(request, timeout):
+        calls.append(request)
+        url = request.full_url
+        if failure == "http":
+            raise HTTPError(url, 403, f"Forbidden for {url}", {}, None)
+        if failure == "transport":
+            raise URLError(f"Connection refused for {url}")
+        raise ValueError(f"Invalid response from {url}")
+
+    monkeypatch.setattr(tamu_batch.urllib.request, "urlopen", failing_urlopen)
+    with pytest.raises(Exception, match="Forbidden|Connection refused|Invalid response") as caught:
+        client._tamu_request(addr)
+    result = client.geocode([addr])
+
+    assert_safe_diagnostics(caught.value, caplog)
+    assert "TAMU geocode failed" in caplog.text
+    assert "apiKey=[REDACTED]" in caplog.text
+    assert len(calls) == 4
+    assert result.total == 1
+    assert not result.results[0].matched
+
+
+def test_tamu_batch_warning_redacts_api_key(monkeypatch, caplog):
+    client = tamu_batch.TAMUBatchGeocoder(api_key=SECRET, rate_limit=0)
+
+    def failed_request(addr):
+        raise URLError(f"Failed: https://h/p?apiKey={SECRET}")
+
+    monkeypatch.setattr(client, "_tamu_request", failed_request)
+    result = client.geocode(["123 Main St"])
+    assert result.total == 1
+    assert not result.results[0].matched
+    assert_safe_diagnostics(None, caplog)
+    assert "TAMU geocode failed" in caplog.text
+    assert "apiKey=[REDACTED]" in caplog.text
