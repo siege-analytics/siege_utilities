@@ -41,11 +41,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a POSIX uid use per-user Windows LocalAppData/AppData instead of shared temp;
   Windows file privacy depends on the user's inherited ACLs, not POSIX chmod.
   (#1452)
-- `Person.from_yaml` and `import_entities` now reject any input containing
-  `***REDACTED***`, including scrubbed URL values. Redacted exports are for
-  sharing only; restore credentials from an unredacted export instead of
-  importing placeholders. Input containing these sentinels was previously
-  accepted. (#1460)
+- `Person.from_yaml` and `import_entities` now reject imported string values
+  containing `***REDACTED***` (including nested mapping/list values and
+  scrubbed URLs), rather than restoring those placeholders as credentials.
+  The redaction guard does not inspect mapping keys. `exclude_sensitive=True`
+  exports write `***REDACTED***` for redacted fields; use an unredacted export
+  for restoration. These input values were previously accepted. (#1460)
 
 ### Security
 
