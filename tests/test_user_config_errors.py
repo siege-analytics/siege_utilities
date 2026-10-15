@@ -516,6 +516,115 @@ def test_fallback_uses_private_per_uid_directory(
     assert not legacy.exists()
 
 
+def test_explicit_private_config_dir_never_needs_posix_uid(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An explicit config path still works on platforms without os.getuid."""
+    monkeypatch.delattr(os, "getuid")
+
+    def no_fallback() -> Path:
+        pytest.fail("An explicit writable config_dir must not resolve a fallback")
+
+    monkeypatch.setattr(UserConfigManager, "_fallback_config_dir", staticmethod(no_fallback))
+    mgr = UserConfigManager(config_dir=tmp_path / "private")
+    mgr.set_api_key("census", "test-key")
+    assert mgr.get_api_key("census") == "test-key"
+    assert mgr.user_config_file.exists()
+
+
+def test_no_uid_default_uses_private_appdata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No POSIX uid uses per-user LocalAppData instead of shared temp."""
+    monkeypatch.delattr(os, "getuid")
+    monkeypatch.delenv("SIEGE_USER_CONFIG_DIR", raising=False)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "LocalAppData"))
+    mgr = UserConfigManager()
+    assert mgr.config_dir == tmp_path / "LocalAppData" / "siege_utilities" / "config"
+    assert mgr.user_config_file.exists()
+
+
+def test_no_uid_unwritable_explicit_path_falls_back_to_appdata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed explicit path uses private AppData, not a shared temp path."""
+    monkeypatch.delattr(os, "getuid")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "LocalAppData"))
+    blocked = tmp_path / "not-a-directory"
+    blocked.write_text("occupied", encoding="utf-8")
+    mgr = UserConfigManager(config_dir=blocked)
+    assert mgr.config_dir == tmp_path / "LocalAppData" / "siege_utilities" / "config"
+    assert mgr.user_config_file.exists()
+
+
+def test_windows_style_os_without_fchmod_can_save_and_export(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Native Windows lacks getuid/fchmod; save/export must still work."""
+    from types import SimpleNamespace
+    from siege_utilities.config import user_config as config_module
+
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "LocalAppData"))
+    monkeypatch.delenv("SIEGE_USER_CONFIG_DIR", raising=False)
+    windows_os = SimpleNamespace(
+        name="nt", environ=os.environ, replace=os.replace,
+        access=os.access, W_OK=os.W_OK,
+    )
+    monkeypatch.setattr(config_module, "os", windows_os)
+    mgr = UserConfigManager()
+    mgr.set_api_key("census", "windows-test-secret")
+    assert mgr.get_api_key("census") == "windows-test-secret"
+    output = tmp_path / "shareable.yaml"
+    mgr.export_config(str(output))
+    assert "windows-test-secret" not in output.read_text(encoding="utf-8")
+
+
+def test_no_uid_rejects_symlinked_appdata_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A substituted AppData config leaf must not be read through a symlink."""
+    monkeypatch.delattr(os, "getuid")
+    monkeypatch.delenv("SIEGE_USER_CONFIG_DIR", raising=False)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "LocalAppData"))
+    target = tmp_path / "shared"
+    target.mkdir()
+    config_parent = tmp_path / "LocalAppData" / "siege_utilities"
+    config_parent.mkdir(parents=True)
+    (config_parent / "config").symlink_to(target, target_is_directory=True)
+    with pytest.raises(ValueError, match="not a real directory"):
+        UserConfigManager()
+    assert list(target.iterdir()) == []
+
+
+def test_no_uid_without_appdata_uses_home_profile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Absent AppData env vars still resolve a per-user home profile path."""
+    monkeypatch.delattr(os, "getuid")
+    for name in ("SIEGE_USER_CONFIG_DIR", "LOCALAPPDATA", "APPDATA"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "profile"))
+    mgr = UserConfigManager()
+    assert mgr.config_dir == tmp_path / "profile" / "AppData" / "Local" / "siege_utilities" / "config"
+    assert mgr.user_config_file.exists()
+
+
+def test_no_uid_without_appdata_or_home_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No guessable shared-temp fallback if a private user location is unknown."""
+    monkeypatch.delattr(os, "getuid")
+    for name in ("SIEGE_USER_CONFIG_DIR", "LOCALAPPDATA", "APPDATA"):
+        monkeypatch.delenv(name, raising=False)
+
+    def no_home(cls):
+        raise RuntimeError("home unavailable")
+
+    monkeypatch.setattr(Path, "home", classmethod(no_home))
+    with pytest.raises(ValueError, match="Cannot locate a private user config directory"):
+        UserConfigManager()
+
+
 @pytest.mark.parametrize("mode", [0o777, 0o770, 0o707], ids=["0777", "0770", "0707"])
 def test_unsafe_fallback_permissions_raise(
     fallback_paths: tuple[Path, Path, Path], mode: int,

@@ -103,6 +103,8 @@ class UserConfigManager:
     """
     Manages user configuration and preferences.
     Handles user profiles, default settings, and configuration persistence.
+    POSIX writes enforce 0700 directories and 0600 files. On Windows, the
+    per-user AppData default inherits the user's ACL; chmod is not an ACL check.
     """
     
     def __init__(self, config_dir: Optional[Path] = None):
@@ -113,14 +115,19 @@ class UserConfigManager:
             config_dir: Directory containing user configuration files
 
         Raises:
-            ValueError: If the temporary fallback directory is unsafe.
+            ValueError: If a safe per-user fallback cannot be determined.
         """
         self._read_only = False
-        self.config_dir = config_dir or self._resolve_config_dir()
-        fallback = self._fallback_config_dir()
+        self.config_dir = Path(config_dir) if config_dir is not None else self._resolve_config_dir()
+        # An explicit, writable directory must never depend on a POSIX uid.
+        fallback = self._fallback_config_dir() if config_dir is None else None
         try:
-            self._prepare_config_dir(self.config_dir, fallback=self.config_dir == fallback)
+            self._prepare_config_dir(
+                self.config_dir, fallback=fallback is not None and self.config_dir == fallback,
+            )
         except (PermissionError, OSError) as exc:
+            if fallback is None:
+                fallback = self._fallback_config_dir()
             log.warning(
                 "Cannot create config dir %s (%s); falling back to %s",
                 self.config_dir, exc, fallback,
@@ -141,11 +148,25 @@ class UserConfigManager:
 
     @staticmethod
     def _fallback_config_dir() -> Path:
+        if not hasattr(os, "getuid"):
+            # On Windows, the per-user AppData directory carries the user's ACL.
+            # A shared %TEMP% path has no portable POSIX uid/mode to validate.
+            for name in ("LOCALAPPDATA", "APPDATA"):
+                root = os.environ.get(name)
+                if root and Path(root).is_absolute():
+                    return Path(root) / "siege_utilities" / "config"
+            try:
+                return Path.home() / "AppData" / "Local" / "siege_utilities" / "config"
+            except (RuntimeError, KeyError, OSError) as exc:
+                raise ValueError(
+                    "Cannot locate a private user config directory; set "
+                    "SIEGE_USER_CONFIG_DIR to a private path."
+                ) from exc
         return Path(tempfile.gettempdir()) / f"siege_utilities-{os.getuid()}"
 
     @staticmethod
     def _prepare_config_dir(config_dir: Path, *, fallback: bool) -> None:
-        """Create a private directory, validating shared-temp paths before use."""
+        """Prepare a config directory; validate fallback paths before reading."""
         try:
             config_dir.mkdir(mode=0o700, parents=True)
         except FileExistsError:
@@ -154,23 +175,27 @@ class UserConfigManager:
                 raise
         if fallback:
             metadata = config_dir.lstat()
-            if (
-                not stat.S_ISDIR(metadata.st_mode)
-                or metadata.st_uid != os.getuid()
-                or metadata.st_mode & 0o022
+            if not stat.S_ISDIR(metadata.st_mode):
+                raise ValueError(f"Unsafe fallback config directory {config_dir}: not a real directory")
+            if hasattr(os, "getuid") and (
+                metadata.st_uid != os.getuid() or metadata.st_mode & 0o022
             ):
                 raise ValueError(
-                    f"Unsafe fallback config directory {config_dir}: must be a real "
-                    f"directory owned by uid {os.getuid()} and not group/other-writable. "
+                    f"Unsafe fallback config directory {config_dir}: must be owned "
+                    f"by uid {os.getuid()} and not group/other-writable. "
                     "Set SIEGE_USER_CONFIG_DIR to a private directory."
                 )
-        config_dir.chmod(0o700)
+        # chmod is not an ACL guarantee on Windows; AppData inherits the user's ACL.
+        if os.name == "posix":
+            config_dir.chmod(0o700)
 
     @staticmethod
     def _resolve_config_dir() -> Path:
         env_override = os.environ.get("SIEGE_USER_CONFIG_DIR")
         if env_override:
             return Path(env_override)
+        if not hasattr(os, "getuid"):
+            return UserConfigManager._fallback_config_dir()
         try:
             return Path.home() / ".siege_utilities" / "config"
         except (RuntimeError, KeyError):
@@ -211,7 +236,8 @@ class UserConfigManager:
                     prefix='.user_config.', suffix='.tmp', delete=False,
                 ) as f:
                     temporary_file = Path(f.name)
-                    os.fchmod(f.fileno(), 0o600)
+                    if os.name == "posix":
+                        os.fchmod(f.fileno(), 0o600)
                     yaml.dump(config_dict, f, default_flow_style=False)
                 os.replace(temporary_file, self.user_config_file)
             finally:
@@ -388,7 +414,7 @@ class UserConfigManager:
     
     def export_config(self, output_path: str):
         """
-        Export user configuration without secrets to a private file.
+        Export user configuration without secrets (POSIX 0600; Windows parent ACL).
         
         Args:
             output_path: Path to export configuration
@@ -410,7 +436,8 @@ class UserConfigManager:
                     prefix='.user_config.', suffix='.tmp', delete=False,
                 ) as f:
                     temporary_file = Path(f.name)
-                    os.fchmod(f.fileno(), 0o600)
+                    if os.name == "posix":
+                        os.fchmod(f.fileno(), 0o600)
                     yaml.dump(config_data, f, default_flow_style=False)
                 os.replace(temporary_file, target)
             finally:

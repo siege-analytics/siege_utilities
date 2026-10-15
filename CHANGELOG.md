@@ -35,7 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   group/other-writable are rejected with `ValueError` before loading or
   saving credentials. Shared config directories lose group/other access;
   use a private `SIEGE_USER_CONFIG_DIR` if the fallback is unsafe. Old
-  fallback files are not migrated or trusted automatically. (#1452)
+  fallback files are not migrated or trusted automatically. Platforms without
+  a POSIX uid use per-user Windows LocalAppData/AppData instead of shared temp;
+  Windows file privacy depends on the user's inherited ACLs, not POSIX chmod.
+  (#1452)
 
 ### Security
 
