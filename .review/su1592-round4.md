@@ -13,8 +13,13 @@ detached-committed-tree verification: 155 selected live cases passed (70 from
 this PR), with zero selected DB skips; the one `msal` skip is an unrelated
 optional module-level collection skip, explicitly exempted by the live-lane
 JUnit policy. Generic selection passed 32 pure loader/model cases, 70 live
-cases deselected. These results do not replace full current-head CI and
-independent review before merge.
+cases deselected. The dedicated no-GDAL job intentionally excludes this new
+GeoDjango-importing test module: its first current-head run failed collection
+without GDAL, then the exact no-GDAL ignore-list collection succeeded with
+7,402 tests collected and 69 deselected after the narrow exclusion. The
+GDAL-equipped generic matrix still runs all five pure cases; the PostGIS
+service still runs all 70 live cases. These results do not replace full
+current-head CI and independent review before merge.
 
 The loader identity is (state_fips, election_year, election_type,
 precinct_id, office, district, party_code, candidate_name, data_source).
