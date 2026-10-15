@@ -2250,6 +2250,33 @@ def test_keychain_stdin_preserves_quotes_backslashes_and_multiline_secret(isolat
     assert bytes.fromhex(args[args.index('-X') + 1]).decode() == secret
 
 
+def test_keychain_stdin_accepts_leading_hyphen_secret(isolated_credentials, caplog):
+    """Only CLI identifiers can be options; a hex-encoded secret is data."""
+    manager, run = isolated_credentials
+    run.return_value = subprocess.CompletedProcess([], 0, '', '')
+    secret = '-leading-hyphen-secret!42'
+    with caplog.at_level(logging.INFO):
+        assert manager.store_credential('svc', 'user', secret, backend='keychain') is True
+    subprocess_argv = run.call_args.args[0]
+    assert subprocess_argv == ['security', '-i']
+    assert all(secret not in arg for arg in subprocess_argv)
+    stdin_command = run.call_args.kwargs['input']
+    assert secret not in stdin_command
+    argv = shlex.split(stdin_command)
+    assert bytes.fromhex(argv[argv.index('-X') + 1]).decode() == secret
+    assert secret not in caplog.text
+
+
+@pytest.mark.parametrize('service,username', [('-inject', 'user'), ('svc', '-inject')])
+def test_keychain_option_like_identifiers_reject_before_launch(
+    isolated_credentials, service, username,
+):
+    manager, run = isolated_credentials
+    with pytest.raises(ValueError, match="must not start with '-'"):
+        manager.store_credential(service, username, 'safe-secret', backend='keychain')
+    run.assert_not_called()
+
+
 def test_op_edit_invalid_json_logs_failure(isolated_credentials, caplog):
     manager, run = isolated_credentials
     run.return_value = subprocess.CompletedProcess([], 0, _SECRET, '')

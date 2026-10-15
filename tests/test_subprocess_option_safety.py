@@ -22,7 +22,6 @@ from siege_utilities.git.validation import GitSecurityError
     ('_store_in_1password', ('service', 'user', 'secret', '--help'), 'field'),
     ('_store_in_keychain', ('--help', 'user', 'secret'), 'service'),
     ('_store_in_keychain', ('service', '-w', 'secret'), 'username'),
-    ('_store_in_keychain', ('service', 'user', '-secret'), 'value'),
 ])
 def test_credential_option_value_raises_before_execution(method, args, name):
     manager = credentials.CredentialManager(

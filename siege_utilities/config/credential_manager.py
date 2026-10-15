@@ -644,8 +644,8 @@ class CredentialManager:
             SiegeConfigError: An existing 1Password item cannot be safely
                 replaced as JSON, or its updated value cannot be verified.
                 See ``_store_in_1password`` for the supported edit scope.
-            ValueError: If a CLI service/field name, or a Keychain username
-                or credential value, starts with '-'.
+            ValueError: If a CLI service/field name or Keychain username
+                starts with '-'.
         """
         if backend == '1password' and self.available_backends.get('1password'):
             return self._store_in_1password(service, username, value, field,
@@ -776,7 +776,7 @@ class CredentialManager:
         """Store via stdin; return False with an error for unsafe/oversized input."""
         _validate_cli_value(service, 'service')
         _validate_cli_value(username, 'username')
-        _validate_cli_value(value, 'value')
+        # value is encoded as -X hex in the stdin command, never an option.
         if any(char in service + username for char in '\r\n\0'):
             log_error("Keychain service and username must not contain line breaks or NUL")
             return False
