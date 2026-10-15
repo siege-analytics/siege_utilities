@@ -7,12 +7,13 @@ This module provides security-focused path validation to prevent:
 - Symlink-based attacks
 - Null byte injection
 
-Use these validators in all file operations to ensure secure path handling.
+Use base_directory to confine paths to a trusted directory. Without a base,
+the sensitive-path blocklist is not a sandbox.
 """
 
 import os
 import logging
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Union, Optional
 
 # Get logger for this module
@@ -27,7 +28,7 @@ class PathSecurityError(Exception):
     pass
 
 
-# Sensitive system paths that should never be accessed
+# Sensitive system paths, subject to the /dev and /root exceptions below.
 SENSITIVE_PATHS = {
     # Unix/Linux sensitive files
     '/etc/passwd',
@@ -35,6 +36,8 @@ SENSITIVE_PATHS = {
     '/etc/sudoers',
     '/etc/ssh',
     '/root',
+    '/root/.bash_history',
+    '/root/.zsh_history',
     '/var/log/auth.log',
     '/var/log/secure',
 
@@ -64,25 +67,26 @@ SENSITIVE_PATHS = {
 }
 
 
-# Path traversal patterns to block
-TRAVERSAL_PATTERNS = [
-    '..',      # Parent directory
-    '~/',      # Home directory expansion
-    '~\\',     # Windows home directory
-]
-
-
 def is_path_traversal_attempt(path: FilePath) -> bool:
     """
-    Check if a path contains traversal patterns.
+    Check for parent components, home expansion, or null bytes in a local path.
 
-    Args:
-        path: Path to check
+    Both slash styles are treated as separators for this check. Percent
+    sequences such as %2f and %2e%2e are literal filename characters; they
+    are neither decoded nor rejected. Dots within a name are also literal.
 
-    Returns:
-        True if path contains traversal patterns
+    Parameters
+    ----------
+    path : str or Path
+        Local filesystem path to check.
 
-    Example:
+    Returns
+    -------
+    bool
+        Whether the path contains a prohibited component or null byte.
+
+    Examples
+    --------
         >>> is_path_traversal_attempt("../../../etc/passwd")
         True
         >>> is_path_traversal_attempt("data/file.txt")
@@ -90,31 +94,36 @@ def is_path_traversal_attempt(path: FilePath) -> bool:
     """
     path_str = str(path)
 
-    # Check for common traversal patterns
-    for pattern in TRAVERSAL_PATTERNS:
-        if pattern in path_str:
-            return True
-
-    # Check for URL-encoded traversal
-    if '%2e%2e' in path_str.lower() or '%2f' in path_str.lower():
-        return True
-
-    # Check for null bytes
-    if '\x00' in path_str:
-        return True
-
-    return False
+    normalized = path_str.replace('\\', '/')
+    return (
+        '..' in normalized.split('/')
+        or '..' in PureWindowsPath(normalized).parts
+        or normalized.startswith('~/')
+        or '\x00' in path_str
+    )
 
 
-def is_sensitive_path(path: FilePath) -> bool:
+def is_sensitive_path(path: FilePath, base_directory: Optional[FilePath] = None) -> bool:
     """
     Check if a path points to or contains a sensitive system location.
 
-    Args:
-        path: Path to check
+    Under /dev, only /dev/shm and its descendants and the exact pseudo-devices
+    /dev/null, /dev/zero, /dev/random, and /dev/urandom escape the directory ban.
+    The /root tree is blocked unless the resolved cwd or base_directory is
+    exactly /root. Other sensitive-path checks still apply in both cases.
 
-    Returns:
-        True if path is sensitive
+    Parameters
+    ----------
+    path : str or Path
+        Path to check, resolved before applying the blocklist.
+    base_directory : str or Path, optional
+        Operating base for the /root exception; this function does not enforce
+        containment. Relative paths still resolve against the cwd.
+
+    Returns
+    -------
+    bool
+        True if the path is sensitive or cannot be resolved.
 
     Example:
         >>> is_sensitive_path("/etc/passwd")
@@ -133,14 +142,28 @@ def is_sensitive_path(path: FilePath) -> bool:
 
             # Exact match or parent directory
             if path_str == sensitive_resolved or path_str.startswith(sensitive_resolved + os.sep):
+                if sensitive == '/dev' and (
+                    path_str in {'/dev/null', '/dev/zero', '/dev/random', '/dev/urandom'}
+                    or path_obj == Path('/dev/shm')
+                    or Path('/dev/shm') in path_obj.parents
+                ):
+                    continue
+                if sensitive == '/root' and (
+                    Path.cwd().resolve() == Path('/root')
+                    or (
+                        base_directory is not None
+                        and Path(base_directory).resolve() == Path('/root')
+                    )
+                ):
+                    continue
                 return True
 
         # Check for .ssh anywhere in path
-        if '/.ssh/' in path_str or '\\.ssh\\' in path_str:
+        if '.ssh' in path_obj.parts:
             return True
 
         # Check for private keys
-        if path_str.endswith('id_rsa') or path_str.endswith('id_dsa') or path_str.endswith('id_ecdsa'):
+        if path_obj.name in {'id_rsa', 'id_dsa', 'id_ecdsa'}:
             return True
 
         return False
@@ -156,26 +179,45 @@ def validate_safe_path(path: FilePath,
     """
     Validate that a path is safe to access.
 
-    Performs comprehensive security checks:
+    Performs the following checks:
     1. Blocks path traversal attempts
     2. Blocks access to sensitive system paths
     3. Optionally restricts to a base directory
     4. Blocks null byte injection
     5. Resolves symlinks and checks final destination
 
-    Args:
-        path: Path to validate
-        allow_absolute: Whether to allow absolute paths
-        base_directory: If provided, path must be within this directory
+    Without base_directory, the blocklist is not a sandbox: absolute paths
+    outside the listed sensitive locations are allowed by default. Supply
+    a trusted base for untrusted paths. Percent sequences are kept literal.
+    The /dev and /root exceptions follow is_sensitive_path, including the
+    requirement that the resolved cwd or base equal /root for its tree exception.
+    Checks describe the filesystem at validation time; they do not prevent
+    concurrent symlink changes between validation and a subsequent operation.
 
-    Returns:
-        Validated Path object
+    Parameters
+    ----------
+    path : str or Path
+        Path to validate. Relative paths are resolved against the current
+        working directory, not joined onto base_directory.
+    allow_absolute : bool, default True
+        Whether to allow absolute paths.
+    base_directory : str or Path, optional
+        Resolved containment boundary, including for symlink destinations.
 
-    Raises:
-        PathSecurityError: If path fails security validation
-        ValueError: If path is invalid
+    Returns
+    -------
+    Path
+        Validated absolute path.
 
-    Example:
+    Raises
+    ------
+    PathSecurityError
+        If the path fails security validation.
+    ValueError
+        If the path is invalid.
+
+    Examples
+    --------
         >>> # Safe path
         >>> validated = validate_safe_path("data/file.txt")
         >>>
@@ -184,7 +226,7 @@ def validate_safe_path(path: FilePath,
         ... except PathSecurityError as e:
         ...     pass  # raises PathSecurityError
         >>>
-        >>> validated = validate_safe_path("subdir/file.txt", base_directory="/safe/dir")  # doctest: +SKIP
+        >>> validated = validate_safe_path("/safe/dir/subdir/file.txt", base_directory="/safe/dir")  # doctest: +SKIP
     """
     if not path:
         raise ValueError("Path cannot be empty")
@@ -215,13 +257,13 @@ def validate_safe_path(path: FilePath,
         resolved_path = path_obj.resolve()
 
         # Check if resolved path is sensitive
-        if is_sensitive_path(resolved_path):
+        if is_sensitive_path(resolved_path, base_directory=base_directory):
             raise PathSecurityError(
                 f"Access to sensitive path blocked: {resolved_path}"
             )
 
         # If base directory specified, ensure path is within it
-        if base_directory:
+        if base_directory is not None:
             base_path = Path(base_directory).resolve()
 
             try:
@@ -319,33 +361,52 @@ def validate_directory_path(dir_path: FilePath,
 
 def safe_join_paths(*paths: FilePath, base_directory: Optional[FilePath] = None) -> Path:
     """
-    Safely join multiple path components with security validation.
+    Join paths within a resolved base and apply security validation.
 
-    Args:
-        *paths: Path components to join
-        base_directory: If provided, result must be within this directory
+    Absolute, rooted, and drive-qualified components after the first are
+    rejected, including Windows forms on other platforms. The first component
+    is the default containment base. A supplied base overrides that boundary;
+    it does not get prepended to the joined path. Symlink destinations must
+    remain within the resolved base, using path-component boundaries.
 
-    Returns:
-        Validated joined Path object
+    Parameters
+    ----------
+    *paths : str or Path
+        Path components to join. Relative paths use the working directory.
+    base_directory : str or Path, optional
+        Containment boundary, defaulting to the first component.
 
-    Raises:
-        PathSecurityError: If any component or result fails security validation
-        ValueError: If components are invalid
+    Returns
+    -------
+    Path
+        Validated absolute joined path.
 
-    Example:
+    Raises
+    ------
+    PathSecurityError
+        If a component or the result fails security validation.
+    ValueError
+        If no components are provided or a path is invalid.
+
+    Examples
+    --------
         >>> # Safe join
         >>> path = safe_join_paths("data", "2024", "file.txt")
         >>>
-        >>> path = safe_join_paths("subdir", "file.txt", base_directory="/safe/dir")  # doctest: +SKIP
+        >>> path = safe_join_paths("/safe/dir/subdir", "file.txt", base_directory="/safe/dir")  # doctest: +SKIP
     """
     if not paths:
         raise ValueError("At least one path component required")
 
     # Validate each component
-    for component in paths:
+    for index, component in enumerate(paths):
         if is_path_traversal_attempt(component):
             raise PathSecurityError(
                 f"Path traversal in component: {component}"
+            )
+        if index and (Path(component).is_absolute() or PureWindowsPath(component).anchor):
+            raise PathSecurityError(
+                f"Absolute or drive-qualified path component not allowed: {component}"
             )
 
     # Join paths
@@ -357,7 +418,7 @@ def safe_join_paths(*paths: FilePath, base_directory: Optional[FilePath] = None)
     return validate_safe_path(
         joined,
         allow_absolute=True,
-        base_directory=base_directory
+        base_directory=paths[0] if base_directory is None else base_directory
     )
 
 

@@ -47,6 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The redaction guard does not inspect mapping keys. `exclude_sensitive=True`
   exports write `***REDACTED***` for redacted fields; use an unredacted export
   for restoration. These input values were previously accepted. (#1460)
+- `safe_join_paths` now confines a joined path to its resolved first component
+  by default and rejects later absolute, rooted, or drive-qualified components
+  (including Windows forms). Joins that previously escaped this boundary now
+  raise `PathSecurityError`. Pass a trusted `base_directory` to override the
+  containment boundary; it is not prepended to path components. (#1528)
 
 ### Security
 
@@ -64,6 +69,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scrubbed without discarding benign URL context; decoding is bounded and
   fails closed. JSON-encoded strings still need an explicit sensitive marker
   or structured dictionary fields to redact secrets by name. (#1460)
+- File-path validation rejects actual `..` components, sensitive targets and
+  symlink escapes under an explicit base, while allowing benign embedded dots,
+  literal percent sequences, and non-sensitive names such as `paid_rsa`.
+  `/dev/shm` and standard pseudo-devices remain usable; root-in-container
+  workflows have a documented `/root` cwd/base carve-out, with other listed
+  sensitive files still blocked. Without a trusted `base_directory`, the
+  blocklist is a guardrail, not a sandbox; filesystem changes after validation
+  remain outside this check. (#1528)
 
 ## [4.0.0] - 2026-10-11
 
