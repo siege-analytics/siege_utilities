@@ -55,6 +55,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Escape report data in Paragraph text, Folium popup HTML, and IDML XML.
+  Closes stored XSS in saved Folium maps and fixes report/IDML crashes on
+  `& < > "` while preserving intentional markup. (#1565)
+
 - Path validation permits data inside a cwd or base at or below `/root` while
   keeping root's `.aws`, `.netrc`, `.kube`, `.docker`, `.pgpass`,
   `.git-credentials`, and `.config/gcloud` locations blocked. Both file and
