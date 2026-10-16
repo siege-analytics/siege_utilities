@@ -1,0 +1,60 @@
+{
+  "source": {
+    "dataset": "https://doi.org/10.7910/DVN/K7760H",
+    "file_id": 11595851,
+    "filename": "mn_2020.zip",
+    "sha256": "9242c3d8d1ef55a8374079e1fcfadcea7ad655d4d70ef5d2427634633c56b183",
+    "source_rows": 4110,
+    "row_indices": [
+      0,
+      1
+    ],
+    "note": "Original attributes; geometry omitted to keep offline fixtures small."
+  },
+  "rows": [
+    {
+      "VTDID": "270010005",
+      "PCTNAME": "Aitkin",
+      "PCTCODE": "0005",
+      "COUNTYNAME": "Aitkin",
+      "COUNTYFIPS": "001",
+      "G20PREDBID": 446,
+      "G20PRERTRU": 626,
+      "G20PRELJOR": 9,
+      "G20PREGHAW": 2,
+      "G20PREADEL": 3,
+      "G20PRESLAR": 0,
+      "G20PRESKEN": 0,
+      "G20PREIWES": 4,
+      "G20PREIPIE": 1,
+      "G20PREOWRI": 0,
+      "G20USSDSMI": 421,
+      "G20USSRLEW": 545,
+      "G20USSMOCO": 79,
+      "G20USSCSTE": 22,
+      "G20USSOWRI": 0
+    },
+    {
+      "VTDID": "270010010",
+      "PCTNAME": "Aitkin Twp",
+      "PCTCODE": "0010",
+      "COUNTYNAME": "Aitkin",
+      "COUNTYFIPS": "001",
+      "G20PREDBID": 187,
+      "G20PRERTRU": 379,
+      "G20PRELJOR": 3,
+      "G20PREGHAW": 2,
+      "G20PREADEL": 1,
+      "G20PRESLAR": 0,
+      "G20PRESKEN": 2,
+      "G20PREIWES": 1,
+      "G20PREIPIE": 0,
+      "G20PREOWRI": 1,
+      "G20USSDSMI": 171,
+      "G20USSRLEW": 363,
+      "G20USSMOCO": 27,
+      "G20USSCSTE": 5,
+      "G20USSOWRI": 0
+    }
+  ]
+}

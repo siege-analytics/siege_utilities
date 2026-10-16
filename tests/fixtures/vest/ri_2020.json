@@ -1,0 +1,50 @@
+{
+  "source": {
+    "dataset": "https://doi.org/10.7910/DVN/K7760H",
+    "file_id": 11070053,
+    "filename": "ri_2020.zip",
+    "sha256": "ddecbf262ea476c60751067915c80c1fad26c71455ae5b926d6177f3144bbbad",
+    "source_rows": 423,
+    "row_indices": [
+      0,
+      1
+    ],
+    "note": "Original attributes; geometry omitted to keep offline fixtures small."
+  },
+  "rows": [
+    {
+      "STATEFP20": "44",
+      "COUNTYFP20": "009",
+      "VTDST20": "443208",
+      "GEOID20": "44009443208",
+      "NAME20": "South Kingstown 8",
+      "G20PREDBID": 1562,
+      "G20PRERTRU": 839,
+      "G20PRELJOR": 27,
+      "G20PREADEL": 1,
+      "G20PRESLAR": 3,
+      "G20PREOCAR": 9,
+      "G20PREOWRI": 17,
+      "G20USSDREE": 1615,
+      "G20USSRWAT": 762,
+      "G20USSOWRI": 1
+    },
+    {
+      "STATEFP20": "44",
+      "COUNTYFP20": "007",
+      "VTDST20": "440724",
+      "GEOID20": "44007440724",
+      "NAME20": "Cranston 24",
+      "G20PREDBID": 1322,
+      "G20PRERTRU": 290,
+      "G20PRELJOR": 8,
+      "G20PREADEL": 5,
+      "G20PRESLAR": 0,
+      "G20PREOCAR": 3,
+      "G20PREOWRI": 14,
+      "G20USSDREE": 1310,
+      "G20USSRWAT": 271,
+      "G20USSOWRI": 2
+    }
+  ]
+}
