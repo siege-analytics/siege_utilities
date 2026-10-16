@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tolerant behavior when at least one record was created, updated, or classified;
   errors with nothing loaded still fail. Multi-result runs count successful
   records across all requested types, groups, or actions. (#1533)
+- CredentialManager Keychain reads now skip fields other than `password` and
+  `secret`; writes of other fields raise `ValueError`. Use environment variables,
+  service-scoped files, or 1Password for OAuth and service-account fields.
+  1Password retrieval raises on every nonzero exit, including exit 1, because
+  absence cannot be distinguished safely from authentication or server failure.
+  Supply the exact item title or ID; failed lookups no longer try title variants
+  or fall through to other backends. (#1513)
 - Credential resolution now defaults to env -> 1Password -> service-scoped
   files -> Keychain -> prompt. Unscoped credential files are no longer searched.
   Move files to a service directory (for example `postgres/password.txt`) or
@@ -70,6 +77,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and NCES downloads honor `SIEGE_INSECURE_SSL` as an explicit opt-in with
   ERROR logging; warning suppression is limited to individual unverified
   discovery requests. (#1456)
+- Credential prompts hide all fields except `client_id`, `client_email`,
+  `project_id`, and `username`. Backend availability probes time out after five
+  seconds, log the timeout without command output, and mark the backend
+  unavailable. CredentialManager no longer loads user configuration for the
+  nonexistent `credential_paths` attribute; pass paths to the constructor. (#1513)
 - Path validation permits data inside a cwd or base at or below `/root` while
   keeping root's `.aws`, `.netrc`, `.kube`, `.docker`, `.pgpass`,
   `.git-credentials`, and `.config/gcloud` locations blocked. Both file and
