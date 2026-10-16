@@ -93,3 +93,64 @@ passes the Parquet round-trip checks.
 Credential ROTATION is required on every system where the exposed secret
 is or was valid. Rotation is an operator action outside this repository.
 No credential rotation, git-history purge, or wheel removal was attempted.
+
+## Forward fix after PR #1646
+
+Against develop b2bc5435, the removed credential options now remain hidden
+from help and raise CommandError during parsing. Both `--flag value` and
+`--flag=value` are rejected without including the value in the error:
+
+```text
+--access-key was removed; set AWS_ACCESS_KEY_ID or use a boto3 profile
+--secret-key was removed; set AWS_SECRET_ACCESS_KEY or use a boto3 profile
+```
+
+`tests/test_management_command_parsers.py` discovers every public command
+module under `siege_utilities/**/management/commands/`, imports its Command,
+and builds its real Django parser. It also inspects subparsers. Any option
+whose destination matches `key|secret|token|password|endpoint` must default
+to None; failures report only destination names, never default values.
+The normal CI `test` job collects these unit tests on Python 3.11-3.14.
+They use no database or network and have no `postgis` or `integration` marker.
+Django and GDAL are needed to import the real command modules; minimal
+environments skip with installation guidance, while the full matrix
+installs those dependencies.
+
+The guard currently covers classify_urbanicity, populate_boundaries,
+populate_congressional_terms, populate_crosswalks, populate_demographics,
+populate_nces, populate_nlrb_regions, populate_pl_demographics,
+populate_timezones, and stage_boundaries_s3. New command files are discovered
+automatically.
+
+Using the interpreter named above, the forward-fix checks produced:
+
+```text
+python -m pytest tests/test_management_command_parsers.py --no-cov -q
+Unmodified develop command: 4 failed, 11 passed
+Fixed command: 15 passed
+
+Revert only stage_boundaries_s3.py to develop b2bc5435:
+  -k reject_without_echoing: 4 failed, 11 deselected
+  Each failure is the sentinel-absent assertion, covering both flags/forms.
+
+Inject parser.add_argument("--secret-key", default="<dummy>") into
+populate_timezones.add_arguments:
+  -k sensitive_defaults: 1 failed, 9 passed, 5 deselected
+  Failure identifies populate_timezones and secret_key without the dummy value.
+
+Restore both scratch changes:
+python -m pytest tests/test_management_command_parsers.py \
+  tests/test_stage_boundaries_s3.py tests/test_stage_boundaries_s3_errors.py --no-cov -q
+39 passed, 0 skipped
+```
+
+The four rejection cases assert both sentinel absence and the complete
+remediation message. The prior two rejection cases were moved and expanded
+from the export module into the parser module so they do not require boto3,
+GeoPandas, or PyArrow to run. A separate case checks that help hides both
+removed options. The existing no-credential-default, boto3 provider-chain,
+endpoint, and bounded-export tests remain green.
+
+No model changed. `makemigrations siege_geo --check --dry-run` reports no
+changes. No notebook calls this command; its existing documentation gap
+remains, with no notebook call sites requiring an update.

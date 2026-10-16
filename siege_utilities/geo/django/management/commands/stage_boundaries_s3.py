@@ -21,6 +21,7 @@ Usage:
     python manage.py stage_boundaries_s3 --year 2020 --type county --format parquet
 """
 
+import argparse
 import json
 import os
 import tempfile
@@ -66,12 +67,31 @@ GEOGRAPHY_MODEL_MAP = {
 }
 
 
+def _reject_access_key(value: str) -> None:
+    raise CommandError(
+        "--access-key was removed; set AWS_ACCESS_KEY_ID or use a boto3 profile"
+    )
+
+
+def _reject_secret_key(value: str) -> None:
+    raise CommandError(
+        "--secret-key was removed; set AWS_SECRET_ACCESS_KEY or use a boto3 profile"
+    )
+
+
 class Command(BaseCommand):
     """Export TIGER boundaries to S3 in Parquet and/or GeoJSON format."""
 
     help = "Stage TIGER boundaries on S3 for Spark broadcast joins"
 
     def add_arguments(self, parser):
+        # Recognize legacy flags so argparse never echoes their values on error.
+        parser.add_argument(
+            "--access-key", type=_reject_access_key, help=argparse.SUPPRESS,
+        )
+        parser.add_argument(
+            "--secret-key", type=_reject_secret_key, help=argparse.SUPPRESS,
+        )
         parser.add_argument(
             "--year",
             type=int,

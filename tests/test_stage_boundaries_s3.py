@@ -63,12 +63,6 @@ def test_endpoint_default_is_none(command):
     assert options(command)["endpoint_url"] is None
 
 
-@pytest.mark.parametrize("flag", ["--secret-key", "--access-key"])
-def test_credential_flags_are_rejected(command, flag):
-    with pytest.raises(CommandError, match="unrecognized arguments"):
-        options(command, flag, "test-only-credential")
-
-
 @pytest.fixture
 def aws_session(monkeypatch, tmp_path):
     # A real isolated boto3 session, with no credentials/network from the host.

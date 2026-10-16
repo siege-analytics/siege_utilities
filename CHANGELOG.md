@@ -55,6 +55,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- `stage_boundaries_s3` rejects removed `--access-key` and `--secret-key`
+  options without echoing their values, for both spaced and equals forms.
+  Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` or use a boto3 profile.
+  CI checks every management command parser for non-None defaults on
+  key, secret, token, password, and endpoint options. (#1578)
 - Path validation permits data inside a cwd or base at or below `/root` while
   keeping root's `.aws`, `.netrc`, `.kube`, `.docker`, `.pgpass`,
   `.git-credentials`, and `.config/gcloud` locations blocked. Both file and
