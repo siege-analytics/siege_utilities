@@ -6,7 +6,7 @@ Every expected URL returned HTTP 200 on 2026-10-15.
 """
 
 import os
-from io import StringIO
+from io import BytesIO, StringIO
 from unittest.mock import patch
 
 import geopandas as gpd
@@ -14,8 +14,19 @@ import pytest
 from shapely.geometry import Polygon
 from requests import Response
 from django.core.management import call_command
+from django.core.exceptions import ImproperlyConfigured
+
+try:
+    from django.contrib.gis.geos import GEOSGeometry  # noqa: F401
+except (ImportError, ImproperlyConfigured, OSError):
+    pytest.skip(
+        "Install GDAL/GEOS and configure GDAL_LIBRARY_PATH/GEOS_LIBRARY_PATH "
+        "to run the boundary population URL regressions",
+        allow_module_level=True,
+    )
 
 from siege_utilities.geo import spatial_data as sd
+from siege_utilities.geo.boundary_result import BoundaryUrlValidationError
 from siege_utilities.geo.django.services.population_service import (
     BoundaryPopulationService,
 )
@@ -150,28 +161,44 @@ def test_unpublished_vtd_is_skipped_with_warning_and_exit_zero(state, abbreviati
     request.assert_not_called()
 
 
-@live_postgis
-@pytest.mark.django_db(transaction=True)
-def test_published_vtd_wrong_url_is_failure_with_nonzero_exit(requested_urls):
-    from siege_utilities.geo.django.management.commands.populate_boundaries import Command
-
+@pytest.fixture
+def missing_vtd_url(requested_urls):
     wrong_url = f"{T}/TIGER2020PL/STATE/48_TEXAS/48/mangled_vtd20.zip"
     response = Response()
     response.status_code = 404
     response.url = wrong_url
-    response._content = b"Not Found"
-    output, error = StringIO(), StringIO()
-    command = Command(stdout=output, stderr=error)
+    response.raw = BytesIO(b"Not Found")
     with (
         patch.object(sd.CensusDirectoryDiscovery, "_construct_vtd_pl_url", return_value=wrong_url),
         patch.object(sd.CensusDirectoryDiscovery, "validate_download_url", _REAL_VALIDATE_URL),
         patch.object(sd.requests, "get", autospec=True, return_value=response) as request,
     ):
-        with pytest.raises(SystemExit) as exc:
-            command.run_from_argv([
-                "manage.py", "populate_boundaries", "--year", "2020",
-                "--type", "vtd", "--state", "48",
-            ])
+        yield wrong_url, request
+
+
+def test_published_vtd_404_preserves_url_and_status(missing_vtd_url, requested_urls):
+    wrong_url, request = missing_vtd_url
+    with pytest.raises(BoundaryUrlValidationError, match="HTTP 404") as exc:
+        BoundaryPopulationService()._download_boundaries("vtd", 2020, "48")
+    assert exc.value.context["http_status"] == 404
+    assert exc.value.context["url"] == wrong_url
+    assert request.call_args.args == (wrong_url,)
+    assert requested_urls == []
+
+
+@live_postgis
+@pytest.mark.django_db(transaction=True)
+def test_published_vtd_wrong_url_is_failure_with_nonzero_exit(missing_vtd_url, requested_urls):
+    from siege_utilities.geo.django.management.commands.populate_boundaries import Command
+
+    wrong_url, request = missing_vtd_url
+    output, error = StringIO(), StringIO()
+    command = Command(stdout=output, stderr=error)
+    with pytest.raises(SystemExit) as exc:
+        command.run_from_argv([
+            "manage.py", "populate_boundaries", "--year", "2020",
+            "--type", "vtd", "--state", "48",
+        ])
     assert exc.value.code == 1
     assert request.call_args.args == (wrong_url,)
     assert "HTTP 404" in error.getvalue()
