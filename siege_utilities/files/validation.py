@@ -16,6 +16,8 @@ import logging
 from pathlib import Path, PureWindowsPath
 from typing import Union, Optional
 
+from siege_utilities.core._sensitive_paths import ROOT_CREDENTIAL_STORES
+
 # Get logger for this module
 log = logging.getLogger(__name__)
 
@@ -28,8 +30,9 @@ class PathSecurityError(Exception):
     pass
 
 
-# Sensitive system paths, subject to the /dev and /root exceptions below.
-SENSITIVE_PATHS = {
+# File-only additions, subject to the /dev and /root exceptions below.
+# Unlike the shell policy, logs and shadow backups use exact path components.
+_FILE_SENSITIVE_PATH_ADDITIONS = {
     # Unix/Linux sensitive files
     '/etc/passwd',
     '/etc/passwd-',
@@ -42,23 +45,11 @@ SENSITIVE_PATHS = {
     '/root',
     '/root/.bash_history',
     '/root/.zsh_history',
-    '/root/.aws',
-    '/root/.netrc',
-    '/root/.kube',
-    '/root/.docker',
-    '/root/.pgpass',
-    '/root/.git-credentials',
-    '/root/.config/gcloud',
-    '/root/.gnupg',
-    '/root/.vault-token',
-    '/root/.config/gh',
-    '/root/.npmrc',
     '/var/log/auth.log',
     '/var/log/secure',
 
     # SSH keys
     '/.ssh',
-    '/root/.ssh',
     '~/.ssh',
 
     # System binaries
@@ -80,6 +71,8 @@ SENSITIVE_PATHS = {
     'C:\\Windows\\System32',
     'C:\\Windows\\SysWOW64',
 }
+
+SENSITIVE_PATHS = _FILE_SENSITIVE_PATH_ADDITIONS | ROOT_CREDENTIAL_STORES
 
 
 def is_path_traversal_attempt(path: FilePath) -> bool:
