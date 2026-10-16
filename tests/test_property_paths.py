@@ -14,7 +14,7 @@ from unittest import mock
 import pytest
 
 hypothesis = pytest.importorskip("hypothesis")
-from hypothesis import given, settings
+from hypothesis import example, given, settings
 import hypothesis.strategies as st
 
 
@@ -63,10 +63,13 @@ class TestEnsurePathExistsProperties:
     """
 
     @given(st.text(max_size=200))
+    # A component over NAME_MAX (255 bytes) passes validation, and the OS then
+    # refuses it on the real .gitkeep existence check, after mkdir was requested.
+    @example("é" * 200)
     @settings(max_examples=50)
     def test_never_crashes_on_arbitrary_input(self, raw_path):
-        """Arbitrary strings are validated and either rejected or accepted
-        with exactly one mkdir request; nothing is written to disk."""
+        """Arbitrary strings are rejected by validation, refused by the OS, or
+        accepted with one mkdir request; the sandbox cwd stays empty."""
         from siege_utilities.files.paths import ensure_path_exists
         from siege_utilities.files.validation import PathSecurityError
 
@@ -75,17 +78,26 @@ class TestEnsurePathExistsProperties:
                 mock.patch.object(Path, "touch", autospec=True) as touch:
             try:
                 created = ensure_path_exists(raw_path)
-            except (OSError, ValueError, TypeError, PathSecurityError):
+            except (ValueError, TypeError, PathSecurityError):
                 # PathSecurityError (e.g. embedded null byte) is a deliberate,
                 # graceful rejection of a malicious path, not an unexpected crash.
                 mkdir.assert_not_called()
+            except OSError:
+                # The OS refused the name (e.g. ENAMETOOLONG); this can happen
+                # before or after the mkdir request, so only the cwd is checked.
+                pass
             else:
                 mkdir.assert_called_once_with(created, parents=True, exist_ok=True)
-                touch.assert_called_once_with(created / ".gitkeep")
-            assert os.listdir(sandbox) == [], f"{raw_path!r} wrote to disk"
+                # touch only runs when the .gitkeep is not already there.
+                assert touch.call_count <= 1
+                for call in touch.call_args_list:
+                    assert call.args == (created / ".gitkeep",)
+            assert os.listdir(sandbox) == [], f"{raw_path!r} wrote into the cwd"
 
     @given(st.lists(
-        st.from_regex(r"[A-Za-z0-9_-]{1,16}", fullmatch=True),
+        st.from_regex(r"[A-Za-z0-9_-]{1,16}", fullmatch=True)
+        # is_sensitive_path blocks private-key file names as a last component.
+        .filter(lambda name: name not in {"id_rsa", "id_dsa", "id_ecdsa"}),
         min_size=1, max_size=4,
     ))
     @settings(max_examples=50)
