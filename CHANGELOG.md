@@ -55,6 +55,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Path validation permits data inside a cwd or base at or below `/root` while
+  keeping root's `.aws`, `.netrc`, `.kube`, `.docker`, `.pgpass`,
+  `.git-credentials`, and `.config/gcloud` locations blocked. Both file and
+  shell validation explicitly block `/etc/shadow-`, `/etc/gshadow`,
+  `/etc/gshadow-`, and `/etc/passwd-`. (#1528)
 - HTTP diagnostics redact complete query secrets containing encoded delimiters
   or punctuation. Nested URLs are decoded up to a fixed limit before their
   secrets are removed, with excessive encoding redacted in full. The credential

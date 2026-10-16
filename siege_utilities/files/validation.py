@@ -32,12 +32,23 @@ class PathSecurityError(Exception):
 SENSITIVE_PATHS = {
     # Unix/Linux sensitive files
     '/etc/passwd',
+    '/etc/passwd-',
     '/etc/shadow',
+    '/etc/shadow-',
+    '/etc/gshadow',
+    '/etc/gshadow-',
     '/etc/sudoers',
     '/etc/ssh',
     '/root',
     '/root/.bash_history',
     '/root/.zsh_history',
+    '/root/.aws',
+    '/root/.netrc',
+    '/root/.kube',
+    '/root/.docker',
+    '/root/.pgpass',
+    '/root/.git-credentials',
+    '/root/.config/gcloud',
     '/var/log/auth.log',
     '/var/log/secure',
 
@@ -109,8 +120,9 @@ def is_sensitive_path(path: FilePath, base_directory: Optional[FilePath] = None)
 
     Under /dev, only /dev/shm and its descendants and the exact pseudo-devices
     /dev/null, /dev/zero, /dev/random, and /dev/urandom escape the directory ban.
-    The /root tree is blocked unless the resolved cwd or base_directory is
-    exactly /root. Other sensitive-path checks still apply in both cases.
+    The /root tree is blocked except for paths contained in a resolved cwd or
+    base_directory that is /root or one of its descendants. Other sensitive-path
+    checks, including root's credential files, still apply in both cases.
 
     Parameters
     ----------
@@ -148,14 +160,15 @@ def is_sensitive_path(path: FilePath, base_directory: Optional[FilePath] = None)
                     or Path('/dev/shm') in path_obj.parents
                 ):
                     continue
-                if sensitive == '/root' and (
-                    Path.cwd().resolve() == Path('/root')
-                    or (
-                        base_directory is not None
-                        and Path(base_directory).resolve() == Path('/root')
-                    )
-                ):
-                    continue
+                if sensitive == '/root':
+                    anchors = [Path.cwd().resolve()]
+                    if base_directory is not None:
+                        anchors.append(Path(base_directory).resolve())
+                    if any(
+                        anchor.is_relative_to('/root') and path_obj.is_relative_to(anchor)
+                        for anchor in anchors
+                    ):
+                        continue
                 return True
 
         # Check for .ssh anywhere in path
@@ -190,7 +203,8 @@ def validate_safe_path(path: FilePath,
     outside the listed sensitive locations are allowed by default. Supply
     a trusted base for untrusted paths. Percent sequences are kept literal.
     The /dev and /root exceptions follow is_sensitive_path, including the
-    requirement that the resolved cwd or base equal /root for its tree exception.
+    requirement that a path be contained in a resolved cwd or base at or below
+    /root for its tree exception. Root's credential files remain blocked.
     Checks describe the filesystem at validation time; they do not prevent
     concurrent symlink changes between validation and a subsequent operation.
 

@@ -409,3 +409,39 @@ class TestSensitivePathCarveOuts:
             patch.setattr(os, "getcwd", lambda: cwd)
             with pytest.raises(PathSecurityError, match="Access to sensitive path blocked"):
                 validate_safe_path(".ssh/config", base_directory=cwd)
+
+
+class TestRootCarveOutReview:
+    """#1528 review of ef0e1af2: /root carve-out gaps and #1491 parity."""
+
+    @pytest.mark.parametrize("workdir", ["/root/work", "/root/app/jobs"])
+    @pytest.mark.parametrize("with_base", [False, True])
+    def test_root_subdirectory_workdir_allows_its_own_data(self, monkeypatch, workdir, with_base):
+        with monkeypatch.context() as patch:
+            patch.setattr(os, "getcwd", lambda: workdir)
+            result = validate_safe_path("data.csv", base_directory=workdir if with_base else None)
+            assert result == Path(workdir) / "data.csv"
+            assert safe_join_paths(workdir, "data.csv") == Path(workdir) / "data.csv"
+
+    def test_root_subdirectory_workdir_does_not_exempt_rest_of_root(self, monkeypatch):
+        with monkeypatch.context() as patch:
+            patch.setattr(os, "getcwd", lambda: "/root/work")
+            with pytest.raises(PathSecurityError, match="Access to sensitive path blocked"):
+                validate_safe_path("/root/data.csv")
+
+    @pytest.mark.parametrize("path", [
+        "/root/.aws/credentials", "/root/.netrc", "/root/.kube/config",
+        "/root/.docker/config.json", "/root/.pgpass", "/root/.git-credentials",
+        "/root/.config/gcloud/credentials.db",
+    ])
+    @pytest.mark.parametrize("with_base", [False, True])
+    def test_root_carve_out_keeps_credential_files_blocked(self, monkeypatch, path, with_base):
+        with monkeypatch.context() as patch:
+            patch.setattr(os, "getcwd", lambda: "/root")
+            with pytest.raises(PathSecurityError, match="Access to sensitive path blocked"):
+                validate_safe_path(path, base_directory="/root" if with_base else None)
+
+    @pytest.mark.parametrize("path", ["/etc/shadow-", "/etc/gshadow", "/etc/gshadow-", "/etc/passwd-"])
+    def test_shadow_and_passwd_backups_are_sensitive(self, path):
+        with pytest.raises(PathSecurityError, match="Access to sensitive path blocked"):
+            validate_safe_path(path)
