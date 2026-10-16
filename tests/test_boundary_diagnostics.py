@@ -491,12 +491,12 @@ class TestBoundaryConfigurationError:
                 'national': 'tl_{year}_us_{boundary_type}_shp.zip',
             }
         }
-        # year=2000 is not in YEAR_TO_CONGRESS; falls back to max known year (2026 → congress 119)
+        # year=2000 is not in YEAR_TO_CONGRESS; falls back to 2026, Congress 120.
         result = disc._construct_filename_with_fips_validation(
             year=2000, boundary_type='cd', state_fips=None,
             congress_number=None, patterns=patterns,
         )
-        assert result == 'tl_2000_us_cd119_shp.zip'
+        assert result == 'tl_2000_us_cd120_shp.zip'
 
     def test_cd_auto_resolves_congress_for_known_year(self):
         """For years in YEAR_TO_CONGRESS, congress number is auto-resolved without explicit parameter."""

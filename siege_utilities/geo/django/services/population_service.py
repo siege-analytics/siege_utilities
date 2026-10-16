@@ -8,7 +8,7 @@ boundaries, then loads them into Django models.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional
 
 from django.db import IntegrityError, transaction
@@ -29,7 +29,7 @@ __all__ = [
 
 @dataclass
 class PopulationResult:
-    """Result of a boundary population operation."""
+    """Population counts, with unpublished sources counted separately from rows."""
 
     geography_type: str
     year: int
@@ -38,6 +38,8 @@ class PopulationResult:
     records_updated: int
     records_skipped: int
     errors: list[str]
+    sources_skipped: int = 0
+    warnings: list[str] = field(default_factory=list)
 
     @property
     def total_processed(self) -> int:
@@ -109,6 +111,26 @@ class BoundaryPopulationService:
         "unsd": "unsd",
     }
 
+    # These states did not participate in the 2020 VTD program. See
+    # https://www2.census.gov/geo/tiger/TIGER2020PL/LAYER/VTD/2020/
+    VTD_NOT_PUBLISHED = {2020: frozenset({"06", "15", "41"})}
+
+    @staticmethod
+    def _validate_supported_year(geography_type: str, year: int) -> None:
+        """Reject unsupported vintages before constructing a network client."""
+        unsupported = {
+            "block": {2018},
+            "urbanarea": {2011},
+            "zcta": {2011},
+            "cbsa": {2022},
+        }
+        if (
+            not 2010 <= year <= 2026
+            or (geography_type == "vtd" and year != 2020)
+            or year in unsupported.get(geography_type, ())
+        ):
+            raise ValueError(f"{geography_type} not supported for year {year}")
+
     def __init__(self, cache_dir: Optional[str] = None):
         """
         Initialize the service.
@@ -157,6 +179,14 @@ class BoundaryPopulationService:
                     "no Census fetch level is available"
                 )
             raise ValueError(f"Unknown geography type: {geography_type}")
+
+        self._validate_supported_year(geography_type, year)
+        requires_state = {
+            "tract", "blockgroup", "block", "place", "sldu", "sldl",
+            "vtd", "elsd", "scsd", "unsd",
+        }
+        if (geography_type in requires_state or (geography_type == "cd" and year >= 2022)) and not state_fips:
+            raise ValueError(f"State FIPS required for {geography_type}-level data")
 
         logger.info("Downloading %s boundaries for year %s", geographic_level, year)
 
@@ -320,6 +350,29 @@ class BoundaryPopulationService:
         model = self._get_model(geography_type)
         if not model:
             raise ValueError(f"Unknown geography type: {geography_type}")
+
+        geography_type = geography_type.lower()
+        self._validate_supported_year(geography_type, year)
+        if state_fips:
+            from siege_utilities.config import normalize_state_identifier
+
+            state_fips = normalize_state_identifier(state_fips)
+        if geography_type == "vtd" and state_fips in self.VTD_NOT_PUBLISHED.get(year, ()):
+            from siege_utilities.config import FIPS_TO_STATE
+
+            warning = f"VTD {year} not published for {FIPS_TO_STATE[state_fips]} by Census"
+            logger.warning(warning)
+            return PopulationResult(
+                geography_type=geography_type,
+                year=year,
+                state_fips=state_fips,
+                records_created=0,
+                records_updated=0,
+                records_skipped=0,
+                errors=[],
+                sources_skipped=1,
+                warnings=[warning],
+            )
 
         congress_number = None
         if geography_type.lower() == "cd":
