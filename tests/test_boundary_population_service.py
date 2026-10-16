@@ -307,3 +307,22 @@ def test_link_missing_parents_does_not_use_another_vintage(make_boundary):
 def test_link_parents_raises_for_unknown_type():
     with pytest.raises(ValueError, match="Unknown geography type: unknown"):
         BoundaryPopulationService().link_parent_relationships("unknown", 2020, "06")
+
+
+@live_postgis
+@pytest.mark.django_db
+def test_populate_boundaries_exits_nonzero_on_per_record_errors(fetch, county_gdf):
+    from io import StringIO
+    from django.core.management import CommandError, call_command
+
+    county_gdf.loc[1, "geometry"] = None
+    fetch.return_value = BoundaryFetchResult.ok(county_gdf)
+    output = StringIO()
+    with pytest.raises(CommandError, match="1 error"):
+        call_command(
+            "populate_boundaries", "--year", "2020", "--type", "county",
+            "--state", "06", stdout=output,
+        )
+    assert "Total errors: 1" in output.getvalue()
+    assert "1 created, 0 updated, 1 skipped" in output.getvalue()
+    assert list(models.County.objects.values_list("geoid", flat=True)) == ["06037"]

@@ -164,3 +164,44 @@ def test_populate_healthy_rows_use_bulk_insert(service, boundary_table, monkeypa
     assert boundary_table.objects.count() == result.records_created == 3
     assert result.success and result.records_skipped == 0
     assert len([query for query in queries if query["sql"].startswith("INSERT")]) == 1
+
+
+def test_command_exits_nonzero_and_counts_per_record_errors(
+    service, boundary_table, monkeypatch
+):
+    from io import StringIO
+    from siege_utilities.geo.django.management.commands import populate_boundaries
+
+    _supply_rows(service, monkeypatch, ["27001", "bad"])
+    monkeypatch.setattr(populate_boundaries, "BoundaryPopulationService", lambda: service)
+    output, error = StringIO(), StringIO()
+    command = populate_boundaries.Command(stdout=output, stderr=error)
+    with pytest.raises(SystemExit) as exc:
+        command.run_from_argv([
+            "manage.py", "populate_boundaries", "--year", "2024",
+            "--type", "sldl", "--state", "27",
+        ])
+    assert exc.value.code == 1
+    assert "Total errors: 1" in output.getvalue()
+    assert "1 created, 0 updated, 1 skipped" in output.getvalue()
+    assert "1 errors" in error.getvalue()
+    assert list(boundary_table.objects.values_list("geoid", flat=True)) == ["27001"]
+
+
+@pytest.mark.parametrize("state,abbreviation", [("06", "CA"), ("15", "HI"), ("41", "OR")])
+def test_command_skips_unpublished_vtd_without_error(service, monkeypatch, state, abbreviation):
+    from io import StringIO
+    from unittest.mock import patch
+    from siege_utilities.geo.django.management.commands import populate_boundaries
+
+    monkeypatch.setattr(populate_boundaries, "BoundaryPopulationService", lambda: service)
+    output, error = StringIO(), StringIO()
+    command = populate_boundaries.Command(stdout=output, stderr=error)
+    with patch("requests.sessions.Session.request", side_effect=AssertionError("unexpected network")):
+        command.run_from_argv([
+            "manage.py", "populate_boundaries", "--year", "2020",
+            "--type", "vtd", "--state", state,
+        ])
+    assert error.getvalue() == ""
+    assert f"VTD 2020 not published for {abbreviation} by Census" in output.getvalue()
+    assert "0 created, 0 updated, 1 skipped, 0 errors" in output.getvalue()

@@ -103,7 +103,7 @@ YEAR_TO_CONGRESS: Dict[int, int] = {
     2023: 118,
     2024: 119,
     2025: 119,
-    2026: 119,
+    2026: 120,  # TIGER2026/CD/tl_2026_<state>_cd120.zip
 }
 
 # ---------------------------------------------------------------------------
@@ -374,11 +374,9 @@ def _known_tiger_directories_for_year(year: int) -> List[str]:
       * ``ZCTA5`` (with ``zcta510`` filename suffix) through 2019;
         ``ZCTA520`` (with ``zcta520`` filename suffix) from 2020 onward;
         2020 publishes both directories (`ZCTA5` is the legacy redirect).
-      * ``TABBLOCK10`` and ``VTD10`` only in 2010; ``TABBLOCK20`` and
-        ``VTD20`` only in 2020+.
-      * ``UAC10`` only 2011-2019 (Urban Area Census 2010 vintage); ``UAC20``
-        from 2022 onward (Urban Area Census 2020 vintage); 2020-2021 publish
-        ``UAC`` (the unsuffixed transitional name).
+      * ``TABBLOCK`` through 2019; ``TABBLOCK20`` from 2020.
+      * ``UA`` in 2010; ``UAC`` in 2012-2023; ``UAC20`` from 2024.
+        VTD 2020 uses the separate PL release.
     """
     # Always-published baseline (2010 onward).
     dirs = {
@@ -400,23 +398,20 @@ def _known_tiger_directories_for_year(year: int) -> List[str]:
         # 2020 publishes ZCTA5 as a legacy redirect alongside ZCTA520; safer
         # to surface both so callers can probe either.
         dirs.update({"ZCTA5", "ZCTA520"} if year == 2020 else {"ZCTA520"})
-    elif year >= 2012:
+    elif year == 2010 or year >= 2012:
         dirs.add("ZCTA5")
 
-    # TABBLOCK + VTD: tied to the decennial vintage that produced them.
+    # Match the directory names, which differ from the filename suffixes.
+    dirs.add("TABBLOCK20" if year >= 2020 else "TABBLOCK")
     if year == 2010:
-        dirs.update({"TABBLOCK10", "VTD10"})
-    elif year >= 2020:
-        dirs.update({"TABBLOCK20", "VTD20"})
+        dirs.update({"VTD", "UA"})
 
-    # UAC (Urban Area Census): 2010 vintage 2011-2019; transitional 2020-2021;
-    # 2020 vintage 2022 onward.
-    if 2011 <= year <= 2019:
-        dirs.add("UAC10")
-    elif year in (2020, 2021):
+    if 2012 <= year <= 2023:
         dirs.add("UAC")
-    elif year >= 2022:
+    elif year >= 2024:
         dirs.add("UAC20")
+    if year == 2022:
+        dirs.discard("CBSA")
 
     return sorted(dirs)
 
@@ -702,6 +697,7 @@ class CensusDirectoryDiscovery:
             
             # Urban areas
             'UAC': 'uac',    # Urban Area
+            'UA': 'uac',     # 2010 urban areas
             'UAC20': 'uac20', # 2020 Urban Area
         }
         
@@ -714,6 +710,11 @@ class CensusDirectoryDiscovery:
                 clean_dir = directory.replace('_', '').replace('-', '')
                 available_types[boundary_mapping[clean_dir]] = directory
         
+        # Preserve the explicit vintage names while accepting canonical levels.
+        if year >= 2020 and 'tabblock20' in available_types:
+            available_types['block'] = available_types['tabblock20']
+        if year >= 2024 and 'uac20' in available_types:
+            available_types['uac'] = available_types['uac20']
         return available_types
     
     def get_year_specific_url_patterns(self, year: int) -> Dict[str, Any]:
@@ -868,6 +869,11 @@ class CensusDirectoryDiscovery:
 
             directory = available_types[boundary_type]
             base_url = f"{patterns['base_url']}/{directory}"
+            if year == 2010:
+                # CD uses a Congress subdirectory, not the census vintage:
+                # https://www2.census.gov/geo/tiger/TIGER2010/CD/111/
+                vintage = str(congress_number or YEAR_TO_CONGRESS[year]) if boundary_type == 'cd' else '2010'
+                base_url += f'/{vintage}'
 
             # Determine which filename pattern to use
             filename = self._construct_filename_with_fips_validation(
@@ -880,6 +886,9 @@ class CensusDirectoryDiscovery:
                     f"state_fips={state_fips} congress={congress_number}",
                     context=ctx,
                 )
+
+            if year == 2010 and boundary_type != 'cd' and not filename.endswith('10.zip'):
+                filename = filename.removesuffix('.zip') + '10.zip'
 
             final_url = f"{base_url}/{filename}"
             log.info(f"Constructed URL: {final_url}")
@@ -902,7 +911,8 @@ class CensusDirectoryDiscovery:
         # Define which boundary types require state FIPS (canonical names)
         state_required_types = {
             'tabblock', 'tabblock10', 'tabblock20', 'tract', 'block_group', 'block',
-            'sldu', 'sldl', 'vtd', 'vtd10', 'vtd20', 'cousub', 'submcd'
+            'sldu', 'sldl', 'vtd', 'vtd10', 'vtd20', 'cousub', 'submcd',
+            'elsd', 'scsd', 'unsd', 'place',
         }
         
         # Define national-only types (never use state FIPS in URL)
@@ -910,13 +920,24 @@ class CensusDirectoryDiscovery:
         national_only_types = {
             'state', 'county', 'cbsa', 'csa', 'metdiv', 'micro', 'necta',
             'nectadiv', 'cnecta', 'aiannh', 'aitsce', 'ttract', 'tbg',
-            'elsd', 'scsd', 'unsd', 'uac', 'uac10', 'uac20'
+            'uac', 'uac10', 'uac20'
         }
 
         # Define flexible types (can be national or state-specific)
-        flexible_types = {'place', 'zcta', 'anrc', 'concity'}
+        flexible_types = {'zcta', 'anrc', 'concity'}
         # Census uses short abbreviations in filenames that differ from the canonical type name.
-        _FILENAME_ABBREVS = {'block_group': 'bg'}
+        _FILENAME_ABBREVS = {
+            'block_group': 'bg',
+            'block': 'tabblock20' if year >= 2020 else 'tabblock10',
+            'uac': 'uac20' if year >= 2020 else 'uac10',
+        }
+        # Verified exceptions in the Census TABBLOCK and UAC listings:
+        # https://www2.census.gov/geo/tiger/TIGER2011/TABBLOCK/
+        # https://www2.census.gov/geo/tiger/TIGER2021/UAC/
+        if 2011 <= year <= 2013:
+            _FILENAME_ABBREVS['block'] = 'tabblock'
+        if year == 2021:
+            _FILENAME_ABBREVS['uac'] = 'uac10'
 
         # Handle congressional districts specially
         if boundary_type.startswith('cd'):
@@ -986,7 +1007,7 @@ class CensusDirectoryDiscovery:
         # Handle national-only types
         elif boundary_type in national_only_types:
             return patterns['filename_patterns']['national'].format(
-                year=year, boundary_type=boundary_type
+                year=year, boundary_type=_FILENAME_ABBREVS.get(boundary_type, boundary_type)
             )
 
         # Handle flexible types
@@ -1145,10 +1166,11 @@ class CensusDataSource(SpatialDataSource):
     Supports all standard TIGER/Line boundary types:
 
     **National-scope** (no state_fips required):
-        ``nation``, ``state``, ``county``, ``place``, ``zcta``, ``cd``
+        ``nation``, ``state``, ``county``, ``zcta``, ``cd`` (through 2021)
 
     **State-scope** (state_fips required):
-        ``tract``, ``block_group``, ``block``, ``tabblock20``, ``sldu``, ``sldl``
+        ``tract``, ``block_group``, ``block``, ``tabblock20``, ``sldu``, ``sldl``,
+        ``place``, ``elsd``, ``scsd``, ``unsd``, ``vtd``, ``cd`` (from 2022)
 
     GEOID formats by boundary type:
 
@@ -1177,10 +1199,13 @@ class CensusDataSource(SpatialDataSource):
         self.available_years = self.discovery.get_available_years()
         
         # Geographic levels that require state FIPS
-        self.state_required_levels = ['tract', 'block_group', 'block', 'tabblock20', 'sldu', 'sldl']
+        self.state_required_levels = [
+            'tract', 'block_group', 'block', 'tabblock20', 'sldu', 'sldl',
+            'place', 'elsd', 'scsd', 'unsd', 'vtd', 'vtd20',
+        ]
         
         # Geographic levels that don't require state FIPS
-        self.national_levels = ['nation', 'state', 'county', 'place', 'zcta', 'cd']
+        self.national_levels = ['nation', 'state', 'county', 'zcta', 'cd']
 
         log.info(f"Initialized Census data source with {len(self.available_years)} available years")
 
@@ -1530,6 +1555,10 @@ class CensusDataSource(SpatialDataSource):
         
         if state_fips and not self.validate_state_fips(state_fips):
             raise ValueError(f"Invalid state FIPS code: {state_fips}. Use get_available_state_fips() to see valid codes.")
+
+        # The 2020 PL release is separate from the annual TIGER directory.
+        if year == 2020 and geographic_level in ('vtd', 'vtd20'):
+            return
         
         # Validate geographic level exists in our known types
         valid_levels = set(self.discovery.discover_boundary_types(year).keys())
