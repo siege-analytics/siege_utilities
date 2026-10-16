@@ -2,7 +2,7 @@
 Specific actor types that extend the base Person model.
 """
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import SecretStr, BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -24,7 +24,7 @@ class User(Person):
     Extends Person with user-specific fields and capabilities.
     """
 
-    model_config = ConfigDict()
+    model_config = ConfigDict(hide_input_in_errors=True)
 
     # Client assignment
     assigned_clients: List[str] = Field(
@@ -100,21 +100,21 @@ class User(Person):
     )
     
     # API Keys (moved from base Person for user-specific access)
-    google_analytics_key: str = Field(
+    google_analytics_key: SecretStr = Field(
         json_schema_extra={"sensitive": True},
-        default="",
+        default=SecretStr(""),
         max_length=100,
         description="Google Analytics API key"
     )
-    facebook_business_key: str = Field(
+    facebook_business_key: SecretStr = Field(
         json_schema_extra={"sensitive": True},
-        default="",
+        default=SecretStr(""),
         max_length=100,
         description="Facebook Business API key"
     )
-    census_api_key: str = Field(
+    census_api_key: SecretStr = Field(
         json_schema_extra={"sensitive": True},
-        default="",
+        default=SecretStr(""),
         max_length=100,
         description="Census API key"
     )

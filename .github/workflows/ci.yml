@@ -217,6 +217,17 @@ jobs:
       run: |
         python scripts/check_subprocess_safety.py
 
+  secret-repr-guard:
+    runs-on: ubuntu-latest
+    name: "secret repr class guard"
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    - name: Reject secret-named plain string fields exposed by repr
+      run: python scripts/check_secret_repr.py
+
   error-path-coverage:
     runs-on: ubuntu-latest
     name: "error-path test coverage (SU-4b)"

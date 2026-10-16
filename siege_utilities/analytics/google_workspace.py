@@ -315,7 +315,7 @@ class GoogleWorkspaceClient:
             if integration:
                 return cls.from_oauth(
                     client_id=integration.client_id,
-                    client_secret=integration.client_secret,
+                    client_secret=integration.client_secret.get_secret_value(),
                     token_file=account.token_file,
                     scopes=scopes,
                 )

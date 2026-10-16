@@ -2,7 +2,7 @@
 Base Person model with comprehensive validation and credential management.
 """
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import SecretStr, BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 from dataclasses import fields, is_dataclass
@@ -537,7 +537,12 @@ class Person(BaseModel):
             recommendations.append(f"Remove {len(expired_creds)} expired credentials")
         
         # Check for weak passwords
-        weak_passwords = [cred for cred in self.credentials if cred.credential_type == "username_password" and len(cred.password) < 12]
+        weak_passwords = [
+            cred for cred in self.credentials
+            if cred.credential_type == "username_password"
+            and cred.password is not None
+            and len(cred.password.get_secret_value()) < 12
+        ]
         if weak_passwords:
             recommendations.append(f"Strengthen {len(weak_passwords)} weak passwords")
         
@@ -602,6 +607,8 @@ class Person(BaseModel):
 
 def _convert_to_yaml_safe(obj: Any) -> Any:
     """Recursively convert Python objects to YAML-safe types."""
+    if isinstance(obj, SecretStr):
+        return obj.get_secret_value()
     if isinstance(obj, dict):
         return {k: _convert_to_yaml_safe(v) for k, v in obj.items()}
     elif isinstance(obj, (list, tuple)):

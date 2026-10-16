@@ -2,7 +2,7 @@
 Enhanced User Profile model with comprehensive validation.
 """
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import SecretStr, BaseModel, Field, field_validator
 from pathlib import Path
 from typing import Tuple
 import re
@@ -90,21 +90,21 @@ class UserProfile(BaseModel):
     )
     
     # API Keys with format validation
-    google_analytics_key: str = Field(
+    google_analytics_key: SecretStr = Field(
         json_schema_extra={"sensitive": True},
-        default="",
+        default=SecretStr(""),
         max_length=100,
         description="Google Analytics API key"
     )
-    facebook_business_key: str = Field(
+    facebook_business_key: SecretStr = Field(
         json_schema_extra={"sensitive": True},
-        default="",
+        default=SecretStr(""),
         max_length=100,
         description="Facebook Business API key"
     )
-    census_api_key: str = Field(
+    census_api_key: SecretStr = Field(
         json_schema_extra={"sensitive": True},
-        default="",
+        default=SecretStr(""),
         max_length=100,
         description="Census API key"
     )
@@ -174,11 +174,12 @@ class UserProfile(BaseModel):
     @classmethod
     def validate_api_key(cls, v):
         """Validate API key format if provided."""
-        if v and len(v.strip()) > 0:
+        value = v.get_secret_value()
+        if value and len(value.strip()) > 0:
             # Basic API key validation - should be alphanumeric with some special chars
-            if not re.match(r'^[a-zA-Z0-9_-]{10,}$', v.strip()):
+            if not re.match(r'^[a-zA-Z0-9_-]{10,}$', value.strip()):
                 raise ValueError('API key must be at least 10 characters and contain only alphanumeric characters, underscores, and hyphens')
-        return v.strip() if v else ""
+        return SecretStr(value.strip())
     
     @field_validator('preferred_download_directory', mode='before')
     @classmethod
@@ -191,5 +192,6 @@ class UserProfile(BaseModel):
     model_config = {
         "json_schema_serialization_mode": "json",
         "validate_assignment": True,
+        "hide_input_in_errors": True,
         "extra": "forbid"
     }

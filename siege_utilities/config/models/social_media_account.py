@@ -2,7 +2,7 @@
 Social media account model with comprehensive validation.
 """
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import SecretStr, BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
 import re
@@ -32,13 +32,13 @@ class SocialMediaAccount(BaseModel):
         max_length=100,
         description="Display name for the account"
     )
-    access_token: str = Field(
+    access_token: SecretStr = Field(
         json_schema_extra={"sensitive": True},
         min_length=20,
         max_length=500,
         description="Access token for API authentication"
     )
-    refresh_token: Optional[str] = Field(
+    refresh_token: Optional[SecretStr] = Field(
         json_schema_extra={"sensitive": True},
         default=None,
         max_length=500,
@@ -63,15 +63,25 @@ class SocialMediaAccount(BaseModel):
         description="Last time the account was updated"
     )
     
+    @field_validator('access_token', mode='before')
+    @classmethod
+    def validate_access_token_length(cls, v):
+        """Keep minimum-length errors value-free before secret conversion."""
+        value = v.get_secret_value() if isinstance(v, SecretStr) else v
+        if isinstance(value, (str, bytes, bytearray)) and len(value) < 20:
+            raise ValueError('Access token must be at least 20 characters')
+        return v
+
     @field_validator('access_token')
     @classmethod
     def validate_access_token(cls, v):
         """Validate access token format."""
-        if len(v) < 20:
+        token = v.get_secret_value()
+        if len(token) < 20:
             raise ValueError('Access token must be at least 20 characters')
         
         # Basic token format validation (alphanumeric with some special chars)
-        if not re.match(r'^[a-zA-Z0-9._-]+$', v):
+        if not re.match(r'^[a-zA-Z0-9._-]+$', token):
             raise ValueError('Access token contains invalid characters')
         
         return v
@@ -147,21 +157,23 @@ class SocialMediaAccount(BaseModel):
     
     def get_auth_headers(self) -> dict:
         """Get authentication headers for API requests."""
+        access_token = self.access_token.get_secret_value()
         if self.platform.lower() == 'facebook':
-            return {'Authorization': f'Bearer {self.access_token}'}
+            return {'Authorization': f'Bearer {access_token}'}
         elif self.platform.lower() == 'twitter':
-            return {'Authorization': f'Bearer {self.access_token}'}
+            return {'Authorization': f'Bearer {access_token}'}
         elif self.platform.lower() == 'linkedin':
-            return {'Authorization': f'Bearer {self.access_token}'}
+            return {'Authorization': f'Bearer {access_token}'}
         elif self.platform.lower() == 'instagram':
-            return {'Authorization': f'Bearer {self.access_token}'}
+            return {'Authorization': f'Bearer {access_token}'}
         elif self.platform.lower() == 'youtube':
-            return {'Authorization': f'Bearer {self.access_token}'}
+            return {'Authorization': f'Bearer {access_token}'}
         else:
-            return {'Authorization': f'Bearer {self.access_token}'}
+            return {'Authorization': f'Bearer {access_token}'}
     
     model_config = {
         "json_schema_serialization_mode": "json",
         "validate_assignment": True,
+        "hide_input_in_errors": True,
         "extra": "forbid"
     }

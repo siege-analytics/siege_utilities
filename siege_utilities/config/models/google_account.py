@@ -90,6 +90,7 @@ class GoogleAccount(BaseModel):
         description="1Password item reference or file path for service account JSON",
     )
     token_file: Optional[str] = Field(
+        repr=False,
         json_schema_extra={"sensitive": False},
         default=None,
         max_length=500,
