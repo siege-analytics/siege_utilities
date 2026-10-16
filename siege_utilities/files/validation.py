@@ -49,6 +49,10 @@ SENSITIVE_PATHS = {
     '/root/.pgpass',
     '/root/.git-credentials',
     '/root/.config/gcloud',
+    '/root/.gnupg',
+    '/root/.vault-token',
+    '/root/.config/gh',
+    '/root/.npmrc',
     '/var/log/auth.log',
     '/var/log/secure',
 

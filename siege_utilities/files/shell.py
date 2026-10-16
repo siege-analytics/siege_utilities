@@ -147,7 +147,8 @@ def validate_command_safety(command: Union[str, List[str]],
     dangerous_chars = [';', '&', '|', '$', '`', '\n', '\r', '(', ')', '<', '>']
     sensitive_paths = ['/etc/passwd', '/etc/passwd-', '/etc/shadow-',
                        '/etc/gshadow', '/etc/gshadow-', '/etc/sudoers', '/etc/sudoers.d',
-                       '~/.ssh', '/root', '/var/log']
+                       '~/.ssh', '/root', '/root/.gnupg', '/root/.vault-token',
+                       '/root/.config/gh', '/root/.npmrc', '/var/log']
     sensitive_forms = {
         form
         for path in sensitive_paths
