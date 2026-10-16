@@ -87,11 +87,13 @@ def test_census_env_key_reaches_service_on_failure(demographic_service, monkeypa
     if api_key is not None:
         monkeypatch.setenv('CENSUS_API_KEY', api_key)
     output = io.StringIO()
-    populate_demographics.Command(stdout=output).handle(
-        year=2022, type='tract', state='06', variables='income',
-    )
+    with pytest.raises(CommandError, match='1 errors') as exc:
+        populate_demographics.Command(stdout=output).handle(
+            year=2022, type='tract', state='06', variables='income',
+        )
     demographic_service.assert_called_once_with(api_key=api_key)
     assert 'Total errors: 1' in output.getvalue()
     assert 'Census request failed' in output.getvalue()
     assert SECRET not in output.getvalue()
     assert SECRET not in caplog.text
+    assert SECRET not in str(exc.value)
