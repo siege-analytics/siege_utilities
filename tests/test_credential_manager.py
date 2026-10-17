@@ -816,10 +816,7 @@ class TestStoreIn1Password:
         mock_run.reset_mock()
         mock_run.side_effect = [
             Mock(returncode=1, stdout='', stderr='not found'),  # direct lookup
-            Mock(returncode=1, stdout='', stderr=''),  # variation 1
-            Mock(returncode=1, stdout='', stderr=''),  # variation 2
-            Mock(returncode=1, stdout='', stderr=''),  # variation 3
-            Mock(returncode=1, stdout='', stderr=''),  # variation 4
+            subprocess.CompletedProcess([], 0, '[]', ''),  # no legacy titles
             Mock(returncode=0, stdout='created\n', stderr=''),  # create
         ]
 
@@ -860,10 +857,7 @@ class TestStoreIn1Password:
         mock_run.reset_mock()
         mock_run.side_effect = [
             Mock(returncode=1, stdout='', stderr=''),  # direct lookup
-            Mock(returncode=1, stdout='', stderr=''),  # var 1
-            Mock(returncode=1, stdout='', stderr=''),  # var 2
-            Mock(returncode=1, stdout='', stderr=''),  # var 3
-            Mock(returncode=1, stdout='', stderr=''),  # var 4
+            subprocess.CompletedProcess([], 0, '[]', ''),  # no legacy titles
             Mock(returncode=1, stdout='', stderr='create failed'),  # create fails
         ]
 
@@ -1904,6 +1898,8 @@ def op_create_and_rotate_cli(isolated_credentials):
 
     def respond(cmd, **kwargs):
         action = cmd[2]
+        if action == 'list':
+            return subprocess.CompletedProcess(cmd, 0, '[]', '')
         if action == 'get':
             if not stored:
                 return subprocess.CompletedProcess(cmd, 1, '', 'item not found')
@@ -2115,6 +2111,8 @@ def credential_write(request, isolated_credentials, tmp_path):
     def respond(cmd, **kwargs):
         if cmd[:3] == ['op', 'item', 'get'] and kind == 'op-create':
             return subprocess.CompletedProcess(cmd, 1, '', 'item not found')
+        if cmd[:3] == ['op', 'item', 'list']:
+            return subprocess.CompletedProcess(cmd, 0, '[]', '')
         if '--format=json' in cmd:
             return subprocess.CompletedProcess(cmd, 0, json.dumps(item), '')
         if cmd[:3] == ['op', 'item', 'edit']:
@@ -2182,7 +2180,7 @@ def test_store_failures_never_log_argv_or_secrets(credential_write, caplog, fail
     attempted = []
 
     def fail_write(cmd, **kwargs):
-        if cmd[:3] == ['op', 'item', 'get']:
+        if cmd[:2] == ['op', 'item'] and cmd[2] in ('get', 'list'):
             return respond(cmd, **kwargs)
         attempted.append(cmd)
         if failure == 'timeout':

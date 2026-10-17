@@ -12,9 +12,11 @@ local files, Apple Keychain, then interactive prompts. Callers may override
 backend_priority. Files must name the service (for example postgres/password.txt
 or postgres_password.txt); unscoped password.txt, credentials.json, and
 client_secret_*.json files are not searched outside a service directory.
-Keychain supports only password and secret fields; other fields skip it.
+Keychain supports only the password field; other fields skip it.
 1Password retrieval errors stop resolution, including exit code 1: no
 documented exit-code distinction establishes that an item is merely absent.
+1Password reads and writes target the exact item title or ID; stores refuse
+legacy title variations rather than writing an item the reader cannot find.
 
 Supports all analytics services (Google Analytics, Facebook Business, etc.)
 and database connections with a unified interface.
@@ -532,13 +534,13 @@ class CredentialManager:
                            field: str = "password") -> Optional[str]:
         """Get credential from Apple Keychain.
 
-        Only password and secret use the item's password. Other fields
+        Only the password field uses the item's password. Other fields
         return None without querying Keychain. Returns None when the keychain
         doesn't contain the credential (exit code 44 = item not found). Raises on
         transport / permission errors so the caller doesn't silently
         fall through to the next backend.
         """
-        if field not in {'password', 'secret'}:
+        if field != 'password':
             return None
         _validate_cli_value(service, 'service')
         _validate_cli_value(username, 'username')
@@ -605,10 +607,12 @@ class CredentialManager:
         Raises:
             SiegeConfigError: An existing 1Password item cannot be safely
                 replaced as JSON, or its updated value cannot be verified.
+                Also raised when only a legacy title variation exists;
+                supply the exact item title or ID instead.
                 See ``_store_in_1password`` for the supported edit scope.
             ValueError: If a CLI service/field name or Keychain username
                 starts with '-', or Keychain is asked to store a field
-                other than password or secret.
+                other than password.
         """
         if backend == '1password' and self.available_backends.get('1password'):
             return self._store_in_1password(service, username, value, field,
@@ -641,6 +645,10 @@ class CredentialManager:
         New items use API_CREDENTIAL so subsequent rotations remain editable.
         A read-back check cannot detect data omitted by item JSON.
 
+        Resolve only the exact service title or ID, as retrieval does. Before
+        creating an item, refuse legacy title variations found in the same
+        vault/account; callers must supply their exact title or ID explicitly.
+
         Raises SiegeConfigError on unsafe edits or failed persistence checks.
         CLI/JSON errors return False with a diagnostic that omits secrets.
         """
@@ -650,22 +658,38 @@ class CredentialManager:
             op_flags = self._build_op_flags(vault=vault, account=account)
 
             # Determine existence from the item, not a possibly empty/missing
-            # password. Also check legacy service-name variations.
+            # password. Never resolve an alternate title that reads cannot find.
             item = None
-            for name in [service, f"{service} API", f"{service} Credentials",
-                         f"{service.replace('-', ' ').title()} API",
-                         f"{service.replace('-', ' ').title()} Credentials"]:
-                current = subprocess.run(
-                    ['op', 'item', 'get', name, '--format=json'] + op_flags,
+            current = subprocess.run(
+                ['op', 'item', 'get', service, '--format=json'] + op_flags,
+                capture_output=True, text=True, timeout=60,
+            )
+            if current.returncode == 1:
+                # Metadata is used only to refuse legacy aliases, never to
+                # select an item for editing or retrieve its secret fields.
+                listing = subprocess.run(
+                    ['op', 'item', 'list', '--format=json'] + op_flags,
                     capture_output=True, text=True, timeout=60,
                 )
-                if current.returncode == 1:
-                    continue
+                listing.check_returncode()
+                summaries = json.loads(listing.stdout)
+                if not isinstance(summaries, list) or any(not isinstance(entry, dict) for entry in summaries):
+                    raise SiegeConfigError(f"Refusing to create 1Password item {service!r}: invalid item list JSON")
+                legacy_titles = {
+                    f"{service} API", f"{service} Credentials",
+                    f"{service.replace('-', ' ').title()} API",
+                    f"{service.replace('-', ' ').title()} Credentials",
+                }
+                if any(entry.get('title') in legacy_titles for entry in summaries):
+                    raise SiegeConfigError(
+                        f"Refusing to store 1Password item {service!r}: a legacy title variation exists. "
+                        "Use the exact item title or ID for both storing and retrieving credentials."
+                    )
+            else:
                 current.check_returncode()
                 item = json.loads(current.stdout)
                 if not isinstance(item, dict):
                     raise SiegeConfigError(f"Refusing to update 1Password item {service!r}: invalid item JSON")
-                break
 
             editing = item is not None
             if editing:
@@ -737,12 +761,12 @@ class CredentialManager:
 
     def _store_in_keychain(self, service: str, username: str, value: str,
                            field: str = "password") -> bool:
-        """Store a password/secret via stdin; reject other fields with ValueError.
+        """Store a password via stdin; reject other fields with ValueError.
 
         Return False with an error for unsafe or oversized stdin input.
         """
-        if field not in {'password', 'secret'}:
-            raise ValueError("Keychain supports only password and secret fields")
+        if field != 'password':
+            raise ValueError("Keychain supports only the password field")
         _validate_cli_value(service, 'service')
         _validate_cli_value(username, 'username')
         # value is encoded as -X hex in the stdin command, never an option.

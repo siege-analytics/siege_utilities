@@ -16,13 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tolerant behavior when at least one record was created, updated, or classified;
   errors with nothing loaded still fail. Multi-result runs count successful
   records across all requested types, groups, or actions. (#1533)
-- CredentialManager Keychain reads now skip fields other than `password` and
-  `secret`; writes of other fields raise `ValueError`. Use environment variables,
-  service-scoped files, or 1Password for OAuth and service-account fields.
+- CredentialManager Keychain reads now skip every field other than `password`,
+  including `secret`; writes of other fields raise `ValueError`. Use environment
+  variables, service-scoped files, or 1Password for distinct `secret`, OAuth, and
+  service-account fields.
   1Password retrieval raises on every nonzero exit, including exit 1, because
   absence cannot be distinguished safely from authentication or server failure.
-  Supply the exact item title or ID; failed lookups no longer try title variants
-  or fall through to other backends. (#1513)
+  Supply the exact item title or ID for both reads and writes; failed reads no
+  longer try title variants or fall through to other backends. Stores refuse
+  legacy title variations with guidance to use the exact title or ID, rather
+  than editing an item that retrieval cannot resolve. (#1513)
 - Credential resolution now defaults to env -> 1Password -> service-scoped
   files -> Keychain -> prompt. Unscoped credential files are no longer searched.
   Move files to a service directory (for example `postgres/password.txt`) or
