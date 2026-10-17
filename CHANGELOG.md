@@ -67,6 +67,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` or use a boto3 profile.
   CI checks every management command parser for non-None defaults on
   key, secret, token, password, and endpoint options. (#1578)
+- Escape report data in Paragraph text, Folium popup HTML, and IDML XML.
+  Closes stored XSS in saved Folium maps and fixes report/IDML crashes on
+  `& < > "` while preserving intentional markup. (#1565)
+
 - For the planned 4.1.0 release, SSL failures now raise instead of silently
   retrying with `verify=False`. The optional `download_file` parameter
   `allow_insecure_fallback=False` is allowlisted in the API contract gate as
