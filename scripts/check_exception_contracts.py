@@ -148,7 +148,10 @@ def log_only(handler):
     return all(
         isinstance(stmt, ast.Expr)
         and isinstance(stmt.value, ast.Call)
-        and bool(names(stmt.value.func) & levels)
+        and any(
+            name in levels or name.startswith("log_")
+            for name in names(stmt.value.func)
+        )
         for stmt in handler.body
     )
 

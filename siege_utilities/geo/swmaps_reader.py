@@ -181,8 +181,8 @@ def read_features(
       otherwise.
     * ``attributes`` — ``{field_name: value}`` mapping pulled from
       ``attribute_values`` joined to ``attribute_fields``. Keys can be
-      renamed by passing ``mapper``. Absent optional attribute tables yield
-      an empty mapping; errors querying existing tables propagate.
+      renamed by passing ``mapper``. When neither optional attribute table
+      exists, attributes are empty; incomplete schemas and query errors raise.
 
     Args:
         archive: An :class:`SWMapsArchive` opened via :func:`open_swmaps`.
@@ -196,6 +196,7 @@ def read_features(
 
     Raises:
         ImportError: If ``shapely`` is not installed.
+        sqlite3.DatabaseError: If the attribute schema is incomplete or a query fails.
 
     The geometry rule matches the salvage source (``DataUtils.py:749-768``)
     but uses ``shapely.geometry.Point`` / ``shapely.geometry.LineString``
@@ -231,15 +232,15 @@ def read_features(
                 },
             )
 
-        # Attribute tables are optional. Once present, a failed join must
-        # not discard attributes or masquerade as legitimate absence.
+        # Attribute tables are optional only as a pair. If either exists,
+        # run the join so an incomplete schema cannot discard attributes.
         attrs_by_feature: dict[str, dict] = {}
         try:
             tables = {
                 row[0].lower()
                 for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
             }
-            if {"attribute_values", "attribute_fields"} <= tables:
+            if {"attribute_values", "attribute_fields"} & tables:
                 for row in conn.execute(_ATTRIBUTE_QUERY):
                     attrs_by_feature.setdefault(row["feature_id"], {})[
                         row["field_name"]

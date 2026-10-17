@@ -17,11 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   timestamps expire the entry. Add a blocking exception-contract AST guard
   with reviewed, fingerprinted exceptions and zero unlisted handlers (#1532).
 - Bulk configuration migration records missing/corrupt user-profile errors and
-  continues migrating valid clients. SWMaps files without optional attribute
-  tables retain empty attributes and the selected missing-value policy; broken
-  queries against existing tables still raise. The exception guard now covers
-  all 14 reviewer shapes, including factories, tuples, strings, log-only handlers,
-  empty-frame assignments and unannotated data functions (#1532).
+  continues migrating valid clients. SWMaps files with neither optional attribute
+  table retain empty attributes and the selected missing-value policy; incomplete
+  schemas and broken queries against existing tables raise. The exception guard
+  now covers all 14 reviewer shapes, including factories, tuples, strings, log-only handlers,
+  empty-frame assignments and unannotated data functions. Package `log_*` helpers,
+  including attribute calls, are recognized; 14 existing log-only handlers are
+  fingerprinted for consumer tracing under #1708 (#1532).
 
 
 - Cache/output/config writers now publish complete files atomically so interrupted
@@ -65,8 +67,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `create_proportional_text_bar_chart` and `create_heatmap_text_chart` raise
   `RuntimeError` on rendering errors instead of returning error placeholders.
   `read_features` and `extract_attributes_swmaps` raise `sqlite3.DatabaseError`
-  for failed joins when the attribute tables exist. Absent optional tables
-  yield empty attributes or honor the documented missing policy (#1532).
+  for failed joins when either attribute table exists. Only when neither table
+  exists do they yield empty attributes or honor the documented missing policy (#1532).
 - `SpatialDataTransformer`, `PostGISConnector` and `DuckDBConnector` propagate
   user-configuration failures. `PostGISConnector` raises for missing connection
   settings/dependencies and uses `ConnectionError` for connection failures.

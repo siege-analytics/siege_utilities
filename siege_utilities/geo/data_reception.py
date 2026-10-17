@@ -290,8 +290,8 @@ def extract_attributes_swmaps(
     Returns:
         The attribute value (as stored in ``attribute_values.value``), or
         ``None`` for an absent attribute under the selected missing policy.
-        Absent optional attribute tables also follow the missing policy.
-        Database errors always raise sqlite3.DatabaseError.
+        When neither optional attribute table exists, the missing policy applies.
+        Incomplete schemas and database errors always raise sqlite3.DatabaseError.
     """
     candidates = list(field_names)
     if not candidates:
@@ -311,7 +311,7 @@ def extract_attributes_swmaps(
             }
             rows = (
                 dict(conn.execute(query, (feature_id,)).fetchall())
-                if {"attribute_values", "attribute_fields"} <= tables
+                if {"attribute_values", "attribute_fields"} & tables
                 else {}
             )
     except sqlite3.DatabaseError as exc:

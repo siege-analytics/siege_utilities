@@ -1,12 +1,60 @@
-"""Offline reviewer probes for #1532 CR-2 through CR-4."""
+"""Offline reviewer probes for #1532 CR-2 through CR-6."""
 
 import importlib
 import os
+from pathlib import Path
 import sqlite3
+import subprocess
+import sys
+import textwrap
 from unittest.mock import Mock
 
 import pytest
 import yaml
+
+
+def _assert_log_helper_plant_rejected(tmp_path, source):
+    package = tmp_path / "siege_utilities"
+    package.mkdir()
+    (package / "planted.py").write_text(textwrap.dedent(source), encoding="utf-8")
+    script = Path(__file__).resolve().parents[1] / "scripts/check_exception_contracts.py"
+    result = subprocess.run(
+        [sys.executable, "-I", str(script), "--root", str(tmp_path), "--list"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "handlers flagged: 1; unlisted: 1; stale allow-list: 0" in result.stdout
+    assert "::LOGONLY::" in result.stdout
+
+
+def test_guard_flags_bare_log_error_swallow(tmp_path):
+    _assert_log_helper_plant_rejected(tmp_path, """
+        from json import JSONDecodeError
+        from siege_utilities.core.logging import log_error
+
+        def profiles(paths) -> list:
+            records = []
+            for path in paths:
+                try:
+                    records.append(load_profile(path))
+                except (OSError, JSONDecodeError):
+                    log_error("Profile could not be read")
+            return records
+    """)
+
+
+def test_guard_flags_config_log_info_swallow(tmp_path):
+    _assert_log_helper_plant_rejected(tmp_path, """
+        class Storage:
+            def sync(self, local_path) -> str:
+                try:
+                    self.sync_hdfs()
+                except RuntimeError:
+                    self.config.log_info("HDFS sync failed, falling back to local")
+                return local_path
+    """)
 
 
 @pytest.mark.parametrize("module", ["enhanced_config", "migration"])
@@ -42,6 +90,21 @@ def swmaps_without_attributes(tmp_path):
     return str(path)
 
 
+def _create_one_attribute_table(db_path, table):
+    schemas = {
+        "attribute_values": """
+            CREATE TABLE attribute_values (item_id TEXT, field_id TEXT, value TEXT);
+            INSERT INTO attribute_values VALUES ('one', 'field', 'x');
+        """,
+        "attribute_fields": """
+            CREATE TABLE attribute_fields (uuid TEXT, field_name TEXT);
+            INSERT INTO attribute_fields VALUES ('field', 'name');
+        """,
+    }
+    with sqlite3.connect(db_path, timeout=5.0) as conn:
+        conn.executescript(schemas[table])
+
+
 @pytest.mark.parametrize("remaining", [None, "attribute_values", "attribute_fields"])
 def test_absent_attribute_tables_yield_empty_attributes(swmaps_without_attributes, remaining):
     pytest.importorskip("shapely")
@@ -49,14 +112,31 @@ def test_absent_attribute_tables_yield_empty_attributes(swmaps_without_attribute
     from siege_utilities.geo.swmaps_reader import open_swmaps, read_features
 
     if remaining:
-        with sqlite3.connect(swmaps_without_attributes, timeout=5.0) as conn:
-            conn.execute(f"CREATE TABLE {remaining} (unused TEXT)")
+        _create_one_attribute_table(swmaps_without_attributes, remaining)
     assert detect_format(swmaps_without_attributes) == "swmaps"
     with open_swmaps(swmaps_without_attributes) as archive:
+        if remaining:
+            with pytest.raises(sqlite3.DatabaseError, match="SWMaps attribute") as error:
+                list(read_features(archive))
+            assert isinstance(error.value.__cause__, sqlite3.DatabaseError)
+            assert "no such table" in str(error.value.__cause__)
+            return
         records = list(read_features(archive))
     assert len(records) == 1
     assert records[0]["feature_id"] == "one"
     assert records[0]["attributes"] == {}
+
+
+@pytest.mark.parametrize("remaining", ["attribute_values", "attribute_fields"])
+@pytest.mark.parametrize("missing", ["none", "warn", "raise"])
+def test_one_attribute_table_raises_before_missing_policy(swmaps_without_attributes, remaining, missing):
+    from siege_utilities.geo.data_reception import extract_attributes_swmaps
+
+    _create_one_attribute_table(swmaps_without_attributes, remaining)
+    with pytest.raises(sqlite3.DatabaseError, match="SWMaps attribute") as error:
+        extract_attributes_swmaps(swmaps_without_attributes, "one", ["name"], missing=missing)
+    assert isinstance(error.value.__cause__, sqlite3.DatabaseError)
+    assert "no such table" in str(error.value.__cause__)
 
 
 @pytest.mark.parametrize("missing", ["none", "warn", "raise"])
