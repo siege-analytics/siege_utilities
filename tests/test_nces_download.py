@@ -292,7 +292,10 @@ class TestFromNCESBoundaries:
         result = classifier.classify_polygon(
             box(-119.5, 35.25, -118.5, 35.75), method="distribution",
         )
-        assert result == {11: pytest.approx(1.0)}
+        assert result[11] == pytest.approx(1.0)
+        assert 12 not in result
+        # Projected area arithmetic may leave a roundoff-sized rural remainder.
+        assert result.get(43, 0.0) == pytest.approx(0.0, abs=1e-12)
 
     def test_polygon_rural_remainder_preserves_published_area(self, boundaries):
         from shapely.geometry import box
