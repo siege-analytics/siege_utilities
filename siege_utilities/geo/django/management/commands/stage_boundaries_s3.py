@@ -21,8 +21,10 @@ Usage:
     python manage.py stage_boundaries_s3 --year 2020 --type county --format parquet
 """
 
+import argparse
 import json
 import os
+import re
 import tempfile
 from contextlib import ExitStack
 from pathlib import Path
@@ -51,6 +53,14 @@ __all__ = ['Command']
 
 EXPORT_CHUNK_SIZE = 500
 
+_REMOVED_CREDENTIAL_MESSAGES = {
+    "access_key": "--access-key was removed; set AWS_ACCESS_KEY_ID or use a boto3 profile",
+    "secret_key": "--secret-key was removed; set AWS_SECRET_ACCESS_KEY or use a boto3 profile",
+}
+
+_UNRECOGNIZED = "unrecognized arguments: "
+_AMBIGUOUS = re.compile(r"^(ambiguous option: --[\w-]+)=.*( could match .*)$", re.S)
+
 GEOGRAPHY_MODEL_MAP = {
     "state": State,
     "county": County,
@@ -66,12 +76,47 @@ GEOGRAPHY_MODEL_MAP = {
 }
 
 
+def _redact_parser_message(message):
+    """Remove values from unrecognized, ambiguous, and equals-form options."""
+    if message.startswith(_UNRECOGNIZED):
+        names = [t.split("=", 1)[0] for t in message[len(_UNRECOGNIZED):].split() if t.startswith("--")]
+        return _UNRECOGNIZED + " ".join(names) + " (values redacted)"
+    message = _AMBIGUOUS.sub(r"\1=<redacted>\2", message)
+    return re.sub(r"(--[\w-]+)=\S+", r"\1=<redacted>", message)
+
+
+def _reject_access_key(value: str) -> None:
+    raise argparse.ArgumentTypeError(_REMOVED_CREDENTIAL_MESSAGES["access_key"])
+
+
+def _reject_secret_key(value: str) -> None:
+    raise argparse.ArgumentTypeError(_REMOVED_CREDENTIAL_MESSAGES["secret_key"])
+
+
 class Command(BaseCommand):
     """Export TIGER boundaries to S3 in Parquet and/or GeoJSON format."""
 
     help = "Stage TIGER boundaries on S3 for Spark broadcast joins"
 
+    def create_parser(self, prog_name, subcommand, **kwargs):
+        parser = super().create_parser(prog_name, subcommand, **kwargs)
+        base_error = parser.error
+
+        def redacted_error(message):
+            # Ambiguous/unknown options bypass the credential type callables.
+            base_error(_redact_parser_message(message))
+
+        parser.error = redacted_error
+        return parser
+
     def add_arguments(self, parser):
+        # Recognize legacy flags so argparse never echoes their values on error.
+        parser.add_argument(
+            "--access-key", type=_reject_access_key, help=argparse.SUPPRESS,
+        )
+        parser.add_argument(
+            "--secret-key", type=_reject_secret_key, help=argparse.SUPPRESS,
+        )
         parser.add_argument(
             "--year",
             type=int,
@@ -117,6 +162,11 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        # call_command keyword options bypass argparse's type conversion.
+        for name, message in _REMOVED_CREDENTIAL_MESSAGES.items():
+            if options.get(name) is not None:
+                raise CommandError(message)
+
         if boto3 is None:
             raise CommandError(
                 "boto3 is required. Install with: pip install siege_utilities[s3]"
