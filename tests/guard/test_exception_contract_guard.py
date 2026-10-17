@@ -183,3 +183,19 @@ def test_empty_justification_rejected(tmp_path):
     (tmp_path / "scripts").mkdir()
     (tmp_path / "scripts/exception_contracts_allowlist.json").write_text('{"key": ""}')
     assert run_guard(tmp_path).returncode != 0
+
+
+def test_fingerprint_ignores_empty_optional_ast_fields():
+    """New Python AST fields must not invalidate unchanged reviewed handlers."""
+    import ast
+
+    node = ast.parse("def callback():\n    pass\n").body[0]
+    before = guard.canonical_ast(node)
+    # Python 3.12 added type_params; pre-3.12 nodes lack the field entirely.
+    if "type_params" not in node._fields:
+        node._fields = (*node._fields, "type_params")
+    node.type_params = []
+    assert guard.canonical_ast(node) == before
+    # A populated field remains significant.
+    node.type_params = [ast.Name(id="T", ctx=ast.Load())]
+    assert guard.canonical_ast(node) != before

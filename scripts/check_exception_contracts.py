@@ -92,6 +92,28 @@ def data_function(function):
     return ast.unparse(annotation) not in {"None", "NoneType", "type(None)"}
 
 
+def canonical_ast(node):
+    """Serialize semantic AST fields consistently across Python 3.11–3.14.
+
+    ast.dump changed its empty-field rendering in newer Python releases.
+    Ignore absent/empty optional fields (including new type_params), while
+    preserving node types and all populated fields so handler edits still
+    invalidate the reviewed allowance.
+    """
+    if isinstance(node, ast.AST):
+        return (
+            type(node).__name__,
+            tuple(
+                (name, canonical_ast(value))
+                for name, value in sorted(ast.iter_fields(node))
+                if value is not None and value != []
+            ),
+        )
+    if isinstance(node, list):
+        return tuple(canonical_ast(value) for value in node)
+    return node
+
+
 def scan(root):
     """Return keyed violations, without importing any scanned library modules."""
     found = []
@@ -149,7 +171,9 @@ def scan(root):
                 for stmt in handler.body
             ):
                 rules.append("DEFAULT")
-            digest = hashlib.sha256(ast.dump(handler).encode()).hexdigest()[:16]
+            digest = hashlib.sha256(repr(canonical_ast(handler)).encode()).hexdigest()[
+                :16
+            ]
             qualified = ".".join(reversed(owner)) or "<module>"
             for rule in rules:
                 key = f"{relative}::{qualified}::{rule}::{digest}"
