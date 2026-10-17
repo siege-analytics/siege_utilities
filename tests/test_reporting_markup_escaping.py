@@ -165,7 +165,7 @@ def test_table_of_contents_escapes_section_title_and_page(paragraph_api):
 
 
 @pytest.mark.parametrize('kind', ['bar', 'heatmap'])
-@pytest.mark.parametrize('scenario', ['data', 'empty', 'error', 'characters'])
+@pytest.mark.parametrize('scenario', ['data', 'empty', 'characters'])
 def test_text_charts_escape_data_inside_intentional_markup(kind, scenario):
     pd = pytest.importorskip('pandas')
     from siege_utilities.reporting.engines.bar_engine import BarChartMixin
@@ -173,7 +173,7 @@ def test_text_charts_escape_data_inside_intentional_markup(kind, scenario):
     data = pd.DataFrame({'label': [DATA], 'column': [DATA], 'value': [1]})
     if scenario == 'empty':
         data = data.iloc[:0]
-    value_column = DATA if scenario == 'error' else 'value'
+    value_column = 'value'
     if kind == 'bar':
         text = BarChartMixin().create_proportional_text_bar_chart(
             data, 'label', value_column, title=DATA,
@@ -186,7 +186,7 @@ def test_text_charts_escape_data_inside_intentional_markup(kind, scenario):
         )
     assert ESCAPED in text
     assert '<x>' not in text and '&amp;amp;' not in text
-    if scenario in ('empty', 'error'):
+    if scenario == 'empty':
         assert text.startswith('<i>') and text.endswith('</i>')
     else:
         assert text.startswith(f'<b>{ESCAPED}</b><br/>')
@@ -199,6 +199,22 @@ def test_text_charts_escape_data_inside_intentional_markup(kind, scenario):
     except ImportError:
         return
     Paragraph(text, getSampleStyleSheet()['Normal'])
+
+
+@pytest.mark.parametrize('kind', ['bar', 'heatmap'])
+def test_text_chart_errors_raise_instead_of_rendering_error_markup(kind):
+    pd = pytest.importorskip('pandas')
+    from siege_utilities.reporting.engines.bar_engine import BarChartMixin
+    from siege_utilities.reporting.engines.stats_engine import StatsChartMixin
+
+    data = pd.DataFrame({'label': [DATA], 'column': [DATA], 'value': [1]})
+    with pytest.raises(RuntimeError) as exc:
+        if kind == 'bar':
+            BarChartMixin().create_proportional_text_bar_chart(data, 'label', DATA)
+        else:
+            StatsChartMixin().create_heatmap_text_chart(data, 'column', 'label', DATA)
+    assert isinstance(exc.value.__cause__, KeyError)
+    assert DATA in str(exc.value.__cause__)
 
 
 def test_report_generator_existing_escape_is_not_doubled(paragraph_api):

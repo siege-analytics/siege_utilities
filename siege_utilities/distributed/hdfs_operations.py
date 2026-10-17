@@ -274,8 +274,7 @@ class AbstractHDFSOperations:
                 return spark, hdfs_path, None
             except (RuntimeError, subprocess.CalledProcessError,
                     subprocess.TimeoutExpired) as e:
-                self.config.log_info(
-                    f'⚠️  HDFS sync failed, falling back to local: {e}')
+                raise RuntimeError('HDFS distributed setup failed') from e
         self.config.log_info('💻 Using local filesystem...')
         file_url = f'file://{local_path.absolute()}'
         spark = self.create_spark_session()

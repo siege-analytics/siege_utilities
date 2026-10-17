@@ -137,14 +137,7 @@ class BarChartMixin:
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            # Reporting robustness: a single chart with bad/empty data renders a
-            # visible "Chart Error" placeholder (logged) rather than aborting the
-            # whole report. Consistent with the matplotlib-unavailable path above
-            # and the documented "Returns: ReportLab Image" contract.
-            log.warning(f"Chart generation failed ({e}); rendering placeholder")
-            return self._create_placeholder_chart(
-                width, height, text=f"Chart Error: {e}"
-            )
+            raise RuntimeError("Chart generation failed") from e
 
     def create_line_chart(self, data: Union[pd.DataFrame, Dict[str, Any]],
                          x_column: str = None, y_columns: List[str] = None,
@@ -228,14 +221,7 @@ class BarChartMixin:
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            # Reporting robustness: a single chart with bad/empty data renders a
-            # visible "Chart Error" placeholder (logged) rather than aborting the
-            # whole report. Consistent with the matplotlib-unavailable path above
-            # and the documented "Returns: ReportLab Image" contract.
-            log.warning(f"Chart generation failed ({e}); rendering placeholder")
-            return self._create_placeholder_chart(
-                width, height, text=f"Chart Error: {e}"
-            )
+            raise RuntimeError("Chart generation failed") from e
 
     def create_pie_chart(self, data: Union[pd.DataFrame, Dict[str, Any]],
                         labels_column: str = None, values_column: str = None,
@@ -347,14 +333,7 @@ class BarChartMixin:
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            # Reporting robustness: a single chart with bad/empty data renders a
-            # visible "Chart Error" placeholder (logged) rather than aborting the
-            # whole report. Consistent with the matplotlib-unavailable path above
-            # and the documented "Returns: ReportLab Image" contract.
-            log.warning(f"Chart generation failed ({e}); rendering placeholder")
-            return self._create_placeholder_chart(
-                width, height, text=f"Chart Error: {e}"
-            )
+            raise RuntimeError("Chart generation failed") from e
 
     def create_proportional_text_bar_chart(self,
                                          data: 'pd.DataFrame',
@@ -417,5 +396,4 @@ class BarChartMixin:
             return "<br/>".join(chart_lines)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            log.error(f"Error creating proportional text bar chart: {e}")
-            return f"<i>Error creating text bar chart: {_escape_paragraph(str(e))}</i>"
+            raise RuntimeError("Chart generation failed") from e

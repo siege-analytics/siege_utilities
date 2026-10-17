@@ -156,25 +156,23 @@ class TestChartGeneratorErrors:
         from siege_utilities.reporting.chart_generator import ChartGenerator
         return ChartGenerator(output_dir=tmp_path)
 
-    def test_bar_chart_empty_data_returns_placeholder(self, generator):
-        """An empty DataFrame should not raise — should return a placeholder or image."""
-        df = pd.DataFrame()
-        result = generator.create_bar_chart(df, title="Empty")
-        # Should return something (placeholder), not None/raise
-        assert result is not None
+    def test_bar_chart_empty_data_raises(self, generator):
+        """Empty bar data cannot produce a successful report chart."""
+        with pytest.raises(RuntimeError, match="Chart generation failed"):
+            generator.create_bar_chart(pd.DataFrame(), title="Empty")
 
-    def test_bar_chart_no_numeric_columns_returns_placeholder(self, generator):
-        """A DataFrame with no numeric columns should produce a placeholder."""
+    def test_bar_chart_no_numeric_columns_raises(self, generator):
+        """A DataFrame without numeric columns is an explicit chart failure."""
         df = pd.DataFrame({"a": ["x", "y", "z"], "b": ["p", "q", "r"]})
-        result = generator.create_bar_chart(df, title="No Numbers")
-        assert result is not None
+        with pytest.raises(RuntimeError, match="Chart generation failed"):
+            generator.create_bar_chart(df, title="No Numbers")
 
-    def test_bar_chart_invalid_column_returns_placeholder(self, generator):
-        """Referencing a nonexistent column returns a placeholder (error is logged)."""
+    def test_bar_chart_invalid_column_raises(self, generator):
+        """An unknown column fails chart generation with its cause intact."""
         df = pd.DataFrame({"a": [1, 2, 3]})
-        # The bar engine catches KeyError internally and returns a placeholder
-        result = generator.create_bar_chart(df, x_column="nonexistent", y_column="a")
-        assert result is not None
+        with pytest.raises(RuntimeError) as exc:
+            generator.create_bar_chart(df, x_column="nonexistent", y_column="a")
+        assert isinstance(exc.value.__cause__, KeyError)
 
     def test_line_chart_empty_data_returns_placeholder(self, generator):
         """Empty data should produce a placeholder, not crash."""

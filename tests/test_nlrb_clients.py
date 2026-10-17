@@ -7,6 +7,8 @@ import io
 import textwrap
 import xml.etree.ElementTree as ET
 from datetime import date
+import pytest
+
 from unittest.mock import MagicMock
 
 
@@ -261,10 +263,8 @@ class TestNLRBDatagovClient:
         session.get.side_effect = ConnectionError("timeout")
         client = NLRBDatagovClient(session=session)
 
-        result = client.fetch_cases()
-
-        assert not result.success
-        assert "HTTP error" in result.errors[0]
+        with pytest.raises(RuntimeError, match="NLRB fetch_case"):
+            client.fetch_cases()
 
     def test_malformed_xml(self):
         session = _mock_session()
@@ -272,10 +272,8 @@ class TestNLRBDatagovClient:
         session.get.return_value.raise_for_status = MagicMock()
         client = NLRBDatagovClient(session=session)
 
-        result = client.fetch_cases()
-
-        assert not result.success
-        assert "XML parse error" in result.errors[0]
+        with pytest.raises(RuntimeError, match="NLRB fetch_case"):
+            client.fetch_cases()
 
     def test_skips_case_without_number(self):
         xml = self._make_xml([{"caseType": "RC", "status": "Open"}])
@@ -429,9 +427,8 @@ class TestNLRBLabordataClient:
         session.get.side_effect = ConnectionError("network down")
         client = NLRBLabordataClient(session=session)
 
-        result = client.fetch_cases()
-
-        assert not result.success
+        with pytest.raises(RuntimeError, match="NLRB fetch_case"):
+            client.fetch_cases()
 
     def test_skips_empty_case_number(self):
         csv_text = self._make_csv([{
@@ -478,10 +475,8 @@ class TestNLRBNxGenClient:
         session.get.side_effect = ConnectionError("blocked")
         client = NLRBNxGenClient(session=session)
 
-        result = client.fetch_case("05-RC-000001")
-
-        assert not result.success
-        assert "NxGen HTTP error" in result.errors[0]
+        with pytest.raises(RuntimeError, match="NLRB fetch_case"):
+            client.fetch_case("05-RC-000001")
 
     def test_empty_html_returns_empty(self):
         session = _mock_session()
