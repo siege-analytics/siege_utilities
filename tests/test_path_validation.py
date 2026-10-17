@@ -134,6 +134,40 @@ class TestValidateDirectoryPath:
             validate_directory_path(str(f), must_exist=True)
 
 
+class TestDirectoryControlCharacters:
+    """New directory names must not contain control characters (#1692)."""
+
+    @pytest.mark.parametrize("name", ["a\nb", "\x1b[31m", "\x16", "x\x7f", "\x9a"])
+    def test_new_component_rejected(self, tmp_path, name):
+        with pytest.raises(PathSecurityError, match="Control character"):
+            validate_directory_path(str(tmp_path / name / "child"), must_exist=False)
+
+    def test_message_escapes_the_name(self, tmp_path):
+        with pytest.raises(PathSecurityError) as excinfo:
+            validate_directory_path(str(tmp_path / "\x1b[31m"), must_exist=False)
+        assert "\x1b" not in str(excinfo.value)
+        assert "\\x1b" in str(excinfo.value)
+
+    def test_existing_directory_still_validates(self, tmp_path):
+        existing = tmp_path / "odd\x16name"
+        existing.mkdir()
+        assert validate_directory_path(str(existing), must_exist=True) == existing.resolve()
+        assert validate_directory_path(str(existing), must_exist=False) == existing.resolve()
+
+    def test_clean_child_of_existing_odd_directory_allowed(self, tmp_path):
+        existing = tmp_path / "odd\x16name"
+        existing.mkdir()
+        child = existing / "reports"
+        assert validate_directory_path(str(child), must_exist=False) == child.resolve()
+
+    def test_file_validation_unaffected(self, tmp_path):
+        assert validate_file_path(str(tmp_path / "a\nb.txt")).name == "a\nb.txt"
+
+    def test_printable_unicode_allowed(self, tmp_path):
+        target = tmp_path / "données é 日本"
+        assert validate_directory_path(str(target), must_exist=False) == target.resolve()
+
+
 class TestSafeJoinPaths:
 
     def test_clean_join(self):
