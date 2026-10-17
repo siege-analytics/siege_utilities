@@ -25,6 +25,8 @@ from typing import Optional
 import pandas as pd
 import requests
 
+from siege_utilities.files.operations import atomic_write_path
+
 
 logger = logging.getLogger(__name__)
 
@@ -128,8 +130,9 @@ class NCESFiles:
             csv_name = next((n for n in zf.namelist() if n.endswith((".csv", ".txt"))), None)
             if not csv_name:
                 raise ValueError(f"No CSV/TXT inside {url}")
-            with zf.open(csv_name) as src, open(csv_path, "wb") as dst:
-                dst.write(src.read())
+            with atomic_write_path(csv_path) as tmp:
+                with zf.open(csv_name) as src, open(tmp, "wb") as dst:
+                    dst.write(src.read())
         return csv_path
 
     # ── District-level CCD loaders ────────────────────────────────────
@@ -185,7 +188,8 @@ class NCESFiles:
         if not csv_path.exists():
             logger.info("Downloading EDGE district demographics: %s", url)
             content = self._stream_download(url)
-            csv_path.write_bytes(content)
+            with atomic_write_path(csv_path) as tmp:
+                tmp.write_bytes(content)
         return pd.read_csv(
             csv_path,
             dtype={"LEAID": str, "STATEFP": str, "STATEFIPS": str},

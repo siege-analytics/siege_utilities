@@ -42,6 +42,8 @@ from .relationship_types import (
     SUPPORTED_CROSSWALK_YEARS,
 )
 
+from siege_utilities.files.operations import atomic_write_path
+
 __all__ = [
     'CROSSWALK_CACHE_TIMEOUT_DAYS',
     'CROSSWALK_CACHE_TIMEOUT',
@@ -445,7 +447,8 @@ class CrosswalkClient:
     def _save_to_cache(self, df: pd.DataFrame, cache_file: Path) -> None:
         """Save DataFrame to cache as parquet."""
         try:
-            df.to_parquet(cache_file, index=False)
+            with atomic_write_path(cache_file) as tmp:
+                df.to_parquet(tmp, index=False)
             log.debug(f"Cached crosswalk to: {cache_file}")
         except (OSError, ValueError, TypeError) as e:
             log.warning(f"Failed to cache crosswalk: {e}")

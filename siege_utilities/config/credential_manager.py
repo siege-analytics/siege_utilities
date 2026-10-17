@@ -25,7 +25,9 @@ and database connections with a unified interface.
 import subprocess
 import json
 import os
-import tempfile  # noqa: F401 -- used by create_temporary_service_account_file; test_credential_manager patches at module scope
+import tempfile
+from contextlib import contextmanager
+from collections.abc import Iterator
 from typing import Dict, Any, Optional, List, Union, Tuple
 from pathlib import Path
 
@@ -34,6 +36,9 @@ from siege_utilities.exceptions import SiegeConfigError
 # Import logging functions
 import logging
 import re
+
+from siege_utilities.files.secure_write import secure_write_text
+
 _logger = logging.getLogger(__name__)
 
 __all__ = [
@@ -1474,24 +1479,24 @@ def get_google_oauth_document_from_1password(
     return client_config
 
 
-def create_temporary_service_account_file(service_account_data: Dict[str, str]) -> str:
+@contextmanager
+def create_temporary_service_account_file(service_account_data: Dict[str, str]) -> Iterator[str]:
     """
-    Create a temporary service account file for Google APIs.
-    Useful for APIs that require a file path.
+    Yield a private service account file for Google APIs inside a with block.
+
+    The key and its private directory are deleted on exit, including on error.
 
     Args:
         service_account_data: Service account credentials dictionary
 
-    Returns:
-        Path to temporary file.
+    Yields:
+        Path to a mode-0600 JSON file, valid only inside the context.
 
     Raises:
         OSError: If the temporary file cannot be created.
         TypeError: If service_account_data is not JSON-serializable.
     """
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-        json.dump(service_account_data, f, indent=2)
-        temp_file_path = f.name
-
-    log_info(f"Created temporary service account file: {temp_file_path}")
-    return temp_file_path
+    with tempfile.TemporaryDirectory(prefix="siege_service_account_") as directory:
+        path = Path(directory) / "key.json"
+        secure_write_text(path, json.dumps(service_account_data, indent=2))
+        yield str(path)

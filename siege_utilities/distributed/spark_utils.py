@@ -4,7 +4,7 @@ import pathlib
 from pathlib import Path
 import json
 import shutil
-import time
+import tempfile
 import logging
 import uuid
 
@@ -958,10 +958,12 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
     header: bool=True, mode: str='overwrite') -> None:
     """Write a DataFrame atomically via a staging directory.
 
-    Writes ``df`` to ``staging_directory`` first, then moves the result
-    into ``final_destination``. If any step raises, the staging
-    directory is cleaned up and ``final_destination`` remains
-    untouched — no partial/corrupted files ever appear at the target.
+    Writes ``df`` to ``staging_directory``, then copies the complete result
+    into a sibling directory on the destination filesystem before publishing
+    it by rename. Write/copy failures leave the destination untouched. Existing
+    nonempty destinations are renamed to a unique backup before publication;
+    a failed publication restores that backup. There is a brief absence between
+    those two renames, but no partially copied directory is published.
 
     Parameters
     ----------
@@ -995,11 +997,11 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
 
     Raises
     ------
-    RuntimeError
-        Wrapped from any exception during the staging write or the
-        atomic move. Original cause is preserved via ``raise ... from
-        e``.
+    OSError
+        Filesystem failures are propagated after staging cleanup. Spark write
+        errors also propagate unchanged.
     """
+    sibling_staging = None
     try:
         log_info(f'Starting atomic write operation to {final_destination}')
         log_info(f'Using staging directory: {staging_directory}')
@@ -1019,37 +1021,46 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
             writer = writer.format(file_format)
         writer.save(staging_directory)
         log_info('Successfully wrote data to staging directory')
-        if os.path.exists(final_destination):
-            backup_dir = f'{final_destination}_backup_{int(time.time())}'
-            if os.path.isdir(final_destination) and os.listdir(
-                final_destination):
-                log_info(f'Backing up existing data to {backup_dir}')
-                shutil.move(final_destination, backup_dir)
-                log_info('Existing data backed up successfully')
-            else:
-                shutil.rmtree(final_destination, ignore_errors=True)
-                log_info('Removed empty destination directory')
-        os.makedirs(final_destination, exist_ok=True)
-        log_info('Moving staged files to final destination')
+        final_path = Path(final_destination)
+        final_path.parent.mkdir(parents=True, exist_ok=True)
+        sibling_staging = tempfile.mkdtemp(
+            dir=final_path.parent, prefix=f'.{final_path.name}_staging_',
+        )
+        # Retain the directory permissions Spark chose rather than publishing
+        # mkdtemp's private mode for a potentially shared dataset.
+        shutil.copymode(staging_directory, sibling_staging)
+        log_info('Copying staged files to destination filesystem')
         files_moved = 0
         for item in os.listdir(staging_directory):
             source_path = os.path.join(staging_directory, item)
-            dest_path = os.path.join(final_destination, item)
+            dest_path = os.path.join(sibling_staging, item)
             if os.path.isdir(source_path):
                 shutil.copytree(source_path, dest_path)
             else:
                 shutil.copy2(source_path, dest_path)
             files_moved += 1
+        backup_dir = None
+        if final_path.is_dir() and any(final_path.iterdir()):
+            backup_dir = final_path.with_name(f'{final_path.name}_backup_{uuid.uuid4().hex}')
+            log_info(f'Backing up existing data to {backup_dir}')
+            os.replace(final_path, backup_dir)
+        try:
+            os.replace(sibling_staging, final_path)
+        except BaseException:
+            if backup_dir is not None:
+                os.replace(backup_dir, final_path)
+            raise
         log_info(f'Successfully moved {files_moved} items to final destination'
             )
         log_info('Atomic write operation completed successfully')
     finally:
-        try:
-            if os.path.exists(staging_directory):
-                shutil.rmtree(staging_directory)
-                log_info('Cleaned up staging directory')
-        except OSError as cleanup_error:
-            log_error(f'Error cleaning up staging directory: {cleanup_error}')
+        for directory in (sibling_staging, staging_directory):
+            try:
+                if directory is not None and os.path.exists(directory):
+                    shutil.rmtree(directory)
+                    log_info(f'Cleaned up staging directory: {directory}')
+            except OSError as cleanup_error:
+                log_error(f'Error cleaning up staging directory: {cleanup_error}')
 
 
 def create_unique_staging_directory(base_path, operation_name: str = 'operation') -> str:

@@ -10,7 +10,9 @@ import re
 import subprocess
 import shutil
 import logging
+import stat
 import tempfile
+import uuid
 from typing import Generator, Union, Optional, List, Any
 from pathlib import Path
 
@@ -69,24 +71,44 @@ def atomic_write_path(target: FilePath) -> Generator[Path, None, None]:
             df.to_csv(tmp, index=False)
         # target is now atomically updated
 
-    If the block raises, the temp file is cleaned up and the target
-    is left unchanged.
+    If writing or syncing the file raises, the temp file is cleaned up and
+    the target is left unchanged. Files use mode 0666 filtered by the process
+    umask, including replacements. This is for data, not credentials: use
+    ``secure_write_text`` for secrets. Flush and close writers before exit.
     """
     target = Path(target)
     target.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(
-        dir=target.parent,
-        prefix="atomic_",
-        suffix=target.suffix or ".tmp",
+    tmp = target.parent / f"atomic_{uuid.uuid4().hex}{target.suffix or '.tmp'}"
+    # O_EXCL reserves a random sibling without following a pre-existing link.
+    # Let the kernel apply umask: reading it via os.umask would temporarily
+    # change process-wide permissions for concurrent threads.
+    fd = os.open(
+        tmp, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o666,
     )
+    mode = stat.S_IMODE(os.fstat(fd).st_mode)
     os.close(fd)
-    tmp = Path(tmp_path)
     try:
         yield tmp
+        # Some serializers recreate their destination; retain the mode chosen
+        # at creation even in that case, and sync data/metadata before publish.
+        os.chmod(tmp, mode)
+        with tmp.open("rb") as stream:
+            os.fsync(stream.fileno())
         os.replace(tmp, target)
     except BaseException:
         tmp.unlink(missing_ok=True)
         raise
+    # Persist the rename where directory fsync is supported. The replacement
+    # has already committed, so unsupported directory syncing is best effort.
+    if os.name == "posix":
+        try:
+            directory_fd = os.open(target.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+        except OSError:
+            log.debug("Directory fsync unavailable for %s", target.parent, exc_info=True)
 
 
 def atomic_write_shapefile(gdf, target: FilePath, **kwargs) -> None:
@@ -691,7 +713,7 @@ def safe_file_write(
     create_dirs: bool = True,
 ) -> bool:
     """
-    Safely write content to a file, optionally creating parent directories.
+    Atomically write content to a file, optionally creating parent directories.
 
     Args:
         file_path: Path to file
@@ -713,8 +735,11 @@ def safe_file_write(
     try:
         if create_dirs:
             validated.parent.mkdir(parents=True, exist_ok=True)
-        with open(validated, "w", encoding=encoding) as f:
-            f.write(content)
+        elif not validated.parent.is_dir():
+            raise FileNotFoundError(f"Parent directory does not exist: {validated.parent}")
+        with atomic_write_path(validated) as temporary:
+            with open(temporary, "w", encoding=encoding) as f:
+                f.write(content)
         return True
     except (OSError, TypeError) as e:
         log.error(f"Error writing to {validated}: {e}")
@@ -762,7 +787,7 @@ def safe_json_write(
     create_dirs: bool = True,
 ) -> bool:
     """
-    Safely write data to a JSON file.
+    Atomically write data to a JSON file.
 
     Args:
         file_path: Path to JSON file
@@ -784,8 +809,11 @@ def safe_json_write(
     try:
         if create_dirs:
             validated.parent.mkdir(parents=True, exist_ok=True)
-        with open(validated, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=indent, ensure_ascii=False)
+        elif not validated.parent.is_dir():
+            raise FileNotFoundError(f"Parent directory does not exist: {validated.parent}")
+        with atomic_write_path(validated) as temporary:
+            with open(temporary, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=indent, ensure_ascii=False)
         return True
     except (OSError, TypeError, ValueError) as e:
         log.error(f"Error writing JSON to {validated}: {e}")

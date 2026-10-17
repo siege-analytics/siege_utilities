@@ -37,6 +37,8 @@ from ...config import (
     normalize_state_identifier,
 )
 
+from siege_utilities.files.operations import atomic_write_path
+
 __all__ = [
     'PL_2020_BASE_URL',
     'PL_2010_BASE_URL',
@@ -86,14 +88,15 @@ def _stream_download_to_file(
     with requests.get(url, stream=True, timeout=timeout) as resp:
         resp.raise_for_status()
         downloaded = 0
-        with open(dest, 'wb') as f:
-            for chunk in resp.iter_content(chunk_size=_STREAM_CHUNK_SIZE):
-                downloaded += len(chunk)
-                if downloaded > max_bytes:
-                    raise ValueError(
-                        f"Download from {url} exceeds {max_bytes / 1024 / 1024:.0f} MB limit"
-                    )
-                f.write(chunk)
+        with atomic_write_path(dest) as tmp:
+            with open(tmp, 'wb') as f:
+                for chunk in resp.iter_content(chunk_size=_STREAM_CHUNK_SIZE):
+                    downloaded += len(chunk)
+                    if downloaded > max_bytes:
+                        raise ValueError(
+                            f"Download from {url} exceeds {max_bytes / 1024 / 1024:.0f} MB limit"
+                        )
+                    f.write(chunk)
 
 # Summary Level Codes
 SUMMARY_LEVELS = {
@@ -346,7 +349,8 @@ class PLFileDownloader:
         df = self._download_and_parse_geo(url, year)
 
         # Cache
-        df.to_parquet(cache_file, index=False)
+        with atomic_write_path(cache_file) as tmp:
+            df.to_parquet(tmp, index=False)
         return df
 
     def _get_data_files(
@@ -377,7 +381,8 @@ class PLFileDownloader:
                 url = self._build_data_url(state_abbr, year, file_type)
                 log.info(f"Downloading {file_type}: {url}")
                 df = self._download_and_parse_data(url, year, file_type)
-                df.to_parquet(cache_file, index=False)
+                with atomic_write_path(cache_file) as tmp:
+                    df.to_parquet(tmp, index=False)
 
             if all_data is None:
                 all_data = df

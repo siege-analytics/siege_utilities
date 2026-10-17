@@ -1,0 +1,23 @@
+[
+  {
+    "file": "config/clients.py",
+    "scope": "save_client_profile",
+    "rule": "credential-write",
+    "sha256": "28d49ab6f2b6b168c5f90eafae68e60147437ada97951014dfc147733c860dce",
+    "reason": "Existing atomic writer uses tempfile.mkstemp (0600), writes via that fd, fsyncs and replaces. Preserve its concurrent-write contract."
+  },
+  {
+    "file": "config/user_config.py",
+    "scope": "_default_download_directory",
+    "rule": "fixed-tmp-path",
+    "sha256": "ff6df1fb949e2f77ee50b834f451d3e14e7c91a97744c1f633a178bb28629e83",
+    "reason": "Non-credential download fallback only; user_config.yaml persistence is separately secured by #1452 and outside #1541."
+  },
+  {
+    "file": "config/user_config.py",
+    "scope": "get_download_directory",
+    "rule": "fixed-tmp-path",
+    "sha256": "ff6df1fb949e2f77ee50b834f451d3e14e7c91a97744c1f633a178bb28629e83",
+    "reason": "Non-credential download fallback only; user_config.yaml persistence is separately secured by #1452 and outside #1541."
+  }
+]

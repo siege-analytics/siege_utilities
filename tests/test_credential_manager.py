@@ -1486,28 +1486,25 @@ class TestCreateTemporaryServiceAccountFile:
 
     def test_creates_temp_file_with_data(self):
         sa_data = {"type": "service_account", "project_id": "test-proj"}
-        result = create_temporary_service_account_file(sa_data)
-        assert result is not None
-        assert os.path.exists(result)
-
-        with open(result, 'r') as f:
-            loaded = json.load(f)
-        assert loaded == sa_data
-
-        # Clean up
-        os.unlink(result)
+        with create_temporary_service_account_file(sa_data) as result:
+            assert os.path.exists(result)
+            with open(result, 'r') as f:
+                loaded = json.load(f)
+            assert loaded == sa_data
+        assert not os.path.exists(result)
 
     def test_returns_json_file(self):
         sa_data = {"type": "service_account"}
-        result = create_temporary_service_account_file(sa_data)
-        assert result.endswith('.json')
-        os.unlink(result)
+        with create_temporary_service_account_file(sa_data) as result:
+            assert result.endswith('.json')
+        assert not os.path.exists(result)
 
     def test_raises_on_error(self):
-        with patch('siege_utilities.config.credential_manager.tempfile.NamedTemporaryFile',
+        with patch('siege_utilities.config.credential_manager.tempfile.TemporaryDirectory',
                    side_effect=OSError("no space")):
             with pytest.raises(OSError):
-                create_temporary_service_account_file({"type": "sa"})
+                with create_temporary_service_account_file({"type": "sa"}):
+                    pytest.fail("file creation should fail")
 
 
 # =============================================================================

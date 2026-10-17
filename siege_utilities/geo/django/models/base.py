@@ -14,6 +14,8 @@ import warnings
 from django.contrib.gis.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
+from ..managers import BoundaryManager
+
 __all__ = ["CensusTIGERBoundary", "TemporalBoundary", "TemporalGeographicFeature", "TemporalLinearFeature", "TemporalPointFeature"]
 
 
@@ -105,6 +107,8 @@ class TemporalBoundary(TemporalGeographicFeature):
         area_land / area_water: Area in square meters (from TIGER ALAND/AWATER).
         internal_point: Representative point for labeling (INTPTLAT/INTPTLON).
     """
+
+    objects = BoundaryManager()
 
     boundary_id = models.CharField(
         max_length=60,
