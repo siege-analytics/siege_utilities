@@ -186,6 +186,26 @@ class TestDirectoryControlCharacters:
             unzip_file_to_directory(archive, out)
         assert not (out / "evil\x1b[31m").exists()
 
+    def test_dot_dot_zip_stem_no_longer_escapes_extract_dir(self, tmp_path):
+        """'...zip' has stem '..'; it used to extract into extract_to's parent."""
+        import zipfile
+        from siege_utilities.files.paths import unzip_file_to_directory
+
+        archive = tmp_path / "...zip"
+        with zipfile.ZipFile(archive, "w") as z:
+            z.writestr("x.txt", "x")
+        (tmp_path / "out").mkdir()
+        with pytest.raises(PathSecurityError, match="traversal"):
+            unzip_file_to_directory(archive, tmp_path / "out")
+        assert not (tmp_path / "x.txt").exists()
+
+    @pytest.mark.parametrize("path", ["esc\x1b[31m\x00", "../esc\x1b[31m"])
+    def test_rejection_messages_escape_the_path(self, path):
+        with pytest.raises(PathSecurityError) as excinfo:
+            validate_safe_path(path)
+        assert "\x1b" not in str(excinfo.value)
+        assert "\\x1b" in str(excinfo.value)
+
 
 class TestSafeJoinPaths:
 
