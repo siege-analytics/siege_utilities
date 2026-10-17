@@ -904,8 +904,8 @@ class TestUserMultiSource:
             google_analytics_key="ga_key",
             census_api_key="census_key",
         )
-        assert u.google_analytics_key == "ga_key"
-        assert u.census_api_key == "census_key"
+        assert u.google_analytics_key.get_secret_value() == "ga_key"
+        assert u.census_api_key.get_secret_value() == "census_key"
 
     def test_source_credentials_yaml_round_trip(self, tmp_path):
         u = make_user(

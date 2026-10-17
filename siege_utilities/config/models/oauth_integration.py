@@ -2,7 +2,7 @@
 OAuth integration model with comprehensive validation.
 """
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import SecretStr, BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 from enum import Enum
@@ -72,7 +72,7 @@ class OAuthIntegration(BaseModel):
         max_length=200,
         description="OAuth client ID"
     )
-    client_secret: str = Field(
+    client_secret: SecretStr = Field(
         json_schema_extra={"sensitive": True},
         min_length=10,
         max_length=200,
@@ -87,19 +87,20 @@ class OAuthIntegration(BaseModel):
     )
     
     # Token Information
-    access_token: Optional[str] = Field(
+    access_token: Optional[SecretStr] = Field(
         json_schema_extra={"sensitive": True},
         default=None,
         max_length=2000,
         description="OAuth access token"
     )
-    refresh_token: Optional[str] = Field(
+    refresh_token: Optional[SecretStr] = Field(
         json_schema_extra={"sensitive": True},
         default=None,
         max_length=2000,
         description="OAuth refresh token"
     )
     token_type: str = Field(
+        repr=False,
         json_schema_extra={"sensitive": False},
         default="Bearer",
         description="Token type (usually 'Bearer')"
@@ -172,11 +173,14 @@ class OAuthIntegration(BaseModel):
             raise ValueError('Invalid redirect URI format')
         return v
     
-    @field_validator('client_id', 'client_secret')
+    @field_validator('client_id', 'client_secret', mode='before')
     @classmethod
     def validate_oauth_credentials(cls, v):
         """Validate OAuth credentials."""
-        if len(v) < 10:
+        value = v.get_secret_value() if isinstance(v, SecretStr) else v
+        if not isinstance(value, str):
+            return v
+        if len(value) < 10:
             raise ValueError('OAuth credentials must be at least 10 characters')
         return v
     
@@ -284,5 +288,6 @@ class OAuthIntegration(BaseModel):
     model_config = {
         "json_schema_serialization_mode": "json",
         "validate_assignment": True,
+        "hide_input_in_errors": True,
         "extra": "forbid"
     }

@@ -34,6 +34,7 @@
     "BaseReportTemplate",
     "ChartGenerator",
     "ChartTypeRegistry",
+    "EnhancedUserProfile",
     "construct_download_url",
     "create_bar_chart",
     "create_bivariate_choropleth",

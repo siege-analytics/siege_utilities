@@ -8,6 +8,7 @@ while maintaining backward compatibility.
 import json
 import warnings
 import yaml
+from pydantic import SecretStr
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from datetime import datetime
@@ -448,6 +449,8 @@ def load_user_profile(username: str, config_dir: Optional[Path] = None) -> UserP
 
 def _convert_to_yaml_safe(obj: Any) -> Any:
     """Recursively convert Python objects to YAML-safe types."""
+    if isinstance(obj, SecretStr):
+        return obj.get_secret_value()
     if isinstance(obj, dict):
         return {k: _convert_to_yaml_safe(v) for k, v in obj.items()}
     elif isinstance(obj, (list, tuple)):

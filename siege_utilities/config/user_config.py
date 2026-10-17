@@ -13,7 +13,8 @@ import yaml
 from pathlib import Path
 from typing import Optional
 import os
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
+from pydantic import SecretStr
 
 # Import enhanced config for validation
 
@@ -90,13 +91,13 @@ class UserProfile:
     log_level: str = "INFO"
     
     # API Keys (stored in plaintext; protected by filesystem permissions)
-    google_analytics_key: str = ""
-    facebook_business_key: str = ""
-    census_api_key: str = ""
+    google_analytics_key: str = field(default="", repr=False)
+    facebook_business_key: str = field(default="", repr=False)
+    census_api_key: str = field(default="", repr=False)
     
     # Database Preferences
     default_database: str = "postgresql"
-    postgresql_connection: str = ""
+    postgresql_connection: str = field(default="", repr=False)
     duckdb_path: str = ""
 
 class UserConfigManager:
@@ -399,7 +400,8 @@ class UserConfigManager:
             database_type = self.user_profile.default_database
         
         if database_type == "postgresql":
-            return self.user_profile.postgresql_connection
+            connection = self.user_profile.postgresql_connection
+            return connection.get_secret_value() if isinstance(connection, SecretStr) else connection
         elif database_type == "duckdb":
             return self.user_profile.duckdb_path
         else:

@@ -479,7 +479,7 @@ def test_social_media_tokens_marked_and_redacted(surface: str, oauth: OAuthInteg
     assert data["social_media_accounts"][0]["account_name"] == "Public Account"
     assert SocialMediaAccount.model_fields["access_token"].json_schema_extra == {"sensitive": True}
     assert SocialMediaAccount.model_fields["refresh_token"].json_schema_extra == {"sensitive": True}
-    assert account.access_token == "sentinel-social-access-token"
+    assert account.access_token.get_secret_value() == "sentinel-social-access-token"
 
 
 @pytest.mark.parametrize("surface", ALL_SURFACES)
