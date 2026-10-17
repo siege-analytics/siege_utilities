@@ -18,6 +18,13 @@ __all__ = [
     'region_summary',
 ]
 
+# Canonical registry of the 26 regional offices, checked 2026-10-17:
+# https://www.nlrb.gov/about-nlrb/who-we-are/regional-offices
+# Subregional offices 11 (Winston-Salem), 17 (Kansas City), 24 (San Juan),
+# and 26 (Memphis) are not regions and are deliberately excluded.
+# The state lists approximate primary coverage using whole states; they are
+# neither exhaustive jurisdiction lists nor precise county/sub-state boundaries.
+# https://github.com/siege-analytics/siege_utilities/issues/1713 tracks precision.
 NLRB_REGIONS: dict[int, dict] = {
     1: {"office": "Boston", "states": ["CT", "MA", "ME", "NH", "RI", "VT"]},
     2: {"office": "New York", "states": ["NY"]},
@@ -29,25 +36,33 @@ NLRB_REGIONS: dict[int, dict] = {
     8: {"office": "Cleveland", "states": ["OH"]},
     9: {"office": "Cincinnati", "states": ["IN", "KY", "OH"]},
     10: {"office": "Atlanta", "states": ["AL", "GA", "NC", "SC", "TN"]},
-    11: {"office": "Winston-Salem", "states": ["NC", "SC", "TN", "VA"]},
     12: {"office": "Tampa", "states": ["FL", "PR", "VI"]},
     13: {"office": "Chicago", "states": ["IL", "IN"]},
     14: {"office": "St. Louis", "states": ["IL", "MO"]},
     15: {"office": "New Orleans", "states": ["AL", "LA", "MS"]},
     16: {"office": "Fort Worth", "states": ["TX"]},
-    17: {"office": "Kansas City", "states": ["IA", "KS", "MO", "NE"]},
     18: {"office": "Minneapolis", "states": ["MN", "ND", "SD", "WI"]},
     19: {"office": "Seattle", "states": ["AK", "ID", "MT", "OR", "WA", "WY"]},
-    20: {"office": "San Francisco", "states": ["CA", "HI", "NV"]},
-    21: {"office": "Los Angeles", "states": ["AZ", "CA", "HI", "NV"]},
+    # Part of CA and all HI; AS/GU/MP coverage is outside this primary-state list.
+    # https://www.nlrb.gov/about-nlrb/who-we-are/regional-offices/region-20-san-francisco
+    20: {"office": "San Francisco", "states": ["CA", "HI"]},
+    # Much of Southern CA, represented by the whole state for the approximation.
+    # https://www.nlrb.gov/about-nlrb/who-we-are/regional-offices/region-21-los-angeles
+    21: {"office": "Los Angeles", "states": ["CA"]},
     22: {"office": "Newark", "states": ["NJ"]},
-    24: {"office": "Hato Rey", "states": ["PR", "VI"]},
     25: {"office": "Indianapolis", "states": ["IN"]},
-    26: {"office": "Memphis", "states": ["AR", "MS", "TN"]},
-    27: {"office": "Denver", "states": ["CO", "NM", "UT", "WY"]},
-    28: {"office": "Memphis", "states": ["AL", "AR", "MS"]},
+    # Also parts of MT/ID/NE, omitted from this primary-state approximation.
+    # https://www.nlrb.gov/about-nlrb/who-we-are/regional-offices/region-27-denver
+    27: {"office": "Denver", "states": ["CO", "UT", "WY"]},
+    # AZ/NM and parts of TX/NV: NV is approximated as a whole state; TX's
+    # partial coverage remains outside this primary-state list pending #1713.
+    # https://www.nlrb.gov/about-nlrb/who-we-are/regional-offices/region-28-phoenix
+    28: {"office": "Phoenix", "states": ["AZ", "NM", "NV"]},
     29: {"office": "Brooklyn", "states": ["NY"]},
     31: {"office": "Los Angeles", "states": ["CA"]},
+    # Parts of CA/NV, represented by whole states; precise assignments await #1713.
+    # https://www.nlrb.gov/about-nlrb/who-we-are/regional-offices/region-32-oakland
+    32: {"office": "Oakland", "states": ["CA", "NV"]},
 }
 
 

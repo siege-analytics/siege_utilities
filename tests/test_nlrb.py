@@ -93,8 +93,14 @@ class TestNLRBPopulationService:
     def test_phoenix_and_oakland_registry_entries(self):
         from siege_utilities.geo.django.services.nlrb_service import NLRB_REGIONS
 
-        assert NLRB_REGIONS[28] == {"office": "Phoenix", "states": ["AZ", "NM"]}
-        assert NLRB_REGIONS[32] == {"office": "Oakland", "states": ["CA"]}
+        assert NLRB_REGIONS[28] == {"office": "Phoenix", "states": ["AZ", "NM", "NV"]}
+        assert NLRB_REGIONS[32] == {"office": "Oakland", "states": ["CA", "NV"]}
+
+    def test_service_and_provider_share_registry(self):
+        from siege_utilities.geo.django.services.nlrb_service import NLRB_REGIONS
+        from siege_utilities.geo.providers.nlrb_regions import NLRB_REGIONS as provider_regions
+
+        assert NLRB_REGIONS is provider_regions
 
     def test_service_instantiation(self):
         from siege_utilities.geo.django.services.nlrb_service import (
@@ -192,6 +198,8 @@ class TestNLRBPopulationPostGIS:
         assert NLRBRegion.objects.count() == len(NLRB_REGIONS)
         assert NLRBRegion.objects.filter(geometry__isnull=True).count() == len(NLRB_REGIONS)
         assert f"created={len(NLRB_REGIONS)}" in output.getvalue()
+        assert f"without_geometry={len(NLRB_REGIONS)}" in output.getvalue()
+        assert "Done." not in output.getvalue()
         assert NLRBRegion.objects.get(region_number=28).region_office == "Phoenix"
         assert NLRBRegion.objects.get(region_number=32).region_office == "Oakland"
 
@@ -219,6 +227,43 @@ class TestNLRBPopulationPostGIS:
         assert updated.records_updated == len(NLRB_REGIONS)
         assert updated.records_without_geometry == len(NLRB_REGIONS)
 
+    @pytest.mark.parametrize("update_existing", [False, True], ids=["create", "update"])
+    def test_partial_dissolve_is_null_and_reported(self, monkeypatch, update_existing):
+        from django.contrib.gis.geos import MultiPolygon, Polygon
+        from django.core.management import call_command
+
+        from siege_utilities.geo.django.models import County, NLRBRegion
+        from siege_utilities.geo.django.services import nlrb_service
+
+        monkeypatch.setattr(nlrb_service, "NLRB_REGIONS", {
+            28: nlrb_service.NLRB_REGIONS[28],
+        })
+        geometry = MultiPolygon(Polygon.from_bbox((0, 0, 1, 1)), srid=4326)
+        # AZ/NV exist at the requested vintage; NM exists only at another one.
+        for geoid, year in [("04001", 2025), ("32001", 2025), ("35001", 2024)]:
+            County.objects.create(
+                geoid=geoid, vintage_year=year, state_fips=geoid[:2],
+                county_fips=geoid[2:], name=geoid, geometry=geometry,
+            )
+        if update_existing:
+            NLRBRegion.objects.create(
+                region_number=28, region_office="Phoenix", vintage_year=2025,
+                geometry=geometry,
+            )
+
+        output = StringIO()
+        call_command(
+            "populate_nlrb_regions", year=2025, dissolve_counties=True,
+            update=update_existing, stdout=output, force_color=True,
+        )
+
+        assert NLRBRegion.objects.get(region_number=28).geometry is None
+        assert "without_geometry=1" in output.getvalue()
+        assert "Incomplete geometry" in output.getvalue()
+        assert "Done." not in output.getvalue()
+        skipped = nlrb_service.NLRBPopulationService().populate(vintage_year=2025)
+        assert skipped.records_without_geometry == 1
+
     @pytest.mark.parametrize("second_x", [1, 3], ids=["polygon", "multipolygon"])
     def test_dissolve_uses_one_vintage_and_database_union(self, second_x):
         from django.contrib.gis.geos import MultiPolygon, Polygon
@@ -237,6 +282,7 @@ class TestNLRBPopulationPostGIS:
         for geoid, year, x in [
             ("04001", 2025, 0), ("04003", 2025, second_x),
             ("04001", 2024, 10), ("06001", 2025, 20),
+            ("35001", 2025, 30), ("32001", 2025, 40),
         ]:
             County.objects.create(
                 geoid=geoid, vintage_year=year, state_fips=geoid[:2],
@@ -253,15 +299,21 @@ class TestNLRBPopulationPostGIS:
         assert dissolved.equals(square(0).union(square(second_x)))
         assert service._dissolve_county_geometry(["AZ"], vintage_year=2023) is None
         assert service._dissolve_county_geometry(["XX"], vintage_year=2025) is None
+        assert service._dissolve_county_geometry(["AZ", "XX"], vintage_year=2025) is None
+
+        az_nm = service._dissolve_county_geometry(["AZ", "NM"], vintage_year=2025)
+        assert az_nm.equals(dissolved.union(square(30)))
 
         result = service.populate(vintage_year=2025, dissolve_counties=True)
         phoenix = NLRBRegion.objects.get(region_number=28, vintage_year=2025)
-        assert phoenix.geometry.equals(dissolved)
+        # Phoenix now includes NV too; every listed state must contribute.
+        expected_phoenix = az_nm.union(square(40))
+        assert phoenix.geometry.equals(expected_phoenix)
         assert result.records_without_geometry == NLRBRegion.objects.filter(geometry__isnull=True).count()
         assert 0 < result.records_without_geometry < len(NLRB_REGIONS)
 
         # Metadata-only updates retain geometry and report the persisted state.
         updated = service.populate(vintage_year=2025, update_existing=True)
         phoenix.refresh_from_db()
-        assert phoenix.geometry.equals(dissolved)
+        assert phoenix.geometry.equals(expected_phoenix)
         assert updated.records_without_geometry == result.records_without_geometry

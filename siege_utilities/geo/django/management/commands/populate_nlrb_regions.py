@@ -56,8 +56,15 @@ class Command(BaseCommand):
         self.stdout.write(
             f"NLRB regions: created={result.records_created}, "
             f"updated={result.records_updated}, "
-            f"skipped={result.records_skipped}"
+            f"skipped={result.records_skipped}, "
+            f"without_geometry={result.records_without_geometry}"
         )
+
+        if result.records_without_geometry:
+            self.stdout.write(self.style.WARNING(
+                f"Incomplete geometry: {result.records_without_geometry} regions "
+                "have no geometry (registry-only or empty/partial county coverage)."
+            ))
 
         if result.errors:
             for err in result.errors:
@@ -69,5 +76,5 @@ class Command(BaseCommand):
                 raise CommandError(
                     f"NLRB region population failed with {len(result.errors)} errors"
                 )
-        else:
+        elif not result.records_without_geometry:
             self.stdout.write(self.style.SUCCESS("Done."))

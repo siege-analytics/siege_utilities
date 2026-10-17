@@ -13,10 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   raising `IntegrityError`. Migration 0018 makes only `NLRBRegion.geometry`
   nullable; callers must allow NULL geometry, and population returns and logs
   the count of regions without geometry. County dissolves filter by the
-  requested vintage and use a database-side `Union` aggregate. Region 28 is
-  corrected to Phoenix (AZ/NM), and Region 32 (Oakland, CA) is added, verified
-  against the NLRB regional-office pages. Dissolved polygons remain a
-  state-level approximation and overlap where regions share states; true
+  requested vintage and use a database-side `Union` aggregate, returning NULL
+  if any requested state has no counties at that vintage. Explicit rebuilds
+  clear incomplete geometry; metadata-only updates retain existing geometry.
+  The command reports the without-geometry count and warns instead of printing
+  a success message when any region lacks geometry. The provider and service
+  now share one registry of the 26 regional offices listed by
+  [nlrb.gov](https://www.nlrb.gov/about-nlrb/who-we-are/regional-offices)
+  (checked 2026-10-17), excluding subregional offices 11, 17, 24 and 26.
+  State lists are corrected for Regions 20 (CA/HI), 21 (CA), 27 (CO/UT/WY),
+  28 (Phoenix, AZ/NM/NV) and 32 (Oakland, CA/NV). The lists still approximate
+  primary coverage with whole states; dissolved polygons overlap where regions
+  share states and do not certify that every county is loaded. Exhaustive
   sub-state jurisdiction mapping is tracked in [#1713](https://github.com/siege-analytics/siege_utilities/issues/1713).
   (#1585)
 

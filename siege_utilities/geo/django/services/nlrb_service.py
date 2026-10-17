@@ -10,9 +10,11 @@ Data source: manually maintained regional-office registry.
 
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import List
 
 from django.db import transaction
+
+from siege_utilities.geo.providers.nlrb_regions import NLRB_REGIONS
 
 log = logging.getLogger(__name__)
 
@@ -21,46 +23,6 @@ __all__ = [
     'NLRBPopulationResult',
     'NLRBPopulationService',
 ]
-
-# NLRB Region definitions: region_number → {office, states}
-# States listed approximate primary coverage; precise sub-state jurisdictions
-# are deferred to https://github.com/siege-analytics/siege_utilities/issues/1713.
-NLRB_REGIONS: Dict[int, dict] = {
-    1: {"office": "Boston", "states": ["CT", "MA", "ME", "NH", "RI", "VT"]},
-    2: {"office": "New York", "states": ["NY"]},
-    3: {"office": "Buffalo", "states": ["NY"]},
-    4: {"office": "Philadelphia", "states": ["DE", "PA"]},
-    5: {"office": "Baltimore", "states": ["DC", "MD", "VA", "WV"]},
-    6: {"office": "Pittsburgh", "states": ["PA", "WV"]},
-    7: {"office": "Detroit", "states": ["MI"]},
-    8: {"office": "Cleveland", "states": ["OH"]},
-    9: {"office": "Cincinnati", "states": ["IN", "KY", "OH"]},
-    10: {"office": "Atlanta", "states": ["AL", "GA", "NC", "SC", "TN"]},
-    11: {"office": "Winston-Salem", "states": ["NC", "SC", "TN", "VA"]},
-    12: {"office": "Tampa", "states": ["FL", "PR", "VI"]},
-    13: {"office": "Chicago", "states": ["IL", "IN"]},
-    14: {"office": "St. Louis", "states": ["IL", "MO"]},
-    15: {"office": "New Orleans", "states": ["AL", "LA", "MS"]},
-    16: {"office": "Fort Worth", "states": ["TX"]},
-    17: {"office": "Kansas City", "states": ["IA", "KS", "MO", "NE"]},
-    18: {"office": "Minneapolis", "states": ["MN", "ND", "SD", "WI"]},
-    19: {"office": "Seattle", "states": ["AK", "ID", "MT", "OR", "WA", "WY"]},
-    20: {"office": "San Francisco", "states": ["CA", "HI", "NV"]},
-    21: {"office": "Los Angeles", "states": ["AZ", "CA", "HI", "NV"]},
-    22: {"office": "Newark", "states": ["NJ"]},
-    24: {"office": "Hato Rey", "states": ["PR", "VI"]},
-    25: {"office": "Indianapolis", "states": ["IN"]},
-    26: {"office": "Memphis", "states": ["AR", "MS", "TN"]},
-    27: {"office": "Denver", "states": ["CO", "NM", "UT", "WY"]},
-    # Phoenix also serves parts of TX/NV; retain primary-state approximation.
-    # https://www.nlrb.gov/about-nlrb/who-we-are/regional-offices/region-28-phoenix
-    28: {"office": "Phoenix", "states": ["AZ", "NM"]},
-    29: {"office": "Brooklyn", "states": ["NY"]},
-    31: {"office": "Los Angeles", "states": ["CA"]},
-    # Oakland serves parts of CA/NV; precise assignments await #1713.
-    # https://www.nlrb.gov/about-nlrb/who-we-are/regional-offices/region-32-oakland
-    32: {"office": "Oakland", "states": ["CA"]},
-}
 
 
 @dataclass
@@ -145,7 +107,7 @@ class NLRBPopulationService:
                 if existing:
                     existing.region_office = info["office"]
                     existing.states_covered = info["states"]
-                    if geometry is not None:
+                    if dissolve_counties:
                         existing.geometry = geometry
                     existing.save()
                     result.records_updated += 1
@@ -187,31 +149,43 @@ class NLRBPopulationService:
 
         This is a state-level approximation: states shared by regions produce
         overlapping polygons. It does not resolve true sub-state jurisdictions
-        (follow-up #1713). Returns MultiPolygon or None if no counties match.
+        (follow-up #1713). Returns MultiPolygon only if every requested state
+        has counties with geometry at this vintage; otherwise returns None.
+        This checks state presence, not whether every county has been loaded.
         """
         try:
             from django.contrib.gis.db.models import Union
             from django.contrib.gis.geos import MultiPolygon
+            from django.db.models import Count
+            from django.db.models.functions import Substr
 
             from ..models.boundaries import County
             from siege_utilities.config.census_constants import STATE_FIPS_CODES
 
-            fips_codes = []
+            fips_codes = set()
             for abbr in state_abbreviations:
                 fips = STATE_FIPS_CODES.get(abbr.upper())
-                if fips:
-                    fips_codes.append(fips)
+                if not fips:
+                    return None
+                fips_codes.add(fips)
 
             if not fips_codes:
                 return None
 
             counties = County.objects.filter(
-                geoid__regex=r"^(" + "|".join(fips_codes) + r")",
+                geoid__regex=r"^(" + "|".join(sorted(fips_codes)) + r")",
                 vintage_year=vintage_year,
             ).exclude(geometry__isnull=True)
 
-            dissolved = counties.aggregate(geometry=Union("geometry"))["geometry"]
-            if dissolved is None:
+            # Check state presence in the same query and vintage as the union.
+            coverage = counties.aggregate(
+                geometry=Union("geometry"),
+                state_count=Count(Substr("geoid", 1, 2), distinct=True),
+            )
+            if coverage["state_count"] != len(fips_codes):
+                return None
+            dissolved = coverage["geometry"]
+            if dissolved is None or dissolved.empty:
                 return None
 
             if not isinstance(dissolved, MultiPolygon):

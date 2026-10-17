@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 
 from siege_utilities.geo.providers.nlrb_clients import NLRBCaseRecord
 from siege_utilities.geo.providers.nlrb_regions import (
@@ -20,7 +21,20 @@ from siege_utilities.geo.providers.nlrb_regions import (
 
 class TestNLRBRegions:
     def test_has_expected_regions(self):
-        assert len(NLRB_REGIONS) >= 26
+        assert set(NLRB_REGIONS) == {
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16,
+            18, 19, 20, 21, 22, 25, 27, 28, 29, 31, 32,
+        }
+
+    @pytest.mark.parametrize("number,office,states", [
+        (20, "San Francisco", ["CA", "HI"]),
+        (21, "Los Angeles", ["CA"]),
+        (27, "Denver", ["CO", "UT", "WY"]),
+        (28, "Phoenix", ["AZ", "NM", "NV"]),
+        (32, "Oakland", ["CA", "NV"]),
+    ])
+    def test_corrected_state_lists(self, number, office, states):
+        assert NLRB_REGIONS[number] == {"office": office, "states": states}
 
     def test_all_have_office(self):
         for num, info in NLRB_REGIONS.items():
@@ -32,7 +46,7 @@ class TestNLRBRegions:
 
     def test_region_numbers_in_range(self):
         for num in NLRB_REGIONS:
-            assert 1 <= num <= 31
+            assert 1 <= num <= 32
 
     def test_known_region(self):
         assert NLRB_REGIONS[13]["office"] == "Chicago"
@@ -45,6 +59,16 @@ class TestNLRBRegions:
 
 
 class TestStateToRegions:
+    @pytest.mark.parametrize("state,regions", [
+        ("AZ", [28]),
+        ("NM", [28]),
+        ("NV", [28, 32]),
+        ("HI", [20]),
+        ("CA", [20, 21, 31, 32]),
+    ])
+    def test_corrected_state_lookups(self, state, regions):
+        assert lookup_region_by_state(state) == regions
+
     def test_single_region_state(self):
         regions = lookup_region_by_state("FL")
         assert 12 in regions
