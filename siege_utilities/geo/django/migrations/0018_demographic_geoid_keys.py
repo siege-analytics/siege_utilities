@@ -1,38 +1,34 @@
 """Repurpose object_id as GEOID-only storage, preserving the ORM field name.
 
-Legacy PKs are converted only when their meaning is unambiguous. Conflicting
-PK/GEOID interpretations and unresolvable keys are quarantined, not guessed.
-After conversion, dedupe by newest updated_at, then highest PK. Recovery copies
-include every changed/deleted row, so reversal can restore the original data.
+Existing GEOID matches always win; only unmatched keys can be legacy PKs.
+Unresolvable keys and duplicates fail atomically unless the operator explicitly
+sets SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE=1. With that opt-in, dedupe by newest
+updated_at, then highest PK. Recovery copies include every changed/deleted row,
+so reversal can restore the original data.
 """
 
 import logging
+import os
 import re
+from collections import Counter
 from datetime import date, datetime
 from decimal import Decimal
 
 import django.core.serializers.json
 from django.core.exceptions import FieldDoesNotExist
-from django.db import migrations, models
+from django.db import migrations, models, transaction
 
 
 logger = logging.getLogger(__name__)
-TRANSACTION_LIMITS = "SET LOCAL lock_timeout = '5s'; SET LOCAL statement_timeout = '60s';"
+# Index/constraint builds can take minutes on warehouse tables. Retain a short
+# lock wait while allowing those statements up to 30 minutes in either direction.
+TRANSACTION_LIMITS = "SET LOCAL lock_timeout = '5s'; SET LOCAL statement_timeout = '30min';"
+QUARANTINE_OPT_IN = "SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE"
 KEYS = {
     "DemographicSnapshot": ("content_type_id", "object_id", "dataset", "year"),
     "DemographicTimeSeries": (
         "content_type_id", "object_id", "variable_code", "dataset", "start_year", "end_year",
     ),
-}
-# These models have no GEOID regex constraint in the historical state.
-UNCONSTRAINED_PATTERNS = {
-    "cbsa": r"[0-9]{5}",
-    "urbanarea": r"[0-9]{5}",
-    "tribalarea": r"[0-9]{4}",
-    "schooldistrictelementary": r"[0-9]{7}",
-    "schooldistrictsecondary": r"[0-9]{7}",
-    "schooldistrictunified": r"[0-9]{7}",
-    # Precinct formats vary; accept an existing GEOID, otherwise quarantine.
 }
 
 
@@ -49,41 +45,57 @@ def payload(row):
     return result
 
 
-def geoid_pattern(model):
-    for constraint in model._meta.constraints:
-        condition = getattr(constraint, "condition", None)
-        if condition is not None:
-            for child in condition.children:
-                if isinstance(child, tuple) and child[0] == "geoid__regex":
-                    return child[1]
-    return UNCONSTRAINED_PATTERNS.get(model._meta.model_name)
-
-
 def resolve_key(model, value, alias):
     """Return (GEOID, reason); None means preserve the row in quarantine."""
     if model is None:
         return None, "unsupported_content_type"
     boundaries = model.objects.using(alias)
-    geoid_exists = boundaries.filter(geoid=value).exists()
+    # Loaders already write GEOIDs. An unrelated integer PK is never evidence
+    # against an exact GEOID match within this content type.
+    if boundaries.filter(geoid=value).exists():
+        return value, None
     pk_geoid = None
     if re.fullmatch(r"[0-9]+", value) and 0 < int(value) <= 9223372036854775807:
         pk_geoid = boundaries.filter(pk=int(value)).values_list("geoid", flat=True).first()
-    if geoid_exists:
-        if pk_geoid is not None and pk_geoid != value:
-            return None, "ambiguous_pk_and_geoid"
-        return value, None
     if pk_geoid is not None:
         if not pk_geoid or len(pk_geoid) > 20:
             return None, "unresolvable_key"
         return pk_geoid, "converted_pk"
-    pattern = geoid_pattern(model)
-    if pattern is not None and re.fullmatch(pattern, value, flags=re.ASCII):
-        # GEOID-native snapshots may precede loading their boundaries.
-        return value, None
     return None, "unresolvable_key"
 
 
 def normalize_keys(apps, schema_editor):
+    """Commit conversions/removals together, or report every removal and roll back."""
+    alias = schema_editor.connection.alias
+    # Keep the same guarantee for direct invocations as MigrationExecutor gives
+    # the surrounding schema operations. Counts cover both demographic tables.
+    with transaction.atomic(using=alias):
+        summaries = _normalize_keys(apps, schema_editor)
+        removals = {
+            name: {reason: count for reason, count in counts.items() if reason != "converted_pk"}
+            for name, counts in summaries.items()
+        }
+        details = "; ".join(
+            f"{name}: " + ", ".join(f"{reason}={count}" for reason, count in sorted(counts.items()))
+            for name, counts in removals.items() if counts
+        )
+        if details and os.environ.get(QUARANTINE_OPT_IN) != "1":
+            raise RuntimeError(
+                f"GEOID migration would remove live rows ({details}). "
+                "All changes rolled back. Load missing boundaries or reconcile keys and retry; "
+                f"to explicitly allow archived removals, set {QUARANTINE_OPT_IN}=1."
+            )
+        for name, counts in summaries.items():
+            logger.warning(
+                "%s GEOID migration: converted=%d quarantined=%d deduplicated=%d; "
+                "recovery copies in siege_geo_demographickeyarchive",
+                name, counts["converted_pk"],
+                sum(count for reason, count in counts.items() if reason not in {"converted_pk", "duplicate"}),
+                counts["duplicate"],
+            )
+
+
+def _normalize_keys(apps, schema_editor):
     alias = schema_editor.connection.alias
     archive = apps.get_model("siege_geo", "DemographicKeyArchive").objects.using(alias)
     content_types = apps.get_model("contenttypes", "ContentType").objects.using(alias)
@@ -96,9 +108,10 @@ def normalize_keys(apps, schema_editor):
             model = None
         boundary_models[ct.pk] = model
 
+    summaries = {}
     for name, key_fields in KEYS.items():
         rows = apps.get_model("siege_geo", name).objects.using(alias)
-        converted = quarantined = deduplicated = 0
+        counts = summaries[name] = Counter()
         for row in rows.order_by("pk").iterator(chunk_size=1000):
             geoid, reason = resolve_key(boundary_models.get(row.content_type_id), row.object_id, alias)
             if reason is None:
@@ -107,7 +120,6 @@ def normalize_keys(apps, schema_editor):
             if geoid is None:
                 archive.create(model_name=name, original_pk=row.pk, reason=reason, original_data=original)
                 rows.filter(pk=row.pk).delete()
-                quarantined += 1
             else:
                 row.object_id = geoid
                 archive.create(
@@ -115,7 +127,7 @@ def normalize_keys(apps, schema_editor):
                     original_data=original, migrated_data=payload(row),
                 )
                 rows.filter(pk=row.pk).update(object_id=geoid)
-                converted += 1
+            counts[reason] += 1
 
         duplicates = (
             rows.order_by().values(*key_fields).annotate(n=models.Count("pk")).filter(n__gt=1)
@@ -131,12 +143,8 @@ def normalize_keys(apps, schema_editor):
                 )
                 archive.filter(pk=recovery.pk).update(reason="duplicate", migrated_data=None)
                 rows.filter(pk=row.pk).delete()
-                deduplicated += 1
-        logger.warning(
-            "%s GEOID migration: converted=%d quarantined=%d deduplicated=%d; "
-            "recovery copies in siege_geo_demographickeyarchive",
-            name, converted, quarantined, deduplicated,
-        )
+                counts["duplicate"] += 1
+    return summaries
 
 
 def restore_keys(apps, schema_editor):
@@ -172,6 +180,8 @@ def restore_keys(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+
+    atomic = True
 
     dependencies = [
         ("contenttypes", "0002_remove_content_type_name"),

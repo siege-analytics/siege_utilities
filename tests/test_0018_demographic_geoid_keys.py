@@ -26,16 +26,123 @@ CURRENT = ("siege_geo", "0018_demographic_geoid_keys")
 
 
 @pytest.fixture
-def legacy_demographics(transactional_db):
+def legacy_demographics(transactional_db, monkeypatch):
     """Exercise real migration DDL and data, restoring the leaf for other tests."""
+    monkeypatch.delenv("SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE", raising=False)
     executor = MigrationExecutor(connection)
     executor.migrate([PREVIOUS])
     before = executor.loader.project_state([PREVIOUS]).apps
     try:
         yield before
     finally:
-        MigrationExecutor(connection).migrate([CURRENT])
+        with monkeypatch.context() as cleanup:
+            cleanup.setenv("SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE", "1")
+            MigrationExecutor(connection).migrate([CURRENT])
         ContentType.objects.clear_cache()
+
+
+@pytest.mark.parametrize("name", ["DemographicSnapshot", "DemographicTimeSeries"])
+def test_migration_keeps_geoid_with_coincident_boundary_pk(legacy_demographics, name):
+    county = legacy_demographics.get_model("siege_geo", "County")
+    geometry = MultiPolygon(Polygon.from_bbox((-119, 33, -118, 34)), srid=4326)
+    for pk, geoid in ((11, "06037"), (6037, "13001")):
+        county.objects.create(
+            pk=pk, geoid=geoid, state_fips=geoid[:2], county_fips=geoid[2:],
+            vintage_year=2020, geometry=geometry,
+        )
+    ct = legacy_demographics.get_model("contenttypes", "ContentType").objects.get(
+        app_label="siege_geo", model="county",
+    )
+    model = legacy_demographics.get_model("siege_geo", name)
+    kwargs = dict(year=2022, total_population=10) if name == "DemographicSnapshot" else dict(
+        variable_code="B01001_001E", start_year=2020, end_year=2022,
+        years=[2020, 2022], values=[10, 20],
+    )
+    model.objects.create(content_type_id=ct.pk, object_id="06037", dataset="acs5", **kwargs)
+    original = list(model.objects.values())
+
+    executor = MigrationExecutor(connection)
+    executor.migrate([CURRENT])
+    after = executor.loader.project_state([CURRENT]).apps
+    assert list(after.get_model("siege_geo", name).objects.values()) == original
+    assert not after.get_model("siege_geo", "DemographicKeyArchive").objects.exists()
+
+
+@pytest.mark.parametrize("removal", ["unresolvable", "duplicate", "both"])
+def test_migration_rejects_quarantine_without_opt_in_atomically(legacy_demographics, removal):
+    original = _legacy_rows(legacy_demographics)
+    for name in original:
+        model = legacy_demographics.get_model("siege_geo", name)
+        if removal == "unresolvable":
+            model.objects.filter(object_id="7").delete()
+        elif removal == "duplicate":
+            model.objects.filter(object_id__in=["missing", "88888"]).delete()
+        original[name] = list(model.objects.order_by("pk").values())
+    with pytest.raises(RuntimeError, match="SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE=1") as error:
+        MigrationExecutor(connection).migrate([CURRENT])
+    if removal != "duplicate":
+        assert "unresolvable_key=2" in str(error.value)
+    if removal != "unresolvable":
+        assert "duplicate=1" in str(error.value)
+    for name, expected in original.items():
+        assert name in str(error.value)
+        assert list(legacy_demographics.get_model("siege_geo", name).objects.order_by("pk").values()) == expected
+    assert CURRENT not in MigrationExecutor(connection).loader.applied_migrations
+    assert "siege_geo_demographickeyarchive" not in connection.introspection.table_names()
+
+
+def test_migration_converts_without_opt_in_when_no_rows_removed(legacy_demographics):
+    original = _legacy_rows(legacy_demographics)
+    for name in original:
+        model = legacy_demographics.get_model("siege_geo", name)
+        model.objects.exclude(object_id="13001").delete()
+        original[name] = list(model.objects.values())
+    executor = MigrationExecutor(connection)
+    executor.migrate([CURRENT])
+    after = executor.loader.project_state([CURRENT]).apps
+    for name, expected in original.items():
+        expected[0]["object_id"] = "06001"
+        assert list(after.get_model("siege_geo", name).objects.values()) == expected
+    archive = after.get_model("siege_geo", "DemographicKeyArchive")
+    assert list(archive.objects.values_list("reason", flat=True)) == ["converted_pk", "converted_pk"]
+
+
+def test_migration_geoid_only_probe_keeps_all_10059_rows(legacy_demographics, caplog):
+    caplog.set_level("WARNING", logger="siege_utilities.geo.django.migrations.0018_demographic_geoid_keys")
+    geometry = MultiPolygon(Polygon.from_bbox((-119, 33, -118, 34)), srid=4326)
+    state_codes = (
+        "01 02 04 05 06 08 09 10 11 12 13 15 16 17 18 19 20 21 22 23 24 25 26 27 "
+        "28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 44 45 46 47 48 49 50 51 53 "
+        "54 55 56 60 66 69 72 78"
+    ).split()
+    fixtures = {
+        "State": [(pk, geoid) for pk, geoid in enumerate(state_codes, 1)],
+        "County": [(11, "06037"), (12, "48201"), (6037, "13001")],
+        "ZCTA": [(pk, f"{pk + 600:05d}") for pk in range(1, 10001)],
+    }
+    snapshots = legacy_demographics.get_model("siege_geo", "DemographicSnapshot")
+    for name, keys in fixtures.items():
+        boundary = legacy_demographics.get_model("siege_geo", name)
+        boundary.objects.bulk_create([
+            boundary(pk=pk, geoid=geoid, vintage_year=2020, geometry=geometry)
+            for pk, geoid in keys
+        ], batch_size=1000)
+        ct = legacy_demographics.get_model("contenttypes", "ContentType").objects.get(
+            app_label="siege_geo", model=name.lower(),
+        )
+        snapshots.objects.bulk_create([
+            snapshots(content_type_id=ct.pk, object_id=geoid, dataset="acs5", year=2022)
+            for _, geoid in keys
+        ], batch_size=1000)
+    original = list(snapshots.objects.order_by("pk").values())
+
+    executor = MigrationExecutor(connection)
+    executor.migrate([CURRENT])
+    after = executor.loader.project_state([CURRENT]).apps
+    assert snapshots.objects.count() == 10059
+    assert list(snapshots.objects.order_by("pk").values()) == original
+    assert not after.get_model("siege_geo", "DemographicKeyArchive").objects.exists()
+    assert "DemographicSnapshot GEOID migration: converted=0 quarantined=0 deduplicated=0" in caplog.text
 
 
 def _legacy_rows(apps, winner="pk_newest"):
@@ -54,7 +161,8 @@ def _legacy_rows(apps, winner="pk_newest"):
             variable_code="B01001_001E", start_year=2020, end_year=2022, years=[2020, 2022], values=[10, 20],
         )
         # A PK that has valid GEOID shape must also be detected (13001).
-        # 99999 is ambiguous: both a GEOID and a different boundary's PK.
+        # 99999 stays GEOID-native despite also matching a different boundary PK.
+        # 88888 has GEOID shape but matches neither a loaded GEOID nor a PK.
         for key in ("7", "06037", "13001", "missing", "99999", "88888"):
             row = model.objects.create(content_type_id=ct.pk, object_id=key, dataset="acs5", **kwargs)
             newest_key = "7" if winner == "pk_newest" else "06037"
@@ -69,7 +177,8 @@ def _legacy_rows(apps, winner="pk_newest"):
 
 
 @pytest.mark.parametrize("winner", ["pk_newest", "geoid_newest", "tie"])
-def test_migration_converts_quarantines_dedupes_and_reverses(legacy_demographics, caplog, winner):
+def test_migration_converts_quarantines_dedupes_and_reverses(legacy_demographics, caplog, winner, monkeypatch):
+    monkeypatch.setenv("SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE", "1")
     caplog.set_level("WARNING", logger="siege_utilities.geo.django.migrations.0018_demographic_geoid_keys")
     original = _legacy_rows(legacy_demographics, winner)
     executor = MigrationExecutor(connection)
@@ -79,14 +188,14 @@ def test_migration_converts_quarantines_dedupes_and_reverses(legacy_demographics
     for name in original:
         model = after.get_model("siege_geo", name)
         rows = model.objects.filter(dataset="acs5")
-        assert set(rows.values_list("object_id", flat=True)) == {"06037", "06001", "88888"}
+        assert set(rows.values_list("object_id", flat=True)) == {"06037", "06001", "99999"}
         winning_key = "7" if winner == "pk_newest" else "06037"
         winning_row = next(row for row in original[name] if row["object_id"] == winning_key)
         assert rows.get(object_id="06037").pk == winning_row["id"]
         assert model.objects.filter(dataset="dec_pl").count() == 1
         assert archive.objects.filter(model_name=name).count() == (5 if winner == "pk_newest" else 4)
-        assert archive.objects.filter(model_name=name, reason="ambiguous_pk_and_geoid").count() == 1
-        assert archive.objects.filter(model_name=name, reason="unresolvable_key").count() == 1
+        assert archive.objects.filter(model_name=name, reason="ambiguous_pk_and_geoid").count() == 0
+        assert archive.objects.filter(model_name=name, reason="unresolvable_key").count() == 2
         assert archive.objects.filter(model_name=name, reason="duplicate").count() == 1
         assert f"{name} GEOID migration: converted=2 quarantined=2 deduplicated=1" in caplog.text
         duplicate = rows.get(object_id="06037")
@@ -100,7 +209,8 @@ def test_migration_converts_quarantines_dedupes_and_reverses(legacy_demographics
         assert list(restored.objects.order_by("pk").values()) == expected
 
 
-def test_migration_reverse_refuses_to_overwrite_newer_edits(legacy_demographics):
+def test_migration_reverse_refuses_to_overwrite_newer_edits(legacy_demographics, monkeypatch):
+    monkeypatch.setenv("SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE", "1")
     _legacy_rows(legacy_demographics)
     MigrationExecutor(connection).migrate([CURRENT])
     row = DemographicSnapshot.objects.get(object_id="06001", dataset="acs5")

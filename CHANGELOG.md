@@ -12,9 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Demographic population queries now keep equal GEOIDs in different boundary
   types and datasets separate. Boundary lookups use GEOIDs instead of integer
   PKs; plan assignments accept BigAutoField-sized boundary PKs. The migration
-  converts unambiguous legacy PK keys, archives unresolved/ambiguous rows, and
-  deduplicates by newest `updated_at` then highest PK before enforcing unique
-  keys. Recovery copies support reversal unless migrated rows were edited.
+  keeps existing GEOID matches unchanged, including those with coincident
+  boundary PKs; only unmatched keys are eligible for PK-to-GEOID conversion.
+  Keys matching neither a GEOID nor a PK of their content type are unresolved,
+  even if they have a valid GEOID shape: load the missing boundaries first.
+  Any unresolved or duplicate rows abort the migration atomically with counts
+  per model and reason. After reviewing those counts, operators can explicitly
+  set `SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE=1` for the migration command to
+  archive and remove those rows. Duplicates retain the newest `updated_at`, then
+  highest PK. Recovery copies support reversal unless migrated rows were edited.
+  Both migration directions allow 30 minutes per statement for large index and
+  constraint builds, with a five-second lock timeout.
   (#1560)
 
 - Cache/output/config writers now publish complete files atomically so interrupted
