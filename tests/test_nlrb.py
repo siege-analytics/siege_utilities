@@ -199,9 +199,40 @@ class TestNLRBPopulationPostGIS:
         assert NLRBRegion.objects.filter(geometry__isnull=True).count() == len(NLRB_REGIONS)
         assert f"created={len(NLRB_REGIONS)}" in output.getvalue()
         assert f"without_geometry={len(NLRB_REGIONS)}" in output.getvalue()
+        assert "stale_registry_rows=0" in output.getvalue()
         assert "Done." not in output.getvalue()
         assert NLRBRegion.objects.get(region_number=28).region_office == "Phoenix"
         assert NLRBRegion.objects.get(region_number=32).region_office == "Oakland"
+
+    @pytest.mark.parametrize("update_existing", [False, True], ids=["skip", "update"])
+    def test_command_reports_stale_registry_rows_without_deleting(self, update_existing):
+        from django.core.management import call_command
+
+        from siege_utilities.geo.django.models import NLRBRegion
+        from siege_utilities.geo.providers.nlrb_regions import NLRB_REGIONS
+
+        # Include another vintage and an unverified prefix: count rows, not just
+        # distinct region numbers, and report every number outside the registry.
+        for number, year in [(11, 2024), (17, 2024), (24, 2024), (26, 2024), (17, 2023), (33, 2023)]:
+            NLRBRegion.objects.create(
+                region_number=number, region_office="Historical office", vintage_year=year,
+            )
+        current = NLRBRegion.objects.create(
+            region_number=14, region_office="St. Louis", vintage_year=2024,
+            states_covered=["IL", "MO"],
+        )
+        stale = NLRBRegion.objects.exclude(region_number__in=NLRB_REGIONS).order_by("pk")
+        before = list(stale.values())
+
+        output = StringIO()
+        call_command("populate_nlrb_regions", update=update_existing, stdout=output)
+
+        assert "stale_registry_rows=6" in output.getvalue()
+        assert "region_numbers=[11, 17, 24, 26, 33]" in output.getvalue()
+        assert list(stale.values()) == before
+        current.refresh_from_db()
+        expected_states = NLRB_REGIONS[14]["states"] if update_existing else ["IL", "MO"]
+        assert current.states_covered == expected_states
 
     @pytest.mark.parametrize("dissolve_counties", [False, True])
     def test_missing_geometry_is_created_and_reported(self, dissolve_counties, caplog):

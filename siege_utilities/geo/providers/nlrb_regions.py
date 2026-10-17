@@ -11,6 +11,7 @@ from typing import Optional
 
 __all__ = [
     'NLRB_REGIONS',
+    'NLRB_SUBREGIONS',
     'STATE_TO_REGIONS',
     'aggregate_by_region',
     'assign_region',
@@ -38,11 +39,11 @@ NLRB_REGIONS: dict[int, dict] = {
     10: {"office": "Atlanta", "states": ["AL", "GA", "NC", "SC", "TN"]},
     12: {"office": "Tampa", "states": ["FL", "PR", "VI"]},
     13: {"office": "Chicago", "states": ["IL", "IN"]},
-    14: {"office": "St. Louis", "states": ["IL", "MO"]},
-    15: {"office": "New Orleans", "states": ["AL", "LA", "MS"]},
+    14: {"office": "St. Louis", "states": ["IA", "IL", "KS", "MO", "NE", "OK"]},
+    15: {"office": "New Orleans", "states": ["AL", "AR", "LA", "MS"]},
     16: {"office": "Fort Worth", "states": ["TX"]},
     18: {"office": "Minneapolis", "states": ["MN", "ND", "SD", "WI"]},
-    19: {"office": "Seattle", "states": ["AK", "ID", "MT", "OR", "WA", "WY"]},
+    19: {"office": "Seattle", "states": ["AK", "ID", "MT", "OR", "WA"]},
     # Part of CA and all HI; AS/GU/MP coverage is outside this primary-state list.
     # https://www.nlrb.gov/about-nlrb/who-we-are/regional-offices/region-20-san-francisco
     20: {"office": "San Francisco", "states": ["CA", "HI"]},
@@ -64,6 +65,10 @@ NLRB_REGIONS: dict[int, dict] = {
     # https://www.nlrb.gov/about-nlrb/who-we-are/regional-offices/region-32-oakland
     32: {"office": "Oakland", "states": ["CA", "NV"]},
 }
+
+# Verified parent regional offices for historical subregional case prefixes.
+# Prefixes 33, 34 and 36 remain unmapped until their parents are verified.
+NLRB_SUBREGIONS: dict[int, int] = {11: 10, 17: 14, 24: 12, 26: 15, 30: 18, 37: 20}
 
 
 def _build_state_to_regions() -> dict[str, list[int]]:
@@ -94,7 +99,8 @@ def lookup_region_by_state(state: str) -> list[int]:
 def assign_region(case_record) -> Optional[int]:
     """Assign an NLRB region number to a case record.
 
-    Uses the region number from the case number if available,
+    Uses the region number from the case number if available, rolling verified
+    subregional prefixes up to their parent regional offices,
     otherwise falls back to state-based lookup (first match).
 
     Args:
@@ -112,7 +118,8 @@ def assign_region(case_record) -> Optional[int]:
         state = getattr(case_record, "state", "")
 
     if region:
-        return int(region)
+        region = int(region)
+        return NLRB_SUBREGIONS.get(region, region)
 
     if state:
         regions = lookup_region_by_state(state)

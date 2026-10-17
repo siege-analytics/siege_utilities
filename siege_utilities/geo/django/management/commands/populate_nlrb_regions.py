@@ -9,6 +9,7 @@ Usage:
 """
 
 from django.core.management.base import BaseCommand, CommandError
+from django.db.models import Count
 
 __all__ = ['Command']
 
@@ -42,8 +43,23 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        from siege_utilities.geo.django.models import NLRBRegion
         from siege_utilities.geo.django.services.nlrb_service import (
             NLRBPopulationService,
+        )
+        from siege_utilities.geo.providers.nlrb_regions import NLRB_REGIONS
+
+        # Report across all vintages; removed registry keys require manual cleanup.
+        stale_regions = list(
+            NLRBRegion.objects.exclude(region_number__in=NLRB_REGIONS)
+            .values("region_number")
+            .annotate(row_count=Count("pk"))
+            .order_by("region_number")
+        )
+        self.stdout.write(
+            f"NLRB registry: stale_registry_rows={sum(row['row_count'] for row in stale_regions)}, "
+            f"region_numbers={[row['region_number'] for row in stale_regions]} "
+            "(all vintages; report only, no rows deleted)"
         )
 
         service = NLRBPopulationService()

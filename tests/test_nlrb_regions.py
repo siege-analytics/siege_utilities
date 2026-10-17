@@ -60,6 +60,12 @@ class TestNLRBRegions:
 
 class TestStateToRegions:
     @pytest.mark.parametrize("state,regions", [
+        ("AR", [15]),
+        ("IA", [14]),
+        ("KS", [14]),
+        ("NE", [14]),
+        ("OK", [14]),
+        ("WY", [27]),
         ("AZ", [28]),
         ("NM", [28]),
         ("NV", [28, 32]),
@@ -68,6 +74,7 @@ class TestStateToRegions:
     ])
     def test_corrected_state_lookups(self, state, regions):
         assert lookup_region_by_state(state) == regions
+        assert assign_region({"state": state}) == regions[0]
 
     def test_single_region_state(self):
         regions = lookup_region_by_state("FL")
@@ -89,11 +96,15 @@ class TestStateToRegions:
     def test_whitespace_stripped(self):
         assert lookup_region_by_state(" TX ") == lookup_region_by_state("TX")
 
-    def test_all_states_covered(self):
-        all_states = set()
-        for info in NLRB_REGIONS.values():
-            all_states.update(info["states"])
-        assert len(all_states) > 40
+    def test_all_states_and_covered_territories_have_regions(self):
+        # Independent of the registry so removing an entry cannot hide lost coverage.
+        states = (
+            "AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI "
+            "MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT "
+            "VT VA WA WV WI WY DC PR VI"
+        ).split()
+        uncovered = [state for state in states if not lookup_region_by_state(state)]
+        assert uncovered == [], f"States without an NLRB region: {uncovered}"
 
 
 # ---------------------------------------------------------------------------
@@ -102,6 +113,16 @@ class TestStateToRegions:
 
 
 class TestAssignRegion:
+    @pytest.mark.parametrize("subregion,parent", [
+        (11, 10), (17, 14), (24, 12), (26, 15), (30, 18), (37, 20),
+    ])
+    def test_subregional_prefix_rolls_up_to_parent(self, subregion, parent):
+        case = NLRBCaseRecord(
+            case_number=f"{subregion:02d}-RC-123456", case_type="RC", region=subregion,
+        )
+        assert assign_region(case) == parent
+        assert assign_region({"region": str(subregion), "state": "TX"}) == parent
+
     def test_from_case_number_region(self):
         case = NLRBCaseRecord(
             case_number="05-RC-123456", case_type="RC", region=5
@@ -173,6 +194,28 @@ class TestAggregateByRegion:
 
 
 class TestRegionSummary:
+    @pytest.mark.parametrize("subregion,parent,office", [
+        (11, 10, "Atlanta"),
+        (17, 14, "St. Louis"),
+        (24, 12, "Tampa"),
+        (26, 15, "New Orleans"),
+        (30, 18, "Minneapolis"),
+        (37, 20, "San Francisco"),
+    ])
+    def test_subregion_and_parent_share_summary(self, subregion, parent, office):
+        cases = [{"region": subregion}, {"region": parent}]
+        assert region_summary(cases) == [{
+            "region_number": parent, "office": office, "case_count": 2,
+        }]
+
+    @pytest.mark.parametrize("region", [33, 34, 36])
+    def test_unverified_prefix_remains_unknown(self, region):
+        case = {"region": region, "state": "TX"}
+        assert assign_region(case) == region
+        assert region_summary([case]) == [{
+            "region_number": region, "office": "Unknown", "case_count": 1,
+        }]
+
     def test_basic_summary(self):
         cases = [
             NLRBCaseRecord(case_number="1", case_type="RC", region=5),
