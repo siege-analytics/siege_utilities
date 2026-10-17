@@ -42,24 +42,43 @@ class TestCensusVintage:
 
 
 class TestSelectVintageForCycle:
-    def test_current_cycle(self):
-        assert select_vintage_for_cycle(2024) == CensusVintage.CURRENT
-        assert select_vintage_for_cycle(2020) == CensusVintage.CURRENT
-        assert select_vintage_for_cycle(2026) == CensusVintage.CURRENT
+    """Regressions for #1498 (writing-tests:1 retroactive-fix corollary).
 
-    def test_census_2020_era(self):
-        assert select_vintage_for_cycle(2012) == CensusVintage.CENSUS_2020
-        assert select_vintage_for_cycle(2018) == CensusVintage.CENSUS_2020
-        assert select_vintage_for_cycle(2019) == CensusVintage.CENSUS_2020
+    The old test_current_cycle and test_census_2020_era assertions encoded
+    the decade-off bug: 2012-2020 cycles require 2010 geography.
+    """
 
-    def test_census_2010_era(self):
-        assert select_vintage_for_cycle(1980) == CensusVintage.CENSUS_2010
-        assert select_vintage_for_cycle(2000) == CensusVintage.CENSUS_2010
-        assert select_vintage_for_cycle(2010) == CensusVintage.CENSUS_2010
-        assert select_vintage_for_cycle(2011) == CensusVintage.CENSUS_2010
+    @pytest.mark.parametrize("year", [2022, 2024, 2026])
+    def test_2022_onward_preserves_current_vintage(self, year):
+        assert select_vintage_for_cycle(year) == CensusVintage.CURRENT
 
-    def test_pre_1980_fallback(self):
-        assert select_vintage_for_cycle(1970) == CensusVintage.CENSUS_2010
+    @pytest.mark.parametrize("year", [2012, 2014, 2016, 2018, 2019, 2020, 2021])
+    def test_2010_geography_before_2022_redistricting(self, year):
+        assert select_vintage_for_cycle(year) == CensusVintage.CENSUS_2010
+
+    @pytest.mark.parametrize("year", [1970, 1980, 2000, 2008, 2010, 2011])
+    def test_pre_2012_fallback_to_earliest_available_geography(self, year):
+        assert select_vintage_for_cycle(year) == CensusVintage.CENSUS_2010
+
+
+def test_doctests_and_module_docstring_agree_with_the_mapping():
+    """Guard the documentation half of #1498 in CI.
+
+    CI runs no doctests (no --doctest-modules), so a stale docstring or
+    doctest can drift from the corrected mapping without any check failing.
+    This runs the module's doctests and asserts the pre-fix example line is
+    gone, so the documentation regression is caught here.
+    """
+    import doctest
+
+    from siege_utilities.geo.providers import census_geocoder
+
+    result = doctest.testmod(census_geocoder, verbose=False)
+    assert result.failed == 0 and result.attempted >= 6
+    assert (
+        "select_vintage_for_cycle(2018)  # -> CensusVintage.CENSUS_2020"
+        not in census_geocoder.__doc__
+    )
 
 
 # --- CensusGeocodeResult ---
