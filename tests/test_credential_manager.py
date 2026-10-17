@@ -536,51 +536,39 @@ class TestGetFrom1Password:
         assert '--vault=Private' in cmd
         assert not any(f.startswith('--account=') for f in cmd)
 
-    def test_service_variation_fallback_uses_flags(self, manager_with_account):
+    def test_failed_lookup_keeps_flags_and_stops_before_variations(self, manager_with_account):
+        """SU-1: an ambiguous exit must not select another item's credential."""
         manager, mock_run = manager_with_account
 
         mock_run.reset_mock()
         mock_run.side_effect = [
-            Mock(returncode=1, stdout='', stderr='not found'),
-            Mock(returncode=0, stdout='found-it\n', stderr=''),
+            subprocess.CompletedProcess([], 1, '', 'not found'),
+            subprocess.CompletedProcess([], 0, 'found-it\n', ''),
         ]
 
-        result = manager._get_from_1password('Census', 'credential')
-        assert result == 'found-it'
+        with pytest.raises(RuntimeError, match='exited with code 1'):
+            manager._get_from_1password('Census', 'credential')
+        mock_run.assert_called_once()
 
         variation_call = mock_run.call_args_list[-1]
         cmd = variation_call[0][0]
         assert '--vault=Employee' in cmd
         assert '--account=Siege_Analytics' in cmd
 
-    def test_returns_none_when_all_variations_fail(self, manager_with_defaults):
+    def test_ambiguous_not_found_exit_raises(self, manager_with_defaults):
+        """SU-1: exit 1 cannot establish absence and permit fallback."""
         manager, mock_run = manager_with_defaults
-        mock_run.return_value = Mock(returncode=1, stdout='', stderr='not found')
+        mock_run.return_value = subprocess.CompletedProcess([], 1, '', 'not found')
 
-        result = manager._get_from_1password('nonexistent', 'field')
-        assert result is None
+        with pytest.raises(RuntimeError, match='exited with code 1'):
+            manager._get_from_1password('nonexistent', 'field')
 
     def test_propagates_transport_errors_instead_of_swallowing(self, manager_with_defaults):
-        """Transport / auth / vault-permission errors PROPAGATE; they no
-        longer fall through to a less-trusted backend.
-
-        Per writing-tests:1 retroactive-fix corollary (RG-9 / v2.3.1):
-        this test was previously named test_returns_none_on_exception
-        and asserted the silent-swallow as feature. writing-code:7
-        treats catch-all-except-and-return-None as banned; the fix in
-        issue #483 narrowed the helper to "exit code 1 (item not
-        found) -> return None; other failures -> raise." Tests follow
-        the rule.
-
-        The author's writing-tests:1 check passed at original-author
-        time because the test was designed for the now-banned silent
-        fallback; correctness against the implementation did not equal
-        correctness against the rule. Rules win on conflict.
-        """
+        """SU-1: process failures propagate instead of permitting fallback."""
         manager, mock_run = manager_with_defaults
-        mock_run.side_effect = Exception("connection failed")
+        mock_run.side_effect = OSError("connection failed")
 
-        with pytest.raises(Exception, match="connection failed"):
+        with pytest.raises(OSError, match="connection failed"):
             manager._get_from_1password('svc', 'field')
 
     def test_propagates_nonzero_nonone_exit_codes(self, manager_with_defaults):
@@ -590,8 +578,7 @@ class TestGetFrom1Password:
         and let the backend loop fall through to keychain/prompt for a
         credential 1Password may actually have."""
         manager, mock_run = manager_with_defaults
-        # exit code 2 = some op CLI error other than "not found."
-        mock_run.return_value = Mock(returncode=2, stdout='', stderr='auth required')
+        mock_run.return_value = subprocess.CompletedProcess([], 2, '', 'auth required')
 
         with pytest.raises(RuntimeError, match="exited with code 2"):
             manager._get_from_1password('svc', 'field')
@@ -829,10 +816,7 @@ class TestStoreIn1Password:
         mock_run.reset_mock()
         mock_run.side_effect = [
             Mock(returncode=1, stdout='', stderr='not found'),  # direct lookup
-            Mock(returncode=1, stdout='', stderr=''),  # variation 1
-            Mock(returncode=1, stdout='', stderr=''),  # variation 2
-            Mock(returncode=1, stdout='', stderr=''),  # variation 3
-            Mock(returncode=1, stdout='', stderr=''),  # variation 4
+            subprocess.CompletedProcess([], 0, '[]', ''),  # no legacy titles
             Mock(returncode=0, stdout='created\n', stderr=''),  # create
         ]
 
@@ -873,10 +857,7 @@ class TestStoreIn1Password:
         mock_run.reset_mock()
         mock_run.side_effect = [
             Mock(returncode=1, stdout='', stderr=''),  # direct lookup
-            Mock(returncode=1, stdout='', stderr=''),  # var 1
-            Mock(returncode=1, stdout='', stderr=''),  # var 2
-            Mock(returncode=1, stdout='', stderr=''),  # var 3
-            Mock(returncode=1, stdout='', stderr=''),  # var 4
+            subprocess.CompletedProcess([], 0, '[]', ''),  # no legacy titles
             Mock(returncode=1, stdout='', stderr='create failed'),  # create fails
         ]
 
@@ -1003,8 +984,8 @@ class TestGetGoogleAnalyticsCredentials:
 
     def test_returns_tuple_when_get_credential_succeeds(self, mock_op_available):
         manager = CredentialManager()
-        # 1Password item lookup returns nothing; fall through to get_credential
-        mock_op_available.return_value = Mock(returncode=1, stdout='', stderr='')
+        # A successful read of empty fields permits general credential lookup.
+        mock_op_available.return_value = subprocess.CompletedProcess([], 0, '', '')
 
         with patch.object(
             CredentialManager, 'get_credential', side_effect=['cid', 'csec']
@@ -1024,8 +1005,8 @@ class TestGetGoogleAnalyticsCredentials:
 
     def test_raises_credential_not_found_on_total_miss(self, mock_op_available):
         manager = CredentialManager()
-        # 1Password item lookup returns nothing
-        mock_op_available.return_value = Mock(returncode=1, stdout='', stderr='')
+        # Successful empty fields are distinct from an ambiguous CLI error.
+        mock_op_available.return_value = subprocess.CompletedProcess([], 0, '', '')
 
         with patch.object(
             CredentialManager, 'get_credential',
@@ -1220,7 +1201,7 @@ class TestConvenienceFunctions:
 
     def test_get_ga_credentials_convenience_raises(self, mock_op_available):
         """Module-level get_ga_credentials propagates CredentialNotFoundError."""
-        mock_op_available.return_value = Mock(returncode=1, stdout='', stderr='')
+        mock_op_available.return_value = subprocess.CompletedProcess([], 0, '', '')
         with patch.object(
             CredentialManager, 'get_credential',
             side_effect=CredentialNotFoundError('google-analytics', 'client_id', []),
@@ -1917,6 +1898,8 @@ def op_create_and_rotate_cli(isolated_credentials):
 
     def respond(cmd, **kwargs):
         action = cmd[2]
+        if action == 'list':
+            return subprocess.CompletedProcess(cmd, 0, '[]', '')
         if action == 'get':
             if not stored:
                 return subprocess.CompletedProcess(cmd, 1, '', 'item not found')
@@ -2128,6 +2111,8 @@ def credential_write(request, isolated_credentials, tmp_path):
     def respond(cmd, **kwargs):
         if cmd[:3] == ['op', 'item', 'get'] and kind == 'op-create':
             return subprocess.CompletedProcess(cmd, 1, '', 'item not found')
+        if cmd[:3] == ['op', 'item', 'list']:
+            return subprocess.CompletedProcess(cmd, 0, '[]', '')
         if '--format=json' in cmd:
             return subprocess.CompletedProcess(cmd, 0, json.dumps(item), '')
         if cmd[:3] == ['op', 'item', 'edit']:
@@ -2195,7 +2180,7 @@ def test_store_failures_never_log_argv_or_secrets(credential_write, caplog, fail
     attempted = []
 
     def fail_write(cmd, **kwargs):
-        if cmd[:3] == ['op', 'item', 'get']:
+        if cmd[:2] == ['op', 'item'] and cmd[2] in ('get', 'list'):
             return respond(cmd, **kwargs)
         attempted.append(cmd)
         if failure == 'timeout':
