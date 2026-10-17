@@ -12,6 +12,11 @@ local files, Apple Keychain, then interactive prompts. Callers may override
 backend_priority. Files must name the service (for example postgres/password.txt
 or postgres_password.txt); unscoped password.txt, credentials.json, and
 client_secret_*.json files are not searched outside a service directory.
+Keychain supports only the password field; other fields skip it.
+1Password retrieval errors stop resolution, including exit code 1: no
+documented exit-code distinction establishes that an item is merely absent.
+1Password reads and writes target the exact item title or ID; stores refuse
+legacy title variations rather than writing an item the reader cannot find.
 
 Supports all analytics services (Google Analytics, Facebook Business, etc.)
 and database connections with a unified interface.
@@ -259,29 +264,6 @@ class CredentialManager:
             for path in additional_paths:
                 paths.append(Path(path))
 
-        # Try to get paths from user config only when default/user paths are in
-        # scope. Offline demos can set include_default_paths=False to avoid
-        # reading machine-local credential path configuration.
-        if not include_default_paths:
-            return paths
-
-        # Try to get paths from user config. Narrow except to the two
-        # legitimate "config not available" failure modes (the module
-        # isn't importable, or the function exists but the attribute
-        # we're reading is missing). A bare `except Exception` here
-        # would have swallowed a TypeError in user_config.credential_paths
-        # iteration (e.g., if a user wrote a string instead of a list),
-        # masking a real config bug as "no credential paths configured."
-        try:
-            from .user_config import get_user_config
-        except ImportError:
-            pass  # user_config module not available; no extra paths.
-        else:
-            user_config = get_user_config()
-            if user_config is not None and hasattr(user_config, 'credential_paths'):
-                for path in user_config.credential_paths:
-                    paths.append(Path(path))
-
         return paths
 
     def _detect_available_backends(self, *, detect_external: bool = True) -> Dict[str, bool]:
@@ -306,9 +288,12 @@ class CredentialManager:
         try:
             result = subprocess.run(['op', 'account', 'list'],
                                   capture_output=True, text=True,
-                                  timeout=60)
+                                  timeout=5)
             return result.returncode == 0
         except FileNotFoundError:
+            return False
+        except subprocess.TimeoutExpired:
+            log_warning("1Password availability probe timed out after 5 seconds; backend unavailable")
             return False
 
     def _check_keychain_available(self) -> bool:
@@ -318,9 +303,12 @@ class CredentialManager:
         try:
             result = subprocess.run(['security', 'list-keychains'],
                                   capture_output=True, text=True,
-                                  timeout=60)
+                                  timeout=5)
             return result.returncode == 0
         except FileNotFoundError:
+            return False
+        except subprocess.TimeoutExpired:
+            log_warning("Keychain availability probe timed out after 5 seconds; backend unavailable")
             return False
 
     def _build_op_flags(self, vault: Optional[str] = None,
@@ -372,7 +360,7 @@ class CredentialManager:
                 ("skipped" / "no credential" / unknown-backend), so callers
                 can surface a precise diagnostic instead of guessing.
             Exception: backend-specific transport / auth / permission errors
-                (e.g., 1Password CLI non-found-nonzero exits) propagate
+                (including every nonzero 1Password retrieval exit) propagate
                 directly from the per-backend helpers without being
                 wrapped. See SU-1 in CLAUDE.md.
         """
@@ -401,7 +389,7 @@ class CredentialManager:
             elif backend == '1password':
                 value = self._get_from_1password(service, field, vault=vault, account=account)
             elif backend == 'keychain':
-                value = self._get_from_keychain(service, username)
+                value = self._get_from_keychain(service, username, field)
             elif backend == 'prompt':
                 value = self._get_from_prompt(service, username, field)
             else:
@@ -513,16 +501,14 @@ class CredentialManager:
 
     def _get_from_1password(self, service: str, field: str,
                             vault: Optional[str] = None,
-                            account: Optional[str] = None) -> Optional[str]:
+                            account: Optional[str] = None) -> str:
         """Get credential from 1Password.
 
-        Returns the credential string if found, ``None`` if the item
-        legitimately does not exist in 1Password (under the requested
-        name OR any of the documented service-name variations). Raises
-        on transport / auth / vault-permission errors so the caller
-        does not silently fall through to a less-trusted backend when
-        1Password actually had the credential but had a transient
-        access problem.
+        Return the requested field on success. Every nonzero exit raises:
+        exit code 1 also covers server errors, so it cannot establish an
+        item miss. No error text or exit-code map reliably distinguishes
+        absence here. Callers must supply the exact item title or ID;
+        failed lookups do not try name variations or another backend.
 
         Args:
             service: Item title or identifier in 1Password
@@ -532,51 +518,30 @@ class CredentialManager:
         """
         _validate_cli_value(service, 'service')
         op_flags = self._build_op_flags(vault=vault, account=account)
-        names_to_try = [
-            service,
-            f"{service} API",
-            f"{service} Credentials",
-            f"{service.replace('-', ' ').title()} API",
-            f"{service.replace('-', ' ').title()} Credentials",
-        ]
-        # op exit codes (per `op` CLI docs):
-        # 0 = success
-        # 1 = item not found / no match
-        # other = auth required, transport, vault-permission, etc.
-        # Treat exit code 1 (and only 1) as "not in this backend"; everything
-        # else is a real failure that should bubble up.
-        for name in names_to_try:
-            cmd = ['op', 'item', 'get', name, f'--field={field}', '--reveal'] + op_flags
-            # timeout=60 per writing-code:15 (v2.6.0): biometric prompts
-            # can take a moment; bare unbounded waits cascade through the
-            # backend fallback chain into the caller.
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-            if result.returncode == 0:
-                return result.stdout.strip()
-            if result.returncode == 1:
-                # Item not found under this name; try the next variation.
-                continue
-            # Non-1 nonzero exit: 1Password CLI is signalling something
-            # other than "item not found." Raise so the caller does not
-            # silently fall through to keychain/prompt for credentials
-            # 1Password actually has.
-            raise RuntimeError(
-                f"1Password CLI (`op item get {name} --field={field}`) "
-                f"exited with code {result.returncode}: "
-                f"{_redact(result.stderr or result.stdout, max_len=200)!r}. "
-                f"Resolve the 1Password CLI state before falling back "
-                f"to other backends."
-            )
-        return None
+        cmd = ['op', 'item', 'get', service, f'--field={field}', '--reveal'] + op_flags
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if result.returncode == 0:
+            return result.stdout.strip()
+        raise RuntimeError(
+            f"1Password CLI (`op item get {service} --field={field}`) "
+            f"exited with code {result.returncode}: "
+            f"{_redact(result.stderr or result.stdout, max_len=200)!r}. "
+            f"Resolve the 1Password CLI state before falling back "
+            f"to other backends."
+        )
 
-    def _get_from_keychain(self, service: str, username: str) -> Optional[str]:
+    def _get_from_keychain(self, service: str, username: str,
+                           field: str = "password") -> Optional[str]:
         """Get credential from Apple Keychain.
 
-        Returns None when the keychain simply doesn't contain the
-        credential (exit code 44 = item not found).  Raises on
+        Only the password field uses the item's password. Other fields
+        return None without querying Keychain. Returns None when the keychain
+        doesn't contain the credential (exit code 44 = item not found). Raises on
         transport / permission errors so the caller doesn't silently
         fall through to the next backend.
         """
+        if field != 'password':
+            return None
         _validate_cli_value(service, 'service')
         _validate_cli_value(username, 'username')
         result = subprocess.run([
@@ -606,10 +571,9 @@ class CredentialManager:
             import getpass
             prompt = f"Enter {field} for {service} ({username}): "
 
-            if field.lower() in ['password', 'secret', 'token', 'key']:
-                return getpass.getpass(prompt)
-            else:
+            if field.lower() in {'client_id', 'client_email', 'project_id', 'username'}:
                 return input(prompt)
+            return getpass.getpass(prompt)
 
         except KeyboardInterrupt:
             # User deliberately cancelled — propagate so the caller does
@@ -643,15 +607,18 @@ class CredentialManager:
         Raises:
             SiegeConfigError: An existing 1Password item cannot be safely
                 replaced as JSON, or its updated value cannot be verified.
+                Also raised when only a legacy title variation exists;
+                supply the exact item title or ID instead.
                 See ``_store_in_1password`` for the supported edit scope.
             ValueError: If a CLI service/field name or Keychain username
-                starts with '-'.
+                starts with '-', or Keychain is asked to store a field
+                other than password.
         """
         if backend == '1password' and self.available_backends.get('1password'):
             return self._store_in_1password(service, username, value, field,
                                             vault=vault, account=account)
         elif backend == 'keychain' and self.available_backends.get('keychain'):
-            return self._store_in_keychain(service, username, value)
+            return self._store_in_keychain(service, username, value, field)
         elif backend == 'env':
             return self._store_in_env(service, username, value, field)
         else:
@@ -678,6 +645,10 @@ class CredentialManager:
         New items use API_CREDENTIAL so subsequent rotations remain editable.
         A read-back check cannot detect data omitted by item JSON.
 
+        Resolve only the exact service title or ID, as retrieval does. Before
+        creating an item, refuse legacy title variations found in the same
+        vault/account; callers must supply their exact title or ID explicitly.
+
         Raises SiegeConfigError on unsafe edits or failed persistence checks.
         CLI/JSON errors return False with a diagnostic that omits secrets.
         """
@@ -687,22 +658,38 @@ class CredentialManager:
             op_flags = self._build_op_flags(vault=vault, account=account)
 
             # Determine existence from the item, not a possibly empty/missing
-            # password. Resolve the same service-name variations as retrieval.
+            # password. Never resolve an alternate title that reads cannot find.
             item = None
-            for name in [service, f"{service} API", f"{service} Credentials",
-                         f"{service.replace('-', ' ').title()} API",
-                         f"{service.replace('-', ' ').title()} Credentials"]:
-                current = subprocess.run(
-                    ['op', 'item', 'get', name, '--format=json'] + op_flags,
+            current = subprocess.run(
+                ['op', 'item', 'get', service, '--format=json'] + op_flags,
+                capture_output=True, text=True, timeout=60,
+            )
+            if current.returncode == 1:
+                # Metadata is used only to refuse legacy aliases, never to
+                # select an item for editing or retrieve its secret fields.
+                listing = subprocess.run(
+                    ['op', 'item', 'list', '--format=json'] + op_flags,
                     capture_output=True, text=True, timeout=60,
                 )
-                if current.returncode == 1:
-                    continue
+                listing.check_returncode()
+                summaries = json.loads(listing.stdout)
+                if not isinstance(summaries, list) or any(not isinstance(entry, dict) for entry in summaries):
+                    raise SiegeConfigError(f"Refusing to create 1Password item {service!r}: invalid item list JSON")
+                legacy_titles = {
+                    f"{service} API", f"{service} Credentials",
+                    f"{service.replace('-', ' ').title()} API",
+                    f"{service.replace('-', ' ').title()} Credentials",
+                }
+                if any(entry.get('title') in legacy_titles for entry in summaries):
+                    raise SiegeConfigError(
+                        f"Refusing to store 1Password item {service!r}: a legacy title variation exists. "
+                        "Use the exact item title or ID for both storing and retrieving credentials."
+                    )
+            else:
                 current.check_returncode()
                 item = json.loads(current.stdout)
                 if not isinstance(item, dict):
                     raise SiegeConfigError(f"Refusing to update 1Password item {service!r}: invalid item JSON")
-                break
 
             editing = item is not None
             if editing:
@@ -772,8 +759,14 @@ class CredentialManager:
             log_error(f"Error storing in 1Password: {_safe_error(e)}")
             return False
 
-    def _store_in_keychain(self, service: str, username: str, value: str) -> bool:
-        """Store via stdin; return False with an error for unsafe/oversized input."""
+    def _store_in_keychain(self, service: str, username: str, value: str,
+                           field: str = "password") -> bool:
+        """Store a password via stdin; reject other fields with ValueError.
+
+        Return False with an error for unsafe or oversized stdin input.
+        """
+        if field != 'password':
+            raise ValueError("Keychain supports only the password field")
         _validate_cli_value(service, 'service')
         _validate_cli_value(username, 'username')
         # value is encoded as -X hex in the stdin command, never an option.
@@ -904,6 +897,8 @@ class CredentialManager:
             Tuple of (client_id, client_secret).
 
         Raises:
+            RuntimeError: when 1Password retrieval exits nonzero. This stops
+                fallback because the exit code cannot establish item absence.
             CredentialNotFoundError: when neither 1Password item lookup
                 nor the general credential backends yield both
                 ``client_id`` and ``client_secret``.  The error's
@@ -1103,7 +1098,7 @@ def get_credential(service: str, username: str, field: str = "password",
             attempt-log shape.
         Exception: backend-specific transport / auth errors propagate
             from the underlying helpers (e.g., 1Password CLI nonzero
-            exits other than "not found").
+            retrieval exits).
     """
     manager = _get_default_manager(vault=vault, account=account)
     path_objects = [Path(p) for p in search_paths] if search_paths else None
