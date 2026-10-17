@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `UserConfigManager.get_database_connection()` and explicit YAML persistence
   continue to return or store the real values. (#1552)
 
+- `populate_boundaries`, `populate_demographics`, `populate_crosswalks`,
+  `populate_timezones`, `populate_nlrb_regions`, `populate_nces`, and
+  `classify_urbanicity` now exit non-zero when a load reports errors, after
+  printing the existing details and summaries. Use `--allow-partial` to retain
+  tolerant behavior when at least one record was created, updated, or classified;
+  errors with nothing loaded still fail. Multi-result runs count successful
+  records across all requested types, groups, or actions. (#1533)
+
 - Credential resolution now defaults to env -> 1Password -> service-scoped
   files -> Keychain -> prompt. Unscoped credential files are no longer searched.
   Move files to a service directory (for example `postgres/password.txt`) or

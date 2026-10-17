@@ -8,8 +8,9 @@ Usage:
     python manage.py populate_boundaries --year 2020 --type all --state 06
 
 Any skipped row or reported error makes the command exit nonzero after the
-counts are printed. Known unpublished VTD sources are warned and skipped
-without failing. Use --update when reloading existing boundaries.
+counts are printed. Use --allow-partial to tolerate errors or skipped rows
+when at least one record was created or updated. Known unpublished VTD sources
+are warned and skipped without failing. Use --update when reloading boundaries.
 """
 
 from typing import Optional
@@ -47,6 +48,11 @@ class Command(BaseCommand):
     ]
 
     def add_arguments(self, parser):
+        parser.add_argument(
+            "--allow-partial",
+            action="store_true",
+            help="Allow errors or skipped rows if at least one record was created or updated",
+        )
         parser.add_argument(
             "--year",
             type=int,
@@ -203,7 +209,9 @@ class Command(BaseCommand):
                 self.style.WARNING(f"Total errors: {len(total_errors)}")
             )
 
-        if total_errors or total_skipped:
+        if (total_errors or total_skipped) and (
+            not options.get("allow_partial", False) or total_created + total_updated == 0
+        ):
             raise CommandError(
                 f"Boundary population incomplete: {total_skipped} skipped, "
                 f"{len(total_errors)} errors"

@@ -20,6 +20,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
+            "--allow-partial",
+            action="store_true",
+            help="Allow reported errors if at least one record was created or updated",
+        )
+        parser.add_argument(
             "--year",
             type=int,
             required=True,
@@ -77,6 +82,9 @@ class Command(BaseCommand):
             else [action]
         )
 
+        total_loaded = 0
+        total_errors = 0
+
         for act in actions:
             self.stdout.write(f"\n{'='*60}")
             self.stdout.write(f"Running: {act} for year {year}")
@@ -103,6 +111,9 @@ class Command(BaseCommand):
             else:
                 raise CommandError(f"Unknown action: {act}")
 
+            total_loaded += result.records_created + result.records_updated
+            total_errors += len(result.errors)
+
             # Report results
             self.stdout.write(
                 f"  Created: {result.records_created}\n"
@@ -121,3 +132,6 @@ class Command(BaseCommand):
                     self.stderr.write(f"    ... and {len(result.errors) - 10} more")
             else:
                 self.stdout.write(self.style.SUCCESS("  Status: OK"))
+
+        if total_errors and (not options.get("allow_partial", False) or total_loaded == 0):
+            raise CommandError(f"NCES population failed with {total_errors} errors")
