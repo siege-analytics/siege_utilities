@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `validate_directory_path(..., must_exist=False)` now raises
+  `PathSecurityError` when a path component that does not exist yet contains a
+  C0 control character, DEL or a C1 control character. This covers callers that
+  create directories through it, such as `ensure_path_exists`, and the
+  zip-named subdirectory `unzip_file_to_directory` creates. Member paths inside
+  an archive are not checked. Existing directories with such names still
+  validate when they can be stat'ed, and file-path validation is unchanged.
+  Path-validation messages and the debug log now show paths with `repr()`, so
+  escape sequences are not written raw. Because the zip-named subdirectory is
+  now validated, a zip whose stem is `..` (e.g. `...zip`) raises instead of
+  extracting into the parent of `extract_to` (#1692).
+
 ### Fixed
 
 - Cache/output/config writers now publish complete files atomically so interrupted
