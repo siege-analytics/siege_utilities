@@ -264,6 +264,7 @@ jobs:
         uv run flake8 siege_utilities --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     
     - name: Snapshot untracked paths before tests
+      id: litter_snapshot
       run: uv run python scripts/check_test_litter.py snapshot "$RUNNER_TEMP/untracked-before"
 
     - name: Test with pytest
@@ -275,7 +276,7 @@ jobs:
           --ignore=tests/test_nces_service_enrich_districts.py
 
     - name: Fail if tests left files in the checkout
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && steps.litter_snapshot.outcome == 'success' }}
       run: uv run python scripts/check_test_litter.py compare "$RUNNER_TEMP/untracked-before"
     
     - name: Upload coverage to Codecov
