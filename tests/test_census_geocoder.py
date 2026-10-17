@@ -61,6 +61,26 @@ class TestSelectVintageForCycle:
         assert select_vintage_for_cycle(year) == CensusVintage.CENSUS_2010
 
 
+def test_doctests_and_module_docstring_agree_with_the_mapping():
+    """Guard the documentation half of #1498 in CI.
+
+    CI runs no doctests (no --doctest-modules), so a stale docstring or
+    doctest can drift from the corrected mapping without any check failing.
+    This runs the module's doctests and asserts the pre-fix example line is
+    gone, so the documentation regression is caught here.
+    """
+    import doctest
+
+    from siege_utilities.geo.providers import census_geocoder
+
+    result = doctest.testmod(census_geocoder, verbose=False)
+    assert result.failed == 0 and result.attempted >= 6
+    assert (
+        "select_vintage_for_cycle(2018)  # -> CensusVintage.CENSUS_2020"
+        not in census_geocoder.__doc__
+    )
+
+
 # --- CensusGeocodeResult ---
 
 
