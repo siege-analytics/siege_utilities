@@ -33,6 +33,8 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TYPE_CHECKING, Union
 
+from siege_utilities.files.secure_write import secure_write_text
+
 if TYPE_CHECKING:
     from siege_utilities.config.models.google_account import GoogleAccount
     from siege_utilities.config.google_account_registry import GoogleAccountRegistry
@@ -125,9 +127,7 @@ class GoogleWorkspaceClient:
             creds = flow.run_local_server(port=0)
 
         if token_file and creds:
-            import os
-            Path(token_file).write_text(creds.to_json())
-            os.chmod(token_file, 0o600)
+            secure_write_text(token_file, creds.to_json())
 
         return cls(creds)
 

@@ -10,6 +10,8 @@ import re
 
 import yaml
 
+from siege_utilities.files.secure_write import secure_write_text
+
 from .person import Person, _convert_to_yaml_safe, _strip_sensitive_fields, _reject_redacted_values
 from .branding_config import BrandingConfig
 from .report_preferences import ReportPreferences
@@ -704,8 +706,7 @@ class Organization(BaseModel):
         yaml_str = yaml.safe_dump(data, default_flow_style=False, sort_keys=False)
         if path is not None:
             path = Path(path)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(yaml_str)
+            secure_write_text(path, yaml_str)
         return yaml_str
 
     @classmethod
@@ -875,8 +876,7 @@ class Collaboration(BaseModel):
         yaml_str = yaml.safe_dump(data, default_flow_style=False, sort_keys=False)
         if path is not None:
             path = Path(path)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(yaml_str)
+            secure_write_text(path, yaml_str)
         return yaml_str
 
     @classmethod

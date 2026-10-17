@@ -12,6 +12,8 @@ import re
 
 import yaml
 
+from siege_utilities.files.secure_write import secure_write_text
+
 from siege_utilities.core._http import redact_url_secrets
 
 from .credential import Credential, OnePasswordCredential
@@ -577,8 +579,7 @@ class Person(BaseModel):
         yaml_str = yaml.safe_dump(data, default_flow_style=False, sort_keys=False)
         if path is not None:
             path = Path(path)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(yaml_str)
+            secure_write_text(path, yaml_str)
         return yaml_str
 
     @classmethod

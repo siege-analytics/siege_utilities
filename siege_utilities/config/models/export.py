@@ -11,6 +11,8 @@ from pathlib import Path
 
 import yaml
 
+from siege_utilities.files.secure_write import secure_write_text
+
 from .actor_types import User, Client, Collaborator, Organization, Collaboration
 from .person import _convert_to_yaml_safe, _reject_redacted_values
 
@@ -76,8 +78,7 @@ def export_entities(
 
     if path is not None:
         path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(yaml_str)
+        secure_write_text(path, yaml_str)
 
     return yaml_str
 
