@@ -26,9 +26,26 @@ def scan(tmp_path, source):
     'open(path, "w")', 'open(file=path, mode="wb")',
     'path.open("w")', 'path.write_text("data")', 'path.write_bytes(b"data")',
     'df.to_csv(path)', 'df.to_parquet(path=path)', 'gdf.to_file(filename=path)',
+    'df.to_json(path_or_buf=path)', 'df.to_feather(path=path)',
+    'df.to_pickle(path=path)', 'df.to_excel(excel_writer=path)',
+    'archive.extractall(path=path)', 'archive.extractall()', 'archive.extractall(None)',
 ])
 def test_rejects_each_direct_final_path_sink(tmp_path, sink):
     assert len(scan(tmp_path, f"def save(path):\n    {sink}\n")) == 1
+
+
+@pytest.mark.parametrize("sink", [
+    'df.to_json(path)', 'df.to_feather(path)', 'df.to_pickle(path)',
+    'df.to_excel(path)', 'archive.extractall(path)',
+])
+def test_new_sinks_fail_cli_in_scratch_tree(tmp_path, sink):
+    (tmp_path / "writer.py").write_text(f"def save(path):\n    {sink}\n")
+    result = subprocess.run(
+        [sys.executable, str(GUARD), str(tmp_path)], capture_output=True,
+        text=True, timeout=60,
+    )
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "1 unlisted atomic writes; 0 stale exceptions" in result.stdout
 
 
 @pytest.mark.parametrize("source", [
@@ -44,6 +61,9 @@ def test_rejects_each_direct_final_path_sink(tmp_path, sink):
     'import tempfile\nfrom pathlib import Path\n'
     'with tempfile.TemporaryDirectory() as directory:\n'
     '    tmp = Path(directory) / "data.csv"\n    df.to_csv(str(tmp))\n',
+    'import tempfile\nwith tempfile.TemporaryDirectory() as directory:\n'
+    '    archive.extractall(directory)\n',
+    'import io\ndf.to_excel(io.BytesIO())\ndf.to_json()\ndf.to_json(None)\n',
 ])
 def test_accepts_proven_temporary_or_memory_destinations(tmp_path, source):
     assert scan(tmp_path, source) == []
@@ -65,6 +85,22 @@ def test_temp_binding_does_not_exempt_other_writes(tmp_path, body):
 
 def test_filename_spelling_is_not_temporary_provenance(tmp_path):
     assert len(scan(tmp_path, 'tmp = "output.csv"\ntmp.write_text("bad")\n')) == 1
+
+
+@pytest.mark.parametrize("module,shadow,expected", [
+    ("siege_utilities.files.operations", "", 0),
+    ("siege_utilities.other", "", 1),
+    ("siege_utilities.files.operations", "atomic_write_path", 1),
+])
+def test_atomic_local_definition_is_scoped_to_its_module(tmp_path, module, shadow, expected):
+    path = tmp_path / "operations.py"
+    path.write_text(
+        'def atomic_write_path(target):\n    yield target\n'
+        f'def save({shadow}):\n'
+        '    with atomic_write_path(final) as temporary:\n'
+        '        temporary.write_text("data")\n'
+    )
+    assert len(guard.scan_file(path, module=module)) == expected
 
 
 def test_temporary_directory_cannot_exempt_absolute_join(tmp_path):

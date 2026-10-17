@@ -63,6 +63,15 @@
     "reason": "Explicit developer-generated architecture/build dependency artifacts, outside the enumerated #1509 writers; exact existing calls retained."
   },
   {
+    "scope": "export_pyspark_df_to_excel",
+    "rule": "to_excel",
+    "sha256": "b6c667e1c23baf4001ca2338ed6168e3b30992aee77aa71ed91b15b426952944",
+    "call": "pandas_df.to_excel(file_name, sheet_name=sheet_name, index=False)",
+    "file": "distributed/spark_utils.py",
+    "count": 1,
+    "reason": "Existing explicit Excel export is outside the enumerated #1509 cache writers; this exact legacy output remains non-atomic and is pinned for follow-up."
+  },
+  {
     "scope": "demo_spatial_data_sources",
     "rule": "to_file",
     "sha256": "1287c6dd73d77c24f1217868c61e298f6b313c2de36502f1796c061a16764832",
@@ -79,24 +88,6 @@
     "file": "files/operations.py",
     "count": 1,
     "reason": "Shapefile and sidecars are written under tempfile.mkdtemp, then replaced by the existing multi-file helper. Dynamic target.name joins require manual temporary-path review."
-  },
-  {
-    "scope": "safe_file_write",
-    "rule": "open",
-    "sha256": "a826860f0aa8024d28f76732acaec53f09b80634b7200e8d5f39443da37e92f0",
-    "call": "open(validated, 'w', encoding=encoding)",
-    "file": "files/operations.py",
-    "count": 1,
-    "reason": "Existing validated text/JSON convenience writer, outside the atomic_write_path helper and enumerated #1509 writers; path validation is not an atomicity guarantee."
-  },
-  {
-    "scope": "safe_json_write",
-    "rule": "open",
-    "sha256": "6d2f60313fa81cdaf3c9bce96db58c29429c8581880753f0c8001118c9d1b452",
-    "call": "open(validated, 'w', encoding='utf-8')",
-    "file": "files/operations.py",
-    "count": 1,
-    "reason": "Existing validated text/JSON convenience writer, outside the atomic_write_path helper and enumerated #1509 writers; path validation is not an atomicity guarantee."
   },
   {
     "scope": "generate_catalog_docs",
@@ -144,6 +135,15 @@
     "reason": "Paths are passed by Command._export_type from TemporaryDirectory, and uploads start only after _write_exports returns. Interprocedural temporary-path provenance is not inferred by this guard; existing staging stays unchanged."
   },
   {
+    "scope": "NCESDownloader._download_and_extract",
+    "rule": "extractall",
+    "sha256": "2e89e6e68f9e0563ea94f65ba3bfa567061568b7203aa6581cf9019f1a8b7d7e",
+    "call": "zf.extractall(staging)",
+    "file": "geo/providers/nces_download.py",
+    "count": 1,
+    "reason": "Reviewed NCES extraction uses a UUID sibling staging directory, publishes it with os.replace only after complete extraction, and removes it on failure. Dynamic sibling-directory provenance is not inferred by the scanner."
+  },
+  {
     "scope": "RDHClient.download_dataset",
     "rule": "open",
     "sha256": "e98649a416fbd543a8beeb80d514d3eda4921e35cc5d99cb7aaf04f2b6354f5c",
@@ -151,6 +151,15 @@
     "file": "geo/providers/redistricting_data_hub.py",
     "count": 1,
     "reason": "RDH downloader belongs to #1415 and is explicitly excluded from #1509; interrupted download handling remains that issue's responsibility."
+  },
+  {
+    "scope": "RDHClient._extract_zip",
+    "rule": "extractall",
+    "sha256": "f2e91be74cecb3bb81fb94036946f0e78b320be18b73be29634b53f1ece66258",
+    "call": "zf.extractall(extract_dir)",
+    "file": "geo/providers/redistricting_data_hub.py",
+    "count": 1,
+    "reason": "RDH extraction is deferred to #1415 alongside its pinned download write; partial extraction handling remains that issue’s responsibility."
   },
   {
     "scope": "generate_branch_report",

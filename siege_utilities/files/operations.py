@@ -713,7 +713,7 @@ def safe_file_write(
     create_dirs: bool = True,
 ) -> bool:
     """
-    Safely write content to a file, optionally creating parent directories.
+    Atomically write content to a file, optionally creating parent directories.
 
     Args:
         file_path: Path to file
@@ -735,8 +735,11 @@ def safe_file_write(
     try:
         if create_dirs:
             validated.parent.mkdir(parents=True, exist_ok=True)
-        with open(validated, "w", encoding=encoding) as f:
-            f.write(content)
+        elif not validated.parent.is_dir():
+            raise FileNotFoundError(f"Parent directory does not exist: {validated.parent}")
+        with atomic_write_path(validated) as temporary:
+            with open(temporary, "w", encoding=encoding) as f:
+                f.write(content)
         return True
     except (OSError, TypeError) as e:
         log.error(f"Error writing to {validated}: {e}")
@@ -784,7 +787,7 @@ def safe_json_write(
     create_dirs: bool = True,
 ) -> bool:
     """
-    Safely write data to a JSON file.
+    Atomically write data to a JSON file.
 
     Args:
         file_path: Path to JSON file
@@ -806,8 +809,11 @@ def safe_json_write(
     try:
         if create_dirs:
             validated.parent.mkdir(parents=True, exist_ok=True)
-        with open(validated, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=indent, ensure_ascii=False)
+        elif not validated.parent.is_dir():
+            raise FileNotFoundError(f"Parent directory does not exist: {validated.parent}")
+        with atomic_write_path(validated) as temporary:
+            with open(temporary, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=indent, ensure_ascii=False)
         return True
     except (OSError, TypeError, ValueError) as e:
         log.error(f"Error writing JSON to {validated}: {e}")

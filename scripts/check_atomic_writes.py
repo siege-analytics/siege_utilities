@@ -20,7 +20,11 @@ import sys
 DEFAULT_ROOT = Path(__file__).resolve().parents[1] / "siege_utilities"
 DEFAULT_ALLOWLIST = Path(__file__).with_name("atomic_write_allowlist.json")
 ATOMIC = "siege_utilities.files.operations.atomic_write_path"
-SERIALIZERS = {"to_parquet": "path", "to_csv": "path_or_buf", "to_file": "filename"}
+SERIALIZERS = {
+    "to_parquet": "path", "to_csv": "path_or_buf", "to_file": "filename",
+    "to_json": "path_or_buf", "to_feather": "path", "to_pickle": "path",
+    "to_excel": "excel_writer",
+}
 
 
 def call_digest(node):
@@ -41,7 +45,8 @@ def argument(call, index, keyword):
 class WriteScanner(ast.NodeVisitor):
     """Track only proven temporary destinations, never a variable's spelling."""
 
-    def __init__(self):
+    def __init__(self, module=""):
+        self.module = module
         self.aliases = {}
         self.safe = {}
         self.scope = ""
@@ -164,6 +169,11 @@ class WriteScanner(ast.NodeVisitor):
             self.visit(statement)
         self.safe, self.aliases, self.scope = old
         self.bind(ast.Name(id=node.name), None)
+        # The helper's own module uses its definition without importing it.
+        # Limit this trust to that module and top-level definition; ordinary
+        # rebinding and argument shadowing still invalidate the alias.
+        if isinstance(node, ast.FunctionDef) and not self.scope and f"{self.module}.{node.name}" == ATOMIC:
+            self.aliases[node.name] = ATOMIC
 
     visit_AsyncFunctionDef = visit_FunctionDef
     visit_ClassDef = visit_FunctionDef
@@ -220,6 +230,10 @@ class WriteScanner(ast.NodeVisitor):
                     target, rule = node.func.value, "open"
             elif method in {"write_text", "write_bytes"}:
                 target, rule = node.func.value, method
+            elif method == "extractall":
+                # Unlike pandas serialization, an omitted/None path writes
+                # into the current directory, so it must still be reported.
+                target, rule = argument(node, 0, "path"), method
             elif method in SERIALIZERS:
                 target, rule = argument(node, 0, SERIALIZERS[method]), method
                 # pandas returns serialized data with a missing/None path.
@@ -231,12 +245,12 @@ class WriteScanner(ast.NodeVisitor):
         self.generic_visit(node)
 
 
-def scan_file(path):
+def scan_file(path, module=""):
     source = path.read_text(encoding="utf-8")
     if not source.strip():
         # Empty namespace __init__ files are legitimate; ast.parse still runs.
         source = "\n"
-    scanner = WriteScanner()
+    scanner = WriteScanner(module=module)
     scanner.visit(ast.parse(source, filename=str(path)))
     return scanner.findings
 
@@ -264,7 +278,9 @@ def main(argv=None):
         seen = Counter()
         unlisted = 0
         for path in paths:
-            for finding in scan_file(path):
+            relative = path.relative_to(args.root)
+            module = "siege_utilities." + ".".join(relative.with_suffix("").parts)
+            for finding in scan_file(path, module=module):
                 finding["file"] = path.relative_to(args.root).as_posix()
                 key = tuple(finding[field] for field in fields)
                 seen[key] += 1
