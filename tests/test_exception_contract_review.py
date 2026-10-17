@@ -1,6 +1,7 @@
 """Offline reviewer probes for #1532 CR-2 through CR-4."""
 
 import importlib
+import os
 import sqlite3
 from unittest.mock import Mock
 
@@ -60,13 +61,13 @@ def test_absent_attribute_tables_yield_empty_attributes(swmaps_without_attribute
 
 @pytest.mark.parametrize("missing", ["none", "warn", "raise"])
 def test_absent_attribute_tables_honor_missing_policy(swmaps_without_attributes, missing, monkeypatch):
-    from siege_utilities.geo.data_reception import extract_attributes_swmaps
+    data_reception = importlib.import_module("siege_utilities.geo.data_reception")
 
     warning = Mock()
-    monkeypatch.setattr("siege_utilities.geo.data_reception.log.warning", warning)
+    monkeypatch.setattr(data_reception.log, "warning", warning)
 
     def extract():
-        return extract_attributes_swmaps(swmaps_without_attributes, "one", ["name"], missing=missing)
+        return data_reception.extract_attributes_swmaps(swmaps_without_attributes, "one", ["name"], missing=missing)
 
     if missing == "raise":
         with pytest.raises(KeyError, match="name"):
@@ -111,7 +112,7 @@ def test_config_write_failures_propagate(tmp_path, monkeypatch, operation, failu
     saved = manager.user_config_file.read_bytes()
     error = PermissionError("target unwritable") if failure == "unwritable" else yaml.YAMLError("dump failed")
     if failure == "unwritable":
-        monkeypatch.setattr("siege_utilities.config.user_config.os.replace", Mock(side_effect=error))
+        monkeypatch.setattr(os, "replace", Mock(side_effect=error))
     else:
         monkeypatch.setattr(yaml, "dump", Mock(side_effect=error))
 
