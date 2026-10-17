@@ -2,9 +2,12 @@
 Page Models - OOP hierarchy for report pages
 """
 from abc import ABC, abstractmethod
+from html import escape as escape_html
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
+
+from .._markup import _escape_paragraph
 
 
 __all__ = [
@@ -198,36 +201,38 @@ class TitlePage(Page):
 
         # Blue header bar
         blue_bar_style = self.create_blue_bar_style()
-        self.add_paragraph(self.report_type, blue_bar_style)
+        self.add_paragraph(_escape_paragraph(self.report_type), blue_bar_style)
         self.add_spacer(self.BLUE_BAR_TO_TITLE)
 
         # Main title
         title_style = self.create_title_style()
-        client_name_fixed = self.client_name.replace(" & ", "&nbsp;& ")
-        self.add_paragraph(client_name_fixed, title_style)
+        self.add_paragraph(_escape_paragraph(self.client_name), title_style)
         self.add_spacer(self.TITLE_TO_TAGLINE)
 
         # Tagline (omitted if empty)
         if self.tagline:
             tagline_style = self.create_tagline_style()
-            self.add_paragraph(self.tagline, tagline_style)
+            self.add_paragraph(_escape_paragraph(self.tagline), tagline_style)
         self.add_spacer(self.TAGLINE_TO_DETAILS)
 
         # Report details
         details_style = self.create_details_style()
         self.add_paragraph("<b>Report Date:</b><br/>" + datetime.now().strftime('%B %d, %Y'), details_style)
         self.add_spacer(self.DETAILS_INTERNAL)
-        self.add_paragraph(f"<b>Period Covered:</b><br/>{start_date} to {end_date}", details_style)
+        self.add_paragraph(f"<b>Period Covered:</b><br/>{_escape_paragraph(start_date)} to {_escape_paragraph(end_date)}", details_style)
         self.add_spacer(self.DETAILS_INTERNAL)
         if self.phone:
             self.add_paragraph(
-                f'<b>Phone:</b><br/><a href="tel:{self.phone}">{self.phone}</a>',
+                f'<b>Phone:</b><br/><a href="tel:{escape_html(str(self.phone), quote=True)}">{_escape_paragraph(self.phone)}</a>',
                 details_style,
             )
             self.add_spacer(self.DETAILS_INTERNAL)
-        self.add_paragraph(f'<b>Website:</b><br/><a href="{self.client_url}">{self.client_url}</a>', details_style)
+        self.add_paragraph(
+            f'<b>Website:</b><br/><a href="{escape_html(str(self.client_url), quote=True)}">'
+            f'{_escape_paragraph(self.client_url)}</a>', details_style,
+        )
         self.add_spacer(self.DETAILS_INTERNAL)
-        self.add_paragraph(f"<b>Prepared By:</b><br/>{self.prepared_by}", details_style)
+        self.add_paragraph(f"<b>Prepared By:</b><br/>{_escape_paragraph(self.prepared_by)}", details_style)
         self.add_page_break()
 
         return self.get_content()
@@ -320,12 +325,12 @@ class TableOfContentsPage(Page):
 
         for section in section_order:
             self.add_spacer(self.SECTION_SPACING)
-            self.add_paragraph(section, section_style)
+            self.add_paragraph(_escape_paragraph(section), section_style)
             for entry in grouped[section]:
                 title = entry.get("title", "")
                 page_num = entry.get("page_num")
                 label = f"{title}{'  ·  ' + str(page_num) if page_num else ''}"
-                self.add_paragraph(label, item_style)
+                self.add_paragraph(_escape_paragraph(label), item_style)
 
         self.add_page_break()
         return self.get_content()
