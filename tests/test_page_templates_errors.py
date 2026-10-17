@@ -6,14 +6,15 @@ import pytest
 from siege_utilities.reporting.templates.page_templates import PageTemplateManager
 
 
-def test_modify_template_raises_keyerror_for_unknown_template():
-    mgr = PageTemplateManager()
+def test_modify_template_raises_keyerror_for_unknown_template(tmp_path):
+    # The default templates_dir is inside the package; keep tests out of it (#1693).
+    mgr = PageTemplateManager(templates_dir=tmp_path / "templates")
     with pytest.raises(KeyError) as exc_info:
         mgr.modify_template("no_such_template_zzz", page_width=100)
     assert "Template not found" in str(exc_info.value)
 
 
 def test_export_template_raises_keyerror_for_unknown_template(tmp_path):
-    mgr = PageTemplateManager()
+    mgr = PageTemplateManager(templates_dir=tmp_path / "templates")
     with pytest.raises(KeyError):
         mgr.export_template("no_such_template_zzz", str(tmp_path / "out.yaml"))
