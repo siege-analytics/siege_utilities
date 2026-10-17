@@ -24,6 +24,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
+            "--allow-partial",
+            action="store_true",
+            help="Allow reported errors if at least one record was created or updated",
+        )
+        parser.add_argument(
             "--source-year",
             type=int,
             required=True,
@@ -133,3 +138,11 @@ class Command(BaseCommand):
             )
             for error in result.errors[:10]:
                 self.stdout.write(self.style.ERROR(f"  - {error}"))
+
+        if result.errors and (
+            not options.get("allow_partial", False)
+            or result.records_created + result.records_updated == 0
+        ):
+            raise CommandError(
+                f"Crosswalk population failed with {len(result.errors)} errors"
+            )
