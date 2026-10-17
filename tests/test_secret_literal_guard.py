@@ -33,6 +33,7 @@ def assert_rejected(result, line, value=_SENTINEL):
 @pytest.mark.parametrize("name", [
     "aws_secret_access_key", "aws_access_key_id", "aws_session_token",
     "password", "secret", "secret_key", "secretValue", "client_secret", "token", "api_key",
+    "passwd", "access_key", "access_key_id", "minio_access_key", "private_key",
 ])
 def test_literal_credential_keyword_fails(tmp_path, name):
     result = run_guard(tmp_path, f'boto3.client("s3", {name}="{_SENTINEL}")\n')
@@ -41,6 +42,7 @@ def test_literal_credential_keyword_fails(tmp_path, name):
 
 @pytest.mark.parametrize("name", [
     "password", "secret_key", "token", "api_key", "aws_access_key_id", "aws_session_token",
+    "passwd", "access_key", "access_key_id", "minio_access_key", "private_key",
 ])
 @pytest.mark.parametrize("constant", [False, True], ids=["literal", "module-constant"])
 @pytest.mark.parametrize("shape", ["function", "argparse"])
@@ -91,6 +93,7 @@ def test_key_shaped_literals_fail_anywhere(tmp_path, prefix, shape):
     'parser.add_argument("--primary-key", default="id")\n',
     'parser.add_argument("--sort-key", default="name")\n',
     'def connect(primary_key="id", token_file="oauth.json"): pass\n',
+    'def connect(key="id"): pass\n',
     'def connect(password=None, *, token=None): pass\n',
     'connect(password=os.environ["PASSWORD"])\n',
     'parser.add_argument("--secret-key", default=None)\n',

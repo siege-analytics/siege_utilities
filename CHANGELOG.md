@@ -64,9 +64,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `stage_boundaries_s3` rejects removed `--access-key` and `--secret-key`
   options without echoing their values, for both spaced and equals forms.
+  Parser errors also redact underscore spellings and values with whitespace.
   Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` or use a boto3 profile.
-  CI checks every management command parser for non-None defaults on
-  key, secret, token, password, and endpoint options. (#1578)
+  CI checks every management command parser for non-None credential defaults,
+  including access and private keys. The required test matrix scans the
+  published package for credential literals. (#1578)
 - Escape report data in Paragraph text, Folium popup HTML, and IDML XML.
   Closes stored XSS in saved Folium maps and fixes report/IDML crashes on
   `& < > "` while preserving intentional markup. (#1565)

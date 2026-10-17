@@ -24,7 +24,7 @@ from pathlib import Path
 
 
 _SENSITIVE_NAME = re.compile(
-    r"(?:^|_)(?:(?:password|token|api_key)$|secret\w*|aws_(?:secret|access|session))",
+    r"(?:^|_)(?:(?:password|passwd|token|api_key|access_key|access_key_id|private_key)$|secret\w*|aws_(?:secret|access|session))",
     re.IGNORECASE,
 )
 _AWS_KEY = re.compile(r"(?:AKIA|ASIA)[0-9A-Z]{16}")

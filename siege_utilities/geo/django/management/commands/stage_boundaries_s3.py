@@ -58,6 +58,9 @@ _REMOVED_CREDENTIAL_MESSAGES = {
     "secret_key": "--secret-key was removed; set AWS_SECRET_ACCESS_KEY or use a boto3 profile",
 }
 
+_UNRECOGNIZED = "unrecognized arguments: "
+_AMBIGUOUS = re.compile(r"^(ambiguous option: --[\w-]+)=.*( could match .*)$", re.S)
+
 GEOGRAPHY_MODEL_MAP = {
     "state": State,
     "county": County,
@@ -71,6 +74,15 @@ GEOGRAPHY_MODEL_MAP = {
     "sldl": StateLegislativeLower,
     "vtd": VTD,
 }
+
+
+def _redact_parser_message(message):
+    """Remove values from unrecognized, ambiguous, and equals-form options."""
+    if message.startswith(_UNRECOGNIZED):
+        names = [t.split("=", 1)[0] for t in message[len(_UNRECOGNIZED):].split() if t.startswith("--")]
+        return _UNRECOGNIZED + " ".join(names) + " (values redacted)"
+    message = _AMBIGUOUS.sub(r"\1=<redacted>\2", message)
+    return re.sub(r"(--[\w-]+)=\S+", r"\1=<redacted>", message)
 
 
 def _reject_access_key(value: str) -> None:
@@ -92,7 +104,7 @@ class Command(BaseCommand):
 
         def redacted_error(message):
             # Ambiguous/unknown options bypass the credential type callables.
-            base_error(re.sub(r"(--[\w-]+)=\S+", r"\1=<redacted>", message))
+            base_error(_redact_parser_message(message))
 
         parser.error = redacted_error
         return parser

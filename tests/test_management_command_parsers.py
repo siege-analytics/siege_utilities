@@ -26,6 +26,7 @@ from siege_utilities.geo.django.management.commands import stage_boundaries_s3 a
 
 pytestmark = pytest.mark.unit
 _ROOT = Path(__file__).resolve().parents[1]
+_SENTINEL = "removed-credential-sentinel-1578"
 _COMMAND_MODULES = tuple(
     ".".join(path.relative_to(_ROOT).with_suffix("").parts)
     for path in sorted((_ROOT / "siege_utilities").glob("**/management/commands/*.py"))
@@ -35,7 +36,7 @@ if not _COMMAND_MODULES:
     raise RuntimeError("No management commands found for the credential-default guard")
 
 _SENSITIVE_DEST = re.compile(
-    r"(?:^|_)(?:(?:password|token|api_key)$|secret\w*|aws_(?:secret|access|session))",
+    r"(?:^|_)(?:(?:password|passwd|token|api_key|access_key|access_key_id|private_key)$|secret\w*|aws_(?:secret|access|session))",
     re.IGNORECASE,
 )
 
@@ -113,8 +114,29 @@ def test_malformed_credential_cli_redacts_equals_value(capsys, flag):
 
     assert error.value.code == 2
     captured = capsys.readouterr()
-    assert f"{flag}=<redacted>" in captured.err
+    if flag == "--secret_key":
+        assert flag in captured.err
+    else:
+        assert f"{flag}=<redacted>" in captured.err
     assert sentinel not in captured.out + captured.err
+
+
+@pytest.mark.parametrize("flags", [
+    ["--secret_key", _SENTINEL],
+    ["--access_key", _SENTINEL],
+    ["--se=a " + _SENTINEL],
+    ["--secret_key=a", "b" + _SENTINEL],
+], ids=["secret-underscore", "access-underscore", "ambiguous-whitespace", "unknown-whitespace"])
+def test_malformed_credential_cli_redacts_space_separated_and_whitespace_values(capsys, flags):
+    with pytest.raises(SystemExit) as error:
+        stage.Command().run_from_argv([
+            "manage.py", "stage_boundaries_s3", "--year", "2020", "--type", "county", *flags,
+        ])
+
+    assert error.value.code == 2
+    captured = capsys.readouterr()
+    assert _SENTINEL not in captured.out + captured.err
+    assert "Traceback" not in captured.out + captured.err
 
 
 @pytest.mark.parametrize(
