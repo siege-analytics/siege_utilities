@@ -32,6 +32,7 @@ from siege_utilities.connectors._protocol import (
     ConnectorRateLimitError,
     UpsertResult,
 )
+from siege_utilities.connectors._query_utils import _validate_identifier
 
 log = logging.getLogger(__name__)
 
@@ -571,9 +572,11 @@ class ZohoConnector:
         limit: int | None,
     ) -> pd.DataFrame:
         """Execute a COQL query for filtered access."""
-        field_clause = ", ".join(fields)
+        _validate_identifier(module)
+        field_clause = ", ".join(_validate_identifier(field, allow_dotted=True) for field in fields)
         where_parts: list[str] = []
         for key, value in filters.items():
+            _validate_identifier(key, allow_dotted=True)
             if value is None:
                 where_parts.append(f"{key} is null")
             elif isinstance(value, bool):
@@ -616,7 +619,13 @@ class ZohoConnector:
 
     @staticmethod
     def _coql_escape(value: str) -> str:
-        return value.replace("'", "\\'")
+        # Escape existing backslashes before adding escapes for delimiters.
+        return (
+            value.replace("\\", "\\\\")
+            .replace("'", "\\'")
+            .replace("(", "\\(")
+            .replace(")", "\\)")
+        )
 
     @staticmethod
     def _records_to_dataframe(
