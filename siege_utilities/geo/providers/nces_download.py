@@ -26,6 +26,9 @@ from siege_utilities.config.nces_constants import (
 
 log = logging.getLogger(__name__)
 
+# Match the spatial downloader's explicit opt-in; SSL failures otherwise raise.
+_ALLOW_INSECURE_SSL = os.environ.get("SIEGE_INSECURE_SSL", "").lower() in ("1", "true", "yes")
+
 __all__ = [
     'LOCALE_BOUNDARY_COLUMNS',
     'SCHOOL_LOCATION_COLUMNS',
@@ -132,7 +135,10 @@ class NCESDownloader:
         log.info(f"Downloading {data_type} data for {year} from {url}")
 
         try:
-            download_file(url, zip_path, timeout=self.timeout)
+            download_file(
+                url, zip_path, timeout=self.timeout,
+                allow_insecure_fallback=_ALLOW_INSECURE_SSL,
+            )
         except (OSError, ConnectionError) as e:
             raise NCESDownloadError(
                 f"Failed to download {data_type} for year {year} from {url}"

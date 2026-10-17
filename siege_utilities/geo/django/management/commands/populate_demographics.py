@@ -46,6 +46,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
+            "--allow-partial",
+            action="store_true",
+            help="Allow reported errors if at least one record was created or updated",
+        )
+        parser.add_argument(
             "--year",
             type=int,
             required=True,
@@ -184,3 +189,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.WARNING(f"Total errors: {len(total_errors)}")
             )
+            if not options.get("allow_partial", False) or total_created + total_updated == 0:
+                raise CommandError(
+                    f"Demographic population failed with {len(total_errors)} errors"
+                )
