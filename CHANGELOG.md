@@ -62,6 +62,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- For the planned 4.1.0 release, SSL failures now raise instead of silently
+  retrying with `verify=False`. The optional `download_file` parameter
+  `allow_insecure_fallback=False` is allowlisted in the API contract gate as
+  a backward-compatible addition. Verified downloads honor `REQUESTS_CA_BUNDLE`,
+  then `CURL_CA_BUNDLE`, before platform defaults. TIGER, government dataset,
+  and NCES downloads honor `SIEGE_INSECURE_SSL` as an explicit opt-in with
+  ERROR logging; warning suppression is limited to individual unverified
+  discovery requests. (#1456)
 - Path validation permits data inside a cwd or base at or below `/root` while
   keeping root's `.aws`, `.netrc`, `.kube`, `.docker`, `.pgpass`,
   `.git-credentials`, and `.config/gcloud` locations blocked. Both file and
