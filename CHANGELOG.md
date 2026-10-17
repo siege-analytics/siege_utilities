@@ -55,6 +55,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Closed OData filter injection in Dynamics list filters with shared string
+  literal escaping for scalar filters and batch alternate keys. Zoho criteria
+  now escapes backslashes and parentheses while preserving quote escaping.
+  (#1418)
 - Path validation permits data inside a cwd or base at or below `/root` while
   keeping root's `.aws`, `.netrc`, `.kube`, `.docker`, `.pgpass`,
   `.git-credentials`, and `.config/gcloud` locations blocked. Both file and

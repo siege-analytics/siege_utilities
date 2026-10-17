@@ -616,7 +616,13 @@ class ZohoConnector:
 
     @staticmethod
     def _coql_escape(value: str) -> str:
-        return value.replace("'", "\\'")
+        # Escape existing backslashes before adding escapes for delimiters.
+        return (
+            value.replace("\\", "\\\\")
+            .replace("'", "\\'")
+            .replace("(", "\\(")
+            .replace(")", "\\)")
+        )
 
     @staticmethod
     def _records_to_dataframe(
