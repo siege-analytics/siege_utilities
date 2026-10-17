@@ -411,3 +411,13 @@ def test_guard_allowlist_is_exact_and_stale_entries_fail(tmp_path):
     result = _guard(tmp_path, "--allowlist", str(allow))
     assert result.returncode != 0 and "fixed-tmp-path" in result.stdout
     assert "stale allow-list entry" in result.stdout
+
+
+def test_secure_write_without_fchmod(tmp_path, monkeypatch):
+    """Portable to platforms lacking os.fchmod (Windows CPython < 3.13)."""
+    from siege_utilities.files import secure_write as mod
+    monkeypatch.delattr(mod.os, "fchmod", raising=False)
+    path = tmp_path / "nested" / "credential.json"
+    mod.secure_write_text(path, "SU_REVIEW_SENTINEL_xyz")
+    assert path.read_text(encoding="utf-8") == "SU_REVIEW_SENTINEL_xyz"
+    assert path.stat().st_mode & 0o077 == 0

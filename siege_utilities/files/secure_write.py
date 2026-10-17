@@ -24,7 +24,8 @@ def secure_write_text(path: str | os.PathLike[str], data: str) -> None:
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
     fd = os.open(path, flags, 0o600)
     try:
-        os.fchmod(fd, 0o600)
+        if hasattr(os, "fchmod"):  # absent on Windows before Python 3.13
+            os.fchmod(fd, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8", closefd=False) as stream:
             stream.write(data)
     finally:
