@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### BREAKING
 
 - Config passwords, tokens, client secrets and API keys now use Pydantic
-  `SecretStr`, including the API keys on `User`. Consumers must call
+  `SecretStr`, including the API keys on `User` and `postgresql_connection`
+  on `EnhancedUserProfile` and `User`. Consumers must call
   `.get_secret_value()` when passing these values to clients or string APIs.
-  Explicit YAML persistence continues to store the real values. (#1552)
+  `UserConfigManager.get_database_connection()` and explicit YAML persistence
+  continue to return or store the real values. (#1552)
 
 - Credential resolution now defaults to env -> 1Password -> service-scoped
   files -> Keychain -> prompt. Unscoped credential files are no longer searched.
@@ -61,9 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - Config secret fields no longer expose their values in model `repr`/`str`
-  or those models' validation error messages. Legacy dataclass API keys are
-  omitted from repr, and a CI AST class guard rejects secret-named plain
-  string fields without `repr=False`. (#1552)
+  or those models' validation error messages, including nested validation
+  failures on `Person` and `ClientProfile`. Legacy dataclass API keys and
+  PostgreSQL connection strings are omitted from repr. A CI AST class guard
+  rejects secret-, connection- and DSN-named plain string fields without
+  `repr=False`, and treats string defaults as values, not annotations. (#1552)
 
 - Path validation permits data inside a cwd or base at or below `/root` while
   keeping root's `.aws`, `.netrc`, `.kube`, `.docker`, `.pgpass`,

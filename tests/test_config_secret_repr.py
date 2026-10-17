@@ -1,20 +1,25 @@
 """Secret representation, validation and consumer regressions for #1552."""
 
 from dataclasses import asdict
+from pathlib import Path
+import subprocess
+import sys
 from urllib.parse import quote_plus
 from unittest.mock import patch
 
 import pytest
+import yaml
 from pydantic import SecretStr, ValidationError
 
 from siege_utilities.config.models.actor_types import User
+from siege_utilities.config.models.client_profile import ClientProfile
 from siege_utilities.config.models.credential import Credential
 from siege_utilities.config.models.database_connection import DatabaseConnection
 from siege_utilities.config.models.oauth_integration import OAuthIntegration
 from siege_utilities.config.models.person import Person
 from siege_utilities.config.models.social_media_account import SocialMediaAccount
 from siege_utilities.config.models.user_profile import UserProfile
-from siege_utilities.config.user_config import UserProfile as LegacyUserProfile
+from siege_utilities.config.user_config import UserConfigManager, UserProfile as LegacyUserProfile
 
 pytestmark = pytest.mark.unit
 
@@ -30,6 +35,7 @@ OAUTH = dict(name="google", provider="google", service="analytics",
 SOCIAL = dict(platform="twitter", account_id="etl", account_name="ETL",
               access_token="sentinel-social-access-token")
 PERSON = dict(person_id="etl", name="ETL User", email="etl@example.com")
+DSN = f"postgresql://etl:{PASSWORD}@host/db"
 KEY_FIELDS = ("census_api_key", "google_analytics_key", "facebook_business_key")
 SECRET_CASES = [
     (DatabaseConnection, DB, "password", PASSWORD, 100),
@@ -87,6 +93,82 @@ def test_parent_aggregator_repr(render):
                     database_connections=[DatabaseConnection(**DB)])
     assert PASSWORD not in render(person)
     assert OAUTH["client_secret"] not in render(person)
+
+
+@pytest.mark.parametrize("field,child", [
+    ("database_connections", dict(DB, password="Short7!")),
+    ("credentials", dict(CREDENTIAL, password="Short7!")),
+    ("oauth_integrations", dict(OAUTH, client_secret="Short7!")),
+])
+def test_aggregator_person_yaml_validation_hides_nested_secrets(field, child):
+    document = yaml.safe_dump(dict(PERSON, **{field: [child]}))
+    with pytest.raises(ValidationError) as caught:
+        Person.from_yaml(document)
+    assert field in str(caught.value)
+    assert "Short7!" not in str(caught.value)
+    assert "Short7!" not in repr(caught.value)
+
+
+@pytest.mark.parametrize("missing_field", [False, True])
+def test_aggregator_client_profile_validation_hides_nested_secrets(missing_field):
+    payload = dict(
+        client_id="etl", client_name="ETL", client_code="ET", contact_info={},
+        industry="Tech", project_count=0, status="active", report_preferences={},
+        branding_config=dict(primary_color="#000000", secondary_color="#111111",
+                             accent_color="#222222", text_color="#333333",
+                             background_color="#FFFFFF", primary_font="Arial",
+                             secondary_font="Arial"),
+        database_connections=[dict(DB, password="Short7!")],
+    )
+    if missing_field:
+        del payload["client_name"]
+        payload["database_connections"][0]["password"] = PASSWORD
+    sentinel = PASSWORD if missing_field else "Short7!"
+    with pytest.raises(ValidationError) as caught:
+        ClientProfile(**payload)
+    assert ("client_name" if missing_field else "database_connections.0.password") in str(caught.value)
+    assert sentinel not in str(caught.value)
+    assert sentinel not in repr(caught.value)
+
+
+@pytest.mark.parametrize("model,kwargs", [
+    (UserProfile, {}), (User, dict(PERSON, username="etl")), (LegacyUserProfile, {}),
+])
+def test_postgresql_connection_repr_and_consumer(model, kwargs, tmp_path):
+    profile = model(**kwargs, postgresql_connection=DSN)
+    assert PASSWORD not in repr(profile)
+    assert PASSWORD not in str(profile)
+    if model is LegacyUserProfile:
+        assert asdict(profile)["postgresql_connection"] == DSN
+    else:
+        assert profile.postgresql_connection.get_secret_value() == DSN
+        assert PASSWORD not in profile.model_dump_json()
+    manager = UserConfigManager(config_dir=tmp_path)
+    manager.user_profile = profile
+    assert manager.get_database_connection() == DSN
+    assert manager.get_database_connection("postgresql") == DSN
+
+
+@pytest.mark.parametrize("model,kwargs", [(UserProfile, {}), (User, dict(PERSON, username="etl"))])
+def test_postgresql_connection_default_and_length(model, kwargs):
+    assert model(**kwargs).postgresql_connection.get_secret_value() == ""
+    with pytest.raises(ValidationError) as caught:
+        model(**kwargs, postgresql_connection=DSN + "x" * 500)
+    assert PASSWORD not in str(caught.value)
+    assert PASSWORD not in repr(caught.value)
+
+
+@pytest.mark.parametrize("model,kwargs", [(UserProfile, {}), (User, dict(PERSON, username="etl"))])
+def test_postgresql_connection_yaml_roundtrip(model, kwargs, tmp_path):
+    from siege_utilities.config.enhanced_config import load_user_profile, save_user_profile
+
+    profile = model(**kwargs, postgresql_connection=DSN)
+    if model is User:
+        restored = User.from_yaml(profile.to_yaml())
+    else:
+        save_user_profile(profile, "etl", config_dir=tmp_path)
+        restored = load_user_profile("etl", config_dir=tmp_path)
+    assert restored.postgresql_connection.get_secret_value() == DSN
 
 
 @pytest.mark.parametrize("field", KEY_FIELDS)
@@ -193,6 +275,55 @@ def test_class_guard_rejects_plain_secrets(tmp_path, declaration):
     assert main([str(tmp_path)]) == 1
 
 
+@pytest.mark.parametrize("declaration", [
+    'postgresql_connection: str = Field(json_schema_extra={"sensitive": True}, default="")',
+    'postgresql_connection: Optional[str] = Field(sensitive=True, default=None)',
+    'dsn: str = Field(default="")',
+])
+def test_class_guard_rejects_connection_fields(tmp_path, declaration):
+    (tmp_path / "planted.py").write_text(
+        "from pydantic import BaseModel, Field\nfrom typing import Optional\n"
+        "class Leaky(BaseModel):\n    " + declaration + "\n"
+    )
+    result = subprocess.run(
+        [sys.executable, str(Path(__file__).resolve().parents[1] / "scripts/check_secret_repr.py"),
+         str(tmp_path)], capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 1
+    assert f"planted.py:4:Leaky.{declaration.split(':')[0]}" in result.stdout
+    assert "Traceback" not in result.stderr
+
+
+@pytest.mark.parametrize("default", ['""', '"Field(repr=False)"'])
+def test_class_guard_string_defaults_are_values(tmp_path, default):
+    (tmp_path / "planted.py").write_text(
+        "from pydantic import BaseModel, Field\nclass Leaky(BaseModel):\n"
+        f"    password: str = {default}\n"
+    )
+    result = subprocess.run(
+        [sys.executable, str(Path(__file__).resolve().parents[1] / "scripts/check_secret_repr.py"),
+         str(tmp_path)], capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 1
+    assert "planted.py:3:Leaky.password" in result.stdout
+    assert "Traceback" not in result.stderr
+
+
+@pytest.mark.parametrize("declaration", [
+    'token: SecretStr = SecretStr("")',
+    '''password: 'Annotated[str, Field(repr=False)]' = ""''',
+    'postgresql_connection: str = Field(default="", repr=False, json_schema_extra={"sensitive": True})',
+])
+def test_class_guard_safe_string_defaults(tmp_path, declaration):
+    from scripts.check_secret_repr import main
+
+    (tmp_path / "safe.py").write_text(
+        "from pydantic import BaseModel, Field, SecretStr\nfrom typing import Annotated\n"
+        "class Safe(BaseModel):\n    " + declaration + "\n"
+    )
+    assert main([str(tmp_path)]) == 0
+
+
 @pytest.mark.parametrize("parent_import", [
     "from .base import Parent as P", "from . import PublicParent as P",
 ])
@@ -223,6 +354,7 @@ class Safe(BaseModel):
     api_key: Optional[SecretStr]
     token_type: str = Field(repr=False)
     secret: Annotated[str, Field(repr=False)]
+    connection_type: str = "postgresql"
     token_count: int
     password_label: ClassVar[str] = "Password"
 @dataclass

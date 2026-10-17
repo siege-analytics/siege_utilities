@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Optional
 import os
 from dataclasses import dataclass, asdict, field
+from pydantic import SecretStr
 
 # Import enhanced config for validation
 
@@ -96,7 +97,7 @@ class UserProfile:
     
     # Database Preferences
     default_database: str = "postgresql"
-    postgresql_connection: str = ""
+    postgresql_connection: str = field(default="", repr=False)
     duckdb_path: str = ""
 
 class UserConfigManager:
@@ -399,7 +400,8 @@ class UserConfigManager:
             database_type = self.user_profile.default_database
         
         if database_type == "postgresql":
-            return self.user_profile.postgresql_connection
+            connection = self.user_profile.postgresql_connection
+            return connection.get_secret_value() if isinstance(connection, SecretStr) else connection
         elif database_type == "duckdb":
             return self.user_profile.duckdb_path
         else:

@@ -4,8 +4,9 @@
 Scan every Python module under siege_utilities/ by default. BaseModel,
 NamedTuple and dataclass fields (including inherited models and import aliases)
 must use SecretStr or field-level repr=False. Optional, union, Annotated and
-quoted string annotations are recognized. This is a static class guard, not
-analysis of dynamically constructed models or runtime annotation changes.
+quoted string annotations are recognized, as are connection/DSN field names
+(excluding public connection_type discriminators). This is a static class
+guard, not analysis of dynamically constructed models or runtime annotation changes.
 Unreadable or unparseable sources fail instead of being skipped.
 """
 
@@ -18,7 +19,7 @@ import re
 
 SECRET_NAME = re.compile(
     r"password|secret|token|api_key|private_key|client_secret|refresh|"
-    r"google_analytics_key|facebook_business_key", re.IGNORECASE,
+    r"google_analytics_key|facebook_business_key|connection(?!_type$)|dsn", re.IGNORECASE,
 )
 MODEL_BASES = {"pydantic.BaseModel", "pydantic.main.BaseModel", "typing.NamedTuple",
                "typing_extensions.NamedTuple"}
@@ -33,14 +34,14 @@ def _name(node: ast.AST, aliases: dict[str, str]) -> str:
     return ""
 
 
-def _unquote(node: ast.AST) -> ast.AST:
+def _unquote_annotation(node: ast.AST) -> ast.AST:
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return ast.parse(node.value, mode="eval").body
     return node
 
 
 def _plain_string(node: ast.AST, aliases: dict[str, str]) -> bool:
-    node = _unquote(node)
+    node = _unquote_annotation(node)
     if _name(node, aliases) in {"str", "builtins.str"}:
         return True
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
@@ -58,7 +59,6 @@ def _plain_string(node: ast.AST, aliases: dict[str, str]) -> bool:
 def _repr_disabled(node: ast.AST | None, aliases: dict[str, str]) -> bool:
     if node is None:
         return False
-    node = _unquote(node)
     if isinstance(node, ast.Call) and _name(node.func, aliases) in {
         "pydantic.Field", "pydantic.fields.Field", "dataclasses.field",
     }:
@@ -126,7 +126,7 @@ def scan_tree(root: Path) -> tuple[int, list[str]]:
                 continue
             if (SECRET_NAME.search(field.target.id) and _plain_string(field.annotation, aliases)
                     and not _repr_disabled(field.value, aliases)
-                    and not _repr_disabled(field.annotation, aliases)):
+                    and not _repr_disabled(_unquote_annotation(field.annotation), aliases)):
                 violations.append(f"{path.relative_to(root)}:{field.lineno}:"
                                   f"{node.name}.{field.target.id}")
     return len(paths), sorted(violations)

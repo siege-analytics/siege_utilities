@@ -125,9 +125,9 @@ class User(Person):
         pattern=r'^(postgresql|mysql|sqlite|duckdb)$',
         description="Default database type"
     )
-    postgresql_connection: str = Field(
+    postgresql_connection: SecretStr = Field(
         json_schema_extra={"sensitive": True},
-        default="",
+        default=SecretStr(""),
         max_length=500,
         description="PostgreSQL connection string"
     )
