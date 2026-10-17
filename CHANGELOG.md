@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `NCESLocaleClassifier.from_census_year` now raises instead of approximating
+  missing population and principal-city inputs. Use `from_nces_boundaries` or
+  supply authoritative data to the direct constructor, with place populations
+  keyed by 7-digit GEOID. NCES point lookups outside published coverage now
+  raise instead of assigning an inferred rural code. (#1441)
+
 - Config passwords, tokens, client secrets and API keys now use Pydantic
   `SecretStr`, including the API keys on `User` and `postgresql_connection`
   on `EnhancedUserProfile` and `User`. Consumers must call
@@ -211,6 +217,12 @@ major per Semantic Versioning.
   interop is verified green on the CI matrix. (#1365.)
 
 ### Fixed
+
+- NCES locale classification returns the published City/Suburb/Town/Rural
+  codes instead of collapsing to -Small or recomputing distance subtypes.
+  `from_census_year` now raises with the required population and principal-city
+  sources instead of silently degrading; custom place population lookups use
+  the full 7-digit GEOID to prevent cross-state PLACEFP collisions. (#1441)
 
 - Docstring hygiene tool works on Python 3.14: it matches `ast.Constant` instead
   of the removed `ast.Str` alias, and renders rewritten source with stdlib

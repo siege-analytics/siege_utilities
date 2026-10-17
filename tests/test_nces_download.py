@@ -1,6 +1,6 @@
 """Tests for NCES download infrastructure."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -205,47 +205,107 @@ class TestNCESDownloadError:
 
 
 class TestFromNCESBoundaries:
-    """Tests for NCESLocaleClassifier.from_nces_boundaries()."""
+    """Published polygon codes must survive the factory and classification."""
 
-    def test_from_nces_boundaries_constructs_classifier(self):
-        """from_nces_boundaries creates a working classifier."""
+    @pytest.fixture
+    def boundaries(self):
         import geopandas as gpd
         from shapely.geometry import box
 
-        from siege_utilities.geo.locale import NCESLocaleClassifier
-
-        # Build mock boundaries with all 12 locale codes
         codes = [11, 12, 13, 21, 22, 23, 31, 32, 33, 41, 42, 43]
-        geometries = [box(i * 10, i * 10, i * 10 + 10, i * 10 + 10) for i in range(12)]
         subcats = [
             "city_large", "city_midsize", "city_small",
             "suburb_large", "suburb_midsize", "suburb_small",
             "town_fringe", "town_distant", "town_remote",
             "rural_fringe", "rural_distant", "rural_remote",
         ]
-        cats = [
-            "city", "city", "city",
-            "suburban", "suburban", "suburban",
-            "town", "town", "town",
-            "rural", "rural", "rural",
-        ]
-        boundaries = gpd.GeoDataFrame(
+        # Match the downloader schema: no population or Census ID columns.
+        return gpd.GeoDataFrame(
             {
                 "locale_code": codes,
-                "locale_category": cats,
+                "locale_category": ["city"] * 3 + ["suburban"] * 3 + ["town"] * 3 + ["rural"] * 3,
                 "locale_subcategory": subcats,
                 "name": [s.replace("_", " ").title() for s in subcats],
             },
-            geometry=geometries,
-            crs="EPSG:4326",
+            geometry=[box(-120 + i * 2, 35, -119 + i * 2, 36) for i in range(12)],
+            index=range(100, 112),
+            crs="EPSG:4269",
         )
 
-        with patch(
-            "siege_utilities.geo.providers.nces_download.NCESDownloader"
-        ) as MockDownloader:
-            mock_instance = MagicMock()
-            mock_instance.download_locale_boundaries.return_value = boundaries
-            MockDownloader.return_value = mock_instance
+    def make_classifier(self, boundaries):
+        from siege_utilities.geo.locale import NCESLocaleClassifier
 
-            classifier = NCESLocaleClassifier.from_nces_boundaries(year=2023)
-            assert classifier is not None
+        with patch("siege_utilities.geo.providers.nces_download.NCESDownloader") as downloader:
+            downloader.return_value.download_locale_boundaries.return_value = boundaries
+            return NCESLocaleClassifier.from_nces_boundaries(year=2023)
+
+    @pytest.mark.parametrize("code", [11, 12, 13, 21, 22, 23, 31, 32, 33, 41, 42, 43])
+    def test_published_code_at_point(self, boundaries, code):
+        classifier = self.make_classifier(boundaries)
+        polygon = boundaries.loc[boundaries.locale_code == code].geometry.iloc[0]
+        point = polygon.representative_point()
+        assert classifier.classify_point(point.x, point.y).code == code
+
+    def test_bulk_points_preserve_codes_and_labels(self, boundaries):
+        import geopandas as gpd
+
+        classifier = self.make_classifier(boundaries)
+        points = gpd.GeoDataFrame(geometry=[geom.centroid for geom in boundaries.geometry], crs=boundaries.crs)
+        result = classifier.classify_points(points)
+        assert result.locale_code.tolist() == boundaries.locale_code.tolist()
+        assert result.locale_category.tolist() == boundaries.locale_category.tolist()
+        assert result.locale_subcategory.tolist() == boundaries.locale_subcategory.tolist()
+        assert result.locale_label.tolist() == [
+            "City-Large", "City-Midsize", "City-Small",
+            "Suburb-Large", "Suburb-Midsize", "Suburb-Small",
+            "Town-Fringe", "Town-Distant", "Town-Remote",
+            "Rural-Fringe", "Rural-Distant", "Rural-Remote",
+        ]
+
+    def test_projected_boundaries(self, boundaries):
+        classifier = self.make_classifier(boundaries.to_crs("EPSG:3857"))
+        assert classifier.classify_point(-119.5, 35.5).code == 11
+        assert classifier.classify_point(-99.5, 35.5).code == 42
+
+    def test_overlap_and_shared_edge_use_first_row(self, boundaries):
+        from shapely.geometry import box
+
+        boundaries = boundaries.iloc[:2].copy()
+        boundaries.geometry = [box(-120, 35, -118, 36), box(-119, 35, -117, 36)]
+        # Reversed index labels must not change the row-order tie-break.
+        boundaries.index = [200, 100]
+        classifier = self.make_classifier(boundaries)
+        assert classifier.classify_point(-118.5, 35.5).code == 11
+        assert classifier.classify_point(-118, 35.5).code == 11
+
+    def test_outside_coverage_raises(self, boundaries):
+        classifier = self.make_classifier(boundaries)
+        with pytest.raises(ValueError, match="outside.*NCES"):
+            classifier.classify_point(0, 0)
+
+    def test_polygon_overlap_is_not_counted_twice(self, boundaries):
+        from shapely.geometry import box
+
+        boundaries = boundaries.iloc[:2].copy()
+        boundaries.geometry = [box(-120, 35, -118, 36)] * 2
+        classifier = self.make_classifier(boundaries)
+        result = classifier.classify_polygon(
+            box(-119.5, 35.25, -118.5, 35.75), method="distribution",
+        )
+        assert result == {11: pytest.approx(1.0)}
+
+    def test_polygon_rural_remainder_preserves_published_area(self, boundaries):
+        from shapely.geometry import box
+
+        classifier = self.make_classifier(boundaries.iloc[-1:])
+        result = classifier.classify_polygon(box(-98, 35, -96, 36), method="distribution")
+        assert result == {43: pytest.approx(1.0)}
+
+    @pytest.mark.parametrize("code", [11, 12, 13, 21, 22, 23, 31, 32, 33, 41, 42, 43])
+    def test_polygon_inside_published_locale(self, boundaries, code):
+        from shapely.geometry import box
+
+        classifier = self.make_classifier(boundaries)
+        point = boundaries.loc[boundaries.locale_code == code].geometry.iloc[0].centroid
+        polygon = box(point.x - 0.1, point.y - 0.1, point.x + 0.1, point.y + 0.1)
+        assert classifier.classify_polygon(polygon, method="majority")["locale_code"] == code
