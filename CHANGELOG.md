@@ -26,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   primary coverage with whole states; dissolved polygons overlap where regions
   share states and do not certify that every county is loaded. Exhaustive
   sub-state jurisdiction mapping is tracked in [#1713](https://github.com/siege-analytics/siege_utilities/issues/1713).
+  Restore IA/KS/NE/OK coverage under Region 14 and AR under Region 15;
+  remove WY from Region 19, leaving WY under Region 27 only. Coverage tests
+  require all 50 states plus DC, PR and VI to resolve to a regional office.
+  The command prints `stale_registry_rows=N` and the offending region numbers
+  across all vintages without deleting any rows. See the BREAKING upgrade
+  note below for existing databases. Historical subregional case prefixes
+  roll up to verified parent offices through `NLRB_SUBREGIONS`.
   (#1585)
 
 - Cache/output/config writers now publish complete files atomically so interrupted
@@ -49,6 +56,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the full 7-digit GEOID to prevent cross-state PLACEFP collisions. (#1441)
 
 ### BREAKING
+
+- The public `NLRB_REGIONS` registry removes keys 11, 17, 24 and 26 because
+  these are subregional offices, not regional offices. Direct dictionary
+  callers must use the parent regional keys. `assign_region` and
+  `region_summary` now roll historical prefixes up through
+  `NLRB_SUBREGIONS = {11: 10, 17: 14, 24: 12, 26: 15, 30: 18, 37: 20}`;
+  summaries combine their counts under the parent office. Unverified prefixes
+  33, 34 and 36 remain unmapped and report office `"Unknown"`.
+  Upgrade existing NLRB tables by re-running `populate_nlrb_regions --update`
+  (with `--year` for each stored vintage) to refresh regional metadata, then
+  manually delete rows whose `region_number` is 11, 17, 24 or 26. The command
+  only reports stale rows; it does not delete them. (#1585)
 
 - `NCESLocaleClassifier.from_census_year` now raises instead of approximating
   missing population and principal-city inputs. Use `from_nces_boundaries` or
