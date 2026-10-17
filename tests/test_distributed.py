@@ -969,8 +969,9 @@ class TestFlattenJsonCorruptPathUsesUDF:
         wrapping at the corrupt-record fallback branch.
         """
         import pathlib
-        src = pathlib.Path(
-            "siege_utilities/distributed/spark_utils.py"
+        src = (
+            pathlib.Path(__file__).resolve().parents[1]
+            / "siege_utilities/distributed/spark_utils.py"
         ).read_text()
         # The corrupt-record fallback branch must wrap validate_json as a UDF
         # before use (the schema-inference fallback was consolidated to one

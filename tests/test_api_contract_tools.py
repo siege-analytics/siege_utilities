@@ -2,6 +2,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+COMPARE_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "contracts" / "compare_public_api_contracts.py"
+
 
 def _load_module(module_name: str, path: Path):
     spec = importlib.util.spec_from_file_location(module_name, path)
@@ -24,7 +26,7 @@ def _contract(symbols):
 def test_patch_disallows_additions_and_signature_changes():
     mod = _load_module(
         "compare_contracts",
-        Path("scripts/contracts/compare_public_api_contracts.py"),
+        COMPARE_SCRIPT,
     )
 
     baseline = _contract(
@@ -52,7 +54,7 @@ def test_patch_disallows_additions_and_signature_changes():
 def test_minor_allows_additions_but_not_removals():
     mod = _load_module(
         "compare_contracts_minor",
-        Path("scripts/contracts/compare_public_api_contracts.py"),
+        COMPARE_SCRIPT,
     )
 
     baseline = _contract({"foo": {"kind": "function", "signature": "()"}})
@@ -68,7 +70,7 @@ def test_minor_allows_additions_but_not_removals():
 def test_allowlist_filters_changes_before_evaluation():
     mod = _load_module(
         "compare_contracts_allow",
-        Path("scripts/contracts/compare_public_api_contracts.py"),
+        COMPARE_SCRIPT,
     )
 
     baseline = _contract({"foo": {"kind": "function", "signature": "(x)"}})
