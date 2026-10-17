@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
             model_name="nlrbregion",
             name="geometry",
             field=MultiPolygonField(
-                help_text="Boundary geometry (WGS 84)", null=True, srid=4326,
+                blank=True, help_text="Boundary geometry (WGS 84)", null=True, srid=4326,
             ),
         ),
     ]
