@@ -68,6 +68,41 @@ def test_migration_keeps_geoid_with_coincident_boundary_pk(legacy_demographics, 
     assert not after.get_model("siege_geo", "DemographicKeyArchive").objects.exists()
 
 
+@pytest.mark.parametrize("name", ["DemographicSnapshot", "DemographicTimeSeries"])
+@pytest.mark.parametrize(
+    "boundary_name, orphan, decoy_geoid",
+    [("County", "09110", "50007"), ("ZCTA", "10004", "10005"), ("County", "0007", "06037")],
+)
+def test_migration_keeps_orphan_geoid_with_coincident_boundary_pk(
+    legacy_demographics, name, boundary_name, orphan, decoy_geoid,
+):
+    boundary = legacy_demographics.get_model("siege_geo", boundary_name)
+    geometry = MultiPolygon(Polygon.from_bbox((-119, 33, -118, 34)), srid=4326)
+    boundary.objects.create(
+        pk=int(orphan), geoid=decoy_geoid, vintage_year=2020, geometry=geometry,
+    )
+    assert not boundary.objects.filter(geoid=orphan).exists()
+    ct = legacy_demographics.get_model("contenttypes", "ContentType").objects.get(
+        app_label="siege_geo", model=boundary_name.lower(),
+    )
+    model = legacy_demographics.get_model("siege_geo", name)
+    kwargs = dict(year=2022, total_population=10) if name == "DemographicSnapshot" else dict(
+        variable_code="B01001_001E", start_year=2020, end_year=2022,
+        years=[2020, 2022], values=[10, 20],
+    )
+    row = model.objects.create(content_type_id=ct.pk, object_id=orphan, dataset="acs5", **kwargs)
+    original = list(model.objects.values())
+
+    executor = MigrationExecutor(connection)
+    executor.migrate([CURRENT])
+    after = executor.loader.project_state([CURRENT]).apps
+    migrated = after.get_model("siege_geo", name)
+    assert migrated.objects.get(pk=row.pk).object_id == orphan
+    assert not migrated.objects.filter(object_id=decoy_geoid).exists()
+    assert list(migrated.objects.values()) == original
+    assert not after.get_model("siege_geo", "DemographicKeyArchive").objects.exists()
+
+
 @pytest.mark.parametrize("removal", ["unresolvable", "duplicate", "both"])
 def test_migration_rejects_quarantine_without_opt_in_atomically(legacy_demographics, removal):
     original = _legacy_rows(legacy_demographics)
@@ -81,7 +116,7 @@ def test_migration_rejects_quarantine_without_opt_in_atomically(legacy_demograph
     with pytest.raises(RuntimeError, match="SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE=1") as error:
         MigrationExecutor(connection).migrate([CURRENT])
     if removal != "duplicate":
-        assert "unresolvable_key=2" in str(error.value)
+        assert "unresolvable_key=1" in str(error.value)
     if removal != "unresolvable":
         assert "duplicate=1" in str(error.value)
     for name, expected in original.items():
@@ -95,16 +130,72 @@ def test_migration_converts_without_opt_in_when_no_rows_removed(legacy_demograph
     original = _legacy_rows(legacy_demographics)
     for name in original:
         model = legacy_demographics.get_model("siege_geo", name)
-        model.objects.exclude(object_id="13001").delete()
-        original[name] = list(model.objects.values())
+        model.objects.exclude(object_id__in=["13001", "7"]).delete()
+        original[name] = list(model.objects.order_by("pk").values())
     executor = MigrationExecutor(connection)
     executor.migrate([CURRENT])
     after = executor.loader.project_state([CURRENT]).apps
     for name, expected in original.items():
-        expected[0]["object_id"] = "06001"
-        assert list(after.get_model("siege_geo", name).objects.values()) == expected
+        for row in expected:
+            if row["object_id"] == "7":
+                row["object_id"] = "06037"
+        migrated = after.get_model("siege_geo", name)
+        assert list(migrated.objects.order_by("pk").values()) == expected
+        assert migrated.objects.filter(object_id="13001").exists()
+        assert not migrated.objects.filter(object_id="06001").exists()
     archive = after.get_model("siege_geo", "DemographicKeyArchive")
     assert list(archive.objects.values_list("reason", flat=True)) == ["converted_pk", "converted_pk"]
+    assert all(row["object_id"] == "7" for row in archive.objects.values_list("original_data", flat=True))
+
+
+def test_migration_noopt_clean_probe_preserves_native_rows_and_orphans(legacy_demographics, caplog):
+    caplog.set_level("WARNING", logger="siege_utilities.geo.django.migrations.0018_demographic_geoid_keys")
+    geometry = MultiPolygon(Polygon.from_bbox((-119, 33, -118, 34)), srid=4326)
+    fixtures = {
+        "County": list(zip(
+            (f"09{code}" for code in range(110, 200, 10)),
+            ("50007", "50027", "50001", "50003", "50005", "50009", "50011", "50013", "50015"),
+        )),
+        "CongressionalDistrict": [("0808", "5002")],
+        "ZCTA": [("00602", "02404"), ("00605", "02413"), ("10004", "10005")],
+    }
+    snapshots = legacy_demographics.get_model("siege_geo", "DemographicSnapshot")
+    series = legacy_demographics.get_model("siege_geo", "DemographicTimeSeries")
+    for name, keys in fixtures.items():
+        boundary = legacy_demographics.get_model("siege_geo", name)
+        ct = legacy_demographics.get_model("contenttypes", "ContentType").objects.get(
+            app_label="siege_geo", model=name.lower(),
+        )
+        for orphan, geoid in keys:
+            boundary.objects.create(pk=int(orphan), geoid=geoid, vintage_year=2020, geometry=geometry)
+            snapshots.objects.create(
+                content_type_id=ct.pk, object_id=geoid, dataset="acs5", year=2022, total_population=100,
+            )
+            # State-scoped imports coexist with native rows without duplicate keys.
+            snapshots.objects.create(
+                content_type_id=ct.pk, object_id=orphan, dataset=f"acs5_{orphan[:2]}", year=2022, total_population=10,
+            )
+            if orphan in {"09110", "10004"}:
+                series.objects.create(
+                    content_type_id=ct.pk, object_id=orphan, dataset=f"acs5_{orphan[:2]}",
+                    variable_code="B01001_001E", start_year=2020, end_year=2022,
+                    years=[2020, 2022], values=[10, 20],
+                )
+        assert not boundary.objects.filter(geoid__in=[orphan for orphan, _ in keys]).exists()
+    original = {
+        name: list(legacy_demographics.get_model("siege_geo", name).objects.order_by("pk").values())
+        for name in ("DemographicSnapshot", "DemographicTimeSeries")
+    }
+    assert snapshots.objects.exclude(dataset="acs5").count() == 13
+    assert series.objects.count() == 2
+
+    executor = MigrationExecutor(connection)
+    executor.migrate([CURRENT])
+    after = executor.loader.project_state([CURRENT]).apps
+    for name, expected in original.items():
+        assert list(after.get_model("siege_geo", name).objects.order_by("pk").values()) == expected
+        assert f"{name} GEOID migration: converted=0 quarantined=0 deduplicated=0" in caplog.text
+    assert not after.get_model("siege_geo", "DemographicKeyArchive").objects.exists()
 
 
 def test_migration_geoid_only_probe_keeps_all_10059_rows(legacy_demographics, caplog):
@@ -160,9 +251,9 @@ def _legacy_rows(apps, winner="pk_newest"):
         kwargs = dict(year=2022, total_population=10, values={"test": 10}) if name == "DemographicSnapshot" else dict(
             variable_code="B01001_001E", start_year=2020, end_year=2022, years=[2020, 2022], values=[10, 20],
         )
-        # A PK that has valid GEOID shape must also be detected (13001).
+        # 13001 is GEOID-shaped, so its coincident PK must not rewrite it.
         # 99999 stays GEOID-native despite also matching a different boundary PK.
-        # 88888 has GEOID shape but matches neither a loaded GEOID nor a PK.
+        # 88888 is also a preserved orphan, with no loaded GEOID or PK match.
         for key in ("7", "06037", "13001", "missing", "99999", "88888"):
             row = model.objects.create(content_type_id=ct.pk, object_id=key, dataset="acs5", **kwargs)
             newest_key = "7" if winner == "pk_newest" else "06037"
@@ -188,16 +279,18 @@ def test_migration_converts_quarantines_dedupes_and_reverses(legacy_demographics
     for name in original:
         model = after.get_model("siege_geo", name)
         rows = model.objects.filter(dataset="acs5")
-        assert set(rows.values_list("object_id", flat=True)) == {"06037", "06001", "99999"}
+        assert set(rows.values_list("object_id", flat=True)) == {"06037", "13001", "99999", "88888"}
         winning_key = "7" if winner == "pk_newest" else "06037"
         winning_row = next(row for row in original[name] if row["object_id"] == winning_key)
         assert rows.get(object_id="06037").pk == winning_row["id"]
         assert model.objects.filter(dataset="dec_pl").count() == 1
-        assert archive.objects.filter(model_name=name).count() == (5 if winner == "pk_newest" else 4)
+        assert archive.objects.filter(model_name=name).count() == (3 if winner == "pk_newest" else 2)
         assert archive.objects.filter(model_name=name, reason="ambiguous_pk_and_geoid").count() == 0
-        assert archive.objects.filter(model_name=name, reason="unresolvable_key").count() == 2
+        assert archive.objects.filter(model_name=name, reason="unresolvable_key").count() == 1
+        assert archive.objects.filter(model_name=name, reason="converted_pk").count() == (1 if winner == "pk_newest" else 0)
         assert archive.objects.filter(model_name=name, reason="duplicate").count() == 1
-        assert f"{name} GEOID migration: converted=2 quarantined=2 deduplicated=1" in caplog.text
+        assert not archive.objects.filter(model_name=name, original_data__object_id__in=["13001", "88888"]).exists()
+        assert f"{name} GEOID migration: converted=1 quarantined=1 deduplicated=1" in caplog.text
         duplicate = rows.get(object_id="06037")
         duplicate.pk = None
         with pytest.raises(IntegrityError), transaction.atomic():
@@ -213,7 +306,7 @@ def test_migration_reverse_refuses_to_overwrite_newer_edits(legacy_demographics,
     monkeypatch.setenv("SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE", "1")
     _legacy_rows(legacy_demographics)
     MigrationExecutor(connection).migrate([CURRENT])
-    row = DemographicSnapshot.objects.get(object_id="06001", dataset="acs5")
+    row = DemographicSnapshot.objects.get(object_id="06037", dataset="acs5")
     old_values = row.values
     DemographicSnapshot.objects.filter(pk=row.pk).update(values={"new": 42})
     try:

@@ -1,6 +1,7 @@
 """Repurpose object_id as GEOID-only storage, preserving the ORM field name.
 
-Existing GEOID matches always win; only unmatched keys can be legacy PKs.
+Existing GEOID matches and GEOID-shaped orphans stay unchanged. Only canonical
+integers that cannot be GEOIDs of their content type can be legacy PKs.
 Unresolvable keys and duplicates fail atomically unless the operator explicitly
 sets SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE=1. With that opt-in, dedupe by newest
 updated_at, then highest PK. Recovery copies include every changed/deleted row,
@@ -17,6 +18,7 @@ from decimal import Decimal
 import django.core.serializers.json
 from django.core.exceptions import FieldDoesNotExist
 from django.db import migrations, models, transaction
+from django.db.models.functions import Length
 
 
 logger = logging.getLogger(__name__)
@@ -45,8 +47,8 @@ def payload(row):
     return result
 
 
-def resolve_key(model, value, alias):
-    """Return (GEOID, reason); None means preserve the row in quarantine."""
+def resolve_key(model, value, alias, geoid_lengths):
+    """Return (GEOID, reason); a None reason leaves the live row unchanged."""
     if model is None:
         return None, "unsupported_content_type"
     boundaries = model.objects.using(alias)
@@ -54,8 +56,13 @@ def resolve_key(model, value, alias):
     # against an exact GEOID match within this content type.
     if boundaries.filter(geoid=value).exists():
         return value, None
+    # Loaders can write a valid GEOID before its boundary has been loaded.
+    # str(pk) cannot have leading zeros; matching GEOID lengths are ambiguous
+    # too, so preserve those orphans without converting or quarantining them.
+    if (len(value) > 1 and value[0] == "0") or len(value) in geoid_lengths:
+        return value, None
     pk_geoid = None
-    if re.fullmatch(r"[0-9]+", value) and 0 < int(value) <= 9223372036854775807:
+    if re.fullmatch(r"[1-9][0-9]*", value) and 0 < int(value) <= 9223372036854775807:
         pk_geoid = boundaries.filter(pk=int(value)).values_list("geoid", flat=True).first()
     if pk_geoid is not None:
         if not pk_geoid or len(pk_geoid) > 20:
@@ -108,12 +115,22 @@ def _normalize_keys(apps, schema_editor):
             model = None
         boundary_models[ct.pk] = model
 
+    # Historical models have no get_geoid_length(). Cache the observed lengths
+    # once per content type, shared by snapshots and time series in this run.
+    geoid_lengths = {}
     summaries = {}
     for name, key_fields in KEYS.items():
         rows = apps.get_model("siege_geo", name).objects.using(alias)
         counts = summaries[name] = Counter()
         for row in rows.order_by("pk").iterator(chunk_size=1000):
-            geoid, reason = resolve_key(boundary_models.get(row.content_type_id), row.object_id, alias)
+            model = boundary_models.get(row.content_type_id)
+            if row.content_type_id not in geoid_lengths:
+                geoid_lengths[row.content_type_id] = set(
+                    model.objects.using(alias).exclude(geoid="").exclude(geoid__isnull=True)
+                    .order_by().annotate(geoid_length=Length("geoid"))
+                    .values_list("geoid_length", flat=True).distinct()
+                ) if model is not None else set()
+            geoid, reason = resolve_key(model, row.object_id, alias, geoid_lengths[row.content_type_id])
             if reason is None:
                 continue
             original = payload(row)

@@ -13,9 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   types and datasets separate. Boundary lookups use GEOIDs instead of integer
   PKs; plan assignments accept BigAutoField-sized boundary PKs. The migration
   keeps existing GEOID matches unchanged, including those with coincident
-  boundary PKs; only unmatched keys are eligible for PK-to-GEOID conversion.
-  Keys matching neither a GEOID nor a PK of their content type are unresolved,
-  even if they have a valid GEOID shape: load the missing boundaries first.
+  boundary PKs. GEOID-shaped orphans also stay unchanged: a leading zero on a
+  multi-character key or a length present in that content type's loaded GEOIDs
+  prevents PK conversion, even when the boundary is not loaded. Only canonical
+  positive integers without leading zeros or a GEOID length can convert from a
+  matching boundary PK; other unmatched keys are unresolved.
   Any unresolved or duplicate rows abort the migration atomically with counts
   per model and reason. After reviewing those counts, operators can explicitly
   set `SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE=1` for the migration command to
@@ -23,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   highest PK. Recovery copies support reversal unless migrated rows were edited.
   Both migration directions allow 30 minutes per statement for large index and
   constraint builds, with a five-second lock timeout.
+  Before running `migrate siege_geo`, back up `siege_geo_demographicsnapshot`
+  and `siege_geo_demographictimeseries`, for example with
+  `pg_dump -t siege_geo_demographicsnapshot -t siege_geo_demographictimeseries`.
+  The opt-in `SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE=1` archives removed rows
+  into `siege_geo_demographickeyarchive`; this archive table is dropped when
+  the migration is reversed.
   (#1560)
 
 - Cache/output/config writers now publish complete files atomically so interrupted
