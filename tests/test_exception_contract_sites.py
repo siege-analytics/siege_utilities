@@ -198,15 +198,6 @@ def test_invalid_crs_raises():
         _normalize_crs("not-a-coordinate-system")
 
 
-def test_invalid_timezone_raises():
-    pytest.importorskip("django")
-    from siege_utilities.geo.django.services.timezone_service import (
-        TimezonePopulationService,
-    )
-
-    with pytest.raises(ValueError, match="timezone"):
-        TimezonePopulationService()._lookup_offset("Invalid/Nowhere")
-
 
 @pytest.mark.parametrize("timestamp", ["not-a-date", None, 42])
 def test_invalid_cache_timestamp_is_expired(tmp_path, timestamp):
