@@ -23,8 +23,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   filters on SRID-4326 geometry now cast to geography to honor meters, and
   GeoJSON output emits geometry objects instead of strings (#1570).
 
+- NCES locale classification returns the published City/Suburb/Town/Rural
+  codes instead of collapsing to -Small or recomputing distance subtypes.
+  `from_census_year` now raises with the required population and principal-city
+  sources instead of silently degrading; custom place population lookups use
+  the full 7-digit GEOID to prevent cross-state PLACEFP collisions. (#1441)
+
 ### BREAKING
 
+- `NCESLocaleClassifier.from_census_year` now raises instead of approximating
+  missing population and principal-city inputs. Use `from_nces_boundaries` or
+  supply authoritative data to the direct constructor, with place populations
+  keyed by 7-digit GEOID. NCES point lookups outside published coverage now
+  raise instead of assigning an inferred rural code. (#1441)
 - Non-secret data files written by `atomic_write_path` now use `0666 & ~umask`
   (0644 with umask 022), including replacement of previously owner-only data
   exports. Consumers that relied on the old accidental 0600 mode should use

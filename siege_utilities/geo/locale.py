@@ -7,7 +7,7 @@ into City/Suburb/Town/Rural categories with size/distance subtypes.
 
 Two modes of operation:
 1. Pre-computed: Uses NCES-published locale boundary shapefiles (fastest)
-2. On-the-fly: Computes from Census UA/UC/Place inputs (any year)
+2. On-the-fly: Computes from caller-supplied UA/UC/Place and population inputs
 
 See docs/design/nces-locale-classification.md for full algorithm description.
 """
@@ -53,38 +53,6 @@ __all__ = [
 
 # Meters per mile — used for distance conversion after CRS projection
 _METERS_PER_MILE = 1_609.344
-
-# Population threshold separating Urbanized Areas (>= 50k) from Urban Clusters (< 50k)
-_UA_POP_THRESHOLD = 50_000
-
-# Column name candidates for population fields on Census shapefiles
-_POPULATION_COLUMNS = (
-    "POP20", "POP10", "POP", "POPULATION", "pop20", "pop10", "pop",
-    "population",
-)
-
-# Column name candidates for UA/UC identifier fields
-_UA_ID_COLUMNS = (
-    "UACE20", "UACE10", "GEOID20", "GEOID10", "GEOID",
-    "uace20", "uace10", "geoid20", "geoid10", "geoid",
-)
-
-# Column name candidates for Place identifier fields
-_PLACE_ID_COLUMNS = (
-    "PLACEFP", "PLACEFP20", "PLACEFP10", "GEOID20", "GEOID10", "GEOID",
-    "placefp", "placefp20", "placefp10", "geoid20", "geoid10", "geoid",
-)
-
-
-def _find_column(gdf: Any, candidates: tuple) -> Optional[str]:
-    """Return the first column name from *candidates* found in *gdf*, or None."""
-    if gdf is None or not hasattr(gdf, "columns"):
-        return None
-    for col in candidates:
-        if col in gdf.columns:
-            return col
-    return None
-
 
 # ---------------------------------------------------------------------------
 # LocaleType enum
@@ -239,8 +207,9 @@ class NCESLocaleClassifier:
     classification algorithm (12-code system).
 
     The classifier can be initialized with pre-loaded GeoDataFrames (for
-    testing or custom data) or constructed from Census downloads via the
-    ``from_census_year`` and ``from_nces_boundaries`` factory methods.
+    testing or custom data) or constructed from published NCES boundaries via
+    ``from_nces_boundaries``. ``from_census_year`` raises until the required
+    population and principal-city sources are implemented.
 
     Args:
         urbanized_areas: GeoDataFrame of UA polygons (pop >= 50,000).
@@ -250,8 +219,11 @@ class NCESLocaleClassifier:
             Census data where UCs were eliminated.
         principal_cities: GeoDataFrame of Place polygons that are designated
             principal cities of CBSAs.
-        place_populations: Dict mapping place identifiers to population counts.
-            Used to classify City subtypes (Large/Midsize/Small).
+        place_populations: Dict mapping 7-digit place GEOIDs (2-digit state
+            FIPS + 5-digit PLACEFP) to population counts. Used to classify
+            City subtypes (Large/Midsize/Small). Principal-city boundaries
+            must carry GEOID or both STATEFP and PLACEFP (including 10/20
+            suffixed variants).
         ua_populations: Optional dict mapping UA identifiers to populations.
             Used to classify Suburb subtypes. If ``None``, reads from the
             ``urbanized_areas`` GeoDataFrame attributes.
@@ -279,6 +251,8 @@ class NCESLocaleClassifier:
         self._align_input_crs()
 
         self._locale_index: Optional[LocaleIndex] = None
+        self._nces_boundaries = None
+        self._nces_proj = None
 
         # Lazily projected copies (created on first classify call)
         self._ua_proj = None
@@ -301,6 +275,8 @@ class NCESLocaleClassifier:
         import geopandas as gpd  # noqa: F401 — validates availability
 
         crs_string = f"EPSG:{self._projection_crs}"
+        if self._nces_proj is None and self._nces_boundaries is not None:
+            self._nces_proj = self._nces_boundaries.to_crs(crs_string)
         if self._ua_proj is None and self._ua is not None:
             self._ua_proj = self._ua.to_crs(crs_string)
         if self._uc_proj is None and self._uc is not None:
@@ -346,7 +322,11 @@ class NCESLocaleClassifier:
     def classify_point(self, lon: float, lat: float) -> LocaleCode:
         """Classify a single geographic point.
 
-        Implements the NCES decision tree:
+        For published NCES boundaries, returns the polygon's locale code.
+        Shared edges and overlaps use the first matching row in download
+        order. Points outside the published coverage raise ValueError.
+
+        For caller-supplied Census inputs, implements the NCES decision tree:
         1. Spatial join against Urbanized Areas
         2. If in UA: check principal city → City or Suburb
         3. If not in UA: check Urban Cluster → Town (by distance to UA)
@@ -362,12 +342,21 @@ class NCESLocaleClassifier:
         import geopandas as gpd
         from shapely.geometry import Point
 
+        point = Point(lon, lat)
+        if self._nces_boundaries is not None:
+            # Include boundary points; spatial-index order is not stable, so
+            # select the first matching row by its positional index.
+            matches = self._nces_boundaries.sindex.query(point, predicate="intersects")
+            if len(matches) == 0:
+                raise ValueError("Point is outside published NCES locale coverage")
+            code = self._nces_boundaries.iloc[min(matches)]["locale_code"]
+            return locale_from_code(int(code))
+
         self._ensure_projected()
 
         input_crs = f"EPSG:{settings.INPUT_CRS}"
         proj_crs = f"EPSG:{self._projection_crs}"
 
-        point = Point(lon, lat)
         point_gdf = gpd.GeoDataFrame(
             {"id": [0]}, geometry=[point], crs=input_crs,
         )
@@ -457,13 +446,27 @@ class NCESLocaleClassifier:
 
     def _get_place_population(self, pc_match: Any) -> int:
         """Extract population for a matched principal city."""
-        # Try common column names for place identifier
-        for col in ("PLACEFP", "GEOID", "placefp", "geoid", "NAME", "name"):
-            if col in pc_match.columns:
-                place_id = str(pc_match[col].iloc[0])
-                pop = self._place_populations.get(place_id)
-                if pop is not None:
-                    return pop
+        # PLACEFP alone is only unique within a state. Prefer a full GEOID,
+        # or construct it from the state and place FIPS components.
+        for suffix in ("", "20", "10"):
+            for geoid_col in (f"GEOID{suffix}", f"geoid{suffix}"):
+                if geoid_col in pc_match.columns:
+                    geoid = str(pc_match[geoid_col].iloc[0]).zfill(7)
+                    pop = self._place_populations.get(geoid)
+                    if pop is not None:
+                        return pop
+            for state_col, place_col in (
+                (f"STATEFP{suffix}", f"PLACEFP{suffix}"),
+                (f"statefp{suffix}", f"placefp{suffix}"),
+            ):
+                if state_col in pc_match.columns and place_col in pc_match.columns:
+                    geoid = (
+                        str(pc_match[state_col].iloc[0]).zfill(2)
+                        + str(pc_match[place_col].iloc[0]).zfill(5)
+                    )
+                    pop = self._place_populations.get(geoid)
+                    if pop is not None:
+                        return pop
         # Fallback: check for an inline population column
         for col in ("POP", "POPULATION", "pop", "population", "POP20", "POP10"):
             if col in pc_match.columns:
@@ -569,6 +572,18 @@ class NCESLocaleClassifier:
 
         code_areas: Dict[int, float] = {}
 
+        if self._nces_proj is not None:
+            matches = self._nces_proj.sindex.query(poly_proj, predicate="intersects")
+            remaining = poly_proj
+            for position in sorted(matches):
+                row = self._nces_proj.iloc[position]
+                intersection = remaining.intersection(row.geometry)
+                if intersection.area > 0:
+                    code = int(row["locale_code"])
+                    code_areas[code] = code_areas.get(code, 0.0) + intersection.area
+                    # Apply the same first-row tie-break as point lookup.
+                    remaining = remaining.difference(row.geometry)
+
         # Intersect with UA polygons
         if self._ua_proj is not None and len(self._ua_proj) > 0:
             for _, ua_row in self._ua_proj.iterrows():
@@ -591,7 +606,7 @@ class NCESLocaleClassifier:
         covered = sum(code_areas.values())
         rural_area = max(0.0, total_area - covered)
         if rural_area > 0:
-            code_areas[43] = rural_area
+            code_areas[43] = code_areas.get(43, 0.0) + rural_area
 
         # Normalize to fractions
         distribution = {code: area / total_area for code, area in code_areas.items()}
@@ -671,153 +686,33 @@ class NCESLocaleClassifier:
         cache_dir: Optional[str] = None,
         projection_crs: Optional[int] = None,
     ) -> "NCESLocaleClassifier":
-        """Construct a classifier from Census TIGER downloads.
+        """Reject construction from TIGER boundaries without required sources.
 
-        Downloads UA/UC (uac), Place, and CBSA shapefiles for the given year,
-        identifies principal cities from population thresholds, and loads
-        population estimates from shapefile attributes.
+        TIGER UAC/PLACE shapefiles do not supply population counts. Correct
+        classification requires PL 94-171 / DHC population data joined by
+        UA ID and 7-digit place GEOID, plus PCICBSA / OMB principal-city
+        designations. These source integrations are not implemented here.
+        Population thresholds cannot substitute for principal-city status.
 
-        For 2020+ Census data where Urban Clusters were eliminated, this
-        method derives a UC-equivalent set by filtering urban areas with
-        population < 50,000 (the original UC threshold). This ensures Town
-        codes (31-33) remain reachable.
-
-        Principal cities are identified by population threshold (>= 25,000),
-        not from the OMB CBSA delineation file. This is a best-effort
-        approximation. For precise NCES-matching classification, use
-        ``from_nces_boundaries()`` when available.
+        Use ``from_nces_boundaries`` for published NCES classifications, or
+        the direct constructor with externally sourced populations and
+        principal-city boundaries. No downloads or approximations are made.
 
         Args:
-            year: Census year for boundary data (2010 or 2020 recommended).
-            cache_dir: Local directory for caching downloaded shapefiles.
-            projection_crs: EPSG code for distance computation.
-
-        Returns:
-            An initialized ``NCESLocaleClassifier``.
+            year: Requested Census year.
+            cache_dir: Retained for API compatibility.
+            projection_crs: Retained for API compatibility.
 
         Raises:
-            ImportError: If geopandas is not available.
+            ValueError: Always, until the required source integrations exist.
         """
-        import warnings
-        from .spatial_data import CensusDataSource
-
-        if cache_dir is not None:
-            warnings.warn(
-                "from_census_year: cache_dir is accepted for API "
-                "compatibility with from_nces_boundaries but is not yet "
-                "wired through to CensusDataSource. Downloaded data will "
-                "not be cached to the specified directory.",
-                stacklevel=2,
-            )
-
-        census = CensusDataSource()
-        log.info(f"Loading Census TIGER data for year {year}...")
-
-        # Download UAC layer (contains both UAs and UCs)
-        uac_gdf = census.get_geographic_boundaries(
-            year=year, geographic_level="uac",
-        )
-
-        # Split UA vs UC based on Census type field
-        # 2010 Census: UATYP10 == 'U' (UA) or 'C' (UC)
-        # 2020 Census: UCs eliminated — all records are UAs
-        ua_col = None
-        for col in ("UATYP10", "UATYP20", "uatyp10", "uatyp20"):
-            if col in uac_gdf.columns:
-                ua_col = col
-                break
-
-        # Find population column on the UAC layer
-        uac_pop_col = _find_column(uac_gdf, _POPULATION_COLUMNS)
-
-        if ua_col is not None:
-            urbanized_areas = uac_gdf[uac_gdf[ua_col] == "U"].copy()
-            urban_clusters = uac_gdf[uac_gdf[ua_col] == "C"].copy()
-        else:
-            # 2020+: UCs were eliminated. Derive a UC-equivalent set from
-            # urban areas with population < 50,000 (the original UC threshold).
-            if uac_pop_col is not None:
-                urbanized_areas = uac_gdf[uac_gdf[uac_pop_col] >= _UA_POP_THRESHOLD].copy()
-                urban_clusters = uac_gdf[uac_gdf[uac_pop_col] < _UA_POP_THRESHOLD].copy()
-                log.info(
-                    f"2020+ Census: derived UC-equivalent set from urban areas "
-                    f"with pop < {_UA_POP_THRESHOLD:,} "
-                    f"({len(urbanized_areas)} UAs, {len(urban_clusters)} UC-equivalents)"
-                )
-            else:
-                # No population column — can't split. Treat all as UA and
-                # warn that Town codes will be unreachable.
-                urbanized_areas = uac_gdf.copy()
-                urban_clusters = None
-                log.warning(
-                    "2020+ Census UAC data has no population column; "
-                    "cannot derive UC-equivalent set. Town codes (31-33) "
-                    "will be unreachable."
-                )
-
-        # Extract UA/UC populations from shapefile attributes
-        uac_id_col = _find_column(uac_gdf, _UA_ID_COLUMNS)
-        ua_populations: Dict[str, int] = {}
-        if uac_pop_col and uac_id_col:
-            for _, row in urbanized_areas.iterrows():
-                try:
-                    ua_populations[str(row[uac_id_col])] = int(row[uac_pop_col])
-                except (ValueError, TypeError):
-                    continue
-
-        # Download Place boundaries
-        try:
-            places_gdf = census.get_geographic_boundaries(
-                year=year, geographic_level="place",
-            )
-        except (OSError, ValueError, RuntimeError, ImportError):
-            log.warning("Could not load Place boundaries; principal city detection limited")
-            import geopandas as gpd
-            places_gdf = gpd.GeoDataFrame()
-
-        # Extract place populations from shapefile attributes
-        place_populations: Dict[str, int] = {}
-        place_pop_col = _find_column(places_gdf, _POPULATION_COLUMNS)
-        place_id_col = _find_column(places_gdf, _PLACE_ID_COLUMNS)
-
-        if place_pop_col and place_id_col:
-            for _, row in places_gdf.iterrows():
-                try:
-                    place_populations[str(row[place_id_col])] = int(row[place_pop_col])
-                except (ValueError, TypeError):
-                    continue
-
-        # Filter principal cities: places meeting the small_city population
-        # threshold. This is a best-effort approximation of the OMB CBSA
-        # principal city designation. A full implementation would cross-
-        # reference with the OMB CBSA delineation file.
-        small_city_threshold = POPULATION_THRESHOLDS["small_city"]
-        if place_pop_col is not None and len(places_gdf) > 0:
-            principal_cities = places_gdf[
-                places_gdf[place_pop_col] >= small_city_threshold
-            ].copy()
-            log.info(
-                f"Identified {len(principal_cities)} principal cities "
-                f"(places with pop >= {small_city_threshold:,})"
-            )
-        else:
-            # Degraded mode: no population data to filter on.
-            # Use all places and warn.
-            principal_cities = places_gdf
-            if len(places_gdf) > 0:
-                log.warning(
-                    "No population column found on Places layer; using all "
-                    f"places ({len(places_gdf)}) as potential principal cities. "
-                    "City/Suburb size classification may be inaccurate."
-                )
-
-        return cls(
-            urbanized_areas=urbanized_areas,
-            urban_clusters=urban_clusters,
-            principal_cities=principal_cities,
-            place_populations=place_populations,
-            ua_populations=ua_populations,
-            projection_crs=projection_crs,
+        raise ValueError(
+            f"Cannot construct an NCES locale classifier from {year} TIGER "
+            "boundaries alone: PL 94-171 / DHC population data (keyed by UA ID "
+            "and 7-digit place GEOID) and PCICBSA / OMB principal-city "
+            "designations are required but are not sourced by from_census_year. "
+            "Use from_nces_boundaries() or supply these data to the direct "
+            "NCESLocaleClassifier constructor."
         )
 
     @classmethod
@@ -833,12 +728,11 @@ class NCESLocaleClassifier:
         with locale codes (11-43). This is faster than computing from Census
         inputs but limited to years NCES has published.
 
-        The downloaded boundaries are split into:
-        - Urbanized Area proxies: City (11-13) + Suburb (21-23) territories
-        - Urban Cluster proxies: Town (31-33) territories
-        - Principal city proxies: City (11-13) territories only
-
-        The classifier then works identically to the Census-based one.
+        Points are looked up directly in the published ``locale_code``
+        polygons, without synthetic populations or distance-based reclassification.
+        Polygon edges are included. If multiple polygons match, the first row
+        in download order wins; NCES territories normally partition space.
+        Points outside coverage raise ValueError instead of inventing a locale.
 
         Args:
             year: NCES publication year.
@@ -849,46 +743,21 @@ class NCESLocaleClassifier:
             An initialized ``NCESLocaleClassifier``.
         """
 
-        from .nces_download import NCESDownloader
+        from .providers.nces_download import NCESDownloader
 
         downloader = NCESDownloader(cache_dir=cache_dir)
         boundaries = downloader.download_locale_boundaries(year)
-
-        proj = projection_crs or settings.PROJECTION_CRS
-
-        # Split boundaries into UA-like and UC-like territories.
-        # City + Suburb codes (11-23) approximate Urbanized Areas.
-        # Town codes (31-33) approximate Urban Clusters.
-        city_mask = boundaries["locale_code"].between(11, 13)
-        suburb_mask = boundaries["locale_code"].between(21, 23)
-        town_mask = boundaries["locale_code"].between(31, 33)
-
-        ua_gdf = boundaries[city_mask | suburb_mask].copy()
-        uc_gdf = boundaries[town_mask].copy()
-        pc_gdf = boundaries[city_mask].copy()
-
-        # Build synthetic population dicts keyed by index.
-        # City-Large (11) → 250k+, City-Midsize (12) → 100k+, etc.
-        _pop_map = {
-            11: 500_000, 12: 150_000, 13: 50_000,
-            21: 500_000, 22: 150_000, 23: 50_000,
-        }
-        place_pops = {}
-        for idx, row in pc_gdf.iterrows():
-            place_pops[str(idx)] = _pop_map.get(row["locale_code"], 50_000)
-
-        ua_pops = {}
-        for idx, row in ua_gdf.iterrows():
-            ua_pops[str(idx)] = _pop_map.get(row["locale_code"], 100_000)
-
-        return cls(
-            urbanized_areas=ua_gdf,
-            urban_clusters=uc_gdf,
-            principal_cities=pc_gdf,
-            place_populations=place_pops,
-            ua_populations=ua_pops,
-            projection_crs=proj,
+        classifier = cls(
+            urbanized_areas=None,
+            urban_clusters=None,
+            principal_cities=None,
+            place_populations={},
+            projection_crs=projection_crs,
         )
+        classifier._nces_boundaries = boundaries[["locale_code", "geometry"]].to_crs(
+            classifier._input_crs,
+        )
+        return classifier
 
     # ------------------------------------------------------------------
     # Static helpers
