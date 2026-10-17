@@ -50,8 +50,14 @@ _HOME_PASSTHROUGH = ('.duckdb', '.sdkman', 'spark', 'hadoop', '.ivy2', '.m2', '.
 
 
 def _isolate_home(base):
-    """Point HOME at an empty directory so library defaults under Path.home() stay out of it."""
-    real_home = Path.home()
+    """Point HOME at an empty directory so library defaults under Path.home() stay out of it.
+
+    pytest-django imports parts of siege_utilities before this runs; none of
+    them read Path.home() at import time, and anything imported later sees
+    the isolated HOME.
+    """
+    # xdist workers inherit the parent's isolated HOME; keep the original.
+    real_home = Path(os.environ.get('SIEGE_TEST_REAL_HOME') or Path.home())
     fake_home = Path(base) / 'home'
     fake_home.mkdir()
     for name in _HOME_PASSTHROUGH:
