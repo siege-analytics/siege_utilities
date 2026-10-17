@@ -65,6 +65,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Closed OData filter injection in Dynamics list filters with shared string
   literal escaping for scalar filters and batch alternate keys. Zoho criteria
   now escapes backslashes and parentheses while preserving quote escaping.
+  Batch alternate-key literals are percent-encoded after OData escaping to
+  prevent encoded quotes, fragments, spaces, and CR/LF from changing the inner
+  request URI or headers. Structured Dynamics, Zoho COQL, and Salesforce SOQL
+  builders reject invalid identifiers with `ValueError`; Salesforce and Zoho
+  fields allow dotted relationship paths and custom-field suffixes.
   (#1418)
 - For the planned 4.1.0 release, SSL failures now raise instead of silently
   retrying with `verify=False`. The optional `download_file` parameter

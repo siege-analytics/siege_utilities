@@ -42,6 +42,7 @@ from siege_utilities.connectors._protocol import (
     ConnectorRateLimitError,
     UpsertResult,
 )
+from siege_utilities.connectors._query_utils import _validate_identifier
 
 log = logging.getLogger(__name__)
 
@@ -145,12 +146,13 @@ class SOQLQuery:
 
     def select(self, *fields: str) -> SOQLQuery:
         """Add fields to the SELECT clause."""
-        self._fields.extend(fields)
+        validated = [_validate_identifier(field, allow_dotted=True) for field in fields]
+        self._fields.extend(validated)
         return self
 
     def from_(self, object_type: str) -> SOQLQuery:
         """Set the FROM object type."""
-        self._object_type = object_type
+        self._object_type = _validate_identifier(object_type)
         return self
 
     def where(
@@ -173,6 +175,7 @@ class SOQLQuery:
         Supports equality, comparison, IN, NOT IN, LIKE, and null checks.
         Multiple calls are joined with AND.
         """
+        _validate_identifier(field, allow_dotted=True)
         if eq is not _UNSET:
             self._conditions.append(f"{field} = {_soql_literal(eq)}")
         if ne is not _UNSET:
@@ -206,6 +209,7 @@ class SOQLQuery:
 
     def order_by(self, field: str, *, desc: bool = False) -> SOQLQuery:
         """Add an ORDER BY clause."""
+        _validate_identifier(field, allow_dotted=True)
         direction = "DESC" if desc else "ASC"
         self._order_clauses.append(f"{field} {direction}")
         return self
@@ -1060,8 +1064,9 @@ class SalesforceConnector:
         limit: int | None = None,
     ) -> str:
         """Build a SOQL SELECT query from Python arguments."""
+        _validate_identifier(object_type)
         selected = fields or DEFAULT_FIELDS.get(object_type, ["Id"])
-        field_clause = ", ".join(selected)
+        field_clause = ", ".join(_validate_identifier(field, allow_dotted=True) for field in selected)
         query = f"SELECT {field_clause} FROM {object_type}"
 
         if filters:
@@ -1078,6 +1083,7 @@ class SalesforceConnector:
     @staticmethod
     def _soql_condition(field: str, value: Any) -> str:
         """Translate a single key-value filter into a SOQL condition."""
+        _validate_identifier(field, allow_dotted=True)
         if value is None:
             return f"{field} = null"
         if isinstance(value, bool):

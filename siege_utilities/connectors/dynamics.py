@@ -16,6 +16,7 @@ import time
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Mapping
+from urllib.parse import quote
 
 import pandas as pd
 
@@ -40,6 +41,7 @@ from siege_utilities.connectors._protocol import (
     ConnectorRateLimitError,
     UpsertResult,
 )
+from siege_utilities.connectors._query_utils import _validate_identifier
 
 log = logging.getLogger(__name__)
 
@@ -482,6 +484,8 @@ class DynamicsConnector:
         """Execute a $batch request with individual upserts."""
         from siege_utilities.connectors._protocol import UpsertError
 
+        _validate_identifier(entity_set)
+        _validate_identifier(match_field)
         self._ensure_connected()
         batch_id = str(uuid.uuid4())
         changeset_id = str(uuid.uuid4())
@@ -492,9 +496,11 @@ class DynamicsConnector:
 
         for i, rec in enumerate(records):
             match_val = rec.get(match_field, "")
+            # Escape OData syntax before encoding for the inner request URI.
+            match_literal = quote(_odata_string_literal(match_val), safe="")
             uri = (
                 f"{self._environment_url}/api/data/v9.2/{entity_set}"
-                f"({match_field}={_odata_string_literal(match_val)})"
+                f"({match_field}={match_literal})"
             )
             import json as _json
             rec_body = _json.dumps(rec)
@@ -564,6 +570,7 @@ class DynamicsConnector:
         """Translate Python dict to OData $filter expression."""
         parts: list[str] = []
         for key, value in filters.items():
+            _validate_identifier(key)
             if value is None:
                 parts.append(f"{key} eq null")
             elif isinstance(value, bool):

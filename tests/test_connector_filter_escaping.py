@@ -2,6 +2,7 @@
 
 import re
 from unittest.mock import Mock
+from urllib.parse import quote, unquote, urlsplit
 
 import pytest
 
@@ -62,6 +63,18 @@ def test_dynamics_typed_filter_values(value, literal):
     assert DynamicsConnector._build_odata_filter({"field": value}) == f"field eq {literal}"
 
 
+@pytest.fixture
+def dynamics_batch_connector():
+    connector = DynamicsConnector.__new__(DynamicsConnector)
+    connector._ensure_connected = Mock()
+    connector._environment_url = "https://example.crm.dynamics.com"
+    connector._access_token = "test-token"
+    connector._timeout = 30
+    connector._session = Mock()
+    connector._session.post.return_value.status_code = 202
+    return connector
+
+
 @pytest.mark.parametrize(
     ("value", "literal"),
     [
@@ -71,22 +84,46 @@ def test_dynamics_typed_filter_values(value, literal):
     ],
     ids=["apostrophe", "injection", "plain"],
 )
-def test_dynamics_batch_alternate_key_literal(value, literal):
-    connector = DynamicsConnector.__new__(DynamicsConnector)
-    connector._ensure_connected = Mock()
-    connector._environment_url = "https://example.crm.dynamics.com"
-    connector._access_token = "test-token"
-    connector._timeout = 30
-    connector._session = Mock()
-    connector._session.post.return_value.status_code = 202
+def test_dynamics_batch_alternate_key_literal(value, literal, dynamics_batch_connector):
+    connector = dynamics_batch_connector
 
     connector._batch_upsert("contacts", [{"name": value}], "name")
 
     body = connector._session.post.call_args.kwargs["data"]
     request_lines = [line for line in body.split("\r\n") if line.startswith("PATCH ")]
+    encoded_literal = quote(literal, safe="")
     assert request_lines == [
-        f"PATCH https://example.crm.dynamics.com/api/data/v9.2/contacts(name={literal}) HTTP/1.1"
+        f"PATCH https://example.crm.dynamics.com/api/data/v9.2/contacts(name={encoded_literal}) HTTP/1.1"
     ]
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["x%27,accountnumber=%27A-1", "A#1", "Alice Smith", "Bob\r\nIf-Match: *"],
+    ids=["percent-quote", "fragment", "space", "header-injection"],
+)
+def test_dynamics_batch_uri_smuggling(value, dynamics_batch_connector):
+    connector = dynamics_batch_connector
+    connector._batch_upsert("contacts", [{"name": value}], "name")
+
+    body = connector._session.post.call_args.kwargs["data"]
+    lines = body.split("\r\n")
+    request_lines = [line for line in lines if line.startswith("PATCH ")]
+    assert len(request_lines) == 1
+    request = re.fullmatch(r"PATCH (\S+) HTTP/1\.1", request_lines[0])
+    assert request is not None, "Alternate key must not split the request line"
+    assert not any(line.startswith("If-Match:") for line in lines)
+    uri = urlsplit(request[1])
+    assert not uri.fragment
+    assert not uri.query
+
+    # Decode once, as the server does, then parse exactly one OData literal.
+    key = re.fullmatch(
+        r"/api/data/v9\.2/contacts\(name=('(?:[^']|'')*')\)",
+        unquote(uri.path),
+    )
+    assert key is not None, "Alternate key must remain a single string literal"
+    assert key[1][1:-1].replace("''", "'") == value
 
 
 @pytest.mark.parametrize("as_list", [False, True], ids=["scalar", "list"])
