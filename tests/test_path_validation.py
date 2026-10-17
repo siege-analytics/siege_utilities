@@ -441,6 +441,17 @@ class TestRootCarveOutReview:
             with pytest.raises(PathSecurityError, match="Access to sensitive path blocked"):
                 validate_safe_path(path, base_directory="/root" if with_base else None)
 
+    @pytest.mark.parametrize("path", [
+        "/root/.gnupg/secring.gpg", "/root/.vault-token",
+        "/root/.config/gh/hosts.yml", "/root/.npmrc",
+    ])
+    @pytest.mark.parametrize("with_base", [False, True])
+    def test_additional_root_credential_stores_stay_blocked(self, monkeypatch, path, with_base):
+        with monkeypatch.context() as patch:
+            patch.setattr(os, "getcwd", lambda: "/root")
+            with pytest.raises(PathSecurityError, match="Access to sensitive path blocked"):
+                validate_safe_path(path, base_directory="/root" if with_base else None)
+
     @pytest.mark.parametrize("path", ["/etc/shadow-", "/etc/gshadow", "/etc/gshadow-", "/etc/passwd-"])
     def test_shadow_and_passwd_backups_are_sensitive(self, path):
         with pytest.raises(PathSecurityError, match="Access to sensitive path blocked"):

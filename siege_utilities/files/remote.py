@@ -52,6 +52,11 @@ def _safe_content_length(response) -> int:
 
 def _get_ssl_verify_path():
     """Get the appropriate SSL certificate verification path for the current platform."""
+    # An explicit verify path prevents requests from consulting these variables.
+    for variable in ("REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE"):
+        if os.environ.get(variable):
+            return os.environ[variable]
+
     # macOS system CA bundle path (works better than certifi for some sites)
     if platform.system() == 'Darwin' and os.path.exists('/etc/ssl/cert.pem'):
         return '/etc/ssl/cert.pem'

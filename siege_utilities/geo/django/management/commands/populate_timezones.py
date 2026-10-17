@@ -7,7 +7,7 @@ Usage:
     python manage.py populate_timezones --file timezones.geojson --update
 """
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 __all__ = ['Command']
 
@@ -18,6 +18,11 @@ class Command(BaseCommand):
     help = "Load timezone boundaries from timezone-boundary-builder GeoJSON"
 
     def add_arguments(self, parser):
+        parser.add_argument(
+            "--allow-partial",
+            action="store_true",
+            help="Allow reported errors if at least one record was created or updated",
+        )
         parser.add_argument(
             "--file",
             type=str,
@@ -64,5 +69,12 @@ class Command(BaseCommand):
         if result.errors:
             for err in result.errors:
                 self.stderr.write(self.style.ERROR(err))
+            if (
+                not options.get("allow_partial", False)
+                or result.records_created + result.records_updated == 0
+            ):
+                raise CommandError(
+                    f"Timezone population failed with {len(result.errors)} errors"
+                )
         else:
             self.stdout.write(self.style.SUCCESS("Done."))

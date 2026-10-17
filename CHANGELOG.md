@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `populate_boundaries`, `populate_demographics`, `populate_crosswalks`,
+  `populate_timezones`, `populate_nlrb_regions`, `populate_nces`, and
+  `classify_urbanicity` now exit non-zero when a load reports errors, after
+  printing the existing details and summaries. Use `--allow-partial` to retain
+  tolerant behavior when at least one record was created, updated, or classified;
+  errors with nothing loaded still fail. Multi-result runs count successful
+  records across all requested types, groups, or actions. (#1533)
 - Credential resolution now defaults to env -> 1Password -> service-scoped
   files -> Keychain -> prompt. Unscoped credential files are no longer searched.
   Move files to a service directory (for example `postgres/password.txt`) or
@@ -59,6 +66,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Closes stored XSS in saved Folium maps and fixes report/IDML crashes on
   `& < > "` while preserving intentional markup. (#1565)
 
+- For the planned 4.1.0 release, SSL failures now raise instead of silently
+  retrying with `verify=False`. The optional `download_file` parameter
+  `allow_insecure_fallback=False` is allowlisted in the API contract gate as
+  a backward-compatible addition. Verified downloads honor `REQUESTS_CA_BUNDLE`,
+  then `CURL_CA_BUNDLE`, before platform defaults. TIGER, government dataset,
+  and NCES downloads honor `SIEGE_INSECURE_SSL` as an explicit opt-in with
+  ERROR logging; warning suppression is limited to individual unverified
+  discovery requests. (#1456)
 - Path validation permits data inside a cwd or base at or below `/root` while
   keeping root's `.aws`, `.netrc`, `.kube`, `.docker`, `.pgpass`,
   `.git-credentials`, and `.config/gcloud` locations blocked. Both file and
