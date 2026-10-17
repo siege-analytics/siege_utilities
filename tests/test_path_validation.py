@@ -167,6 +167,30 @@ class TestDirectoryControlCharacters:
         target = tmp_path / "données é 日本"
         assert validate_directory_path(str(target), must_exist=False) == target.resolve()
 
+    def test_over_long_new_component_is_left_to_mkdir(self, tmp_path):
+        """Path.exists raises ENAMETOOLONG on 3.11; the walk must not."""
+        target = tmp_path / ("a" * 300) / "b"
+        assert validate_directory_path(str(target), must_exist=False) == target.resolve()
+
+    def test_debug_log_escapes_the_name(self, tmp_path, caplog):
+        caplog.set_level("DEBUG", logger="siege_utilities.files.validation")
+        with pytest.raises(PathSecurityError):
+            validate_directory_path(str(tmp_path / "esc\x1b[31m"), must_exist=False)
+        assert "\x1b" not in caplog.text
+        assert "\\x1b" in caplog.text
+
+    def test_zip_named_subdirectory_is_validated(self, tmp_path):
+        import zipfile
+        from siege_utilities.files.paths import unzip_file_to_directory
+
+        archive = tmp_path / "evil\x1b[31m.zip"
+        with zipfile.ZipFile(archive, "w") as z:
+            z.writestr("x.txt", "x")
+        out = tmp_path / "out"
+        with pytest.raises(PathSecurityError, match="Control character"):
+            unzip_file_to_directory(archive, out)
+        assert not (out / "evil\x1b[31m").exists()
+
 
 class TestSafeJoinPaths:
 
