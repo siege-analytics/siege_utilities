@@ -1,0 +1,389 @@
+[
+  {
+    "scope": "validate_profile_location",
+    "rule": "write_text",
+    "sha256": "af2a78864eb8f32e8667b2e13762440816f872c27c91ebdebdca9f767fe67fab",
+    "call": "test_file.write_text('test')",
+    "file": "admin/profile_manager.py",
+    "count": 1,
+    "reason": "Disposable .write_test permission probe, removed immediately; no cached or persistent payload."
+  },
+  {
+    "scope": "create_standard_project_structure",
+    "rule": "write_text",
+    "sha256": "adfb40041a30c88e8b6e9d5dbfbb268253d23677f659e97424faf7e63ac7c261",
+    "call": "readme.write_text(f'# {project_path_obj.name}\\n\\nProject directory created by siege_utilities.\\n')",
+    "file": "config/directories.py",
+    "count": 1,
+    "reason": "Existing README/.gitignore project scaffolding, not the listed save_directory_config persistence site; deferred to keep #1509 scope limited."
+  },
+  {
+    "scope": "create_standard_project_structure",
+    "rule": "write_text",
+    "sha256": "15178735a366f1109adf1ce6f0a62a8f0bd7cae2901b687252a96662aa8a5e6b",
+    "call": "gitignore.write_text(gitignore_content.strip())",
+    "file": "config/directories.py",
+    "count": 1,
+    "reason": "Existing README/.gitignore project scaffolding, not the listed save_directory_config persistence site; deferred to keep #1509 scope limited."
+  },
+  {
+    "scope": "generate_architecture_diagram",
+    "rule": "open",
+    "sha256": "6b7190bdb75ea25c05a46e53193a64ddde5be26b639b937fadd810b3f5bdc183",
+    "call": "open(output_file, 'w', encoding='utf-8')",
+    "file": "development/architecture.py",
+    "count": 1,
+    "reason": "Explicit developer-generated architecture/build dependency artifacts, outside the enumerated #1509 writers; exact existing calls retained."
+  },
+  {
+    "scope": "generate_requirements_txt",
+    "rule": "open",
+    "sha256": "b52f91735907543397395c6783914cd542adbf734e76e72761fde34c6067653c",
+    "call": "open(output_path, 'w', encoding='utf-8')",
+    "file": "development/architecture.py",
+    "count": 1,
+    "reason": "Explicit developer-generated architecture/build dependency artifacts, outside the enumerated #1509 writers; exact existing calls retained."
+  },
+  {
+    "scope": "generate_pyproject_toml",
+    "rule": "open",
+    "sha256": "b52f91735907543397395c6783914cd542adbf734e76e72761fde34c6067653c",
+    "call": "open(output_path, 'w', encoding='utf-8')",
+    "file": "development/architecture.py",
+    "count": 1,
+    "reason": "Explicit developer-generated architecture/build dependency artifacts, outside the enumerated #1509 writers; exact existing calls retained."
+  },
+  {
+    "scope": "generate_poetry_toml",
+    "rule": "open",
+    "sha256": "b52f91735907543397395c6783914cd542adbf734e76e72761fde34c6067653c",
+    "call": "open(output_path, 'w', encoding='utf-8')",
+    "file": "development/architecture.py",
+    "count": 1,
+    "reason": "Explicit developer-generated architecture/build dependency artifacts, outside the enumerated #1509 writers; exact existing calls retained."
+  },
+  {
+    "scope": "demo_spatial_data_sources",
+    "rule": "to_file",
+    "sha256": "1287c6dd73d77c24f1217868c61e298f6b313c2de36502f1796c061a16764832",
+    "call": "counties.to_file(output_path, driver='GPKG')",
+    "file": "examples/enhanced_features_demo.py",
+    "count": 1,
+    "reason": "Demonstration GeoPackage export, outside the production cache/config writers enumerated in #1509."
+  },
+  {
+    "scope": "atomic_write_shapefile",
+    "rule": "to_file",
+    "sha256": "c9b51f4761e6136c928e9248d2e5eef3234ba39df6365a6bb3cb3e7c945762c5",
+    "call": "gdf.to_file(str(tmp_shp), driver='ESRI Shapefile', **kwargs)",
+    "file": "files/operations.py",
+    "count": 1,
+    "reason": "Shapefile and sidecars are written under tempfile.mkdtemp, then replaced by the existing multi-file helper. Dynamic target.name joins require manual temporary-path review."
+  },
+  {
+    "scope": "safe_file_write",
+    "rule": "open",
+    "sha256": "a826860f0aa8024d28f76732acaec53f09b80634b7200e8d5f39443da37e92f0",
+    "call": "open(validated, 'w', encoding=encoding)",
+    "file": "files/operations.py",
+    "count": 1,
+    "reason": "Existing validated text/JSON convenience writer, outside the atomic_write_path helper and enumerated #1509 writers; path validation is not an atomicity guarantee."
+  },
+  {
+    "scope": "safe_json_write",
+    "rule": "open",
+    "sha256": "6d2f60313fa81cdaf3c9bce96db58c29429c8581880753f0c8001118c9d1b452",
+    "call": "open(validated, 'w', encoding='utf-8')",
+    "file": "files/operations.py",
+    "count": 1,
+    "reason": "Existing validated text/JSON convenience writer, outside the atomic_write_path helper and enumerated #1509 writers; path validation is not an atomicity guarantee."
+  },
+  {
+    "scope": "generate_catalog_docs",
+    "rule": "write_text",
+    "sha256": "57eba6bd1d92abf2708899ed25df919dc10ad228349be96ffc85547d1d66277d",
+    "call": "index_path.write_text(_render_index(catalog, title), encoding='utf-8')",
+    "file": "geo/census/catalog_docs.py",
+    "count": 1,
+    "reason": "Regenerable catalog documentation pages, outside the catalog cache persistence writer covered by #1509."
+  },
+  {
+    "scope": "generate_catalog_docs",
+    "rule": "write_text",
+    "sha256": "b941767e42d56938e1dffc2e240feb679f4465f427c14dcec0174eaf21605e44",
+    "call": "page_path.write_text(_render_table_page(table, families, datasets), encoding='utf-8')",
+    "file": "geo/census/catalog_docs.py",
+    "count": 1,
+    "reason": "Regenerable catalog documentation pages, outside the catalog cache persistence writer covered by #1509."
+  },
+  {
+    "scope": "CensusDatasetMapper.export_dataset_catalog",
+    "rule": "open",
+    "sha256": "a458797bb90e1a1c7741feea5a63e47138015e485a21a8ba861aa8de32636e47",
+    "call": "open(filepath, 'w', encoding='utf-8')",
+    "file": "geo/census_dataset_mapper.py",
+    "count": 1,
+    "reason": "Explicit catalog export, outside the enumerated #1509 cache/config writers; exact existing call retained."
+  },
+  {
+    "scope": "Command._write_exports",
+    "rule": "open",
+    "sha256": "034aac36a3c69282fe3f5c5409bd614a16dd7c54fc054c86b6c8ede1984e3a85",
+    "call": "geojson_path.open('w', encoding='utf-8')",
+    "file": "geo/django/management/commands/stage_boundaries_s3.py",
+    "count": 1,
+    "reason": "Paths are passed by Command._export_type from TemporaryDirectory, and uploads start only after _write_exports returns. Interprocedural temporary-path provenance is not inferred by this guard; existing staging stays unchanged."
+  },
+  {
+    "scope": "Command._write_exports",
+    "rule": "open",
+    "sha256": "8a68eda81ce356a3e01cbc67c7b5f38b3db5335b4e18461f6651255a88b01d36",
+    "call": "parquet_path.open('wb')",
+    "file": "geo/django/management/commands/stage_boundaries_s3.py",
+    "count": 1,
+    "reason": "Paths are passed by Command._export_type from TemporaryDirectory, and uploads start only after _write_exports returns. Interprocedural temporary-path provenance is not inferred by this guard; existing staging stays unchanged."
+  },
+  {
+    "scope": "RDHClient.download_dataset",
+    "rule": "open",
+    "sha256": "e98649a416fbd543a8beeb80d514d3eda4921e35cc5d99cb7aaf04f2b6354f5c",
+    "call": "open(dest, 'wb')",
+    "file": "geo/providers/redistricting_data_hub.py",
+    "count": 1,
+    "reason": "RDH downloader belongs to #1415 and is explicitly excluded from #1509; interrupted download handling remains that issue's responsibility."
+  },
+  {
+    "scope": "generate_branch_report",
+    "rule": "open",
+    "sha256": "6b7190bdb75ea25c05a46e53193a64ddde5be26b639b937fadd810b3f5bdc183",
+    "call": "open(output_file, 'w', encoding='utf-8')",
+    "file": "git/branch_analyzer.py",
+    "count": 1,
+    "reason": "Explicit branch analysis report, outside the enumerated #1509 writers; exact existing call retained."
+  },
+  {
+    "scope": "_update_version_files",
+    "rule": "write_text",
+    "sha256": "d9cb1550407f0d9c0d084e8e307d33a3fd82339a1c5f52aaafd770e7fd0e69a4",
+    "call": "file_path.write_text(version + '\\n')",
+    "file": "git/git_workflow.py",
+    "count": 1,
+    "reason": "Deliberate in-place source/version file editing in the release workflow, outside the cache/output/config writer list in #1509."
+  },
+  {
+    "scope": "_update_version_files",
+    "rule": "write_text",
+    "sha256": "e79f87b9c6f30cf432637335437bd18a1a26d395515e0cf2d85f61cbf30c071a",
+    "call": "file_path.write_text(content)",
+    "file": "git/git_workflow.py",
+    "count": 3,
+    "reason": "Deliberate in-place source/version file editing in the release workflow, outside the cache/output/config writer list in #1509."
+  },
+  {
+    "scope": "process_python_file",
+    "rule": "open",
+    "sha256": "2167db6411572f0ccc05724516c2e98ad82cbf5c3f54b4fee0990ddaad5207c2",
+    "call": "open(file_path, 'w', encoding='utf-8')",
+    "file": "hygiene/generate_docstrings.py",
+    "count": 1,
+    "reason": "Deliberate in-place Python source editing by a development utility, outside #1509."
+  },
+  {
+    "scope": "ChartTypeRegistry.export_chart_type_config",
+    "rule": "open",
+    "sha256": "b52f91735907543397395c6783914cd542adbf734e76e72761fde34c6067653c",
+    "call": "open(output_path, 'w', encoding='utf-8')",
+    "file": "reporting/chart_types.py",
+    "count": 1,
+    "reason": "Explicit chart type config export, outside the enumerated #1509 writers; exact existing call retained."
+  },
+  {
+    "scope": "ClientBrandingManager.export_branding_config",
+    "rule": "open",
+    "sha256": "0705816c2214bed3427548474684baa543f0df82022e058ba694386fc44ddc7e",
+    "call": "open(export_path, 'w', encoding='utf-8')",
+    "file": "reporting/client_branding.py",
+    "count": 3,
+    "reason": "Explicit branding export is separate from the create/update branding persistence sites listed in #1509; those two sites are converted. Existing three export branches are pinned."
+  },
+  {
+    "scope": "export_design_kit",
+    "rule": "open",
+    "sha256": "2fa00510f961c7daaf142785c3a3ba4ba0dbda04939e0576918d94f9eb53dd83",
+    "call": "open(tables_dir / 'daily_performance.csv', 'w', newline='', encoding='utf-8')",
+    "file": "reporting/examples/google_analytics_report_example.py",
+    "count": 1,
+    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
+  },
+  {
+    "scope": "export_design_kit",
+    "rule": "open",
+    "sha256": "6884857751f4582412a8e719ae1d4fa72950d7ef59d606b851589181293adf98",
+    "call": "open(tables_dir / 'traffic_sources.csv', 'w', newline='', encoding='utf-8')",
+    "file": "reporting/examples/google_analytics_report_example.py",
+    "count": 1,
+    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
+  },
+  {
+    "scope": "export_design_kit",
+    "rule": "open",
+    "sha256": "fb04812917e24cc80639bb93026ebdb1d4d2594169c076596febed9ca5ad69f4",
+    "call": "open(tables_dir / 'top_pages.csv', 'w', newline='', encoding='utf-8')",
+    "file": "reporting/examples/google_analytics_report_example.py",
+    "count": 1,
+    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
+  },
+  {
+    "scope": "export_design_kit",
+    "rule": "open",
+    "sha256": "476d5cb3a68f61d45c75abce48c83428fc85e76f776f9e5c219ca091f5c8cd61",
+    "call": "open(tables_dir / 'geographic.csv', 'w', newline='', encoding='utf-8')",
+    "file": "reporting/examples/google_analytics_report_example.py",
+    "count": 1,
+    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
+  },
+  {
+    "scope": "export_design_kit",
+    "rule": "open",
+    "sha256": "86ebcdc9c72944d1c54cf971815aafba93d89320d4527630908f20e86a368670",
+    "call": "open(tables_dir / 'devices.csv', 'w', newline='', encoding='utf-8')",
+    "file": "reporting/examples/google_analytics_report_example.py",
+    "count": 1,
+    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
+  },
+  {
+    "scope": "export_design_kit",
+    "rule": "open",
+    "sha256": "c719e664bc71ba8161c0aed5504460ca255cb9d93f6513a51b2432ce34d587ef",
+    "call": "open(tables_dir / 'kpi_summary.csv', 'w', newline='', encoding='utf-8')",
+    "file": "reporting/examples/google_analytics_report_example.py",
+    "count": 1,
+    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
+  },
+  {
+    "scope": "export_design_kit",
+    "rule": "open",
+    "sha256": "6384f8ba554f0b64325e1a7625de035a45a7f99bb64cc739125db033ff7588c0",
+    "call": "open(tables_dir / 'period_comparison.csv', 'w', newline='', encoding='utf-8')",
+    "file": "reporting/examples/google_analytics_report_example.py",
+    "count": 1,
+    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
+  },
+  {
+    "scope": "export_design_kit",
+    "rule": "open",
+    "sha256": "ca3d6da219c1d9c9117b6e314a81e80ec836e9079c37becebf294881fe20c4ca",
+    "call": "open(tables_dir / 'year_over_year.csv', 'w', newline='', encoding='utf-8')",
+    "file": "reporting/examples/google_analytics_report_example.py",
+    "count": 1,
+    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
+  },
+  {
+    "scope": "export_design_kit",
+    "rule": "open",
+    "sha256": "8c191012d47c57d5f6decc58274eb5edb517e54957927a45cdba2b6dee357b63",
+    "call": "open(text_dir / 'report_text.md', 'w', encoding='utf-8')",
+    "file": "reporting/examples/google_analytics_report_example.py",
+    "count": 1,
+    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
+  },
+  {
+    "scope": "export_design_kit",
+    "rule": "open",
+    "sha256": "bc49b946ebf647df84250f019bdbf8790b62322d078860ddc81bad6df2761f49",
+    "call": "open(kit / 'metadata.yaml', 'w', encoding='utf-8')",
+    "file": "reporting/examples/google_analytics_report_example.py",
+    "count": 1,
+    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
+  },
+  {
+    "scope": "export_design_kit",
+    "rule": "open",
+    "sha256": "3ac5a172d0bdcce3bb011f921ee8d5034715b48d99f2dff6d0187c03b3fe3dc3",
+    "call": "open(kit / 'metadata.txt', 'w', encoding='utf-8')",
+    "file": "reporting/examples/google_analytics_report_example.py",
+    "count": 1,
+    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
+  },
+  {
+    "scope": "IDMLExporter._save_manual",
+    "rule": "write_bytes",
+    "sha256": "8bc8b1f6f95ff3573db05f5231a609693974b922deeb7a1a701c8f8c6d158456",
+    "call": "Path(output_path).write_bytes(buf.getvalue())",
+    "file": "reporting/idml_export.py",
+    "count": 1,
+    "reason": "Explicit generated IDML output, outside the enumerated #1509 writers; exact existing call retained."
+  },
+  {
+    "scope": "save_rl_image",
+    "rule": "write_bytes",
+    "sha256": "f7f896422d5fc0c5d864d5bf52898fc30f0f0ec2b96b36631e6881b38b3462d1",
+    "call": "path.write_bytes(png_bytes)",
+    "file": "reporting/image_utils.py",
+    "count": 1,
+    "reason": "Explicit ReportLab image export, separate from the remote image cache listed in #1509; retained outside scope."
+  },
+  {
+    "scope": "PageTemplateManager._save_custom_template",
+    "rule": "open",
+    "sha256": "ef12e5fa8588301c2892881cd88276614ce1a39eab247fb2293c5762ad2ff42b",
+    "call": "open(template_file, 'w', encoding='utf-8')",
+    "file": "reporting/templates/page_templates.py",
+    "count": 1,
+    "reason": "Custom page template persistence/export, outside the enumerated #1509 writers; exact existing calls retained."
+  },
+  {
+    "scope": "PageTemplateManager.export_template",
+    "rule": "open",
+    "sha256": "b52f91735907543397395c6783914cd542adbf734e76e72761fde34c6067653c",
+    "call": "open(output_path, 'w', encoding='utf-8')",
+    "file": "reporting/templates/page_templates.py",
+    "count": 1,
+    "reason": "Custom page template persistence/export, outside the enumerated #1509 writers; exact existing calls retained."
+  },
+  {
+    "scope": "_write",
+    "rule": "write_text",
+    "sha256": "12268b1a4a99510d0cd6be2c02934b34ed266e3d66cfa4a74d208b81d88c15cf",
+    "call": "path.write_text(body, encoding='utf-8')",
+    "file": "schema/tests/test_migration_runner_discovery.py",
+    "count": 1,
+    "reason": "Migration discovery test fixture writes into pytest tmp_path; temporary path provenance crosses the fixture helper boundary."
+  },
+  {
+    "scope": "_write",
+    "rule": "write_text",
+    "sha256": "eae3ec38105949a8895bd0974db2a57bf38a7ea47f274dc8948d2945093b0286",
+    "call": "p.write_text(body, encoding='utf-8')",
+    "file": "schema/tests/test_migration_runner_integration.py",
+    "count": 1,
+    "reason": "Migration test fixture writes or deliberate SQL edits in pytest tmp_path; partial/persistent production cache writes are not involved."
+  },
+  {
+    "scope": "test_verify_checksums_reports_edited_migration",
+    "rule": "write_text",
+    "sha256": "6148ad3b1aef76664d6d91cbe138d5be6030c54e526399e4210cac23a120cf11",
+    "call": "path.write_text('SELECT 2;', encoding='utf-8')",
+    "file": "schema/tests/test_migration_runner_integration.py",
+    "count": 1,
+    "reason": "Migration test fixture writes or deliberate SQL edits in pytest tmp_path; partial/persistent production cache writes are not involved."
+  },
+  {
+    "scope": "test_apply_one_raises_on_file_changed_between_discovery_and_apply",
+    "rule": "write_text",
+    "sha256": "6148ad3b1aef76664d6d91cbe138d5be6030c54e526399e4210cac23a120cf11",
+    "call": "path.write_text('SELECT 2;', encoding='utf-8')",
+    "file": "schema/tests/test_migration_runner_integration.py",
+    "count": 1,
+    "reason": "Migration test fixture writes or deliberate SQL edits in pytest tmp_path; partial/persistent production cache writes are not involved."
+  },
+  {
+    "scope": "run_command",
+    "rule": "open",
+    "sha256": "1ed5ecd7c1d3a29af09b7c1532c677b6bfe169010bd7d6d80b26de2317cf3f26",
+    "call": "open(log_file, 'w', encoding='utf-8')",
+    "file": "testing/runner.py",
+    "count": 1,
+    "reason": "Diagnostic process log is deliberately opened for live streaming; replacing it only at process exit would hide progress."
+  }
+]

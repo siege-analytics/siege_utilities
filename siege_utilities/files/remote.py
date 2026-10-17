@@ -11,6 +11,8 @@ from typing import Union
 
 from siege_utilities.core._http import redact_url_secrets
 
+from siege_utilities.files.operations import atomic_write_path
+
 try:
     import requests
     REQUESTS_AVAILABLE = True
@@ -201,15 +203,16 @@ def download_file(url: str, local_filename: FilePath,
             else:
                 log.info('Download started, file size unknown')
 
-            with open(local_path, 'wb') as file:
-                with _get_progress_bar(
-                    total=total_size, unit='B', unit_scale=True,
-                    desc=local_path.name, ascii=True
-                ) as progress_bar:
-                    for chunk in response.iter_content(chunk_size=chunk_size):
-                        if chunk:
-                            file.write(chunk)
-                            progress_bar.update(len(chunk))
+            with atomic_write_path(local_path) as tmp:
+                with open(tmp, 'wb') as file:
+                    with _get_progress_bar(
+                        total=total_size, unit='B', unit_scale=True,
+                        desc=local_path.name, ascii=True
+                    ) as progress_bar:
+                        for chunk in response.iter_content(chunk_size=chunk_size):
+                            if chunk:
+                                file.write(chunk)
+                                progress_bar.update(len(chunk))
 
             log.info(redact_url_secrets(f'Successfully downloaded {url} to {local_path}'))
             return str(local_path)
@@ -255,15 +258,16 @@ def download_file(url: str, local_filename: FilePath,
                 else:
                     log.info('Download started without SSL, file size unknown')
 
-                with open(local_path, 'wb') as file:
-                    with _get_progress_bar(
-                        total=total_size, unit='B', unit_scale=True,
-                        desc=f"{local_path.name} (no SSL)", ascii=True
-                    ) as progress_bar:
-                        for chunk in response.iter_content(chunk_size=chunk_size):
-                            if chunk:
-                                file.write(chunk)
-                                progress_bar.update(len(chunk))
+                with atomic_write_path(local_path) as tmp:
+                    with open(tmp, 'wb') as file:
+                        with _get_progress_bar(
+                            total=total_size, unit='B', unit_scale=True,
+                            desc=f"{local_path.name} (no SSL)", ascii=True
+                        ) as progress_bar:
+                            for chunk in response.iter_content(chunk_size=chunk_size):
+                                if chunk:
+                                    file.write(chunk)
+                                    progress_bar.update(len(chunk))
 
                 log.info(redact_url_secrets(
                     f'Successfully downloaded {url} to {local_path} without SSL verification'

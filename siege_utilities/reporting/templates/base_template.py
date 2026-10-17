@@ -8,6 +8,8 @@ import yaml
 from pathlib import Path
 import requests
 from hashlib import md5
+
+from siege_utilities.files.operations import atomic_write_path
 try:
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.enums import TA_CENTER
@@ -289,9 +291,10 @@ class BaseReportTemplate:
                 elif 'image/gif' in content_type:
                     cached_path = cached_path.with_suffix('.gif')
 
-                with open(cached_path, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        f.write(chunk)
+                with atomic_write_path(cached_path) as tmp:
+                    with open(tmp, 'wb') as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            f.write(chunk)
                 log.info(f"Image cached to: {cached_path}")
                 return str(cached_path)
             except requests.exceptions.RequestException as e:

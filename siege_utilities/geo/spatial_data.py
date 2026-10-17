@@ -21,6 +21,8 @@ from urllib3.exceptions import InsecureRequestWarning
 
 from siege_utilities.geo.crs import reproject_if_needed
 
+from siege_utilities.files.operations import atomic_write_path
+
 # Opt-in TLS-verification bypass for environments behind broken
 # corporate MITM proxies. Defaults to False because silent fallback to
 # verify=False is exactly the path a MITM exploits; the safer default
@@ -314,8 +316,9 @@ def update_census_inventory(
 
     save_path = Path(save_path or _DEFAULT_INVENTORY_PATH)
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(save_path, "w", encoding="utf-8") as fh:
-        json.dump(inventory, fh, indent=2)
+    with atomic_write_path(save_path) as tmp:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(inventory, fh, indent=2)
     log.info("census inventory saved to %s", save_path)
     return inventory
 
