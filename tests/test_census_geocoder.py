@@ -42,24 +42,23 @@ class TestCensusVintage:
 
 
 class TestSelectVintageForCycle:
-    def test_current_cycle(self):
-        assert select_vintage_for_cycle(2024) == CensusVintage.CURRENT
-        assert select_vintage_for_cycle(2020) == CensusVintage.CURRENT
-        assert select_vintage_for_cycle(2026) == CensusVintage.CURRENT
+    """Regressions for #1498 (writing-tests:1 retroactive-fix corollary).
 
-    def test_census_2020_era(self):
-        assert select_vintage_for_cycle(2012) == CensusVintage.CENSUS_2020
-        assert select_vintage_for_cycle(2018) == CensusVintage.CENSUS_2020
-        assert select_vintage_for_cycle(2019) == CensusVintage.CENSUS_2020
+    The old test_current_cycle and test_census_2020_era assertions encoded
+    the decade-off bug: 2012-2020 cycles require 2010 geography.
+    """
 
-    def test_census_2010_era(self):
-        assert select_vintage_for_cycle(1980) == CensusVintage.CENSUS_2010
-        assert select_vintage_for_cycle(2000) == CensusVintage.CENSUS_2010
-        assert select_vintage_for_cycle(2010) == CensusVintage.CENSUS_2010
-        assert select_vintage_for_cycle(2011) == CensusVintage.CENSUS_2010
+    @pytest.mark.parametrize("year", [2022, 2024, 2026])
+    def test_2022_onward_preserves_current_vintage(self, year):
+        assert select_vintage_for_cycle(year) == CensusVintage.CURRENT
 
-    def test_pre_1980_fallback(self):
-        assert select_vintage_for_cycle(1970) == CensusVintage.CENSUS_2010
+    @pytest.mark.parametrize("year", [2012, 2014, 2016, 2018, 2019, 2020, 2021])
+    def test_2010_geography_before_2022_redistricting(self, year):
+        assert select_vintage_for_cycle(year) == CensusVintage.CENSUS_2010
+
+    @pytest.mark.parametrize("year", [1970, 1980, 2000, 2008, 2010, 2011])
+    def test_pre_2012_fallback_to_earliest_available_geography(self, year):
+        assert select_vintage_for_cycle(year) == CensusVintage.CENSUS_2010
 
 
 # --- CensusGeocodeResult ---

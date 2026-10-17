@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `select_vintage_for_cycle` now selects `CENSUS_2010` for the 2012-2020
+  election cycles (years 2012 through 2021), correcting the decade-off
+  block/tract GEOIDs. The `CURRENT` tier starts at 2022 and currently supplies
+  2020 Census blocks; pre-2012 years retain the documented `CENSUS_2010`
+  fallback because 2000 geography is not offered. Re-geocode affected cycle
+  results before joining them to 2010-based block-assignment or district
+  files. (#1498)
+
 - Config passwords, tokens, client secrets and API keys now use Pydantic
   `SecretStr`, including the API keys on `User` and `postgresql_connection`
   on `EnhancedUserProfile` and `User`. Consumers must call

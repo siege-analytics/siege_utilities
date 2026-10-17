@@ -18,7 +18,7 @@ Usage:
     results = geocode_batch(addresses, vintage=CensusVintage.CENSUS_2020)
 
     # Auto-select vintage for an FEC cycle year
-    vintage = select_vintage_for_cycle(2018)  # -> CensusVintage.CENSUS_2020
+    vintage = select_vintage_for_cycle(2018)  # -> CensusVintage.CENSUS_2010
 """
 
 import csv
@@ -102,10 +102,10 @@ class CensusVintage(str, Enum):
         return self.value.split("|")[1]
 
 
-# Year boundaries for vintage selection
+# Descending year boundaries for vintage selection; the first match wins.
 _VINTAGE_THRESHOLDS = [
-    (2020, CensusVintage.CURRENT),
-    (2012, CensusVintage.CENSUS_2020),
+    (2022, CensusVintage.CURRENT),
+    (2012, CensusVintage.CENSUS_2010),
     (1980, CensusVintage.CENSUS_2010),
 ]
 
@@ -113,17 +113,34 @@ _VINTAGE_THRESHOLDS = [
 def select_vintage_for_cycle(year: int) -> CensusVintage:
     """Select the appropriate Census vintage for an FEC cycle year.
 
+    The 2012-2020 election cycles used districts drawn on 2010 Census
+    geography, so years from 2012 through 2021 use CENSUS_2010 on the
+    Census2020 benchmark. Years from 2022 onward preserve the CURRENT
+    tier, which currently supplies 2020 Census blocks. CURRENT follows
+    Census updates; use CENSUS_2020 explicitly for a fixed 2020 vintage.
+
+    Years before 2012 retain the CENSUS_2010 fallback. CensusVintage does
+    not offer 2000 or earlier geography, so this fallback does not match
+    the historical district boundaries for those cycles.
+
     Args:
         year: The FEC election cycle year.
 
     Returns:
-        CensusVintage matching the boundaries in effect for that cycle.
+        CensusVintage for the cycle's decennial geography, subject to the
+        pre-2012 fallback and the CURRENT tier described above.
 
     Examples:
         >>> select_vintage_for_cycle(2024)
         <CensusVintage.CURRENT: 'Public_AR_Current|Current_Current'>
         >>> select_vintage_for_cycle(2016)
-        <CensusVintage.CENSUS_2020: 'Public_AR_Census2020|Census2020_Census2020'>
+        <CensusVintage.CENSUS_2010: 'Public_AR_Census2020|Census2010_Census2020'>
+        >>> select_vintage_for_cycle(2012)
+        <CensusVintage.CENSUS_2010: 'Public_AR_Census2020|Census2010_Census2020'>
+        >>> select_vintage_for_cycle(2020)
+        <CensusVintage.CENSUS_2010: 'Public_AR_Census2020|Census2010_Census2020'>
+        >>> select_vintage_for_cycle(2022)
+        <CensusVintage.CURRENT: 'Public_AR_Current|Current_Current'>
         >>> select_vintage_for_cycle(2008)
         <CensusVintage.CENSUS_2010: 'Public_AR_Census2020|Census2010_Census2020'>
     """
