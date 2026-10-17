@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `populate_nlrb_regions` now creates registry-only rows by default without
+  raising `IntegrityError`. Migration 0018 makes only `NLRBRegion.geometry`
+  nullable; callers must allow NULL geometry, and population returns and logs
+  the count of regions without geometry. County dissolves filter by the
+  requested vintage and use a database-side `Union` aggregate. Region 28 is
+  corrected to Phoenix (AZ/NM), and Region 32 (Oakland, CA) is added, verified
+  against the NLRB regional-office pages. Dissolved polygons remain a
+  state-level approximation and overlap where regions share states; true
+  sub-state jurisdiction mapping is tracked in [#1713](https://github.com/siege-analytics/siege_utilities/issues/1713).
+  (#1585)
+
 - Cache/output/config writers now publish complete files atomically so interrupted
   downloads, extractions and serialization cannot be served as valid cached data.
   `atomic_write_path` preserves umask-derived permissions and fsyncs before
