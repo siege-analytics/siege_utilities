@@ -1,4 +1,5 @@
 """Failure injection at the remaining #1532 sites; all I/O is local or mocked."""
+
 import importlib
 import json
 import sqlite3
@@ -13,7 +14,9 @@ import yaml
 
 @pytest.mark.parametrize("module", ["enhanced_config", "migration"])
 def test_missing_user_and_corrupt_client_not_migrated(tmp_path, module):
-    cls = importlib.import_module(f"siege_utilities.config.{module}").ConfigurationMigrator
+    cls = importlib.import_module(
+        f"siege_utilities.config.{module}"
+    ).ConfigurationMigrator
     migrator = cls(tmp_path, tmp_path / "new")
     result = migrator.migrate_all_configurations()
     assert not result["user_profile"]["migrated"] and result["error"]
@@ -38,10 +41,15 @@ def test_locale_population_reachable_after_census_factory_disabled():
     with pytest.raises(ValueError):
         NCESLocaleClassifier.from_census_year(2020)
     ua = gpd.GeoDataFrame({"UACE20": ["00001"]}, geometry=[box(-1, -1, 1, 1)], crs=4326)
-    city = gpd.GeoDataFrame({"POP": ["n/a"]}, geometry=[box(-0.5, -0.5, 0.5, 0.5)], crs=4326)
+    city = gpd.GeoDataFrame(
+        {"POP": ["n/a"]}, geometry=[box(-0.5, -0.5, 0.5, 0.5)], crs=4326
+    )
     classifier = NCESLocaleClassifier(
-        urbanized_areas=ua, urban_clusters=None, principal_cities=city,
-        place_populations={}, ua_populations={"00001": 5_000_000},
+        urbanized_areas=ua,
+        urban_clusters=None,
+        principal_cities=city,
+        place_populations={},
+        ua_populations={"00001": 5_000_000},
     )
     with pytest.raises(ValueError, match="population"):
         classifier.classify_point(0, 0)
@@ -52,7 +60,10 @@ def test_invalid_state_raises_before_download(monkeypatch):
 
     source = Mock()
     monkeypatch.setattr(spatial_data, "CensusDataSource", lambda: source)
-    with pytest.warns(DeprecationWarning), pytest.raises(ValueError, match="state identifier"):
+    with (
+        pytest.warns(DeprecationWarning),
+        pytest.raises(ValueError, match="state identifier"),
+    ):
         spatial_data.get_census_boundaries(2020, "county", state_identifier="invalid")
     source.get_geographic_boundaries.assert_not_called()
 
@@ -65,15 +76,23 @@ def test_state_filter_accepts_case_variants(monkeypatch, column):
     source.get_geographic_boundaries.return_value = pd.DataFrame({column: ["48", "06"]})
     monkeypatch.setattr(spatial_data, "CensusDataSource", lambda: source)
     with pytest.warns(DeprecationWarning):
-        result = spatial_data.get_census_boundaries(2020, "county", state_identifier="TX")
+        result = spatial_data.get_census_boundaries(
+            2020, "county", state_identifier="TX"
+        )
     assert result[column].tolist() == ["48"]
 
 
-@pytest.mark.parametrize("status,body,error", [
-    (404, "{}", LookupError), (503, "{}", requests.HTTPError),
-    (201, '{"label": "unexpected"}', requests.HTTPError),
-    (200, "not json", ValueError), (200, "[]", ValueError), (200, "{}", ValueError),
-])
+@pytest.mark.parametrize(
+    "status,body,error",
+    [
+        (404, "{}", LookupError),
+        (503, "{}", requests.HTTPError),
+        (201, '{"label": "unexpected"}', requests.HTTPError),
+        (200, "not json", ValueError),
+        (200, "[]", ValueError),
+        (200, "{}", ValueError),
+    ],
+)
 def test_metadata_failures_are_distinct(monkeypatch, status, body, error):
     from siege_utilities.geo.census.variable_registry import VariableRegistry
 
@@ -87,11 +106,22 @@ def test_metadata_failures_are_distinct(monkeypatch, status, body, error):
     assert get.call_args.kwargs["timeout"] == 2
 
 
-@pytest.mark.parametrize("method,kwargs", [
-    ("create_bar_chart", {}), ("create_line_chart", {"x_column": "missing"}), ("create_pie_chart", {}),
-    ("create_proportional_text_bar_chart", {"labels_column": "missing", "values_column": "missing"}),
-    ("create_heatmap_text_chart", {"x_column": "missing", "y_column": "missing", "value_column": "missing"}),
-])
+@pytest.mark.parametrize(
+    "method,kwargs",
+    [
+        ("create_bar_chart", {}),
+        ("create_line_chart", {"x_column": "missing"}),
+        ("create_pie_chart", {}),
+        (
+            "create_proportional_text_bar_chart",
+            {"labels_column": "missing", "values_column": "missing"},
+        ),
+        (
+            "create_heatmap_text_chart",
+            {"x_column": "missing", "y_column": "missing", "value_column": "missing"},
+        ),
+    ],
+)
 def test_chart_failures_raise(method, kwargs):
     pytest.importorskip("reportlab")
     pytest.importorskip("matplotlib")
@@ -119,12 +149,16 @@ def test_swmaps_query_failure_is_not_missing_attribute(tmp_path):
             list(read_features(archive))
 
 
-@pytest.mark.parametrize("name", ["SpatialDataTransformer", "PostGISConnector", "DuckDBConnector"])
+@pytest.mark.parametrize(
+    "name", ["SpatialDataTransformer", "PostGISConnector", "DuckDBConnector"]
+)
 def test_spatial_constructors_reject_broken_config(monkeypatch, name):
     from siege_utilities.geo import spatial_transformations as module
 
     monkeypatch.setattr(module, "DUCKDB_AVAILABLE", True)
-    monkeypatch.setattr(module, "get_user_config", Mock(side_effect=ValueError("bad config")))
+    monkeypatch.setattr(
+        module, "get_user_config", Mock(side_effect=ValueError("bad config"))
+    )
     with pytest.raises(ValueError, match="bad config"):
         getattr(module, name)()
 
@@ -134,7 +168,9 @@ def test_postgis_rejects_failed_connection(monkeypatch):
     from siege_utilities.geo import spatial_transformations as module
 
     monkeypatch.setattr(module, "get_user_config", lambda: None)
-    monkeypatch.setattr(psycopg2, "connect", Mock(side_effect=psycopg2.OperationalError("offline")))
+    monkeypatch.setattr(
+        psycopg2, "connect", Mock(side_effect=psycopg2.OperationalError("offline"))
+    )
     with pytest.raises(ConnectionError, match="PostGIS"):
         module.PostGISConnector("postgresql://localhost/test")
     with pytest.raises(ValueError, match="no connection_string"):
@@ -145,7 +181,11 @@ def test_mapclassify_error_does_not_switch_backend(monkeypatch):
     from siege_utilities.geo import classification
 
     monkeypatch.setattr(classification, "_MAPCLASSIFY_AVAILABLE", True)
-    monkeypatch.setattr(classification, "_classify_with_mapclassify", Mock(side_effect=ValueError("bad breaks")))
+    monkeypatch.setattr(
+        classification,
+        "_classify_with_mapclassify",
+        Mock(side_effect=ValueError("bad breaks")),
+    )
     with pytest.raises(RuntimeError, match="mapclassify") as exc:
         classification.classify_series([1, 2, 4, 8], scheme="quantiles", k=2)
     assert isinstance(exc.value.__cause__, ValueError)
@@ -160,7 +200,9 @@ def test_invalid_crs_raises():
 
 def test_invalid_timezone_raises():
     pytest.importorskip("django")
-    from siege_utilities.geo.django.services.timezone_service import TimezonePopulationService
+    from siege_utilities.geo.django.services.timezone_service import (
+        TimezonePopulationService,
+    )
 
     with pytest.raises(ValueError, match="timezone"):
         TimezonePopulationService()._lookup_offset("Invalid/Nowhere")
@@ -170,7 +212,9 @@ def test_invalid_timezone_raises():
 def test_invalid_cache_timestamp_is_expired(tmp_path, timestamp):
     from siege_utilities.geo.providers.nlrb_cache import NLRBCache
 
-    (tmp_path / "entry.json").write_text(json.dumps({"fetched_at": timestamp, "cases": []}))
+    (tmp_path / "entry.json").write_text(
+        json.dumps({"fetched_at": timestamp, "cases": []})
+    )
     assert NLRBCache(tmp_path).get("entry") is None
 
 
@@ -179,7 +223,9 @@ def test_gadm_read_failure_never_downloads(monkeypatch):
 
     provider = Mock()
     monkeypatch.setattr(boundary_sources, "_load_gadm_via_provider", provider)
-    engine = SimpleNamespace(load_polygons=Mock(side_effect=ValueError("corrupt parquet")))
+    engine = SimpleNamespace(
+        load_polygons=Mock(side_effect=ValueError("corrupt parquet"))
+    )
     with pytest.raises(RuntimeError, match="staged GADM"):
         boundary_sources.load_gadm_boundaries(engine)
     provider.assert_not_called()
@@ -188,7 +234,9 @@ def test_gadm_read_failure_never_downloads(monkeypatch):
 def test_default_geocoder_construction_raises(monkeypatch):
     from siege_utilities.geo import codification
 
-    monkeypatch.setattr(codification, "_get_default_geocoder", Mock(side_effect=ImportError("missing")))
+    monkeypatch.setattr(
+        codification, "_get_default_geocoder", Mock(side_effect=ImportError("missing"))
+    )
     with pytest.raises(RuntimeError, match="default geocoder"):
         codification.codify_area(["123 Main St"])
 
@@ -199,7 +247,9 @@ def test_hdfs_sync_failure_never_returns_local_path(tmp_path, monkeypatch):
     ops = AbstractHDFSOperations.__new__(AbstractHDFSOperations)
     ops.config = Mock()
     monkeypatch.setattr(ops, "check_hdfs_status", lambda: True)
-    monkeypatch.setattr(ops, "sync_directory_to_hdfs", Mock(side_effect=RuntimeError("sync failed")))
+    monkeypatch.setattr(
+        ops, "sync_directory_to_hdfs", Mock(side_effect=RuntimeError("sync failed"))
+    )
     create = Mock()
     monkeypatch.setattr(ops, "create_spark_session", create)
     with pytest.raises(RuntimeError, match="HDFS distributed setup failed"):

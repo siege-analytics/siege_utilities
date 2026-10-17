@@ -10,7 +10,9 @@ import yaml
 @pytest.mark.parametrize("module", ["enhanced_config", "migration"])
 def test_corrupt_profile_not_migrated(tmp_path, module):
     mod = importlib.import_module(f"siege_utilities.config.{module}")
-    (tmp_path / "user_config.yaml").write_text("username: [unclosed\n", encoding="utf-8")
+    (tmp_path / "user_config.yaml").write_text(
+        "username: [unclosed\n", encoding="utf-8"
+    )
     migrator = mod.ConfigurationMigrator(tmp_path, tmp_path / "new")
     result = migrator.migrate_all_configurations()
     assert result["user_profile"]["migrated"] is False
@@ -41,7 +43,10 @@ def test_state_request_never_returns_national_frame(monkeypatch):
             return national.copy()
 
     monkeypatch.setattr(spatial_data, "CensusDataSource", Source)
-    with pytest.warns(DeprecationWarning), pytest.raises(ValueError, match="state FIPS"):
+    with (
+        pytest.warns(DeprecationWarning),
+        pytest.raises(ValueError, match="state FIPS"),
+    ):
         spatial_data.get_census_boundaries(2020, "county", state_identifier="TX")
 
 
@@ -53,13 +58,21 @@ def test_missing_snapshot_year_flags_interval(missing):
         def load_demographics(self, geography_type, year, dataset):
             if year == missing:
                 raise FileNotFoundError(f"no snapshot for {year}")
-            return pd.DataFrame([{
-                "boundary_id": "48001", "year": year,
-                "values": {"B01001_001E": 1000 + year}, "moe_values": {},
-            }])
+            return pd.DataFrame(
+                [
+                    {
+                        "boundary_id": "48001",
+                        "year": year,
+                        "values": {"B01001_001E": 1000 + year},
+                        "moe_values": {},
+                    }
+                ]
+            )
 
     (result,) = TemporalTimeseriesBuilder(store=Store()).build(
-        ["B01001_001E"], [2016, 2017, 2018, 2019, 2020], "tract",
+        ["B01001_001E"],
+        [2016, 2017, 2018, 2019, 2020],
+        "tract",
     )
     assert not result.success
     assert any(str(missing) in error for error in result.errors)
