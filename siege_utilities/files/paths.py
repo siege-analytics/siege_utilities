@@ -107,6 +107,12 @@ def unzip_file_to_directory(zip_file_path: FilePath,
     if create_subdirectory:
         subdir_name = zip_path.stem
         target_dir = extract_dir / subdir_name
+        try:
+            # The subdirectory is named after the zip, so it is validated too (#1692).
+            from siege_utilities.files.validation import validate_directory_path  # noqa: F811
+            target_dir = validate_directory_path(target_dir, must_exist=False)
+        except ImportError:
+            pass
     else:
         target_dir = extract_dir
 
