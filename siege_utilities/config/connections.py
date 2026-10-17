@@ -4,12 +4,13 @@ Handles notebook connections, Spark connections, and their persistence.
 """
 
 import json
-import os
 import pathlib
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 import uuid
+
+from siege_utilities.files.secure_write import secure_write_text
 
 __all__ = [
     'create_connection_profile',
@@ -120,14 +121,14 @@ def create_connection_profile(
 
 def save_connection_profile(
     profile: Dict[str, Any], 
-    config_directory: str = "config"
+    config_directory: str | None = None
 ) -> str:
     """
     Save connection profile to JSON file.
     
     Args:
         profile: Connection profile dictionary
-        config_directory: Directory to save config files
+        config_directory: Config root; defaults to ~/.siege_utilities
         
     Returns:
         Path to saved config file
@@ -137,12 +138,11 @@ def save_connection_profile(
         >>> file_path = siege_utilities.save_connection_profile(conn)  # doctest: +SKIP
     """
     
-    config_dir = pathlib.Path(config_directory)
-    config_dir.mkdir(parents=True, exist_ok=True)
+    config_dir = (pathlib.Path(config_directory) if config_directory is not None
+                       else pathlib.Path.home() / ".siege_utilities")
     
     # Create connections subdirectory
     connections_dir = config_dir / "connections"
-    connections_dir.mkdir(exist_ok=True)
     
     connection_id = profile['connection_id']
     config_file = connections_dir / f"connection_{connection_id}.json"
@@ -150,9 +150,7 @@ def save_connection_profile(
     # Update last_used timestamp
     profile['metadata']['last_used'] = datetime.now().isoformat()
     
-    with open(config_file, 'w', encoding='utf-8') as f:
-        json.dump(profile, f, indent=2)
-    os.chmod(config_file, 0o600)
+    secure_write_text(config_file, json.dumps(profile, indent=2))
 
     log_info(f"Saved connection profile to: {config_file}")
     return str(config_file)
@@ -160,14 +158,14 @@ def save_connection_profile(
 
 def load_connection_profile(
     connection_id: str,
-    config_directory: str = "config"
+    config_directory: str | None = None
 ) -> Dict[str, Any]:
     """
     Load connection profile from JSON file.
 
     Args:
         connection_id: Connection ID to load
-        config_directory: Directory containing config files
+        config_directory: Config root; defaults to ~/.siege_utilities
 
     Returns:
         Connection profile dictionary.
@@ -182,7 +180,8 @@ def load_connection_profile(
         >>> print(f"Loaded: {profile['name']}")  # doctest: +SKIP
     """
 
-    connections_dir = pathlib.Path(config_directory) / "connections"
+    connections_dir = (pathlib.Path(config_directory) if config_directory is not None
+                       else pathlib.Path.home() / ".siege_utilities") / "connections"
     config_file = connections_dir / f"connection_{connection_id}.json"
 
     if not config_file.exists():
@@ -197,14 +196,14 @@ def load_connection_profile(
 
 def find_connection_by_name(
     name: str, 
-    config_directory: str = "config"
+    config_directory: str | None = None
 ) -> Optional[Dict[str, Any]]:
     """
     Find a connection profile by name.
     
     Args:
         name: Connection name to search for
-        config_directory: Directory containing config files
+        config_directory: Config root; defaults to ~/.siege_utilities
         
     Returns:
         Connection profile dictionary or None if not found
@@ -215,7 +214,8 @@ def find_connection_by_name(
         ...     print(f"Found connection: {profile['connection_id']}")
     """
     
-    connections_dir = pathlib.Path(config_directory) / "connections"
+    connections_dir = (pathlib.Path(config_directory) if config_directory is not None
+                       else pathlib.Path.home() / ".siege_utilities") / "connections"
     
     if not connections_dir.exists():
         return None
@@ -237,14 +237,14 @@ def find_connection_by_name(
 
 def list_connection_profiles(
     connection_type: str = None,
-    config_directory: str = "config"
+    config_directory: str | None = None
 ) -> List[Dict[str, Any]]:
     """
     List all available connection profiles, optionally filtered by type.
     
     Args:
         connection_type: Optional filter by connection type
-        config_directory: Directory containing config files
+        config_directory: Config root; defaults to ~/.siege_utilities
         
     Returns:
         List of dictionaries with connection profile info
@@ -255,7 +255,8 @@ def list_connection_profiles(
         ...     print(f"{conn['name']}: {conn['status']}")
     """
     
-    connections_dir = pathlib.Path(config_directory) / "connections"
+    connections_dir = (pathlib.Path(config_directory) if config_directory is not None
+                       else pathlib.Path.home() / ".siege_utilities") / "connections"
     
     if not connections_dir.exists():
         log_info("Connections directory does not exist")
@@ -292,7 +293,7 @@ def list_connection_profiles(
 def update_connection_profile(
     connection_id: str,
     updates: Dict[str, Any],
-    config_directory: str = "config"
+    config_directory: str | None = None
 ) -> None:
     """
     Update an existing connection profile.
@@ -300,7 +301,7 @@ def update_connection_profile(
     Args:
         connection_id: Connection ID to update
         updates: Dictionary of updates to apply
-        config_directory: Directory containing config files
+        config_directory: Config root; defaults to ~/.siege_utilities
 
     Raises:
         FileNotFoundError: If the connection profile does not exist.
@@ -330,14 +331,14 @@ def update_connection_profile(
 
 def verify_connection_profile(
     connection_id: str,
-    config_directory: str = "config"
+    config_directory: str | None = None
 ) -> Dict[str, Any]:
     """
     Test a connection to verify it's working.
     
     Args:
         connection_id: Connection ID to test
-        config_directory: Directory containing config files
+        config_directory: Config root; defaults to ~/.siege_utilities
         
     Returns:
         Dictionary with test results
@@ -433,14 +434,14 @@ def verify_connection_profile(
 
 def get_connection_status(
     connection_id: str,
-    config_directory: str = "config"
+    config_directory: str | None = None
 ) -> Dict[str, Any]:
     """
     Get the current status and health of a connection.
     
     Args:
         connection_id: Connection ID to check
-        config_directory: Directory containing config files
+        config_directory: Config root; defaults to ~/.siege_utilities
         
     Returns:
         Dictionary with connection status information
@@ -490,14 +491,14 @@ def get_connection_status(
 
 def cleanup_old_connections(
     days_old: int = 90,
-    config_directory: str = "config"
+    config_directory: str | None = None
 ) -> int:
     """
     Remove old, unused connection profiles.
     
     Args:
         days_old: Remove connections older than this many days
-        config_directory: Directory containing config files
+        config_directory: Config root; defaults to ~/.siege_utilities
         
     Returns:
         Number of connections removed
@@ -507,7 +508,8 @@ def cleanup_old_connections(
         >>> print(f"Removed {removed} old connections")  # doctest: +SKIP
     """
     
-    connections_dir = pathlib.Path(config_directory) / "connections"
+    connections_dir = (pathlib.Path(config_directory) if config_directory is not None
+                       else pathlib.Path.home() / ".siege_utilities") / "connections"
     
     if not connections_dir.exists():
         return 0
