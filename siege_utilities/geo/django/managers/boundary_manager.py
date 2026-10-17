@@ -2,10 +2,13 @@
 Custom manager for temporal boundary models with spatial query helpers.
 """
 
+import json
+
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Point, GEOSGeometry
 from django.contrib.gis.measure import D
 from django.db import models
+from django.db.models.functions import Cast
 
 __all__ = ['BoundaryQuerySet', 'BoundaryManager']
 
@@ -65,7 +68,8 @@ class BoundaryQuerySet(gis_models.QuerySet):
         """
         Find boundaries within a distance of a point.
 
-        Uses geodesic distance via PostGIS ST_DWithin(geography).
+        Casts the SRID-4326 geometry column to geography for PostGIS
+        ST_DWithin, so the distance is measured in meters rather than degrees.
 
         Args:
             point: A GEOS Point object
@@ -74,13 +78,19 @@ class BoundaryQuerySet(gis_models.QuerySet):
         Returns:
             QuerySet filtered to boundaries within distance
         """
-        return self.filter(geometry__dwithin=(point, D(m=distance_meters)))
+        return self.alias(
+            _geometry_geography=Cast(
+                "geometry", gis_models.GeometryField(srid=4326, geography=True)
+            )
+        ).filter(_geometry_geography__dwithin=(point, D(m=distance_meters)))
 
     def nearest(self, point, max_distance_m=None, srid: int = 4326):
         """
         Find boundaries ordered by distance from a point (nearest first).
 
-        Uses geodesic distance via PostGIS ST_Distance(geography).
+        Orders by geodesic distance on the geometry column. When a maximum
+        distance is supplied, within_distance casts the column to geography
+        for ST_DWithin so the cutoff is in meters rather than degrees.
 
         Args:
             point: A GEOS Point object or (lon, lat) tuple
@@ -96,7 +106,7 @@ class BoundaryQuerySet(gis_models.QuerySet):
             point = Point(point[0], point[1], srid=srid)
         qs = self.annotate(distance=Distance("geometry", point)).order_by("distance")
         if max_distance_m is not None:
-            qs = qs.filter(geometry__dwithin=(point, D(m=max_distance_m)))
+            qs = qs.within_distance(point, max_distance_m)
         return qs
 
     def with_area(self):
@@ -167,7 +177,7 @@ class BoundaryQuerySet(gis_models.QuerySet):
             features.append(
                 {
                     "type": "Feature",
-                    "geometry": boundary.geometry.json,
+                    "geometry": json.loads(boundary.geometry.json),
                     "properties": {
                         "geoid": getattr(boundary, "geoid", boundary.feature_id),
                         "name": boundary.name,
