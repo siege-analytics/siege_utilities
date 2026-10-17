@@ -45,8 +45,13 @@ _SAVED_HOME_ENV = {}
 
 # Tool state the suite needs from the real home: the DuckDB extensions CI
 # prepares, Java/Spark discovery (siege_utilities/testing/environment.py), the
-# Spark jar caches and git identity. Everything else in HOME starts empty (#1693).
-_HOME_PASSTHROUGH = ('.duckdb', '.sdkman', 'spark', 'hadoop', '.ivy2', '.m2', '.gitconfig', '.config/git')
+# Spark jar caches, git identity, and the Jupyter kernels CI registers with
+# `ipykernel install --user` (Linux and macOS data dirs). Everything else in
+# HOME starts empty (#1693).
+_HOME_PASSTHROUGH = (
+    '.duckdb', '.sdkman', 'spark', 'hadoop', '.ivy2', '.m2', '.gitconfig', '.config/git',
+    '.local/share/jupyter', 'Library/Jupyter',
+)
 
 
 def _isolate_home(base):

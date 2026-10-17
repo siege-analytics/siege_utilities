@@ -19,7 +19,7 @@ from pathlib import Path
 def untracked_paths() -> set[str]:
     out = subprocess.run(
         ["git", "ls-files", "--others", "--exclude-standard", "--directory", "-z"],
-        capture_output=True, text=True, check=True,
+        capture_output=True, text=True, check=True, timeout=120,
     ).stdout
     return {p for p in out.split("\0") if p}
 
