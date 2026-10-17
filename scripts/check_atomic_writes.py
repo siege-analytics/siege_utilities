@@ -15,11 +15,21 @@ from collections import Counter
 import hashlib
 import json
 from pathlib import Path
+import sys
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1] / "siege_utilities"
 DEFAULT_ALLOWLIST = Path(__file__).with_name("atomic_write_allowlist.json")
 ATOMIC = "siege_utilities.files.operations.atomic_write_path"
 SERIALIZERS = {"to_parquet": "path", "to_csv": "path_or_buf", "to_file": "filename"}
+
+
+def call_digest(node):
+    """Keep reviewed fingerprints identical across supported Python versions."""
+    # Python 3.13 added show_empty=False, changing the default dump for calls
+    # without keywords (among other nodes). Explicitly retain the 3.11 form.
+    options = {"show_empty": True} if sys.version_info >= (3, 13) else {}
+    dumped = ast.dump(node, include_attributes=False, **options)
+    return hashlib.sha256(dumped.encode()).hexdigest()
 
 
 def argument(call, index, keyword):
@@ -216,9 +226,8 @@ class WriteScanner(ast.NodeVisitor):
                 if target is None or isinstance(target, ast.Constant) and target.value is None:
                     rule = None
         if rule and not self.kind(target):
-            digest = hashlib.sha256(ast.dump(node, include_attributes=False).encode()).hexdigest()
             self.findings.append({"line": node.lineno, "scope": self.scope, "rule": rule,
-                                  "sha256": digest, "call": ast.unparse(node)})
+                                  "sha256": call_digest(node), "call": ast.unparse(node)})
         self.generic_visit(node)
 
 

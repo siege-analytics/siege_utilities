@@ -1,5 +1,6 @@
 """The atomic-write guard must distinguish staging from final destinations."""
 
+import ast
 import importlib.util
 import json
 from pathlib import Path
@@ -91,6 +92,11 @@ def test_allowlist_is_exact_counted_and_rejects_stale_entries(tmp_path):
 def test_invalid_source_fails_closed(tmp_path):
     (tmp_path / "broken.py").write_text("def broken(:")
     assert guard.main([str(tmp_path)]) == 1
+
+
+def test_call_digest_is_stable_across_python_versions():
+    call = ast.parse('path.write_text("data")').body[0].value
+    assert guard.call_digest(call) == "64000b57d67fe07796168f59b18729a0004c82991ed22bb9c96319d5ee7c42e6"
 
 
 def test_repository_has_zero_unlisted_atomic_writes():
