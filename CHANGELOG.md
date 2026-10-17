@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Demographic population queries now keep equal GEOIDs in different boundary
+  types and datasets separate. Boundary lookups use GEOIDs instead of integer
+  PKs; plan assignments accept BigAutoField-sized boundary PKs. The migration
+  converts unambiguous legacy PK keys, archives unresolved/ambiguous rows, and
+  deduplicates by newest `updated_at` then highest PK before enforcing unique
+  keys. Recovery copies support reversal unless migrated rows were edited.
+  (#1560)
+
 - Cache/output/config writers now publish complete files atomically so interrupted
   downloads, extractions and serialization cannot be served as valid cached data.
   `atomic_write_path` preserves umask-derived permissions and fsyncs before
@@ -30,6 +38,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the full 7-digit GEOID to prevent cross-state PLACEFP collisions. (#1441)
 
 ### BREAKING
+
+- `DemographicSnapshot` and `DemographicTimeSeries` now use GEOID-native keys.
+  The indexed `object_id` CharField is retained as the ORM/storage name and
+  repurposed as GEOID-only; `geoid` is a read/write instance alias (also accepted
+  by `create`). `content_type` is a plain FK. `content_object`, including
+  `create(content_object=boundary)`, is deprecated for one release and will be
+  removed in v4.2.0; it warns and now stores/resolves the boundary's GEOID, never
+  its PK. Use `create(content_type=..., object_id=boundary.geoid)` and
+  `get_boundary(vintage_year=...)`; omitted vintage selects the newest available
+  boundary. Reverse access is `County.objects.filter(pk=...).snapshots()`.
+  `by_population(..., dataset="acs5")` now scopes by content type and dataset and
+  selects the newest data year when no year is specified. GFK-specific relation
+  introspection/prefetch APIs no longer apply. (#1560)
 
 - `NCESLocaleClassifier.from_census_year` now raises instead of approximating
   missing population and principal-city inputs. Use `from_nces_boundaries` or
