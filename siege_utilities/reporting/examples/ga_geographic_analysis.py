@@ -15,6 +15,7 @@ Requirements:
 import pandas as pd
 from typing import Dict, List, Any, Optional
 import logging
+from html import escape
 import tempfile
 
 # Geographic imports
@@ -270,7 +271,7 @@ def create_city_heatmap(ga_city_df: pd.DataFrame, value_column: str = 'sessions'
         folium.CircleMarker(
             location=[row['latitude'], row['longitude']],
             radius=8,
-            popup=f"{row['city']}: {row[value_column]:,} {value_column}",
+            popup=f"{escape(str(row['city']))}: {row[value_column]:,} {escape(str(value_column))}",
             color='red',
             fill=True,
             fill_opacity=0.7

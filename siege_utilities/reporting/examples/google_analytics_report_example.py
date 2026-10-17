@@ -30,6 +30,8 @@ import logging
 import subprocess
 import tempfile
 
+from siege_utilities.reporting._markup import _escape_paragraph
+
 # ReportLab imports
 try:
     from reportlab.lib import colors
@@ -1625,7 +1627,7 @@ def create_footnote_paragraph(terms: List[str], styles_obj=None) -> Optional[Par
         defn = GA_TERM_DEFINITIONS.get(term)
         if defn:
             label = term.replace('_', ' ').title()
-            definitions.append(f"<b>{label}:</b> {defn}")
+            definitions.append(f"<b>{_escape_paragraph(label)}:</b> {_escape_paragraph(defn)}")
 
     if not definitions:
         return None
@@ -1898,17 +1900,17 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
     else:
         story.append(Spacer(1, 1.5*inch))
 
-    story.append(Paragraph(client_name, title_style))
+    story.append(Paragraph(_escape_paragraph(client_name), title_style))
     story.append(Paragraph("Comprehensive Website Performance Analysis", subtitle_style))
     story.append(Spacer(1, 0.3*inch))
-    story.append(Paragraph(report_title, ParagraphStyle(
+    story.append(Paragraph(_escape_paragraph(report_title), ParagraphStyle(
         'ReportTitle', parent=styles['Heading1'],
         fontSize=20, alignment=TA_CENTER, fontName='Helvetica-Bold'
     )))
     story.append(Spacer(1, 0.5*inch))
     story.append(Paragraph(f"<b>Report Date:</b> {datetime.now().strftime('%B %d, %Y')}", details_style))
-    story.append(Paragraph(f"<b>Period Covered:</b> {date_range['start']} to {date_range['end']}", details_style))
-    story.append(Paragraph(f"<b>Prepared By:</b> {prepared_by}", details_style))
+    story.append(Paragraph(f"<b>Period Covered:</b> {_escape_paragraph(date_range['start'])} to {_escape_paragraph(date_range['end'])}", details_style))
+    story.append(Paragraph(f"<b>Prepared By:</b> {_escape_paragraph(prepared_by)}", details_style))
     data_source = ga_data.get('data_source', 'sample')
     story.append(Paragraph(f"<b>Data Source:</b> {'GA4 API (Live)' if data_source == 'ga4_api' else 'Sample Data'}", details_style))
 
@@ -1970,7 +1972,7 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
     story.append(Paragraph("1. Executive Summary", heading_style))
     summary_text = (
         f"This report provides a comprehensive analysis of website performance for the period "
-        f"{date_range['start']} to {date_range['end']}. During this period, the website received "
+        f"{_escape_paragraph(date_range['start'])} to {_escape_paragraph(date_range['end'])}. During this period, the website received "
         f"<b>{totals['users']:,}</b> unique users and <b>{totals['sessions']:,}</b> sessions, "
         f"representing a <b>{changes['users']:+.1f}%</b> change in users compared to the prior period."
     )
@@ -2343,14 +2345,14 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
     story.append(Paragraph(f"{insights_num}. Key Insights", heading_style))
     insights = generate_insights(ga_data)
     for insight in insights:
-        story.append(Paragraph(f"-- {insight}", bullet_style))
+        story.append(Paragraph(f"-- {_escape_paragraph(insight)}", bullet_style))
     story.append(Spacer(1, 20))
 
     # ── RECOMMENDATIONS ──
     story.append(Paragraph(f"{insights_num + 1}. Recommendations", heading_style))
     recommendations = generate_recommendations(ga_data)
     for i, rec in enumerate(recommendations, 1):
-        story.append(Paragraph(f"<b>{i}.</b> {rec}", bullet_style))
+        story.append(Paragraph(f"<b>{i}.</b> {_escape_paragraph(rec)}", bullet_style))
     story.append(Spacer(1, 30))
 
     # ── APPENDICES ──

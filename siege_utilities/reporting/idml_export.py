@@ -20,6 +20,7 @@ import uuid
 import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from xml.sax.saxutils import escape, quoteattr
 
 log = logging.getLogger(__name__)
 
@@ -257,7 +258,7 @@ class IDMLExporter:
             else:
                 xml_str = str(xml_bytes)
             if placeholder in xml_str:
-                xml_str = xml_str.replace(placeholder, content)
+                xml_str = xml_str.replace(placeholder, escape(content))
                 pkg.writestr(story, xml_str.encode("utf-8"))
 
     # ------------------------------------------------------------------
@@ -368,7 +369,7 @@ class IDMLExporter:
         style_elements = []
         for sn in sorted(style_names):
             style_elements.append(
-                f'  <ParagraphStyle Self="ParagraphStyle/{sn}" Name="{sn}"'
+                f'  <ParagraphStyle Self={quoteattr("ParagraphStyle/" + sn)} Name={quoteattr(sn)}'
                 f' FontStyle="Regular" PointSize="12"/>'
             )
         return (
@@ -426,7 +427,6 @@ class IDMLExporter:
                 f'GeometricBounds="{bounds}"/>'
             )
         from pathlib import Path
-        from xml.sax.saxutils import quoteattr
 
         for img in self._image_frames:
             sid = story_ids[idx]
@@ -491,18 +491,13 @@ class IDMLExporter:
 
     def _story_xml(self, story_id: str, text: str, style: str) -> str:
         # Escape XML special characters in content
-        safe_text = (
-            text.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace('"', "&quot;")
-        )
+        safe_text = escape(text, {'"': "&quot;"})
         return (
             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
             f'<idPkg:Story xmlns:idPkg="{_IDPKG}" DOMVersion="19.0">\n'
             f'  <Story Self="{story_id}">\n'
             f'    <ParagraphStyleRange AppliedParagraphStyle='
-            f'"ParagraphStyle/{style}">\n'
+            f'{quoteattr("ParagraphStyle/" + style)}>\n'
             f'      <CharacterStyleRange AppliedCharacterStyle='
             f'"CharacterStyle/$ID/[No character style]">\n'
             f'        <Content>{safe_text}</Content>\n'
