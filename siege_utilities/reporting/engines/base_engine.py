@@ -8,6 +8,8 @@ import base64
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 
+from .._markup import _escape_paragraph
+
 # Core plotting libraries
 try:
     import matplotlib.pyplot as plt
@@ -412,7 +414,7 @@ class BaseChartEngine:
         if caption_style is None:
             caption_style = 'Caption' if 'Caption' in self.styles else 'Normal'
 
-        return [chart, Paragraph(caption, self.styles[caption_style]), Spacer(1, 0.2 * inch)]
+        return [chart, Paragraph(_escape_paragraph(caption), self.styles[caption_style]), Spacer(1, 0.2 * inch)]
 
     def create_chart_section(self, title: str, charts: List[Image],
                            description: str = "", width: float = 6.0) -> List:
@@ -434,12 +436,12 @@ class BaseChartEngine:
 
         # Add title
         if title:
-            section.append(Paragraph(title, self.styles['h2']))
+            section.append(Paragraph(_escape_paragraph(title), self.styles['h2']))
             section.append(Spacer(1, 0.1 * inch))
 
         # Add description
         if description:
-            section.append(Paragraph(description, self.styles['BodyText']))
+            section.append(Paragraph(_escape_paragraph(description), self.styles['BodyText']))
             section.append(Spacer(1, 0.2 * inch))
 
         # Add charts, scaling to fit width constraint

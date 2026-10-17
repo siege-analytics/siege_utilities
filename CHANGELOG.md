@@ -76,6 +76,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   PostgreSQL connection strings are omitted from repr. A CI AST class guard
   rejects secret-, connection- and DSN-named plain string fields without
   `repr=False`, and treats string defaults as values, not annotations. (#1552)
+- Escape report data in Paragraph text, Folium popup HTML, and IDML XML.
+  Closes stored XSS in saved Folium maps and fixes report/IDML crashes on
+  `& < > "` while preserving intentional markup. (#1565)
 
 - For the planned 4.1.0 release, SSL failures now raise instead of silently
   retrying with `verify=False`. The optional `download_file` parameter

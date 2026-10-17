@@ -5,9 +5,13 @@ Map chart mixins — choropleth, marker, 3D, heatmap, cluster, flow, and bivaria
 from __future__ import annotations
 
 import json
+from html import escape
 import logging
+
 from pathlib import Path
 from typing import Dict, Any, Union
+
+from .._markup import _build_popup_html
 
 # Core plotting libraries
 try:
@@ -504,13 +508,12 @@ class MapChartMixin:
 
                 # Create popup content
                 popup_content = []
-                if label_column and label_column in row:
-                    popup_content.append(f"<b>{row[label_column]}</b>")
+                label = str(row[label_column]) if label_column and label_column in row else None
                 if value_column and value_column in row:
                     popup_content.append(f"Value: {row[value_column]:,.2f}")
                 popup_content.append(f"Lat: {lat:.4f}, Lon: {lon:.4f}")
 
-                popup_html = "<br>".join(popup_content)
+                popup_html = _build_popup_html(label, popup_content)
 
                 # Determine marker size based on value
                 if value_column and value_column in row:
@@ -778,13 +781,12 @@ class MapChartMixin:
 
                 # Create popup content
                 popup_content = []
-                if label_column and label_column in row:
-                    popup_content.append(f"<b>{row[label_column]}</b>")
+                label = str(row[label_column]) if label_column and label_column in row else None
                 if cluster_column and cluster_column in row:
                     popup_content.append(f"Cluster: {row[cluster_column]}")
                 popup_content.append(f"Lat: {lat:.4f}, Lon: {lon:.4f}")
 
-                popup_html = "<br>".join(popup_content)
+                popup_html = _build_popup_html(label, popup_content)
 
                 # Add marker to cluster
                 folium.Marker(
@@ -883,13 +885,15 @@ class MapChartMixin:
                 else:
                     weight = 3
 
+                flow_value = row.get(flow_value_column, "N/A") if flow_value_column else "N/A"
+
                 # Create flow line
                 folium.PolyLine(
                     locations=[origin, destination],
                     weight=weight,
                     color='red',
                     opacity=0.7,
-                    popup=f"Flow: {row.get(flow_value_column, 'N/A') if flow_value_column else 'N/A'}"
+                    popup=_build_popup_html(details=[f"Flow: {flow_value}"])
                 ).add_to(m)
 
                 # Add origin and destination markers
@@ -1019,7 +1023,7 @@ class MapChartMixin:
 
             folium.GeoJson(
                 geojson_data,
-                name=title or "Bivariate Choropleth",
+                name=escape(str(title)) if title else "Bivariate Choropleth",
                 style_function=lambda feature: {
                     'fillColor': color_lookup.get(feature['properties'].get('_idx'), '#cccccc'),
                     'color': 'black',
