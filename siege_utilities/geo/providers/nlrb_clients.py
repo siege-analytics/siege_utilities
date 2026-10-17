@@ -485,7 +485,7 @@ class NLRBNxGenClient:
         Args:
             case_number: NLRB case number (e.g., '05-RC-123456').
 
-        HTTP failures raise RuntimeError rather than returning partial data.
+        HTTP and parse failures raise RuntimeError rather than returning partial data.
         """
         result = NLRBFetchResult(source="nxgen")
         url = f"{self._base_url}?f%5B0%5D=case_number%3A{case_number}"
@@ -501,7 +501,7 @@ class NLRBNxGenClient:
         return result
 
     def _parse_search_results(self, html: str) -> list[NLRBCaseRecord]:
-        """Best-effort HTML parsing — returns empty list on failure."""
+        """Parse result rows; failures raise before partial records can escape."""
         records: list[NLRBCaseRecord] = []
         try:
             from html.parser import HTMLParser
@@ -563,7 +563,7 @@ class NLRBNxGenClient:
                         source="nxgen",
                     ))
         except (ValueError, TypeError, KeyError, AttributeError) as exc:
-            log.warning("NxGen parse failed (expected — page structure may have changed): %s", exc)
+            raise RuntimeError("NxGen search result parse failed") from exc
 
         return records
 

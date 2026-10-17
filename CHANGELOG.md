@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   requests cannot return an unfiltered national file. Invalid NLRB cache
   timestamps expire the entry. Add a blocking exception-contract AST guard
   with reviewed, fingerprinted exceptions and zero unlisted handlers (#1532).
+- Bulk configuration migration records missing/corrupt user-profile errors and
+  continues migrating valid clients. SWMaps files without optional attribute
+  tables retain empty attributes and the selected missing-value policy; broken
+  queries against existing tables still raise. The exception guard now covers
+  all 14 reviewer shapes, including factories, tuples, strings, log-only handlers,
+  empty-frame assignments and unannotated data functions (#1532).
 
 
 - Cache/output/config writers now publish complete files atomically so interrupted
@@ -43,31 +49,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ConfigurationMigrator.migrate_user_profile` and `migrate_client_profile`
   in both `config.enhanced_config` and `config.migration` now propagate file,
   YAML/JSON and validation errors; missing files raise `FileNotFoundError`.
-  `migrate_all_configurations` retains its explicit error result (#1532).
+  `migrate_all_configurations` records user failures in `user_profile.error`
+  while continuing independent client migrations. `UserConfigManager.export_config`
+  and `import_config` propagate file/YAML errors, including failed persistence
+  of an imported profile (#1532).
 - Direct `NCESLocaleClassifier` classification raises `ValueError` for missing
   or unparseable place/UA populations. `get_census_boundaries` raises
   `ValueError` for invalid state identifiers or missing state FIPS columns.
   `VariableRegistry.get_variable_metadata` raises `LookupError` for a 404,
   transport/HTTP errors for request failures, and `ValueError` for malformed
-  JSON/metadata. These calls no longer return defaults or unknown labels (#1532).
+  JSON/metadata. The public `CensusAPIClient.get_variable_metadata` and
+  `CensusAPI.get_variable_metadata` wrappers propagate these failures too.
+  These calls no longer return defaults or unknown labels (#1532).
 - `ChartGenerator.create_bar_chart`, `create_line_chart`, `create_pie_chart`,
   `create_proportional_text_bar_chart` and `create_heatmap_text_chart` raise
   `RuntimeError` on rendering errors instead of returning error placeholders.
   `read_features` and `extract_attributes_swmaps` raise `sqlite3.DatabaseError`
-  for failed attribute joins; absent individual attributes still honor the
-  documented missing policy (#1532).
+  for failed joins when the attribute tables exist. Absent optional tables
+  yield empty attributes or honor the documented missing policy (#1532).
 - `SpatialDataTransformer`, `PostGISConnector` and `DuckDBConnector` propagate
   user-configuration failures. `PostGISConnector` raises for missing connection
   settings/dependencies and uses `ConnectionError` for connection failures.
   `classify_series` raises `RuntimeError` when mapclassify fails rather than
   changing algorithms; CRS normalization (including `detect_crs`) raises for
   invalid CRS input or missing pyproj (#1532).
-- `TimezonePopulationService` raises `ValueError` for unresolved timezone IDs;
+- `TimezonePopulationService` raises `ValueError` and stops population at the
+  first unresolved timezone ID;
   `load_gadm_boundaries` raises `RuntimeError` when staged data cannot be read;
   `codify_area` raises on default-geocoder construction failure. NLRB
   `NLRBDatagovClient.fetch_cases`, `NLRBLabordataClient.fetch_cases` and
   `NLRBNxGenClient.fetch_case` raise `RuntimeError` on the listed HTTP/XML
-  failures. `setup_distributed_environment` raises `RuntimeError` on HDFS sync
+  failures. `NLRBNxGenClient.fetch_case` also raises on result parsing failures,
+  and `NLRBDataClient.fetch_all` aborts when any source fails.
+  `setup_distributed_environment` raises `RuntimeError` on HDFS sync
   failure instead of returning a local path (#1532).
 
 

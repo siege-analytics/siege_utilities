@@ -179,9 +179,13 @@ class ConfigurationMigrator:
         try:
             # Migrate user profile
             if not dry_run:
-                self.migrate_user_profile()
-                results["user_profile"]["migrated"] = True
-                logger.info("User profile migrated successfully")
+                try:
+                    self.migrate_user_profile()
+                    results["user_profile"]["migrated"] = True
+                    logger.info("User profile migrated successfully")
+                except (OSError, yaml.YAMLError, ValueError) as e:
+                    results["user_profile"]["error"] = str(e)
+                    logger.error(f"Failed to migrate user profile: {e}")
             else:
                 logger.info("Would migrate user profile")
             

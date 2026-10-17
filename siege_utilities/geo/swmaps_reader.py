@@ -181,7 +181,8 @@ def read_features(
       otherwise.
     * ``attributes`` — ``{field_name: value}`` mapping pulled from
       ``attribute_values`` joined to ``attribute_fields``. Keys can be
-      renamed by passing ``mapper``.
+      renamed by passing ``mapper``. Absent optional attribute tables yield
+      an empty mapping; errors querying existing tables propagate.
 
     Args:
         archive: An :class:`SWMapsArchive` opened via :func:`open_swmaps`.
@@ -230,14 +231,19 @@ def read_features(
                 },
             )
 
-        # Pull per-feature attributes once into a dict-of-dicts. Tables
-        # must be readable; a failed join must not discard attributes.
+        # Attribute tables are optional. Once present, a failed join must
+        # not discard attributes or masquerade as legitimate absence.
         attrs_by_feature: dict[str, dict] = {}
         try:
-            for row in conn.execute(_ATTRIBUTE_QUERY):
-                attrs_by_feature.setdefault(row["feature_id"], {})[
-                    row["field_name"]
-                ] = row["field_value"]
+            tables = {
+                row[0].lower()
+                for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            }
+            if {"attribute_values", "attribute_fields"} <= tables:
+                for row in conn.execute(_ATTRIBUTE_QUERY):
+                    attrs_by_feature.setdefault(row["feature_id"], {})[
+                        row["field_name"]
+                    ] = row["field_value"]
         except sqlite3.DatabaseError as exc:
             raise sqlite3.DatabaseError("SWMaps attribute join failed") from exc
 

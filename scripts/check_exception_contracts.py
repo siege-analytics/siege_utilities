@@ -2,8 +2,11 @@
 """Reject unreviewed exception swallowing in siege_utilities (#1532).
 
 BROAD: bare/Exception/BaseException handlers without a raise in their body.
-DEFAULT: in an annotated data function, a body consisting only of pass,
-continue, or returns of None, 0, {}, [], 'Unknown', or an empty frame.
+DEFAULT: in a data function, pass/continue, success-shaped returns, or
+empty-frame assignments. Data functions declare a non-None return or have
+an unannotated non-None return. Success shapes include tuples, strings,
+Unknown dictionaries, and default/placeholder/fallback/missing factories.
+LOGONLY: handlers consisting only of logging calls, including void functions.
 Nested definitions cannot supply a handler's raise. Finally cleanup,
 __del__, and callbacks registered with signal.signal are exempt.
 
@@ -46,19 +49,34 @@ def names(node):
 
 
 def empty_value(node):
-    """Recognize only the success-shaped sentinel values in the guard contract."""
+    """Recognize the success-shaped fallback expressions in the guard contract."""
     if node is None:
         return True
     if isinstance(node, ast.Constant):
         return (
             node.value is None
             or (type(node.value) in (int, float) and node.value == 0)
-            or node.value == "Unknown"
+            or (isinstance(node.value, str) and node.value.lower() == "unknown")
         )
     if isinstance(node, ast.Dict):
-        return not node.keys
+        return not node.keys or any(
+            isinstance(value, ast.Constant)
+            and isinstance(value.value, str)
+            and value.value.lower() == "unknown"
+            for value in node.values
+        )
     if isinstance(node, ast.List):
         return not node.elts
+    if isinstance(node, ast.Tuple):
+        return all(empty_value(value) for value in node.elts)
+    if isinstance(node, ast.JoinedStr):
+        return True
+    if isinstance(node, ast.Call) and any(
+        name == "str"
+        or any(part in name.lower() for part in ("placeholder", "_default", "fallback", "_resolve_missing"))
+        for name in names(node.func)
+    ):
+        return True
     if isinstance(node, ast.Call) and names(node.func) & {"DataFrame", "GeoDataFrame"}:
         # Explicit columns/dtype/CRS do not populate a frame. Recognize empty
         # data as well as the zero-argument spelling, without guessing whether
@@ -83,13 +101,56 @@ def empty_value(node):
 
 
 def data_function(function):
-    """A data function explicitly declares a non-None return annotation."""
-    if function is None or function.returns is None:
+    """Recognize declared data functions and infer unannotated return values."""
+    if function is None:
         return False
+    if function.returns is None:
+        return any(
+            isinstance(node, ast.Return) and non_none_value(node.value)
+            for node in walk_body(function.body)
+        )
     annotation = function.returns
     if isinstance(annotation, ast.Constant):
         return annotation.value not in (None, "None", "NoneType")
     return ast.unparse(annotation) not in {"None", "NoneType", "type(None)"}
+
+
+def non_none_value(node):
+    return node is not None and not (
+        isinstance(node, ast.Constant) and node.value is None
+    )
+
+
+def default_handler(handler, function):
+    """Find fallback statements even when accompanied by logging or branches."""
+    if not data_function(function):
+        return False
+    for node in walk_body(handler.body):
+        if isinstance(node, (ast.Pass, ast.Continue)):
+            return True
+        if isinstance(node, ast.Return) and (
+            empty_value(node.value)
+            or (function.returns is None and non_none_value(node.value))
+        ):
+            return True
+        if isinstance(node, (ast.Assign, ast.AnnAssign)) and (
+            isinstance(node.value, ast.Call)
+            and names(node.value.func) & {"DataFrame", "GeoDataFrame"}
+            and empty_value(node.value)
+        ):
+            return True
+    return False
+
+
+def log_only(handler):
+    """Logging alone cannot communicate failure to a caller, even without data."""
+    levels = {"debug", "info", "warning", "warn", "error", "exception", "critical", "fatal", "log"}
+    return all(
+        isinstance(stmt, ast.Expr)
+        and isinstance(stmt.value, ast.Call)
+        and bool(names(stmt.value.func) & levels)
+        for stmt in handler.body
+    )
 
 
 def canonical_ast(node):
@@ -165,12 +226,10 @@ def scan(root):
             rules = []
             if names(handler.type) & {"<bare>", "Exception", "BaseException"}:
                 rules.append("BROAD")
-            if data_function(function) and all(
-                isinstance(stmt, (ast.Pass, ast.Continue))
-                or (isinstance(stmt, ast.Return) and empty_value(stmt.value))
-                for stmt in handler.body
-            ):
+            if default_handler(handler, function):
                 rules.append("DEFAULT")
+            if log_only(handler):
+                rules.append("LOGONLY")
             digest = hashlib.sha256(repr(canonical_ast(handler)).encode()).hexdigest()[
                 :16
             ]

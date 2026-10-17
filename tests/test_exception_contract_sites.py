@@ -19,7 +19,7 @@ def test_missing_user_and_corrupt_client_not_migrated(tmp_path, module):
     ).ConfigurationMigrator
     migrator = cls(tmp_path, tmp_path / "new")
     result = migrator.migrate_all_configurations()
-    assert not result["user_profile"]["migrated"] and result["error"]
+    assert not result["user_profile"]["migrated"] and result["user_profile"]["error"]
     (tmp_path / "user_config.yaml").write_text("username: demo\n", encoding="utf-8")
     clients = tmp_path / "clients"
     clients.mkdir()
@@ -141,6 +141,8 @@ def test_swmaps_query_failure_is_not_missing_attribute(tmp_path):
             CREATE TABLE features (uuid TEXT, name TEXT, layer_id TEXT);
             CREATE TABLE points (fid TEXT, seq INTEGER, lat REAL, lon REAL, elv REAL);
             CREATE TABLE feature_layers (uuid TEXT, name TEXT, group_name TEXT, geom_type TEXT);
+            CREATE TABLE attribute_values (wrong_column TEXT);
+            CREATE TABLE attribute_fields (wrong_column TEXT);
         """)
     with pytest.raises(sqlite3.DatabaseError, match="attribute query"):
         extract_attributes_swmaps(str(path), "one", ["name"])
