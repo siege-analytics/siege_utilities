@@ -4,6 +4,15 @@ import os
 from datetime import datetime, timezone
 
 import pytest
+
+# Collection also runs in the no-GDAL lane. Gate before importing GeoDjango;
+# an opted-in PostGIS lane must still fail if its GIS dependencies are missing.
+if os.environ.get("SIEGE_TEST_POSTGIS") != "1":
+    pytest.skip(
+        "Set SIEGE_TEST_POSTGIS=1 and SIEGE_TEST_DB_* for live PostGIS tests.",
+        allow_module_level=True,
+    )
+
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.geos import MultiPolygon, Polygon
 from django.db import IntegrityError, connection, transaction
@@ -13,13 +22,7 @@ from siege_utilities.geo.django.managers import BoundaryQuerySet
 from siege_utilities.geo.django.models import County, ZCTA
 from siege_utilities.geo.django.models.demographics import DemographicSnapshot
 
-pytestmark = [
-    pytest.mark.postgis,
-    pytest.mark.skipif(
-        os.environ.get("SIEGE_TEST_POSTGIS") != "1",
-        reason="Set SIEGE_TEST_POSTGIS=1 and SIEGE_TEST_DB_* for live PostGIS tests.",
-    ),
-]
+pytestmark = pytest.mark.postgis
 
 
 @pytest.fixture
