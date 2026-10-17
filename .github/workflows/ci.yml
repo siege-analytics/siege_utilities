@@ -284,6 +284,9 @@ jobs:
         uv run pytest tests/ -v --cov=siege_utilities --cov-report=xml --cov-fail-under=45 \
           -m "not integration and not postgis" --ignore=tests/test_notebooks.py
     
+    - name: Test private CA trust with local TLS
+      run: uv run pytest tests/test_files_remote_tls.py -v -m integration --no-cov
+
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:

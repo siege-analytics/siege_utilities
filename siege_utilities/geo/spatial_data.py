@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional, Union
 import geopandas as gpd
 import requests
 from bs4 import BeautifulSoup
+from urllib3.exceptions import InsecureRequestWarning
 
 from siege_utilities.geo.crs import reproject_if_needed
 
@@ -27,8 +28,6 @@ from siege_utilities.geo.crs import reproject_if_needed
 # environment to allow verify=False as a documented fallback (and own
 # the risk).
 _ALLOW_INSECURE_SSL = os.environ.get("SIEGE_INSECURE_SSL", "").lower() in ("1", "true", "yes")
-if _ALLOW_INSECURE_SSL:
-    warnings.filterwarnings('ignore', message='Unverified HTTPS request')
 
 # Import existing library functions
 from ..files.remote import download_file, generate_local_path_from_url
@@ -475,13 +474,15 @@ class CensusDirectoryDiscovery:
             except requests.exceptions.SSLError as e:
                 last_exception = e
                 if _ALLOW_INSECURE_SSL and verify_ssl:
-                    log.warning(
+                    log.error(
                         "SSL verification failed; SIEGE_INSECURE_SSL=1 set, "
                         "retrying without verification (legacy behaviour)."
                     )
                     verify_ssl = False
                     try:
-                        response = requests.get(self.base_url, timeout=self.timeout, verify=False)
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore", InsecureRequestWarning)
+                            response = requests.get(self.base_url, timeout=self.timeout, verify=False)
                         response.raise_for_status()
                         years = self._parse_year_links(response.content)
                         self.cache[cache_key] = (time.time(), years)
@@ -568,7 +569,7 @@ class CensusDirectoryDiscovery:
                     "to opt into the legacy bypass.", year,
                 )
                 raise
-            log.warning(
+            log.error(
                 "SSL verification failed for year %s; SIEGE_INSECURE_SSL=1 "
                 "set, retrying without verification.", year,
             )
@@ -576,7 +577,9 @@ class CensusDirectoryDiscovery:
                 # Fallback: try without SSL verification (legacy behaviour
                 # behind the env-var opt-in).
                 year_url = f"{self.base_url}/TIGER{year}/"
-                response = requests.get(year_url, timeout=self.timeout, verify=False)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", InsecureRequestWarning)
+                    response = requests.get(year_url, timeout=self.timeout, verify=False)
                 response.raise_for_status()
 
                 soup = BeautifulSoup(response.content, 'html.parser')
@@ -1077,10 +1080,12 @@ class CensusDirectoryDiscovery:
                     "to opt in).", url,
                 )
                 raise
-            log.debug("SSL verification failed for %s, retrying without verification (env opt-in).", url)
+            log.error("SSL verification failed for %s, retrying without verification (env opt-in).", url)
             try:
-                response = requests.get(url, timeout=self.timeout, stream=True,
-                                        headers=headers, verify=False)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", InsecureRequestWarning)
+                    response = requests.get(url, timeout=self.timeout, stream=True,
+                                            headers=headers, verify=False)
                 response.close()
                 if response.status_code == 200:
                     return True
@@ -1593,9 +1598,9 @@ class CensusDataSource(SpatialDataSource):
             zip_filename = generate_local_path_from_url(url, download_dir)
             ctx["local_path"] = str(zip_filename)
 
-            # Download file (download_file handles SSL retry internally)
+            # SSL failures raise unless SIEGE_INSECURE_SSL explicitly permits a retry.
             try:
-                download_file(url, zip_filename)
+                download_file(url, zip_filename, allow_insecure_fallback=_ALLOW_INSECURE_SSL)
             except (OSError, ConnectionError) as dl_err:
                 raise BoundaryDownloadError(
                     f"Failed to download TIGER/Line data from {url}",
@@ -1614,7 +1619,7 @@ class CensusDataSource(SpatialDataSource):
                 zip_path.unlink(missing_ok=True)
                 # Retry once — the first attempt may have been an anti-bot challenge
                 try:
-                    download_file(url, zip_filename)
+                    download_file(url, zip_filename, allow_insecure_fallback=_ALLOW_INSECURE_SSL)
                 except (OSError, ConnectionError):
                     pass
                 if not zipfile.is_zipfile(zip_path):
@@ -1849,7 +1854,7 @@ class GovernmentDataSource(SpatialDataSource):
             local_filename = generate_local_path_from_url(url, download_dir)
 
             # Download file
-            download_file(url, local_filename)
+            download_file(url, local_filename, allow_insecure_fallback=_ALLOW_INSECURE_SSL)
 
             # Process based on format
             if format_type.lower() == 'geojson':
