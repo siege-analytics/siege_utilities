@@ -9,6 +9,8 @@ import logging
 import shlex
 from typing import Union, List, Optional
 
+from siege_utilities.core._sensitive_paths import ROOT_CREDENTIAL_STORES
+
 logger = logging.getLogger(__name__)
 
 # Import logging functions from main package
@@ -34,6 +36,16 @@ ALLOWED_COMMANDS = {
     'ls', 'pwd', 'echo', 'cat', 'head', 'tail', 'wc', 'grep',
     'which', 'whoami', 'date', 'hostname', 'uname'
 }
+
+# The shell policy always blocks /root and /var/log, without the file policy's
+# containment carve-outs. Shadow prefixes and process-relative /proc checks
+# remain separate below; /dev has no blanket ban here.
+_SHELL_SENSITIVE_PATH_ADDITIONS = {
+    '/etc/passwd', '/etc/passwd-', '/etc/shadow-',
+    '/etc/gshadow', '/etc/gshadow-', '/etc/sudoers', '/etc/sudoers.d',
+    '~/.ssh', '/root', '/var/log',
+}
+SENSITIVE_PATHS = _SHELL_SENSITIVE_PATH_ADDITIONS | ROOT_CREDENTIAL_STORES
 
 
 # /proc/<pid>/<entry> links whose target depends on which process opens them.
@@ -145,12 +157,9 @@ def validate_command_safety(command: Union[str, List[str]],
 
     # Validate all command components
     dangerous_chars = [';', '&', '|', '$', '`', '\n', '\r', '(', ')', '<', '>']
-    sensitive_paths = ['/etc/passwd', '/etc/passwd-', '/etc/shadow-',
-                       '/etc/gshadow', '/etc/gshadow-', '/etc/sudoers', '/etc/sudoers.d',
-                       '~/.ssh', '/root', '/var/log']
     sensitive_forms = {
         form
-        for path in sensitive_paths
+        for path in SENSITIVE_PATHS
         for form in (os.path.normpath(os.path.expanduser(path)),
                      os.path.realpath(os.path.expanduser(path)))
     }
