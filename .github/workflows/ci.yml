@@ -44,6 +44,18 @@ jobs:
         python scripts/check_no_stub_docstrings.py
 
 
+  secret-literal-guard:
+    runs-on: ubuntu-latest
+    name: "credential literal guard"
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    - name: Reject hard-coded credential literals and defaults
+      run: |
+        python scripts/check_secret_literals.py
+
   notebook-governance:
     runs-on: ubuntu-latest
     name: "notebook governance + pure execution"

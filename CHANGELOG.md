@@ -72,6 +72,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- `stage_boundaries_s3` rejects removed `--access-key` and `--secret-key`
+  options without echoing their values, for both spaced and equals forms.
+  Parser errors also redact underscore spellings and values with whitespace.
+  Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` or use a boto3 profile.
+  CI checks every management command parser for non-None credential defaults,
+  including access and private keys. The required test matrix scans the
+  published package for credential literals. (#1578)
 - Closed OData filter injection in Dynamics list filters with shared string
   literal escaping for scalar filters and batch alternate keys. Zoho criteria
   now escapes backslashes and parentheses while preserving quote escaping.
