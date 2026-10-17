@@ -218,7 +218,11 @@ def test_folium_popup_html_escapes_stored_payload(kind, monkeypatch, tmp_path):
         import folium
     except ImportError:
         from siege_utilities.reporting._markup import _build_popup_html
-        text = _build_popup_html(PAYLOAD) if kind != 'flow' else _build_popup_html(details=[f'Flow: {PAYLOAD}'])
+        if kind == 'flow':
+            text = _build_popup_html(details=[f'Flow: {PAYLOAD}'])
+        else:
+            details = [f'Cluster: {PAYLOAD}'] if kind == 'cluster' else []
+            text = _build_popup_html(PAYLOAD, details)
     else:
         pd = pytest.importorskip('pandas')
         from siege_utilities.reporting.engines.map_engine import MapChartMixin
