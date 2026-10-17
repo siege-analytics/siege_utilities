@@ -26,6 +26,8 @@ from siege_utilities.core._http import redact_url_secrets
 from .variable_registry import VariableRegistry
 from .dataset_selector import DatasetSelector
 
+from siege_utilities.files.operations import atomic_write_path
+
 __all__ = [
     'CENSUS_API_CACHE_TIMEOUT',
     'CENSUS_API_DEFAULT_TIMEOUT',
@@ -387,7 +389,8 @@ class CensusAPI:
     def _parquet_cache_set(self, cache_key: str, df: pd.DataFrame) -> None:
         cache_file = self.cache_dir / f"{cache_key}.parquet"
         try:
-            df.to_parquet(cache_file, index=False)
+            with atomic_write_path(cache_file) as tmp:
+                df.to_parquet(tmp, index=False)
             log.debug(f"Cached data to {cache_file}")
         except (OSError, ValueError, TypeError) as e:
             log.warning(redact_url_secrets(f"Failed to cache data: {e}"))

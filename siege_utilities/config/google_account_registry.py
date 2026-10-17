@@ -10,6 +10,8 @@ import glob as _glob
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from siege_utilities.files.operations import atomic_write_path
+
 __all__ = [
     'GoogleAccountRegistry',
     'list_google_accounts_for_owner',
@@ -134,7 +136,8 @@ class GoogleAccountRegistry:
                 )
             ]
         }
-        path.write_text(json.dumps(data, indent=2, default=str))
+        with atomic_write_path(path) as tmp:
+            tmp.write_text(json.dumps(data, indent=2, default=str))
 
     def __len__(self) -> int:
         return len(self._accounts)
@@ -169,7 +172,8 @@ def save_google_account_profile(
             raise ValueError(f"Invalid {part_name} for filename: {part_val!r}")
     filename = f"{owner_id}_google_account_{account.google_account_id}.json"
     path = directory / filename
-    path.write_text(json.dumps(account.model_dump(mode="json"), indent=2, default=str))
+    with atomic_write_path(path) as tmp:
+        tmp.write_text(json.dumps(account.model_dump(mode="json"), indent=2, default=str))
     return str(path)
 
 

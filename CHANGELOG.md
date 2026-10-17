@@ -9,12 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cache/output/config writers now publish complete files atomically so interrupted
+  downloads, extractions and serialization cannot be served as valid cached data.
+  `atomic_write_path` preserves umask-derived permissions and fsyncs before
+  replacement, with best-effort directory fsync after replacement.
+  `safe_file_write` and `safe_json_write` now use the atomic helper;
+  `secure_write_text` atomically replaces credential/profile files with mode
+  0600 throughout. Spark staged exports finish copying beside the destination
+  before publication, preserving existing data on copy failures (#1509).
+
 - Attach `BoundaryManager` to all boundary models so the documented
   `.objects.containing_point/nearest/for_state/for_year` API works. Distance
   filters on SRID-4326 geometry now cast to geography to honor meters, and
   GeoJSON output emits geometry objects instead of strings (#1570).
 
 ### BREAKING
+
+- Non-secret data files written by `atomic_write_path` now use `0666 & ~umask`
+  (0644 with umask 022), including replacement of previously owner-only data
+  exports. Consumers that relied on the old accidental 0600 mode should use
+  umask 077. Credential/token/config exports using `secure_write_text` remain
+  0600 and are not routed through this helper. `atomic_write_path` and
+  `secure_write_text` replace final-component symlinks rather than following
+  them; the referenced file is left unchanged (#1509).
 
 - `BoundaryQuerySet.geojson()` and `BoundaryWithDemographicsSerializer.get_geometry`
   now return GeoJSON geometry objects (dicts) instead of JSON strings. A consumer

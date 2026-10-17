@@ -1,7 +1,9 @@
 """Private text persistence for credentials and configuration exports."""
 
+import logging
 import os
 from pathlib import Path
+import tempfile
 
 
 def _mkdir_private(path: Path) -> None:
@@ -12,21 +14,40 @@ def _mkdir_private(path: Path) -> None:
 
 
 def secure_write_text(path: str | os.PathLike[str], data: str) -> None:
-    """Write UTF-8 text with mode 0600 before any payload reaches the file.
+    """Atomically replace UTF-8 text using a private mode-0600 sibling file.
 
     Missing parent directories are created with mode 0700. Existing directories
-    are left unchanged; existing files are restricted through the opened fd
-    before writing. Final-component symlinks are refused where O_NOFOLLOW is
-    available. This is a private write, not an atomic replacement.
+    are left unchanged. Failed writes leave the existing file and its mode
+    intact. Final-component symlinks are replaced without following them.
+    Sync the file before replacement and the directory afterward where supported.
     """
     path = Path(path)
     _mkdir_private(path.parent)
-    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
-    fd = os.open(path, flags, 0o600)
+    fd, temporary = tempfile.mkstemp(dir=path.parent)
     try:
-        if hasattr(os, "fchmod"):  # absent on Windows before Python 3.13
-            os.fchmod(fd, 0o600)
-        with os.fdopen(fd, "w", encoding="utf-8", closefd=False) as stream:
-            stream.write(data)
-    finally:
-        os.close(fd)
+        try:
+            if hasattr(os, "fchmod"):  # absent on Windows before Python 3.13
+                os.fchmod(fd, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8", closefd=False) as stream:
+                stream.write(data)
+                stream.flush()
+                os.fsync(fd)
+        finally:
+            os.close(fd)
+        os.replace(temporary, path)
+    except BaseException:
+        Path(temporary).unlink(missing_ok=True)
+        raise
+    # The replacement has committed; directory syncing is best effort on
+    # platforms/filesystems that do not support it.
+    if os.name == "posix":
+        try:
+            directory_fd = os.open(path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+        except OSError:
+            logging.getLogger(__name__).debug(
+                "Directory fsync unavailable for %s", path.parent, exc_info=True,
+            )

@@ -229,6 +229,17 @@ jobs:
       run: |
         python scripts/check_subprocess_safety.py
 
+  atomic-write-guard:
+    runs-on: ubuntu-latest
+    name: "atomic cache/output write guard"
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    - name: Reject unlisted writes to final paths
+      run: python scripts/check_atomic_writes.py
+
   secure-write-guard:
     runs-on: ubuntu-latest
     name: "secure credential write guard"

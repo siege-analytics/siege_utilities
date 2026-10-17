@@ -17,6 +17,8 @@ from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
+from siege_utilities.files.operations import atomic_write_path
+
 if TYPE_CHECKING:
     import geopandas as gpd
     import pandas as pd
@@ -74,9 +76,11 @@ class TemporalDataStore:
         dest.parent.mkdir(parents=True, exist_ok=True)
 
         if self.format == "gpkg":
-            gdf.to_file(str(dest), driver="GPKG")
+            with atomic_write_path(dest) as tmp:
+                gdf.to_file(str(tmp), driver="GPKG", layer=dest.stem)
         else:
-            gdf.to_parquet(str(dest), index=False)
+            with atomic_write_path(dest) as tmp:
+                gdf.to_parquet(str(tmp), index=False)
 
         log.info("Saved %d boundaries to %s", len(gdf), dest)
         return dest
@@ -177,7 +181,8 @@ class TemporalDataStore:
 
         dest = self._demographics_path(geography_type, dataset, year)
         dest.parent.mkdir(parents=True, exist_ok=True)
-        snapshots.to_parquet(str(dest), index=False)
+        with atomic_write_path(dest) as tmp:
+            snapshots.to_parquet(str(tmp), index=False)
         log.info("Saved %d demographic rows to %s", len(snapshots), dest)
         return dest
 
@@ -237,7 +242,8 @@ class TemporalDataStore:
 
         dest = self._timeseries_path(geography_type, variable_code, dataset)
         dest.parent.mkdir(parents=True, exist_ok=True)
-        series.to_parquet(str(dest), index=False)
+        with atomic_write_path(dest) as tmp:
+            series.to_parquet(str(tmp), index=False)
         log.info("Saved %d timeseries rows to %s", len(series), dest)
         return dest
 

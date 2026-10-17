@@ -11,6 +11,8 @@ from typing import Dict, Any, Optional, List
 import json
 import shutil
 
+from siege_utilities.files.operations import atomic_write_path
+
 log = logging.getLogger(__name__)
 
 # Client-name slug: lowercase alphanumeric + underscore. Spaces collapse
@@ -267,8 +269,9 @@ class ClientBrandingManager:
             # Create branding config file
             config_file = client_dir / f"{_slugify_client_name(client_name)}_branding.yaml"
             
-            with open(config_file, 'w', encoding='utf-8') as f:
-                yaml.dump(branding_config, f, default_flow_style=False, indent=2)
+            with atomic_write_path(config_file) as tmp:
+                with open(tmp, 'w', encoding='utf-8') as f:
+                    yaml.dump(branding_config, f, default_flow_style=False, indent=2)
 
             log.info(f"Created branding configuration for {client_name}: {config_file}")
             return config_file
@@ -338,8 +341,9 @@ class ClientBrandingManager:
             client_dir = self.config_dir / _slugify_client_name(client_name)
             config_file = client_dir / f"{_slugify_client_name(client_name)}_branding.yaml"
 
-            with open(config_file, 'w', encoding='utf-8') as f:
-                yaml.dump(current_config, f, default_flow_style=False, indent=2)
+            with atomic_write_path(config_file) as tmp:
+                with open(tmp, 'w', encoding='utf-8') as f:
+                    yaml.dump(current_config, f, default_flow_style=False, indent=2)
 
             log.info(f"Updated branding configuration for {client_name}")
 

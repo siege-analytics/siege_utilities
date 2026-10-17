@@ -21,6 +21,8 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+from siege_utilities.files.operations import atomic_write_path
+
 __all__ = [
     'get_last_fetched_vintage',
     'set_last_fetched_vintage',
@@ -46,7 +48,8 @@ def get_last_fetched_vintage(state_file: Path) -> Optional[int]:
 def set_last_fetched_vintage(state_file: Path, year: int) -> None:
     """Write `year` to `state_file`. Creates parent dirs if needed."""
     state_file.parent.mkdir(parents=True, exist_ok=True)
-    state_file.write_text(f"{int(year)}\n")
+    with atomic_write_path(state_file) as tmp:
+        tmp.write_text(f"{int(year)}\n")
 
 
 def check_for_updates(

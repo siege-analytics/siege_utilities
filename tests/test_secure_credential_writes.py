@@ -108,21 +108,24 @@ def test_helper_closes_fd_and_never_writes_after_permission_failure(tmp_path, mo
     path = tmp_path / "key"
     with pytest.raises(OSError, match="permission failure"):
         mod.secure_write_text(path, SENTINEL)
-    assert path.read_bytes() == b""
+    assert not path.exists()
+    assert list(tmp_path.iterdir()) == []
     with pytest.raises(OSError):
         os.fstat(opened[0])
 
 
-@pytest.mark.skipif(not hasattr(os, "O_NOFOLLOW"), reason="requires O_NOFOLLOW")
-def test_helper_refuses_symlink(tmp_path):
+@pytest.mark.skipif(os.name != "posix", reason="POSIX symlink semantics")
+def test_helper_replaces_symlink_without_following_it(tmp_path):
     from siege_utilities.files.secure_write import secure_write_text
 
     target = tmp_path / "target"
     target.write_text("unchanged")
     link = tmp_path / "link"
     link.symlink_to(target)
-    with pytest.raises(OSError):
-        secure_write_text(link, SENTINEL)
+    secure_write_text(link, SENTINEL)
+    assert not link.is_symlink()
+    assert link.read_text() == SENTINEL
+    assert link.stat().st_mode & 0o777 == 0o600
     assert target.read_text() == "unchanged"
 
 

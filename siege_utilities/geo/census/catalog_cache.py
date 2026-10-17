@@ -26,6 +26,8 @@ from .catalog import (
     FamilyType,
 )
 
+from siege_utilities.files.operations import atomic_write_path
+
 __all__ = [
     'CatalogCache',
     'CatalogLoader',
@@ -212,10 +214,11 @@ class CatalogCache:
         path = self._cache_path(dataset, year)
         try:
             data = _catalog_to_dict(catalog)
-            path.write_text(
-                json.dumps(data, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
+            with atomic_write_path(path) as tmp:
+                tmp.write_text(
+                    json.dumps(data, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
             log.debug("Cached catalog for %s/%d to %s", dataset, year, path)
         except (OSError, ValueError, TypeError) as e:
             log.warning("Failed to cache catalog for %s/%d: %s", dataset, year, e)

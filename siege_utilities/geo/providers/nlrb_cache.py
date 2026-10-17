@@ -19,6 +19,8 @@ from .nlrb_clients import (
     ULPRecord,
 )
 
+from siege_utilities.files.operations import atomic_write_path
+
 log = logging.getLogger(__name__)
 
 __all__ = [
@@ -196,7 +198,8 @@ class NLRBCache:
         self._cache_dir.mkdir(parents=True, exist_ok=True)
         data = _result_to_dict(result)
         path = self._cache_path(key)
-        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        with atomic_write_path(path) as tmp:
+            tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
         log.info("Cached %d records to %s", result.total_records, path)
 
     def invalidate(self, key: str) -> bool:

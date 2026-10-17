@@ -18,6 +18,8 @@ from typing import Optional
 import pandas as pd
 import requests
 
+from siege_utilities.files.operations import atomic_write_path
+
 logger = logging.getLogger(__name__)
 
 __all__ = [
@@ -79,16 +81,16 @@ class IRSSOIFiles:
         downloaded = 0
         with requests.get(url, stream=True, timeout=self.timeout) as resp:
             resp.raise_for_status()
-            with open(dest, "wb") as f:
-                for chunk in resp.iter_content(chunk_size=self._CHUNK_SIZE):
-                    downloaded += len(chunk)
-                    if downloaded > self._MAX_DOWNLOAD_BYTES:
-                        dest.unlink(missing_ok=True)
-                        raise ValueError(
-                            f"Download from {url} exceeds "
-                            f"{self._MAX_DOWNLOAD_BYTES / 1024 / 1024:.0f} MB limit"
-                        )
-                    f.write(chunk)
+            with atomic_write_path(dest) as tmp:
+                with open(tmp, "wb") as f:
+                    for chunk in resp.iter_content(chunk_size=self._CHUNK_SIZE):
+                        downloaded += len(chunk)
+                        if downloaded > self._MAX_DOWNLOAD_BYTES:
+                            raise ValueError(
+                                f"Download from {url} exceeds "
+                                f"{self._MAX_DOWNLOAD_BYTES / 1024 / 1024:.0f} MB limit"
+                            )
+                        f.write(chunk)
 
     def download(self, tax_year: int, state_abbrev: str) -> Path:
         """Download (or return cached) a state's SOI CSV.
