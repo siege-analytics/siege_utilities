@@ -445,7 +445,7 @@ class NCESLocaleClassifier:
         return min_dist_m / _METERS_PER_MILE
 
     def _get_place_population(self, pc_match: Any) -> int:
-        """Extract population for a matched principal city."""
+        """Extract population for a matched principal city; raise ValueError if unknown."""
         # PLACEFP alone is only unique within a state. Prefer a full GEOID,
         # or construct it from the state and place FIPS components.
         for suffix in ("", "20", "10"):
@@ -472,14 +472,12 @@ class NCESLocaleClassifier:
             if col in pc_match.columns:
                 try:
                     return int(pc_match[col].iloc[0])
-                except (ValueError, TypeError):
-                    continue
-        # Default to small city if no population data available
-        log.warning("No population data found for principal city match; defaulting to small city")
-        return 0
+                except (ValueError, TypeError, OverflowError) as exc:
+                    raise ValueError("Invalid place population") from exc
+        raise ValueError("Missing principal city population")
 
     def _get_ua_population(self, ua_match: Any) -> int:
-        """Extract population for a matched UA."""
+        """Extract population for a matched UA; raise ValueError if unknown."""
         # Try ua_populations dict first
         for col in ("UACE20", "UACE10", "GEOID", "uace20", "uace10", "geoid"):
             if col in ua_match.columns:
@@ -492,10 +490,9 @@ class NCESLocaleClassifier:
             if col in ua_match.columns:
                 try:
                     return int(ua_match[col].iloc[0])
-                except (ValueError, TypeError):
-                    continue
-        log.warning("No population data found for UA match; defaulting to small suburb")
-        return 0
+                except (ValueError, TypeError, OverflowError) as exc:
+                    raise ValueError("Invalid ua population") from exc
+        raise ValueError("Missing UA population")
 
     # ------------------------------------------------------------------
     # Bulk classification

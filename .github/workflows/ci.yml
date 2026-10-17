@@ -15,6 +15,21 @@ on:
     types: [ published ]
 
 jobs:
+  exception-contracts:
+    runs-on: ubuntu-latest
+    name: "exception contracts (zero unlisted)"
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    - name: Reject unlisted swallowed failures
+      run: python scripts/check_exception_contracts.py --list
+    - name: Verify guard detection and exemptions
+      run: |
+        python -m pip install pytest
+        python -m pytest -c /dev/null -p no:cacheprovider --confcutdir=tests/guard tests/guard/test_exception_contract_guard.py -q
+
   test-file-hygiene:
     runs-on: ubuntu-latest
     name: "test file hygiene"

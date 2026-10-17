@@ -240,7 +240,8 @@ class NLRBDatagovClient:
             params: Optional query parameters for filtering.
 
         Returns:
-            NLRBFetchResult with parsed case records.
+            NLRBFetchResult with parsed case records. HTTP/XML failures raise
+            RuntimeError; empty successful responses remain empty results.
         """
         result = NLRBFetchResult(source="datagov")
         try:
@@ -251,14 +252,12 @@ class NLRBDatagovClient:
             )
             resp.raise_for_status()
         except (_RequestException, OSError) as exc:
-            result.errors.append(f"HTTP error fetching data.gov: {exc}")
-            return result
+            raise RuntimeError("NLRB fetch_cases failed") from exc
 
         try:
             root = ET.fromstring(resp.text)
         except ET.ParseError as exc:
-            result.errors.append(f"XML parse error: {exc}")
-            return result
+            raise RuntimeError("NLRB fetch_cases failed") from exc
 
         for case_el in root.iter("case"):
             record = self._parse_case_element(case_el)
@@ -336,6 +335,8 @@ class NLRBLabordataClient:
         """Fetch all available data from the labordata repository.
 
         Downloads cases, elections, and ULP charges CSVs.
+
+        HTTP failures raise RuntimeError rather than returning partial data.
         """
         result = NLRBFetchResult(source="labordata")
         _RequestException = _requests().exceptions.RequestException
@@ -347,7 +348,7 @@ class NLRBLabordataClient:
                 if record:
                     result.cases.append(record)
         except (_RequestException, OSError) as exc:
-            result.errors.append(f"cases: {exc}")
+            raise RuntimeError("NLRB fetch_cases failed") from exc
 
         try:
             elections_csv = self._download_csv("elections")
@@ -356,7 +357,7 @@ class NLRBLabordataClient:
                 if record:
                     result.elections.append(record)
         except (_RequestException, OSError) as exc:
-            result.errors.append(f"elections: {exc}")
+            raise RuntimeError("NLRB fetch_cases failed") from exc
 
         try:
             charges_csv = self._download_csv("ulp_charges")
@@ -365,7 +366,7 @@ class NLRBLabordataClient:
                 if record:
                     result.ulp_charges.append(record)
         except (_RequestException, OSError) as exc:
-            result.errors.append(f"ulp_charges: {exc}")
+            raise RuntimeError("NLRB fetch_cases failed") from exc
 
         log.info(
             "labordata: %d cases, %d elections, %d charges",
@@ -483,6 +484,8 @@ class NLRBNxGenClient:
 
         Args:
             case_number: NLRB case number (e.g., '05-RC-123456').
+
+        HTTP failures raise RuntimeError rather than returning partial data.
         """
         result = NLRBFetchResult(source="nxgen")
         url = f"{self._base_url}?f%5B0%5D=case_number%3A{case_number}"
@@ -491,8 +494,7 @@ class NLRBNxGenClient:
             resp = self._get_session().get(url, timeout=self._timeout)
             resp.raise_for_status()
         except (_RequestException, OSError) as exc:
-            result.errors.append(f"NxGen HTTP error: {exc}")
-            return result
+            raise RuntimeError("NLRB fetch_case failed") from exc
 
         records = self._parse_search_results(resp.text)
         result.cases.extend(records)

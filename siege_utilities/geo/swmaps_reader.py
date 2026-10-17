@@ -231,7 +231,7 @@ def read_features(
             )
 
         # Pull per-feature attributes once into a dict-of-dicts. Tables
-        # are optional in the schema; tolerate their absence.
+        # must be readable; a failed join must not discard attributes.
         attrs_by_feature: dict[str, dict] = {}
         try:
             for row in conn.execute(_ATTRIBUTE_QUERY):
@@ -239,7 +239,7 @@ def read_features(
                     row["field_name"]
                 ] = row["field_value"]
         except sqlite3.DatabaseError as exc:
-            log.warning("SWMaps attribute join failed: %s", exc)
+            raise sqlite3.DatabaseError("SWMaps attribute join failed") from exc
 
     for fid, rows in feature_rows.items():
         if not rows:

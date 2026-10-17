@@ -244,5 +244,4 @@ class StatsChartMixin:
             return "<br/>".join(chart_lines)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            log.error(f"Error creating text heatmap: {e}")
-            return f"<i>Error creating text heatmap: {_escape_paragraph(str(e))}</i>"
+            raise RuntimeError("Text heatmap generation failed") from e

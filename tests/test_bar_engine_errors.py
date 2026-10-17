@@ -1,7 +1,6 @@
 """Error-path coverage (SU-4b) for siege_utilities.reporting.engines.bar_engine.
 
-create_bar_chart catches a no-numeric-columns ValueError and renders a
-placeholder instead of propagating. This exercises that except handler.
+Chart errors propagate so report generation cannot report success.
 """
 import pandas as pd
 import pytest
@@ -17,8 +16,8 @@ except ImportError:
 from siege_utilities.reporting.chart_generator import ChartGenerator
 
 
-def test_create_bar_chart_renders_placeholder_on_invalid_data():
+def test_create_bar_chart_raises_on_invalid_data():
     g = ChartGenerator()
-    # No numeric column -> internal ValueError -> handler renders placeholder.
-    result = g.create_bar_chart(pd.DataFrame({"label": ["x", "y"]}))
-    assert result is not None
+    with pytest.raises(RuntimeError, match="Chart generation failed") as exc:
+        g.create_bar_chart(pd.DataFrame({"label": ["x", "y"]}))
+    assert isinstance(exc.value.__cause__, ValueError)
