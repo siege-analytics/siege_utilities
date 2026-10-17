@@ -32,6 +32,8 @@ except ImportError:
     HexColor = None
 from typing import Dict, Optional
 
+from .._markup import _escape_paragraph
+
 # Import PIL for image dimension auto-calculation
 try:
     from PIL import Image as PILImage
@@ -352,14 +354,14 @@ class BaseReportTemplate:
 
         # Left Header Text
         if header_text_left:
-            P_left = Paragraph(header_text_left, header_footer_style)
+            P_left = Paragraph(_escape_paragraph(header_text_left), header_footer_style)
             left_text_available_width = (page_width / 2) - current_header_x - 0.1 * inch
             P_left.wrapOn(canvas, left_text_available_width, doc.topMargin)
             P_left.drawOn(canvas, current_header_x, header_y_pos - P_left.height / 2)
 
         # Right Header Text
         if header_text_right:
-            P_right = Paragraph(header_text_right, header_footer_style)
+            P_right = Paragraph(_escape_paragraph(header_text_right), header_footer_style)
             text_width = P_right.wrapOn(canvas, page_width - doc.leftMargin - doc.rightMargin, doc.topMargin)[0]
             P_right.drawOn(canvas, page_width - doc.rightMargin - text_width, header_y_pos - P_right.height / 2)
 
@@ -393,20 +395,20 @@ class BaseReportTemplate:
 
         # Left Footer Text
         if footer_text_left:
-            F_left = Paragraph(footer_text_left, header_footer_style)
+            F_left = Paragraph(_escape_paragraph(footer_text_left), header_footer_style)
             footer_left_text_available_width = (page_width / 2) - current_footer_x - 0.1 * inch
             F_left.wrapOn(canvas, footer_left_text_available_width, doc.bottomMargin)
             F_left.drawOn(canvas, current_footer_x, footer_y_pos - F_left.height / 2)
 
         # Right Footer Text
         if footer_text_right:
-            F_right = Paragraph(footer_text_right, header_footer_style)
+            F_right = Paragraph(_escape_paragraph(footer_text_right), header_footer_style)
             text_width_f = F_right.wrapOn(canvas, page_width - doc.leftMargin - doc.rightMargin, doc.bottomMargin)[0]
             F_right.drawOn(canvas, page_width - doc.rightMargin - text_width_f, footer_y_pos - F_right.height / 2)
 
         # Page Number
         page_number_text = page_number_format % doc.page
-        P_page_num = Paragraph(page_number_text, header_footer_style)
+        P_page_num = Paragraph(_escape_paragraph(page_number_text), header_footer_style)
         P_page_num.wrapOn(canvas, page_width, doc.bottomMargin)
         page_num_x_pos = page_width - doc.rightMargin - P_page_num.wrapOn(canvas, page_width, doc.bottomMargin)[0]
         P_page_num.drawOn(canvas, page_num_x_pos, footer_y_pos - P_page_num.height / 2 - 0.2 * inch)
@@ -475,22 +477,22 @@ class BaseReportTemplate:
         story = []
         
         # Title
-        story.append(Paragraph(title, self.styles['h1']))
+        story.append(Paragraph(_escape_paragraph(title), self.styles['h1']))
         story.append(Spacer(1, 0.3 * inch))
         
         # Subtitle
         if subtitle:
-            story.append(Paragraph(subtitle, self.styles['h2']))
+            story.append(Paragraph(_escape_paragraph(subtitle), self.styles['h2']))
             story.append(Spacer(1, 0.2 * inch))
         
         # Author
         if author:
-            story.append(Paragraph(f"Prepared by: {author}", self.styles['BodyText']))
+            story.append(Paragraph(f"Prepared by: {_escape_paragraph(author)}", self.styles['BodyText']))
             story.append(Spacer(1, 0.1 * inch))
         
         # Date
         if date:
-            story.append(Paragraph(f"Date: {date}", self.styles['BodyText']))
+            story.append(Paragraph(f"Date: {_escape_paragraph(date)}", self.styles['BodyText']))
             story.append(Spacer(1, 0.3 * inch))
         
         story.append(PageBreak())

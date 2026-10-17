@@ -36,6 +36,7 @@ except ImportError:
     colors = None
     inch = None
 
+from ._markup import _escape_paragraph
 from .templates.base_template import BaseReportTemplate
 from .chart_generator import ChartGenerator
 from .client_branding import ClientBrandingManager, ClientBrandingNotFoundError
@@ -45,20 +46,6 @@ log = logging.getLogger(__name__)
 __all__ = [
     "ReportGenerator",
 ]
-
-
-def _escape_paragraph(text: str) -> str:
-    """Escape characters ReportLab Paragraph parses as mini-HTML markup.
-
-    Paragraph treats ``<`` as a tag start and ``&`` as an entity start;
-    a raw user string like ``"Q&A about <3 favorites"`` raises a parse
-    error mid-render. We escape both before they reach the parser.
-    Order matters — escape ``&`` first so the ``&`` introduced by
-    ``&lt;`` / ``&gt;`` is not re-escaped.
-    """
-    if not isinstance(text, str):
-        text = str(text)
-    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 class ReportGenerator:
