@@ -17,7 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   an archive are not checked. Existing directories with such names still
   validate when they can be stat'ed, and file-path validation is unchanged.
   Path-validation messages and the debug log now show paths with `repr()`, so
-  escape sequences are not written raw (#1692).
+  escape sequences are not written raw. Because the zip-named subdirectory is
+  now validated, a zip whose stem is `..` (e.g. `...zip`) raises instead of
+  extracting into the parent of `extract_to` (#1692).
 
 ### Fixed
 
