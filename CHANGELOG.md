@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `validate_directory_path(..., must_exist=False)`, and therefore
+  `ensure_path_exists` and the other directory-creating helpers, now raise
+  `PathSecurityError` when a path component that does not exist yet contains a
+  C0 control character, DEL or a C1 control character. Existing directories
+  with such names still validate, and file-path validation is unchanged
+  (#1692).
+
 ### Fixed
 
 - Cache/output/config writers now publish complete files atomically so interrupted
