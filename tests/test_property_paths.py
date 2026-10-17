@@ -98,24 +98,28 @@ class TestEnsurePathExistsProperties:
 
     @given(
         st.from_regex(r"[A-Za-z0-9_-]{0,8}", fullmatch=True),
+        # NUL is excluded: validate_safe_path rejects it before this check runs.
         st.sampled_from(
-            [chr(c) for c in range(0x20)] + ["\x7f"] + [chr(c) for c in range(0x80, 0xA0)]
+            [chr(c) for c in range(0x01, 0x20)] + ["\x7f"] + [chr(c) for c in range(0x80, 0xA0)]
         ),
         st.from_regex(r"[A-Za-z0-9_-]{0,8}", fullmatch=True),
+        st.booleans(),
     )
     @settings(max_examples=100)
-    def test_control_character_names_are_refused_without_writing(self, head, control, tail):
+    def test_control_character_names_are_refused_without_writing(
+            self, head, control, tail, odd_name_is_last):
         """A new directory name containing a C0, DEL or C1 control character is
-        rejected before anything is created (#1692)."""
+        rejected before anything is created, wherever it sits in the path (#1692)."""
         from siege_utilities.files.paths import ensure_path_exists
         from siege_utilities.files.validation import PathSecurityError
 
         name = head + control + tail
+        parts = ["parent", name] if odd_name_is_last else ["parent", name, "child"]
         with tempfile.TemporaryDirectory() as sandbox, contextlib.chdir(sandbox), \
                 mock.patch.object(Path, "mkdir", autospec=True) as mkdir, \
                 mock.patch.object(Path, "touch", autospec=True) as touch:
             with pytest.raises(PathSecurityError):
-                ensure_path_exists(os.path.join("parent", name))
+                ensure_path_exists(os.path.join(*parts))
             mkdir.assert_not_called()
             touch.assert_not_called()
             assert os.listdir(sandbox) == [], f"{name!r} wrote into the cwd"

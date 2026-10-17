@@ -199,12 +199,12 @@ def validate_safe_path(path: FilePath,
 
     # Check for null bytes
     if '\x00' in path_str:
-        raise PathSecurityError(f"Null byte detected in path: {path_str}")
+        raise PathSecurityError(f"Null byte detected in path: {path_str!r}")
 
     # Check for path traversal
     if is_path_traversal_attempt(path):
         raise PathSecurityError(
-            f"Path traversal attempt blocked: {path_str}"
+            f"Path traversal attempt blocked: {path_str!r}"
         )
 
     try:
@@ -238,7 +238,7 @@ def validate_safe_path(path: FilePath,
                     f"Path {resolved_path} is outside base directory {base_path}"
                 ) from e
 
-        log.debug(f"Path validation passed: {path_str} -> {resolved_path}")
+        log.debug(f"Path validation passed: {path_str!r} -> {str(resolved_path)!r}")
         return resolved_path
 
     except PathSecurityError:
@@ -306,7 +306,8 @@ def validate_directory_path(dir_path: FilePath,
 
     When must_exist is False the directory may be about to be created, so any
     component that does not exist yet must be free of control characters (C0,
-    DEL, C1). Existing directories with such names still validate.
+    DEL, C1). Existing directories with such names still validate, provided
+    they can be stat'ed; one under an unreadable parent counts as new.
 
     Args:
         dir_path: Path to validate
