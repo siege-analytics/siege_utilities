@@ -17,6 +17,8 @@ hypothesis = pytest.importorskip("hypothesis")
 from hypothesis import example, given, settings
 import hypothesis.strategies as st
 
+from siege_utilities.files.validation import is_sensitive_path
+
 
 class TestSanitizePathProperties:
     """Property tests for path sanitization."""
@@ -96,8 +98,9 @@ class TestEnsurePathExistsProperties:
 
     @given(st.lists(
         st.from_regex(r"[A-Za-z0-9_-]{1,16}", fullmatch=True)
-        # is_sensitive_path blocks private-key file names as a last component.
-        .filter(lambda name: name not in {"id_rsa", "id_dsa", "id_ecdsa"}),
+        # Ask the validator itself which names it blocks (private-key names
+        # are an exact match on develop and a suffix match on main).
+        .filter(lambda name: not is_sensitive_path(name)),
         min_size=1, max_size=4,
     ))
     @settings(max_examples=50)
