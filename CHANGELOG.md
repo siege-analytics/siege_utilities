@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Attach `BoundaryManager` to all boundary models so the documented
+  `.objects.containing_point/nearest/for_state/for_year` API works. Distance
+  filters on SRID-4326 geometry now cast to geography to honor meters, and
+  GeoJSON output emits geometry objects instead of strings (#1570).
+
 ### BREAKING
 
+- `BoundaryQuerySet.geojson()` and `BoundaryWithDemographicsSerializer.get_geometry`
+  now return GeoJSON geometry objects (dicts) instead of JSON strings. A consumer
+  that applied `json.loads()` to the geometry value must drop it; the value is
+  already a `dict`. (#1570)
 - Facebook, Instagram, X/Twitter, Google Analytics and connection profile helpers
   now default to `~/.siege_utilities/<service>/` instead of CWD-relative `config/`.
   Matching loaders/listers use the same new default. Pass `config_directory="config"`
