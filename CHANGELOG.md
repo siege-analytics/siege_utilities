@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- Facebook, Instagram, X/Twitter, Google Analytics and connection profile helpers
+  now default to `~/.siege_utilities/<service>/` instead of CWD-relative `config/`.
+  Matching loaders/listers use the same new default. Pass `config_directory="config"`
+  explicitly to retain the old location; existing profiles are not migrated.
+  `create_temporary_service_account_file` must now be used as a context manager;
+  its returned path is valid only inside the `with` block. (#1541)
+
 - Config passwords, tokens, client secrets and API keys now use Pydantic
   `SecretStr`, including the API keys on `User` and `postgresql_connection`
   on `EnhancedUserProfile` and `User`. Consumers must call
@@ -79,6 +86,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   containment boundary; it is not prepended to path components. (#1528)
 
 ### Security
+
+- Credential files are written with mode 0600 before writing their payload,
+  including existing files, with no write-then-chmod race. Missing parent
+  directories are created with mode 0700. Profile defaults use per-user paths;
+  service-account key files are always deleted on context exit. Non-Spark
+  boundary staging uses a private random temporary directory and returns/logs
+  its actual local path, with no predictable `/tmp` path or false S3 report.
+  A blocking AST guard rejects unsafe credential writes, write-then-chmod and
+  unlisted fixed `/tmp/` literals. Also secured configuration/entity YAML
+  exports and database configuration writes; the latter retain the legacy
+  CWD-relative `config/` default, so shared-host callers should explicitly
+  choose a private per-user directory. (#1541)
 
 - Config secret fields no longer expose their values in model `repr`/`str`
   or those models' validation error messages, including nested validation

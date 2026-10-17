@@ -12,9 +12,12 @@ This module provides comprehensive Facebook Business integration capabilities:
 import json
 import logging
 import pathlib
+
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 import pandas as pd
+
+from siege_utilities.files.secure_write import secure_write_text
 
 logger = logging.getLogger(__name__)
 
@@ -376,43 +379,43 @@ def create_facebook_account_profile(client_id: str, fb_account_id: str,
 
 
 def save_facebook_account_profile(profile: Dict[str, Any],
-                                 config_directory: str = "config") -> str:
+                                 config_directory: str | None = None) -> str:
     """
     Save Facebook account profile to JSON file.
 
     Args:
         profile: Facebook account profile dictionary
-        config_directory: Directory to save config files
+        config_directory: Config root; defaults to ~/.siege_utilities
 
     Returns:
         Path to saved config file
     """
-    config_dir = pathlib.Path(config_directory) / "facebook_business"
-    config_dir.mkdir(parents=True, exist_ok=True)
+    config_dir = (pathlib.Path(config_directory) if config_directory is not None
+                  else pathlib.Path.home() / ".siege_utilities") / "facebook_business"
 
     account_id = profile['fb_account_id']
     config_file = config_dir / f"fb_account_{account_id}.json"
 
-    with open(config_file, 'w', encoding='utf-8') as f:
-        json.dump(profile, f, indent=2)
+    secure_write_text(config_file, json.dumps(profile, indent=2))
 
     log_info(f"Saved Facebook account profile to: {config_file}")
     return str(config_file)
 
 
 def load_facebook_account_profile(account_id: str,
-                                 config_directory: str = "config") -> Optional[Dict[str, Any]]:
+                                 config_directory: str | None = None) -> Optional[Dict[str, Any]]:
     """
     Load Facebook account profile from JSON file.
 
     Args:
         account_id: Facebook account ID to load
-        config_directory: Directory containing config files
+        config_directory: Config root; defaults to ~/.siege_utilities
 
     Returns:
         Facebook account profile dictionary or None if not found
     """
-    config_dir = pathlib.Path(config_directory) / "facebook_business"
+    config_dir = (pathlib.Path(config_directory) if config_directory is not None
+                  else pathlib.Path.home() / ".siege_utilities") / "facebook_business"
     config_file = config_dir / f"fb_account_{account_id}.json"
 
     if not config_file.exists():
@@ -432,18 +435,19 @@ def load_facebook_account_profile(account_id: str,
 
 
 def list_facebook_accounts_for_client(client_id: str,
-                                     config_directory: str = "config") -> List[Dict[str, Any]]:
+                                     config_directory: str | None = None) -> List[Dict[str, Any]]:
     """
     List all Facebook accounts associated with a client.
 
     Args:
         client_id: Client ID to search for
-        config_directory: Directory containing config files
+        config_directory: Config root; defaults to ~/.siege_utilities
 
     Returns:
         List of Facebook account profiles
     """
-    config_dir = pathlib.Path(config_directory) / "facebook_business"
+    config_dir = (pathlib.Path(config_directory) if config_directory is not None
+                  else pathlib.Path.home() / ".siege_utilities") / "facebook_business"
 
     if not config_dir.exists():
         return []

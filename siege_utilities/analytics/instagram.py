@@ -38,6 +38,8 @@ from siege_utilities.analytics._social_protocol import (
 )
 from siege_utilities.core._http import redact_url_secrets
 
+from siege_utilities.files.secure_write import secure_write_text
+
 log = logging.getLogger(__name__)
 
 API_VERSION = "v22.0"
@@ -501,17 +503,16 @@ def create_instagram_account_profile(
 
 def save_instagram_account_profile(
     profile: dict[str, Any],
-    config_directory: str = "config",
+    config_directory: str | None = None,
 ) -> str:
-    """Save Instagram account profile to JSON file."""
-    config_dir = pathlib.Path(config_directory) / "instagram"
-    config_dir.mkdir(parents=True, exist_ok=True)
+    """Save Instagram account profile to JSON under ~/.siege_utilities/instagram by default."""
+    config_dir = (pathlib.Path(config_directory) if config_directory is not None
+                  else pathlib.Path.home() / ".siege_utilities") / "instagram"
 
     account_id = profile["ig_account_id"]
     config_file = config_dir / f"ig_account_{account_id}.json"
 
-    with open(config_file, "w", encoding="utf-8") as f:
-        json.dump(profile, f, indent=2)
+    secure_write_text(config_file, json.dumps(profile, indent=2))
 
     log.info("Saved Instagram profile to %s", config_file)
     return str(config_file)
@@ -519,10 +520,11 @@ def save_instagram_account_profile(
 
 def load_instagram_account_profile(
     account_id: str,
-    config_directory: str = "config",
+    config_directory: str | None = None,
 ) -> dict[str, Any] | None:
     """Load Instagram account profile from JSON file."""
-    config_dir = pathlib.Path(config_directory) / "instagram"
+    config_dir = (pathlib.Path(config_directory) if config_directory is not None
+                  else pathlib.Path.home() / ".siege_utilities") / "instagram"
     config_file = config_dir / f"ig_account_{account_id}.json"
 
     if not config_file.exists():

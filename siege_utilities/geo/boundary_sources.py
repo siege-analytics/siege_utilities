@@ -24,6 +24,8 @@ Usage::
 from __future__ import annotations
 
 import logging
+import tempfile
+from pathlib import Path
 from typing import Any, Optional
 
 __all__ = [
@@ -164,7 +166,8 @@ def stage_census_boundaries(
 
     Returns
     -------
-    str : path where boundaries were written.
+    str : Actual S3 path (Spark) or local file path (other engines).
+        Local callers own the returned temporary directory and its cleanup.
     """
     from siege_utilities.geo.providers.boundary_providers import CensusTIGERProvider
 
@@ -174,8 +177,7 @@ def stage_census_boundaries(
     gdf = provider.get_boundary(boundary_type, year=year)
 
     if gdf is None or len(gdf) == 0:
-        logger.warning("No boundaries returned for %s/%s", boundary_type, year)
-        return s3_path
+        raise ValueError(f"No boundaries returned for {boundary_type}/{year}")
 
     # Convert geometry to WKT for universal engine compatibility
     import pandas as pd
@@ -184,16 +186,24 @@ def stage_census_boundaries(
     pdf["geometry"] = gdf.geometry.apply(lambda g: g.wkt if g is not None else None)
 
     # Write via engine if it supports parquet write, else via pandas
+    output_path = s3_path
     if hasattr(engine, "_session"):
         # Spark engine — write via Spark for S3 support
         sdf = engine._session.createDataFrame(pdf)
         sdf.write.mode("overwrite").parquet(s3_path)
     else:
-        pdf.to_parquet(s3_path.replace("s3a://", "/tmp/staged_"))
-        logger.warning("Non-Spark engine: wrote to local path instead of S3")
+        local_dir = Path(tempfile.mkdtemp(prefix="siege_boundaries_"))
+        local_path = local_dir / "data.parquet"
+        try:
+            pdf.to_parquet(local_path)
+        except Exception:
+            local_path.unlink(missing_ok=True)
+            local_dir.rmdir()
+            raise
+        output_path = str(local_path)
 
-    logger.info("Staged %d %s boundaries to %s", len(gdf), boundary_type, s3_path)
-    return s3_path
+    logger.info("Staged %d %s boundaries to %s", len(gdf), boundary_type, output_path)
+    return output_path
 
 
 def _load_gadm_via_provider(engine, level, country):

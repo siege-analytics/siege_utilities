@@ -15,6 +15,8 @@ from datetime import datetime
 import logging
 
 from .models import UserProfile, ClientProfile
+
+from siege_utilities.files.secure_write import secure_write_text
 try:
     from .hydra_manager import HydraConfigManager
 except ImportError:
@@ -487,14 +489,12 @@ def save_user_profile(profile: UserProfile, username: str, config_dir: Optional[
         stacklevel=2,
     )
     config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "users"
-    config_dir.mkdir(parents=True, exist_ok=True)
     config_file = config_dir / f"{username}.yaml"
 
     profile_data = profile.model_dump()
     profile_data = _convert_to_yaml_safe(profile_data)
 
-    with open(config_file, 'w', encoding='utf-8') as f:
-        yaml.dump(profile_data, f, default_flow_style=False)
+    secure_write_text(config_file, yaml.dump(profile_data, default_flow_style=False))
 
     logger.info(f"Saved user profile: {config_file}")
 
@@ -582,14 +582,12 @@ def save_client_profile(profile: ClientProfile, config_dir: Optional[Path] = Non
         stacklevel=2,
     )
     config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "clients"
-    config_dir.mkdir(parents=True, exist_ok=True)
     config_file = config_dir / f"{profile.client_code}.yaml"
 
     profile_data = profile.model_dump()
     profile_data = _convert_to_yaml_safe(profile_data)
 
-    with open(config_file, 'w', encoding='utf-8') as f:
-        yaml.dump(profile_data, f, default_flow_style=False)
+    secure_write_text(config_file, yaml.dump(profile_data, default_flow_style=False))
 
     logger.info(f"Saved client profile: {config_file}")
 
@@ -660,10 +658,7 @@ def export_config_yaml(config_data: Dict[str, Any], output_file: Path) -> None:
         OSError: If the file cannot be written.
         yaml.YAMLError: If serialization fails.
     """
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(output_file, 'w', encoding='utf-8') as f:
-        yaml.dump(config_data, f, default_flow_style=False)
+    secure_write_text(output_file, yaml.dump(config_data, default_flow_style=False))
 
     logger.info(f"Exported configuration to: {output_file}")
 
