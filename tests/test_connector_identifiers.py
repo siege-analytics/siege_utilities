@@ -9,6 +9,14 @@ from siege_utilities.connectors.salesforce import SalesforceConnector, SOQLQuery
 from siege_utilities.connectors.zoho import ZohoConnector
 
 
+@pytest.mark.parametrize("identifier", [None, b"Name", 42, [], {}])
+def test_identifier_validator_rejects_non_strings(identifier):
+    from siege_utilities.connectors._query_utils import _validate_identifier
+
+    with pytest.raises(ValueError, match="identifier"):
+        _validate_identifier(identifier, allow_dotted=True)
+
+
 @pytest.mark.parametrize("value", [None, True, 42, ["x"], "x"])
 def test_dynamics_identifier_injection(value):
     with pytest.raises(ValueError, match="identifier"):
