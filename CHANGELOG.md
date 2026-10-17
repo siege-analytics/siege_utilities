@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `BoundaryQuerySet.geojson()` and `BoundaryWithDemographicsSerializer.get_geometry`
+  now return GeoJSON geometry objects (dicts) instead of JSON strings. A consumer
+  that applied `json.loads()` to the geometry value must drop it; the value is
+  already a `dict`. (#1570)
+
 - Config passwords, tokens, client secrets and API keys now use Pydantic
   `SecretStr`, including the API keys on `User` and `postgresql_connection`
   on `EnhancedUserProfile` and `User`. Consumers must call
