@@ -51,9 +51,13 @@ def column_proportion_test(chain: "Chain", alpha: float = 0.05) -> "Chain":
     column i (at *alpha*), appends column i's letter to column j's
     sig_flag for that row category.
 
+    Uses View.effective_n (raw n or Kish n), never the weighted display
+    base. Manually constructed views must supply this metadata. Synthetic
+    delta columns are excluded from both testing and letter assignment.
+
     Mutates *chain* in place and returns it.
     """
-    keys = list(chain.views.keys())
+    keys = [key for key in chain.views if key != chain.delta_column]
     n_cols = len(keys)
     if n_cols < 2:
         return chain
@@ -61,16 +65,22 @@ def column_proportion_test(chain: "Chain", alpha: float = 0.05) -> "Chain":
     letters = list(string.ascii_uppercase)
     col_labels = {key: letters[i] for i, key in enumerate(keys)}
 
-    # Collect per-column proportions and bases
+    # Collect per-column proportions and effective sample sizes.
     col_data: dict[str, dict] = {}
-    for key, views in chain.views.items():
+    for key in keys:
+        views = chain.views[key]
+        if any(v.effective_n is None for v in views):
+            raise SignificanceError(
+                "column_proportion_test requires effective_n; weighted display "
+                "bases and metric sums are not sample sizes"
+            )
         col_data[key] = {
-            "base": views[0].base if views else 0,
+            "effective_n": views[0].effective_n if views else 0,
             "pcts": {v.metric: (v.pct if v.pct is not None else 0.0) for v in views},
         }
 
     # For each row category, run all pairwise tests
-    all_metrics = {v.metric for views in chain.views.values() for v in views}
+    all_metrics = {v.metric for key in keys for v in chain.views[key]}
     for metric in all_metrics:
         for i, key_i in enumerate(keys):
             for j, key_j in enumerate(keys):
@@ -78,9 +88,9 @@ def column_proportion_test(chain: "Chain", alpha: float = 0.05) -> "Chain":
                     continue
                 p1 = col_data[key_i]["pcts"].get(metric, 0.0)
                 p2 = col_data[key_j]["pcts"].get(metric, 0.0)
-                n1 = col_data[key_i]["base"]
-                n2 = col_data[key_j]["base"]
-                if n1 == 0 or n2 == 0:
+                n1 = col_data[key_i]["effective_n"]
+                n2 = col_data[key_j]["effective_n"]
+                if n1 <= 0 or n2 <= 0:
                     continue
                 p_pool = (p1 * n1 + p2 * n2) / (n1 + n2)
                 # se can underflow to a tiny non-zero float for
@@ -90,10 +100,10 @@ def column_proportion_test(chain: "Chain", alpha: float = 0.05) -> "Chain":
                 se = np.sqrt(p_pool * (1 - p_pool) * (1 / n1 + 1 / n2))
                 if not np.isfinite(se) or se <= 1e-12:
                     log_warning(
-                        f"SE underflow in column proportion test: "
+                        "SE underflow in column proportion test: "
                         f"p_pool={p_pool:.4f}, se={se}, "
                         f"columns=({key_i!r}, {key_j!r}), metric={metric!r}. "
-                        f"Test skipped for this pair."
+                        "Test skipped for this pair."
                     )
                     continue
                 z = abs(p1 - p2) / se
@@ -127,6 +137,11 @@ def chi_square_flag(chain: "Chain", alpha: float = 0.05) -> "Chain":
     Delegates to siege_utilities.data.statistics.cross_tabulation.chi_square_test.
     Sets chain.chi_square_significant = True/False and chain.chi_square_p.
 
+    Tests unweighted respondent frequencies, even when displayed counts
+    are weighted. Requires View.respondent_count; metric-sum or aggregate
+    tables without this metadata raise SignificanceError. This tests the
+    unweighted sample association, not a design-corrected population test.
+
     Mutates *chain* in place and returns it.
     """
     from ..data.statistics.cross_tabulation import chi_square_test
@@ -136,15 +151,20 @@ def chi_square_flag(chain: "Chain", alpha: float = 0.05) -> "Chain":
             "Install via: pip install pandas"
         )
 
-    # Build count-based (not pct-based) contingency table for valid chi-square
+    # Weighted/metric sums cannot substitute for respondent frequencies.
     records: dict = {}
     for col_key, views in chain.views.items():
         if col_key == chain.delta_column:
             continue
         for v in views:
+            if v.respondent_count is None:
+                raise SignificanceError(
+                    "chi_square_flag requires unweighted respondent counts; "
+                    "metric sums and weighted aggregates alone cannot be tested"
+                )
             if v.metric not in records:
                 records[v.metric] = {}
-            records[v.metric][col_key] = v.count
+            records[v.metric][col_key] = v.respondent_count
 
     df = pd.DataFrame.from_dict(records, orient="index").fillna(0)
     df.index.name = chain.row_var
