@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `interpolate_areal` now measures source and overlap areas in World Mollweide
+  (`ESRI:54009`) for the Shapely and DuckDB backends, correcting latitude-biased
+  extensive allocations and intensive averages. Output geometries default to
+  the original source CRS, as documented, or use the explicit `crs` argument;
+  source CRS metadata also retains the original input CRS (#1407).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
