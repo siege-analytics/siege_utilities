@@ -24,8 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a file's parent: `ensure_directory_exists`, `touch_file`, `copy_file`,
   `move_file`, `delete_existing_file_and_replace_it_with_an_empty_file`,
   `safe_file_write`, `safe_json_write`, `atomic_write_path`,
-  `atomic_write_shapefile` and `download_file`. Each raises `PathSecurityError`
-  and creates nothing. New components containing a lone surrogate, which is
+  `atomic_write_shapefile`, `download_file`, `save_spatial`, `save_tabular`
+  and the credential writer `secure_write_text`. Each raises
+  `PathSecurityError` and creates nothing. A parent is created at its resolved
+  path, so `a/<new>/../b` creates only `a/b`. New components containing a lone surrogate, which is
   how undecodable (non-UTF-8) bytes reach Python, are refused as well. The
   check is public as `reject_unsafe_new_directory_names` (#1716).
 

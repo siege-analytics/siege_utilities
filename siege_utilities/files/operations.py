@@ -60,11 +60,18 @@ def sanitize_filename(name: str) -> str:
     return cleaned or "_"
 
 
-def _create_parent_directory(path: Path) -> None:
-    """Create ``path``'s parent, refusing unsafe names for the parts that are new (#1716)."""
+def _create_parent_directory(path: Path) -> Path:
+    """Create ``path``'s parent, refusing unsafe names for the parts that are new (#1716).
+
+    Returns ``path`` under its resolved parent. Write through that: the
+    resolved parent is what was checked and created, so an unresolved
+    ``new/..`` component would not exist.
+    """
     from siege_utilities.files.validation import reject_unsafe_new_directory_names
-    reject_unsafe_new_directory_names(path.parent)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    # mkdir on an unresolved "new\x1b/.." would create "new\x1b" on the way.
+    parent = reject_unsafe_new_directory_names(path.parent)
+    parent.mkdir(parents=True, exist_ok=True)
+    return parent / path.name
 
 
 @contextlib.contextmanager
@@ -83,8 +90,7 @@ def atomic_write_path(target: FilePath) -> Generator[Path, None, None]:
     umask, including replacements. This is for data, not credentials: use
     ``secure_write_text`` for secrets. Flush and close writers before exit.
     """
-    target = Path(target)
-    _create_parent_directory(target)
+    target = _create_parent_directory(Path(target))
     tmp = target.parent / f"atomic_{uuid.uuid4().hex}{target.suffix or '.tmp'}"
     # O_EXCL reserves a random sibling without following a pre-existing link.
     # Let the kernel apply umask: reading it via os.umask would temporarily
@@ -124,8 +130,7 @@ def atomic_write_shapefile(gdf, target: FilePath, **kwargs) -> None:
     Shapefiles produce sidecar files (.shx, .dbf, .prj, .cpg). This writes
     to a temp stem then renames all produced files to the final stem.
     """
-    target = Path(target)
-    _create_parent_directory(target)
+    target = _create_parent_directory(Path(target))
     tmp_dir = Path(tempfile.mkdtemp(dir=target.parent, prefix="atomic_shp_"))
     tmp_shp = tmp_dir / target.name
     try:
