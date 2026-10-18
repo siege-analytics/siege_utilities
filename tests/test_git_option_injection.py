@@ -176,3 +176,14 @@ def test_remote_tracking_uses_exact_ref_and_switch(recorder):
         ("rev-parse", "--verify", "refs/remotes/origin/feature/x"),
         ("switch", "--track", "-c", "feature/x", "--", "refs/remotes/origin/feature/x"),
     ]
+
+
+def test_empty_branch_name_keeps_current_branch_push_and_pull(monkeypatch):
+    """An empty branch_name keeps the historical "current branch" behaviour:
+    push/pull run with just the "--" boundary and the remote, no refs/heads ref.
+    """
+    calls = []
+    monkeypatch.setattr(operations, "run_git_command", lambda *a, **k: calls.append(a) or "")
+    operations.push_branch(branch_name="")
+    operations.pull_branch(branch_name="")
+    assert calls == [("push", "--", "origin"), ("pull", "--", "origin")]

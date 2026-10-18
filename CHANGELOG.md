@@ -21,6 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now validated, a zip whose stem is `..` (e.g. `...zip`) raises instead of
   extracting into the parent of `extract_to` (#1692).
 
+- Git branch operations now reject refs that used to be accepted, so some
+  callers must change their inputs: a bare dotted name such as `v1.2` or
+  `hotfix-1.2.3` now raises (use a slash namespace like `release/1.2`); a name
+  equal to a top-level file or directory in `repo_path` now raises, for remotes
+  as well as branches; and Git 2.23 or newer is required (the helpers use
+  `git switch`). `push_branch`/`pull_branch` keep their historical behaviour
+  for a falsy `branch_name` (`None` or `""` pushes/pulls the current branch);
+  only a non-empty name is validated and used as an exact `refs/heads/<name>`
+  (#1543).
+
 ### Fixed
 
 - Git branch operations and workflows reject option-like refs/remotes, reserved

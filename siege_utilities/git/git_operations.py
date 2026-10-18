@@ -605,8 +605,10 @@ def push_branch(
     Raises:
         GitSecurityError: If branch or remote name fails validation
     """
-    # Validate inputs
-    if branch_name is not None:
+    # Validate inputs. An empty/None branch_name means "current branch"
+    # (the historical falsy-skip); a non-empty name is validated and pushed
+    # as an exact refs/heads/<name> after a "--" separator.
+    if branch_name:
         branch_name = validate_branch_name(branch_name, repo_path=repo_path)
     remote = validate_remote_name(remote, repo_path=repo_path)
     repo_path = str(validate_repo_path(repo_path))
@@ -617,7 +619,7 @@ def push_branch(
 
     push_args.extend(["--", remote])
 
-    if branch_name is not None:
+    if branch_name:
         push_args.append(f"refs/heads/{branch_name}")
 
     try:
@@ -658,8 +660,10 @@ def pull_branch(
     Raises:
         GitSecurityError: If branch or remote name fails validation
     """
-    # Validate inputs
-    if branch_name is not None:
+    # Validate inputs. An empty/None branch_name means "current branch"
+    # (the historical falsy-skip); a non-empty name is validated and pulled
+    # as an exact refs/heads/<name> after a "--" separator.
+    if branch_name:
         branch_name = validate_branch_name(branch_name, repo_path=repo_path)
     remote = validate_remote_name(remote, repo_path=repo_path)
     repo_path = str(validate_repo_path(repo_path))
@@ -670,7 +674,7 @@ def pull_branch(
 
     pull_args.extend(["--", remote])
 
-    if branch_name is not None:
+    if branch_name:
         pull_args.append(f"refs/heads/{branch_name}")
 
     try:
