@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Instagram account insights now use UTC request boundaries regardless of
+  the host timezone and label daily metrics with the day covered, one day
+  before the end-of-period marker. `PipelineAnalyzer` now defaults to aware
+  UTC time and normalizes both reference and stage-entry timestamps to UTC,
+  treating naive values as UTC so mixed inputs and daylight-saving changes
+  produce correct elapsed durations (#1444).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed

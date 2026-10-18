@@ -10,9 +10,16 @@ from __future__ import annotations
 import logging
 import warnings
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
+
+
+def _as_utc(value: datetime) -> datetime:
+    """Normalize an instant to aware UTC, interpreting naive values as UTC."""
+    if value.utcoffset() is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 @dataclass(frozen=True)
@@ -83,6 +90,7 @@ class PipelineItem:
         Item value (dollars, record count, etc.).
     entered_stage : datetime | None
         When the item entered this stage. Required for velocity metrics.
+        Naive timestamps are interpreted as UTC.
     """
 
     item_id: str
@@ -167,7 +175,9 @@ class PipelineAnalyzer:
             Items currently in the pipeline.
         as_of : datetime, optional
             Reference time for velocity calculation.
-            Defaults to datetime.now().
+            Defaults to datetime.now(timezone.utc). Both this reference and
+            entered_stage timestamps are normalized to UTC; naive values
+            are interpreted as UTC.
 
         Returns
         -------
@@ -189,7 +199,8 @@ class PipelineAnalyzer:
                 )
 
         if as_of is None:
-            as_of = datetime.now()
+            as_of = datetime.now(timezone.utc)
+        as_of = _as_utc(as_of)
 
         stage_metrics = self._compute_stage_metrics(items)
         conversions = self._compute_conversions(stage_metrics)
@@ -289,7 +300,8 @@ class PipelineAnalyzer:
         for item in items:
             if item.entered_stage is None:
                 continue
-            days = (as_of - item.entered_stage).total_seconds() / 86400
+            entered_stage = _as_utc(item.entered_stage)
+            days = (as_of - entered_stage).total_seconds() / 86400
             stage_durations[item.stage].append((item.item_id, max(days, 0)))
 
         results = []
