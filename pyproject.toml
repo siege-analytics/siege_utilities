@@ -239,6 +239,7 @@ dev = [
     "pytest-forked>=1.4.0",
     "pytest-django>=4.5.0",
     "pytest-randomly>=3.15.0",
+    "pglast>=8.4",
     "hypothesis>=6.100.0",
     "nbmake>=1.5.0",
     "papermill>=2.4.0",

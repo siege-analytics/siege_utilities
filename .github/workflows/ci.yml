@@ -268,7 +268,8 @@ jobs:
 
     - name: Test with pytest
       run: |
-        uv run pytest tests/ -v --cov=siege_utilities --cov-report=xml --cov-fail-under=45 \
+        uv run pytest tests/ siege_utilities/political/tests/test_schema_migrations.py \
+          -v --cov=siege_utilities --cov-report=xml --cov-fail-under=45 \
           -m "not integration and not postgis" --ignore=tests/test_notebooks.py
 
     - name: Fail if tests left files in the checkout
