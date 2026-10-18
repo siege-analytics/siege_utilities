@@ -9,6 +9,8 @@ import platform
 from pathlib import Path
 from typing import Union
 
+from siege_utilities.files.operations import _create_parent_directory
+
 try:
     import requests
     REQUESTS_AVAILABLE = True
@@ -136,7 +138,7 @@ def download_file(url: str, local_filename: FilePath,
     except ImportError:
         local_path = Path(local_filename)
 
-    local_path.parent.mkdir(parents=True, exist_ok=True)
+    _create_parent_directory(local_path)
 
     ssl_verify = _get_ssl_verify_path() if verify_ssl else False
     headers = {'User-Agent': 'siege_utilities/1.0 (Census/GIS data client)'}

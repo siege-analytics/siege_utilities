@@ -58,6 +58,13 @@ def sanitize_filename(name: str) -> str:
     return cleaned or "_"
 
 
+def _create_parent_directory(path: Path) -> None:
+    """Create ``path``'s parent, refusing unsafe names for the parts that are new (#1716)."""
+    from siege_utilities.files.validation import reject_unsafe_new_directory_names
+    reject_unsafe_new_directory_names(path.parent)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+
 @contextlib.contextmanager
 def atomic_write_path(target: FilePath) -> Generator[Path, None, None]:
     """Context manager that yields a temporary path for writing, then
@@ -73,7 +80,7 @@ def atomic_write_path(target: FilePath) -> Generator[Path, None, None]:
     is left unchanged.
     """
     target = Path(target)
-    target.parent.mkdir(parents=True, exist_ok=True)
+    _create_parent_directory(target)
     fd, tmp_path = tempfile.mkstemp(
         dir=target.parent,
         prefix="atomic_",
@@ -96,7 +103,7 @@ def atomic_write_shapefile(gdf, target: FilePath, **kwargs) -> None:
     to a temp stem then renames all produced files to the final stem.
     """
     target = Path(target)
-    target.parent.mkdir(parents=True, exist_ok=True)
+    _create_parent_directory(target)
     tmp_dir = Path(tempfile.mkdtemp(dir=target.parent, prefix="atomic_shp_"))
     tmp_shp = tmp_dir / target.name
     try:
@@ -221,7 +228,7 @@ def touch_file(path: FilePath, create_parents: bool = True) -> None:
         path_obj = Path(path)
 
     if create_parents:
-        path_obj.parent.mkdir(parents=True, exist_ok=True)
+        _create_parent_directory(path_obj)
 
     path_obj.touch(exist_ok=True)
     log.info(f"Created/updated file: {path_obj}")
@@ -303,7 +310,7 @@ def copy_file(source: FilePath, destination: FilePath, overwrite: bool = False) 
     if not source_obj.is_file():
         raise FileNotFoundError(f"Source is not a file: {source_obj}")
 
-    dest_obj.parent.mkdir(parents=True, exist_ok=True)
+    _create_parent_directory(dest_obj)
 
     if dest_obj.exists() and not overwrite:
         raise FileExistsError(f"Destination file exists and overwrite=False: {dest_obj}")
@@ -346,7 +353,7 @@ def move_file(source: FilePath, destination: FilePath, overwrite: bool = False) 
     if not source_obj.is_file():
         raise FileNotFoundError(f"Source is not a file: {source_obj}")
 
-    dest_obj.parent.mkdir(parents=True, exist_ok=True)
+    _create_parent_directory(dest_obj)
 
     if dest_obj.exists() and not overwrite:
         raise FileExistsError(f"Destination file exists and overwrite=False: {dest_obj}")
@@ -638,7 +645,7 @@ def delete_existing_file_and_replace_it_with_an_empty_file(file_path: FilePath, 
 
         # Create parent directories if needed
         if create_parents:
-            path_obj.parent.mkdir(parents=True, exist_ok=True)
+            _create_parent_directory(path_obj)
 
         # Remove existing file if it exists
         if path_obj.exists():
@@ -668,8 +675,8 @@ def ensure_directory_exists(directory: Union[str, Path]) -> Path:
         PathSecurityError: If path fails security validation.
     """
     try:
-        from siege_utilities.files.validation import validate_safe_path
-        dir_path = validate_safe_path(directory, allow_absolute=True)
+        from siege_utilities.files.validation import validate_directory_path
+        dir_path = validate_directory_path(directory, must_exist=False)
     except ImportError:
         dir_path = Path(directory)
     dir_path.mkdir(parents=True, exist_ok=True)
@@ -704,7 +711,7 @@ def safe_file_write(
         validated = Path(file_path)
     try:
         if create_dirs:
-            validated.parent.mkdir(parents=True, exist_ok=True)
+            _create_parent_directory(validated)
         with open(validated, "w", encoding=encoding) as f:
             f.write(content)
         return True
@@ -775,7 +782,7 @@ def safe_json_write(
         validated = Path(file_path)
     try:
         if create_dirs:
-            validated.parent.mkdir(parents=True, exist_ok=True)
+            _create_parent_directory(validated)
         with open(validated, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=indent, ensure_ascii=False)
         return True
