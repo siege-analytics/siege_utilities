@@ -1,6 +1,8 @@
 """Tests for siege_utilities.files.validation — path security validation (#578)."""
 
+import os
 import shutil
+from pathlib import Path
 
 import pytest
 
@@ -195,28 +197,33 @@ class TestDirectoryControlCharacters:
             unzip_file_to_directory(archive, out)
         assert not (out / "evil\x1b[31m").exists()
 
-    def test_dot_dot_zip_stem_no_longer_escapes_extract_dir(self, tmp_path):
+    def test_dot_dot_zip_stem_no_longer_escapes_extract_dir(self, tmp_path, monkeypatch):
         """'...zip' has stem '..' before Python 3.14 (3.14 parses it as having
-        no suffix); with stem '..' it used to extract into extract_to's parent."""
+        no suffix); with stem '..' it used to extract into extract_to's parent.
+
+        On main the archive path itself is refused first, because
+        is_path_traversal_attempt matches '..' anywhere in the string. That
+        check is stubbed out here so the zip-named subdirectory check is the
+        only defence under test: removing it lets stem '..' extract into
+        tmp_path.
+        """
         import zipfile
+        from siege_utilities.files import validation
         from siege_utilities.files.paths import unzip_file_to_directory
 
+        monkeypatch.setattr(
+            validation, "validate_file_path",
+            lambda path, must_exist=False, base_directory=None: Path(path).resolve(),
+        )
         archive = tmp_path / "...zip"
         with zipfile.ZipFile(archive, "w") as z:
             z.writestr("x.txt", "x")
         out = tmp_path / "out"
         out.mkdir()
-        # On main, is_path_traversal_attempt matches ".." anywhere in the
-        # string, so "...zip" is refused on every Python version; the stem-'..'
-        # case must be refused. Either way nothing may land outside out/.
-        try:
-            extracted = unzip_file_to_directory(archive, out)
-        except PathSecurityError as exc:
-            assert "traversal" in str(exc)
-        else:
-            assert archive.stem != ".."
-            assert extracted.parent == out.resolve()
+        with pytest.raises(PathSecurityError, match="traversal"):
+            unzip_file_to_directory(archive, out)
         assert not (tmp_path / "x.txt").exists()
+        assert os.listdir(out) == []
 
     @pytest.mark.parametrize("path", ["esc\x1b[31m\x00", "../esc\x1b[31m"])
     def test_rejection_messages_escape_the_path(self, path):
