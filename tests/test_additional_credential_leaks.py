@@ -82,7 +82,8 @@ def test_release_manager_upload_reads_pypi_token_from_env(
     assert SECRET not in repr(pypi_upload.call_args.args)
     captured = capsys.readouterr()
     assert SECRET not in captured.out + captured.err + caplog.text
-    assert 'Upload to pypi succeeded' in caplog.text
+    # --build --pypi now targets TestPyPI; production PyPI is publish-tag.yml only (#1419).
+    assert 'Upload to testpypi succeeded' in caplog.text
 
 
 def test_pypi_upload_missing_token_points_to_env(monkeypatch, caplog):
@@ -94,22 +95,25 @@ def test_pypi_upload_missing_token_points_to_env(monkeypatch, caplog):
     assert '--token' not in caplog.text
 
 
-def test_release_manager_missing_token_points_to_env(monkeypatch, capsys):
+def test_release_manager_missing_token_points_to_env(monkeypatch, caplog):
+    # --release no longer uploads (#1419), so the token check now lives on
+    # the TestPyPI upload path: --build --pypi.
     monkeypatch.delenv('PYPI_API_TOKEN', raising=False)
-    monkeypatch.setattr(sys, 'argv', [
-        'release_manager.py', '--release', '--bump-type', 'patch', '--changelog',
-    ])
+    monkeypatch.setattr(sys, 'argv', ['release_manager.py', '--build', '--pypi'])
+    monkeypatch.setattr(release_manager, 'build_package', lambda: True)
+    monkeypatch.setattr(release_manager, 'validate_build', lambda: True)
 
     with pytest.raises(SystemExit) as exc:
         release_manager.main()
 
-    assert exc.value.code == 2
-    error = capsys.readouterr().err.split('error:', 1)[1]
-    assert 'Set PYPI_API_TOKEN in the environment' in error
-    assert '--token' not in error
+    assert exc.value.code == 1
+    assert 'set PYPI_API_TOKEN in the environment' in caplog.text
+    assert '--token' not in caplog.text
 
 
-@pytest.mark.parametrize('repository', ['pypi', 'testpypi'])
+# 'pypi' is refused before any subprocess runs (#1419); see
+# tests/test_release_process.py.
+@pytest.mark.parametrize('repository', ['testpypi'])
 def test_pypi_upload_failure_keeps_token_off_argv(pypi_upload, repository, caplog):
     pypi_upload.return_value = subprocess.CompletedProcess(
         ['twine'], 1, SECRET, SECRET,

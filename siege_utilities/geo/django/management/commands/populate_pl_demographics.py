@@ -68,6 +68,7 @@ class Command(BaseCommand):
         from siege_utilities.config.census_constants import normalize_state_identifier
         from siege_utilities.geo.census_files.pl_downloader import PLFileDownloader
         from siege_utilities.geo.django.models.demographics import DemographicSnapshot
+        from siege_utilities.geo.django.services._bulk import bulk_insert_counted
 
         state = options["state"]
         year = options["year"]
@@ -176,16 +177,23 @@ class Command(BaseCommand):
                             year=year,
                             values=values,
                             total_population=int(total_pop) if total_pop is not None else None,
-                        )
+                        ).prepare_for_bulk()
                     )
 
             if to_create:
                 for i in range(0, len(to_create), batch_size):
                     batch = to_create[i : i + batch_size]
-                    DemographicSnapshot.objects.bulk_create(
-                        batch, ignore_conflicts=True
+                    # Count rows inserted, not rows offered (#1539)
+                    created += bulk_insert_counted(
+                        DemographicSnapshot.objects,
+                        batch,
+                        scope={
+                            "content_type": ct,
+                            "dataset": "dec_pl",
+                            "year": year,
+                            "object_id__in": [snap.object_id for snap in batch],
+                        },
                     )
-                created = len(to_create)
 
         self.stdout.write(
             f"Created={created}, updated={updated}, skipped={skipped}"

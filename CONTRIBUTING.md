@@ -155,24 +155,22 @@ papermill notebooks/reports/03_polling_survey_analysis.ipynb /tmp/reports03_outp
 
 ## CI Pipeline
 
-Every push and PR triggers the full CI pipeline (`.github/workflows/ci.yml`):
+Every push, PR and merge-queue entry runs the CI pipeline (`.github/workflows/ci.yml`):
 
 | Job | What it checks |
 |-----|----------------|
-| **test** | Full test suite on Python 3.11, 3.12, 3.13 |
+| **test** | Full test suite on Python 3.11, 3.12, 3.13 and 3.14 (3.14 non-blocking); on 3.11 it then re-runs the Pydantic v1 compatibility tests with pydantic 1.x installed |
 | **test-core** | Core-only install (no heavy deps) |
-| **test-geo-no-gdal** | Geospatial tests without GDAL system libraries |
-| **test-smoke** | Fast validation tests (no network, no GDAL) |
-| **test-pydantic-v1** | Backward compatibility with Pydantic v1 |
-| **test-databricks** | Databricks SDK integration |
-| **battle-test** | Comprehensive overnight suite (30min timeout) |
-| **api-contract-regression** | Public API compatibility vs. baseline |
-| **lint-ratchet** | Lint quality gate (violations can only go down) |
+| **test-geo-no-gdal** | Test suite without GDAL system libraries, including the smoke and Databricks tests |
+| **test-postgis** | Database tests against live PostGIS |
+| **lint-ratchet** | Lint quality gate, phases 1-4 (violations can only go down) |
+| **api-security-build** | Public API contract vs. the last release; pip-audit of the resolved dependencies; bandit (fails on any high-severity finding without a line-level `# nosec`, see #1754); package build, twine check and wheel contents |
+| **static-guards** | Single-script source guards (credential literals, exception contracts, subprocess safety, atomic and secure writes, ...) |
 | **test-file-hygiene** | Test naming and location conventions |
-| **security** | pip-audit + bandit vulnerability scan |
-| **build** | Package build + twine validation |
+| **notebook-governance** | Notebook inventory and pure-notebook execution |
+| **battle-test** | Comprehensive overnight suite (30min timeout) |
 
-The **build** job gates on `test`, `battle-test`, and `api-contract-regression`. The **release** job (PyPI upload) runs only on GitHub release events.
+In `ci.yml` the build steps do not depend on the test jobs, and `ci.yml` never uploads. Publishing happens only in `publish-tag.yml` on a `v*` tag, after the whole of `ci.yml` passes on the tagged commit. Manual uploads to PyPI are prohibited; see [RELEASING.md](RELEASING.md).
 
 ### API Contract Policy
 
