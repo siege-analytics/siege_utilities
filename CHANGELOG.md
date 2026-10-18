@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Docstring generation now defaults to a dry run. CLI callers must pass
+  `--write` (or `--apply`), and Python callers must pass `dry_run=False` to
+  `process_python_file` or `main` to modify files (#1589).
 - **Release process:** PyPI releases go only through `publish-tag.yml`, on a
   `v*` tag push. It checks that the tag equals `v` + the pyproject version and
   that the tagged commit is on `main`, then runs the whole of `ci.yml` on the
@@ -68,6 +71,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Docstring generation inserts lines without rewriting existing comments or
+  formatting, handles async definitions, and extracts signature details without
+  importing target files. File exclusions match path components and include
+  Django migrations while retaining `distributed`, `redistricting`, and `builds`
+  paths. Templates omit CI-rejected stub markers and skip generated doctest
+  examples. Inline suites are left unchanged with a warning (#1589).
 - RDH fetch and load no longer return the wrong data silently (#1571).
   `fetch_cvap` and `fetch_pl94171` match the requested geography against the
   level named in the dataset title, tokenised on spaces and underscores with
