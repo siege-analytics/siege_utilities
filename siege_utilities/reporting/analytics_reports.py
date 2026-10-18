@@ -792,13 +792,30 @@ class AnalyticsReportGenerator:
             tables = []
             summary_data = []
             if not df.empty:
-                # Sample data table
-                sample_data = df.head(20).values.tolist()
-                tables.append({
-                    'title': 'Sample Data',
-                    'headers': df.columns.tolist(),
-                    'data': sample_data
-                })
+                # Sample data table. A wide frame (dozens of columns) cannot
+                # fit one ReportLab table -- it raises "negative availWidth" --
+                # so split the columns into groups of at most MAX_SAMPLE_COLS
+                # and emit one labelled table per group. All columns are kept.
+                MAX_SAMPLE_COLS = 12
+                all_cols = df.columns.tolist()
+                head_df = df.head(20)
+                col_groups = [
+                    all_cols[i:i + MAX_SAMPLE_COLS]
+                    for i in range(0, len(all_cols), MAX_SAMPLE_COLS)
+                ]
+                multi = len(col_groups) > 1
+                for gi, group in enumerate(col_groups):
+                    start = gi * MAX_SAMPLE_COLS + 1
+                    end = gi * MAX_SAMPLE_COLS + len(group)
+                    title = (
+                        f'Sample Data (columns {start}–{end} of {len(all_cols)})'
+                        if multi else 'Sample Data'
+                    )
+                    tables.append({
+                        'title': title,
+                        'headers': group,
+                        'data': head_df[group].values.tolist(),
+                    })
                 
                 # Summary statistics table
                 summary_data = []
