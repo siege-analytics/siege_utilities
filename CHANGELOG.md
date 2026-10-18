@@ -15,8 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reach Python), `validate_directory_path(..., must_exist=False)` and every
   helper that creates a directory or a file's parent raise `PathSecurityError`
   and create nothing. The helpers are:
-  - `ensure_path_exists`, `ensure_directory_exists` and the zip-named
-    subdirectory `unzip_file_to_directory` creates
+  - `ensure_path_exists`, `ensure_directory_exists`, and
+    `unzip_file_to_directory`, both for the zip-named subdirectory and for
+    every member directory: an archive that would create an unsafe directory
+    is refused before anything is extracted
   - `touch_file`, `copy_file`, `move_file`,
     `delete_existing_file_and_replace_it_with_an_empty_file`
   - `safe_file_write`, `safe_json_write`, `atomic_write_path`,
