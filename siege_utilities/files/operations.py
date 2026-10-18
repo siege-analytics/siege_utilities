@@ -60,10 +60,17 @@ def sanitize_filename(name: str) -> str:
     return cleaned or "_"
 
 
+def _reject_unsafe_new_file(path: Path) -> None:
+    """Refuse ``path`` if its file name or any new parent would be an unsafe name (#1716, #1737)."""
+    from siege_utilities.files.validation import reject_unsafe_new_file_path
+    reject_unsafe_new_file_path(path)
+
+
 def _create_parent_directory(path: Path) -> None:
-    """Create ``path``'s parent, refusing unsafe names for the parts that are new (#1716)."""
-    from siege_utilities.files.validation import reject_unsafe_new_directory_names
-    reject_unsafe_new_directory_names(path.parent).mkdir(parents=True, exist_ok=True)
+    """Create ``path``'s parent, refusing unsafe names for the parts that are new,
+    the file name included (#1716, #1737)."""
+    _reject_unsafe_new_file(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
 
 
 @contextlib.contextmanager
@@ -250,6 +257,8 @@ def touch_file(path: FilePath, create_parents: bool = True) -> None:
 
     if create_parents:
         _create_parent_directory(path_obj)
+    else:
+        _reject_unsafe_new_file(path_obj)
 
     path_obj.touch(exist_ok=True)
     log.info(f"Created/updated file: {path_obj}")
@@ -332,6 +341,9 @@ def copy_file(source: FilePath, destination: FilePath, overwrite: bool = False) 
         raise FileNotFoundError(f"Source is not a file: {source_obj}")
 
     _create_parent_directory(dest_obj)
+    if dest_obj.is_dir():
+        # The file is created inside it under the source's name (#1737).
+        _reject_unsafe_new_file(dest_obj / source_obj.name)
 
     if dest_obj.exists() and not overwrite:
         raise FileExistsError(f"Destination file exists and overwrite=False: {dest_obj}")
@@ -375,6 +387,9 @@ def move_file(source: FilePath, destination: FilePath, overwrite: bool = False) 
         raise FileNotFoundError(f"Source is not a file: {source_obj}")
 
     _create_parent_directory(dest_obj)
+    if dest_obj.is_dir():
+        # The file is created inside it under the source's name (#1737).
+        _reject_unsafe_new_file(dest_obj / source_obj.name)
 
     if dest_obj.exists() and not overwrite:
         raise FileExistsError(f"Destination file exists and overwrite=False: {dest_obj}")
@@ -675,6 +690,8 @@ def delete_existing_file_and_replace_it_with_an_empty_file(file_path: FilePath, 
         # Create parent directories if needed
         if create_parents:
             _create_parent_directory(path_obj)
+        else:
+            _reject_unsafe_new_file(path_obj)
 
         # Remove existing file if it exists
         if path_obj.exists():
