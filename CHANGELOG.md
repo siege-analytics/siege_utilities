@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Codification new-construction metrics use the latest TIGER vintage as the
+  fallback when no analysis window is available, so all-old areas and demolished
+  addresses are no longer counted as new. Even-count medians use the lower
+  central observed vintage. Housing rates include zero-population blocks with
+  housing and exclude zero-housing group-quarters blocks from their address
+  denominators; population-based metrics retain their existing weighting (#1492).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
