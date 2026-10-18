@@ -14,7 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   county keys. Unknown or conflicting counties skip name matching, and malformed
   VTD GEOIDs are ignored. Direct `reconcile_names` callers must supply
   `precinct_county`; name-only providers can supply `get_precinct_counties`.
-  Official-crosswalk mapping precedence is unchanged (#1433).
+  Official-crosswalk mappings retain precedence (#1433).
+- Precinct/VTD reconciliation emits fewer name-only mappings: an official
+  mapping or spatial overlap of at least 95% suppresses names pointing to
+  another VTD. Name-only confidence is capped at 0.84, below HIGH; same-VTD
+  name confirmation still contributes to COMBINED confidence. Spatial overlaps
+  below 1% no longer create county conflicts that block name confirmation (#1433).
 
 ## [4.1.0] - 2026-10-18
 

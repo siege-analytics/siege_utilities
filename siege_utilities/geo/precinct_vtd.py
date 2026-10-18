@@ -24,6 +24,7 @@ __all__ = [
     "DictSpatialOverlapProvider",
     "MIN_NAME_SIMILARITY",
     "MIN_OVERLAP_PCT",
+    "NAME_ONLY_MAX_CONFIDENCE",
     "NAME_WEIGHT",
     "NameMatchProvider",
     "OfficialCrosswalkEntry",
@@ -31,6 +32,7 @@ __all__ = [
     "PrecinctVTDReconciler",
     "ReconciliationMethod",
     "ReconciliationResult",
+    "SPATIAL_NAME_SUPPRESSION_PCT",
     "SPATIAL_WEIGHT",
     "SpatialOverlap",
     "SpatialOverlapProvider",
@@ -292,7 +294,10 @@ def _county_candidates(
     crosswalk: list[OfficialCrosswalkEntry],
     overlaps: list[SpatialOverlap],
 ) -> dict[str, set[str]]:
-    """Collect county evidence, preferring numeric crosswalk counties to overlaps."""
+    """Prefer numeric crosswalk counties, then overlaps >= MIN_OVERLAP_PCT.
+
+    Sub-threshold slivers are not mappings and must not create county conflicts.
+    """
     counties: dict[str, set[str]] = {}
     for entry in crosswalk:
         state = entry.state.strip().upper()
@@ -305,7 +310,7 @@ def _county_candidates(
 
     official_precincts = set(counties)
     for overlap in overlaps:
-        if overlap.precinct_id in official_precincts or overlap.overlap_pct <= 0:
+        if overlap.precinct_id in official_precincts or overlap.overlap_pct < MIN_OVERLAP_PCT:
             continue
         county = _vtd_county(overlap.vtd_geoid)
         if county:
@@ -326,6 +331,10 @@ def _name_similarity(a: str, b: str) -> float:
 
 MIN_OVERLAP_PCT = 0.01
 MIN_NAME_SIMILARITY = 0.50
+# At least 95% spatial coverage suppresses name-only alternatives to other VTDs.
+SPATIAL_NAME_SUPPRESSION_PCT = 0.95
+# Names alone cannot reach HIGH (0.85); keep raw similarity for confirmation.
+NAME_ONLY_MAX_CONFIDENCE = 0.84
 SPATIAL_WEIGHT = 0.7
 NAME_WEIGHT = 0.3
 
@@ -360,6 +369,8 @@ def reconcile_names(
     ``precinct_county`` maps precinct IDs to state+county FIPS keys. Missing
     or invalid county keys skip name matching, even if all VTD candidates
     happen to share a county. Malformed VTD GEOIDs are ignored.
+    Confidence is capped at NAME_ONLY_MAX_CONFIDENCE, below HIGH, while
+    name_similarity retains the raw score for spatial confirmation.
     """
     by_county: dict[str, dict[str, str]] = {}
     for vgeoid, vname in vtd_names.items():
@@ -382,12 +393,13 @@ def reconcile_names(
                 best_sim = sim
                 best_geoid = vgeoid
         if best_sim >= MIN_NAME_SIMILARITY and best_geoid:
+            confidence = min(best_sim, NAME_ONLY_MAX_CONFIDENCE)
             mappings.append(PrecinctVTDMapping(
                 precinct_id=pid,
                 vtd_geoid=best_geoid,
                 overlap_pct=0.0,
-                confidence=best_sim,
-                confidence_level=_confidence_level(best_sim),
+                confidence=confidence,
+                confidence_level=_confidence_level(confidence),
                 method=ReconciliationMethod.NAME_MATCH,
                 name_similarity=best_sim,
             ))
@@ -417,7 +429,12 @@ def _merge_mappings(
     names: list[PrecinctVTDMapping],
     official: list[PrecinctVTDMapping],
 ) -> list[PrecinctVTDMapping]:
-    """Merge mappings from all methods, preferring official > spatial > name."""
+    """Merge mappings from all methods, preferring official > spatial > name.
+
+    Official mappings and spatial overlaps >= SPATIAL_NAME_SUPPRESSION_PCT
+    suppress name-only alternatives for the same precinct. Names that confirm
+    an existing spatial target still contribute to its COMBINED confidence.
+    """
     by_precinct: dict[str, dict[str, PrecinctVTDMapping]] = {}
 
     for m in official:
@@ -436,6 +453,15 @@ def _merge_mappings(
     for m in names:
         bucket = by_precinct.setdefault(m.precinct_id, {})
         if m.vtd_geoid not in bucket:
+            if any(
+                existing.method == ReconciliationMethod.OFFICIAL_CROSSWALK
+                or (
+                    existing.method == ReconciliationMethod.SPATIAL
+                    and existing.overlap_pct >= SPATIAL_NAME_SUPPRESSION_PCT
+                )
+                for existing in bucket.values()
+            ):
+                continue
             bucket[m.vtd_geoid] = m
 
     # Boost spatial mappings that have name confirmation
@@ -499,7 +525,7 @@ class PrecinctVTDReconciler:
         """Reconcile the given precincts against VTDs.
 
         Name matching uses numeric official county FIPS first, then counties
-        from positive spatial overlaps, then optional provider county keys.
+        from spatial overlaps >= MIN_OVERLAP_PCT, then optional provider keys.
         Conflicting counties at the first available evidence level skip name
         matching; weaker evidence cannot override that ambiguity.
 
