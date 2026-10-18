@@ -34,6 +34,16 @@ def test_geocoding_markdown_describes_an_in_memory_scan() -> None:
     assert "[r.input_id for r in results if r.matched]" in cells["c5"].source
 
 
+@pytest.mark.parametrize("target", ["spatial/03_choropleth_maps", "engines/04_statistics_primitives"])
+def test_geocoding_downstream_claims_are_true(target):
+    nb = nbformat.read(NOTEBOOKS_DIR / GEOCODING_NOTEBOOK, as_version=4)
+    md = "\n".join(c.source for c in nb.cells if c.cell_type == "markdown")
+    claim = re.search(re.escape(target) + r"[^\n]*(tract|geoid)", md, re.I)
+    if claim:
+        other = (NOTEBOOKS_DIR / f"{target}.ipynb").read_text().lower()
+        assert "geoid" in other, f"{target} is said to consume tract GEOIDs but never uses one: {claim.group(0)!r}"
+
+
 def _install_offline_services() -> tuple[list[str], object]:
     """Run inside each disposable kernel; keep the library's local work real."""
     import os
