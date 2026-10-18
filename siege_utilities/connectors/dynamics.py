@@ -678,6 +678,9 @@ class DynamicsConnector:
                     json=json_body,
                     timeout=self._timeout,
                 )
+            except requests.exceptions.InvalidJSONError:
+                # Retrying cannot fix a JSON encoding failure.
+                raise
             except requests.exceptions.RequestException as exc:
                 last_exc = exc
                 log.warning(

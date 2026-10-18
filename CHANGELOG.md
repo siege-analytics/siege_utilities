@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   omit missing fields to preserve existing values, serialize dates and timestamps
   as ISO 8601 strings, and convert numpy scalars to native types. Salesforce bulk
   CSV uploads use empty cells for missing values; Dynamics emits strict JSON (#1424).
+  JSON encoding failures raise once without retrying or backoff; transport failures
+  retain their existing retries and backoff.
+  **Migration:** an explicit `None` in an upsert frame is now omitted instead of
+  sent as JSON `null`, so it no longer clears the CRM field. To clear a field, use
+  `update_record(object_type, record_id, {"Field": None})`, which still sends `null`.
 
 ## [4.1.0] - 2026-10-18
 

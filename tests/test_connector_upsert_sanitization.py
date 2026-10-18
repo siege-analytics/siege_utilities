@@ -155,6 +155,21 @@ def test_upsert_records_sends_sanitized_json(provider, upsert_rows, monkeypatch)
     pd.testing.assert_frame_equal(frame, original)
 
 
+@pytest.mark.parametrize("provider,object_type", [
+    ("salesforce", "Account"), ("hubspot", "contacts"), ("zoho", "Contacts"),
+])
+def test_json_encoding_error_is_not_retried_as_transport(provider, object_type, monkeypatch):
+    connector = _connector(provider)      # as in the new test module
+    connector._retry_attempts = 3
+    monkeypatch.setattr("time.sleep", lambda s: None)
+    monkeypatch.setattr(requests.Session, "send", Mock(side_effect=AssertionError("no HTTP expected")))
+    request = Mock(wraps=connector._session.request)
+    monkeypatch.setattr(connector._session, "request", request)
+    with pytest.raises(Exception):
+        connector.create_record(object_type, {"Name": "x", "AnnualRevenue": float("nan")})
+    assert request.call_count == 1
+
+
 def test_salesforce_bulk_upsert_sends_sanitized_csv(upsert_rows, monkeypatch):
     frame, expected = upsert_rows
     original = frame.copy(deep=True)
