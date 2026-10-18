@@ -210,24 +210,41 @@ class CompositeChartMixin:
         """
         Create a dashboard with multiple charts.
 
+        Every chart uses ``{'type': 'bar'|'line'|'pie'|'scatter', 'title': ...,
+        'data': {'labels': [...], 'datasets': [{'label': 'Series',
+        'data': [...]}]}}``. Each dataset has one numeric value per label;
+        omitted series labels default to "Dataset N". Scatter labels supply
+        x coordinates. Multiple pie datasets are concentric rings, ordered
+        from outside to inside, with series/category entries in the legend.
+        Invalid data, unsupported types, and grid overflow raise RuntimeError.
+
         Args:
             charts: List of chart configurations
-            layout: Layout string (e.g., "2x2", "3x1")
+            layout: Columns x rows (e.g., "2x2", "3x1")
             width: Total dashboard width in inches
             height: Total dashboard height in inches
 
         Returns:
             ReportLab Image object
         """
-        if not MATPLOTLIB_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Matplotlib not available")
-
+        fig = None
         try:
             # Parse layout
-            if 'x' in layout:
-                cols, rows = map(int, layout.split('x'))
-            else:
-                cols, rows = 2, 2
+            cols, rows = map(int, layout.split('x'))
+            if cols < 1 or rows < 1:
+                raise ValueError("Dashboard layout dimensions must be positive")
+            if len(charts) > cols * rows:
+                overflow = [chart.get('title', f'Chart {i + 1}')
+                            for i, chart in enumerate(charts) if i >= cols * rows]
+                raise ValueError(f"Dashboard overflow for layout {layout}: {overflow}")
+            for i, chart in enumerate(charts):
+                chart_type = chart.get('type', 'bar')
+                if chart_type not in ('bar', 'line', 'pie', 'scatter'):
+                    name = chart.get('title', f'Chart {i + 1}')
+                    raise ValueError(f"Unknown chart type {chart_type!r} for {name!r}")
+
+            if not MATPLOTLIB_AVAILABLE:
+                return self._create_placeholder_chart(width, height, "Matplotlib not available")
 
             # Create subplot grid with very conservative sizing to prevent ReportLab crashes
             fig, axes = plt.subplots(rows, cols, figsize=(width, height), dpi=self.default_dpi)
@@ -242,9 +259,6 @@ class CompositeChartMixin:
 
             # Create each chart
             for i, chart_config in enumerate(charts):
-                if i >= len(axes):
-                    break
-
                 ax = axes[i]
                 chart_type = chart_config.get('type', 'bar')
                 chart_title = chart_config.get('title', f'Chart {i+1}')
@@ -269,15 +283,9 @@ class CompositeChartMixin:
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-
-
-            raise RuntimeError(
-
-
-                f"Dashboard Error: {e}"
-
-
-            ) from e
+            if fig is not None:
+                plt.close(fig)
+            raise RuntimeError(f"Dashboard Error: {e}") from e
 
     def create_dataframe_summary_charts(self, df: 'pd.DataFrame',
                                      title: str = "", width: float = 8.0, height: float = 6.0) -> Image:
@@ -338,59 +346,75 @@ class CompositeChartMixin:
 
             ) from e
 
-    def _create_bar_subplot(self, ax, chart_config: Dict[str, Any], title: str):
-        """Create a bar chart in a subplot."""
-        try:
-            data = chart_config.get('data', {})
-            labels = data.get('labels', [])
-            datasets = data.get('datasets', [])
+    def _dashboard_data(self, chart_config: Dict[str, Any]):
+        """Validate and normalize the shared labels/datasets schema without mutating it."""
+        data = chart_config.get('data', {})
+        labels = data.get('labels', [])
+        datasets = data.get('datasets', [])
+        title = chart_config.get('title', 'Chart')
+        if not len(labels) or not len(datasets):
+            raise ValueError(f"{title!r} requires non-empty labels and datasets")
+        normalized = []
+        for i, dataset in enumerate(datasets):
+            label = dataset.get('label') or f'Dataset {i + 1}'
+            values = np.asarray(dataset.get('data', []), dtype=float)
+            if values.ndim != 1 or len(values) != len(labels):
+                raise ValueError(f"{title!r}, dataset {label!r}: one value per label required")
+            if not np.isfinite(values).all():
+                raise ValueError(f"{title!r}, dataset {label!r}: values must be finite")
+            normalized.append({'label': str(label), 'data': values})
+        return labels, normalized
 
-            if datasets and len(datasets) > 0:
-                values = datasets[0].get('data', [])
-                ax.bar(labels, values, color=self.default_colors['primary'])
-                ax.set_title(title)
-                ax.grid(True, alpha=0.3)
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            log.error(f"Error creating bar subplot: {e}")
+    def _create_bar_subplot(self, ax, chart_config: Dict[str, Any], title: str):
+        """Plot every dataset as a labelled, side-by-side bar series."""
+        labels, datasets = self._dashboard_data(chart_config)
+        positions = np.arange(len(labels))
+        bar_width = 0.8 / len(datasets)
+        for i, dataset in enumerate(datasets):
+            offsets = positions + (i - (len(datasets) - 1) / 2) * bar_width
+            ax.bar(offsets, dataset['data'], width=bar_width, label=dataset['label'],
+                   color=self.color_palette[i % len(self.color_palette)])
+        ax.set_xticks(positions, labels=labels)
+        ax.set_title(title)
+        ax.legend()
+        ax.grid(True, alpha=0.3)
 
     def _create_line_subplot(self, ax, chart_config: Dict[str, Any], title: str):
         """Create a line chart in a subplot."""
-        try:
-            data = chart_config.get('data', {})
-            labels = data.get('labels', [])
-            datasets = data.get('datasets', [])
-
-            for i, dataset in enumerate(datasets):
-                values = dataset.get('data', [])
-                color = self.color_palette[i % len(self.color_palette)]
-                ax.plot(labels, values, color=color, marker='o')
-
-            ax.set_title(title)
-            ax.grid(True, alpha=0.3)
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            log.error(f"Error creating line subplot: {e}")
+        labels, datasets = self._dashboard_data(chart_config)
+        for i, dataset in enumerate(datasets):
+            color = self.color_palette[i % len(self.color_palette)]
+            ax.plot(labels, dataset['data'], label=dataset['label'], color=color, marker='o')
+        ax.set_title(title)
+        ax.legend()
+        ax.grid(True, alpha=0.3)
 
     def _create_pie_subplot(self, ax, chart_config: Dict[str, Any], title: str):
-        """Create a pie chart in a subplot."""
-        try:
-            data = chart_config.get('data', {})
-            labels = data.get('labels', [])
-            values = data.get('data', [])
-
-            ax.pie(values, labels=labels, autopct='%1.1f%%', colors=self.color_palette[:len(values)])
-            ax.set_title(title)
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            log.error(f"Error creating pie subplot: {e}")
+        """Plot each dataset as a pie or concentric ring with a series/category legend."""
+        labels, datasets = self._dashboard_data(chart_config)
+        handles, legend_labels = [], []
+        ring_width = 0.8 / len(datasets)
+        for i, dataset in enumerate(datasets):
+            values = dataset['data']
+            if (values < 0).any() or values.sum() <= 0:
+                raise ValueError(f"{title!r}, dataset {dataset['label']!r}: "
+                                 "pie values must be non-negative with a positive total")
+            wedges, _, _ = ax.pie(
+                values, autopct='%1.1f%%', colors=self.color_palette,
+                radius=1 - i * ring_width,
+                wedgeprops={'width': ring_width} if len(datasets) > 1 else None,
+            )
+            handles.extend(wedges)
+            legend_labels.extend(f"{dataset['label']}: {label}" for label in labels)
+        ax.legend(handles, legend_labels)
+        ax.set_title(title)
 
     def _create_scatter_subplot(self, ax, chart_config: Dict[str, Any], title: str):
         """Create a scatter plot in a subplot."""
-        try:
-            data = chart_config.get('data', {})
-            x_values = data.get('x', [])
-            y_values = data.get('y', [])
-
-            ax.scatter(x_values, y_values, alpha=0.6, color=self.default_colors['primary'])
-            ax.set_title(title)
-            ax.grid(True, alpha=0.3)
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            log.error(f"Error creating scatter subplot: {e}")
+        labels, datasets = self._dashboard_data(chart_config)
+        for i, dataset in enumerate(datasets):
+            ax.scatter(labels, dataset['data'], label=dataset['label'], alpha=0.6,
+                       color=self.color_palette[i % len(self.color_palette)])
+        ax.set_title(title)
+        ax.legend()
+        ax.grid(True, alpha=0.3)
