@@ -116,10 +116,9 @@ def unzip_file_to_directory(zip_file_path: FilePath,
     else:
         target_dir = extract_dir
 
-    target_dir.mkdir(parents=True, exist_ok=True)
-
     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
         target_resolved = target_dir.resolve()
+        members = []
         for member in zip_ref.namelist():
             try:
                 (target_dir / member).resolve().relative_to(target_resolved)
@@ -128,6 +127,15 @@ def unzip_file_to_directory(zip_file_path: FilePath,
                     "Zip slip attempt detected, skipping member: %r", member,
                 )
                 continue
+            members.append(member)
+        # Refuse the whole archive, before creating anything, if extraction
+        # would create a directory with an unsafe name (#1716).
+        from siege_utilities.files.validation import reject_unsafe_new_directory_names
+        for member in members:
+            destination = target_dir / member
+            reject_unsafe_new_directory_names(destination if member.endswith('/') else destination.parent)
+        target_dir.mkdir(parents=True, exist_ok=True)
+        for member in members:
             zip_ref.extract(member, target_dir)
 
     log.info(f"Extracted {zip_path} to {target_dir}")

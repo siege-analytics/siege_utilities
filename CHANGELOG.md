@@ -13,13 +13,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `PathSecurityError` when a path component that does not exist yet contains a
   C0 control character, DEL or a C1 control character. This covers callers that
   create directories through it, such as `ensure_path_exists`, and the
-  zip-named subdirectory `unzip_file_to_directory` creates. Member paths inside
-  an archive are not checked. Existing directories with such names still
+  zip-named subdirectory `unzip_file_to_directory` creates. Member directories
+  inside an archive are checked too (#1716). Existing directories with such names still
   validate when they can be stat'ed, and file-path validation is unchanged.
   Path-validation messages and the debug log now show paths with `repr()`, so
   escape sequences are not written raw. Because the zip-named subdirectory is
   now validated, a zip whose stem is `..` (e.g. `...zip`) raises instead of
   extracting into the parent of `extract_to` (#1692).
+- Google Slides report figures no longer persist in Drive.
+  `create_report_from_arguments` / `create_argument_slide` now insert each
+  chart or map through the new `temporary_public_figure` context manager: the
+  PNG is uploaded into the report's `folder_id` (previously the Drive root),
+  shared anyone-with-the-link only while Slides copies it, and deleted from
+  Drive afterwards, including when the insert fails. Anyone relying on the
+  leftover `fig_slide_*.png` files in Drive no longer gets them; keep your own
+  copy of the figure if you need one. A failed delete is logged at ERROR with
+  the file ID; it is raised only when the insert itself succeeded, so it never
+  hides an insert error. New `publish_figures=True` keyword on both functions:
+  pass `False` to create no anyone-with-the-link permission at all, in which
+  case figures are left out of the slides with a WARNING. `create_argument_slide`
+  also gains an optional `folder_id`. A Google API `HttpError` from the figure
+  upload/insert is now reported as a failed slide like other figure errors.
+  `upload_figure_to_drive` is unchanged and still leaves its file public; its
+  docstring now says so. The file-ID log lines in `upload_figure_to_drive` and
+  `GoogleWorkspaceClient.public_url` moved from INFO to DEBUG (#1450).
+- The same check now covers every public helper that creates a directory or
+  a file's parent: `ensure_directory_exists`, `touch_file`, `copy_file`,
+  `move_file`, `delete_existing_file_and_replace_it_with_an_empty_file`,
+  `safe_file_write`, `safe_json_write`, `atomic_write_path`,
+  `atomic_write_shapefile`, `download_file`, `save_spatial`, `save_tabular`
+  and the credential writer `secure_write_text`. Each raises
+  `PathSecurityError` and creates nothing. Paths are checked as written, so in
+  `a/<new>/../b` the `<new>` that `mkdir` would create on the way is checked
+  too; where files land and how symlinks are treated are unchanged.
+  `unzip_file_to_directory` refuses an archive, before extracting anything,
+  if a member would create such a directory. New components containing a lone surrogate, which is
+  how undecodable (non-UTF-8) bytes reach Python, are refused as well. The
+  check is public as `reject_unsafe_new_directory_names` (#1716).
 
 ### Fixed
 
@@ -36,6 +66,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `RDHLoaderService.load_cvap_for_plan` and the CSV path of
   `load_demographics_for_plan` report numeric GEOID columns and unmatched
   districts instead of skipping them silently.
+- `get_directory_info`, `load_directory_config`, `list_directory_configs`,
+  `load_project_config` and `list_projects` create nothing, so they are back to
+  their behaviour before #1692: a missing name containing a control character
+  returns `{}`, `None`, `[]`, raises `FileNotFoundError` and returns `[]`
+  respectively, instead of raising `PathSecurityError` (#1716).
+- The test suite drops every inherited `SIEGE_*` variable except the
+  `SIEGE_TEST_*` run controls, so a run never reads or rewrites the
+  developer's own config through `SIEGE_USER_CONFIG_DIR`,
+  `SIEGE_SETTINGS_FILE` or any `SIEGE_<SETTING>` override (#1717).
+- `is_sensitive_path` again blocks `_`/`-` prefixed private-key names outside
+  `.ssh` (`deploy_id_rsa`, `github-id_ecdsa`) and now covers `id_ed25519`;
+  `paid_rsa` and `*.pub` stay allowed (#1702).
+- Demographic population queries now keep equal GEOIDs in different boundary
+  types and datasets separate. Boundary lookups use GEOIDs instead of integer
+  PKs; plan assignments accept BigAutoField-sized boundary PKs. The migration
+  keeps existing GEOID matches unchanged, including those with coincident
+  boundary PKs. GEOID-shaped orphans also stay unchanged: a leading zero on a
+  multi-character key or a length present in that content type's loaded GEOIDs
+  prevents PK conversion, even when the boundary is not loaded. Only canonical
+  positive integers without leading zeros or a GEOID length can convert from a
+  matching boundary PK; other unmatched keys are unresolved.
+  Any unresolved or duplicate rows abort the migration atomically with counts
+  per model and reason. After reviewing those counts, operators can explicitly
+  set `SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE=1` for the migration command to
+  archive and remove those rows. Duplicates retain the newest `updated_at`, then
+  highest PK. Recovery copies support reversal unless migrated rows were edited.
+  Both migration directions allow 30 minutes per statement for large index and
+  constraint builds, with a five-second lock timeout.
+  Before running `migrate siege_geo`, back up `siege_geo_demographicsnapshot`
+  and `siege_geo_demographictimeseries`, for example with
+  `pg_dump -t siege_geo_demographicsnapshot -t siege_geo_demographictimeseries`.
+  The opt-in `SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE=1` archives removed rows
+  into `siege_geo_demographickeyarchive`; this archive table is dropped when
+  the migration is reversed.
+  (#1560)
 
 - Failed legacy profile migrations no longer create defaults or report
   `migrated=True`; missing files are not migrations. Missing snapshot years
@@ -100,6 +165,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the full 7-digit GEOID to prevent cross-state PLACEFP collisions. (#1441)
 
 ### BREAKING
+
+- `groupby_agg` on PandasEngine, DuckDBEngine and PostGISEngine now keeps
+  NULL-key groups (pandas `dropna=False`, matching SQL and SparkEngine);
+  previously rows with a NULL group key were silently dropped, so totals
+  could be short. The `sum` of a group with no non-null values is now NULL
+  (NaN/NA), not 0.0; INVARIANTS.md is updated to match SQL/Spark. Callers
+  that relied on 0.0 should `.fillna(0)` explicitly. `first`/`last` still
+  differ between the pandas-backed engines and Spark (documented) (#1454).
+
+- `DemographicSnapshot` and `DemographicTimeSeries` now use GEOID-native keys.
+  The indexed `object_id` CharField is retained as the ORM/storage name and
+  repurposed as GEOID-only; `geoid` is a read/write instance alias (also accepted
+  by `create`). `content_type` is a plain FK. `content_object`, including
+  `create(content_object=boundary)`, is deprecated for one release and will be
+  removed in v4.2.0; it warns and now stores/resolves the boundary's GEOID, never
+  its PK. Use `create(content_type=..., object_id=boundary.geoid)` and
+  `get_boundary(vintage_year=...)`; omitted vintage selects the newest available
+  boundary. Reverse access is `County.objects.filter(pk=...).snapshots()`.
+  `by_population(..., dataset="acs5")` now scopes by content type and dataset and
+  selects the newest data year when no year is specified. GFK-specific relation
+  introspection/prefetch APIs no longer apply. (#1560)
 
 - `ConfigurationMigrator.migrate_user_profile` and `migrate_client_profile`
   in both `config.enhanced_config` and `config.migration` now propagate file,
@@ -238,6 +324,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fallback files are not migrated or trusted automatically. Platforms without
   a POSIX uid use per-user Windows LocalAppData/AppData instead of shared temp;
   Windows file privacy depends on the user's inherited ACLs, not POSIX chmod.
+  (#1452)
+- `UserConfigManager.export_config()` no longer writes `postgresql_connection`
+  or `duckdb_path` (in addition to the three API keys), and writes the export
+  atomically at mode 0600 on POSIX. Exports are no longer a way to copy the
+  database DSN between machines; set it again with `set_database_connection`.
   (#1452)
 - `Person.from_yaml` and `import_entities` now reject imported string values
   containing `***REDACTED***` (including nested mapping/list values and
