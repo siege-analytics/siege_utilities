@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Use cumulative volunteer sign-up counts throughout `notebooks/reports/01_charts_and_pdf.ipynb`.
+  Derive the chart, table, and report's +37.8% growth from 37 baseline sign-ups to 51 Q1 sign-ups,
+  replacing the unsupported percentage-share labels (#1673).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
