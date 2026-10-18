@@ -31,7 +31,7 @@ def test_inner_inherited_siege_variables_are_dropped():
     UserConfigManager().update_user_profile(username="isolation-probe")
 
 
-def _fingerprint(path: Path):
+def _fingerprint(path: Path) -> tuple[str | None, int]:
     st = path.stat()
     digest = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
     return digest, stat.S_IMODE(st.st_mode)

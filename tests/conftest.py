@@ -54,7 +54,7 @@ _HOME_PASSTHROUGH = (
 )
 
 
-def _isolate_home(base):
+def _isolate_home(base: str) -> None:
     """Point HOME at an empty directory so library defaults under Path.home() stay out of it.
 
     pytest-django imports parts of siege_utilities before this runs; none of
@@ -79,7 +79,7 @@ def _isolate_home(base):
         os.environ['USERPROFILE'] = str(fake_home)
 
 
-def _restore_home():
+def _restore_home() -> None:
     for var, value in _SAVED_HOME_ENV.items():
         if value is None:
             os.environ.pop(var, None)
@@ -94,7 +94,7 @@ _SIEGE_TEST_CONTROL_PREFIXES = ('SIEGE_TEST_', 'SIEGE_UTILITIES_TEST_PG_DSN')
 _SAVED_SIEGE_ENV = {}
 
 
-def _drop_inherited_siege_env():
+def _drop_inherited_siege_env() -> None:
     """Unset every inherited SIEGE_* variable except the test-run controls.
 
     The library reads SIEGE_<NAME> for every setting (conf/__init__.py) and
@@ -109,7 +109,7 @@ def _drop_inherited_siege_env():
         _SAVED_SIEGE_ENV[var] = os.environ.pop(var)
 
 
-def _restore_siege_env():
+def _restore_siege_env() -> None:
     for var in [v for v in os.environ if v.startswith('SIEGE_')]:
         if not var.startswith(_SIEGE_TEST_CONTROL_PREFIXES):
             os.environ.pop(var)
@@ -189,7 +189,7 @@ def _siege_test_directories():
 
 
 @pytest.fixture(autouse=True)
-def _isolated_cwd(tmp_path_factory, monkeypatch):
+def _isolated_cwd(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
     """Run each test from an empty directory of its own.
 
     Library defaults such as Path.cwd() / "reports" otherwise land in the
