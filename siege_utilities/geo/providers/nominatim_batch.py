@@ -109,17 +109,10 @@ class NominatimBatchGeocoder(BatchGeocoder):
 
     def _geocode_single(self, addr: AddressInput) -> GeocodingResult:
         """Geocode a single address via Nominatim HTTP API."""
-        query = addr.one_line
-        if not query:
-            return GeocodingResult(
-                input_address=query,
-                input_id=addr.input_id,
-                match_quality=MatchQuality.NO_MATCH.value,
-                backend=self.backend_name,
-            )
-
+        query = ""
         try:
-            coords = self._nominatim_request(query)
+            query = addr.one_line
+            coords = self._nominatim_request(query) if query else None
             if coords is not None:
                 lat, lon = coords
                 return GeocodingResult(

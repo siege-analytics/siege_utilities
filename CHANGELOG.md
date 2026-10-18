@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Batch geocoder normalization now restores leading zeros in numeric ZIPs,
+  preserves string ZIPs (including ZIP+4), converts dictionary fields to strings,
+  and treats NaN/None as empty values. Mixed address lists and non-string
+  `AddressInput.one_line` components no longer crash. Nominatim and TAMU query
+  construction failures now produce one unmatched row instead of aborting the
+  whole batch and causing the composite geocoder to silently drop the backend.
+  `concatenate_addresses` also skips NaN/None components (#1526).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed

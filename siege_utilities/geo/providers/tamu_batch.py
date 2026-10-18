@@ -121,17 +121,10 @@ class TAMUBatchGeocoder(BatchGeocoder):
 
     def _geocode_single(self, addr: AddressInput) -> GeocodingResult:
         """Geocode a single address via TAMU."""
-        query = addr.one_line
-        if not query:
-            return GeocodingResult(
-                input_address=query,
-                input_id=addr.input_id,
-                match_quality=MatchQuality.NO_MATCH.value,
-                backend=self.backend_name,
-            )
-
+        query = ""
         try:
-            resp = self._tamu_request(addr)
+            query = addr.one_line
+            resp = self._tamu_request(addr) if query else None
             if resp is not None:
                 return resp
         except Exception as exc:

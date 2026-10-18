@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from numbers import Number
 from typing import Optional
 
 __all__ = [
@@ -343,7 +344,7 @@ def concatenate_addresses(street=None, city=None, state_province_area=None,
     """
     components = []
     for component in (street, city, state_province_area, postal_code, country):
-        if component is None:
+        if component is None or (isinstance(component, Number) and component != component):
             continue
         value = str(component).strip()
         if value:
