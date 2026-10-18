@@ -20,6 +20,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   escape sequences are not written raw. Because the zip-named subdirectory is
   now validated, a zip whose stem is `..` (e.g. `...zip`) raises instead of
   extracting into the parent of `extract_to` (#1692).
+- Google Slides report figures no longer persist in Drive.
+  `create_report_from_arguments` / `create_argument_slide` now insert each
+  chart or map through the new `temporary_public_figure` context manager: the
+  PNG is uploaded into the report's `folder_id` (previously the Drive root),
+  shared anyone-with-the-link only while Slides copies it, and deleted from
+  Drive afterwards, including when the insert fails. Anyone relying on the
+  leftover `fig_slide_*.png` files in Drive no longer gets them; keep your own
+  copy of the figure if you need one. A failed delete is logged at ERROR with
+  the file ID; it is raised only when the insert itself succeeded, so it never
+  hides an insert error. New `publish_figures=True` keyword on both functions:
+  pass `False` to create no anyone-with-the-link permission at all, in which
+  case figures are left out of the slides with a WARNING. `create_argument_slide`
+  also gains an optional `folder_id`. A Google API `HttpError` from the figure
+  upload/insert is now reported as a failed slide like other figure errors.
+  `upload_figure_to_drive` is unchanged and still leaves its file public; its
+  docstring now says so. The file-ID log lines in `upload_figure_to_drive` and
+  `GoogleWorkspaceClient.public_url` moved from INFO to DEBUG (#1450).
 - The same check now covers every public helper that creates a directory or
   a file's parent: `ensure_directory_exists`, `touch_file`, `copy_file`,
   `move_file`, `delete_existing_file_and_replace_it_with_an_empty_file`,
