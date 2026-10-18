@@ -45,7 +45,7 @@ class TestCodeAnalysisPipelineE2E:
         # before: the function has no docstring
         assert self._func_docstring(src.read_text(), "add") is None
 
-        result = process_python_file(str(src))
+        result = process_python_file(str(src), dry_run=False)
 
         # the helper edits in place and returns None; the real-path crash the
         # fix addressed would raise here instead.

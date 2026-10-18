@@ -153,7 +153,12 @@ def test_ci_runs_guard_as_blocking_job():
     import yaml
 
     workflow = yaml.safe_load((_SCRIPT.parent.parent / ".github/workflows/ci.yml").read_text())
-    job = workflow["jobs"]["secret-literal-guard"]
+    # The guard is a step of the combined static-guards job (#1729); find the
+    # job that runs it rather than assuming its id.
+    jobs = [job for job in workflow["jobs"].values()
+            if any("check_secret_literals.py" in step.get("run", "") for step in job.get("steps", []))]
+    assert len(jobs) == 1
+    job = jobs[0]
     assert not job.get("continue-on-error", False)
     assert "if" not in job
     steps = [step for step in job["steps"] if "check_secret_literals.py" in step.get("run", "")]

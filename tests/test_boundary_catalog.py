@@ -40,8 +40,16 @@ class TestBoundaryTypeCatalog:
             )
 
     def test_line_features_are_multilinestring(self):
-        """Roads, rails, linear_water, edges, address_features should be MultiLineString."""
-        line_types = ["roads", "rails", "linear_water", "edges", "address_features"]
+        """Rails should be MultiLineString.
+
+        roads, linear_water, edges and address_features are published only per
+        county, so they are not advertised in the catalog until per-county
+        downloads are supported (#1464).
+        """
+        from siege_utilities.geo.spatial_data import _PER_COUNTY_TYPES
+        for key in _PER_COUNTY_TYPES:
+            assert key not in BOUNDARY_TYPE_CATALOG, f"Per-county layer advertised: '{key}'"
+        line_types = ["rails"]
         for key in line_types:
             assert key in BOUNDARY_TYPE_CATALOG, f"Missing catalog entry: '{key}'"
             assert BOUNDARY_TYPE_CATALOG[key]["geometry_type"] == "MultiLineString", (
@@ -71,8 +79,12 @@ class TestBoundaryTypeCatalog:
             assert BOUNDARY_TYPE_CATALOG[key]["geometry_type"] == "MultiPolygon"
 
     def test_minimum_entry_count(self):
-        """Catalog should have at least 46 entries (cd117 removed: 117th Congress absent from TIGER)."""
-        assert len(BOUNDARY_TYPE_CATALOG) >= 46
+        """Catalog should have at least 41 entries.
+
+        cd117 was removed (117th Congress absent from TIGER), and the five
+        per-county layers were removed in #1464.
+        """
+        assert len(BOUNDARY_TYPE_CATALOG) >= 41
 
 
 class TestTigerFilePatterns:

@@ -357,7 +357,8 @@ class CensusAPI:
             county_fips or '',
         ]
         key_str = '|'.join(key_parts)
-        return hashlib.md5(key_str.encode()).hexdigest()
+        # Known bandit B324 finding, suppressed here and tracked in #1754.
+        return hashlib.md5(key_str.encode()).hexdigest()  # nosec B324
 
     def _get_from_cache(self, cache_key: str) -> Optional[pd.DataFrame]:
         if self.cache_backend == 'django':
