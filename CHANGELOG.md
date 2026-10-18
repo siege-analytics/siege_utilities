@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `TimeseriesService` now calculates CAGR per calendar year instead of per
+  observation gap; sparse series previously overstated annual growth by roughly
+  the observation spacing factor. Missing MOEs retain `None` placeholders so
+  `years`, `values`, and `moe_values` stay positionally aligned. Snapshot reads
+  and existing-series lookups are batched per variable and geography level,
+  preserving series values while removing per-GEOID reads (#1622).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
