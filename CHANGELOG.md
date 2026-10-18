@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- PL 94-171 parsing now names geographic header fields from the 2020 schema,
+  so GEOIDs use STATE instead of DIVISION. H1 is read after P3/P4 in segment 2,
+  as specified by the Census technical documentation; segment 1 contains
+  P1/P2 and segment 3 contains P5. This restores housing columns and fixes
+  P3/P4 requests failing with a column-count mismatch. Malformed segment
+  widths now raise a descriptive error, repeated linking fields no longer
+  collide when merging all tables, and old parsed caches are bypassed.
+  Parsing 2010 files now raises `NotImplementedError` explaining their
+  fixed-width geographic headers and comma-delimited data segments; raw
+  archive downloads remain supported (#1488).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
