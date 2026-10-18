@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `demographic_profile` assigns Census units by their representative interior
+  points, so units straddling district boundaries are counted once rather than
+  dropped. Units whose interior points fall outside the plan are excluded (#1562).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
