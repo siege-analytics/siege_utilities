@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Census API response processing now maps all nine ACS jam sentinel values to
+  NaN using the same sentinel sets as the bulk source. Only ACS detailed-table
+  estimate/MOE columns are converted to numbers; geographic identifiers retain
+  leading zeros, and annotation and other non-matching columns are preserved
+  (#1403).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed

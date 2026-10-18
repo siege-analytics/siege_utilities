@@ -32,6 +32,7 @@ from siege_utilities.geo.census_api_client import (
     get_income_data,
     get_census_api_client,
 )
+from siege_utilities.geo.census.api import CensusAPI
 
 
 # =============================================================================
@@ -388,6 +389,135 @@ class TestGEOIDConstruction:
         })
         result = census_client._construct_geoid(df, 'block_group')
         assert result['GEOID'].iloc[0] == '060370101001'
+
+
+# =============================================================================
+# RESPONSE NORMALIZATION TESTS
+# =============================================================================
+
+class TestCensusAPIResponseNormalization:
+    """Offline regressions for sentinel and string preservation (#1403)."""
+
+    JAM_VALUES = (
+        -111111111, -222222222, -333333333, -444444444, -555555555,
+        -666666666, -777777777, -888888888, -999999999,
+    )
+
+    @pytest.fixture(autouse=True)
+    def no_network(self, monkeypatch):
+        monkeypatch.setattr(
+            'requests.sessions.Session.request',
+            Mock(side_effect=AssertionError('Live network is forbidden')),
+        )
+
+    @pytest.mark.parametrize('variable', ['B01001_001E', 'B01001_001M'])
+    @pytest.mark.parametrize('encode', [str, int, float], ids=['string', 'int', 'float'])
+    def test_all_jam_values_become_nan(self, variable, encode):
+        raw = pd.DataFrame({variable: [encode(value) for value in self.JAM_VALUES]})
+        original = raw.copy(deep=True)
+
+        result = CensusAPI._convert_numeric_columns(raw)
+
+        assert result[variable].isna().all()
+        assert pd.api.types.is_numeric_dtype(result[variable])
+        pd.testing.assert_frame_equal(raw, original)
+
+    @pytest.mark.parametrize('column,value,geography', [
+        ('congressional district', '005', 'county'),
+        ('state legislative district (upper chamber)', '005', 'county'),
+        ('state legislative district (lower chamber)', '005', 'county'),
+        ('school district (unified)', '005', 'county'),
+        ('zip code tabulation area', '02134', 'zcta'),
+        ('GEO_ID', '0500000US06037', 'county'),
+    ])
+    def test_process_response_preserves_identifiers(self, column, value, geography):
+        raw = pd.DataFrame({
+            'NAME': ['Example'], 'state': ['06'], 'county': ['037'],
+            column: [value], 'B01001_001E': ['1234'],
+        })
+        processor = object.__new__(CensusAPI)
+
+        result = processor._process_response(raw, geography)
+
+        assert result.loc[0, column] == value
+        assert isinstance(result.loc[0, column], str)
+        assert result.loc[0, 'GEOID'] == ('02134' if geography == 'zcta' else '06037')
+        assert result.loc[0, 'NAME'] == 'Example'
+        assert result.loc[0, 'B01001_001E'] == 1234
+
+    @pytest.mark.parametrize('variable', ['B01001_001EA', 'B01001_001MA'])
+    def test_annotation_strings_are_preserved(self, variable):
+        values = ['null', '*', '(X)', '005', '-666666666']
+        raw = pd.DataFrame({variable: values})
+
+        result = CensusAPI._convert_numeric_columns(raw)
+
+        pd.testing.assert_series_equal(result[variable], raw[variable])
+
+    @pytest.mark.parametrize('variable', [
+        'B01001_001E', 'B01001_001M', 'B01001A_001E',
+        'B05001PR_001M', 'C17002_001E', 'C17002_001M',
+    ])
+    def test_process_response_parses_genuine_numbers_and_masks_sentinel(self, variable):
+        raw = pd.DataFrame({
+            'NAME': ['Example'] * 6, 'state': ['06'] * 6,
+            variable: ['1234', '0', '-42', '12.5', '-666666666', 'null'],
+        })
+        processor = object.__new__(CensusAPI)
+
+        result = processor._process_response(raw, 'state')
+
+        expected = pd.Series([1234, 0, -42, 12.5, float('nan'), float('nan')], name=variable)
+        pd.testing.assert_series_equal(result[variable], expected)
+        assert result['GEOID'].tolist() == ['06'] * 6
+
+    @pytest.mark.parametrize('column', [
+        'other', 'P1_001N', 'DP05_0001E', 'B01001_01E', 'B01001_0001E',
+        'B0100_001E', 'B010001_001E', 'B01001a_001E',
+        'prefixB01001_001E', 'B01001_001Esuffix',
+    ])
+    def test_nonmatching_columns_are_untouched(self, column):
+        raw = pd.DataFrame({column: ['005', '-666666666']})
+
+        result = CensusAPI._convert_numeric_columns(raw)
+
+        pd.testing.assert_frame_equal(result, raw)
+
+    def test_numeric_results_match_bulk_sentinel_masking(self, tmp_path, monkeypatch):
+        from siege_utilities.geo.census.dual_source import BulkFileSource
+
+        values = [str(value) for value in self.JAM_VALUES] + ['1234', '0', '-42', '12.5']
+        raw = pd.DataFrame({'B01001_001E': values, 'B01001_001M': values})
+        bulk_raw = raw.copy()
+        bulk_raw.index = pd.Index(
+            [f'06{index:03d}' for index in range(1, len(values) + 1)], name='GEOID',
+        )
+        source = BulkFileSource(cache_dir=tmp_path)
+        monkeypatch.setattr(source, '_download', Mock(return_value=tmp_path / 'synthetic.dat'))
+        monkeypatch.setattr(source, '_read_table', Mock(return_value=bulk_raw))
+
+        api_result = CensusAPI._convert_numeric_columns(raw)
+        bulk_result, _ = source.fetch(
+            variables=list(raw.columns), year=2022, geography='county', state_fips='06',
+            include_moe=False,
+        )
+
+        pd.testing.assert_frame_equal(api_result, bulk_result[list(raw.columns)])
+
+    def test_imports_share_canonical_sentinel_sets(self):
+        import importlib
+
+        api = importlib.import_module('siege_utilities.geo.census.api')
+        bulk = importlib.import_module('siege_utilities.geo.census.dual_source')
+        registry = importlib.import_module('siege_utilities.geo.census.variable_registry')
+
+        assert api.CensusAPI is CensusAPI
+        assert registry.ACS_SENTINELS == frozenset(self.JAM_VALUES)
+        assert registry.ACS_SENTINEL_STRINGS == frozenset(str(v) for v in self.JAM_VALUES)
+        assert bulk._SENTINELS is registry.ACS_SENTINELS
+        assert bulk._SENTINEL_STRINGS is registry.ACS_SENTINEL_STRINGS
+        assert api.ACS_SENTINELS is registry.ACS_SENTINELS
+        assert api.ACS_SENTINEL_STRINGS is registry.ACS_SENTINEL_STRINGS
 
 
 # =============================================================================
