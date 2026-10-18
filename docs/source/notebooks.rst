@@ -38,7 +38,7 @@ Analytics
 ---------
 
 - **01_connectors** — GA, Snowflake connector patterns
-- **02_ga_end_to_end** — Weekly GA digest pipeline: fetch, chart, PDF
+- **02_ga_end_to_end** — Offline fixed-date GA demo: synthetic fixture, chart, PDF
 - **03_social_media_analytics** — Social platform analytics patterns
 - **04_crm_pipeline** — CRM pipeline patterns
 - **05_crm_sales_reports** — CRM sales reporting patterns

@@ -10,7 +10,6 @@ from unittest.mock import Mock, patch
 import nbformat
 import pandas as pd
 import pytest
-from PyPDF2 import PdfReader
 
 
 NOTEBOOK = Path(__file__).resolve().parents[1] / "notebooks/analytics/02_ga_end_to_end.ipynb"
@@ -77,6 +76,7 @@ def test_fixture_ignores_credentials_and_labels_fixed_comparison(
 
 def test_pure_offline_cells_generate_a_labelled_pdf(monkeypatch):
     """Run every code cell in normal CI, without credentials or an API service."""
+    PdfReader = pytest.importorskip("PyPDF2").PdfReader
     monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
     monkeypatch.delenv("GA_PROPERTY_ID", raising=False)
     indices = [i for i, cell in enumerate(_notebook().cells) if cell.cell_type == "code"]
@@ -181,3 +181,18 @@ def test_documented_recipe_rejects_zero_prior_sessions(live_connector):
     live_connector.get_ga4_data.side_effect = [_week(), _week(0)]
     with pytest.raises(ValueError, match="prior.*zero"):
         _run_live_recipe()
+
+
+def test_live_recipe_does_not_call_still_processing_days_complete():
+    md = next(c.source for c in _notebook().cells if c.get("id") == "live-recipe")
+    windows = re.findall(r"query_week\('(\w+)', '(\w+)'\)", md)
+    assert windows
+    text = re.sub(r"[*_`]", "", md.lower())
+    if any(end in ("today", "yesterday") for _, end in windows):
+        assert "complete days" not in text and "processing" in text, windows
+
+
+def test_offline_ga_notebook_runs_in_pure_notebook_ci():
+    from tests.test_notebooks import NOTEBOOK_GROUPS
+    assert "analytics/02_ga_end_to_end.ipynb" in NOTEBOOK_GROUPS["pure"]
+    assert "analytics/02_ga_end_to_end.ipynb" not in NOTEBOOK_GROUPS["analytics_integration"]

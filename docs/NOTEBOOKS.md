@@ -48,7 +48,7 @@ introduces both and proves the wire-up by rendering the same chart under each br
 | spatial | 06 | GeoDjango API for TX-32 precincts | ElectInfo |
 | spatial | 07 | Natural-language spatial filters resolved to fixture geometry and GeoPandas handoff | ElectInfo |
 | analytics | 01 | Three connectors, one call-shape pattern | Masai |
-| analytics | 02 | Weekly GA digest PDF | Masai |
+| analytics | 02 | Offline fixed-date GA demo: synthetic fixture, chart, PDF | Masai |
 | analytics | 03 | Social media fixture analytics and report payload assembly | Masai |
 | analytics | 04 | CRM pipeline deduplication, geographic preparation, and write-back planning | Masai |
 | analytics | 05 | CRM sales reporting fixtures, charts, and report planning | Masai |
