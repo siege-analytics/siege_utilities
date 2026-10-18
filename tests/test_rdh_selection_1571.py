@@ -99,8 +99,21 @@ class TestListingCap:
 
 # -- RDHLoaderService GEOID matching ------------------------------------------
 
-def _service():
+try:
+    from django.core.exceptions import ImproperlyConfigured
+except ImportError:  # Django absent; the service import below raises ImportError
+    ImproperlyConfigured = ImportError
+try:
     from siege_utilities.geo.django.services.rdh_loader import RDHLoaderService
+
+    HAS_GDAL = True
+except (ImportError, ImproperlyConfigured, OSError):
+    # GeoDjango without system libgdal raises ImproperlyConfigured (OSError for
+    # an unloadable GDAL_LIBRARY_PATH). Narrowed so unrelated errors still fail.
+    HAS_GDAL = False
+
+
+def _service():
     return RDHLoaderService(client=MagicMock())
 
 
@@ -113,10 +126,11 @@ def _plan(*geoids):
 
 def _load_cvap(service, plan, **kwargs):
     # Bypass @transaction.atomic: the matching logic needs no database.
-    from siege_utilities.geo.django.services.rdh_loader import RDHLoaderService
     return RDHLoaderService.load_cvap_for_plan.__wrapped__(service, plan, 2020, **kwargs)
 
 
+@pytest.mark.requires_gdal
+@pytest.mark.skipif(not HAS_GDAL, reason="GeoDjango/GDAL not available")
 class TestLoaderCVAPMatch:
 
     def test_leading_zero_geoids_match(self, tmp_path):
