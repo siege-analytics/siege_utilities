@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Heatmap legends now show contiguous, closed bins covering the full data
+  range, preserve fractional edges with adaptive precision, and support a
+  single bin in both ReportLab tables and Matplotlib legends. Bivariate
+  legends place the second variable's High colors at the top, matching the
+  map. Advanced choropleth legends show the actual classification ranges
+  with matching swatches, including when duplicate bin edges are dropped
+  (#1535).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
