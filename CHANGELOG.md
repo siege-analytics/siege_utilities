@@ -39,6 +39,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   including attribute calls, are recognized; 14 existing log-only handlers are
   fingerprinted for consumer tracing under #1708 (#1532).
 
+- `populate_nlrb_regions` now creates registry-only rows by default without
+  raising `IntegrityError`. Migration 0018 makes only `NLRBRegion.geometry`
+  nullable; callers must allow NULL geometry, and population returns and logs
+  the count of regions without geometry. County dissolves filter by the
+  requested vintage and use a database-side `Union` aggregate, returning NULL
+  if any requested state has no counties at that vintage. Explicit rebuilds
+  clear incomplete geometry; metadata-only updates retain existing geometry.
+  The command reports the without-geometry count and warns instead of printing
+  a success message when any region lacks geometry. The provider and service
+  now share one registry of the 26 regional offices listed by
+  [nlrb.gov](https://www.nlrb.gov/about-nlrb/who-we-are/regional-offices)
+  (checked 2026-10-17), excluding subregional offices 11, 17, 24 and 26.
+  State lists are corrected for Regions 20 (CA/HI), 21 (CA), 27 (CO/UT/WY),
+  28 (Phoenix, AZ/NM/NV) and 32 (Oakland, CA/NV). The lists still approximate
+  primary coverage with whole states; dissolved polygons overlap where regions
+  share states and do not certify that every county is loaded. Exhaustive
+  sub-state jurisdiction mapping is tracked in [#1713](https://github.com/siege-analytics/siege_utilities/issues/1713).
+  Restore IA/KS/NE/OK coverage under Region 14 and AR under Region 15;
+  remove WY from Region 19, leaving WY under Region 27 only. Coverage tests
+  require all 50 states plus DC, PR and VI to resolve to a regional office.
+  The command prints `stale_registry_rows=N` and the offending region numbers
+  across all vintages without deleting any rows. See the BREAKING upgrade
+  note below for existing databases. Historical subregional case prefixes
+  roll up to verified parent offices through `NLRB_SUBREGIONS`.
+  (#1585)
 
 - Cache/output/config writers now publish complete files atomically so interrupted
   downloads, extractions and serialization cannot be served as valid cached data.
@@ -100,6 +125,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `setup_distributed_environment` raises `RuntimeError` on HDFS sync
   failure instead of returning a local path (#1532).
 
+- The public `NLRB_REGIONS` registry removes keys 11, 17, 24 and 26 because
+  these are subregional offices, not regional offices. Direct dictionary
+  callers must use the parent regional keys. `assign_region` and
+  `region_summary` now roll historical prefixes up through
+  `NLRB_SUBREGIONS = {11: 10, 17: 14, 24: 12, 26: 15, 30: 18, 37: 20}`;
+  summaries combine their counts under the parent office. Unverified prefixes
+  33, 34 and 36 remain unmapped and report office `"Unknown"`.
+  Upgrade existing NLRB tables by re-running `populate_nlrb_regions --update`
+  (with `--year` for each stored vintage) to refresh regional metadata, then
+  manually delete rows whose `region_number` is 11, 17, 24 or 26. The command
+  only reports stale rows; it does not delete them. (#1585)
 
 - `NCESLocaleClassifier.from_census_year` now raises instead of approximating
   missing population and principal-city inputs. Use `from_nces_boundaries` or
