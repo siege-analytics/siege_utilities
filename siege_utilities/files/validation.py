@@ -81,6 +81,12 @@ _CONTROL_CHARACTERS = frozenset(
 )
 
 
+def _is_unsafe_name_character(ch: str) -> bool:
+    # Lone surrogates are how undecodable (non-UTF-8) bytes reach Python via
+    # surrogateescape; a directory created from one has a non-UTF-8 name (#1716).
+    return ch in _CONTROL_CHARACTERS or '\ud800' <= ch <= '\udfff'
+
+
 def is_path_traversal_attempt(path: FilePath) -> bool:
     """
     Check for parent components, home expansion, or null bytes in a local path.
@@ -270,7 +276,7 @@ def validate_safe_path(path: FilePath,
         # Check if absolute when not allowed
         if not allow_absolute and path_obj.is_absolute():
             raise PathSecurityError(
-                f"Absolute paths not allowed: {path_str}"
+                f"Absolute paths not allowed: {path_str!r}"
             )
 
         # Resolve to absolute path (follows symlinks)
@@ -279,7 +285,7 @@ def validate_safe_path(path: FilePath,
         # Check if resolved path is sensitive
         if is_sensitive_path(resolved_path, base_directory=base_directory):
             raise PathSecurityError(
-                f"Access to sensitive path blocked: {resolved_path}"
+                f"Access to sensitive path blocked: {str(resolved_path)!r}"
             )
 
         # If base directory specified, ensure path is within it
@@ -291,7 +297,7 @@ def validate_safe_path(path: FilePath,
                 resolved_path.relative_to(base_path)
             except ValueError as e:
                 raise PathSecurityError(
-                    f"Path {resolved_path} is outside base directory {base_path}"
+                    f"Path {str(resolved_path)!r} is outside base directory {str(base_path)!r}"
                 ) from e
 
         log.debug(f"Path validation passed: {path_str!r} -> {str(resolved_path)!r}")
@@ -302,7 +308,7 @@ def validate_safe_path(path: FilePath,
         raise
     except (OSError, RuntimeError, TypeError) as e:
         # Other errors during validation
-        raise ValueError(f"Invalid path: {path_str} - {e}") from e
+        raise ValueError(f"Invalid path: {path_str!r} - {e}") from e
 
 
 def validate_file_path(file_path: FilePath,
@@ -342,16 +348,69 @@ def validate_file_path(file_path: FilePath,
 
 
 def _reject_control_characters_in_new_components(path: Path) -> None:
-    """Raise if a not-yet-existing component of a resolved path has a control character."""
+    """Raise if a not-yet-existing component of a resolved path has a control
+    character or a lone surrogate."""
     current = path
     # os.path.exists, unlike Path.exists on 3.11, returns False on any OSError
     # (e.g. ENAMETOOLONG), leaving that failure to the caller's mkdir.
     while not os.path.exists(current) and current != current.parent:
-        if any(ch in _CONTROL_CHARACTERS for ch in current.name):
+        if any(_is_unsafe_name_character(ch) for ch in current.name):
             raise PathSecurityError(
-                f"Control character in new directory name {current.name!r}: {str(path)!r}"
+                f"Control character or undecodable byte in new directory name "
+                f"{current.name!r}: {str(path)!r}"
             )
         current = current.parent
+
+
+def reject_unsafe_new_directory_names(directory: FilePath) -> Path:
+    """Refuse a directory path whose not-yet-existing components would be unsafe names.
+
+    Call this immediately before ``Path(directory).mkdir(parents=True)``, for
+    example on a file's parent. The path is checked as written, not resolved,
+    because that is what ``mkdir`` creates: in ``a/<new>/../b`` it creates
+    ``<new>`` on the way, so ``<new>`` is checked even though ``..`` cancels
+    it. Components that already exist (including symlinks) are accepted
+    whatever their name; a new one containing a C0, DEL or C1 control, or a
+    lone surrogate (undecodable bytes), raises. Nothing is created.
+
+    Returns:
+        ``directory`` as a Path, unchanged.
+
+    Raises:
+        PathSecurityError: If a component to be created has an unsafe name.
+    """
+    path = Path(directory)
+    prefix = Path(path.anchor)
+    for part in path.parts[1 if path.anchor else 0:]:
+        prefix = prefix / part
+        if part in ('.', '..'):
+            continue
+        # lexists returns False on errors such as an unencodable name, so
+        # such a component is treated as new and checked.
+        if not os.path.lexists(prefix) and any(_is_unsafe_name_character(ch) for ch in part):
+            raise PathSecurityError(
+                f"Control character or undecodable byte in new name "
+                f"{part!r}: {str(path)!r}"
+            )
+    return path
+
+
+def reject_unsafe_new_file_path(file_path: FilePath) -> Path:
+    """Refuse a file path whose new components, the file name included, would be unsafe names.
+
+    Call this immediately before creating ``file_path``. It applies the same
+    as-written check as :func:`reject_unsafe_new_directory_names` to every
+    component, so a new file name containing a C0, DEL or C1 control, or a
+    lone surrogate, raises, as does any new parent directory. An existing
+    file may be overwritten whatever its name (#1737). Nothing is created.
+
+    Returns:
+        ``file_path`` as a Path, unchanged.
+
+    Raises:
+        PathSecurityError: If a component to be created has an unsafe name.
+    """
+    return reject_unsafe_new_directory_names(file_path)
 
 
 def validate_directory_path(dir_path: FilePath,
@@ -471,5 +530,7 @@ __all__ = [
     'validate_safe_path',
     'validate_file_path',
     'validate_directory_path',
+    'reject_unsafe_new_directory_names',
+    'reject_unsafe_new_file_path',
     'safe_join_paths',
 ]
