@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Label the Databricks bridge notebook's EPSG:4326 buffer as schematic and
-  angular, with a real-use recipe that projects to a metric CRS, buffers with
-  a radius in meters, and transforms back if needed. Document caller-side
-  filtering and row bounds before collection to driver memory (#1665).
+- Make the Databricks bridge notebook's schematic example project to a metric
+  CRS, buffer with a radius in meters, and transform back to EPSG:4326. Keep
+  the angular-degree caveat and document caller-side filtering and row bounds
+  before collection to driver memory. Remove the persistent-table overwrite
+  from the capped sample and document the bridge's CRS column parameters and
+  output (#1665).
 
 ## [4.1.0] - 2026-10-18
 
