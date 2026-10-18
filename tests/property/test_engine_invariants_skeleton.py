@@ -15,7 +15,6 @@ so duplicate rows from a buggy backend would surface.
 
 from __future__ import annotations
 
-import math
 from collections import Counter
 
 import pytest
@@ -107,7 +106,7 @@ def test_pandas_groupby_sum_empty_input_preserves_schema():
     assert result["group"].dtype == "int64"
 
 
-def test_sum_of_all_nan_group_is_zero_fixed_case():
+def test_sum_of_all_nan_group_is_null_fixed_case():
     """Hypothesis-driven NaN tests rarely produce an all-NaN group
     at the default settings. Pin the documented invariant with a
     hand-built case so the contract is exercised on every run."""
@@ -119,8 +118,8 @@ def test_sum_of_all_nan_group_is_zero_fixed_case():
         df, group_cols=["group"], agg_dict={"value": "sum"},
     )
     group_1_sum = result.loc[result["group"] == 1, "value"].iloc[0]
-    assert group_1_sum == 0.0, (
-        f"sum of all-NaN group should be 0.0 per INVARIANTS.md, got {group_1_sum}"
+    assert pd.isna(group_1_sum), (
+        f"sum of all-NaN group should be NULL per INVARIANTS.md, got {group_1_sum}"
     )
 
 
@@ -221,17 +220,13 @@ def test_pandas_engine_agrees_with_duckdb_sql_no_nans(agg, df):
     deadline=None,
     suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture],
 )
-def test_sum_of_all_nan_group_is_zero_not_nan(df):
-    """INVARIANTS.md asserts that sum of an all-NaN group is 0.0,
-    not NaN. Pin it on PandasEngine and verify duckdb agrees."""
+def test_nullable_sum_agrees_with_duckdb_sql(df):
+    """All-null groups return NULL; partial groups sum their non-null values."""
     pandas_result = _pandas_engine().groupby_agg(
         df, group_cols=["group"], agg_dict={"value": "sum"},
     )
-    for r in pandas_result.itertuples():
-        assert not (isinstance(r.value, float) and math.isnan(r.value)), (
-            f"PandasEngine returned NaN for sum of group {r.group}; "
-            f"INVARIANTS.md says sum of all-NaN is 0.0"
-        )
+    sql_result = _duckdb_sql(df, "sum")
+    assert _rows_as_counter(pandas_result) == _rows_as_counter(sql_result)
 
 
 @given(df=nullable_value_frame())

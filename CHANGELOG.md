@@ -153,6 +153,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `groupby_agg` on PandasEngine, DuckDBEngine and PostGISEngine now keeps
+  NULL-key groups (pandas `dropna=False`, matching SQL and SparkEngine);
+  previously rows with a NULL group key were silently dropped, so totals
+  could be short. The `sum` of a group with no non-null values is now NULL
+  (NaN/NA), not 0.0; INVARIANTS.md is updated to match SQL/Spark. Callers
+  that relied on 0.0 should `.fillna(0)` explicitly. `first`/`last` still
+  differ between the pandas-backed engines and Spark (documented) (#1454).
+
 - `DemographicSnapshot` and `DemographicTimeSeries` now use GEOID-native keys.
   The indexed `object_id` CharField is retained as the ORM/storage name and
   repurposed as GEOID-only; `geoid` is a read/write instance alias (also accepted
