@@ -336,6 +336,29 @@ def list_countries():
     return COUNTRY_CODES.copy()
 
 
+def _normalize_address_field(value, *, zipcode: bool = False) -> str:
+    """Normalize scalar address fields without importing pandas or numpy."""
+    if (
+        value is None
+        or type(value).__name__ in {"NAType", "NaTType"}
+        or (isinstance(value, Number) and value != value)
+    ):
+        return ""
+    if zipcode:
+        if isinstance(value, bool) or type(value).__name__ in {"bool", "bool_"}:
+            return ""
+        if isinstance(value, Number):
+            try:
+                integer = int(value)
+            except (TypeError, ValueError, OverflowError):
+                return ""
+            if value != integer or not 0 <= integer <= 999_999_999:
+                return ""
+            digits = str(integer)
+            return digits.zfill(5 if len(digits) <= 5 else 9)
+    return str(value)
+
+
 def concatenate_addresses(street=None, city=None, state_province_area=None,
     postal_code=None, country=None):
     """
@@ -343,10 +366,8 @@ def concatenate_addresses(street=None, city=None, state_province_area=None,
     Returns a properly formatted address string.
     """
     components = []
-    for component in (street, city, state_province_area, postal_code, country):
-        if component is None or (isinstance(component, Number) and component != component):
-            continue
-        value = str(component).strip()
+    for index, component in enumerate((street, city, state_province_area, postal_code, country)):
+        value = _normalize_address_field(component, zipcode=index == 3).strip()
         if value:
             components.append(value)
     return ', '.join(components)

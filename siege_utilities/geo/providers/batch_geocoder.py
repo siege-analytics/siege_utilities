@@ -15,11 +15,11 @@ from __future__ import annotations
 
 import abc
 import logging
-import math
 from dataclasses import dataclass, field, asdict
 from enum import Enum
-from numbers import Number, Real
 from typing import Optional, Union
+
+from ..geocoding_core import _normalize_address_field
 
 log = logging.getLogger(__name__)
 
@@ -159,6 +159,9 @@ class AddressInput:
     zipcode: str = ""
     input_id: str = ""
 
+    def __post_init__(self) -> None:
+        self.zipcode = _normalize_field(self.zipcode, zipcode=True)
+
     @property
     def one_line(self) -> str:
         parts = [self.street, self.city, self.state, self.zipcode]
@@ -167,11 +170,7 @@ class AddressInput:
 
 def _normalize_field(value, *, zipcode: bool = False) -> str:
     """Coerce a scalar field, restoring leading zeros only for numeric ZIPs."""
-    if value is None or (isinstance(value, Number) and value != value):
-        return ""
-    if zipcode and isinstance(value, Real):
-        return str(int(float(value))).zfill(5) if math.isfinite(value) else ""
-    return str(value)
+    return _normalize_address_field(value, zipcode=zipcode)
 
 
 def normalize_addresses(
@@ -181,8 +180,9 @@ def normalize_addresses(
 
     Accepts a mixed list of dicts (street, city, state, zipcode, optional id),
     one-line strings, and AddressInput instances (returned as-is). Dict fields
-    become strings, with None and numeric NaN replaced by an empty string.
-    Numeric ZIPs are padded to five digits; string ZIPs are preserved verbatim,
+    become strings, with None, numeric NaN, and pandas NA/NaT replaced by an
+    empty string. Numeric ZIPs are padded to five or nine digits; invalid
+    numeric ZIPs become empty strings. String ZIPs are preserved verbatim,
     including ZIP+4 values.
     """
     if not addresses:

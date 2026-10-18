@@ -195,3 +195,94 @@ def test_concatenate_addresses_retains_non_missing_values():
     assert concatenate_addresses(" 1 Main St ", "Boston", "MA", "02134-1234", 0) == (
         "1 Main St, Boston, MA, 02134-1234, 0"
     )
+
+
+@pytest.mark.parametrize("missing", [pd.NA, pd.NaT])
+def test_pandas_missing_scalars_are_empty_in_all_fields(missing):
+    address = normalize_addresses([dict.fromkeys(
+        ["street", "city", "state", "zip", "id"], missing,
+    )])[0]
+    assert all(value == "" for value in vars(address).values())
+    assert concatenate_addresses(missing, missing, missing, missing, missing) == ""
+
+
+@pytest.mark.parametrize("value", [
+    -2134, 2134.9, True, False, np.bool_(True), np.bool_(False),
+    float("inf"), float("-inf"), 1_000_000_000, complex(2134, 1),
+])
+def test_invalid_numeric_zip_is_not_fabricated(value):
+    assert normalize_addresses([{"zip": value}])[0].zipcode == ""
+    assert concatenate_addresses("1 Main St", postal_code=value) == "1 Main St"
+
+
+@pytest.mark.parametrize("value,expected", [
+    (99999, "99999"), (100000, "000100000"), (1234567, "001234567"),
+    (999999999, "999999999"), (np.int64(21341234), "021341234"),
+])
+def test_numeric_zip_width_boundaries(value, expected):
+    assert normalize_addresses([{"zip": value}])[0].zipcode == expected
+    assert concatenate_addresses(postal_code=value) == expected
+
+
+@pytest.mark.parametrize("value,expected", [
+    (2134, "02134"), (21341234, "021341234"), (pd.NA, ""), (pd.NaT, ""),
+])
+def test_direct_address_input_normalizes_zip(value, expected):
+    address = AddressInput(zipcode=value)
+    assert address.zipcode == expected
+    assert address.one_line == expected
+    assert normalize_addresses([address])[0] is address
+
+
+def test_row_error_omits_exception_text_and_does_not_leak_between_batches(
+    stubbed_backend, caplog,
+):
+    backend, stub = stubbed_backend
+    stub.side_effect = OSError("private address: 2 Elm St; private request URL")
+    with caplog.at_level("WARNING", logger=type(backend).__module__):
+        result = backend.geocode([{"street": "2 Elm St", "id": "bad"}])
+    assert len(result.errors) == 1
+    assert "bad" in result.errors[0]
+    assert "OSError" in result.errors[0]
+    assert "2 Elm St" not in result.errors[0]
+    assert "private" not in result.errors[0]
+    assert "2 Elm St" not in caplog.text
+    assert "private" not in caplog.text
+    stub.side_effect = None
+    stub.return_value = None
+    assert backend.geocode([{"street": "1 Main St"}]).errors == []
+
+
+def test_composite_retains_errors_from_each_backend_after_fallback(monkeypatch):
+    first = NominatimBatchGeocoder(rate_limit=0.0)
+    second = TAMUBatchGeocoder(api_key="test-key", rate_limit=0.0)
+    third = NominatimBatchGeocoder(rate_limit=0.0)
+    monkeypatch.setattr(first, "_nominatim_request", Mock(side_effect=OSError("failed")))
+    monkeypatch.setattr(second, "_tamu_request", Mock(side_effect=ValueError("failed")))
+    monkeypatch.setattr(third, "_nominatim_request", Mock(return_value=(42.36, -71.06)))
+    result = CompositeBatchGeocoder([first, second, third]).geocode([
+        {"id": 42, "street": "1 Main St"},
+    ])
+    assert result.total == result.matched_count == 1
+    assert result.results[0].input_id == "42"
+    assert len(result.errors) == 2
+    assert "42" in result.errors[0] and "OSError" in result.errors[0]
+    assert "42" in result.errors[1] and "ValueError" in result.errors[1]
+
+
+@pytest.mark.parametrize("geocode", [census_geocoder.geocode_batch, census_geocoder.geocode_batch_chunked])
+def test_direct_census_dicts_normalize_missing_fields_and_zip_plus4(monkeypatch, geocode):
+    rows = []
+
+    def addressbatch(path, **kwargs):
+        with open(path, newline="") as submitted:
+            rows.extend(csv.reader(submitted))
+        return [{"id": "", "match": True, "lat": 42.36, "lon": -71.06}]
+
+    monkeypatch.setattr(census_geocoder, "_get_geocoder", lambda vintage: Mock(addressbatch=addressbatch))
+    records = [{"id": pd.NA, "street": 123, "city": pd.NaT, "state": None, "zipcode": 21341234.0}]
+    result = geocode(records)
+    assert rows == [["", "123", "", "", "021341234"]]
+    assert len(result) == 1 and result[0].matched
+    assert result[0].input_id == ""
+    assert records[0]["zipcode"] == 21341234.0

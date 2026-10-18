@@ -107,7 +107,7 @@ class TAMUBatchGeocoder(BatchGeocoder):
             if elapsed < self._rate_limit:
                 time.sleep(self._rate_limit - elapsed)
 
-            gr = self._geocode_single(addr)
+            gr = self._geocode_single(addr, result.errors)
             result.results.append(gr)
             last_request_time = time.monotonic()
 
@@ -119,7 +119,9 @@ class TAMUBatchGeocoder(BatchGeocoder):
         )
         return result
 
-    def _geocode_single(self, addr: AddressInput) -> GeocodingResult:
+    def _geocode_single(
+        self, addr: AddressInput, errors: Optional[list[str]] = None,
+    ) -> GeocodingResult:
         """Geocode a single address via TAMU."""
         query = ""
         try:
@@ -128,10 +130,11 @@ class TAMUBatchGeocoder(BatchGeocoder):
             if resp is not None:
                 return resp
         except Exception as exc:
-            # Batch robustness: any failure on one address is logged and
-            # recorded as an unmatched result so the rest of the batch proceeds.
-            log.warning("TAMU geocode failed for %s: %s", addr.input_id,
-                        redact_url_secrets(str(exc)))
+            # Exception text may contain the address or request URL.
+            error = f"TAMU geocode failed for {addr.input_id}: {type(exc).__name__}"
+            log.warning("%s", error)
+            if errors is not None:
+                errors.append(error)
 
         return GeocodingResult(
             input_address=query,
