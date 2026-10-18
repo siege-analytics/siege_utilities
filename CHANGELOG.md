@@ -85,8 +85,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sources instead of silently degrading; custom place population lookups use
   the full 7-digit GEOID to prevent cross-state PLACEFP collisions. (#1441)
 
+- `CrosswalkPopulationService.populate` (and `populate_crosswalks`) now loads
+  crosswalks: it calls `get_crosswalk(geography_level=...)` instead of the
+  nonexistent `geography_type=` keyword, which raised `TypeError` on every
+  call. Weights are read from the client's `area_weight` column and stored
+  as-is, so a 0.6/0.4 split stays 0.6/0.4 and a real 0.0 stays 0.0. A frame
+  with no weight column returns an error result, and a row with a missing or
+  NaN weight is reported in `errors`; neither is defaulted to 1.0. Two or more
+  sources mapping to one target at full weight are classified `MERGED`. Level
+  names are canonicalised through `resolve_geographic_level`, so block-group
+  crosswalks are requested and stored as `block_group`; `populate_crosswalks
+  --type` accepts `block_group` and keeps `blockgroup` as an alias (#1613).
+- `DemographicRollupService.rollup` no longer overwrites a target snapshot
+  that already holds the variable, and reports writes to existing snapshots
+  in the new `RollupResult.records_updated` instead of `records_skipped`.
+  Crosswalk mode maps crosswalk targets up to `target_level` (truncating the
+  GEOID) instead of writing tract GEOIDs as county snapshots, uses only
+  crosswalk rows whose `target_type` is the source level, and applies the
+  crosswalk weight once: `sum` adds `value·w`, `avg` is `Σvalue·w / Σw`, and
+  `weighted_avg` is `Σvalue·pop·w / Σpop·w`. Level names share the
+  `block_group` vocabulary with the crosswalk loader, so block-group
+  crosswalks are found. `coverage_ratio` counts expected children from the
+  source-level boundary table (latest vintage <= `year`), or the crosswalk
+  sources in crosswalk mode, so missing children lower it; when no boundaries
+  are loaded it logs a warning and falls back to existing snapshots (#1604).
+
 ### BREAKING
 
+- `DemographicRollupService.rollup` has a new `overwrite: bool = False`
+  parameter, and by default it no longer replaces a value already present on
+  the target snapshot (for example a county value fetched from the Census
+  API). Callers that refreshed targets by re-running a rollup must pass
+  `overwrite=True`; such writes are counted in `RollupResult.records_updated`.
+  Crosswalk-mode `avg`/`weighted_avg` results change numerically (the weight
+  was applied twice), and crosswalk-mode targets are now `target_level`
+  GEOIDs; snapshots previously written with source-level GEOIDs under the
+  target content type are wrong and should be deleted and recomputed (#1604).
+- Block-group crosswalks are stored with `source_type`/`target_type`
+  `"block_group"` instead of `"blockgroup"`. Rename existing rows, e.g.
+  `TemporalCrosswalk.objects.filter(source_type="blockgroup").update(source_type="block_group", target_type="block_group")`.
+  Any `TemporalCrosswalk` row written with weight 1.0 by an earlier version
+  should be reloaded with `populate_crosswalks --update` (#1613).
 - `ConfigurationMigrator.migrate_user_profile` and `migrate_client_profile`
   in both `config.enhanced_config` and `config.migration` now propagate file,
   YAML/JSON and validation errors; missing files raise `FileNotFoundError`.
