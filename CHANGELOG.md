@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `atomic_write_with_staging` now promotes entire Spark output directories
+  through the path's Hadoop filesystem, fixing silent empty destinations and
+  orphaned staged data on non-local filesystems. Promotion verifies nonempty
+  data, rejects different filesystems and overlapping paths, restores the prior
+  destination on failure, and prunes successful backups. The docstring now
+  describes filesystem-dependent atomicity, recovery failures, and staging-only
+  write modes accurately (#1574).
 - `is_sensitive_path` again blocks `_`/`-` prefixed private-key names outside
   `.ssh` (`deploy_id_rsa`, `github-id_ecdsa`) and now covers `id_ed25519`;
   `paid_rsa` and `*.pub` stay allowed (#1702).

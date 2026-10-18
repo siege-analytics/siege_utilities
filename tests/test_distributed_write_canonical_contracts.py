@@ -5,6 +5,7 @@ from unittest.mock import Mock
 
 from siege_utilities.distributed import atomic_write_with_staging
 from siege_utilities.distributed import export_prepared_df_as_csv_to_path_using_delimiter  # noqa: E501
+from tests.hadoop_fs_support import HadoopFileSystem, spark_session
 
 
 class SavingWriter:
@@ -33,6 +34,7 @@ def test_atomic_write_with_staging_moves_files_and_cleans_staging(tmp_path):
     writer = SavingWriter()
     df = Mock()
     df.write = writer
+    df.sparkSession = spark_session(HadoopFileSystem("file://"))
     final_destination = tmp_path / "final"
     staging_directory = tmp_path / "staging"
 
