@@ -113,15 +113,29 @@ def _validate_provider_coordinates(lat, lon, *, context: str) -> Tuple[float, fl
 
 
 def _pandas_coordinate_mask(df: pd.DataFrame, lat_col: str, lon_col: str, crs=None):
-    lat_min, lat_max, lon_min, lon_max = _get_crs_bounds(crs) if crs else (-90, 90, -180, 180)
+    lat_min, lat_max, lon_min, lon_max, is_geographic = (
+        _get_crs_bounds(crs) if crs else (-90, 90, -180, 180, True)
+    )
     lat_values = pd.to_numeric(df[lat_col], errors="coerce")
     lon_values = pd.to_numeric(df[lon_col], errors="coerce")
-    return (
+    # Remain strict about missing/non-finite values even if CRS bounds fail.
+    mask = (
         lat_values.notna()
         & lon_values.notna()
+        & lat_values.between(-math.inf, math.inf, inclusive="neither")
+        & lon_values.between(-math.inf, math.inf, inclusive="neither")
         & lat_values.between(lat_min, lat_max)
-        & lon_values.between(lon_min, lon_max)
     )
+    if is_geographic and lon_min > lon_max:
+        mask &= (lon_values >= lon_min) | (lon_values <= lon_max)
+    else:
+        mask &= lon_values.between(lon_min, lon_max)
+    if is_geographic:
+        mask &= lat_values.between(-90, 90) & lon_values.between(-180, 180)
+        # Exact (0, 0) is the Null Island failed-geocode sentinel only in
+        # geographic coordinates; a projected CRS may have a valid origin.
+        mask &= ~((lat_values == 0) & (lon_values == 0))
+    return mask
 
 
 def get_coordinates(query_address, country_codes=None, max_retries=3, server_url=None):
@@ -444,33 +458,59 @@ class NominatimGeoClassifier:
 # Geocode validation (Pandas)
 # =============================================================================
 
-def _get_crs_bounds(crs) -> Tuple[float, float, float, float]:
-    """Extract (lat_min, lat_max, lon_min, lon_max) from a CRS.
+def _get_crs_bounds(crs) -> Tuple[float, float, float, float, bool]:
+    """Return (y_min, y_max, x_min, x_max, is_geographic) in CRS units.
 
-    Uses pyproj's ``area_of_use`` when available, falling back to WGS84
-    geographic bounds (-90..90, -180..180).
+    Geographic bounds preserve wrapped longitudes. For non-geographic CRSs,
+    transform the four geographic area-of-use corners to an x/y envelope.
+    If those bounds cannot be derived, log a warning and leave them unbounded
+    rather than comparing projected coordinates against degrees.
 
     Parameters:
         crs: A pyproj CRS, an EPSG integer, or a string accepted by
              ``pyproj.CRS.from_user_input``.
 
     Returns:
-        (lat_min, lat_max, lon_min, lon_max) tuple.
+        Bounds and a geographic flag. Geographic CRSs without an area of use
+        (or invalid CRS inputs) fall back to WGS84 world bounds.
     """
+    is_geographic = True
     try:
         from pyproj import CRS as ProjCRS
+        from pyproj import Transformer
 
         if not isinstance(crs, ProjCRS):
             crs = ProjCRS.from_user_input(crs)
+        is_geographic = crs.is_geographic
         aou = crs.area_of_use
-        if aou is not None:
-            return (aou.south, aou.north, aou.west, aou.east)
+        if is_geographic:
+            if aou is not None:
+                return (aou.south, aou.north, aou.west, aou.east, True)
+        else:
+            if aou is None:
+                raise ValueError("CRS has no area of use")
+            # area_of_use is a geographic lon/lat box, even for projected CRSs.
+            transformer = Transformer.from_crs(4326, crs, always_xy=True)
+            xs, ys = transformer.transform(
+                [aou.west, aou.west, aou.east, aou.east],
+                [aou.south, aou.north, aou.south, aou.north],
+                errcheck=True,
+            )
+            if not all(math.isfinite(value) for value in (*xs, *ys)):
+                raise ValueError("Transformed CRS bounds are non-finite")
+            return (min(ys), max(ys), min(xs), max(xs), False)
     except (ValueError, TypeError, RuntimeError, AttributeError) as exc:
+        if not is_geographic:
+            logger.warning(
+                "Could not derive bounds from CRS %r, skipping bounds validation: %s",
+                crs, exc,
+            )
+            return (-math.inf, math.inf, -math.inf, math.inf, False)
         logger.warning(
             "Could not derive bounds from CRS %r, falling back to world bounds: %s",
             crs, exc,
         )
-    return (-90.0, 90.0, -180.0, 180.0)
+    return (-90.0, 90.0, -180.0, 180.0, True)
 
 
 def validate_geocode_data_pandas(
@@ -479,17 +519,19 @@ def validate_geocode_data_pandas(
     lon_col: str,
     crs=None,
 ) -> pd.DataFrame:
-    """Filter rows with invalid geographic coordinates.
+    """Filter rows with invalid geographic or projected coordinates.
 
     Pandas equivalent of ``spark_utils.validate_geocode_data()``.
 
     Parameters:
         df: Input DataFrame.
-        lat_col: Name of the latitude column.
-        lon_col: Name of the longitude column.
+        lat_col: Name of the latitude (or projected y) column.
+        lon_col: Name of the longitude (or projected x) column.
         crs: Optional CRS (pyproj CRS, EPSG int, or string).  When supplied,
-             the valid coordinate bounds are derived from the CRS area of use.
-             Defaults to WGS84 (-90..90, -180..180).
+             bounds use its area of use, transformed to a corner envelope in
+             CRS units for projected coordinates. If that transform fails,
+             finite coordinates are accepted with a warning. Defaults to
+             WGS84 (-90..90, -180..180). Geographic (0, 0) is always invalid.
 
     Returns:
         DataFrame with only rows whose coordinates fall within the valid range.
@@ -511,12 +553,14 @@ def mark_valid_geocode_data_pandas(
 
     Parameters:
         df: Input DataFrame.
-        lat_col: Name of the latitude column.
-        lon_col: Name of the longitude column.
+        lat_col: Name of the latitude (or projected y) column.
+        lon_col: Name of the longitude (or projected x) column.
         output_col: Name of the boolean column to add.
         crs: Optional CRS (pyproj CRS, EPSG int, or string).  When supplied,
-             the valid coordinate bounds are derived from the CRS area of use.
-             Defaults to WGS84 (-90..90, -180..180).
+             bounds use its area of use, transformed to a corner envelope in
+             CRS units for projected coordinates. If that transform fails,
+             finite coordinates are accepted with a warning. Defaults to
+             WGS84 (-90..90, -180..180). Geographic (0, 0) is always invalid.
 
     Returns:
         Copy of *df* with *output_col* appended.

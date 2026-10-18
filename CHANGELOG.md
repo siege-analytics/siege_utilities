@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Pandas geocode validation now handles antimeridian-crossing CRS bounds
+  (including NAD83/EPSG:4269), compares projected coordinates against bounds
+  in their own CRS units, and rejects the exact geographic `(0, 0)` failed-geocode
+  sentinel. Both filtering and validity marking share these checks. Failed
+  projected-bound transformations log a warning and accept finite coordinates
+  instead of rejecting them against degree bounds (#1459).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
