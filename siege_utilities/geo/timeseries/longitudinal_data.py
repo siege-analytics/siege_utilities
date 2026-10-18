@@ -17,7 +17,8 @@ Example usage:
         years=[2010, 2015, 2020],
         geography='tract',
         state='California',
-        target_year=2020
+        target_year=2020,
+        intensive_columns=['B19013_001E'],
     )
 
     # Result has columns: GEOID, B19013_001E_2010, B19013_001E_2015, B19013_001E_2020
@@ -78,6 +79,7 @@ def get_longitudinal_data(
     include_geometry: bool = False,
     dataset: str = 'acs5',
     strict_years: bool = True,
+    intensive_columns: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     """
     Fetch Census data for multiple years and return in wide format.
@@ -103,6 +105,11 @@ def get_longitudinal_data(
         strict_years: If True (default), raise ValueError when any requested year
             is unavailable or fails to fetch. If False, log warnings and continue
             with available years.
+        intensive_columns: Variable names for rates, ratios, medians, and
+            densities to area-weight average during boundary normalization.
+            Other numeric columns are allocated and summed as extensive values.
+            None logs a warning when transforming numeric columns; pass [] for
+            data containing only extensive values.
 
     Returns:
         Wide-format DataFrame with columns:
@@ -117,7 +124,8 @@ def get_longitudinal_data(
             years=[2015, 2017, 2020],
             geography='tract',
             state='CA',
-            county_fips='037'
+            county_fips='037',
+            intensive_columns=['B19013_001E'],
         )
 
         # Columns: GEOID, NAME, B19013_001E_2015, B19013_001E_2017, B19013_001E_2020
@@ -204,7 +212,8 @@ def get_longitudinal_data(
             yearly_data=yearly_data,
             target_year=target_year,
             geography_level=geography,
-            state_fips=state_fips
+            state_fips=state_fips,
+            intensive_columns=intensive_columns,
         )
 
     # Merge into wide format
@@ -232,7 +241,8 @@ def _normalize_boundaries_multi_year(
     yearly_data: Dict[int, pd.DataFrame],
     target_year: int,
     geography_level: str,
-    state_fips: Optional[str]
+    state_fips: Optional[str],
+    intensive_columns: Optional[List[str]] = None,
 ) -> Dict[int, pd.DataFrame]:
     """
     Normalize all years' data to target year boundaries.
@@ -242,6 +252,7 @@ def _normalize_boundaries_multi_year(
         target_year: Year to normalize to
         geography_level: Geographic level
         state_fips: State FIPS code
+        intensive_columns: Columns to area-weight average instead of summing.
 
     Returns:
         Dictionary with normalized DataFrames
@@ -272,6 +283,19 @@ def _normalize_boundaries_multi_year(
             f"{target_boundary_year} boundaries"
         )
 
+        if intensive_columns is None:
+            numeric = [
+                c for c in df.select_dtypes(include='number').columns if c != 'GEOID'
+            ]
+            if numeric:
+                log.warning(
+                    "Normalizing without intensive_columns: all numeric columns "
+                    "(%s) are treated as EXTENSIVE and allocated and summed. "
+                    "Pass intensive_columns=[...] to area-weight average "
+                    "rates/ratios/medians/densities.",
+                    numeric,
+                )
+
         try:
             normalized_df = apply_crosswalk(
                 df=df,
@@ -279,7 +303,8 @@ def _normalize_boundaries_multi_year(
                 target_year=target_boundary_year,
                 geography_level=geography_level,
                 state_fips=state_fips,
-                geoid_column='GEOID'
+                geoid_column='GEOID',
+                intensive_variables=intensive_columns,
             )
             normalized[year] = normalized_df
         except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:

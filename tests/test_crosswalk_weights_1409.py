@@ -2,6 +2,7 @@
 
 from unittest.mock import patch
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -79,23 +80,27 @@ def test_requested_weights_drive_split_and_merge_without_column_collisions(metho
     assert result["count"].sum() == pytest.approx(data["count"].sum())
     assert result.loc["T1", "count"] != area_result.loc["T1", "count"]
     assert result.loc["T2", "count"] != area_result.loc["T2", "count"]
-    assert set(result.columns) == {"count", weight_column}
+    assert set(result.columns) == {"count", weight_column, "count_coverage", f"{weight_column}_coverage"}
 
 
 @pytest.mark.parametrize("method", [WeightMethod.POPULATION, WeightMethod.HOUSING])
-def test_requested_weights_preserve_zero_and_missing_allocations(method):
+def test_requested_weights_preserve_zero_and_reject_missing_allocations(method):
     proc = processor({
         "source_geoid": ["S1", "S1"],
         "target_geoid": ["T1", "T2"],
         "area_weight": [0.5, 0.5],
-        f"{method.value}_weight": [0.0, float("nan")],
+        f"{method.value}_weight": [0.0, 1.0],
     })
     data = pd.DataFrame({"GEOID": ["S1"], "count": [100.0]})
 
     result = proc.transform(data, weight_method=method).set_index("GEOID")
 
     assert result.loc["T1", "count"] == 0.0
-    assert pd.isna(result.loc["T2", "count"])
+    assert result.loc["T2", "count"] == 100.0
+
+    proc.crosswalk_df.loc[1, f"{method.value}_weight"] = np.nan
+    with pytest.raises(ValueError, match=f"{method.value}_weight.*S1.*T2"):
+        proc.transform(data, weight_method=method)
 
 
 @pytest.mark.parametrize("source_values", [[90.0], [30.0, 60.0]])
@@ -160,3 +165,133 @@ def test_normalize_to_year_averages_rates_and_allocates_counts(method, expected_
     get_crosswalk.assert_called_once_with(
         source_year=2010, target_year=2020, geography_level="tract", state_fips=None,
     )
+
+
+@pytest.mark.parametrize("method, expected_coverage", [
+    (WeightMethod.AREA, 0.25),
+    (WeightMethod.POPULATION, 0.8),
+    (WeightMethod.HOUSING, 0.6),
+    (WeightMethod.EQUAL, 0.5),
+])
+def test_coverage_uses_each_columns_contribution_weights(method, expected_coverage):
+    proc = processor({
+        "source_geoid": ["A", "B", "C", "D"],
+        "target_geoid": ["partial", "partial", "missing", "zero"],
+        "area_weight": [0.25, 0.75, 1.0, 0.0],
+        "population_weight": [0.8, 0.2, 1.0, 0.0],
+        "housing_weight": [0.6, 0.4, 1.0, 0.0],
+        "overlap_area": [1.0, 3.0, 2.0, 0.0],
+    })
+    data = pd.DataFrame({
+        "GEOID": ["A", "B", "C", "D", "unmatched"],
+        "count": [10.0, np.nan, np.nan, 0.0, 0.0],
+        "rate": [np.nan, 0.8, np.nan, 0.4, 0.2],
+    })
+
+    result = proc.transform(
+        data, weight_method=method, intensive_variables=["rate"],
+    ).set_index("GEOID")
+
+    assert result.loc["partial", "count_coverage"] == pytest.approx(expected_coverage)
+    assert result.loc["partial", "rate_coverage"] == pytest.approx(0.75)
+    assert result.loc["partial", "rate"] == pytest.approx(0.8)
+    for col in ["count", "rate"]:
+        assert pd.isna(result.loc["missing", col])
+        assert result.loc["missing", f"{col}_coverage"] == 0.0
+        assert result.loc["unmatched", f"{col}_coverage"] == 1.0
+    assert result.loc["zero", "count_coverage"] == float(method == WeightMethod.EQUAL)
+    assert result.loc["zero", "rate_coverage"] == 0.0
+
+
+@pytest.mark.parametrize("method, error", [
+    ("bogus", ValueError), (None, TypeError), (123, TypeError), ([], TypeError),
+])
+def test_invalid_weight_method_is_rejected(method, error):
+    proc = processor({
+        "source_geoid": ["A"], "target_geoid": ["X"], "area_weight": [1.0],
+    })
+    with pytest.raises(error):
+        proc.transform(pd.DataFrame({"GEOID": ["A"], "count": [1.0]}), weight_method=method)
+
+
+@pytest.mark.parametrize("intensive_columns, should_warn", [(None, True), ([], False), (["rate"], False)])
+def test_longitudinal_intensive_warning(monkeypatch, caplog, intensive_columns, should_warn):
+    from siege_utilities.geo import census_api_client
+    from siege_utilities.geo.crosswalk import crosswalk_processor
+    from siege_utilities.geo.timeseries import longitudinal_data as ld
+
+    # Django's test logging configuration can disable already imported loggers.
+    monkeypatch.setattr(ld.log, "disabled", False)
+    caplog.set_level("WARNING", logger=ld.__name__)
+
+    class FakeClient:
+        def fetch_data(self, **_):
+            return pd.DataFrame({"GEOID": ["A"], "NAME": ["a"], "rate": [0.5]})
+
+    crosswalk = pd.DataFrame({
+        "source_geoid": ["A"], "target_geoid": ["A"], "area_weight": [1.0],
+    })
+    monkeypatch.setattr(census_api_client, "CensusAPIClient", FakeClient)
+    monkeypatch.setattr(crosswalk_processor, "get_crosswalk", lambda **_: crosswalk)
+    out = ld.get_longitudinal_data("rate", [2015, 2020], intensive_columns=intensive_columns)
+
+    assert out.loc[0, "rate_2015"] == 0.5
+    assert ("without intensive_columns" in caplog.text) is should_warn
+
+
+def _proc(rows):
+    return CrosswalkProcessor(pd.DataFrame(rows), 2010, 2020, "tract")
+
+
+def test_partial_coverage_is_reported_per_target():
+    proc = _proc({"source_geoid": ["A", "B", "C"], "target_geoid": ["X", "Y", "Y"],
+                  "area_weight": [1.0, 1.0, 1.0]})
+    data = pd.DataFrame({"GEOID": ["A", "B", "C"], "count": [np.nan, 5.0, np.nan]})
+    out = proc.transform(data, value_columns=["count"]).set_index("GEOID")
+    coverage = [c for c in out.columns if "coverage" in str(c)]
+    assert coverage, f"no per-target coverage column in {list(out.columns)}"
+    assert out.loc["Y", coverage[0]] == pytest.approx(0.5)
+    assert out.loc["X", coverage[0]] == pytest.approx(0.0)
+
+
+@pytest.mark.parametrize("method", ["population", "equal", "housing"])
+def test_string_weight_method_is_not_silently_area(method):
+    proc = _proc({"source_geoid": ["A", "A"], "target_geoid": ["X", "Y"],
+                  "area_weight": [0.9, 0.1], "population_weight": [0.5, 0.5],
+                  "housing_weight": [0.5, 0.5]})
+    data = pd.DataFrame({"GEOID": ["A"], "count": [100.0]})
+    try:
+        out = proc.transform(data, value_columns=["count"], weight_method=method)
+    except (TypeError, ValueError):
+        return  # rejecting a non-enum value is acceptable
+    assert out.set_index("GEOID")["count"].to_dict() == pytest.approx({"X": 50.0, "Y": 50.0})
+
+
+@pytest.mark.parametrize("method", [WeightMethod.POPULATION, WeightMethod.HOUSING])
+def test_missing_row_weight_on_merge_is_an_error_not_a_dropped_source(method):
+    proc = _proc({"source_geoid": ["A", "B"], "target_geoid": ["X", "X"],
+                  "area_weight": [1.0, 1.0], f"{method.value}_weight": [np.nan, 1.0]})
+    data = pd.DataFrame({"GEOID": ["A", "B"], "count": [100.0, 5.0]})
+    with pytest.raises(ValueError, match="weight"):
+        proc.transform(data, value_columns=["count"], weight_method=method)
+
+
+def test_get_longitudinal_data_forwards_intensive_columns(monkeypatch):
+    from siege_utilities.geo import census_api_client
+    from siege_utilities.geo.crosswalk import crosswalk_processor
+    from siege_utilities.geo.timeseries import longitudinal_data as ld
+
+    class FakeClient:
+        def fetch_data(self, *, year, **_):
+            if year == 2015:
+                return pd.DataFrame({"GEOID": ["A", "B"], "NAME": ["a", "b"], "B19013_001E": [50000.0, 70000.0]})
+            return pd.DataFrame({"GEOID": ["X"], "NAME": ["x"], "B19013_001E": [61000.0]})
+
+    xwalk = pd.DataFrame({"source_geoid": ["A", "B"], "target_geoid": ["X", "X"],
+                          "area_weight": [1.0, 1.0], "overlap_area": [1.0, 1.0],
+                          "source_area": [1.0, 1.0]})
+    monkeypatch.setattr(census_api_client, "CensusAPIClient", FakeClient)
+    monkeypatch.setattr(crosswalk_processor, "get_crosswalk", lambda **_: xwalk)
+    out = ld.get_longitudinal_data("B19013_001E", [2015, 2020], state="06",
+                                   intensive_columns=["B19013_001E"])
+    assert out.set_index("GEOID").loc["X", "B19013_001E_2015"] == pytest.approx(60000.0)

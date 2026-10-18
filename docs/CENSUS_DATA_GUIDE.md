@@ -792,6 +792,7 @@ from siege_utilities.geo import (
     normalize_to_year,
     identify_boundary_changes
 )
+from siege_utilities.geo.crosswalk import WeightMethod
 
 # Get crosswalk table
 crosswalk = get_crosswalk(
@@ -806,7 +807,8 @@ df_2020 = apply_crosswalk(
     df=df_2010,
     source_year=2010,
     target_year=2020,
-    weight_method='area'  # or 'population', 'housing'
+    weight_method=WeightMethod.AREA,
+    intensive_variables=['median_income'],  # if present in df_2010
 )
 
 # Normalize multiple years to common boundaries
@@ -822,6 +824,23 @@ changes = identify_boundary_changes(
     include_unchanged=False
 )
 ```
+
+`WeightMethod.POPULATION` and `WeightMethod.HOUSING` require a crosswalk
+carrying `population_weight` and `housing_weight`, respectively, with no missing
+weights on matched rows. The Census crosswalk client currently supplies area
+weights; use `WeightMethod.AREA` with that client. To use population or housing
+weights, supply an enriched crosswalk to `CrosswalkProcessor`. Valid strings
+such as `"population"` are converted through `WeightMethod`; unknown values raise
+an error.
+
+List rates, ratios, medians, and densities in `intensive_variables` to average
+them; unlisted numeric columns are allocated and summed. For
+`get_longitudinal_data`, pass the same names in `intensive_columns`. Transformed
+crosswalk outputs include `<col>_coverage`, the fraction of a target's
+contribution weight with non-missing values for that column. Coverage uses the
+selected allocation weights for extensive columns and overlap areas for
+intensive columns. All-missing targets and targets with no contribution weight
+have coverage `0.0`.
 
 ---
 

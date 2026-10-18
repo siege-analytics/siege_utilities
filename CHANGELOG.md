@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING (#1409):** POPULATION and HOUSING crosswalk transformations require
+  `population_weight` and `housing_weight`, respectively, and raise `ValueError`
+  for missing columns or missing weights on matched source/target rows. The
+  Census crosswalk client currently supplies only area weights. **Migration:**
+  pass `WeightMethod.AREA` explicitly when using that client, or supply an
+  enriched crosswalk to `CrosswalkProcessor` for population/housing weighting.
+  String methods are converted through `WeightMethod(value)`; invalid methods
+  raise instead of falling back to AREA.
+  EQUAL now divides each source among its targets, so split outputs change and
+  conserve totals. All-missing extensive sums now return NaN instead of zero.
+  Name rates, ratios, medians, and densities in `intensive_variables` when using
+  `transform`, `apply_crosswalk`, or `normalize_to_year` to avoid summing them.
+  `get_longitudinal_data` accepts the same names as `intensive_columns` and warns
+  when they are omitted during boundary normalization.
+  Each transformed crosswalk value column gains `<col>_coverage`: the share of
+  target contribution weight with non-missing values, using allocation weights
+  for extensive columns and overlap areas for intensive columns. All-missing
+  targets and targets with no contribution weight have coverage 0.0. Update
+  downstream column selections and missing-value handling for these outputs.
+  Follow-up: AREA still uses its pre-existing `fillna(1.0)` policy for missing
+  row weights; harmonizing that policy with population/housing is out of scope.
+
 ### Fixed
 
 - Crosswalk extensive sums preserve NaN when every contributing value is
