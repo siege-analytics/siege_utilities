@@ -14,10 +14,11 @@ on:
   release:
     types: [ published ]
 
-# A new push to a PR cancels that PR's older run; pushes to branches and
-# releases are never cancelled (#1729).
+# A new push to a PR cancels that PR's older run. Push and release runs each
+# get a group of their own (run_id): sharing a group would cancel a *pending*
+# run whenever a newer one queued, skipping CI for that commit (#1729).
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
