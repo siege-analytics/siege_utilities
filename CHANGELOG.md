@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (PostgreSQL 15+). Widen congressional-terms uniqueness to
   `(congress_number, seat_id, office_term_id)` so a successor can serve the
   same seat in the same Congress (#1468).
+- Seat uniqueness includes Senate class, so a state's two U.S. Senate seats
+  can coexist with an empty district label. A partial unique constraint allows
+  only one PRESIDENT seat, including when its state is NULL. Django migration
+  `0020_seat_uniqueness` replaces the old uniqueness constraint while preserving
+  duplicate protection for seats without a Senate class (#1623). Existing
+  duplicate PRESIDENT seats must be reconciled before applying the migration.
 
 ## [4.1.0] - 2026-10-18
 
