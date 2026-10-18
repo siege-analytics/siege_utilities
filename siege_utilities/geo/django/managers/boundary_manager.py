@@ -288,7 +288,10 @@ class BoundaryManager(gis_models.Manager):
             srid: Spatial reference ID for the geometry (default: 4326 WGS 84)
 
         Returns:
-            List of created boundary objects
+            List of the boundary objects actually inserted. Rows whose
+            ``(geoid, vintage_year)`` already existed, or that repeat a GEOID
+            earlier in ``gdf``, are dropped by ``ON CONFLICT DO NOTHING`` and
+            are not returned (#1539). Returned instances have no primary key.
         """
         from django.contrib.gis.geos import GEOSGeometry
 
@@ -317,14 +320,25 @@ class BoundaryManager(gis_models.Manager):
             parsed = self.model.parse_geoid(geoid)
             kwargs.update(parsed)
 
-            objects.append(self.model(**kwargs))
+            # bulk_create skips save(); derive feature_id/boundary_id/source (#1539)
+            objects.append(self.model(**kwargs).prepare_for_bulk())
 
-        # Bulk create in batches
+        # Bulk create in batches. With ignore_conflicts=True Django returns every
+        # input object, so report only the GEOIDs that were absent before.
         created = []
         for i in range(0, len(objects), batch_size):
             batch = objects[i : i + batch_size]
-            created.extend(
-                self.bulk_create(batch, ignore_conflicts=True, batch_size=batch_size)
+            geoids = {obj.geoid for obj in batch}
+            present = set(
+                self.filter(vintage_year=year, geoid__in=geoids).values_list("geoid", flat=True)
             )
+            self.bulk_create(batch, ignore_conflicts=True, batch_size=batch_size)
+            inserted = set(
+                self.filter(vintage_year=year, geoid__in=geoids).values_list("geoid", flat=True)
+            ) - present
+            for obj in batch:
+                if obj.geoid in inserted:
+                    created.append(obj)
+                    inserted.discard(obj.geoid)  # first occurrence wins in the INSERT
 
         return created

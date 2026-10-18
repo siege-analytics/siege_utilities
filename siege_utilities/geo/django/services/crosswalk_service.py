@@ -163,6 +163,20 @@ class CrosswalkPopulationService:
             CrosswalkPopulationResult with statistics
         """
         from ..models.crosswalks import TemporalCrosswalk, CrosswalkDataset
+        from ._bulk import bulk_insert_counted
+
+        def _insert(batch):
+            # Count rows inserted, not rows offered (#1539)
+            return bulk_insert_counted(
+                TemporalCrosswalk.objects,
+                batch,
+                scope={
+                    "source_vintage_year": source_year,
+                    "target_vintage_year": target_year,
+                    "weight_type": weight_type,
+                    "source_boundary_id__in": {cw.source_boundary_id for cw in batch},
+                },
+            )
 
         # Load crosswalk data
         try:
@@ -280,10 +294,7 @@ class CrosswalkPopulationService:
                     objects_to_create.append(TemporalCrosswalk(**kwargs))
 
                     if len(objects_to_create) >= batch_size:
-                        TemporalCrosswalk.objects.bulk_create(
-                            objects_to_create, ignore_conflicts=True
-                        )
-                        created += len(objects_to_create)
+                        created += _insert(objects_to_create)
                         objects_to_create = []
 
             except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
@@ -294,10 +305,7 @@ class CrosswalkPopulationService:
 
         # Create remaining
         if objects_to_create:
-            TemporalCrosswalk.objects.bulk_create(
-                objects_to_create, ignore_conflicts=True
-            )
-            created += len(objects_to_create)
+            created += _insert(objects_to_create)
 
         # Record the dataset
         dataset_name = f"{source_year}-{target_year} {geography_type.title()} Crosswalk"

@@ -115,6 +115,7 @@ class DemographicRollupService:
         from django.contrib.contenttypes.models import ContentType
 
         from ..models.demographics import DemographicSnapshot
+        from ._bulk import bulk_insert_counted
 
         source_prefix_len = self.GEOID_PREFIX_LENGTHS.get(source_level)
         target_prefix_len = self.GEOID_PREFIX_LENGTHS.get(target_level)
@@ -297,6 +298,7 @@ class DemographicRollupService:
                     existing.save()
                     result.records_skipped += 1
                 else:
+                    # bulk_create skips save(); derive summaries here (#1539)
                     to_create.append(
                         DemographicSnapshot(
                             content_type=target_ct,
@@ -304,16 +306,23 @@ class DemographicRollupService:
                             dataset=self.dataset,
                             year=year,
                             values={variable: agg_value},
-                        )
+                        ).prepare_for_bulk()
                     )
 
             if to_create:
                 for i in range(0, len(to_create), batch_size):
                     batch = to_create[i: i + batch_size]
-                    DemographicSnapshot.objects.bulk_create(
-                        batch, ignore_conflicts=True
+                    # Count rows inserted, not rows offered (#1539)
+                    result.records_created += bulk_insert_counted(
+                        DemographicSnapshot.objects,
+                        batch,
+                        scope={
+                            "content_type": target_ct,
+                            "dataset": self.dataset,
+                            "year": year,
+                            "object_id__in": [snap.object_id for snap in batch],
+                        },
                     )
-                result.records_created = len(to_create)
 
             results.append(result)
             log.info(
