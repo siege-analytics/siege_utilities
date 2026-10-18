@@ -71,6 +71,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Chart engines annotate horizontal bars at their ends with their values,
+  preserve fractional labels, accept a value format, and draw labelled grouped
+  bars. Dashboards use one labels/datasets schema for every subplot, retain all
+  datasets with legends, and raise for overflowing charts, unknown types, or
+  invalid data. Text heatmaps align two-character headers and distinguish missing
+  cells without distorting the scale; pie legends handle zero and non-finite
+  totals without division errors or NaN percentages (#1556).
 - Docstring generation inserts lines without rewriting existing comments or
   formatting, handles async definitions, and extracts signature details without
   importing target files. File exclusions match path components and include
