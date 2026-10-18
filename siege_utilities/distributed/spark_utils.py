@@ -982,7 +982,11 @@ def _hadoop_data_files(fs, directory):
     while statuses.hasNext():
         status = statuses.next()
         relative = status.getPath().toUri().getPath()[len(prefix):]
-        if any(part.startswith(('_', '.')) for part in relative.split('/')):
+        # Underscore-prefixed partition columns produce valid "_key=value" dirs.
+        if any(
+            part.startswith('.') or (part.startswith('_') and '=' not in part)
+            for part in relative.split('/')
+        ):
             continue
         files[relative] = status.getLen()
     if not files:

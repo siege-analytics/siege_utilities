@@ -150,7 +150,8 @@ def test_rejects_overlapping_paths_before_cleanup(tmp_path, final, staging):
 
 
 @pytest.mark.parametrize("existing", ["absent", "empty", "nonempty", "file"])
-def test_success_publishes_partitions_and_prunes_backup(tmp_path, existing):
+@pytest.mark.parametrize("partition", ["country=us", "_country=us"])
+def test_success_publishes_partitions_and_prunes_backup(tmp_path, existing, partition):
     fs = HadoopFileSystem("hdfs://namenode", tmp_path)
     final = fs.local("/final")
     if existing in {"empty", "nonempty"}:
@@ -159,13 +160,13 @@ def test_success_publishes_partitions_and_prunes_backup(tmp_path, existing):
         (final / "old").write_text("old")
     if existing == "file":
         final.write_text("old")
-    files = {"country=us/part-0.parquet": "new", "_SUCCESS": ""}
+    files = {f"{partition}/part-0.parquet": "new", "_SUCCESS": ""}
 
     spark_utils.atomic_write_with_staging(
         dataframe(fs, HadoopWriter(fs, files)), "/final", "/staging", file_format="parquet",
     )
 
-    assert (final / "country=us/part-0.parquet").read_text() == "new"
+    assert (final / partition / "part-0.parquet").read_text() == "new"
     assert sorted(tmp_path.iterdir()) == [final]
 
 
