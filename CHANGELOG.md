@@ -94,6 +94,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Survey inference uses separate effective sample sizes and unweighted
+  respondent counts while retaining weighted display bases. Proportion tests
+  skip longitudinal deltas, top-N shares keep the full denominator, and
+  MEAN_SCALE uses weighted means and standard errors. Small-sample mean CIs
+  require SciPy for Student's t; chi-square rejects metric-sum tables.
+  Manually constructed Views must provide `effective_n` for proportion tests
+  and `respondent_count` for chi-square. Migration notes for new behaviours:
+  `build_chain` now raises `CrosstabInputError` for negative or non-finite
+  weights; `column_proportion_test` now raises `SignificanceError` on
+  builder-produced metric-sum tables (a non-unit `metric`), not only on
+  manually constructed Views; and MEAN_SCALE `ci` is now `None` (was `0.0`)
+  when the effective n is ≤ 1, while an effective n below 30 without SciPy now
+  raises `SignificanceError` — install SciPy for small-sample Student's t
+  intervals (#1478).
+
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting

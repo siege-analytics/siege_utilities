@@ -21,12 +21,16 @@ def _make_chain_two_cols():
     """Chain with two clearly different column proportions for sig testing."""
     views = {
         "county=Travis": [
-            View(metric="D", base=1000, count=700.0, pct=0.70),
-            View(metric="R", base=1000, count=300.0, pct=0.30),
+            View(metric="D", base=1000, count=700.0, pct=0.70,
+                 effective_n=1000, respondent_count=700),
+            View(metric="R", base=1000, count=300.0, pct=0.30,
+                 effective_n=1000, respondent_count=300),
         ],
         "county=Harris": [
-            View(metric="D", base=1000, count=400.0, pct=0.40),
-            View(metric="R", base=1000, count=600.0, pct=0.60),
+            View(metric="D", base=1000, count=400.0, pct=0.40,
+                 effective_n=1000, respondent_count=400),
+            View(metric="R", base=1000, count=600.0, pct=0.60,
+                 effective_n=1000, respondent_count=600),
         ],
     }
     return Chain(row_var="party", break_vars=["county"],
@@ -128,8 +132,9 @@ class TestSEUnderflowGuard:
         # Two columns with all-zero proportions, identical bases.
         # p_pool = 0, se = 0 → triggers the underflow guard.
         chain = SimpleNamespace(
-            views={"A": [SimpleNamespace(metric="m", pct=0.0, base=100, sig_flag=None, count=0)],
-                   "B": [SimpleNamespace(metric="m", pct=0.0, base=100, sig_flag=None, count=0)]},
+            delta_column=None,
+            views={"A": [SimpleNamespace(metric="m", pct=0.0, base=100, effective_n=100, sig_flag=None, count=0)],
+                   "B": [SimpleNamespace(metric="m", pct=0.0, base=100, effective_n=100, sig_flag=None, count=0)]},
         )
         out = column_proportion_test(chain, alpha=0.05)
         for col in out.views.values():
