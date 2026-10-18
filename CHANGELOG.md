@@ -12,6 +12,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docstring generation now defaults to a dry run. CLI callers must pass
   `--write` (or `--apply`), and Python callers must pass `dry_run=False` to
   `process_python_file` or `main` to modify files (#1589).
+- **Release process:** PyPI releases go only through `publish-tag.yml`, on a
+  `v*` tag push. It checks that the tag equals `v` + the pyproject version and
+  that the tagged commit is on `main`, then runs the whole of `ci.yml` on the
+  tag. Only after that passes does it build, check wheel contents and publish
+  with `pypa/gh-action-pypi-publish` (using the existing `PYPI_API_TOKEN`
+  secret; trusted publishing with attestations once configured, RELEASING.md). The token-based `release` job
+  in `ci.yml` and its `release: published` trigger are removed.
+  `scripts/release_manager.py --release` no longer uploads or needs
+  `PYPI_API_TOKEN`. It pushes only the new tag, not `--tags`, and stops if
+  tagging fails. `--build --pypi` defaults to TestPyPI and refuses
+  `--repository pypi`. Manual uploads are prohibited; see `RELEASING.md`,
+  which also records the `v3.19.0`, `v3.21.0` and `v4.0.0` dispositions.
+  CHANGELOG entries for 3.18.0-3.23.0 have been added from the tags and git
+  log (#1419).
 
 - `validate_directory_path(..., must_exist=False)` now raises
   `PathSecurityError` when a path component that does not exist yet contains a
@@ -173,6 +187,173 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `from_census_year` now raises with the required population and principal-city
   sources instead of silently degrading; custom place population lookups use
   the full 7-digit GEOID to prevent cross-state PLACEFP collisions. (#1441)
+
+- `CensusDataSource.fetch_geographic_boundaries` no longer reports success
+  for a scope or vintage it did not serve. `context['served_year']` is always
+  set, and the `census_year` column holds the served vintage (it was always
+  null). `county_fips` now filters on `countyfp`. `aitsce`, `ttract` and
+  `tbg` are filtered by state like the other national-only layers, and a
+  state request against a national layer with no `statefp` column fails with
+  `STATE_FILTER_UNAVAILABLE` and `context['state_filter_applied']=False`
+  instead of returning the national file. The module-level
+  `fetch_geographic_boundaries` forwards `county_fips` and
+  `allow_nearest_year`; the module-level `get_geographic_boundaries` no longer
+  passes `state_identifier` into the `county_fips` slot (#1482).
+- TIGER URL construction: `anrc` always resolves to the Alaska file
+  `tl_{year}_02_anrc.zip`; `concity` requires `state_fips`; `cd{n}` resolves
+  to the `CD/` directory for the congress that vintage publishes
+  (`YEAR_TO_CONGRESS[year]`, so `cd119` for 2024 works; other pairings stay
+  "not available" instead of building a 404); `rails` is national
+  (`tl_{year}_us_rails.zip`, flat `TIGER2010/RAILS/` in 2010); `submcd` uses
+  the published `subbarrio` filename from 2013; the 403/429 fallback directory
+  list names `COUSUB` and `ADDRFEAT` and drops the non-existent `COUNTYSUB`,
+  `SDELM`, `SDSEC` and `SDUNI`. An opt-in `-m integration` test HEADs one
+  built URL per catalog type for 2010, 2019 and 2023 (#1464).
+
+### BREAKING
+
+- `CensusDataSource.fetch_geographic_boundaries` (and the module-level
+  wrapper) no longer substitutes the nearest published TIGER vintage. A
+  request for an unpublished year now returns `success=False`,
+  `error_code="VINTAGE_NOT_PUBLISHED"`, `error_stage="discovery"`, with
+  `context['served_year']` naming the vintage that would have been used.
+  The legacy `get_geographic_boundaries` therefore returns `None` for such a
+  year. **Migration:** callers that pass a year Census has not published
+  (for example electinfo's `_fetch_gdf` and TIGER backfill asking for 2025
+  while 2023 is the latest) must handle the new code. Treat
+  `VINTAGE_NOT_PUBLISHED` as "not published yet" and skip or retry later, or
+  pass `allow_nearest_year=True` and key the rows by
+  `result.context['served_year']` (or the frame's `census_year` column),
+  never by the requested year. Do not write 2023 data under a 2025 vintage
+  (#1482).
+- A `state_fips` request for a national-only layer that has no state FIPS
+  column (`cbsa`, `csa`, `metdiv`, `micro`, `necta`, `nectadiv`, `cnecta`,
+  `aiannh` and similar) now fails with `STATE_FILTER_UNAVAILABLE`
+  (`error_stage="configuration"`) instead of returning the whole national
+  file. **Migration:** request these layers without `state_fips` and
+  intersect spatially if a state subset is needed. This includes
+  `populate_boundaries --type cbsa --state ...`. `county_fips` now filters
+  and must be a 3-digit code with `state_fips`; a layer without a `countyfp`
+  column fails with `COUNTY_FILTER_UNAVAILABLE` (#1482).
+- `address_features`, `linear_water`, `area_water`, `roads` and `edges` are
+  removed from `BOUNDARY_TYPE_CATALOG`, and `construct_download_url` raises
+  `BoundaryConfigurationError` for them. Census publishes these only per
+  county, so every URL the builder produced for them 404'd. **Migration:**
+  download the per-county files directly
+  (`tl_{year}_{state}{county}_linearwater.zip`, `areawater`, `roads`,
+  `edges`, `addrfeat`) until county-level support lands. `anrc` with a
+  `state_fips` other than `02`, and `concity` without `state_fips`, now raise
+  `BoundaryConfigurationError`. `rails` with `state_fips` now fails with
+  `STATE_FILTER_UNAVAILABLE` (the national file has no state column) instead
+  of building a per-state URL that 404'd (#1464).
+- `populate_demographics --variables all` stores every variable group. A
+  group whose snapshot already exists is merged into it instead of being
+  skipped, so income, education, housing and the other groups are no longer
+  silently dropped after `total_population`. The Census API's `NAME` label is
+  no longer stored in `DemographicSnapshot.values`. Census sentinels
+  (`-666666666`, `-999999999` and other negatives), non-numeric values and
+  out-of-range values become NULL in `total_population`,
+  `median_household_income` and `median_age` instead of raising
+  `IntegrityError` and rolling back the group load; the raw value stays in
+  `values` (#1550).
+- Bulk loaders now set the fields `save()` derives. Census boundaries get
+  `feature_id`, `boundary_id` and `source`; NCES locale boundaries, school
+  locations and timezones get `feature_id`/`source`; `DemographicSnapshot`
+  rows get `total_population`, `median_household_income` and `median_age`.
+  This repairs `classify_urbanicity`, `by_population()` and weighted rollups
+  after `populate_demographics`. Each model exposes `prepare_for_bulk()`,
+  which `save()` also calls, and `schemas_to_orm` returns prepared instances.
+  Loaders that insert with `ignore_conflicts=True` now report the rows
+  actually inserted. New `backfill_derived_fields` command repairs rows
+  loaded before this fix (#1539).
+
+### BREAKING
+
+- `DemographicPopulationService.populate` (and `populate_demographics`,
+  `populate_all_groups`) no longer skips an existing snapshot. Without
+  `update_existing`/`--update` it merges in only the variables the snapshot
+  lacks and counts it as `records_updated`; it counts `records_skipped` only
+  when nothing new arrived. A group load that used to report `N skipped`
+  now reports `N updated`. Variables a snapshot already holds are still
+  overwritten only with `update_existing=True` (#1550).
+- `DemographicSnapshot.total_population`, `median_household_income` and
+  `median_age` are NULL when the source estimate is a negative Census
+  sentinel or not numeric. Fractional estimates (for example rollup
+  averages) are rounded to the nearest integer instead of truncated (#1550).
+- `records_created` from the demographic, rollup, timeseries, crosswalk,
+  NCES and timezone loaders and `populate_pl_demographics` counts only rows
+  inserted: rows dropped by `ON CONFLICT DO NOTHING` (concurrent loads,
+  repeated keys in a source file) are no longer included, so counts can drop.
+  `BoundaryManager.bulk_create_from_geodataframe` returns only the objects
+  actually inserted. Crosswalk `CrosswalkDataset.record_count` follows the
+  corrected count (#1539).
+- The derivations moved from the `save()` overrides into `prepare_for_bulk()`
+  on `TemporalGeographicFeature` subclasses and `DemographicSnapshot`.
+  `save()` behaves as before. Subclasses that overrode `save()` to change a
+  derivation should override `prepare_for_bulk()` and end with
+  `return super().prepare_for_bulk()` so bulk paths see the change too (#1539).
+- **Upgrade:** rows loaded before this release keep empty `feature_id`,
+  `boundary_id` and `source`, NULL summary columns and `values["NAME"]`.
+  Nothing repairs them automatically. Run
+  `python manage.py backfill_derived_fields --dry-run --strip-name` to see
+  the counts, then the same command without `--dry-run` (#1539, #1550).
+- `CrosswalkPopulationService.populate` (and `populate_crosswalks`) now loads
+  crosswalks: it calls `get_crosswalk(geography_level=...)` instead of the
+  nonexistent `geography_type=` keyword, which raised `TypeError` on every
+  call. Weights are read from the client's `area_weight` column and stored
+  as-is, so a 0.6/0.4 split stays 0.6/0.4 and a real 0.0 stays 0.0. A frame
+  with no weight column returns an error result, and a row with a missing or
+  NaN weight is reported in `errors`; neither is defaulted to 1.0. Two or more
+  sources mapping to one target at full weight are classified `MERGED`. Level
+  names are canonicalised through `resolve_geographic_level`, so block-group
+  crosswalks are requested and stored as `block_group`; `populate_crosswalks
+  --type` accepts `block_group` and keeps `blockgroup` as an alias (#1613).
+- `DemographicRollupService.rollup` no longer overwrites a target snapshot
+  that already holds the variable, and reports writes to existing snapshots
+  in the new `RollupResult.records_updated` instead of `records_skipped`.
+  Crosswalk mode maps crosswalk targets up to `target_level` (truncating the
+  GEOID) instead of writing tract GEOIDs as county snapshots, uses only
+  crosswalk rows whose `target_type` is the source level, and applies the
+  crosswalk weight once: `sum` adds `value·w`, `avg` is `Σvalue·w / Σw`, and
+  `weighted_avg` is `Σvalue·pop·w / Σpop·w`. Level names share the
+  `block_group` vocabulary with the crosswalk loader, so block-group
+  crosswalks are found. `coverage_ratio` counts expected children from the
+  source-level boundary table (latest vintage <= `year`), or the crosswalk
+  sources in crosswalk mode, so missing children lower it; when no boundaries
+  are loaded it logs a warning and falls back to existing snapshots (#1604).
+
+### BREAKING
+
+- `DemographicRollupService.rollup` has a new `overwrite: bool = False`
+  parameter, and by default it no longer replaces a value already present on
+  the target snapshot (for example a county value fetched from the Census
+  API). Callers that refreshed targets by re-running a rollup must pass
+  `overwrite=True`; such writes are counted in `RollupResult.records_updated`.
+  Crosswalk-mode `avg`/`weighted_avg` results change numerically (the weight
+  was applied twice), and crosswalk-mode targets are now `target_level`
+  GEOIDs; snapshots previously written with source-level GEOIDs under the
+  target content type are wrong and should be deleted and recomputed (#1604).
+- Block-group crosswalks are stored with `source_type`/`target_type`
+  `"block_group"` instead of `"blockgroup"`. Rename existing rows, e.g.
+  `TemporalCrosswalk.objects.filter(source_type="blockgroup").update(source_type="block_group", target_type="block_group")`.
+  Any `TemporalCrosswalk` row written with weight 1.0 by an earlier version
+  should be reloaded with `populate_crosswalks --update` (#1613).
+- `[etter]` caps `pandas<3.0` like the other pandas-pulling extras; etter
+  requires `geopandas>=1.1`, so an etter-only install could resolve pandas 3
+  and hit #1365. The pyproject comments on the removed `streamlit`/`export`
+  extras now say 3.24.0 (#1186), not v3.19, and the `all` comment lists the
+  extras it leaves out (#1419).
+- **Packaging:** the wheel ships only `siege_utilities`. 4.0.0 also installed
+  a top-level `spikes` package at the site-packages root; package discovery is
+  now `include = ["siege_utilities*"]`. The wheel now carries the files the
+  library loads at runtime, which no published wheel had:
+  `political/migrations/V*.sql` (so `political.schema_migrations_dir()`
+  exists in an installed package) and `configs/**/*.yaml` (the default Hydra
+  config dir, which `HydraConfigManager` raises on when absent). The CI
+  `build` job runs `scripts/check_wheel_contents.py` on the built wheel and
+  fails on any other top-level entry, a missing referenced data file, a member
+  name containing whitespace (3.22.0 shipped two Finder `" 2.py"` copies) or
+  bytecode. (#1420)
 
 ### BREAKING
 
@@ -465,8 +646,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Major release. The public surface changes incompatibly (the data.world
 connector and its exports are removed, and several packaging extras changed),
-so this supersedes the never-published 3.24.0 in-repo version and bumps the
-major per Semantic Versioning.
+so this supersedes the 3.24.0 in-repo version and bumps the major per Semantic
+Versioning. 3.24.0 was never tagged or uploaded to PyPI, but a 3.24.0 wheel is
+on Nexus (#1401).
 
 ### BREAKING
 
@@ -642,6 +824,101 @@ implied by this changelog/version bump PR.
   guards), so a real misconfig surfaces loudly (writing-code:7).
 - **`siege_geo` migration 0006 no longer re-adds `RedistrictingPlan.state`, which broke a fresh `migrate` with `DuplicateColumn`.**
   Migration 0005 already adds `redistrictingplan.state` (identical `ForeignKey` definition); 0006 added it a second time. On an already-migrated database the second `AddField` was a no-op, but on a fresh database (CI, new deploys) it ran `ALTER TABLE siege_geo_redistrictingplan ADD COLUMN state_id` on a column 0005 had just created, aborting the whole migration graph. `state` is now owned solely by 0005; 0006 keeps its four genuinely-new fields (`effective_from`, `effective_to`, `superseded_by`, `court_case`). Model state is unchanged. A new static guard `tests/test_geo_migration_graph.py` fails if any `(model, field)` is `AddField`-ed twice without an intervening removal, so this bug class cannot recur.
+
+## [3.23.0] - 2026-06-19
+
+Tag `v3.23.0` (`09bd9cac`, on `main`). Uploaded to PyPI 2026-06-20. The
+Nexus wheel with this version number is not this tag (#1401).
+
+- Fixes from a hostile review: the lazy loader distinguishes a missing
+  dependency from an internal import bug (#1041); dead `shell=True`
+  subprocess helper removed (#1042); the GA connector raises on missing
+  credentials (#1043); `RDHProvider` raises `BoundaryFetchError` instead of
+  returning `None` (#1044); overlay registry constructor errors propagate
+  (#1045); reporting raises on missing ReportLab (#1046); `quote_ident`
+  docstring corrected (#1047); config fallbacks log warnings (#1048).
+- Packaging: `exclude-package-data` for Finder `" 2.py"` copies (#1049). It
+  filters data files only, not modules; see #1420.
+- CI: the `build` and `release` jobs no longer depend on the test jobs.
+  Since #1419, publishing waits for the full CI run on the tag.
+
+## [3.22.1] - 2026-06-04
+
+Tag `v3.22.1` (`4ce78f52`, on `main`). Uploaded to PyPI 2026-06-20.
+
+- `dir(siege_utilities)` no longer raises `NameError`, and the `connectors`
+  package is registered in the lazy-import table (#1038).
+
+## [3.22.0] - 2026-06-03
+
+Tag `v3.22.0` (`a53f5cf1`, on `main`). Uploaded to PyPI 2026-06-04. The
+wheel contains two Finder duplicates,
+`examples/enhanced_features_demo 2.py` and
+`geo/django/migrations/0010_seat_state_constraint 2.py` (#1420).
+
+- New `connectors/` package (`ConnectorProtocol`, `UpsertResult`,
+  `UpsertError`) (#1011); HubSpot, Zoho and Dynamics OAuth providers (#1014).
+- Geo: GST geocoding helpers (#515), IRS SOI files (#539), DuckDB and Shapely
+  areal-interpolation backends (#986), pure-numpy choropleth classification
+  (#987), `from_geodataframe()` and `engine=` on boundary providers (#988).
+- Fixes: HTTP session lifecycle (#979), CRS agreement before spatial joins
+  (#976), equal-area compactness (#975), atomic file writes (#978).
+
+## [3.21.0] - 2026-06-01
+
+Tag `v3.21.0` (`7764b35d`, on `main`). **Not published to PyPI** and has no
+GitHub release; a wheel exists on Nexus only (#1419). See RELEASING.md.
+
+- Architectural principles codified and the developer docs aligned (#953,
+  #955).
+- SU-1/SU-2 sweep: return-empty-on-error removed in config, distributed,
+  files, survey, geo providers and examples (#959-#961); `__all__` added
+  across the package; star imports converted to lazy loading (#962);
+  credential files written `0o600` (#950); large HTTP downloads streamed with
+  a size cap (#910).
+
+## [3.20.0] - 2026-05-30
+
+Tag `v3.20.0` (`bd187ce4`, on `main`). Uploaded to PyPI 2026-06-20.
+
+- **BREAKING:** functions in analytics, config, data/statistics, distributed,
+  files, geo and reporting that returned empty results on failure now raise
+  (SU-1). Callers that tested for an empty DataFrame, `{}`, `None` or `False`
+  need exception handling instead.
+- `__all__` completeness and annotation fixes (SU-2); `examples/` held to
+  library standards (SU-3); `raise ... from e` throughout.
+
+## [3.19.0] - 2026-05-28
+
+Tag `v3.19.0` points at `75c8125f`, a version-string-only commit made on
+2026-06-19 on top of `main`@`13a2653f` (2026-05-28); `75c8125f` is not on
+`main`. Uploaded to PyPI 2026-06-20 from that commit. See RELEASING.md.
+
+- Census table catalog with caching and search; `VARIABLE_GROUPS`
+  deprecated in favour of `CensusCatalog` (SU#601-606).
+- Place history with seats, demographics, urbanicity and events overlays
+  (SU#607-612); NCES urbanicity batch classification (SU#615-616); NLRB
+  clients and models (SU#617-621).
+- Batch geocoding with Census, Nominatim and TAMU backends and fallback
+  chaining (SU#622-626); codification pipeline (SU#627-632); Redistricting
+  Data Hub catalog, plan lifecycle and precinct-to-VTD reconciliation
+  (SU#633-636).
+- Hostile-review fixes: SQL-injection and credential-exposure surfaces
+  closed, silent `except: pass` sites narrowed (SU#558-761).
+
+## [3.18.0] - 2026-05-26
+
+Tag `v3.18.0` (`6eec45d9`, on `main`). Uploaded to PyPI 2026-06-20.
+
+- Identifiers, schema `MigrationRunner`, the `political` namespace and its
+  SQL migrations (#381). No wheel shipped those SQL files until #1420.
+- Geo boundary models: TribalArea, CountySubdivision, PUMA and special
+  districts (SU#535, SU#551); `RedistrictingPlan.plan_status` (SU#552);
+  migrations 0006-0009.
+- `detect_crs` and axis-order-aware `reproject_geom` (SU#546), format
+  detection (SU#545), `.swmz` reader (SU#547); QCEW and NCES file lifts
+  (SU#533, SU#534); Trino federation and OSS Unity Catalog external tables
+  (#521).
 
 ## [3.17.2] - 2026-05-14
 
