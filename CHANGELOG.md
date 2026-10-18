@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-10-18
+
 ### Changed
 
 - Docstring generation now defaults to a dry run. CLI callers must pass
@@ -218,14 +220,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `error_code="VINTAGE_NOT_PUBLISHED"`, `error_stage="discovery"`, with
   `context['served_year']` naming the vintage that would have been used.
   The legacy `get_geographic_boundaries` therefore returns `None` for such a
-  year. **Migration:** callers that pass a year Census has not published
-  (for example electinfo's `_fetch_gdf` and TIGER backfill asking for 2025
-  while 2023 is the latest) must handle the new code. Treat
-  `VINTAGE_NOT_PUBLISHED` as "not published yet" and skip or retry later, or
-  pass `allow_nearest_year=True` and key the rows by
-  `result.context['served_year']` (or the frame's `census_year` column),
-  never by the requested year. Do not write 2023 data under a 2025 vintage
-  (#1482).
+  year. A year with no TIGER directory at all (for example 2006, 2007 or a
+  future year) still fails earlier, with `error_code="INVALID_PARAMETERS"` at
+  `error_stage="input_validation"`, as in 4.0.0. **Migration:** callers that
+  can request a vintage Census has not published for that layer must handle
+  both codes. Treat `VINTAGE_NOT_PUBLISHED` and `INVALID_PARAMETERS` as "not
+  published" and skip or retry later, or pass `allow_nearest_year=True` and
+  key the rows by `result.context['served_year']` (or the frame's
+  `census_year` column), never by the requested year. Do not write one
+  vintage's data under another vintage's year (#1482).
 - A `state_fips` request for a national-only layer that has no state FIPS
   column (`cbsa`, `csa`, `metdiv`, `micro`, `necta`, `nectadiv`, `cnecta`,
   `aiannh` and similar) now fails with `STATE_FILTER_UNAVAILABLE`
