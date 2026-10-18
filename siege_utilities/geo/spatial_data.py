@@ -1978,7 +1978,11 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
         If both are provided, state_identifier takes precedence.
 
     Returns:
-        GeoDataFrame with Census boundaries (filtered by state if specified)
+        GeoDataFrame with Census boundaries (filtered by state if specified),
+        or None when the source reports no data.
+
+    Raises:
+        ValueError: Invalid state identifier or no state FIPS column for filtering.
     """
     warnings.warn(
         "get_census_boundaries() is deprecated; will be removed in v3.17.0. "
@@ -2005,8 +2009,7 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
             # Then convert to FIPS code
             normalized_fips = normalize_state_identifier(normalized_input)
         except ValueError as e:
-            log.error(f"Invalid state identifier: '{state_param}' - {e}")
-            return None
+            raise ValueError(f"Invalid state identifier: {state_param!r}") from e
 
     # Download boundaries
     # For national-only types, don't pass state_fips to the download function
@@ -2019,8 +2022,8 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
     if gdf is not None and normalized_fips and geographic_level in national_only_types:
         # Filter by state FIPS column (statefp or STATEFP)
         fips_col = None
-        for col in ['statefp', 'STATEFP', 'statefp20', 'STATEFP20', 'statefp10', 'STATEFP10']:
-            if col in gdf.columns:
+        for col in gdf.columns:
+            if col.lower() in {'statefp', 'statefp20', 'statefp10'}:
                 fips_col = col
                 break
 
@@ -2029,7 +2032,10 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
             gdf = gdf[gdf[fips_col] == normalized_fips].copy()
             log.info(f"Filtered {geographic_level} from {original_count} to {len(gdf)} features for state {normalized_fips}")
         else:
-            log.warning(f"No state FIPS column found in {geographic_level} data - cannot filter by state")
+            raise ValueError(
+                f"No state FIPS column found in {geographic_level} data; "
+                f"cannot satisfy state request {normalized_fips}"
+            )
 
     return gdf
 

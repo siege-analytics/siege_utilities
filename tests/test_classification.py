@@ -182,7 +182,9 @@ class TestNaturalBreaksScheme:
 
 class TestStdMeanScheme:
 
-    def test_breaks_centered_on_mean(self):
+    def test_breaks_centered_on_mean(self, monkeypatch):
+        # Exercise the numpy algorithm explicitly; backend failures now raise.
+        monkeypatch.setattr("siege_utilities.geo.classification._MAPCLASSIFY_AVAILABLE", False)
         from siege_utilities.geo.classification import classify_series
 
         np.random.seed(42)
@@ -199,7 +201,9 @@ class TestStdMeanScheme:
 
 class TestHeadTailBreaksScheme:
 
-    def test_produces_bins(self):
+    def test_produces_bins(self, monkeypatch):
+        # Exercise the numpy algorithm explicitly; backend failures now raise.
+        monkeypatch.setattr("siege_utilities.geo.classification._MAPCLASSIFY_AVAILABLE", False)
         from siege_utilities.geo.classification import classify_series
 
         np.random.seed(42)
@@ -207,7 +211,9 @@ class TestHeadTailBreaksScheme:
         result = classify_series(values, scheme="headtailbreaks", k=10)
         assert result.k >= 1
 
-    def test_uniform_data_few_bins(self):
+    def test_uniform_data_few_bins(self, monkeypatch):
+        # Exercise the numpy algorithm explicitly; backend failures now raise.
+        monkeypatch.setattr("siege_utilities.geo.classification._MAPCLASSIFY_AVAILABLE", False)
         from siege_utilities.geo.classification import classify_series
 
         values = list(range(1, 101))

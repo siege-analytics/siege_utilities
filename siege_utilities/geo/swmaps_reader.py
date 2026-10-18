@@ -181,7 +181,8 @@ def read_features(
       otherwise.
     * ``attributes`` — ``{field_name: value}`` mapping pulled from
       ``attribute_values`` joined to ``attribute_fields``. Keys can be
-      renamed by passing ``mapper``.
+      renamed by passing ``mapper``. When neither optional attribute table
+      exists, attributes are empty; incomplete schemas and query errors raise.
 
     Args:
         archive: An :class:`SWMapsArchive` opened via :func:`open_swmaps`.
@@ -195,6 +196,7 @@ def read_features(
 
     Raises:
         ImportError: If ``shapely`` is not installed.
+        sqlite3.DatabaseError: If the attribute schema is incomplete or a query fails.
 
     The geometry rule matches the salvage source (``DataUtils.py:749-768``)
     but uses ``shapely.geometry.Point`` / ``shapely.geometry.LineString``
@@ -230,16 +232,21 @@ def read_features(
                 },
             )
 
-        # Pull per-feature attributes once into a dict-of-dicts. Tables
-        # are optional in the schema; tolerate their absence.
+        # Attribute tables are optional only as a pair. If either exists,
+        # run the join so an incomplete schema cannot discard attributes.
         attrs_by_feature: dict[str, dict] = {}
         try:
-            for row in conn.execute(_ATTRIBUTE_QUERY):
-                attrs_by_feature.setdefault(row["feature_id"], {})[
-                    row["field_name"]
-                ] = row["field_value"]
+            tables = {
+                row[0].lower()
+                for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            }
+            if {"attribute_values", "attribute_fields"} & tables:
+                for row in conn.execute(_ATTRIBUTE_QUERY):
+                    attrs_by_feature.setdefault(row["feature_id"], {})[
+                        row["field_name"]
+                    ] = row["field_value"]
         except sqlite3.DatabaseError as exc:
-            log.warning("SWMaps attribute join failed: %s", exc)
+            raise sqlite3.DatabaseError("SWMaps attribute join failed") from exc
 
     for fid, rows in feature_rows.items():
         if not rows:
