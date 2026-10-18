@@ -20,6 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `unzip_file_to_directory` for member files. Existing files with such names
   can still be overwritten. The check is public as
   `reject_unsafe_new_file_path` (#1737).
+### Fixed
+
+- Political schema migrations can now be applied: remove the trailing comma
+  that prevented V0002 from parsing and blocked dependent V0003. Limit the
+  composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
+  a linked office term preserves its predecessor's required `seat_id`
+  (PostgreSQL 15+). Widen congressional-terms uniqueness to
+  `(congress_number, seat_id, office_term_id)` so a successor can serve the
+  same seat in the same Congress (#1468).
 
 ## [4.1.0] - 2026-10-18
 
