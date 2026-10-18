@@ -5,7 +5,11 @@ These models store demographic snapshots that can be attached to any
 Census boundary type using Django's contenttypes framework.
 """
 
+import math
+import numbers
+import re
 import warnings
+from decimal import Decimal
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import FieldDoesNotExist
@@ -19,6 +23,30 @@ __all__ = [
     'DemographicTimeSeries',
     'DemographicKeyArchive',
 ]
+
+
+_NUMERIC_TEXT = re.compile(r"\s*[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?\s*\Z")
+
+
+def _census_summary_number(value, *, upper=None):
+    """Return a Census estimate fit for a typed, non-negative summary column.
+
+    The Census API reports missing or suppressed estimates as large negative
+    sentinels (``-666666666``, ``-999999999``, ``-888888888`` ...). Those, and
+    anything non-numeric, non-finite, or ``>= upper``, map to ``None`` so a
+    ``PositiveIntegerField``/``DecimalField`` never receives them (#1550).
+    The raw value stays in ``values``.
+    """
+    if isinstance(value, str) and _NUMERIC_TEXT.match(value):
+        value = float(value)
+    if isinstance(value, bool) or not isinstance(value, (numbers.Real, Decimal)):
+        return None
+    number = float(value)
+    if not math.isfinite(number) or number < 0:
+        return None
+    if upper is not None and number >= upper:
+        return None
+    return number
 
 
 class _GEOIDBoundaryLink:
@@ -363,24 +391,44 @@ class DemographicSnapshot(_GEOIDBoundaryLink, models.Model):
         code = variable_code.rstrip("E")
         return self.moe_values.get(f"{code}M", self.moe_values.get(code, default))
 
-    def save(self, *args, **kwargs):
-        """Auto-populate summary fields from values if present."""
+    # PositiveIntegerField's PostgreSQL range; median_age is DecimalField(4, 1).
+    _MAX_POSITIVE_INTEGER = 2147483648
+    _MAX_MEDIAN_AGE = 999.95  # rounds to 1000.0, which overflows max_digits=4
+
+    def prepare_for_bulk(self):
+        """Derive the summary columns from ``values`` without touching the database.
+
+        ``bulk_create`` never calls ``save()``, so bulk loaders call this on
+        each instance first (#1539); ``save()`` calls it too. A summary column
+        is only touched when its source variable is present in ``values``.
+        Census sentinels and non-numeric values become ``None`` rather than
+        violating the columns' ``>= 0`` CHECK constraints (#1550).
+
+        Returns:
+            ``self``, so it can be chained: ``DemographicSnapshot(...).prepare_for_bulk()``.
+        """
         if self.values:
-            # Total population
             if "B01001_001E" in self.values:
-                self.total_population = self.values["B01001_001E"]
+                number = _census_summary_number(
+                    self.values["B01001_001E"], upper=self._MAX_POSITIVE_INTEGER
+                )
+                self.total_population = None if number is None else round(number)
 
-            # Median household income
             if "B19013_001E" in self.values:
-                self.median_household_income = self.values["B19013_001E"]
+                number = _census_summary_number(
+                    self.values["B19013_001E"], upper=self._MAX_POSITIVE_INTEGER
+                )
+                self.median_household_income = None if number is None else round(number)
 
-            # Median age
             if "B01002_001E" in self.values:
-                try:
-                    self.median_age = float(self.values["B01002_001E"])
-                except (ValueError, TypeError):
-                    pass
+                self.median_age = _census_summary_number(
+                    self.values["B01002_001E"], upper=self._MAX_MEDIAN_AGE
+                )
+        return self
 
+    def save(self, *args, **kwargs):
+        """Auto-populate summary fields from values (see :meth:`prepare_for_bulk`)."""
+        self.prepare_for_bulk()
         super().save(*args, **kwargs)
 
 
