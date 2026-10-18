@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Pandas geocode validation now handles antimeridian-crossing CRS bounds
-  (including NAD83/EPSG:4269), compares projected coordinates against bounds
-  in their own CRS units, and rejects the exact geographic `(0, 0)` failed-geocode
-  sentinel. Both filtering and validity marking share these checks. Failed
-  projected-bound transformations log a warning and accept finite coordinates
-  instead of rejecting them against degree bounds (#1459).
-
 ## [4.1.0] - 2026-10-18
 
 ### Changed
@@ -103,6 +94,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Pandas geocode validation uses world ranges for geographic CRSs, retaining
+  NAD83/EPSG:4269 coordinates on both sides of the antimeridian and in Guam,
+  American Samoa and Saipan. Projected bounds use densified area-of-use edges
+  in CRS units, retaining southern CONUS points in EPSG:5070 and EPSG:5069.
+  Both filtering and validity marking reject the exact geographic `(0, 0)`
+  failed-geocode sentinel while accepting single-zero coordinates and valid
+  projected origins. Failed projected-bound transformations log a warning
+  and accept finite coordinates instead of comparing them to degrees (#1459).
+- Spark `validate_geocode_data` and `mark_valid_geocode_data` now reject the
+  exact geographic `(0, 0)` sentinel, matching pandas; single-zero coordinates
+  within world ranges remain valid. To retain sentinel rows for inspection,
+  use the marking function instead of the filtering function (#1459).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting

@@ -461,8 +461,9 @@ class NominatimGeoClassifier:
 def _get_crs_bounds(crs) -> Tuple[float, float, float, float, bool]:
     """Return (y_min, y_max, x_min, x_max, is_geographic) in CRS units.
 
-    Geographic bounds preserve wrapped longitudes. For non-geographic CRSs,
-    transform the four geographic area-of-use corners to an x/y envelope.
+    Geographic CRSs use world ranges rather than their area of use so NAD83
+    coordinates in US Pacific territories remain valid. For non-geographic
+    CRSs, densify the geographic area-of-use edges to derive an x/y envelope.
     If those bounds cannot be derived, log a warning and leave them unbounded
     rather than comparing projected coordinates against degrees.
 
@@ -471,8 +472,8 @@ def _get_crs_bounds(crs) -> Tuple[float, float, float, float, bool]:
              ``pyproj.CRS.from_user_input``.
 
     Returns:
-        Bounds and a geographic flag. Geographic CRSs without an area of use
-        (or invalid CRS inputs) fall back to WGS84 world bounds.
+        Bounds and a geographic flag. Geographic CRSs and invalid CRS inputs
+        use WGS84 world bounds.
     """
     is_geographic = True
     try:
@@ -482,23 +483,25 @@ def _get_crs_bounds(crs) -> Tuple[float, float, float, float, bool]:
         if not isinstance(crs, ProjCRS):
             crs = ProjCRS.from_user_input(crs)
         is_geographic = crs.is_geographic
-        aou = crs.area_of_use
         if is_geographic:
-            if aou is not None:
-                return (aou.south, aou.north, aou.west, aou.east, True)
+            # Area of use describes the CRS, not all valid geocode locations:
+            # TIGER also supplies NAD83 coordinates for US Pacific territories.
+            return (-90.0, 90.0, -180.0, 180.0, True)
         else:
+            aou = crs.area_of_use
             if aou is None:
                 raise ValueError("CRS has no area of use")
             # area_of_use is a geographic lon/lat box, even for projected CRSs.
+            # Densify its edges because conic projections bow between corners.
             transformer = Transformer.from_crs(4326, crs, always_xy=True)
-            xs, ys = transformer.transform(
-                [aou.west, aou.west, aou.east, aou.east],
-                [aou.south, aou.north, aou.south, aou.north],
+            x_min, y_min, x_max, y_max = transformer.transform_bounds(
+                aou.west, aou.south, aou.east, aou.north,
+                densify_pts=21,
                 errcheck=True,
             )
-            if not all(math.isfinite(value) for value in (*xs, *ys)):
+            if not all(math.isfinite(value) for value in (x_min, y_min, x_max, y_max)):
                 raise ValueError("Transformed CRS bounds are non-finite")
-            return (min(ys), max(ys), min(xs), max(xs), False)
+            return (y_min, y_max, x_min, x_max, False)
     except (ValueError, TypeError, RuntimeError, AttributeError) as exc:
         if not is_geographic:
             logger.warning(
@@ -527,11 +530,12 @@ def validate_geocode_data_pandas(
         df: Input DataFrame.
         lat_col: Name of the latitude (or projected y) column.
         lon_col: Name of the longitude (or projected x) column.
-        crs: Optional CRS (pyproj CRS, EPSG int, or string).  When supplied,
-             bounds use its area of use, transformed to a corner envelope in
-             CRS units for projected coordinates. If that transform fails,
-             finite coordinates are accepted with a warning. Defaults to
-             WGS84 (-90..90, -180..180). Geographic (0, 0) is always invalid.
+        crs: Optional CRS (pyproj CRS, EPSG int, or string). Geographic CRSs
+             use world ranges (-90..90, -180..180), not area-of-use limits,
+             to retain US Pacific territories in NAD83. Projected bounds use
+             densified area-of-use edges transformed to CRS units. If that
+             transform fails, finite coordinates are accepted with a warning.
+             Defaults to WGS84. Geographic (0, 0) is always invalid.
 
     Returns:
         DataFrame with only rows whose coordinates fall within the valid range.
@@ -556,11 +560,12 @@ def mark_valid_geocode_data_pandas(
         lat_col: Name of the latitude (or projected y) column.
         lon_col: Name of the longitude (or projected x) column.
         output_col: Name of the boolean column to add.
-        crs: Optional CRS (pyproj CRS, EPSG int, or string).  When supplied,
-             bounds use its area of use, transformed to a corner envelope in
-             CRS units for projected coordinates. If that transform fails,
-             finite coordinates are accepted with a warning. Defaults to
-             WGS84 (-90..90, -180..180). Geographic (0, 0) is always invalid.
+        crs: Optional CRS (pyproj CRS, EPSG int, or string). Geographic CRSs
+             use world ranges (-90..90, -180..180), not area-of-use limits,
+             to retain US Pacific territories in NAD83. Projected bounds use
+             densified area-of-use edges transformed to CRS units. If that
+             transform fails, finite coordinates are accepted with a warning.
+             Defaults to WGS84. Geographic (0, 0) is always invalid.
 
     Returns:
         Copy of *df* with *output_col* appended.
