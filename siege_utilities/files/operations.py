@@ -138,15 +138,16 @@ def atomic_write_shapefile(gdf, target: FilePath, **kwargs) -> None:
     to a temp stem then renames all produced files to the final stem.
     """
     target = Path(target)
+    if not _safe_suffix(target.name):
+        from siege_utilities.files.validation import PathSecurityError
+        raise PathSecurityError(f"Unsafe shapefile name {target.name!r}: {str(target)!r}")
     _create_parent_directory(target)
     tmp_dir = Path(tempfile.mkdtemp(dir=target.parent, prefix="atomic_shp_"))
     # GDAL names the layer, and for a suffix-less target the output files,
-    # after this stem, so keep the target's name; only an existing target with
-    # an unsafe name falls back to a fixed one (#1737).
-    if _safe_suffix(target.name):
-        tmp_shp = tmp_dir / target.name
-    else:
-        tmp_shp = tmp_dir / f"atomic{target.suffix if _safe_suffix(target.suffix) else '.shp'}"
+    # after this stem, so the temporary file keeps the target's name. A
+    # shapefile always publishes sidecars under that name, so an unsafe name is
+    # refused even when the target exists (#1737).
+    tmp_shp = tmp_dir / target.name
     try:
         gdf.to_file(str(tmp_shp), driver="ESRI Shapefile", **kwargs)
         produced = [(f, target.parent / (target.stem + f.suffix)) for f in tmp_dir.iterdir()]
