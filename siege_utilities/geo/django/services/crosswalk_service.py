@@ -8,6 +8,7 @@ crosswalk relationships into Django models.
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
@@ -22,6 +23,21 @@ __all__ = [
     'CrosswalkPopulationResult',
     'CrosswalkPopulationService',
 ]
+
+
+def _canonical_level(level: str) -> str:
+    """Return the canonical geography level name (e.g. 'blockgroup' -> 'block_group').
+
+    Uses the shared registry vocabulary so the crosswalk loader and the rollup
+    service store and query the same ``source_type``/``target_type`` values.
+    Unrecognised names are returned unchanged for the caller to validate.
+    """
+    from siege_utilities.config.census_registry import resolve_geographic_level
+
+    try:
+        return resolve_geographic_level(level)
+    except ValueError:
+        return level
 
 
 @dataclass
@@ -99,7 +115,7 @@ class CrosswalkPopulationService:
         )
 
         df = get_crosswalk(
-            geography_type=geography_type,
+            geography_level=geography_type,
             source_year=source_year,
             target_year=target_year,
             state_fips=state_fips,
@@ -107,8 +123,24 @@ class CrosswalkPopulationService:
 
         return df
 
+    @staticmethod
+    def _row_weight(row) -> float:
+        """
+        Read the allocation weight from a normalised crosswalk row.
+
+        A real 0.0 is preserved. A missing or NaN weight raises ValueError
+        rather than being coerced to a full (1.0) allocation.
+        """
+        raw = row.get("weight")
+        if raw is None:
+            raise ValueError("crosswalk row has no weight")
+        weight = float(raw)
+        if math.isnan(weight):
+            raise ValueError("crosswalk row has a NaN weight")
+        return weight
+
     def _determine_relationship(
-        self, row: dict, all_rows_for_source: list
+        self, row: dict, all_rows_for_source: list, sources_for_target: int = 1
     ) -> str:
         """
         Determine the relationship type based on weight and other records.
@@ -116,13 +148,18 @@ class CrosswalkPopulationService:
         Args:
             row: Current crosswalk row
             all_rows_for_source: All rows with the same source GEOID
+            sources_for_target: Number of distinct source GEOIDs that map to
+                this row's target GEOID
 
         Returns:
             Relationship type string
         """
-        weight = float(row.get("weight") or row.get("WEIGHT") or 1.0)
+        weight = self._row_weight(row)
 
         if weight >= 0.9999:
+            if sources_for_target > 1:
+                # Whole source folded into a target that other sources also feed
+                return "MERGED"
             # Check if target GEOID equals source GEOID
             source = str(row.get("source_geoid", row.get("GEOID_SOURCE", "")))
             target = str(row.get("target_geoid", row.get("GEOID_TARGET", "")))
@@ -151,7 +188,9 @@ class CrosswalkPopulationService:
         Populate crosswalk data for a geography type.
 
         Args:
-            geography_type: Type of geography (tract, blockgroup, etc.)
+            geography_type: Type of geography ('tract', 'block_group', 'county').
+                Aliases such as 'blockgroup' are canonicalised before loading
+                and storage.
             source_year: Source Census year (earlier)
             target_year: Target Census year (later)
             state_fips: Optional state filter
@@ -177,6 +216,8 @@ class CrosswalkPopulationService:
                     "source_boundary_id__in": {cw.source_boundary_id for cw in batch},
                 },
             )
+
+        geography_type = _canonical_level(geography_type)
 
         # Load crosswalk data
         try:
@@ -220,6 +261,7 @@ class CrosswalkPopulationService:
             "GEOID_SOURCE": "source_geoid",
             "GEOID_TARGET": "target_geoid",
             "WEIGHT": "weight",
+            "area_weight": "weight",
             "POP_SOURCE": "source_population",
             "POP_TARGET": "target_population",
             "POP_ALLOCATED": "allocated_population",
@@ -227,10 +269,38 @@ class CrosswalkPopulationService:
         }
         df = df.rename(columns=col_map)
 
+        if "weight" not in df.columns:
+            message = (
+                "Crosswalk data has no weight column (expected 'area_weight' or "
+                f"'WEIGHT'; got {sorted(map(str, df.columns))}); refusing to "
+                "default weights to 1.0"
+            )
+            logger.error(message)
+            return CrosswalkPopulationResult(
+                geography_type=geography_type,
+                source_year=source_year,
+                target_year=target_year,
+                state_fips=state_fips,
+                records_created=0,
+                records_updated=0,
+                records_skipped=0,
+                errors=[message],
+            )
+
         # Group by source GEOID to determine relationships
         source_groups = df.groupby("source_geoid").apply(
             lambda x: x.to_dict("records")
         ).to_dict()
+        # Distinct sources per target, for many-to-one (MERGED) detection
+        sources_per_target = (
+            df.assign(
+                _source=df["source_geoid"].astype(str),
+                _target=df["target_geoid"].astype(str),
+            )
+            .groupby("_target")["_source"]
+            .nunique()
+            .to_dict()
+        )
 
         for _, row in df.iterrows():
             try:
@@ -259,10 +329,14 @@ class CrosswalkPopulationService:
 
                 # Determine relationship
                 all_rows_for_source = source_groups.get(source_geoid, [])
-                relationship = self._determine_relationship(row, all_rows_for_source)
+                relationship = self._determine_relationship(
+                    row,
+                    all_rows_for_source,
+                    sources_per_target.get(target_geoid, 1),
+                )
 
-                # Get weight
-                weight = float(row.get("weight") or 1.0)
+                # Get weight (0.0 preserved; missing/NaN raises)
+                weight = self._row_weight(row)
                 if weight > 1.0:
                     weight = 1.0
                 if weight < 0.0:
@@ -308,7 +382,10 @@ class CrosswalkPopulationService:
             created += _insert(objects_to_create)
 
         # Record the dataset
-        dataset_name = f"{source_year}-{target_year} {geography_type.title()} Crosswalk"
+        dataset_name = (
+            f"{source_year}-{target_year} "
+            f"{geography_type.replace('_', ' ').title()} Crosswalk"
+        )
         if state_fips:
             dataset_name += f" (State {state_fips})"
 
@@ -359,7 +436,7 @@ class CrosswalkPopulationService:
     ) -> CrosswalkPopulationResult:
         """Populate block group crosswalk data."""
         return self.populate(
-            "blockgroup", source_year, target_year, state_fips, **kwargs
+            "block_group", source_year, target_year, state_fips, **kwargs
         )
 
     def populate_county_crosswalk(

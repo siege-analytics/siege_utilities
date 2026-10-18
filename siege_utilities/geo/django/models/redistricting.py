@@ -584,7 +584,7 @@ class PlanDistrictAssignment(models.Model):
         on_delete=models.CASCADE,
         help_text="Content type of the boundary model",
     )
-    boundary_object_id = models.PositiveIntegerField(
+    boundary_object_id = models.PositiveBigIntegerField(
         help_text="PK of the boundary instance",
     )
     boundary = GenericForeignKey("boundary_content_type", "boundary_object_id")

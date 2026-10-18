@@ -170,9 +170,9 @@ Every push and PR triggers the full CI pipeline (`.github/workflows/ci.yml`):
 | **lint-ratchet** | Lint quality gate (violations can only go down) |
 | **test-file-hygiene** | Test naming and location conventions |
 | **security** | pip-audit + bandit vulnerability scan |
-| **build** | Package build + twine validation |
+| **build** | Package build, twine validation, wheel-contents check |
 
-The **build** job gates on `test`, `battle-test`, and `api-contract-regression`. The **release** job (PyPI upload) runs only on GitHub release events.
+In `ci.yml` the **build** job does not depend on the test jobs, and `ci.yml` never uploads. Publishing happens only in `publish-tag.yml` on a `v*` tag, after the whole of `ci.yml` passes on the tagged commit. Manual uploads to PyPI are prohibited; see [RELEASING.md](RELEASING.md).
 
 ### API Contract Policy
 
