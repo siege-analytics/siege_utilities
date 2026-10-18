@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `LongitudinalAligner.align` falls back to areal interpolation only when the
+  crosswalk client explicitly reports unavailable coverage. Other crosswalk
+  errors propagate unchanged. If areal interpolation also fails, alignment
+  raises with the transition and both causes instead of returning partial data;
+  callers should handle exceptions instead of checking `method="failed"` (#1408).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed

@@ -615,7 +615,8 @@ class AlignmentResult:
         data: Aligned DataFrame with GEOIDs in the target vintage.
         source_vintage: Original boundary vintage year.
         target_vintage: Target boundary vintage year.
-        method: Method used for alignment (``'crosswalk'`` or ``'areal'``).
+        method: Method used for alignment (``'identity'``, ``'crosswalk'``, or
+            ``'areal'``).
         rows_before: Row count before alignment.
         rows_after: Row count after alignment.
         warnings: Any warnings generated during alignment.
@@ -702,6 +703,15 @@ class LongitudinalAligner:
         Returns
         -------
         AlignmentResult
+            Aligned data and provenance. Areal interpolation is used only when
+            no crosswalk is configured for the requested years or geography.
+
+        Raises
+        ------
+        RuntimeError
+            If the crosswalk is unavailable and areal interpolation also fails.
+            Includes the failing transition and both causes; no partial result
+            is returned. Other crosswalk errors propagate unchanged.
         """
         geo = geography or self.geography
         sfips = state_fips or self.state_fips
@@ -743,16 +753,20 @@ class LongitudinalAligner:
                     numeric,
                 )
 
+        # Keep crosswalk dependencies lazy, as in _apply_crosswalk_step.
+        from ..crosswalk.crosswalk_client import CrosswalkUnavailable
+
         for src, tgt in chain:
             try:
                 current_df = self._apply_crosswalk_step(
                     current_df, src, tgt, geo, sfips, geoid_column,
                     intensive_columns=intensive_columns,
                 )
-            except Exception as exc:
-                # Any crosswalk-step failure falls back to areal interpolation.
+            except CrosswalkUnavailable as exc:
+                # The client signals missing coverage explicitly; processing,
+                # validation, and download failures must propagate unchanged.
                 log.warning(
-                    "Crosswalk %d→%d failed (%s), trying areal interpolation",
+                    "Crosswalk %d→%d unavailable (%s), trying areal interpolation",
                     src, tgt, exc,
                 )
                 try:
@@ -765,22 +779,11 @@ class LongitudinalAligner:
                         f"Used areal interpolation for {src}→{tgt} (crosswalk unavailable)"
                     )
                 except Exception as areal_exc:
-                    msg = (
+                    raise RuntimeError(
                         f"Both crosswalk and areal interpolation failed for "
-                        f"{src}→{tgt}: {areal_exc}"
-                    )
-                    log.warning(msg)
-                    warnings.append(msg)
-                    # Return data as-is with warning
-                    return AlignmentResult(
-                        data=current_df,
-                        source_vintage=source_vintage,
-                        target_vintage=self.target_vintage,
-                        method="failed",
-                        rows_before=rows_before,
-                        rows_after=len(current_df),
-                        warnings=warnings,
-                    )
+                        f"{src}→{tgt}: crosswalk unavailable ({exc}); "
+                        f"areal interpolation failed ({areal_exc})"
+                    ) from areal_exc
 
         return AlignmentResult(
             data=current_df,
