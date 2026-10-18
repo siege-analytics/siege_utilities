@@ -178,17 +178,17 @@ class NCESLocaleBoundary(TemporalBoundary):
     def __str__(self):
         return f"{self.locale_category} ({self.locale_code}) [{self.nces_year}]"
 
-    def save(self, *args, **kwargs):
-        """Persist the model, auto-populating feature_id and source.
+    def prepare_for_bulk(self):
+        """Auto-populate feature_id and source (also applied by ``save()``).
 
-        *args/**kwargs: Forwarded to ``super().save()``.
+        ``bulk_create`` skips ``save()``; bulk loaders call this instead (#1539).
         """
         # Sync feature_id from locale code + year
         if not self.feature_id:
             self.feature_id = f"nces_locale_{self.locale_code}_{self.nces_year}"
         if not self.source:
             self.source = "NCES EDGE"
-        super().save(*args, **kwargs)
+        return super().prepare_for_bulk()
 
 
 class SchoolLocation(TemporalPointFeature):
@@ -252,13 +252,13 @@ class SchoolLocation(TemporalPointFeature):
     def __str__(self):
         return f"{self.school_name} ({self.ncessch})"
 
-    def save(self, *args, **kwargs):
-        """Persist the model, auto-populating feature_id and source.
+    def prepare_for_bulk(self):
+        """Auto-populate feature_id and source (also applied by ``save()``).
 
-        *args/**kwargs: Forwarded to ``super().save()``.
+        ``bulk_create`` skips ``save()``; bulk loaders call this instead (#1539).
         """
         if not self.feature_id:
             self.feature_id = self.ncessch
         if not self.source:
             self.source = "NCES EDGE"
-        super().save(*args, **kwargs)
+        return super().prepare_for_bulk()
