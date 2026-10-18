@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Narrow the engines/01 notebook's teaching claim to result parity across
+  pandas and DuckDB using different query implementations. Keep the existing
+  queries and results comparison, with a regression test for the claim (#1663).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
