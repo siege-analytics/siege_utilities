@@ -24,7 +24,7 @@ def report_inputs(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, Any]]:
     monkeypatch.setenv("MPLBACKEND", "Agg")
     namespace: dict[str, Any] = {}
     try:
-        # PDF execution is covered by the existing pure-notebook CI test.
+        # Rendered PDF table values are covered by test_pdf_table_renders_counts.
         for cell_id in ("c1", "c2", "c3"):
             source = cells[cell_id].source.replace("%matplotlib inline\n", "")
             exec(compile(source, f"{NOTEBOOK.name}:{cell_id}", "exec"), namespace)
@@ -34,8 +34,12 @@ def report_inputs(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, Any]]:
             for section in namespace["report"]["sections"]
             if section["type"] in {"text", "charts", "table"}
         }
+        headers = sections["table"]["headers"]
+        rows = (
+            dict(zip(headers, values)) for values in sections["table"]["data"][1:]
+        )
         row = next(
-            row for row in sections["table"]["data"]
+            row for row in rows
             if row["metric"].startswith("volunteer sign-ups")
         )
         yield {
@@ -96,3 +100,24 @@ def test_growth_matches_counts_on_every_report_surface(report_inputs: dict[str, 
         )
     assert str(current) in report_inputs["summary"]
     assert str(baseline) in report_inputs["summary"]
+
+
+def test_pdf_table_renders_counts(monkeypatch):
+    import siege_utilities.reporting.report_generator as rgmod
+    rendered = []
+
+    class Spy(rgmod.Table):
+        def __init__(self, data, *a, **k):
+            super().__init__(data, *a, **k)
+            rendered.append([list(r) for r in self._cellvalues])
+
+    monkeypatch.setattr(rgmod, "Table", Spy)
+    monkeypatch.setenv("MPLBACKEND", "Agg")
+    nb = nbformat.read(NOTEBOOK, as_version=4)
+    ns = {}
+    for cell in nb.cells:
+        if cell.cell_type == "code":
+            exec(compile(cell.source.replace("%matplotlib inline\n", ""), cell.id, "exec"), ns)
+    table = rendered[0]  # first Table is the unsplit original
+    assert table[0] == ["metric", "Q1 2026", "Q4 2025 baseline", "delta"]
+    assert ["volunteer sign-ups (count)", 51, 37, "+14 (+37.8%)"] in table
