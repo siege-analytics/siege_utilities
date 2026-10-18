@@ -13,16 +13,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `PathSecurityError` when a path component that does not exist yet contains a
   C0 control character, DEL or a C1 control character. This covers callers that
   create directories through it, such as `ensure_path_exists`, and the
-  zip-named subdirectory `unzip_file_to_directory` creates. Member paths inside
-  an archive are not checked. Existing directories with such names still
+  zip-named subdirectory `unzip_file_to_directory` creates. Member directories
+  inside an archive are checked too (#1716). Existing directories with such names still
   validate when they can be stat'ed, and file-path validation is unchanged.
   Path-validation messages and the debug log now show paths with `repr()`, so
   escape sequences are not written raw. Because the zip-named subdirectory is
   now validated, a zip whose stem is `..` (e.g. `...zip`) raises instead of
   extracting into the parent of `extract_to` (#1692).
+- The same check now covers every public helper that creates a directory or
+  a file's parent: `ensure_directory_exists`, `touch_file`, `copy_file`,
+  `move_file`, `delete_existing_file_and_replace_it_with_an_empty_file`,
+  `safe_file_write`, `safe_json_write`, `atomic_write_path`,
+  `atomic_write_shapefile`, `download_file`, `save_spatial`, `save_tabular`
+  and the credential writer `secure_write_text`. Each raises
+  `PathSecurityError` and creates nothing. Paths are checked as written, so in
+  `a/<new>/../b` the `<new>` that `mkdir` would create on the way is checked
+  too; where files land and how symlinks are treated are unchanged.
+  `unzip_file_to_directory` refuses an archive, before extracting anything,
+  if a member would create such a directory. New components containing a lone surrogate, which is
+  how undecodable (non-UTF-8) bytes reach Python, are refused as well. The
+  check is public as `reject_unsafe_new_directory_names` (#1716).
 
 ### Fixed
 
+- `get_directory_info`, `load_directory_config`, `list_directory_configs`,
+  `load_project_config` and `list_projects` create nothing, so they are back to
+  their behaviour before #1692: a missing name containing a control character
+  returns `{}`, `None`, `[]`, raises `FileNotFoundError` and returns `[]`
+  respectively, instead of raising `PathSecurityError` (#1716).
+- The test suite drops every inherited `SIEGE_*` variable except the
+  `SIEGE_TEST_*` run controls, so a run never reads or rewrites the
+  developer's own config through `SIEGE_USER_CONFIG_DIR`,
+  `SIEGE_SETTINGS_FILE` or any `SIEGE_<SETTING>` override (#1717).
 - `is_sensitive_path` again blocks `_`/`-` prefixed private-key names outside
   `.ssh` (`deploy_id_rsa`, `github-id_ecdsa`) and now covers `id_ed25519`;
   `paid_rsa` and `*.pub` stay allowed (#1702).
