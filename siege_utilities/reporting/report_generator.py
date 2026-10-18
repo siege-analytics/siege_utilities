@@ -289,7 +289,7 @@ class ReportGenerator:
         return report_content
 
     def add_table_section(self, report_content: Dict[str, Any], title: str,
-                          table_data: Union[List[List], pd.DataFrame],
+                          table_data: Union[List[List], List[Dict[str, Any]], pd.DataFrame],
                           headers: List[str] = None, level: int = 1,
                           table_style: str = "default",
                           sort_by: Optional[Union[int, str]] = None,
@@ -300,7 +300,7 @@ class ReportGenerator:
         Args:
             report_content: Existing report content
             title: Section title
-            table_data: Table data (list of lists or DataFrame)
+            table_data: Table data (rows, record dictionaries or DataFrame)
             headers: Column headers
             level: Section level
             table_style: Table styling
@@ -312,6 +312,13 @@ class ReportGenerator:
             Updated report content
         """
         from siege_utilities.reporting.table_utils import sort_table_data
+
+        # Record dictionaries are used by the reporting notebook and need
+        # column-aligned values, rather than iteration over dictionary keys.
+        if isinstance(table_data, list) and table_data and isinstance(table_data[0], dict):
+            if not all(isinstance(row, dict) for row in table_data):
+                raise ValueError("Table section records must all be dictionaries")
+            table_data = pd.DataFrame(table_data, columns=headers)
 
         # Convert DataFrame to list format if needed
         if hasattr(table_data, 'to_dict'):

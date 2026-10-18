@@ -172,3 +172,18 @@ def test_table_row_too_tall_for_empty_page_raises(tmp_path):
     template.start_page("Tall row", 1)
     with pytest.raises(ValueError, match="fit"):
         template.add_table([["Long cell " * 1000]], headers=["Description"])
+
+
+@pytest.mark.parametrize("headers", [None, ["Metric", "Value"]])
+def test_table_record_rows_render_values(generator, tmp_path, headers):
+    report = generator.create_comprehensive_report("Record table")
+    generator.add_table_section(
+        report, "Metrics",
+        [{"Metric": "Signups", "Value": 1820}, {"Value": 640, "Metric": "RSVPs"}],
+        headers=headers,
+    )
+    output = tmp_path / "records.pdf"
+    generator.generate_pdf_report(report, str(output))
+    text = "\n".join(page.extract_text() for page in PdfReader(output).pages)
+    for expected in ("Metric", "Value", "Signups", "1820", "RSVPs", "640"):
+        assert expected in text
