@@ -502,7 +502,8 @@ class CensusDirectoryDiscovery:
                     try:
                         with warnings.catch_warnings():
                             warnings.simplefilter("ignore", InsecureRequestWarning)
-                            response = requests.get(self.base_url, timeout=self.timeout, verify=False)
+                            # Known bandit B501 finding, suppressed here and tracked in #1754.
+                            response = requests.get(self.base_url, timeout=self.timeout, verify=False)  # nosec B501
                         response.raise_for_status()
                         years = self._parse_year_links(response.content)
                         self.cache[cache_key] = (time.time(), years)
@@ -599,7 +600,8 @@ class CensusDirectoryDiscovery:
                 year_url = f"{self.base_url}/TIGER{year}/"
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore", InsecureRequestWarning)
-                    response = requests.get(year_url, timeout=self.timeout, verify=False)
+                    # Known bandit B501 finding, suppressed here and tracked in #1754.
+                    response = requests.get(year_url, timeout=self.timeout, verify=False)  # nosec B501
                 response.raise_for_status()
 
                 soup = BeautifulSoup(response.content, 'html.parser')
@@ -1127,8 +1129,9 @@ class CensusDirectoryDiscovery:
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore", InsecureRequestWarning)
+                    # Known bandit B501 finding, suppressed here and tracked in #1754.
                     response = requests.get(url, timeout=self.timeout, stream=True,
-                                            headers=headers, verify=False)
+                                            headers=headers, verify=False)  # nosec B501
                 response.close()
                 if response.status_code == 200:
                     return True

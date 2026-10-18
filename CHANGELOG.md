@@ -35,6 +35,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- New *file* names now get the same check as new directory names. The
+  `siege_utilities.files` helpers that create a file refuse a name containing
+  a C0, DEL or C1 control character, or a lone surrogate: they raise
+  `PathSecurityError` and create nothing. The helpers are `touch_file`,
+  `copy_file`, `move_file` (into an existing directory, the source's name is
+  checked), `delete_existing_file_and_replace_it_with_an_empty_file`,
+  `safe_file_write`, `safe_json_write`, `atomic_write_path`,
+  `atomic_write_shapefile`, `download_file`, `save_spatial`, `save_tabular`,
+  `secure_write_text`, and `unzip_file_to_directory` for member files, checked
+  at the path `zipfile` actually writes (so `a/../f<ESC>.txt` is refused). The
+  check is public as `reject_unsafe_new_file_path` (#1737).
+  **Migration:** existing files with such names can still be read, moved and
+  overwritten, except as a shapefile: `atomic_write_shapefile` and
+  `save_spatial(..., fmt=SpatialFormat.SHAPEFILE)` refuse an unsafe target
+  name even when it exists (its sidecars are published under that name), so
+  rename such a shapefile first. Callers that build file names from external
+  input should pass them through
+  `siege_utilities.files.operations.sanitize_filename`. This check's message
+  now reads "...in new name" rather than "...in new directory name";
+  `validate_directory_path` (and so `ensure_path_exists`) keeps the old text.
+  Writers outside `siege_utilities.files` are not yet covered (#1763).
 - Docstring generation now defaults to a dry run. CLI callers must pass
   `--write` (or `--apply`), and Python callers must pass `dry_run=False` to
   `process_python_file` or `main` to modify files (#1589).
@@ -97,6 +118,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Political schema migrations can now be applied: remove the trailing comma
+  that prevented V0002 from parsing and blocked dependent V0003. Limit the
+  composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
+  a linked office term preserves its predecessor's required `seat_id`
+  (PostgreSQL 15+). Widen congressional-terms uniqueness to
+  `(congress_number, seat_id, office_term_id)` so a successor can serve the
+  same seat in the same Congress (#1468).
 - Docstring generation inserts lines without rewriting existing comments or
   formatting, handles async definitions, and extracts signature details without
   importing target files. File exclusions match path components and include

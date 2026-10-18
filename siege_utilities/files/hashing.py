@@ -133,9 +133,11 @@ def get_file_hash(file_path, algorithm='sha256') -> str:
     if algorithm.lower() == 'sha256':
         hash_func = hashlib.sha256()
     elif algorithm.lower() == 'md5':
-        hash_func = hashlib.md5()
+        # Known bandit B324 finding, suppressed here and tracked in #1754.
+        hash_func = hashlib.md5()  # nosec B324
     elif algorithm.lower() == 'sha1':
-        hash_func = hashlib.sha1()
+        # Known bandit B324 finding, suppressed here and tracked in #1754.
+        hash_func = hashlib.sha1()  # nosec B324
     else:
         hash_func = hashlib.new(algorithm)
 
