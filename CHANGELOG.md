@@ -179,6 +179,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sources instead of silently degrading; custom place population lookups use
   the full 7-digit GEOID to prevent cross-state PLACEFP collisions. (#1441)
 
+- `populate_demographics --variables all` stores every variable group. A
+  group whose snapshot already exists is merged into it instead of being
+  skipped, so income, education, housing and the other groups are no longer
+  silently dropped after `total_population`. The Census API's `NAME` label is
+  no longer stored in `DemographicSnapshot.values`. Census sentinels
+  (`-666666666`, `-999999999` and other negatives), non-numeric values and
+  out-of-range values become NULL in `total_population`,
+  `median_household_income` and `median_age` instead of raising
+  `IntegrityError` and rolling back the group load; the raw value stays in
+  `values` (#1550).
+- Bulk loaders now set the fields `save()` derives. Census boundaries get
+  `feature_id`, `boundary_id` and `source`; NCES locale boundaries, school
+  locations and timezones get `feature_id`/`source`; `DemographicSnapshot`
+  rows get `total_population`, `median_household_income` and `median_age`.
+  This repairs `classify_urbanicity`, `by_population()` and weighted rollups
+  after `populate_demographics`. Each model exposes `prepare_for_bulk()`,
+  which `save()` also calls, and `schemas_to_orm` returns prepared instances.
+  Loaders that insert with `ignore_conflicts=True` now report the rows
+  actually inserted. New `backfill_derived_fields` command repairs rows
+  loaded before this fix (#1539).
+
+### BREAKING
+
+- `DemographicPopulationService.populate` (and `populate_demographics`,
+  `populate_all_groups`) no longer skips an existing snapshot. Without
+  `update_existing`/`--update` it merges in only the variables the snapshot
+  lacks and counts it as `records_updated`; it counts `records_skipped` only
+  when nothing new arrived. A group load that used to report `N skipped`
+  now reports `N updated`. Variables a snapshot already holds are still
+  overwritten only with `update_existing=True` (#1550).
+- `DemographicSnapshot.total_population`, `median_household_income` and
+  `median_age` are NULL when the source estimate is a negative Census
+  sentinel or not numeric. Fractional estimates (for example rollup
+  averages) are rounded to the nearest integer instead of truncated (#1550).
+- `records_created` from the demographic, rollup, timeseries, crosswalk,
+  NCES and timezone loaders and `populate_pl_demographics` counts only rows
+  inserted: rows dropped by `ON CONFLICT DO NOTHING` (concurrent loads,
+  repeated keys in a source file) are no longer included, so counts can drop.
+  `BoundaryManager.bulk_create_from_geodataframe` returns only the objects
+  actually inserted. Crosswalk `CrosswalkDataset.record_count` follows the
+  corrected count (#1539).
+- The derivations moved from the `save()` overrides into `prepare_for_bulk()`
+  on `TemporalGeographicFeature` subclasses and `DemographicSnapshot`.
+  `save()` behaves as before. Subclasses that overrode `save()` to change a
+  derivation should override `prepare_for_bulk()` and end with
+  `return super().prepare_for_bulk()` so bulk paths see the change too (#1539).
+- **Upgrade:** rows loaded before this release keep empty `feature_id`,
+  `boundary_id` and `source`, NULL summary columns and `values["NAME"]`.
+  Nothing repairs them automatically. Run
+  `python manage.py backfill_derived_fields --dry-run --strip-name` to see
+  the counts, then the same command without `--dry-run` (#1539, #1550).
 - `CrosswalkPopulationService.populate` (and `populate_crosswalks`) now loads
   crosswalks: it calls `get_crosswalk(geography_level=...)` instead of the
   nonexistent `geography_type=` keyword, which raised `TypeError` on every
