@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Place history reverse lineage now retains ancestors with small positive
+  allocations and pairs each step's GEOIDs with the correct vintage years.
+  `Lineage.terminal_weights` exposes cumulative weights summed across paths
+  reaching the same terminal GEOID, while preserving `terminal_geoids` and
+  forward pruning. Reverse weights remain the ancestor's forward allocations
+  unless the crosswalk provider supplies reverse shares (#1434).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed

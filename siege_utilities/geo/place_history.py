@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import abc
 import logging
+import math
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -50,7 +51,9 @@ class LineageStep:
         target_geoid: GEOID after transition.
         source_year: Source vintage year.
         target_year: Target vintage year.
-        weight: Allocation weight (1.0 = identical).
+        weight: Allocation weight supplied by the provider (1.0 = identical).
+            In reverse, this is the ancestor's forward allocation to the later
+            GEOID unless the provider supplies a reverse share.
         relationship: IDENTICAL, SPLIT, MERGED, PARTIAL, RENAMED.
     """
 
@@ -72,6 +75,9 @@ class Lineage:
         steps: Ordered list of transitions.
         terminal_geoids: Final GEOID(s) at the end of the chain.
         direction: "forward" or "reverse".
+        terminal_weights: Sum of cumulative path weights for each terminal GEOID.
+            Reverse path weights multiply the provider's record weights; they
+            are not reverse shares unless the provider supplies those shares.
     """
 
     origin_geoid: str
@@ -79,6 +85,7 @@ class Lineage:
     steps: list[LineageStep] = field(default_factory=list)
     terminal_geoids: list[str] = field(default_factory=list)
     direction: str = "forward"
+    terminal_weights: dict[str, float] = field(default_factory=dict)
 
     @property
     def is_unchanged(self) -> bool:
@@ -160,7 +167,12 @@ class CrosswalkProvider(abc.ABC):
         target_year: int,
         state_fips: Optional[str] = None,
     ) -> list[CrosswalkRecord]:
-        """Get source GEOIDs that map to a target GEOID."""
+        """Get source GEOIDs that map to a target GEOID.
+
+        Records retain their earlier-source/later-target orientation. Weights
+        are the ancestor's forward allocations unless the provider supplies
+        reverse shares; reverse traversal retains every positive finite weight.
+        """
 
 
 class DictCrosswalkProvider(CrosswalkProvider):
@@ -273,7 +285,12 @@ def _build_lineage(
     state_fips: Optional[str] = None,
     min_weight: float = 0.01,
 ) -> Lineage:
-    """Build a crosswalk chain for a GEOID across decades."""
+    """Build a crosswalk chain for a GEOID across decades.
+
+    ``min_weight`` prunes cumulative weights only in the forward direction.
+    Reverse traversal retains structural ancestors with positive finite record
+    weights, even when their cumulative allocation falls below ``min_weight``.
+    """
     forward = from_year <= to_year
     transitions = _decade_transitions(from_year, to_year)
 
@@ -282,10 +299,6 @@ def _build_lineage(
         origin_year=from_year,
         direction="forward" if forward else "reverse",
     )
-
-    if not transitions:
-        lineage.terminal_geoids = [geoid]
-        return lineage
 
     current = [(geoid, 1.0)]
 
@@ -308,14 +321,17 @@ def _build_lineage(
 
             for rec in records:
                 new_weight = cum_weight * rec.weight
-                if new_weight < min_weight:
+                if forward:
+                    if new_weight < min_weight:
+                        continue
+                elif rec.weight <= 0 or not math.isfinite(rec.weight):
                     continue
 
                 step = LineageStep(
                     source_geoid=rec.source_geoid if forward else rec.target_geoid,
                     target_geoid=rec.target_geoid if forward else rec.source_geoid,
-                    source_year=src_year if forward else tgt_year,
-                    target_year=tgt_year if forward else src_year,
+                    source_year=src_year,
+                    target_year=tgt_year,
                     weight=rec.weight,
                     relationship=rec.relationship,
                 )
@@ -327,6 +343,10 @@ def _build_lineage(
         current = next_geoids
 
     lineage.terminal_geoids = [g for g, _ in current]
+    for terminal_geoid, weight in current:
+        lineage.terminal_weights[terminal_geoid] = (
+            lineage.terminal_weights.get(terminal_geoid, 0.0) + weight
+        )
     return lineage
 
 
