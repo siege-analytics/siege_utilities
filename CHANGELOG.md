@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Crosswalk extensive sums preserve NaN when every contributing value is
+  missing. POPULATION and HOUSING use their respective crosswalk weight columns
+  and raise `ValueError` when the requested column is absent. EQUAL divides a
+  source's value among its targets, conserving totals through splits and merges.
+  `normalize_to_year` now accepts `weight_method` and `intensive_variables`, so
+  callers can preserve rates with the existing area-weighted averaging path
+  while allocating and summing extensive counts (#1409).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
