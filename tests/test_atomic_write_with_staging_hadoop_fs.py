@@ -258,3 +258,17 @@ def test_mode_applies_to_fresh_staging_and_final_is_replaced(tmp_path, mode):
     assert not (fs.local("/final") / "old").exists()
     assert (fs.local("/final") / "part-00000.csv").read_text() == "id,name\n1,Ada\n"
     assert ("mode", mode) in writer.calls
+
+
+def test_unique_staging_directory_never_creates_a_local_tree_for_a_uri(tmp_path, monkeypatch):
+    """A URI base_path must not materialise a literal local ``s3a:/`` tree;
+    the path string is returned preserving ``scheme://authority`` without a
+    driver-side mkdir (sibling-path fix for #1574)."""
+    monkeypatch.chdir(tmp_path)
+    try:
+        path = spark_utils.create_unique_staging_directory("s3a://bucket/_staging", "x")
+    except ValueError:
+        path = None  # rejecting non-local URIs loudly is acceptable
+    assert not (tmp_path / "s3a:").exists()
+    if path is not None:
+        assert path.startswith("s3a://bucket/_staging/staging_x_")

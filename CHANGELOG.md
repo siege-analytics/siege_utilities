@@ -29,7 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data, rejects different filesystems and overlapping paths, restores the prior
   destination on failure, and prunes successful backups. The docstring now
   describes filesystem-dependent atomicity, recovery failures, and staging-only
-  write modes accurately (#1574).
+  write modes accurately. `create_unique_staging_directory` no longer creates a
+  literal local directory tree for a URI `base_path` (`s3a://`, `hdfs://`,
+  `abfss://`, ...): it returns the unique path string preserving
+  `scheme://authority` and leaves creation to the cluster filesystem write;
+  local (scheme-less) base paths still create the directory eagerly (#1574).
 - `is_sensitive_path` again blocks `_`/`-` prefixed private-key names outside
   `.ssh` (`deploy_id_rsa`, `github-id_ecdsa`) and now covers `id_ed25519`;
   `paid_rsa` and `*.pub` stay allowed (#1702).

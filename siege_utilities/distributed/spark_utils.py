@@ -4,6 +4,7 @@ import pathlib
 from pathlib import Path
 import json
 import logging
+import re
 import uuid
 
 from siege_utilities.core.logging import get_logger, log_info, log_warning, log_error, log_debug
@@ -1152,17 +1153,25 @@ def create_unique_staging_directory(base_path, operation_name: str = 'operation'
     Returns
     -------
     str
-        Absolute path to the newly created staging directory. The name
-        has the shape ``{base_path}/staging_{operation_name}_{uuid4hex}``
-        and is guaranteed unique.
+        A unique staging path of the shape
+        ``{base_path}/staging_{operation_name}_{uuid4hex}``.
 
     Notes
     -----
-    Used by :func:`atomic_write_with_staging` to isolate in-progress
-    writes from the final destination so partial or failed writes never
-    leave a corrupt file at the target path.
+    For a ``base_path`` carrying a URI scheme (``s3a://``, ``hdfs://``,
+    ``abfss://``, ...) the path string is built directly, preserving
+    ``scheme://authority``, and **no directory is created on the driver** —
+    creating it with local ``os``/``pathlib`` would materialise a literal
+    local ``s3a:/bucket/...`` tree and never touch the cluster filesystem.
+    The caller's Spark/Hadoop write is responsible for creating it on the
+    correct filesystem. For a local (scheme-less) ``base_path`` the directory
+    is created eagerly, as before.
     """
-    staging_dir = Path(base_path
-        ) / f'staging_{operation_name}_{uuid.uuid4().hex}'
+    base = str(base_path)
+    suffix = f'staging_{operation_name}_{uuid.uuid4().hex}'
+    if re.match(r'^[a-zA-Z][a-zA-Z0-9+.-]*://', base):
+        # URI path: string-join preserving scheme://authority; do not mkdir.
+        return f"{base.rstrip('/')}/{suffix}"
+    staging_dir = Path(base) / suffix
     staging_dir.mkdir(parents=True, exist_ok=True)
     return str(staging_dir)
