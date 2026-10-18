@@ -132,7 +132,7 @@ def test_existing_directory_with_unsafe_name_still_accepted(tmp_path):
 class TestReadersKeepNotFoundBehaviour:
     """Readers create nothing, so a missing unsafe name is simply not found."""
 
-    @pytest.mark.parametrize("ch", ["\x1b", "\x7f", "\x85", "\udc80"])
+    @pytest.mark.parametrize("ch", ["\x1b", "\x7f", "\x85", "\udc80"], ids=lambda ch: f"U+{ord(ch):04X}")
     def test_readers(self, ch, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         missing = str(tmp_path / f"no{ch}such")
