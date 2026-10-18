@@ -44,7 +44,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Data manipulation (pandas, numpy, openpyxl, pyarrow, faker)
+# Data manipulation (pandas, numpy, openpyxl, pyarrow, faker, scipy)
 # pandas capped below 3.0 (#1365): pandas 3.0 makes the default string dtype
 # Arrow-backed, so .str operations dispatch into pyarrow.compute and segfault
 # on 3.13 with the current native stack. Lift the cap once pandas 3.x + pyarrow
@@ -119,6 +119,9 @@ wkls = [
 # Etter — natural-language geographic query parser (LLM-driven)
 etter = [
     "etter>=0.1.0",
+    # etter requires geopandas>=1.1, which pulls pandas; cap it here so an
+    # etter-only install cannot resolve pandas 3.0 and hit the #1365 crash.
+    "pandas>=2.0.0,<3.0",
 ]
 # Reporting and visualization
 reporting = [
@@ -171,13 +174,15 @@ web = [
     "beautifulsoup4>=4.12.0",
     "lxml>=4.9.0",
 ]
-# Note: `streamlit` extra removed in v3.19 — see #1180. No library code
-# imported streamlit / altair / bokeh; installing the extra added deps
+# Note: `streamlit` extra removed in 3.24.0 (#1180, #1186); 3.23.0 on PyPI
+# still has it and 4.0.0 is the first PyPI release without it. No library
+# code imported streamlit / altair / bokeh; installing the extra added deps
 # without adding library capability. Users needing streamlit can
 # `pip install streamlit altair bokeh` directly.
 #
-# Note: `export` extra removed in v3.19 — see #1179. No library code
-# imported xlsxwriter / openpyxl / psutil / memory-profiler; the extra
+# Note: `export` extra removed in 3.24.0 (#1179, #1186); 3.23.0 on PyPI
+# still has it and 4.0.0 is the first PyPI release without it. No library
+# code imported xlsxwriter / openpyxl / psutil / memory-profiler; the extra
 # was ecosystem convenience with no siege_utilities-specific consumer.
 # Users needing these can install them directly.
 # 3D map rendering (pydeck / deck.gl)
@@ -254,7 +259,10 @@ survey = [
     "pandas>=2.0.0,<3.0",
     "scipy>=1.11.0",
 ]
-# Everything — convenience meta-extra for full installs
+# Convenience meta-extra for a broad install. Not every extra: it leaves out
+# gdal (needs a matching system libgdal), wkls, schema (psycopg 3), survey
+# (weightipy), credentials (keyring), notebooks and dev, plus geo's topojson
+# and geoalchemy2.
 all = [
     # data
     "pandas>=2.0.0,<3.0",
