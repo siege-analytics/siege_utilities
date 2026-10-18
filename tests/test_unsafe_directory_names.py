@@ -368,14 +368,19 @@ def test_shapefile_layer_and_file_names_follow_the_target(name: str, tmp_path: P
     temporary stem; it must stay the target's (review of #1737, round 2)."""
     geopandas = pytest.importorskip("geopandas")
     shapely = pytest.importorskip("shapely.geometry")
-    pyogrio = pytest.importorskip("pyogrio")
     gdf = geopandas.GeoDataFrame({"a": [1]}, geometry=[shapely.Point(0, 0)], crs="EPSG:4326")
     target = tmp_path / name
     operations.atomic_write_shapefile(gdf, target)
     stem = Path(name).stem
     shp = tmp_path / f"{stem}.shp" if name.endswith(".shp") else tmp_path / name / f"{stem}.shp"
     assert shp.is_file(), sorted(str(p.relative_to(tmp_path)) for p in tmp_path.rglob("*"))
-    assert [layer[0] for layer in pyogrio.list_layers(shp)] == [stem]
+    try:  # fiona is a declared dependency; pyogrio is optional on GeoPandas 0.13
+        import fiona
+        layers = list(fiona.listlayers(shp))
+    except ImportError:
+        pyogrio = pytest.importorskip("pyogrio")
+        layers = [layer[0] for layer in pyogrio.list_layers(shp)]
+    assert layers == [stem]
 
 
 def test_shapefile_with_existing_unsafe_name_is_refused(tmp_path: Path) -> None:
