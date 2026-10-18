@@ -3,9 +3,11 @@ Auto-generate docstrings for functions missing them in siege_utilities.
 Part of the hygiene maintenance toolkit.
 """
 import ast
+import io
 import logging
 import sys
 import inspect
+import tokenize
 from pathlib import Path
 
 # Import logging functions from main package
@@ -34,7 +36,9 @@ __all__ = [
 
 
 def analyze_function_signature(func):
-    """Analyze a function to generate parameter and return type info."""
+    """Describe the signature of a callable or a parsed function definition."""
+    if isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return _analyze_ast_signature(func)
     try:
         sig = inspect.signature(func)
         params = []
@@ -43,7 +47,7 @@ def analyze_function_signature(func):
             if param.annotation != inspect.Parameter.empty:
                 param_type = getattr(param.annotation, '__name__', str(
                     param.annotation))
-            param_desc = f'{name} ({param_type}): Description needed'
+            param_desc = f'{name} ({param_type}): Value for {name}.'
             if param.default != inspect.Parameter.empty:
                 param_desc += f', defaults to {repr(param.default)}'
             params.append(param_desc)
@@ -51,11 +55,31 @@ def analyze_function_signature(func):
         if sig.return_annotation != inspect.Parameter.empty:
             return_type = getattr(sig.return_annotation, '__name__', str(
                 sig.return_annotation))
-        return_desc = f'{return_type}: Description needed'
+        return_desc = f'{return_type}: Return value.'
         return params, return_desc
     except (ValueError, TypeError, AttributeError) as e:
         log_warning(f'Could not analyze signature: {e}')
         raise
+
+
+def _analyze_ast_signature(node: ast.FunctionDef | ast.AsyncFunctionDef) -> tuple[list[str], str]:
+    """Read parameters without importing or executing the target module."""
+    positional = node.args.posonlyargs + node.args.args
+    defaults = [None] * (len(positional) - len(node.args.defaults)) + node.args.defaults
+    arguments = list(zip(positional, defaults)) + list(zip(node.args.kwonlyargs, node.args.kw_defaults))
+    arguments.extend((arg, None) for arg in (node.args.vararg, node.args.kwarg) if arg is not None)
+    params = []
+    for arg, default in arguments:
+        if arg.arg in ('self', 'cls'):
+            continue
+        # Only signature expressions are rendered; source files are never unparsed.
+        annotation = ast.unparse(arg.annotation) if arg.annotation is not None else 'Any'
+        description = f'{arg.arg} ({annotation}): Value for {arg.arg}.'
+        if default is not None:
+            description += f', defaults to {ast.unparse(default)}'
+        params.append(description)
+    return_type = ast.unparse(node.returns) if node.returns is not None else 'Any'
+    return params, f'{return_type}: Return value.'
 
 
 def categorize_function(func_name):
@@ -91,69 +115,60 @@ def categorize_function(func_name):
 
 def generate_docstring_template(func_name, func_obj=None):
     """Generate a comprehensive docstring template."""
-    category, category_desc = categorize_function(func_name)
-    params, return_desc = [], 'Any: Description needed'
-    if func_obj:
+    _, category_desc = categorize_function(func_name)
+    params, return_desc = [], 'Any: Return value.'
+    if func_obj is not None:
         params, return_desc = analyze_function_signature(func_obj)
     readable_name = func_name.replace('_', ' ').title()
     brief = f'{readable_name}.'
-    docstring_parts = [f'{brief}', '', f'{category_desc}',
-        'Auto-discovered function available at package level.', '']
+    docstring_parts = [brief, '', category_desc, '']
     if params:
         docstring_parts.extend(['Args:', *[f'    {param}' for param in
             params], ''])
     docstring_parts.extend(['Returns:', f'    {return_desc}', ''])
     if params:
-        param_names = [p.split('(')[0] for p in params[:2]]
+        param_names = [p.split('(')[0].strip() for p in params[:2]]
         example_args = ', '.join([f'"{name}_value"' for name in param_names])
         if len(params) > 2:
             example_args += ', ...'
     else:
         example_args = ''
-    example_import = '    >>> import siege_utilities'
+    # A parsed name need not be exported, and examples may require resources.
+    example_import = '    >>> import siege_utilities  # doctest: +SKIP'
     example_call = (
-        f'    >>> result = siege_utilities.{func_name}({example_args})')
-    example_comment = '    >>> # Process result as needed'
-    docstring_parts.extend(['Example:', example_import, example_call,
-        example_comment, ''])
-    note_line1 = (
-        '    This function is auto-discovered and available without imports')
-    note_line2 = '    across all siege_utilities modules.'
-    docstring_parts.extend(['Note:', note_line1, note_line2])
+        f'    >>> result = siege_utilities.{func_name}({example_args})  # doctest: +SKIP')
+    docstring_parts.extend(['Example:', example_import, example_call])
     return '\n'.join(docstring_parts)
 
 
 class DocstringAdder(ast.NodeTransformer):
-    """AST transformer to add docstrings to functions."""
+    """Add function docstrings to an AST and record source insertion points."""
 
-    def __init__(self, module_name='unknown'):
+    def __init__(self, module_name='unknown', source=None):
         self.module_name = module_name
         self.functions_processed = 0
         self.functions_skipped = 0
+        self.source_lines = io.StringIO(source, newline='').readlines() if source is not None else None
+        self.insertions: list[tuple[int, str]] = []
 
     def visit_FunctionDef(self, node):
-        """Visit Functiondef.
-
-General utility functions.
-Auto-discovered function available at package level.
-
-Returns:
-    Any: Description needed
-
-Example:
-    >>> import siege_utilities  # doctest: +SKIP
-    >>> result = siege_utilities.visit_FunctionDef()  # doctest: +SKIP
-    >>> pass  # Process result as needed  # doctest: +SKIP
-
-Note:
-    This function is auto-discovered and available without imports
-    across all siege_utilities modules."""
+        """Add a docstring to an undocumented public function when insertion is safe."""
         if node.name.startswith('_'):
             return self.generic_visit(node)
-        has_docstring = node.body and isinstance(node.body[0], ast.Expr
-            ) and isinstance(node.body[0].value, ast.Constant)
+        has_docstring = ast.get_docstring(node) is not None
         if not has_docstring:
-            docstring_content = generate_docstring_template(node.name)
+            first = node.body[0]
+            # A first statement that is decorated starts before its def/class line.
+            lineno = min([first.lineno] + [d.lineno for d in getattr(first, 'decorator_list', [])])
+            if self.source_lines is not None:
+                line = self.source_lines[lineno - 1]
+                indent = line[:len(line) - len(line.lstrip(' \t\f'))]
+                if len(indent) != first.col_offset:
+                    log_warning(f'Skipping {node.name}: inline suite requires reformatting')
+                    self.functions_skipped += 1
+                    return self.generic_visit(node)
+            docstring_content = generate_docstring_template(node.name, node)
+            self.insertions.append((lineno, docstring_content))
             # ast.Constant replaced ast.Str/ast.Num in 3.8 and the aliases
             # were removed in 3.14; requires-python is >=3.11 so Constant is
             # always present.
@@ -166,13 +181,20 @@ Note:
             self.functions_skipped += 1
         return self.generic_visit(node)
 
+    def visit_AsyncFunctionDef(self, node):
+        """Apply the same docstring handling to asynchronous functions."""
+        return self.visit_FunctionDef(node)
 
-def process_python_file(file_path, dry_run=False):
+
+def process_python_file(file_path, dry_run=True):
     """Process a single Python file to add missing docstrings.
 
     Args:
         file_path: Python file to process.
-        dry_run: When True, report what would change but do not write the file.
+        dry_run: Report changes without writing by default. Set False to apply.
+
+    Only docstring lines are inserted; existing source bytes are preserved.
+    Inline suites are skipped with a warning because they require reformatting.
 
     Raises:
         SyntaxError: If the file has invalid Python syntax.
@@ -190,28 +212,38 @@ def process_python_file(file_path, dry_run=False):
         relative_path = file_path
     log_info(f'\nProcessing {relative_path}')
 
-    with open(file_path, 'r', encoding='utf-8') as f:
-        content = f.read()
+    original = file_path.read_bytes()
+    # Encoding detection expects LF-delimited header lines, including on CR-only files.
+    header_lines = io.BytesIO(original.replace(b'\r\n', b'\n').replace(b'\r', b'\n'))
+    encoding, _ = tokenize.detect_encoding(header_lines.readline)
+    content = original.decode(encoding)
 
     tree = ast.parse(content)
     module_name = str(relative_path).replace('.py', '').replace('/', '.')
-    transformer = DocstringAdder(module_name)
-    new_tree = transformer.visit(tree)
+    transformer = DocstringAdder(module_name, source=content)
+    transformer.visit(tree)
 
     if transformer.functions_processed > 0:
-        # ast.unparse (stdlib, 3.9+) replaces the unmaintained astor package,
-        # which breaks on Python 3.14: astor still references the removed
-        # ast.Str/ast.Num aliases when rendering f-strings and other nodes.
-        ast.fix_missing_locations(new_tree)
-        new_content = ast.unparse(new_tree)
+        lines = io.StringIO(content, newline='').readlines()
+        default_newline = '\r\n' if '\r\n' in content else '\r' if '\r' in content else '\n'
+        for lineno, docstring in sorted(transformer.insertions, reverse=True):
+            line = lines[lineno - 1]
+            indent = line[:len(line) - len(line.lstrip(' \t\f'))]
+            newline = line[len(line.rstrip('\r\n')):] or default_newline
+            # Preserve literal backslashes and triple quotes from defaults/annotations.
+            escaped = docstring.replace('\\', '\\\\').replace('"""', r'\"\"\"')
+            block = ['"""', *escaped.split('\n'), '"""']
+            lines[lineno - 1:lineno - 1] = [indent + part + newline for part in block]
+        new_content = ''.join(lines)
+        # Validate the complete edit before opening the file for writing.
+        ast.parse(new_content)
         if dry_run:
             log_info(
                 f'[dry-run] Would add {transformer.functions_processed} docstring(s) '
                 f'to {file_path} (Skipped: {transformer.functions_skipped}); no write'
             )
         else:
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(new_content)
+            file_path.write_bytes(new_content.encode(encoding))
             log_info(f'Updated {file_path}')
             log_info(
                 f'Processed: {transformer.functions_processed}, Skipped: {transformer.functions_skipped}'
@@ -221,7 +253,7 @@ def process_python_file(file_path, dry_run=False):
 
 
 def find_python_files(base_path):
-    """Find Python files to process (excludes __init__.py and build artifacts)."""
+    """Find Python files, excluding initializers, build/cache directories and migrations."""
     base_path = Path(base_path)
     python_files = []
     if (base_path / 'siege_utilities').exists():
@@ -229,19 +261,19 @@ def find_python_files(base_path):
     else:
         siege_utils_path = base_path
     for file_path in siege_utils_path.rglob('*.py'):
-        if any(skip in str(file_path) for skip in ['__pycache__', '.git',
-            'build', 'dist', '.pytest_cache', '__init__.py']):
+        if any(skip in file_path.parts for skip in ['__pycache__', '.git',
+            'build', 'dist', '.pytest_cache', '__init__.py', 'migrations']):
             continue
         python_files.append(file_path)
     return sorted(python_files)
 
 
-def main(base_path=None, dry_run=False):
+def main(base_path=None, dry_run=True):
     """Process all Python files under base_path to add missing docstrings.
 
     Args:
         base_path: Directory to search (defaults to the current directory).
-        dry_run: When True, report changes without writing any file.
+        dry_run: Report changes without writing by default. Set False to apply.
 
     Raises:
         FileNotFoundError: If no Python files are found under base_path.
@@ -271,6 +303,8 @@ def main(base_path=None, dry_run=False):
     log_info(f'Successfully processed: {successful} files')
     if errors:
         log_error(f'Failed: {len(errors)} files')
+    if dry_run:
+        log_info('Dry run complete. Use --write (or dry_run=False) to apply changes.')
     log_info('Next steps:')
     log_info('1. Review generated docstrings')
     log_info('2. Rebuild docs: cd docs && make html')
@@ -284,9 +318,13 @@ def cli():
     """Command line interface."""
     import argparse
     parser = argparse.ArgumentParser(description=
-        'Generate docstrings for siege_utilities functions')
-    parser.add_argument('--dry-run', action='store_true', help=
-        'Show what would be done without making changes')
+        'Generate docstrings without changing existing source (dry run by default)')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--dry-run', dest='dry_run', action='store_true', help=
+        'Report proposed additions without writing files (default)')
+    mode.add_argument('--write', '--apply', dest='dry_run', action='store_false', help=
+        'Write docstring additions to source files')
+    parser.set_defaults(dry_run=True)
     parser.add_argument('--path', default='.', help=
         'Base path to search for Python files')
     args = parser.parse_args()

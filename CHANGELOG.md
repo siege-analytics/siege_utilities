@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Docstring generation now defaults to a dry run. CLI callers must pass
+  `--write` (or `--apply`), and Python callers must pass `dry_run=False` to
+  `process_python_file` or `main` to modify files (#1589).
+
 - `validate_directory_path(..., must_exist=False)` now raises
   `PathSecurityError` when a path component that does not exist yet contains a
   C0 control character, DEL or a C1 control character. This covers callers that
@@ -22,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   extracting into the parent of `extract_to` (#1692).
 
 ### Fixed
+
+- Docstring generation inserts lines without rewriting existing comments or
+  formatting, handles async definitions, and extracts signature details without
+  importing target files. File exclusions match path components and include
+  Django migrations while retaining `distributed`, `redistricting`, and `builds`
+  paths. Templates omit CI-rejected stub markers and skip generated doctest
+  examples. Inline suites are left unchanged with a warning (#1589).
 
 - Demographic population queries now keep equal GEOIDs in different boundary
   types and datasets separate. Boundary lookups use GEOIDs instead of integer
