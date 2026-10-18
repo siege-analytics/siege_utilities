@@ -128,7 +128,9 @@ def pytest_configure(config):
     # Prevent paths.py from auto-creating real directories
     os.environ['SIEGE_AUTO_INIT_DIRS'] = 'false'
 
-    # Point all path env vars into the temp tree
+    # Point all path env vars into the isolated HOME. config.paths._env_path
+    # refuses overrides outside Path.home(), so directories beside HOME were
+    # silently replaced by defaults.
     _subdirs = {
         'SIEGE_UTILITIES': 'siege_utilities',
         'SIEGE_UTILITIES_TEST': 'siege_utilities_test',
@@ -149,7 +151,7 @@ def pytest_configure(config):
         'SIEGE_BACKUP': 'backups',
     }
     for env_var, subdir in _subdirs.items():
-        path = os.path.join(_TEMP_BASE, subdir)
+        path = os.path.join(_TEMP_BASE, 'home', subdir)
         os.makedirs(path, exist_ok=True)
         os.environ[env_var] = path
 
