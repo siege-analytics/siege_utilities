@@ -41,6 +41,7 @@ from siege_utilities.connectors._protocol import (
     ConnectorNotFoundError,
     ConnectorRateLimitError,
     UpsertResult,
+    sanitize_record,
 )
 from siege_utilities.connectors._query_utils import _validate_identifier
 
@@ -710,7 +711,7 @@ class SalesforceConnector:
         total_failure = 0
         total = len(records)
 
-        record_dicts = records.to_dict(orient="records")
+        record_dicts = [sanitize_record(row) for row in records.to_dict(orient="records")]
         batches = [
             record_dicts[i:i + self.COMPOSITE_BATCH_SIZE]
             for i in range(0, len(record_dicts), self.COMPOSITE_BATCH_SIZE)
@@ -982,7 +983,11 @@ class SalesforceConnector:
     def _dataframe_to_csv(df: pd.DataFrame) -> str:
         """Convert a DataFrame to CSV string for Bulk API upload."""
         buf = io.StringIO()
-        df.to_csv(buf, index=False, lineterminator="\n")
+        writer = csv.DictWriter(buf, fieldnames=df.columns, lineterminator="\n")
+        writer.writeheader()
+        # Missing fields become empty CSV cells; avoid DataFrame reconstruction,
+        # which could coerce the sanitized ISO strings back into Timestamps.
+        writer.writerows(sanitize_record(row) for row in df.to_dict(orient="records"))
         return buf.getvalue()
 
     def _composite_upsert(

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Sanitize CRM upsert payloads for Salesforce, HubSpot, Zoho, and Dynamics:
+  omit missing fields to preserve existing values, serialize dates and timestamps
+  as ISO 8601 strings, and convert numpy scalars to native types. Salesforce bulk
+  CSV uploads use empty cells for missing values; Dynamics emits strict JSON (#1424).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed

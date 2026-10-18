@@ -13,9 +13,12 @@ no CDC, no conflict resolution beyond dedup.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from datetime import date, datetime
 from typing import Any, Protocol, runtime_checkable
 
+import numpy as np
 import pandas as pd
 
 __all__ = [
@@ -27,6 +30,35 @@ __all__ = [
     "ConnectorRateLimitError",
     "ConnectorNotFoundError",
 ]
+
+
+def sanitize_record(row: dict[str, Any]) -> dict[str, Any]:
+    """Return JSON-safe upsert fields without mutating the input row.
+
+    Omit missing values (None, NaN, NaT, pd.NA): an omitted field leaves
+    an existing CRM value untouched, whereas sending null would clear it.
+    Dates use ISO 8601, numpy scalars become native Python scalars, and
+    other values that cannot be encoded as strict JSON fall back to strings.
+    """
+    sanitized: dict[str, Any] = {}
+    for key, value in row.items():
+        # Check only scalars: pd.isna on lists/arrays returns an array of flags.
+        if pd.api.types.is_scalar(value) and pd.isna(value):
+            continue
+        if isinstance(value, (datetime, date)):
+            value = value.isoformat()
+        elif isinstance(value, np.bool_):
+            value = bool(value)
+        elif isinstance(value, np.integer):
+            value = int(value)
+        elif isinstance(value, np.floating):
+            value = float(value)
+        try:
+            json.dumps(value, allow_nan=False)
+        except (TypeError, ValueError):
+            value = str(value)
+        sanitized[key] = value
+    return sanitized
 
 
 # ---------------------------------------------------------------------------
