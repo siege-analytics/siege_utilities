@@ -61,7 +61,7 @@ def sanitize_filename(name: str) -> str:
 
 
 def _safe_suffix(suffix: str) -> bool:
-    """Whether a file suffix can be reused for a temporary name (#1737)."""
+    """Whether a name or suffix can be reused for a temporary name (#1737)."""
     from siege_utilities.files.validation import _is_unsafe_name_character
     return not any(_is_unsafe_name_character(ch) for ch in suffix)
 
@@ -140,9 +140,13 @@ def atomic_write_shapefile(gdf, target: FilePath, **kwargs) -> None:
     target = Path(target)
     _create_parent_directory(target)
     tmp_dir = Path(tempfile.mkdtemp(dir=target.parent, prefix="atomic_shp_"))
-    # A fixed temporary stem: an existing target with an odd name must not
-    # lend that name to temporary files (#1737).
-    tmp_shp = tmp_dir / f"atomic{target.suffix if _safe_suffix(target.suffix) else '.shp'}"
+    # GDAL names the layer, and for a suffix-less target the output files,
+    # after this stem, so keep the target's name; only an existing target with
+    # an unsafe name falls back to a fixed one (#1737).
+    if _safe_suffix(target.name):
+        tmp_shp = tmp_dir / target.name
+    else:
+        tmp_shp = tmp_dir / f"atomic{target.suffix if _safe_suffix(target.suffix) else '.shp'}"
     try:
         gdf.to_file(str(tmp_shp), driver="ESRI Shapefile", **kwargs)
         produced = [(f, target.parent / (target.stem + f.suffix)) for f in tmp_dir.iterdir()]

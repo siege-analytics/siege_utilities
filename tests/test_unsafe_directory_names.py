@@ -355,6 +355,22 @@ def test_shapefile_sidecars_of_an_existing_odd_target_are_checked(tmp_path: Path
     assert sorted(os.listdir(tmp_path)) == before
 
 
+@pytest.mark.parametrize("name", ["out", "out.geo", "out.shp"])
+def test_shapefile_layer_and_file_names_follow_the_target(name: str, tmp_path: Path) -> None:
+    """GDAL names the layer, and for a suffix-less target the files, after the
+    temporary stem; it must stay the target's (review of #1737, round 2)."""
+    geopandas = pytest.importorskip("geopandas")
+    shapely = pytest.importorskip("shapely.geometry")
+    pyogrio = pytest.importorskip("pyogrio")
+    gdf = geopandas.GeoDataFrame({"a": [1]}, geometry=[shapely.Point(0, 0)], crs="EPSG:4326")
+    target = tmp_path / name
+    operations.atomic_write_shapefile(gdf, target)
+    stem = Path(name).stem
+    shp = tmp_path / f"{stem}.shp" if name.endswith(".shp") else tmp_path / name / f"{stem}.shp"
+    assert shp.is_file(), sorted(str(p.relative_to(tmp_path)) for p in tmp_path.rglob("*"))
+    assert [layer[0] for layer in pyogrio.list_layers(shp)] == [stem]
+
+
 def test_temporary_names_do_not_inherit_an_unsafe_suffix(tmp_path: Path) -> None:
     target = tmp_path / "x.t\x1b"
     target.write_text("old")
