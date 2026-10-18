@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `google_sheets.write_dataframe` now writes with `RAW` input, preserving
+  leading zeros and storing formula-like strings literally. Dates and
+  datetimes are serialized as ISO-8601 strings, numpy scalars become native
+  Python values without row-wise integer-to-float coercion, missing values
+  become empty strings, and other objects are stringified. Before writing,
+  all values in the selected tab are cleared, including cells outside the
+  new DataFrame footprint and before `start_cell`, so smaller replacements
+  leave no stale rows or columns. Formatting and other tabs are unaffected.
+  Clear and update are separate requests; an update failure after clearing
+  leaves the previous values removed. Use `write_values` for partial updates
+  or intentional formulas; its `USER_ENTERED` default is unchanged (#1432).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed

@@ -18,11 +18,13 @@ Usage:
 """
 
 import logging
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 log = logging.getLogger(__name__)
 
 try:
+    import numpy as np
     import pandas as pd
     _PANDAS_AVAILABLE = True
 except ImportError:
@@ -243,6 +245,23 @@ def copy_spreadsheet(
     return client.copy_file(spreadsheet_id, title)
 
 
+def _serialize_dataframe_cell(value: Any) -> Any:
+    """Convert a DataFrame cell to a JSON-safe Sheets scalar."""
+    if pd.api.types.is_scalar(value) and pd.isna(value):
+        return ""
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, np.integer):
+        return int(value)
+    if isinstance(value, np.floating):
+        return float(value)
+    if isinstance(value, np.bool_):
+        return bool(value)
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
+
+
 def write_dataframe(
     client,
     spreadsheet_id: str,
@@ -251,7 +270,19 @@ def write_dataframe(
     include_header: bool = True,
     start_cell: str = "A1",
 ) -> Dict[str, Any]:
-    """Write a pandas DataFrame to a sheet.
+    """Replace a sheet's values with a pandas DataFrame.
+
+    Clears all values in the target tab before writing, including cells
+    outside the new DataFrame's footprint and before ``start_cell``. This
+    removes stale rows and columns from larger previous writes. Formatting
+    and other tabs are unaffected. Clear and update are separate requests;
+    if the update fails after clearing, the tab's previous values are gone.
+
+    Values are written with ``RAW`` input so strings keep leading zeros and
+    are never interpreted as formulas. Dates and datetimes use ISO-8601,
+    numpy scalars become native Python scalars, missing values become empty
+    strings, and other objects are stringified. Use ``write_values`` for
+    partial updates or intentional formula entry.
 
     Args:
         client: Authenticated GoogleWorkspaceClient.
@@ -271,14 +302,21 @@ def write_dataframe(
     if include_header:
         values.append([str(c) for c in df.columns.tolist()])
 
-    for _, row in df.iterrows():
-        values.append([
-            v if not _PANDAS_AVAILABLE or not pd.isna(v) else ""
-            for v in row.tolist()
-        ])
+    for row in df.itertuples(index=False, name=None):
+        values.append([_serialize_dataframe_cell(value) for value in row])
 
-    range_ = f"{sheet_name}!{start_cell}"
-    return write_values(client, spreadsheet_id, range_, values)
+    # Quote the tab to avoid resolving a cell reference or same-named range.
+    quoted_sheet = "'" + sheet_name.replace("'", "''") + "'"
+    (
+        client.sheets_service()
+        .spreadsheets()
+        .values()
+        .clear(spreadsheetId=spreadsheet_id, range=quoted_sheet, body={})
+        .execute()
+    )
+    log.info("Cleared values in %s tab %r", spreadsheet_id, sheet_name)
+    range_ = f"{quoted_sheet}!{start_cell}"
+    return write_values(client, spreadsheet_id, range_, values, value_input_option="RAW")
 
 
 def add_sheet(
