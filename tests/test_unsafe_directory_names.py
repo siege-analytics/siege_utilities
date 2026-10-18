@@ -192,6 +192,45 @@ def test_dangling_symlink_parent_fails_closed(creator, tmp_path, monkeypatch):
     assert not (tmp_path / "elsewhere").exists()
 
 
+# Zip member names are stored as UTF-8 or cp437, so they cannot carry surrogates.
+ZIP_UNSAFE = [ch for ch in UNSAFE if not "\ud800" <= ch <= "\udfff"]
+
+
+@pytest.mark.parametrize("as_directory_entry", [False, True], ids=["file-entry", "dir-entry"])
+@pytest.mark.parametrize("create_subdirectory", [False, True], ids=["flat", "subdir"])
+def test_archive_member_directories_are_checked(as_directory_entry, create_subdirectory, tmp_path):
+    """An archive that would create an unsafe directory is refused before
+    anything is extracted (CodeRabbit on #1719)."""
+    import zipfile
+
+    created = []
+    for i, ch in enumerate(ZIP_UNSAFE):
+        archive = tmp_path / f"a{i}.zip"
+        with zipfile.ZipFile(archive, "w") as z:
+            z.writestr("ok.txt", "x")
+            z.writestr(f"p{ch}q/" if as_directory_entry else f"p{ch}q/x.txt", "" if as_directory_entry else "x")
+        out = tmp_path / f"out{i}"
+        out.mkdir()
+        with pytest.raises(PathSecurityError):
+            paths.unzip_file_to_directory(archive, out, create_subdirectory=create_subdirectory)
+        if os.listdir(out):
+            created.append((repr(ch), os.listdir(out)))
+    assert created == [], created[:3]
+
+
+def test_archive_with_ordinary_member_directories_still_extracts(tmp_path):
+    import zipfile
+
+    archive = tmp_path / "ok.zip"
+    with zipfile.ZipFile(archive, "w") as z:
+        z.writestr("café é/数据/x.txt", "x")
+        z.writestr("empty dir/", "")
+    out = tmp_path / "out"
+    extracted = paths.unzip_file_to_directory(archive, out, create_subdirectory=False)
+    assert (extracted / "café é" / "数据" / "x.txt").read_text() == "x"
+    assert (extracted / "empty dir").is_dir()
+
+
 def test_existing_directory_with_unsafe_name_still_accepted(tmp_path):
     existing = tmp_path / "odd\x16name"
     existing.mkdir()

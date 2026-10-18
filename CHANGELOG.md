@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `PathSecurityError` when a path component that does not exist yet contains a
   C0 control character, DEL or a C1 control character. This covers callers that
   create directories through it, such as `ensure_path_exists`, and the
-  zip-named subdirectory `unzip_file_to_directory` creates. Member paths inside
-  an archive are not checked. Existing directories with such names still
+  zip-named subdirectory `unzip_file_to_directory` creates. Member directories
+  inside an archive are checked too (#1716). Existing directories with such names still
   validate when they can be stat'ed, and file-path validation is unchanged.
   Path-validation messages and the debug log now show paths with `repr()`, so
   escape sequences are not written raw. Because the zip-named subdirectory is
@@ -28,7 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the credential writer `secure_write_text`. Each raises
   `PathSecurityError` and creates nothing. Paths are checked as written, so in
   `a/<new>/../b` the `<new>` that `mkdir` would create on the way is checked
-  too; where files land and how symlinks are treated are unchanged. New components containing a lone surrogate, which is
+  too; where files land and how symlinks are treated are unchanged.
+  `unzip_file_to_directory` refuses an archive, before extracting anything,
+  if a member would create such a directory. New components containing a lone surrogate, which is
   how undecodable (non-UTF-8) bytes reach Python, are refused as well. The
   check is public as `reject_unsafe_new_directory_names` (#1716).
 
