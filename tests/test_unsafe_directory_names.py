@@ -8,12 +8,13 @@ Readers that never create anything keep their pre-#1710 not-found behaviour.
 
 import logging
 import os
+import shutil
 from pathlib import Path
 
 import pytest
 
 from siege_utilities.config import directories, projects
-from siege_utilities.files import operations, paths, remote
+from siege_utilities.files import formats, operations, paths, remote
 from siege_utilities.files.validation import (
     PathSecurityError,
     reject_unsafe_new_directory_names,
@@ -32,6 +33,19 @@ def _no_log_output():
     logging.disable(logging.CRITICAL)
     yield
     logging.disable(logging.NOTSET)
+
+
+@pytest.fixture(autouse=True)
+def _remove_tmp_path(tmp_path):
+    # A regression would leave control-character directories behind, the
+    # names that crashed file watchers in #1690; remove them even on failure.
+    yield
+    shutil.rmtree(tmp_path, ignore_errors=True)
+
+
+def _tabular_frame():
+    pandas = pytest.importorskip("pandas")
+    return pandas.DataFrame({"a": [1]})
 
 
 UNSAFE = (
@@ -65,7 +79,16 @@ CREATORS = {
     "atomic_write_path": lambda root, target: operations.atomic_write_path(target / "f.csv").__enter__(),
     "atomic_write_shapefile": lambda root, target: operations.atomic_write_shapefile(None, target / "f.shp"),
     "download_file": lambda root, target: remote.download_file("https://example.invalid/f", target / "f"),
+    "save_spatial": lambda root, target: formats.save_spatial(None, target / "f.parquet"),
+    "save_tabular": lambda root, target: formats.save_tabular(_tabular_frame(), target / "f.parquet"),
 }
+
+try:  # develop only; private, but config and credential exporters write through it
+    from siege_utilities.files.secure_write import secure_write_text
+except ImportError:
+    pass
+else:
+    CREATORS["secure_write_text"] = lambda root, target: secure_write_text(target / "f.txt", "x")
 
 
 def _snapshot(root: Path):
@@ -104,7 +127,7 @@ def test_unsafe_new_component_is_refused_and_nothing_is_created(creator, tmp_pat
 def test_ordinary_names_still_work(creator, tmp_path, monkeypatch):
     if creator == "download_file":
         pytest.skip("needs the network once the parent exists")
-    if creator == "atomic_write_shapefile":
+    if creator in ("atomic_write_shapefile", "save_spatial"):
         pytest.skip("needs a GeoDataFrame once the parent exists")
     if creator == "reject_unsafe_new_directory_names":
         pytest.skip("checks names only; creates nothing")
@@ -126,6 +149,44 @@ def test_unencodable_names_create_nothing(creator, tmp_path, monkeypatch):
         with pytest.raises((PathSecurityError, ValueError)):
             CREATORS[creator](tmp_path, tmp_path / f"p{ch}q" / "c")
     assert os.listdir(tmp_path) == ["source.txt"]
+
+
+@pytest.mark.parametrize("creator", sorted(CREATORS))
+def test_unsafe_component_followed_by_dotdot_is_never_created(creator, tmp_path, monkeypatch):
+    """``a/<bad>/../c`` resolves to ``a/c``. Helpers may refuse it or create
+    ``a/c``, but the unsafe name must never appear on disk."""
+    if creator == "download_file":
+        pytest.importorskip("requests")
+    monkeypatch.chdir(tmp_path)
+    _source(tmp_path).write_text("x")
+    for ch in UNSAFE:
+        target = tmp_path / "a" / f"p{ch}q" / ".." / "c"
+        try:
+            CREATORS[creator](tmp_path, target)
+        except Exception:  # refusal, or the fake writer input failing after mkdir
+            pass
+    unsafe = [name for _, dirs, files in os.walk(tmp_path) for name in dirs + files
+              if any(ch in name for ch in UNSAFE)]
+    assert unsafe == [], [repr(name) for name in unsafe[:5]]
+
+
+def _write_through(creator, target):
+    if creator == "atomic_write_path":
+        with operations.atomic_write_path(target / "f.csv") as tmp:
+            tmp.write_text("x")
+    else:
+        CREATORS[creator](None, target)
+
+
+@pytest.mark.parametrize("creator", ["atomic_write_path", "save_tabular", "secure_write_text"])
+def test_dotdot_writes_under_the_resolved_parent_only(creator, tmp_path, monkeypatch):
+    if creator not in CREATORS:
+        pytest.skip(f"{creator} is not on this branch")
+    monkeypatch.chdir(tmp_path)
+    target = tmp_path / "out" / "skipped" / ".." / "kept"
+    _write_through(creator, target)
+    assert sorted(os.listdir(tmp_path / "out")) == ["kept"]
+    assert len(os.listdir(tmp_path / "out" / "kept")) == 1
 
 
 def test_existing_directory_with_unsafe_name_still_accepted(tmp_path):

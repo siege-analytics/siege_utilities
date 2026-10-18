@@ -300,7 +300,8 @@ def _reject_control_characters_in_new_components(path: Path) -> None:
     while not os.path.exists(current) and current != current.parent:
         if any(_is_unsafe_name_character(ch) for ch in current.name):
             raise PathSecurityError(
-                f"Control character in new directory name {current.name!r}: {str(path)!r}"
+                f"Control character or undecodable byte in new directory name "
+                f"{current.name!r}: {str(path)!r}"
             )
         current = current.parent
 

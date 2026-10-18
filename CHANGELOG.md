@@ -20,7 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `touch_file`, `copy_file`, `move_file`,
     `delete_existing_file_and_replace_it_with_an_empty_file`
   - `safe_file_write`, `safe_json_write`, `atomic_write_path`,
-    `atomic_write_shapefile` and `download_file`
+    `atomic_write_shapefile`, `download_file`, `save_spatial` and
+    `save_tabular`
+
+  A parent is created at its resolved path, so `a/<new>/../b` creates only
+  `a/b`.
 
   Existing directories with such names, and file-path validation, are
   unchanged. The check is public as `reject_unsafe_new_directory_names`.
