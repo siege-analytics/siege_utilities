@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-10-18
+
 ### Changed
 
 - Docstring generation now defaults to a dry run. CLI callers must pass
