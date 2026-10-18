@@ -79,7 +79,9 @@ def test_nested_decorated_and_multiline_definitions(tmp_path):
     value: str = '"""',
 ):  # signature comment
     # The decorator must stay attached to inner.
-    @decorate
+    @(
+        decorate
+    )
     async def inner(item):
         return item
     class Holder:

@@ -161,6 +161,12 @@ class DocstringAdder(ast.NodeTransformer):
             # A first statement that is decorated starts before its def/class line.
             lineno = min([first.lineno] + [d.lineno for d in getattr(first, 'decorator_list', [])])
             if self.source_lines is not None:
+                # Parenthesized decorators can have their expression on a later
+                # line than the @ token; keep the whole decorator with its def.
+                if getattr(first, 'decorator_list', []):
+                    while (lineno > node.lineno
+                           and not self.source_lines[lineno - 1].lstrip(' \t\f').startswith('@')):
+                        lineno -= 1
                 line = self.source_lines[lineno - 1]
                 indent = line[:len(line) - len(line.lstrip(' \t\f'))]
                 if len(indent) != first.col_offset:
