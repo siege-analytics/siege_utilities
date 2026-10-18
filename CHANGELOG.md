@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `unzip_file_to_directory` for member files. Existing files with such names
   can still be overwritten. The check is public as
   `reject_unsafe_new_file_path` (#1737).
+
 ### Fixed
 
 - Political schema migrations can now be applied: remove the trailing comma
