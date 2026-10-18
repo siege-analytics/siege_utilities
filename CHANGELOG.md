@@ -94,6 +94,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Social-media and analytics report facades now write PDFs and return their
+  `Path`, preserving collected metrics, tables, insights and charts. Website
+  performance and custom analytics reports use the real PDF renderer instead
+  of nonexistent methods; custom DataFrame/CSV reports include their sample
+  data and summary tables. Social-media documentation now promises PDF only
+  (#1461).
+
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
