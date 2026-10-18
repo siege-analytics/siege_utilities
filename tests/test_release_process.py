@@ -57,14 +57,17 @@ def test_verify_tag_checks_ref_version_and_main():
     assert 'merge-base --is-ancestor "${GITHUB_SHA}" origin/main' in script
 
 
-def test_publish_uses_trusted_publishing_with_attestations():
+def test_publish_uses_the_pypa_action_with_the_repository_token():
+    # The existing PYPI_API_TOKEN secret authenticates until a trusted
+    # publisher is configured; attestations stay requested so dropping the
+    # `password:` line is the only change needed to switch (RELEASING.md).
     job = PUBLISH["jobs"]["publish"]
     assert job["permissions"]["id-token"] == "write"
     assert job["environment"]["name"] == "pypi"
     publish_steps = [s for s in job["steps"] if "pypa/gh-action-pypi-publish" in s.get("uses", "")]
     assert len(publish_steps) == 1
     assert publish_steps[0]["with"]["attestations"] is True
-    assert "password" not in publish_steps[0]["with"]
+    assert publish_steps[0]["with"]["password"] == "${{ secrets.PYPI_API_TOKEN }}"
     assert PUBLISH["permissions"] == {"contents": "read"}
 
 
@@ -80,10 +83,23 @@ def test_ci_is_callable_and_never_publishes():
 
 
 @pytest.mark.parametrize("path", sorted(WORKFLOWS.glob("*.y*ml")), ids=lambda p: p.name)
-def test_no_workflow_uploads_with_a_token(path):
+def test_no_workflow_runs_twine_or_reads_the_token_outside_publish(path):
     text = path.read_text(encoding="utf-8")
     assert "twine upload" not in text
-    assert "PYPI_API_TOKEN" not in text
+    if path.name != "publish-tag.yml":
+        assert "PYPI_API_TOKEN" not in text
+
+
+def test_pypi_token_is_used_only_by_the_publish_action():
+    wf = yaml.safe_load((WORKFLOWS / "publish-tag.yml").read_text(encoding="utf-8"))
+    users = []
+    for job_name, job in wf["jobs"].items():
+        for step in job.get("steps", []):
+            if "PYPI_API_TOKEN" in yaml.safe_dump(step):
+                users.append((job_name, step.get("uses"), step.get("with", {}).get("password")))
+    assert users == [("publish", "pypa/gh-action-pypi-publish@release/v1",
+                      "${{ secrets.PYPI_API_TOKEN }}")]
+    assert wf["jobs"]["publish"]["needs"] == ["verify-tag", "ci", "build"]
 
 
 def test_upload_to_production_pypi_is_refused(monkeypatch, tmp_path):

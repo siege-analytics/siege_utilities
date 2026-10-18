@@ -6,8 +6,9 @@ name: Publish Tag to PyPI
 #   verify-tag  tag name == "v" + pyproject version, tagged commit is on main
 #   ci          the full CI workflow (ci.yml) against the tagged commit
 #   build       sdist + wheel from the tag, twine check, wheel-contents check
-#   publish     PyPI trusted publishing (OIDC, no API token) with PEP 740
-#               attestations, from the `pypi` environment
+#   publish     pypa/gh-action-pypi-publish from the `pypi` environment, using
+#               the PYPI_API_TOKEN secret (trusted publishing + PEP 740
+#               attestations once configured; see RELEASING.md)
 # Nothing is uploaded unless every earlier job succeeded.
 #
 # workflow_dispatch exists only to re-run an existing tag (pick the tag in
@@ -116,7 +117,7 @@ jobs:
       url: https://pypi.org/project/siege-utilities/
     permissions:
       contents: read
-      id-token: write  # OIDC for trusted publishing and attestation signing
+      id-token: write  # used once trusted publishing replaces the token
     steps:
     - name: Download distributions
       uses: actions/download-artifact@v4
@@ -124,7 +125,13 @@ jobs:
         name: release-dist
         path: dist/
 
-    - name: Publish to PyPI (trusted publishing, with attestations)
+    - name: Publish to PyPI
+      # Authenticates with the existing PYPI_API_TOKEN repository secret, the
+      # credential earlier releases used. With a token the action skips
+      # attestations (it logs a warning). Once a PyPI trusted publisher is
+      # configured for this workflow (RELEASING.md), delete the `password:`
+      # line: the action then uses OIDC and uploads attestations.
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
         attestations: true

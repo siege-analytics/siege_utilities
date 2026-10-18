@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `v*` tag push. It checks that the tag equals `v` + the pyproject version and
   that the tagged commit is on `main`, then runs the whole of `ci.yml` on the
   tag. Only after that passes does it build, check wheel contents and publish
-  with PyPI trusted publishing and attestations. The token-based `release` job
+  with `pypa/gh-action-pypi-publish` (using the existing `PYPI_API_TOKEN`
+  secret; trusted publishing with attestations once configured, RELEASING.md). The token-based `release` job
   in `ci.yml` and its `release: published` trigger are removed.
   `scripts/release_manager.py --release` no longer uploads or needs
   `PYPI_API_TOKEN`. It pushes only the new tag, not `--tags`, and stops if

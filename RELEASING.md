@@ -33,9 +33,11 @@ so nothing is uploaded unless all of them succeed:
    `scripts/check_wheel_contents.py`. The wheel root must be exactly
    `siege_utilities`, every data file the code loads must be present, and no
    member name may contain whitespace (#1420).
-4. **publish**: `pypa/gh-action-pypi-publish` with PyPI trusted publishing
-   (OIDC; no API token) and `attestations: true`, from the `pypi` GitHub
-   environment.
+4. **publish**: `pypa/gh-action-pypi-publish` from the `pypi` GitHub
+   environment, authenticated with the `PYPI_API_TOKEN` repository secret.
+   This is the only place that secret is used. When a PyPI trusted publisher
+   is configured (below), the token is dropped and the action also uploads
+   PEP 740 attestations.
 
 A GitHub release no longer triggers CI or an upload. Create it after the
 publish job succeeds, with notes from `CHANGELOG.md`.
@@ -60,21 +62,23 @@ publish job succeeds, with notes from `CHANGELOG.md`.
    If a job fails for a transient reason, re-run the failed jobs. If it fails
    for a real reason, fix it on `develop` and release a new version. Do not
    re-point the tag.
-5. Check the PyPI file page shows provenance (attestations) for both files,
-   then create the GitHub release from the tag.
+5. Check the PyPI files match the tag (and, once trusted publishing is on,
+   show provenance), then create the GitHub release from the tag.
 
 ## One-time setup (repository admins)
 
-These are configured outside the repository and are required before the first
-run:
+Already in place: the `PYPI_API_TOKEN` repository secret, which earlier
+releases used. The `pypi` environment is created on the first run if it does
+not exist; restrict its deployments to tags matching `v*`.
 
-- PyPI project `siege-utilities` → Publishing → add a GitHub trusted publisher:
-  owner `siege-analytics`, repository `siege_utilities`, workflow
-  `publish-tag.yml`, environment `pypi`.
-- GitHub → Settings → Environments → create `pypi`. Restrict deployments to
-  tags matching `v*`. Required reviewers are optional.
-- Delete the `PYPI_API_TOKEN` repository secret and revoke the token on PyPI.
-  Nothing in the workflows reads it any more.
+Optional upgrade to trusted publishing with attestations:
+
+1. PyPI project `siege-utilities` → Publishing → add a GitHub trusted
+   publisher: owner `siege-analytics`, repository `siege_utilities`, workflow
+   `publish-tag.yml`, environment `pypi`.
+2. Delete the `password:` line from the publish step in `publish-tag.yml`.
+3. After one release has published that way, delete the `PYPI_API_TOKEN`
+   secret and revoke the token on PyPI.
 
 ## Historical tags (documentation only)
 
