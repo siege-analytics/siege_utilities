@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.geo.spatial_data &mdash; Siege Utilities 4.0.0 documentation</title>
+  <title>siege_utilities.geo.spatial_data &mdash; Siege Utilities 4.1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=3304f9e4"></script>
+      <script src="../../../_static/documentation_options.js?v=42d1b3bd"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
@@ -4498,7 +4498,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/geo_django.html#module-siege_utilities.geo.django.models.base">Models</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.save"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.prepare_for_bulk()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.get_geoid_length"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.get_geoid_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.parse_geoid"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.parse_geoid()</span></code></a></li>
 </ul>
@@ -4507,12 +4507,14 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.total_area"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.total_area</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.land_percentage"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.land_percentage</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.save"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.Meta"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.is_current"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.is_current</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.prepare_for_bulk()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.save"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.save()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalLinearFeature"><code class="docutils literal notranslate"><span class="pre">TemporalLinearFeature</span></code></a><ul>
@@ -4547,6 +4549,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.state"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.Meta"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.get_geoid_length"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.get_geoid_length()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.normalize_geoid"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.normalize_geoid()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.parse_geoid"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.parse_geoid()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.is_at_large"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.is_at_large</span></code></a></li>
 </ul>
@@ -4632,16 +4635,19 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.DATASET_CHOICES"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.DATASET_CHOICES</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.content_object"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.content_object</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.get_value"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.get_value()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.get_moe"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.get_moe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.prepare_for_bulk()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.save"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.save()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.content_object"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries.content_object</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries.Meta</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicKeyArchive"><code class="docutils literal notranslate"><span class="pre">DemographicKeyArchive</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicKeyArchive.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicKeyArchive.Meta</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolDistrictBase"><code class="docutils literal notranslate"><span class="pre">SchoolDistrictBase</span></code></a><ul>
@@ -4665,28 +4671,28 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.save"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation"><code class="docutils literal notranslate"><span class="pre">SchoolLocation</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.state"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.Meta"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.save"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion"><code class="docutils literal notranslate"><span class="pre">NLRBRegion</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.Meta"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.save"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.Meta"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.save"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary"><code class="docutils literal notranslate"><span class="pre">GADMBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.save"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMCountry"><code class="docutils literal notranslate"><span class="pre">GADMCountry</span></code></a><ul>
@@ -4747,7 +4753,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult"><code class="docutils literal notranslate"><span class="pre">IsochroneResult</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.Meta"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.save"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.nlrb_cases.NLRBCase"><code class="docutils literal notranslate"><span class="pre">NLRBCase</span></code></a><ul>
@@ -4841,7 +4847,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.Meta"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.save"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -4849,6 +4855,8 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/geo_django.html#module-siege_utilities.geo.django.managers">Managers</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager"><code class="docutils literal notranslate"><span class="pre">BoundaryManager</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.get_queryset"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.get_queryset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.snapshots()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.for_year"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_year()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.for_state"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_state()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.current"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.current()</span></code></a></li>
@@ -4873,6 +4881,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.nearest"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.nearest()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.with_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.with_area()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.by_land_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_land_area()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.snapshots()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.geojson"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.geojson()</span></code></a></li>
 </ul>
@@ -4888,12 +4897,15 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.nearest"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.nearest()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.with_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.with_area()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_land_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_land_area()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.snapshots()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.geojson"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.geojson()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager"><code class="docutils literal notranslate"><span class="pre">BoundaryManager</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.get_queryset"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.get_queryset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.snapshots()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.for_year"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_year()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.for_state"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_state()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.current"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.current()</span></code></a></li>
@@ -4996,6 +5008,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_updated"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.errors"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_without_geometry"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_without_geometry</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.success"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.__init__"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.__init__()</span></code></a></li>
 </ul>
@@ -5012,6 +5025,8 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.records_updated"><code class="docutils literal notranslate"><span class="pre">PopulationResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">PopulationResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.errors"><code class="docutils literal notranslate"><span class="pre">PopulationResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.sources_skipped"><code class="docutils literal notranslate"><span class="pre">PopulationResult.sources_skipped</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.warnings"><code class="docutils literal notranslate"><span class="pre">PopulationResult.warnings</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.total_processed"><code class="docutils literal notranslate"><span class="pre">PopulationResult.total_processed</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.success"><code class="docutils literal notranslate"><span class="pre">PopulationResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.__init__"><code class="docutils literal notranslate"><span class="pre">PopulationResult.__init__()</span></code></a></li>
@@ -5019,7 +5034,8 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.GEOGRAPHY_MODELS"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.GEOGRAPHY_MODELS</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.TIGER_TYPES"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.TIGER_TYPES</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.GEOGRAPHIC_LEVELS"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.GEOGRAPHIC_LEVELS</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.VTD_NOT_PUBLISHED"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.VTD_NOT_PUBLISHED</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.__init__"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.populate"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.populate()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.populate_states"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.populate_states()</span></code></a></li>
@@ -5039,6 +5055,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.records_updated"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.errors"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.warnings"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.warnings</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.total_processed"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.total_processed</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.success"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.__init__"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.__init__()</span></code></a></li>
@@ -5058,6 +5075,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.target_level"><code class="docutils literal notranslate"><span class="pre">RollupResult.target_level</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.variable_code"><code class="docutils literal notranslate"><span class="pre">RollupResult.variable_code</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_created"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_created</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_updated"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.coverage_ratio"><code class="docutils literal notranslate"><span class="pre">RollupResult.coverage_ratio</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.errors"><code class="docutils literal notranslate"><span class="pre">RollupResult.errors</span></code></a></li>
@@ -5699,6 +5717,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/analytics.html#siege_utilities.analytics.google_slides.get_presentation"><code class="docutils literal notranslate"><span class="pre">get_presentation()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/analytics.html#siege_utilities.analytics.google_slides.insert_image"><code class="docutils literal notranslate"><span class="pre">insert_image()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/analytics.html#siege_utilities.analytics.google_slides.insert_text"><code class="docutils literal notranslate"><span class="pre">insert_text()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../packages/analytics.html#siege_utilities.analytics.google_slides.temporary_public_figure"><code class="docutils literal notranslate"><span class="pre">temporary_public_figure()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/analytics.html#siege_utilities.analytics.google_slides.upload_figure_to_drive"><code class="docutils literal notranslate"><span class="pre">upload_figure_to_drive()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/analytics.html#siege_utilities.analytics.google_workspace.GoogleWorkspaceClient"><code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/analytics.html#siege_utilities.analytics.google_workspace.GoogleWorkspaceClient.__init__"><code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient.__init__()</span></code></a></li>
@@ -6291,9 +6310,12 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../../../packages/config.html">Config</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.get_service_timeout"><code class="docutils literal notranslate"><span class="pre">get_service_timeout()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.normalize_state_identifier"><code class="docutils literal notranslate"><span class="pre">normalize_state_identifier()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.get_fips_info"><code class="docutils literal notranslate"><span class="pre">get_fips_info()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../packages/config.html#sharing-exports-without-secrets">Sharing exports without secrets</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.get_service_timeout"><code class="docutils literal notranslate"><span class="pre">get_service_timeout()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.normalize_state_identifier"><code class="docutils literal notranslate"><span class="pre">normalize_state_identifier()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.get_fips_info"><code class="docutils literal notranslate"><span class="pre">get_fips_info()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/config.html#module-siege_utilities.config.credential_manager">Submodules</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.credential_manager.CredentialNotFoundError"><code class="docutils literal notranslate"><span class="pre">CredentialNotFoundError</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.credential_manager.CredentialNotFoundError.__init__"><code class="docutils literal notranslate"><span class="pre">CredentialNotFoundError.__init__()</span></code></a></li>
@@ -6650,6 +6672,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.DatabaseConnection"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_host"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_host()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_password_length"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_password"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_port"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_port()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_database_name"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_database_name()</span></code></a></li>
@@ -6657,10 +6680,10 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.refresh_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.refresh_token</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.api_version</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.rate_limit_remaining"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.rate_limit_remaining</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.last_updated"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.last_updated</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_access_token_length"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_access_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_account_id"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_account_id()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_api_version()</span></code></a></li>
@@ -6733,7 +6756,6 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.DataSource.source_type"><code class="docutils literal notranslate"><span class="pre">DataSource.source_type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.DataSource.jurisdiction"><code class="docutils literal notranslate"><span class="pre">DataSource.jurisdiction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.DataSource.status"><code class="docutils literal notranslate"><span class="pre">DataSource.status</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.DataSource.auth_required"><code class="docutils literal notranslate"><span class="pre">DataSource.auth_required</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.DataSource.notes"><code class="docutils literal notranslate"><span class="pre">DataSource.notes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.DataSource.validate_auth_type"><code class="docutils literal notranslate"><span class="pre">DataSource.validate_auth_type()</span></code></a></li>
 </ul>
@@ -6964,7 +6986,6 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.source_type"><code class="docutils literal notranslate"><span class="pre">DataSource.source_type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.jurisdiction"><code class="docutils literal notranslate"><span class="pre">DataSource.jurisdiction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.status"><code class="docutils literal notranslate"><span class="pre">DataSource.status</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.auth_required"><code class="docutils literal notranslate"><span class="pre">DataSource.auth_required</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.notes"><code class="docutils literal notranslate"><span class="pre">DataSource.notes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.validate_auth_type"><code class="docutils literal notranslate"><span class="pre">DataSource.validate_auth_type()</span></code></a></li>
 </ul>
@@ -6975,6 +6996,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_host"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_host()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_password_length"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_password"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_port"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_port()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_database_name"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_database_name()</span></code></a></li>
@@ -7130,10 +7152,10 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.refresh_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.refresh_token</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.api_version</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.rate_limit_remaining"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.rate_limit_remaining</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.last_updated"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.last_updated</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token_length"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_account_id"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_account_id()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_api_version()</span></code></a></li>
@@ -7870,7 +7892,10 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../../../packages/hygiene.html">Hygiene</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings"><code class="docutils literal notranslate"><span class="pre">generate_docstrings()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../packages/hygiene.html#docstring-generation">Docstring generation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings"><code class="docutils literal notranslate"><span class="pre">generate_docstrings()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="../../../packages/hygiene.html#module-siege_utilities.hygiene.generate_docstrings">Submodules</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.analyze_function_signature"><code class="docutils literal notranslate"><span class="pre">analyze_function_signature()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.categorize_function"><code class="docutils literal notranslate"><span class="pre">categorize_function()</span></code></a></li>
@@ -7878,6 +7903,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder"><code class="docutils literal notranslate"><span class="pre">DocstringAdder</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.__init__"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_FunctionDef"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.visit_FunctionDef()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_AsyncFunctionDef"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.visit_AsyncFunctionDef()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.process_python_file"><code class="docutils literal notranslate"><span class="pre">process_python_file()</span></code></a></li>
@@ -9000,8 +9026,11 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">geopandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">gpd</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">bs4</span><span class="w"> </span><span class="kn">import</span> <span class="n">BeautifulSoup</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">urllib3.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">InsecureRequestWarning</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.geo.crs</span><span class="w"> </span><span class="kn">import</span> <span class="n">reproject_if_needed</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.operations</span><span class="w"> </span><span class="kn">import</span> <span class="n">atomic_write_path</span>
 
 <span class="c1"># Opt-in TLS-verification bypass for environments behind broken</span>
 <span class="c1"># corporate MITM proxies. Defaults to False because silent fallback to</span>
@@ -9010,8 +9039,6 @@
 <span class="c1"># environment to allow verify=False as a documented fallback (and own</span>
 <span class="c1"># the risk).</span>
 <span class="n">_ALLOW_INSECURE_SSL</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"SIEGE_INSECURE_SSL"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"1"</span><span class="p">,</span> <span class="s2">"true"</span><span class="p">,</span> <span class="s2">"yes"</span><span class="p">)</span>
-<span class="k">if</span> <span class="n">_ALLOW_INSECURE_SSL</span><span class="p">:</span>
-    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s1">'ignore'</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s1">'Unverified HTTPS request'</span><span class="p">)</span>
 
 <span class="c1"># Import existing library functions</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..files.remote</span><span class="w"> </span><span class="kn">import</span> <span class="n">download_file</span><span class="p">,</span> <span class="n">generate_local_path_from_url</span>
@@ -9089,7 +9116,7 @@
     <span class="mi">2023</span><span class="p">:</span> <span class="mi">118</span><span class="p">,</span>
     <span class="mi">2024</span><span class="p">:</span> <span class="mi">119</span><span class="p">,</span>
     <span class="mi">2025</span><span class="p">:</span> <span class="mi">119</span><span class="p">,</span>
-    <span class="mi">2026</span><span class="p">:</span> <span class="mi">119</span><span class="p">,</span>
+    <span class="mi">2026</span><span class="p">:</span> <span class="mi">120</span><span class="p">,</span>  <span class="c1"># TIGER2026/CD/tl_2026_&lt;state&gt;_cd120.zip</span>
 <span class="p">}</span>
 
 <span class="c1"># ---------------------------------------------------------------------------</span>
@@ -9134,12 +9161,9 @@
     <span class="s1">'elsd'</span><span class="p">:</span>         <span class="p">{</span><span class="s1">'category'</span><span class="p">:</span> <span class="s1">'general'</span><span class="p">,</span> <span class="s1">'abbrev'</span><span class="p">:</span> <span class="s1">'ELSD'</span><span class="p">,</span>        <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'Elementary School Districts'</span><span class="p">,</span>      <span class="s1">'geometry_type'</span><span class="p">:</span> <span class="s1">'MultiPolygon'</span><span class="p">},</span>
     <span class="s1">'scsd'</span><span class="p">:</span>         <span class="p">{</span><span class="s1">'category'</span><span class="p">:</span> <span class="s1">'general'</span><span class="p">,</span> <span class="s1">'abbrev'</span><span class="p">:</span> <span class="s1">'SCSD'</span><span class="p">,</span>        <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'Secondary School Districts'</span><span class="p">,</span>       <span class="s1">'geometry_type'</span><span class="p">:</span> <span class="s1">'MultiPolygon'</span><span class="p">},</span>
     <span class="s1">'unsd'</span><span class="p">:</span>         <span class="p">{</span><span class="s1">'category'</span><span class="p">:</span> <span class="s1">'general'</span><span class="p">,</span> <span class="s1">'abbrev'</span><span class="p">:</span> <span class="s1">'UNSD'</span><span class="p">,</span>        <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'Unified School Districts'</span><span class="p">,</span>         <span class="s1">'geometry_type'</span><span class="p">:</span> <span class="s1">'MultiPolygon'</span><span class="p">},</span>
-    <span class="s1">'address_features'</span><span class="p">:</span> <span class="p">{</span><span class="s1">'category'</span><span class="p">:</span> <span class="s1">'general'</span><span class="p">,</span> <span class="s1">'abbrev'</span><span class="p">:</span> <span class="s1">'ADDRFEAT'</span><span class="p">,</span>    <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'Address Features'</span><span class="p">,</span>             <span class="s1">'geometry_type'</span><span class="p">:</span> <span class="s1">'MultiLineString'</span><span class="p">},</span>
-    <span class="s1">'linear_water'</span><span class="p">:</span> <span class="p">{</span><span class="s1">'category'</span><span class="p">:</span> <span class="s1">'general'</span><span class="p">,</span> <span class="s1">'abbrev'</span><span class="p">:</span> <span class="s1">'LINEARWATER'</span><span class="p">,</span> <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'Linear Water Features'</span><span class="p">,</span>            <span class="s1">'geometry_type'</span><span class="p">:</span> <span class="s1">'MultiLineString'</span><span class="p">},</span>
-    <span class="s1">'area_water'</span><span class="p">:</span>   <span class="p">{</span><span class="s1">'category'</span><span class="p">:</span> <span class="s1">'general'</span><span class="p">,</span> <span class="s1">'abbrev'</span><span class="p">:</span> <span class="s1">'AREAWATER'</span><span class="p">,</span>   <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'Area Water Features'</span><span class="p">,</span>              <span class="s1">'geometry_type'</span><span class="p">:</span> <span class="s1">'MultiPolygon'</span><span class="p">},</span>
-    <span class="s1">'roads'</span><span class="p">:</span>        <span class="p">{</span><span class="s1">'category'</span><span class="p">:</span> <span class="s1">'general'</span><span class="p">,</span> <span class="s1">'abbrev'</span><span class="p">:</span> <span class="s1">'ROADS'</span><span class="p">,</span>       <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'Roads'</span><span class="p">,</span>                            <span class="s1">'geometry_type'</span><span class="p">:</span> <span class="s1">'MultiLineString'</span><span class="p">},</span>
+    <span class="c1"># address_features, linear_water, area_water, roads and edges are not</span>
+    <span class="c1"># listed: Census publishes them per county only (see _PER_COUNTY_TYPES).</span>
     <span class="s1">'rails'</span><span class="p">:</span>        <span class="p">{</span><span class="s1">'category'</span><span class="p">:</span> <span class="s1">'general'</span><span class="p">,</span> <span class="s1">'abbrev'</span><span class="p">:</span> <span class="s1">'RAILS'</span><span class="p">,</span>       <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'Railroads'</span><span class="p">,</span>                        <span class="s1">'geometry_type'</span><span class="p">:</span> <span class="s1">'MultiLineString'</span><span class="p">},</span>
-    <span class="s1">'edges'</span><span class="p">:</span>        <span class="p">{</span><span class="s1">'category'</span><span class="p">:</span> <span class="s1">'general'</span><span class="p">,</span> <span class="s1">'abbrev'</span><span class="p">:</span> <span class="s1">'EDGES'</span><span class="p">,</span>       <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'All Edges (roads, hydro, etc.)'</span><span class="p">,</span>   <span class="s1">'geometry_type'</span><span class="p">:</span> <span class="s1">'MultiLineString'</span><span class="p">},</span>
     <span class="s1">'anrc'</span><span class="p">:</span>         <span class="p">{</span><span class="s1">'category'</span><span class="p">:</span> <span class="s1">'general'</span><span class="p">,</span> <span class="s1">'abbrev'</span><span class="p">:</span> <span class="s1">'ANRC'</span><span class="p">,</span>        <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'Alaska Native Regional Corps'</span><span class="p">,</span>     <span class="s1">'geometry_type'</span><span class="p">:</span> <span class="s1">'MultiPolygon'</span><span class="p">},</span>
     <span class="s1">'concity'</span><span class="p">:</span>      <span class="p">{</span><span class="s1">'category'</span><span class="p">:</span> <span class="s1">'general'</span><span class="p">,</span> <span class="s1">'abbrev'</span><span class="p">:</span> <span class="s1">'CONCITY'</span><span class="p">,</span>     <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'Consolidated Cities'</span><span class="p">,</span>              <span class="s1">'geometry_type'</span><span class="p">:</span> <span class="s1">'MultiPolygon'</span><span class="p">},</span>
     <span class="s1">'submcd'</span><span class="p">:</span>       <span class="p">{</span><span class="s1">'category'</span><span class="p">:</span> <span class="s1">'general'</span><span class="p">,</span> <span class="s1">'abbrev'</span><span class="p">:</span> <span class="s1">'SUBMCD'</span><span class="p">,</span>      <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'Sub-Minor Civil Divisions'</span><span class="p">,</span>        <span class="s1">'geometry_type'</span><span class="p">:</span> <span class="s1">'MultiPolygon'</span><span class="p">},</span>
@@ -9149,6 +9173,26 @@
     <span class="s1">'pointlm'</span><span class="p">:</span>      <span class="p">{</span><span class="s1">'category'</span><span class="p">:</span> <span class="s1">'general'</span><span class="p">,</span> <span class="s1">'abbrev'</span><span class="p">:</span> <span class="s1">'POINTLM'</span><span class="p">,</span>    <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'Point Landmarks'</span><span class="p">,</span>                  <span class="s1">'geometry_type'</span><span class="p">:</span> <span class="s1">'Point'</span><span class="p">},</span>
     <span class="s1">'arealm'</span><span class="p">:</span>       <span class="p">{</span><span class="s1">'category'</span><span class="p">:</span> <span class="s1">'general'</span><span class="p">,</span> <span class="s1">'abbrev'</span><span class="p">:</span> <span class="s1">'AREALM'</span><span class="p">,</span>     <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'Area Landmarks'</span><span class="p">,</span>                   <span class="s1">'geometry_type'</span><span class="p">:</span> <span class="s1">'MultiPolygon'</span><span class="p">},</span>
 <span class="p">}</span>
+
+<span class="c1"># TIGER publishes these layers only as per-county files</span>
+<span class="c1"># (e.g. LINEARWATER/tl_2019_01001_linearwater.zip). The URL builder takes a</span>
+<span class="c1"># state, not a county, so it refuses them instead of naming a file that does</span>
+<span class="c1"># not exist. They stay out of BOUNDARY_TYPE_CATALOG until county support lands.</span>
+<span class="n">_PER_COUNTY_TYPES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span>
+    <span class="s1">'address_features'</span><span class="p">,</span> <span class="s1">'linear_water'</span><span class="p">,</span> <span class="s1">'area_water'</span><span class="p">,</span> <span class="s1">'roads'</span><span class="p">,</span> <span class="s1">'edges'</span><span class="p">,</span>
+<span class="p">})</span>
+
+<span class="c1"># Layers published only as one national file. A state request for one of</span>
+<span class="c1"># these is honoured by filtering the national file on its statefp column.</span>
+<span class="n">_NATIONAL_ONLY_TYPES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span>
+    <span class="s1">'state'</span><span class="p">,</span> <span class="s1">'county'</span><span class="p">,</span> <span class="s1">'cbsa'</span><span class="p">,</span> <span class="s1">'csa'</span><span class="p">,</span> <span class="s1">'metdiv'</span><span class="p">,</span> <span class="s1">'micro'</span><span class="p">,</span> <span class="s1">'necta'</span><span class="p">,</span>
+    <span class="s1">'nectadiv'</span><span class="p">,</span> <span class="s1">'cnecta'</span><span class="p">,</span> <span class="s1">'aiannh'</span><span class="p">,</span> <span class="s1">'aitsce'</span><span class="p">,</span> <span class="s1">'ttract'</span><span class="p">,</span> <span class="s1">'tbg'</span><span class="p">,</span>
+    <span class="s1">'uac'</span><span class="p">,</span> <span class="s1">'uac10'</span><span class="p">,</span> <span class="s1">'uac20'</span><span class="p">,</span> <span class="s1">'rails'</span><span class="p">,</span>
+<span class="p">})</span>
+
+<span class="c1"># TIGER2010 layers published flat (no 2010/ subdirectory, no "10" suffix),</span>
+<span class="c1"># e.g. TIGER2010/RAILS/tl_2010_us_rails.zip.</span>
+<span class="n">_FLAT_2010_TYPES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s1">'rails'</span><span class="p">})</span>
 
 <span class="c1"># ---------------------------------------------------------------------------</span>
 <span class="c1"># TIGER Redistricting (PL 94-171) URL constants</span>
@@ -9303,8 +9347,9 @@
 
     <span class="n">save_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">save_path</span> <span class="ow">or</span> <span class="n">_DEFAULT_INVENTORY_PATH</span><span class="p">)</span>
     <span class="n">save_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
-        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">inventory</span><span class="p">,</span> <span class="n">fh</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">atomic_write_path</span><span class="p">(</span><span class="n">save_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">tmp</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">inventory</span><span class="p">,</span> <span class="n">fh</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"census inventory saved to </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span> <span class="n">save_path</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">inventory</span></div>
 
@@ -9366,18 +9411,16 @@
 <span class="sd">      * ``ZCTA5`` (with ``zcta510`` filename suffix) through 2019;</span>
 <span class="sd">        ``ZCTA520`` (with ``zcta520`` filename suffix) from 2020 onward;</span>
 <span class="sd">        2020 publishes both directories (`ZCTA5` is the legacy redirect).</span>
-<span class="sd">      * ``TABBLOCK10`` and ``VTD10`` only in 2010; ``TABBLOCK20`` and</span>
-<span class="sd">        ``VTD20`` only in 2020+.</span>
-<span class="sd">      * ``UAC10`` only 2011-2019 (Urban Area Census 2010 vintage); ``UAC20``</span>
-<span class="sd">        from 2022 onward (Urban Area Census 2020 vintage); 2020-2021 publish</span>
-<span class="sd">        ``UAC`` (the unsuffixed transitional name).</span>
+<span class="sd">      * ``TABBLOCK`` through 2019; ``TABBLOCK20`` from 2020.</span>
+<span class="sd">      * ``UA`` in 2010; ``UAC`` in 2012-2023; ``UAC20`` from 2024.</span>
+<span class="sd">        VTD 2020 uses the separate PL release.</span>
 <span class="sd">    """</span>
     <span class="c1"># Always-published baseline (2010 onward).</span>
     <span class="n">dirs</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">"BG"</span><span class="p">,</span> <span class="s2">"COUNTY"</span><span class="p">,</span> <span class="s2">"COUNTYSUB"</span><span class="p">,</span> <span class="s2">"PLACE"</span><span class="p">,</span> <span class="s2">"STATE"</span><span class="p">,</span> <span class="s2">"TRACT"</span><span class="p">,</span>
+        <span class="s2">"BG"</span><span class="p">,</span> <span class="s2">"COUNTY"</span><span class="p">,</span> <span class="s2">"COUSUB"</span><span class="p">,</span> <span class="s2">"PLACE"</span><span class="p">,</span> <span class="s2">"STATE"</span><span class="p">,</span> <span class="s2">"TRACT"</span><span class="p">,</span>
         <span class="s2">"AIANNH"</span><span class="p">,</span> <span class="s2">"ANRC"</span><span class="p">,</span> <span class="s2">"CBSA"</span><span class="p">,</span> <span class="s2">"CSA"</span><span class="p">,</span> <span class="s2">"CNECTA"</span><span class="p">,</span>
-        <span class="s2">"EDGES"</span><span class="p">,</span> <span class="s2">"FACES"</span><span class="p">,</span> <span class="s2">"FACESAH"</span><span class="p">,</span> <span class="s2">"FACESAL"</span><span class="p">,</span>
-        <span class="s2">"ELSD"</span><span class="p">,</span> <span class="s2">"SCSD"</span><span class="p">,</span> <span class="s2">"SDELM"</span><span class="p">,</span> <span class="s2">"SDSEC"</span><span class="p">,</span> <span class="s2">"SDUNI"</span><span class="p">,</span> <span class="s2">"UNSD"</span><span class="p">,</span>
+        <span class="s2">"ADDRFEAT"</span><span class="p">,</span> <span class="s2">"EDGES"</span><span class="p">,</span> <span class="s2">"FACES"</span><span class="p">,</span> <span class="s2">"FACESAH"</span><span class="p">,</span> <span class="s2">"FACESAL"</span><span class="p">,</span>
+        <span class="s2">"ELSD"</span><span class="p">,</span> <span class="s2">"SCSD"</span><span class="p">,</span> <span class="s2">"UNSD"</span><span class="p">,</span>
         <span class="s2">"POINTLM"</span><span class="p">,</span> <span class="s2">"PRIMARYROADS"</span><span class="p">,</span> <span class="s2">"PRISECROADS"</span><span class="p">,</span> <span class="s2">"RAILS"</span><span class="p">,</span> <span class="s2">"ROADS"</span><span class="p">,</span>
         <span class="s2">"SLDL"</span><span class="p">,</span> <span class="s2">"SLDU"</span><span class="p">,</span>
         <span class="s2">"METDIV"</span><span class="p">,</span> <span class="s2">"NECTA"</span><span class="p">,</span> <span class="s2">"NECTADIV"</span><span class="p">,</span>
@@ -9392,23 +9435,20 @@
         <span class="c1"># 2020 publishes ZCTA5 as a legacy redirect alongside ZCTA520; safer</span>
         <span class="c1"># to surface both so callers can probe either.</span>
         <span class="n">dirs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">"ZCTA5"</span><span class="p">,</span> <span class="s2">"ZCTA520"</span><span class="p">}</span> <span class="k">if</span> <span class="n">year</span> <span class="o">==</span> <span class="mi">2020</span> <span class="k">else</span> <span class="p">{</span><span class="s2">"ZCTA520"</span><span class="p">})</span>
-    <span class="k">elif</span> <span class="n">year</span> <span class="o">&gt;=</span> <span class="mi">2012</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">year</span> <span class="o">==</span> <span class="mi">2010</span> <span class="ow">or</span> <span class="n">year</span> <span class="o">&gt;=</span> <span class="mi">2012</span><span class="p">:</span>
         <span class="n">dirs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">"ZCTA5"</span><span class="p">)</span>
 
-    <span class="c1"># TABBLOCK + VTD: tied to the decennial vintage that produced them.</span>
+    <span class="c1"># Match the directory names, which differ from the filename suffixes.</span>
+    <span class="n">dirs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">"TABBLOCK20"</span> <span class="k">if</span> <span class="n">year</span> <span class="o">&gt;=</span> <span class="mi">2020</span> <span class="k">else</span> <span class="s2">"TABBLOCK"</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">year</span> <span class="o">==</span> <span class="mi">2010</span><span class="p">:</span>
-        <span class="n">dirs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">"TABBLOCK10"</span><span class="p">,</span> <span class="s2">"VTD10"</span><span class="p">})</span>
-    <span class="k">elif</span> <span class="n">year</span> <span class="o">&gt;=</span> <span class="mi">2020</span><span class="p">:</span>
-        <span class="n">dirs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">"TABBLOCK20"</span><span class="p">,</span> <span class="s2">"VTD20"</span><span class="p">})</span>
+        <span class="n">dirs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">"VTD"</span><span class="p">,</span> <span class="s2">"UA"</span><span class="p">})</span>
 
-    <span class="c1"># UAC (Urban Area Census): 2010 vintage 2011-2019; transitional 2020-2021;</span>
-    <span class="c1"># 2020 vintage 2022 onward.</span>
-    <span class="k">if</span> <span class="mi">2011</span> <span class="o">&lt;=</span> <span class="n">year</span> <span class="o">&lt;=</span> <span class="mi">2019</span><span class="p">:</span>
-        <span class="n">dirs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">"UAC10"</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">year</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">2021</span><span class="p">):</span>
+    <span class="k">if</span> <span class="mi">2012</span> <span class="o">&lt;=</span> <span class="n">year</span> <span class="o">&lt;=</span> <span class="mi">2023</span><span class="p">:</span>
         <span class="n">dirs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">"UAC"</span><span class="p">)</span>
-    <span class="k">elif</span> <span class="n">year</span> <span class="o">&gt;=</span> <span class="mi">2022</span><span class="p">:</span>
+    <span class="k">elif</span> <span class="n">year</span> <span class="o">&gt;=</span> <span class="mi">2024</span><span class="p">:</span>
         <span class="n">dirs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">"UAC20"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">year</span> <span class="o">==</span> <span class="mi">2022</span><span class="p">:</span>
+        <span class="n">dirs</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="s2">"CBSA"</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">dirs</span><span class="p">)</span>
 
@@ -9479,13 +9519,15 @@
             <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">SSLError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                 <span class="n">last_exception</span> <span class="o">=</span> <span class="n">e</span>
                 <span class="k">if</span> <span class="n">_ALLOW_INSECURE_SSL</span> <span class="ow">and</span> <span class="n">verify_ssl</span><span class="p">:</span>
-                    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
                         <span class="s2">"SSL verification failed; SIEGE_INSECURE_SSL=1 set, "</span>
                         <span class="s2">"retrying without verification (legacy behaviour)."</span>
                     <span class="p">)</span>
                     <span class="n">verify_ssl</span> <span class="o">=</span> <span class="kc">False</span>
                     <span class="k">try</span><span class="p">:</span>
-                        <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">timeout</span><span class="p">,</span> <span class="n">verify</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+                            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">"ignore"</span><span class="p">,</span> <span class="n">InsecureRequestWarning</span><span class="p">)</span>
+                            <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">timeout</span><span class="p">,</span> <span class="n">verify</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
                         <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
                         <span class="n">years</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_year_links</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="p">[</span><span class="n">cache_key</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">years</span><span class="p">)</span>
@@ -9575,7 +9617,7 @@
                     <span class="s2">"to opt into the legacy bypass."</span><span class="p">,</span> <span class="n">year</span><span class="p">,</span>
                 <span class="p">)</span>
                 <span class="k">raise</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
                 <span class="s2">"SSL verification failed for year </span><span class="si">%s</span><span class="s2">; SIEGE_INSECURE_SSL=1 "</span>
                 <span class="s2">"set, retrying without verification."</span><span class="p">,</span> <span class="n">year</span><span class="p">,</span>
             <span class="p">)</span>
@@ -9583,7 +9625,9 @@
                 <span class="c1"># Fallback: try without SSL verification (legacy behaviour</span>
                 <span class="c1"># behind the env-var opt-in).</span>
                 <span class="n">year_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="si">}</span><span class="s2">/TIGER</span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s2">/"</span>
-                <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">year_url</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">timeout</span><span class="p">,</span> <span class="n">verify</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+                    <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">"ignore"</span><span class="p">,</span> <span class="n">InsecureRequestWarning</span><span class="p">)</span>
+                    <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">year_url</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">timeout</span><span class="p">,</span> <span class="n">verify</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
                 <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
 
                 <span class="n">soup</span> <span class="o">=</span> <span class="n">BeautifulSoup</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="s1">'html.parser'</span><span class="p">)</span>
@@ -9707,6 +9751,7 @@
             
             <span class="c1"># Urban areas</span>
             <span class="s1">'UAC'</span><span class="p">:</span> <span class="s1">'uac'</span><span class="p">,</span>    <span class="c1"># Urban Area</span>
+            <span class="s1">'UA'</span><span class="p">:</span> <span class="s1">'uac'</span><span class="p">,</span>     <span class="c1"># 2010 urban areas</span>
             <span class="s1">'UAC20'</span><span class="p">:</span> <span class="s1">'uac20'</span><span class="p">,</span> <span class="c1"># 2020 Urban Area</span>
         <span class="p">}</span>
         
@@ -9719,6 +9764,18 @@
                 <span class="n">clean_dir</span> <span class="o">=</span> <span class="n">directory</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">'_'</span><span class="p">,</span> <span class="s1">''</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">'-'</span><span class="p">,</span> <span class="s1">''</span><span class="p">)</span>
                 <span class="n">available_types</span><span class="p">[</span><span class="n">boundary_mapping</span><span class="p">[</span><span class="n">clean_dir</span><span class="p">]]</span> <span class="o">=</span> <span class="n">directory</span>
         
+        <span class="c1"># Preserve the explicit vintage names while accepting canonical levels.</span>
+        <span class="k">if</span> <span class="n">year</span> <span class="o">&gt;=</span> <span class="mi">2020</span> <span class="ow">and</span> <span class="s1">'tabblock20'</span> <span class="ow">in</span> <span class="n">available_types</span><span class="p">:</span>
+            <span class="n">available_types</span><span class="p">[</span><span class="s1">'block'</span><span class="p">]</span> <span class="o">=</span> <span class="n">available_types</span><span class="p">[</span><span class="s1">'tabblock20'</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">year</span> <span class="o">&gt;=</span> <span class="mi">2024</span> <span class="ow">and</span> <span class="s1">'uac20'</span> <span class="ow">in</span> <span class="n">available_types</span><span class="p">:</span>
+            <span class="n">available_types</span><span class="p">[</span><span class="s1">'uac'</span><span class="p">]</span> <span class="o">=</span> <span class="n">available_types</span><span class="p">[</span><span class="s1">'uac20'</span><span class="p">]</span>
+        <span class="c1"># TIGER has no CDnnn directories: each vintage's CD/ directory holds</span>
+        <span class="c1"># the congress in YEAR_TO_CONGRESS for that year. Alias cd{n} for</span>
+        <span class="c1"># that congress only; other congresses are not published in this</span>
+        <span class="c1"># vintage (live HEAD checks 404) and stay "not available".</span>
+        <span class="n">congress</span> <span class="o">=</span> <span class="n">YEAR_TO_CONGRESS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">year</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">'cd'</span> <span class="ow">in</span> <span class="n">available_types</span> <span class="ow">and</span> <span class="n">congress</span><span class="p">:</span>
+            <span class="n">available_types</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="sa">f</span><span class="s1">'cd</span><span class="si">{</span><span class="n">congress</span><span class="si">}</span><span class="s1">'</span><span class="p">,</span> <span class="n">available_types</span><span class="p">[</span><span class="s1">'cd'</span><span class="p">])</span>
         <span class="k">return</span> <span class="n">available_types</span></div>
 
     
@@ -9879,6 +9936,20 @@
 
             <span class="n">directory</span> <span class="o">=</span> <span class="n">available_types</span><span class="p">[</span><span class="n">boundary_type</span><span class="p">]</span>
             <span class="n">base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">patterns</span><span class="p">[</span><span class="s1">'base_url'</span><span class="p">]</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">directory</span><span class="si">}</span><span class="s2">"</span>
+            <span class="n">is_cd</span> <span class="o">=</span> <span class="n">boundary_type</span> <span class="o">==</span> <span class="s1">'cd'</span> <span class="ow">or</span> <span class="p">(</span>
+                <span class="n">boundary_type</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">'cd'</span><span class="p">)</span> <span class="ow">and</span> <span class="n">boundary_type</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="n">flat_2010</span> <span class="o">=</span> <span class="n">year</span> <span class="o">==</span> <span class="mi">2010</span> <span class="ow">and</span> <span class="n">boundary_type</span> <span class="ow">in</span> <span class="n">_FLAT_2010_TYPES</span>
+            <span class="k">if</span> <span class="n">year</span> <span class="o">==</span> <span class="mi">2010</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">flat_2010</span><span class="p">:</span>
+                <span class="c1"># CD uses a Congress subdirectory, not the census vintage:</span>
+                <span class="c1"># https://www2.census.gov/geo/tiger/TIGER2010/CD/111/</span>
+                <span class="k">if</span> <span class="n">boundary_type</span> <span class="o">==</span> <span class="s1">'cd'</span><span class="p">:</span>
+                    <span class="n">vintage</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">congress_number</span> <span class="ow">or</span> <span class="n">YEAR_TO_CONGRESS</span><span class="p">[</span><span class="n">year</span><span class="p">])</span>
+                <span class="k">elif</span> <span class="n">is_cd</span><span class="p">:</span>
+                    <span class="n">vintage</span> <span class="o">=</span> <span class="n">boundary_type</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">vintage</span> <span class="o">=</span> <span class="s1">'2010'</span>
+                <span class="n">base_url</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">'/</span><span class="si">{</span><span class="n">vintage</span><span class="si">}</span><span class="s1">'</span>
 
             <span class="c1"># Determine which filename pattern to use</span>
             <span class="n">filename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_construct_filename_with_fips_validation</span><span class="p">(</span>
@@ -9891,6 +9962,9 @@
                     <span class="sa">f</span><span class="s2">"state_fips=</span><span class="si">{</span><span class="n">state_fips</span><span class="si">}</span><span class="s2"> congress=</span><span class="si">{</span><span class="n">congress_number</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
                     <span class="n">context</span><span class="o">=</span><span class="n">ctx</span><span class="p">,</span>
                 <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">year</span> <span class="o">==</span> <span class="mi">2010</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_cd</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">flat_2010</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">filename</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">'10.zip'</span><span class="p">):</span>
+                <span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span><span class="o">.</span><span class="n">removesuffix</span><span class="p">(</span><span class="s1">'.zip'</span><span class="p">)</span> <span class="o">+</span> <span class="s1">'10.zip'</span>
 
             <span class="n">final_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">base_url</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">"</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Constructed URL: </span><span class="si">{</span><span class="n">final_url</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
@@ -9914,21 +9988,56 @@
         <span class="c1"># Define which boundary types require state FIPS (canonical names)</span>
         <span class="n">state_required_types</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s1">'tabblock'</span><span class="p">,</span> <span class="s1">'tabblock10'</span><span class="p">,</span> <span class="s1">'tabblock20'</span><span class="p">,</span> <span class="s1">'tract'</span><span class="p">,</span> <span class="s1">'block_group'</span><span class="p">,</span> <span class="s1">'block'</span><span class="p">,</span>
-            <span class="s1">'sldu'</span><span class="p">,</span> <span class="s1">'sldl'</span><span class="p">,</span> <span class="s1">'vtd'</span><span class="p">,</span> <span class="s1">'vtd10'</span><span class="p">,</span> <span class="s1">'vtd20'</span><span class="p">,</span> <span class="s1">'cousub'</span><span class="p">,</span> <span class="s1">'submcd'</span>
-        <span class="p">}</span>
-        
-        <span class="c1"># Define national-only types (never use state FIPS in URL)</span>
-        <span class="c1"># Note: county is national-only but we filter results post-download</span>
-        <span class="n">national_only_types</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">'state'</span><span class="p">,</span> <span class="s1">'county'</span><span class="p">,</span> <span class="s1">'cbsa'</span><span class="p">,</span> <span class="s1">'csa'</span><span class="p">,</span> <span class="s1">'metdiv'</span><span class="p">,</span> <span class="s1">'micro'</span><span class="p">,</span> <span class="s1">'necta'</span><span class="p">,</span>
-            <span class="s1">'nectadiv'</span><span class="p">,</span> <span class="s1">'cnecta'</span><span class="p">,</span> <span class="s1">'aiannh'</span><span class="p">,</span> <span class="s1">'aitsce'</span><span class="p">,</span> <span class="s1">'ttract'</span><span class="p">,</span> <span class="s1">'tbg'</span><span class="p">,</span>
-            <span class="s1">'elsd'</span><span class="p">,</span> <span class="s1">'scsd'</span><span class="p">,</span> <span class="s1">'unsd'</span><span class="p">,</span> <span class="s1">'uac'</span><span class="p">,</span> <span class="s1">'uac10'</span><span class="p">,</span> <span class="s1">'uac20'</span>
+            <span class="s1">'sldu'</span><span class="p">,</span> <span class="s1">'sldl'</span><span class="p">,</span> <span class="s1">'vtd'</span><span class="p">,</span> <span class="s1">'vtd10'</span><span class="p">,</span> <span class="s1">'vtd20'</span><span class="p">,</span> <span class="s1">'cousub'</span><span class="p">,</span> <span class="s1">'submcd'</span><span class="p">,</span>
+            <span class="s1">'elsd'</span><span class="p">,</span> <span class="s1">'scsd'</span><span class="p">,</span> <span class="s1">'unsd'</span><span class="p">,</span> <span class="s1">'place'</span><span class="p">,</span> <span class="s1">'concity'</span><span class="p">,</span>
         <span class="p">}</span>
 
-        <span class="c1"># Define flexible types (can be national or state-specific)</span>
-        <span class="n">flexible_types</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'place'</span><span class="p">,</span> <span class="s1">'zcta'</span><span class="p">,</span> <span class="s1">'anrc'</span><span class="p">,</span> <span class="s1">'concity'</span><span class="p">}</span>
+        <span class="c1"># National-only types never use state FIPS in the URL; a state request</span>
+        <span class="c1"># is honoured by filtering the national file after download.</span>
+        <span class="n">national_only_types</span> <span class="o">=</span> <span class="n">_NATIONAL_ONLY_TYPES</span>
         <span class="c1"># Census uses short abbreviations in filenames that differ from the canonical type name.</span>
-        <span class="n">_FILENAME_ABBREVS</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'block_group'</span><span class="p">:</span> <span class="s1">'bg'</span><span class="p">}</span>
+        <span class="n">_FILENAME_ABBREVS</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">'block_group'</span><span class="p">:</span> <span class="s1">'bg'</span><span class="p">,</span>
+            <span class="s1">'block'</span><span class="p">:</span> <span class="s1">'tabblock20'</span> <span class="k">if</span> <span class="n">year</span> <span class="o">&gt;=</span> <span class="mi">2020</span> <span class="k">else</span> <span class="s1">'tabblock10'</span><span class="p">,</span>
+            <span class="s1">'uac'</span><span class="p">:</span> <span class="s1">'uac20'</span> <span class="k">if</span> <span class="n">year</span> <span class="o">&gt;=</span> <span class="mi">2020</span> <span class="k">else</span> <span class="s1">'uac10'</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="c1"># Verified exceptions in the Census TABBLOCK and UAC listings:</span>
+        <span class="c1"># https://www2.census.gov/geo/tiger/TIGER2011/TABBLOCK/</span>
+        <span class="c1"># https://www2.census.gov/geo/tiger/TIGER2021/UAC/</span>
+        <span class="k">if</span> <span class="mi">2011</span> <span class="o">&lt;=</span> <span class="n">year</span> <span class="o">&lt;=</span> <span class="mi">2013</span><span class="p">:</span>
+            <span class="n">_FILENAME_ABBREVS</span><span class="p">[</span><span class="s1">'block'</span><span class="p">]</span> <span class="o">=</span> <span class="s1">'tabblock'</span>
+        <span class="k">if</span> <span class="n">year</span> <span class="o">==</span> <span class="mi">2021</span><span class="p">:</span>
+            <span class="n">_FILENAME_ABBREVS</span><span class="p">[</span><span class="s1">'uac'</span><span class="p">]</span> <span class="o">=</span> <span class="s1">'uac10'</span>
+        <span class="c1"># Puerto Rico sub-minor civil divisions are published as "subbarrio"</span>
+        <span class="c1"># from 2013: https://www2.census.gov/geo/tiger/TIGER2013/SUBMCD/</span>
+        <span class="k">if</span> <span class="n">year</span> <span class="o">&gt;=</span> <span class="mi">2013</span><span class="p">:</span>
+            <span class="n">_FILENAME_ABBREVS</span><span class="p">[</span><span class="s1">'submcd'</span><span class="p">]</span> <span class="o">=</span> <span class="s1">'subbarrio'</span>
+
+        <span class="c1"># Per-county layers: a state-only request cannot name a published file.</span>
+        <span class="k">if</span> <span class="n">boundary_type</span> <span class="ow">in</span> <span class="n">_PER_COUNTY_TYPES</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BoundaryConfigurationError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Census publishes '</span><span class="si">{</span><span class="n">boundary_type</span><span class="si">}</span><span class="s2">' only as per-county files "</span>
+                <span class="sa">f</span><span class="s2">"(tl_</span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s2">_&lt;state&gt;&lt;county&gt;_*.zip); per-county downloads are not "</span>
+                <span class="sa">f</span><span class="s2">"supported, so a state or national request cannot be satisfied."</span><span class="p">,</span>
+                <span class="n">context</span><span class="o">=</span><span class="p">{</span>
+                    <span class="s2">"boundary_type"</span><span class="p">:</span> <span class="n">boundary_type</span><span class="p">,</span>
+                    <span class="s2">"year"</span><span class="p">:</span> <span class="n">year</span><span class="p">,</span>
+                    <span class="s2">"state_fips"</span><span class="p">:</span> <span class="n">state_fips</span><span class="p">,</span>
+                    <span class="s2">"requires"</span><span class="p">:</span> <span class="s2">"county_fips"</span><span class="p">,</span>
+                <span class="p">},</span>
+            <span class="p">)</span>
+
+        <span class="c1"># ANRC (Alaska Native Regional Corporations) is published only for Alaska.</span>
+        <span class="k">if</span> <span class="n">boundary_type</span> <span class="o">==</span> <span class="s1">'anrc'</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">state_fips</span> <span class="ow">and</span> <span class="n">state_fips</span> <span class="o">!=</span> <span class="s1">'02'</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">BoundaryConfigurationError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"ANRC boundaries are published only for Alaska (state FIPS '02'); "</span>
+                    <span class="sa">f</span><span class="s2">"got state_fips=</span><span class="si">{</span><span class="n">state_fips</span><span class="si">!r}</span><span class="s2">."</span><span class="p">,</span>
+                    <span class="n">context</span><span class="o">=</span><span class="p">{</span><span class="s2">"boundary_type"</span><span class="p">:</span> <span class="n">boundary_type</span><span class="p">,</span> <span class="s2">"year"</span><span class="p">:</span> <span class="n">year</span><span class="p">,</span> <span class="s2">"state_fips"</span><span class="p">:</span> <span class="n">state_fips</span><span class="p">},</span>
+                <span class="p">)</span>
+            <span class="k">return</span> <span class="n">patterns</span><span class="p">[</span><span class="s1">'filename_patterns'</span><span class="p">][</span><span class="s1">'state'</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">year</span><span class="o">=</span><span class="n">year</span><span class="p">,</span> <span class="n">state_fips</span><span class="o">=</span><span class="s1">'02'</span><span class="p">,</span> <span class="n">boundary_type</span><span class="o">=</span><span class="s1">'anrc'</span>
+            <span class="p">)</span>
 
         <span class="c1"># Handle congressional districts specially</span>
         <span class="k">if</span> <span class="n">boundary_type</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">'cd'</span><span class="p">):</span>
@@ -9998,25 +10107,9 @@
         <span class="c1"># Handle national-only types</span>
         <span class="k">elif</span> <span class="n">boundary_type</span> <span class="ow">in</span> <span class="n">national_only_types</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">patterns</span><span class="p">[</span><span class="s1">'filename_patterns'</span><span class="p">][</span><span class="s1">'national'</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                <span class="n">year</span><span class="o">=</span><span class="n">year</span><span class="p">,</span> <span class="n">boundary_type</span><span class="o">=</span><span class="n">boundary_type</span>
+                <span class="n">year</span><span class="o">=</span><span class="n">year</span><span class="p">,</span> <span class="n">boundary_type</span><span class="o">=</span><span class="n">_FILENAME_ABBREVS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">boundary_type</span><span class="p">,</span> <span class="n">boundary_type</span><span class="p">)</span>
             <span class="p">)</span>
 
-        <span class="c1"># Handle flexible types</span>
-        <span class="k">elif</span> <span class="n">boundary_type</span> <span class="ow">in</span> <span class="n">flexible_types</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">state_fips</span><span class="p">:</span>
-                <span class="c1"># User provided state FIPS, use state-specific version</span>
-                <span class="n">state_info</span> <span class="o">=</span> <span class="n">get_fips_info</span><span class="p">(</span><span class="n">state_fips</span><span class="p">)</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Using state-specific </span><span class="si">{</span><span class="n">boundary_type</span><span class="si">}</span><span class="s2"> for </span><span class="si">{</span><span class="n">state_info</span><span class="p">[</span><span class="s1">'name'</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-                <span class="k">return</span> <span class="n">patterns</span><span class="p">[</span><span class="s1">'filename_patterns'</span><span class="p">][</span><span class="s1">'state'</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                    <span class="n">year</span><span class="o">=</span><span class="n">year</span><span class="p">,</span> <span class="n">state_fips</span><span class="o">=</span><span class="n">state_fips</span><span class="p">,</span> <span class="n">boundary_type</span><span class="o">=</span><span class="n">boundary_type</span>
-                <span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="c1"># No state FIPS provided, use national version</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Using national </span><span class="si">{</span><span class="n">boundary_type</span><span class="si">}</span><span class="s2"> file"</span><span class="p">)</span>
-                <span class="k">return</span> <span class="n">patterns</span><span class="p">[</span><span class="s1">'filename_patterns'</span><span class="p">][</span><span class="s1">'national'</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                    <span class="n">year</span><span class="o">=</span><span class="n">year</span><span class="p">,</span> <span class="n">boundary_type</span><span class="o">=</span><span class="n">boundary_type</span>
-                <span class="p">)</span>
-        
         <span class="c1"># Default pattern for unknown types</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unknown boundary type: </span><span class="si">{</span><span class="n">boundary_type</span><span class="si">}</span><span class="s2">, using default pattern"</span><span class="p">)</span>
@@ -10070,10 +10163,12 @@
                     <span class="s2">"to opt in)."</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span>
                 <span class="p">)</span>
                 <span class="k">raise</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">"SSL verification failed for </span><span class="si">%s</span><span class="s2">, retrying without verification (env opt-in)."</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">"SSL verification failed for </span><span class="si">%s</span><span class="s2">, retrying without verification (env opt-in)."</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">timeout</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                                        <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">verify</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+                    <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">"ignore"</span><span class="p">,</span> <span class="n">InsecureRequestWarning</span><span class="p">)</span>
+                    <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">timeout</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                            <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">verify</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
                 <span class="n">response</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
                 <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
                     <span class="k">return</span> <span class="kc">True</span>
@@ -10175,10 +10270,11 @@
 <span class="sd">    Supports all standard TIGER/Line boundary types:</span>
 
 <span class="sd">    **National-scope** (no state_fips required):</span>
-<span class="sd">        ``nation``, ``state``, ``county``, ``place``, ``zcta``, ``cd``</span>
+<span class="sd">        ``nation``, ``state``, ``county``, ``zcta``, ``cd`` (through 2021)</span>
 
 <span class="sd">    **State-scope** (state_fips required):</span>
-<span class="sd">        ``tract``, ``block_group``, ``block``, ``tabblock20``, ``sldu``, ``sldl``</span>
+<span class="sd">        ``tract``, ``block_group``, ``block``, ``tabblock20``, ``sldu``, ``sldl``,</span>
+<span class="sd">        ``place``, ``elsd``, ``scsd``, ``unsd``, ``vtd``, ``cd`` (from 2022)</span>
 
 <span class="sd">    GEOID formats by boundary type:</span>
 
@@ -10209,10 +10305,13 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">available_years</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">discovery</span><span class="o">.</span><span class="n">get_available_years</span><span class="p">()</span>
         
         <span class="c1"># Geographic levels that require state FIPS</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">state_required_levels</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'tract'</span><span class="p">,</span> <span class="s1">'block_group'</span><span class="p">,</span> <span class="s1">'block'</span><span class="p">,</span> <span class="s1">'tabblock20'</span><span class="p">,</span> <span class="s1">'sldu'</span><span class="p">,</span> <span class="s1">'sldl'</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_required_levels</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s1">'tract'</span><span class="p">,</span> <span class="s1">'block_group'</span><span class="p">,</span> <span class="s1">'block'</span><span class="p">,</span> <span class="s1">'tabblock20'</span><span class="p">,</span> <span class="s1">'sldu'</span><span class="p">,</span> <span class="s1">'sldl'</span><span class="p">,</span>
+            <span class="s1">'place'</span><span class="p">,</span> <span class="s1">'elsd'</span><span class="p">,</span> <span class="s1">'scsd'</span><span class="p">,</span> <span class="s1">'unsd'</span><span class="p">,</span> <span class="s1">'vtd'</span><span class="p">,</span> <span class="s1">'vtd20'</span><span class="p">,</span>
+        <span class="p">]</span>
         
         <span class="c1"># Geographic levels that don't require state FIPS</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">national_levels</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'nation'</span><span class="p">,</span> <span class="s1">'state'</span><span class="p">,</span> <span class="s1">'county'</span><span class="p">,</span> <span class="s1">'place'</span><span class="p">,</span> <span class="s1">'zcta'</span><span class="p">,</span> <span class="s1">'cd'</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">national_levels</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'nation'</span><span class="p">,</span> <span class="s1">'state'</span><span class="p">,</span> <span class="s1">'county'</span><span class="p">,</span> <span class="s1">'zcta'</span><span class="p">,</span> <span class="s1">'cd'</span><span class="p">]</span>
 
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Initialized Census data source with </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">available_years</span><span class="p">)</span><span class="si">}</span><span class="s2"> available years"</span><span class="p">)</span></div>
 
@@ -10270,10 +10369,11 @@
 <span class="sd">        For structured diagnostics, use :meth:`fetch_geographic_boundaries` instead.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            year: Census year (will find closest available if not available)</span>
+<span class="sd">            year: Census year (an unpublished vintage returns None; see</span>
+<span class="sd">                :meth:`fetch_geographic_boundaries` ``allow_nearest_year``)</span>
 <span class="sd">            geographic_level: Geographic level (state, county, tract, etc.)</span>
 <span class="sd">            state_fips: State FIPS code for filtering (required for some levels)</span>
-<span class="sd">            county_fips: County FIPS code for filtering</span>
+<span class="sd">            county_fips: 3-digit county FIPS code for filtering (requires state_fips)</span>
 <span class="sd">            congress_number: Congress number for congressional districts</span>
 
 <span class="sd">        Returns:</span>
@@ -10306,7 +10406,8 @@
                                     <span class="n">geographic_level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'county'</span><span class="p">,</span>
                                     <span class="n">state_fips</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                                     <span class="n">county_fips</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                                    <span class="n">congress_number</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BoundaryFetchResult</span><span class="p">:</span>
+                                    <span class="n">congress_number</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                                    <span class="n">allow_nearest_year</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BoundaryFetchResult</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Download geographic boundaries with structured diagnostics.</span>
 
@@ -10314,12 +10415,24 @@
 <span class="sd">        GeoDataFrame on success or a machine-readable error code, stage, and</span>
 <span class="sd">        context dict on failure.</span>
 
+<span class="sd">        ``context['served_year']`` always records the TIGER vintage that was</span>
+<span class="sd">        (or would have been) downloaded, and the ``census_year`` column of a</span>
+<span class="sd">        successful frame holds that vintage.</span>
+
 <span class="sd">        Args:</span>
-<span class="sd">            year: Census year (will find closest available if not available)</span>
+<span class="sd">            year: Census year requested.</span>
 <span class="sd">            geographic_level: Geographic level (state, county, tract, etc.)</span>
-<span class="sd">            state_fips: State FIPS code for filtering (required for some levels)</span>
-<span class="sd">            county_fips: County FIPS code for filtering</span>
+<span class="sd">            state_fips: State FIPS code (required for some levels). For</span>
+<span class="sd">                national-only layers the national file is filtered on its</span>
+<span class="sd">                ``statefp`` column; a layer without one fails rather than</span>
+<span class="sd">                returning the national file.</span>
+<span class="sd">            county_fips: 3-digit county FIPS code. Requires ``state_fips``;</span>
+<span class="sd">                the frame is filtered on its ``countyfp`` column, and a layer</span>
+<span class="sd">                without one fails.</span>
 <span class="sd">            congress_number: Congress number for congressional districts</span>
+<span class="sd">            allow_nearest_year: When ``year`` is not published, serve the</span>
+<span class="sd">                closest published vintage instead of failing with</span>
+<span class="sd">                ``VINTAGE_NOT_PUBLISHED``. Off by default.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            BoundaryFetchResult with .success, .geodataframe, .error_stage, etc.</span>
@@ -10330,6 +10443,7 @@
             <span class="s2">"state_fips"</span><span class="p">:</span> <span class="n">state_fips</span><span class="p">,</span>
             <span class="s2">"county_fips"</span><span class="p">:</span> <span class="n">county_fips</span><span class="p">,</span>
             <span class="s2">"congress_number"</span><span class="p">:</span> <span class="n">congress_number</span><span class="p">,</span>
+            <span class="s2">"allow_nearest_year"</span><span class="p">:</span> <span class="n">allow_nearest_year</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="c1"># --- Stage: input_validation ---</span>
@@ -10354,6 +10468,23 @@
                 <span class="n">state_fips</span> <span class="o">=</span> <span class="n">normalized_fips</span>
                 <span class="n">base_ctx</span><span class="p">[</span><span class="s2">"normalized_fips"</span><span class="p">]</span> <span class="o">=</span> <span class="n">normalized_fips</span>
 
+            <span class="k">if</span> <span class="n">county_fips</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">county_fips</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">county_fips</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">county_fips</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">county_fips</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()):</span>
+                    <span class="k">return</span> <span class="n">BoundaryFetchResult</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span>
+                        <span class="n">error_code</span><span class="o">=</span><span class="s2">"INVALID_PARAMETERS"</span><span class="p">,</span>
+                        <span class="n">error_stage</span><span class="o">=</span><span class="s2">"input_validation"</span><span class="p">,</span>
+                        <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s2">"county_fips must be a 3-digit county FIPS code, got </span><span class="si">{</span><span class="n">county_fips</span><span class="si">!r}</span><span class="s2">"</span><span class="p">,</span>
+                        <span class="n">context</span><span class="o">=</span><span class="n">base_ctx</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">state_fips</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">BoundaryFetchResult</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span>
+                        <span class="n">error_code</span><span class="o">=</span><span class="s2">"INVALID_PARAMETERS"</span><span class="p">,</span>
+                        <span class="n">error_stage</span><span class="o">=</span><span class="s2">"input_validation"</span><span class="p">,</span>
+                        <span class="n">message</span><span class="o">=</span><span class="s2">"county_fips requires state_fips: county codes are unique only within a state"</span><span class="p">,</span>
+                        <span class="n">context</span><span class="o">=</span><span class="n">base_ctx</span><span class="p">,</span>
+                    <span class="p">)</span>
+
             <span class="k">try</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_validate_census_parameters</span><span class="p">(</span><span class="n">year</span><span class="p">,</span> <span class="n">geographic_level</span><span class="p">,</span> <span class="n">state_fips</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
@@ -10367,6 +10498,23 @@
             <span class="c1"># --- Stage: discovery ---</span>
             <span class="n">optimal_year</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">discovery</span><span class="o">.</span><span class="n">get_optimal_year</span><span class="p">(</span><span class="n">year</span><span class="p">,</span> <span class="n">geographic_level</span><span class="p">)</span>
             <span class="n">base_ctx</span><span class="p">[</span><span class="s2">"optimal_year"</span><span class="p">]</span> <span class="o">=</span> <span class="n">optimal_year</span>
+            <span class="n">base_ctx</span><span class="p">[</span><span class="s2">"served_year"</span><span class="p">]</span> <span class="o">=</span> <span class="n">optimal_year</span>
+            <span class="k">if</span> <span class="n">optimal_year</span> <span class="o">!=</span> <span class="n">year</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">allow_nearest_year</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">BoundaryFetchResult</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span>
+                        <span class="n">error_code</span><span class="o">=</span><span class="s2">"VINTAGE_NOT_PUBLISHED"</span><span class="p">,</span>
+                        <span class="n">error_stage</span><span class="o">=</span><span class="s2">"discovery"</span><span class="p">,</span>
+                        <span class="n">message</span><span class="o">=</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">"TIGER </span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s2"> is not published for </span><span class="si">{</span><span class="n">geographic_level</span><span class="si">}</span><span class="s2">; "</span>
+                            <span class="sa">f</span><span class="s2">"the nearest published vintage is </span><span class="si">{</span><span class="n">optimal_year</span><span class="si">}</span><span class="s2">. "</span>
+                            <span class="sa">f</span><span class="s2">"Pass allow_nearest_year=True to accept it."</span>
+                        <span class="p">),</span>
+                        <span class="n">context</span><span class="o">=</span><span class="n">base_ctx</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Requested year </span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s2"> not published for </span><span class="si">{</span><span class="n">geographic_level</span><span class="si">}</span><span class="s2">; "</span>
+                    <span class="sa">f</span><span class="s2">"serving </span><span class="si">{</span><span class="n">optimal_year</span><span class="si">}</span><span class="s2"> (allow_nearest_year=True)"</span>
+                <span class="p">)</span>
 
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">discovery</span><span class="o">.</span><span class="n">construct_download_url</span><span class="p">(</span>
@@ -10414,35 +10562,58 @@
                     <span class="n">context</span><span class="o">=</span><span class="n">base_ctx</span><span class="p">,</span>
                 <span class="p">)</span>
 
+            <span class="c1"># The vintage label is the year actually served, never the request.</span>
+            <span class="n">gdf</span><span class="p">[</span><span class="s2">"census_year"</span><span class="p">]</span> <span class="o">=</span> <span class="n">optimal_year</span>
+
             <span class="c1"># Post-download filtering for national-only boundary types</span>
             <span class="c1"># These types are only available as nationwide files from Census,</span>
             <span class="c1"># so we download the full national file and filter by state FIPS</span>
-            <span class="n">national_only_types</span> <span class="o">=</span> <span class="p">{</span>
-                <span class="s1">'state'</span><span class="p">,</span> <span class="s1">'county'</span><span class="p">,</span> <span class="s1">'cbsa'</span><span class="p">,</span> <span class="s1">'csa'</span><span class="p">,</span> <span class="s1">'metdiv'</span><span class="p">,</span> <span class="s1">'micro'</span><span class="p">,</span>
-                <span class="s1">'necta'</span><span class="p">,</span> <span class="s1">'nectadiv'</span><span class="p">,</span> <span class="s1">'cnecta'</span><span class="p">,</span> <span class="s1">'aiannh'</span><span class="p">,</span> <span class="s1">'uac'</span><span class="p">,</span> <span class="s1">'uac10'</span><span class="p">,</span> <span class="s1">'uac20'</span><span class="p">,</span>
-            <span class="p">}</span>
-            <span class="k">if</span> <span class="n">normalized_fips</span> <span class="ow">and</span> <span class="n">geographic_level</span> <span class="ow">in</span> <span class="n">national_only_types</span><span class="p">:</span>
-                <span class="n">fips_col</span> <span class="o">=</span> <span class="kc">None</span>
-                <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">'statefp'</span><span class="p">,</span> <span class="s1">'STATEFP'</span><span class="p">,</span> <span class="s1">'statefp20'</span><span class="p">,</span> <span class="s1">'STATEFP20'</span><span class="p">,</span>
-                            <span class="s1">'statefp10'</span><span class="p">,</span> <span class="s1">'STATEFP10'</span><span class="p">]:</span>
-                    <span class="k">if</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">gdf</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-                        <span class="n">fips_col</span> <span class="o">=</span> <span class="n">col</span>
-                        <span class="k">break</span>
+            <span class="k">if</span> <span class="n">normalized_fips</span> <span class="ow">and</span> <span class="n">geographic_level</span> <span class="ow">in</span> <span class="n">_NATIONAL_ONLY_TYPES</span><span class="p">:</span>
+                <span class="n">fips_col</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_first_present_column</span><span class="p">(</span><span class="n">gdf</span><span class="p">,</span> <span class="s1">'statefp'</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">fips_col</span><span class="p">:</span>
+                    <span class="n">base_ctx</span><span class="p">[</span><span class="s2">"state_filter_applied"</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="k">return</span> <span class="n">BoundaryFetchResult</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span>
+                        <span class="n">error_code</span><span class="o">=</span><span class="s2">"STATE_FILTER_UNAVAILABLE"</span><span class="p">,</span>
+                        <span class="n">error_stage</span><span class="o">=</span><span class="s2">"configuration"</span><span class="p">,</span>
+                        <span class="n">message</span><span class="o">=</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">geographic_level</span><span class="si">}</span><span class="s2"> is published only as a national file "</span>
+                            <span class="sa">f</span><span class="s2">"with no state FIPS column, so it cannot be limited to "</span>
+                            <span class="sa">f</span><span class="s2">"state </span><span class="si">{</span><span class="n">normalized_fips</span><span class="si">}</span><span class="s2">. Request it without state_fips."</span>
+                        <span class="p">),</span>
+                        <span class="n">context</span><span class="o">=</span><span class="n">base_ctx</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="n">original_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">gdf</span><span class="p">)</span>
+                <span class="n">gdf</span> <span class="o">=</span> <span class="n">gdf</span><span class="p">[</span><span class="n">gdf</span><span class="p">[</span><span class="n">fips_col</span><span class="p">]</span> <span class="o">==</span> <span class="n">normalized_fips</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Filtered </span><span class="si">{</span><span class="n">geographic_level</span><span class="si">}</span><span class="s2"> from </span><span class="si">{</span><span class="n">original_count</span><span class="si">}</span><span class="s2"> to "</span>
+                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">gdf</span><span class="p">)</span><span class="si">}</span><span class="s2"> features for state </span><span class="si">{</span><span class="n">normalized_fips</span><span class="si">}</span><span class="s2">"</span>
+                <span class="p">)</span>
+                <span class="n">base_ctx</span><span class="p">[</span><span class="s2">"state_filter_applied"</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">base_ctx</span><span class="p">[</span><span class="s2">"filtered_from"</span><span class="p">]</span> <span class="o">=</span> <span class="n">original_count</span>
+                <span class="n">base_ctx</span><span class="p">[</span><span class="s2">"filtered_to"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">gdf</span><span class="p">)</span>
 
-                <span class="k">if</span> <span class="n">fips_col</span><span class="p">:</span>
-                    <span class="n">original_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">gdf</span><span class="p">)</span>
-                    <span class="n">gdf</span> <span class="o">=</span> <span class="n">gdf</span><span class="p">[</span><span class="n">gdf</span><span class="p">[</span><span class="n">fips_col</span><span class="p">]</span> <span class="o">==</span> <span class="n">normalized_fips</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                        <span class="sa">f</span><span class="s2">"Filtered </span><span class="si">{</span><span class="n">geographic_level</span><span class="si">}</span><span class="s2"> from </span><span class="si">{</span><span class="n">original_count</span><span class="si">}</span><span class="s2"> to "</span>
-                        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">gdf</span><span class="p">)</span><span class="si">}</span><span class="s2"> features for state </span><span class="si">{</span><span class="n">normalized_fips</span><span class="si">}</span><span class="s2">"</span>
+            <span class="k">if</span> <span class="n">county_fips</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">county_col</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_first_present_column</span><span class="p">(</span><span class="n">gdf</span><span class="p">,</span> <span class="s1">'countyfp'</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">county_col</span><span class="p">:</span>
+                    <span class="n">base_ctx</span><span class="p">[</span><span class="s2">"county_filter_applied"</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="k">return</span> <span class="n">BoundaryFetchResult</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span>
+                        <span class="n">error_code</span><span class="o">=</span><span class="s2">"COUNTY_FILTER_UNAVAILABLE"</span><span class="p">,</span>
+                        <span class="n">error_stage</span><span class="o">=</span><span class="s2">"configuration"</span><span class="p">,</span>
+                        <span class="n">message</span><span class="o">=</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">geographic_level</span><span class="si">}</span><span class="s2"> data has no county FIPS column, so it "</span>
+                            <span class="sa">f</span><span class="s2">"cannot be limited to county </span><span class="si">{</span><span class="n">county_fips</span><span class="si">}</span><span class="s2">."</span>
+                        <span class="p">),</span>
+                        <span class="n">context</span><span class="o">=</span><span class="n">base_ctx</span><span class="p">,</span>
                     <span class="p">)</span>
-                    <span class="n">base_ctx</span><span class="p">[</span><span class="s2">"filtered_from"</span><span class="p">]</span> <span class="o">=</span> <span class="n">original_count</span>
-                    <span class="n">base_ctx</span><span class="p">[</span><span class="s2">"filtered_to"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">gdf</span><span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                        <span class="sa">f</span><span class="s2">"No state FIPS column found in </span><span class="si">{</span><span class="n">geographic_level</span><span class="si">}</span><span class="s2"> data "</span>
-                        <span class="sa">f</span><span class="s2">"— cannot filter by state"</span>
-                    <span class="p">)</span>
+                <span class="n">original_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">gdf</span><span class="p">)</span>
+                <span class="n">gdf</span> <span class="o">=</span> <span class="n">gdf</span><span class="p">[</span><span class="n">gdf</span><span class="p">[</span><span class="n">county_col</span><span class="p">]</span> <span class="o">==</span> <span class="n">county_fips</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Filtered </span><span class="si">{</span><span class="n">geographic_level</span><span class="si">}</span><span class="s2"> from </span><span class="si">{</span><span class="n">original_count</span><span class="si">}</span><span class="s2"> to "</span>
+                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">gdf</span><span class="p">)</span><span class="si">}</span><span class="s2"> features for county </span><span class="si">{</span><span class="n">normalized_fips</span><span class="si">}{</span><span class="n">county_fips</span><span class="si">}</span><span class="s2">"</span>
+                <span class="p">)</span>
+                <span class="n">base_ctx</span><span class="p">[</span><span class="s2">"county_filter_applied"</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">base_ctx</span><span class="p">[</span><span class="s2">"county_filtered_from"</span><span class="p">]</span> <span class="o">=</span> <span class="n">original_count</span>
+                <span class="n">base_ctx</span><span class="p">[</span><span class="s2">"county_filtered_to"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">gdf</span><span class="p">)</span>
 
             <span class="k">return</span> <span class="n">BoundaryFetchResult</span><span class="o">.</span><span class="n">ok</span><span class="p">(</span>
                 <span class="n">gdf</span><span class="p">,</span>
@@ -10466,6 +10637,15 @@
             <span class="p">)</span></div>
 
     
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_first_present_column</span><span class="p">(</span><span class="n">gdf</span><span class="p">:</span> <span class="n">GeoDataFrame</span><span class="p">,</span> <span class="n">base</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Return the first of ``base``, ``base20``, ``base10`` (any case) in *gdf*."""</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="p">(</span><span class="n">base</span><span class="p">,</span> <span class="n">base</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s1">20'</span><span class="p">,</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">base</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="si">}</span><span class="s1">20'</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s1">10'</span><span class="p">,</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">base</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="si">}</span><span class="s1">10'</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">gdf</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">col</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
 <div class="viewcode-block" id="CensusDataSource.get_available_boundary_types">
 <a class="viewcode-back" href="../../../packages/geo.html#siege_utilities.geo.spatial_data.CensusDataSource.get_available_boundary_types">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_available_boundary_types</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">year</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
@@ -10611,6 +10791,10 @@
         
         <span class="k">if</span> <span class="n">state_fips</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">validate_state_fips</span><span class="p">(</span><span class="n">state_fips</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Invalid state FIPS code: </span><span class="si">{</span><span class="n">state_fips</span><span class="si">}</span><span class="s2">. Use get_available_state_fips() to see valid codes."</span><span class="p">)</span>
+
+        <span class="c1"># The 2020 PL release is separate from the annual TIGER directory.</span>
+        <span class="k">if</span> <span class="n">year</span> <span class="o">==</span> <span class="mi">2020</span> <span class="ow">and</span> <span class="n">geographic_level</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">'vtd'</span><span class="p">,</span> <span class="s1">'vtd20'</span><span class="p">):</span>
+            <span class="k">return</span>
         
         <span class="c1"># Validate geographic level exists in our known types</span>
         <span class="n">valid_levels</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">discovery</span><span class="o">.</span><span class="n">discover_boundary_types</span><span class="p">(</span><span class="n">year</span><span class="p">)</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -10645,9 +10829,9 @@
             <span class="n">zip_filename</span> <span class="o">=</span> <span class="n">generate_local_path_from_url</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">download_dir</span><span class="p">)</span>
             <span class="n">ctx</span><span class="p">[</span><span class="s2">"local_path"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">zip_filename</span><span class="p">)</span>
 
-            <span class="c1"># Download file (download_file handles SSL retry internally)</span>
+            <span class="c1"># SSL failures raise unless SIEGE_INSECURE_SSL explicitly permits a retry.</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">download_file</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">zip_filename</span><span class="p">)</span>
+                <span class="n">download_file</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">zip_filename</span><span class="p">,</span> <span class="n">allow_insecure_fallback</span><span class="o">=</span><span class="n">_ALLOW_INSECURE_SSL</span><span class="p">)</span>
             <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">ConnectionError</span><span class="p">)</span> <span class="k">as</span> <span class="n">dl_err</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">BoundaryDownloadError</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">"Failed to download TIGER/Line data from </span><span class="si">{</span><span class="n">url</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
@@ -10666,7 +10850,7 @@
                 <span class="n">zip_path</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">missing_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
                 <span class="c1"># Retry once — the first attempt may have been an anti-bot challenge</span>
                 <span class="k">try</span><span class="p">:</span>
-                    <span class="n">download_file</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">zip_filename</span><span class="p">)</span>
+                    <span class="n">download_file</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">zip_filename</span><span class="p">,</span> <span class="n">allow_insecure_fallback</span><span class="o">=</span><span class="n">_ALLOW_INSECURE_SSL</span><span class="p">)</span>
                 <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">ConnectionError</span><span class="p">):</span>
                     <span class="k">pass</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">is_zipfile</span><span class="p">(</span><span class="n">zip_path</span><span class="p">):</span>
@@ -10752,8 +10936,8 @@
         <span class="k">if</span> <span class="s1">'geometry'</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">gdf</span><span class="o">.</span><span class="n">columns</span> <span class="ow">and</span> <span class="n">gdf</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
             <span class="n">gdf</span> <span class="o">=</span> <span class="n">gdf</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="n">gdf</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="s1">'geometry'</span><span class="p">})</span>
         
-        <span class="c1"># Add metadata columns</span>
-        <span class="n">gdf</span><span class="p">[</span><span class="s1">'census_year'</span><span class="p">]</span> <span class="o">=</span> <span class="n">gdf</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'year'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="c1"># Add metadata columns. census_year is set to the served vintage by</span>
+        <span class="c1"># fetch_geographic_boundaries; TIGER files carry no year column.</span>
         <span class="n">gdf</span><span class="p">[</span><span class="s1">'geographic_level'</span><span class="p">]</span> <span class="o">=</span> <span class="n">geographic_level</span>
         
         <span class="k">return</span> <span class="n">gdf</span>
@@ -10910,7 +11094,7 @@
             <span class="n">local_filename</span> <span class="o">=</span> <span class="n">generate_local_path_from_url</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">download_dir</span><span class="p">)</span>
 
             <span class="c1"># Download file</span>
-            <span class="n">download_file</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">local_filename</span><span class="p">)</span>
+            <span class="n">download_file</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">local_filename</span><span class="p">,</span> <span class="n">allow_insecure_fallback</span><span class="o">=</span><span class="n">_ALLOW_INSECURE_SSL</span><span class="p">)</span>
 
             <span class="c1"># Process based on format</span>
             <span class="k">if</span> <span class="n">format_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">'geojson'</span><span class="p">:</span>
@@ -11046,7 +11230,11 @@
 <span class="sd">        If both are provided, state_identifier takes precedence.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        GeoDataFrame with Census boundaries (filtered by state if specified)</span>
+<span class="sd">        GeoDataFrame with Census boundaries (filtered by state if specified),</span>
+<span class="sd">        or None when the source reports no data.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: Invalid state identifier or no state FIPS column for filtering.</span>
 <span class="sd">    """</span>
     <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
         <span class="s2">"get_census_boundaries() is deprecated; will be removed in v3.17.0. "</span>
@@ -11073,8 +11261,7 @@
             <span class="c1"># Then convert to FIPS code</span>
             <span class="n">normalized_fips</span> <span class="o">=</span> <span class="n">normalize_state_identifier</span><span class="p">(</span><span class="n">normalized_input</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Invalid state identifier: '</span><span class="si">{</span><span class="n">state_param</span><span class="si">}</span><span class="s2">' - </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-            <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Invalid state identifier: </span><span class="si">{</span><span class="n">state_param</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
 
     <span class="c1"># Download boundaries</span>
     <span class="c1"># For national-only types, don't pass state_fips to the download function</span>
@@ -11087,8 +11274,8 @@
     <span class="k">if</span> <span class="n">gdf</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">normalized_fips</span> <span class="ow">and</span> <span class="n">geographic_level</span> <span class="ow">in</span> <span class="n">national_only_types</span><span class="p">:</span>
         <span class="c1"># Filter by state FIPS column (statefp or STATEFP)</span>
         <span class="n">fips_col</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">'statefp'</span><span class="p">,</span> <span class="s1">'STATEFP'</span><span class="p">,</span> <span class="s1">'statefp20'</span><span class="p">,</span> <span class="s1">'STATEFP20'</span><span class="p">,</span> <span class="s1">'statefp10'</span><span class="p">,</span> <span class="s1">'STATEFP10'</span><span class="p">]:</span>
-            <span class="k">if</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">gdf</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">gdf</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">col</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">{</span><span class="s1">'statefp'</span><span class="p">,</span> <span class="s1">'statefp20'</span><span class="p">,</span> <span class="s1">'statefp10'</span><span class="p">}:</span>
                 <span class="n">fips_col</span> <span class="o">=</span> <span class="n">col</span>
                 <span class="k">break</span>
 
@@ -11097,7 +11284,10 @@
             <span class="n">gdf</span> <span class="o">=</span> <span class="n">gdf</span><span class="p">[</span><span class="n">gdf</span><span class="p">[</span><span class="n">fips_col</span><span class="p">]</span> <span class="o">==</span> <span class="n">normalized_fips</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Filtered </span><span class="si">{</span><span class="n">geographic_level</span><span class="si">}</span><span class="s2"> from </span><span class="si">{</span><span class="n">original_count</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">gdf</span><span class="p">)</span><span class="si">}</span><span class="s2"> features for state </span><span class="si">{</span><span class="n">normalized_fips</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"No state FIPS column found in </span><span class="si">{</span><span class="n">geographic_level</span><span class="si">}</span><span class="s2"> data - cannot filter by state"</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"No state FIPS column found in </span><span class="si">{</span><span class="n">geographic_level</span><span class="si">}</span><span class="s2"> data; "</span>
+                <span class="sa">f</span><span class="s2">"cannot satisfy state request </span><span class="si">{</span><span class="n">normalized_fips</span><span class="si">}</span><span class="s2">"</span>
+            <span class="p">)</span>
 
     <span class="k">return</span> <span class="n">gdf</span></div>
 
@@ -11232,7 +11422,12 @@
         <span class="ne">DeprecationWarning</span><span class="p">,</span>
         <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">gdf</span> <span class="o">=</span> <span class="n">_get_census_source</span><span class="p">()</span><span class="o">.</span><span class="n">get_geographic_boundaries</span><span class="p">(</span><span class="n">year</span><span class="p">,</span> <span class="n">geographic_level</span><span class="p">,</span> <span class="n">state_fips</span><span class="p">,</span> <span class="n">state_identifier</span><span class="p">)</span>
+    <span class="c1"># state_identifier takes precedence, as in get_census_boundaries. It must</span>
+    <span class="c1"># not be passed positionally: the fourth parameter of the method is</span>
+    <span class="c1"># county_fips.</span>
+    <span class="n">gdf</span> <span class="o">=</span> <span class="n">_get_census_source</span><span class="p">()</span><span class="o">.</span><span class="n">get_geographic_boundaries</span><span class="p">(</span>
+        <span class="n">year</span><span class="p">,</span> <span class="n">geographic_level</span><span class="p">,</span> <span class="n">state_identifier</span> <span class="ow">or</span> <span class="n">state_fips</span><span class="p">,</span>
+    <span class="p">)</span>
     <span class="k">return</span> <span class="n">reproject_if_needed</span><span class="p">(</span><span class="n">gdf</span><span class="p">,</span> <span class="n">crs</span><span class="p">)</span></div>
 
 
@@ -11245,6 +11440,8 @@
     <span class="n">state_fips</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">congress_number</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
+    <span class="n">county_fips</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">allow_nearest_year</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">crs</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BoundaryFetchResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Get geographic boundaries with structured diagnostics.</span>
@@ -11256,16 +11453,22 @@
 <span class="sd">        geographic_level: Geographic level (state, county, tract, etc.)</span>
 <span class="sd">        state_fips: State FIPS code (required for tract, block_group, etc.)</span>
 <span class="sd">        congress_number: Congress number for congressional districts</span>
+<span class="sd">        county_fips: 3-digit county FIPS code to filter on (requires state_fips).</span>
+<span class="sd">        allow_nearest_year: Serve the closest published vintage when *year*</span>
+<span class="sd">            is not published, instead of failing with ``VINTAGE_NOT_PUBLISHED``.</span>
 <span class="sd">        crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        BoundaryFetchResult with .success, .geodataframe in *crs*, .error_stage, etc.</span>
+<span class="sd">        ``context['served_year']`` records the vintage served.</span>
 <span class="sd">    """</span>
     <span class="n">result</span> <span class="o">=</span> <span class="n">_get_census_source</span><span class="p">()</span><span class="o">.</span><span class="n">fetch_geographic_boundaries</span><span class="p">(</span>
         <span class="n">year</span><span class="o">=</span><span class="n">year</span><span class="p">,</span>
         <span class="n">geographic_level</span><span class="o">=</span><span class="n">geographic_level</span><span class="p">,</span>
         <span class="n">state_fips</span><span class="o">=</span><span class="n">state_fips</span><span class="p">,</span>
+        <span class="n">county_fips</span><span class="o">=</span><span class="n">county_fips</span><span class="p">,</span>
         <span class="n">congress_number</span><span class="o">=</span><span class="n">congress_number</span><span class="p">,</span>
+        <span class="n">allow_nearest_year</span><span class="o">=</span><span class="n">allow_nearest_year</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">success</span> <span class="ow">and</span> <span class="n">result</span><span class="o">.</span><span class="n">geodataframe</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">result</span><span class="o">.</span><span class="n">geodataframe</span> <span class="o">=</span> <span class="n">reproject_if_needed</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">geodataframe</span><span class="p">,</span> <span class="n">crs</span><span class="p">)</span>

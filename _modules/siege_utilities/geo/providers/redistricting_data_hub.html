@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.geo.providers.redistricting_data_hub &mdash; Siege Utilities 4.0.0 documentation</title>
+  <title>siege_utilities.geo.providers.redistricting_data_hub &mdash; Siege Utilities 4.1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../../_static/documentation_options.js?v=3304f9e4"></script>
+      <script src="../../../../_static/documentation_options.js?v=42d1b3bd"></script>
       <script src="../../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../../_static/js/theme.js"></script>
@@ -4498,7 +4498,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/geo_django.html#module-siege_utilities.geo.django.models.base">Models</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.save"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.prepare_for_bulk()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.get_geoid_length"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.get_geoid_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.parse_geoid"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.parse_geoid()</span></code></a></li>
 </ul>
@@ -4507,12 +4507,14 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.total_area"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.total_area</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.land_percentage"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.land_percentage</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.save"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.Meta"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.is_current"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.is_current</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.prepare_for_bulk()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.save"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.save()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalLinearFeature"><code class="docutils literal notranslate"><span class="pre">TemporalLinearFeature</span></code></a><ul>
@@ -4547,6 +4549,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.state"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.Meta"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.get_geoid_length"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.get_geoid_length()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.normalize_geoid"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.normalize_geoid()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.parse_geoid"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.parse_geoid()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.is_at_large"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.is_at_large</span></code></a></li>
 </ul>
@@ -4632,16 +4635,19 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.DATASET_CHOICES"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.DATASET_CHOICES</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.content_object"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.content_object</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.get_value"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.get_value()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.get_moe"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.get_moe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.prepare_for_bulk()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.save"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.save()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.content_object"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries.content_object</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries.Meta</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicKeyArchive"><code class="docutils literal notranslate"><span class="pre">DemographicKeyArchive</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicKeyArchive.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicKeyArchive.Meta</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolDistrictBase"><code class="docutils literal notranslate"><span class="pre">SchoolDistrictBase</span></code></a><ul>
@@ -4665,28 +4671,28 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.save"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation"><code class="docutils literal notranslate"><span class="pre">SchoolLocation</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.state"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.Meta"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.save"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion"><code class="docutils literal notranslate"><span class="pre">NLRBRegion</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.Meta"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.save"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.Meta"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.save"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary"><code class="docutils literal notranslate"><span class="pre">GADMBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.save"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMCountry"><code class="docutils literal notranslate"><span class="pre">GADMCountry</span></code></a><ul>
@@ -4747,7 +4753,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult"><code class="docutils literal notranslate"><span class="pre">IsochroneResult</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.Meta"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.save"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.nlrb_cases.NLRBCase"><code class="docutils literal notranslate"><span class="pre">NLRBCase</span></code></a><ul>
@@ -4841,7 +4847,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.Meta"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.save"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -4849,6 +4855,8 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/geo_django.html#module-siege_utilities.geo.django.managers">Managers</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager"><code class="docutils literal notranslate"><span class="pre">BoundaryManager</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.get_queryset"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.get_queryset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.snapshots()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.for_year"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_year()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.for_state"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_state()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.current"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.current()</span></code></a></li>
@@ -4873,6 +4881,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.nearest"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.nearest()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.with_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.with_area()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.by_land_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_land_area()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.snapshots()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.geojson"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.geojson()</span></code></a></li>
 </ul>
@@ -4888,12 +4897,15 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.nearest"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.nearest()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.with_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.with_area()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_land_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_land_area()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.snapshots()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.geojson"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.geojson()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager"><code class="docutils literal notranslate"><span class="pre">BoundaryManager</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.get_queryset"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.get_queryset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.snapshots()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.for_year"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_year()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.for_state"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_state()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.current"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.current()</span></code></a></li>
@@ -4996,6 +5008,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_updated"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.errors"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_without_geometry"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_without_geometry</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.success"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.__init__"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.__init__()</span></code></a></li>
 </ul>
@@ -5012,6 +5025,8 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.records_updated"><code class="docutils literal notranslate"><span class="pre">PopulationResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">PopulationResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.errors"><code class="docutils literal notranslate"><span class="pre">PopulationResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.sources_skipped"><code class="docutils literal notranslate"><span class="pre">PopulationResult.sources_skipped</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.warnings"><code class="docutils literal notranslate"><span class="pre">PopulationResult.warnings</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.total_processed"><code class="docutils literal notranslate"><span class="pre">PopulationResult.total_processed</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.success"><code class="docutils literal notranslate"><span class="pre">PopulationResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.__init__"><code class="docutils literal notranslate"><span class="pre">PopulationResult.__init__()</span></code></a></li>
@@ -5019,7 +5034,8 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.GEOGRAPHY_MODELS"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.GEOGRAPHY_MODELS</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.TIGER_TYPES"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.TIGER_TYPES</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.GEOGRAPHIC_LEVELS"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.GEOGRAPHIC_LEVELS</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.VTD_NOT_PUBLISHED"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.VTD_NOT_PUBLISHED</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.__init__"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.populate"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.populate()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.populate_states"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.populate_states()</span></code></a></li>
@@ -5039,6 +5055,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.records_updated"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.errors"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.warnings"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.warnings</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.total_processed"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.total_processed</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.success"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.__init__"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.__init__()</span></code></a></li>
@@ -5058,6 +5075,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.target_level"><code class="docutils literal notranslate"><span class="pre">RollupResult.target_level</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.variable_code"><code class="docutils literal notranslate"><span class="pre">RollupResult.variable_code</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_created"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_created</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_updated"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.coverage_ratio"><code class="docutils literal notranslate"><span class="pre">RollupResult.coverage_ratio</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.errors"><code class="docutils literal notranslate"><span class="pre">RollupResult.errors</span></code></a></li>
@@ -5699,6 +5717,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/analytics.html#siege_utilities.analytics.google_slides.get_presentation"><code class="docutils literal notranslate"><span class="pre">get_presentation()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/analytics.html#siege_utilities.analytics.google_slides.insert_image"><code class="docutils literal notranslate"><span class="pre">insert_image()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/analytics.html#siege_utilities.analytics.google_slides.insert_text"><code class="docutils literal notranslate"><span class="pre">insert_text()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../packages/analytics.html#siege_utilities.analytics.google_slides.temporary_public_figure"><code class="docutils literal notranslate"><span class="pre">temporary_public_figure()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/analytics.html#siege_utilities.analytics.google_slides.upload_figure_to_drive"><code class="docutils literal notranslate"><span class="pre">upload_figure_to_drive()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/analytics.html#siege_utilities.analytics.google_workspace.GoogleWorkspaceClient"><code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/analytics.html#siege_utilities.analytics.google_workspace.GoogleWorkspaceClient.__init__"><code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient.__init__()</span></code></a></li>
@@ -6291,9 +6310,12 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../packages/config.html">Config</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.get_service_timeout"><code class="docutils literal notranslate"><span class="pre">get_service_timeout()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.normalize_state_identifier"><code class="docutils literal notranslate"><span class="pre">normalize_state_identifier()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.get_fips_info"><code class="docutils literal notranslate"><span class="pre">get_fips_info()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../packages/config.html#sharing-exports-without-secrets">Sharing exports without secrets</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.get_service_timeout"><code class="docutils literal notranslate"><span class="pre">get_service_timeout()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.normalize_state_identifier"><code class="docutils literal notranslate"><span class="pre">normalize_state_identifier()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.get_fips_info"><code class="docutils literal notranslate"><span class="pre">get_fips_info()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/config.html#module-siege_utilities.config.credential_manager">Submodules</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.credential_manager.CredentialNotFoundError"><code class="docutils literal notranslate"><span class="pre">CredentialNotFoundError</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.credential_manager.CredentialNotFoundError.__init__"><code class="docutils literal notranslate"><span class="pre">CredentialNotFoundError.__init__()</span></code></a></li>
@@ -6650,6 +6672,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.DatabaseConnection"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_host"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_host()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_password_length"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_password"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_port"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_port()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_database_name"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_database_name()</span></code></a></li>
@@ -6657,10 +6680,10 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.refresh_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.refresh_token</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.api_version</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.rate_limit_remaining"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.rate_limit_remaining</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.last_updated"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.last_updated</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_access_token_length"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_access_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_account_id"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_account_id()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_api_version()</span></code></a></li>
@@ -6733,7 +6756,6 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.DataSource.source_type"><code class="docutils literal notranslate"><span class="pre">DataSource.source_type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.DataSource.jurisdiction"><code class="docutils literal notranslate"><span class="pre">DataSource.jurisdiction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.DataSource.status"><code class="docutils literal notranslate"><span class="pre">DataSource.status</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.DataSource.auth_required"><code class="docutils literal notranslate"><span class="pre">DataSource.auth_required</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.DataSource.notes"><code class="docutils literal notranslate"><span class="pre">DataSource.notes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.DataSource.validate_auth_type"><code class="docutils literal notranslate"><span class="pre">DataSource.validate_auth_type()</span></code></a></li>
 </ul>
@@ -6964,7 +6986,6 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.source_type"><code class="docutils literal notranslate"><span class="pre">DataSource.source_type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.jurisdiction"><code class="docutils literal notranslate"><span class="pre">DataSource.jurisdiction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.status"><code class="docutils literal notranslate"><span class="pre">DataSource.status</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.auth_required"><code class="docutils literal notranslate"><span class="pre">DataSource.auth_required</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.notes"><code class="docutils literal notranslate"><span class="pre">DataSource.notes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.validate_auth_type"><code class="docutils literal notranslate"><span class="pre">DataSource.validate_auth_type()</span></code></a></li>
 </ul>
@@ -6975,6 +6996,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_host"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_host()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_password_length"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_password"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_port"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_port()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_database_name"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_database_name()</span></code></a></li>
@@ -7130,10 +7152,10 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.refresh_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.refresh_token</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.api_version</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.rate_limit_remaining"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.rate_limit_remaining</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.last_updated"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.last_updated</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token_length"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_account_id"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_account_id()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_api_version()</span></code></a></li>
@@ -7870,7 +7892,10 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../packages/hygiene.html">Hygiene</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings"><code class="docutils literal notranslate"><span class="pre">generate_docstrings()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../packages/hygiene.html#docstring-generation">Docstring generation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings"><code class="docutils literal notranslate"><span class="pre">generate_docstrings()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../packages/hygiene.html#module-siege_utilities.hygiene.generate_docstrings">Submodules</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.analyze_function_signature"><code class="docutils literal notranslate"><span class="pre">analyze_function_signature()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.categorize_function"><code class="docutils literal notranslate"><span class="pre">categorize_function()</span></code></a></li>
@@ -7878,6 +7903,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder"><code class="docutils literal notranslate"><span class="pre">DocstringAdder</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.__init__"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_FunctionDef"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.visit_FunctionDef()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_AsyncFunctionDef"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.visit_AsyncFunctionDef()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.process_python_file"><code class="docutils literal notranslate"><span class="pre">process_python_file()</span></code></a></li>
@@ -9013,12 +9039,15 @@
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">zipfile</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">urllib.parse</span><span class="w"> </span><span class="kn">import</span> <span class="n">urlparse</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.core._http</span><span class="w"> </span><span class="kn">import</span> <span class="n">redact_url_secrets</span>
 
 <span class="k">try</span><span class="p">:</span>
     <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
@@ -9056,8 +9085,27 @@
 <span class="n">RDH_BASE_URL</span> <span class="o">=</span> <span class="s2">"https://redistrictingdatahub.org/wp-json/download/list"</span>
 <span class="n">RDH_SITE_URL</span> <span class="o">=</span> <span class="s2">"https://redistrictingdatahub.org"</span>
 
-<span class="c1"># Maximum datasets returned per request (WordPress API limit)</span>
+<span class="c1"># Maximum datasets returned per request (WordPress API limit). A response of</span>
+<span class="c1"># this size may be truncated; ``_fetch_datasets`` warns when it is reached.</span>
 <span class="n">RDH_MAX_RESULTS</span> <span class="o">=</span> <span class="mi">1000</span>
+
+<span class="c1"># Geography levels recognised in RDH dataset titles, as token phrases. Matched</span>
+<span class="c1"># longest first so "block group" is never read as "block". (#1571)</span>
+<span class="n">_GEOGRAPHY_PHRASES</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">"block group"</span><span class="p">,</span>
+    <span class="s2">"block"</span><span class="p">,</span>
+    <span class="s2">"tract"</span><span class="p">,</span>
+    <span class="s2">"county"</span><span class="p">,</span>
+    <span class="s2">"place"</span><span class="p">,</span>
+    <span class="s2">"precinct"</span><span class="p">,</span>
+    <span class="s2">"vtd"</span><span class="p">,</span>
+    <span class="s2">"state"</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Columns that hold FIPS/GEOID codes and must keep their leading zeros:</span>
+<span class="c1"># GEOID*, *FP / *CE / *NS (Census FIPS, code, and ANSI fields, optionally</span>
+<span class="c1"># with a vintage suffix such as STATEFP20). (#1571)</span>
+<span class="n">_GEOID_LIKE_COLUMN</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">"^GEOID|^GEO_ID|^[A-Z]*(FP|CE|NS)\d*$"</span><span class="p">)</span>
 
 <span class="c1"># US state abbreviations for iteration</span>
 <span class="n">US_STATES</span> <span class="o">=</span> <span class="p">[</span>
@@ -9140,6 +9188,86 @@
     <span class="n">convex_hull_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
     <span class="n">schwartzberg</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span></div>
 
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Selection helpers</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_tokens</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Lower-case word tokens, splitting on whitespace and underscores."""</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">r</span><span class="s2">"[\s_]+"</span><span class="p">,</span> <span class="n">text</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span> <span class="k">if</span> <span class="n">t</span><span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_title_geography</span><span class="p">(</span><span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">phrases</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="n">_GEOGRAPHY_PHRASES</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return the geography level a dataset title names, or None.</span>
+
+<span class="sd">    Titles are tokenised on spaces and underscores, and phrases are tried</span>
+<span class="sd">    longest first at each position, so ``"VA PL 94-171 2020 Block Group"``</span>
+<span class="sd">    and ``"VA_CVAP_block_group"`` are both ``"block group"``, never</span>
+<span class="sd">    ``"block"``. Returns None when the title names no level, or names more</span>
+<span class="sd">    than one distinct level (ambiguous). (#1571)</span>
+<span class="sd">    """</span>
+    <span class="n">tokens</span> <span class="o">=</span> <span class="n">_tokens</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
+    <span class="n">ordered</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">({</span><span class="nb">tuple</span><span class="p">(</span><span class="n">_tokens</span><span class="p">(</span><span class="n">p</span><span class="p">))</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">phrases</span><span class="p">},</span> <span class="n">key</span><span class="o">=</span><span class="nb">len</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">found</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">tokens</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">phrase</span> <span class="ow">in</span> <span class="n">ordered</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">tokens</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">phrase</span><span class="p">)])</span> <span class="o">==</span> <span class="n">phrase</span><span class="p">:</span>
+                <span class="n">found</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">phrase</span><span class="p">))</span>
+                <span class="n">i</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">phrase</span><span class="p">)</span>
+                <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">found</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">found</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_select_by_geography</span><span class="p">(</span>
+    <span class="n">datasets</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="s2">"RDHDataset"</span><span class="p">],</span>
+    <span class="n">geography</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">state</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">year</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="s2">"RDHDataset"</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Keep the datasets whose geography equals ``geography``.</span>
+
+<span class="sd">    Uses the dataset's explicit ``geography`` metadata when present, otherwise</span>
+<span class="sd">    the level named in its title. Applies even to a single dataset, and raises</span>
+<span class="sd">    instead of falling back to an unfiltered list. (#1571)</span>
+<span class="sd">    """</span>
+    <span class="n">where</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2">"</span> <span class="o">+</span> <span class="p">(</span><span class="sa">f</span><span class="s2">" year=</span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">year</span> <span class="k">else</span> <span class="s2">""</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">datasets</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"No </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> data found for </span><span class="si">{</span><span class="n">where</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">geography</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">datasets</span>
+    <span class="n">wanted</span> <span class="o">=</span> <span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_tokens</span><span class="p">(</span><span class="n">geography</span><span class="p">))</span>
+    <span class="n">phrases</span> <span class="o">=</span> <span class="n">_GEOGRAPHY_PHRASES</span> <span class="o">+</span> <span class="p">(</span><span class="n">wanted</span><span class="p">,)</span>
+    <span class="n">matched</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">ds</span> <span class="k">for</span> <span class="n">ds</span> <span class="ow">in</span> <span class="n">datasets</span>
+        <span class="k">if</span> <span class="n">_title_geography</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">geography</span> <span class="ow">or</span> <span class="n">ds</span><span class="o">.</span><span class="n">title</span><span class="p">,</span> <span class="n">phrases</span><span class="p">)</span> <span class="o">==</span> <span class="n">wanted</span>
+    <span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">matched</span><span class="p">:</span>
+        <span class="n">available</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">title</span> <span class="k">for</span> <span class="n">ds</span> <span class="ow">in</span> <span class="n">datasets</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"No </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> data found for </span><span class="si">{</span><span class="n">where</span><span class="si">}</span><span class="s2"> at geography=</span><span class="si">{</span><span class="n">geography</span><span class="si">!r}</span><span class="s2">; "</span>
+            <span class="sa">f</span><span class="s2">"available datasets: </span><span class="si">{</span><span class="n">available</span><span class="si">}</span><span class="s2">"</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">matched</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_single_member</span><span class="p">(</span><span class="n">directory</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return the one file in ``directory`` matching ``pattern``; raise otherwise."""</span>
+    <span class="n">members</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">directory</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">pattern</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">members</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"No </span><span class="si">{</span><span class="n">kind</span><span class="si">}</span><span class="s2"> files found in </span><span class="si">{</span><span class="n">directory</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">members</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">directory</span><span class="p">))</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">members</span><span class="p">]</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"Ambiguous </span><span class="si">{</span><span class="n">kind</span><span class="si">}</span><span class="s2"> selection in </span><span class="si">{</span><span class="n">directory</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">members</span><span class="p">)</span><span class="si">}</span><span class="s2"> candidates "</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">names</span><span class="si">}</span><span class="s2">; load the intended file by path."</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">members</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
 
 <span class="c1"># ---------------------------------------------------------------------------</span>
@@ -9255,9 +9383,13 @@
 <span class="sd">        """</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">):</span>
             <span class="k">return</span> <span class="p">{}</span>
-        <span class="n">host</span> <span class="o">=</span> <span class="n">urlparse</span><span class="p">(</span><span class="n">url</span><span class="p">)</span><span class="o">.</span><span class="n">netloc</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-        <span class="n">base_host</span> <span class="o">=</span> <span class="n">urlparse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">)</span><span class="o">.</span><span class="n">netloc</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">host</span> <span class="ow">and</span> <span class="p">(</span><span class="n">host</span> <span class="o">==</span> <span class="n">base_host</span> <span class="ow">or</span> <span class="n">host</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">"redistrictingdatahub.org"</span><span class="p">)):</span>
+        <span class="n">host</span> <span class="o">=</span> <span class="n">urlparse</span><span class="p">(</span><span class="n">url</span><span class="p">)</span><span class="o">.</span><span class="n">hostname</span>
+        <span class="n">base_host</span> <span class="o">=</span> <span class="n">urlparse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">)</span><span class="o">.</span><span class="n">hostname</span>
+        <span class="k">if</span> <span class="n">host</span> <span class="ow">and</span> <span class="p">(</span>
+            <span class="n">host</span> <span class="o">==</span> <span class="n">base_host</span>
+            <span class="ow">or</span> <span class="n">host</span> <span class="o">==</span> <span class="s2">"redistrictingdatahub.org"</span>
+            <span class="ow">or</span> <span class="n">host</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">".redistrictingdatahub.org"</span><span class="p">)</span>
+        <span class="p">):</span>
             <span class="k">return</span> <span class="p">{</span><span class="s2">"username"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">"password"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">}</span>
         <span class="k">return</span> <span class="p">{}</span>
 
@@ -9333,11 +9465,15 @@
         <span class="k">if</span> <span class="n">year</span><span class="p">:</span>
             <span class="n">params</span><span class="p">[</span><span class="s2">"year"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">year</span><span class="p">)</span>
 
+        <span class="n">error</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
             <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
         <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">RequestException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ConnectionError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"RDH API request failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+            <span class="n">error</span> <span class="o">=</span> <span class="ne">ConnectionError</span><span class="p">(</span><span class="n">redact_url_secrets</span><span class="p">(</span><span class="sa">f</span><span class="s2">"RDH API request failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">error</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Raising outside the handler avoids retaining the credential-bearing context.</span>
+            <span class="k">raise</span> <span class="n">error</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
 
         <span class="n">raw_data</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
         <span class="c1"># The RDH WP API returns error envelopes as HTTP 200 with a</span>
@@ -9350,9 +9486,18 @@
             <span class="n">msg</span> <span class="o">=</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"message"</span><span class="p">,</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"code"</span><span class="p">,</span> <span class="s2">""</span><span class="p">))</span>
             <span class="k">if</span> <span class="s2">"0 states"</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">"unknown states"</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">msg</span><span class="p">):</span>
                 <span class="k">return</span> <span class="p">[]</span>  <span class="c1"># documented "no datasets for these states" case</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"RDH API error: </span><span class="si">{</span><span class="n">msg</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">redact_url_secrets</span><span class="p">(</span><span class="sa">f</span><span class="s2">"RDH API error: </span><span class="si">{</span><span class="n">msg</span><span class="si">}</span><span class="s2">"</span><span class="p">))</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw_data</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
             <span class="n">raw_data</span> <span class="o">=</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"data"</span><span class="p">,</span> <span class="p">[])</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw_data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">raw_data</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">RDH_MAX_RESULTS</span><span class="p">:</span>
+            <span class="c1"># This client does not page; a full response means the listing may be</span>
+            <span class="c1"># silently truncated. (#1571)</span>
+            <span class="n">log_warning</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"RDH: listing returned </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">raw_data</span><span class="p">)</span><span class="si">}</span><span class="s2"> entries, the per-request "</span>
+                <span class="sa">f</span><span class="s2">"cap (RDH_MAX_RESULTS=</span><span class="si">{</span><span class="n">RDH_MAX_RESULTS</span><span class="si">}</span><span class="s2">); results may be truncated. "</span>
+                <span class="sa">f</span><span class="s2">"Narrow the query (states=</span><span class="si">{</span><span class="n">states</span><span class="si">!r}</span><span class="s2">, format=</span><span class="si">{</span><span class="nb">format</span><span class="si">!r}</span><span class="s2">, year=</span><span class="si">{</span><span class="n">year</span><span class="si">!r}</span><span class="s2">)."</span>
+            <span class="p">)</span>
 
         <span class="n">datasets</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="p">:</span>
@@ -9454,24 +9599,33 @@
         <span class="n">dest</span> <span class="o">=</span> <span class="n">output_dir</span> <span class="o">/</span> <span class="n">filename</span>
 
         <span class="k">if</span> <span class="n">use_cache</span> <span class="ow">and</span> <span class="n">dest</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-            <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"RDH: Using cached </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="n">log_info</span><span class="p">(</span><span class="n">redact_url_secrets</span><span class="p">(</span><span class="sa">f</span><span class="s2">"RDH: Using cached </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">"</span><span class="p">))</span>
+            <span class="c1"># Same return kind as a first download: the extracted directory</span>
+            <span class="c1"># for a ZIP, not the archive itself. (#1571)</span>
+            <span class="k">if</span> <span class="n">dest</span><span class="o">.</span><span class="n">suffix</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">".zip"</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_zip</span><span class="p">(</span><span class="n">dest</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">dest</span>
 
-        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"RDH: Downloading </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">..."</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="n">redact_url_secrets</span><span class="p">(</span><span class="sa">f</span><span class="s2">"RDH: Downloading </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">..."</span><span class="p">))</span>
+        <span class="n">error</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                 <span class="n">url</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_auth_params</span><span class="p">(</span><span class="n">url</span><span class="p">),</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span>
             <span class="p">)</span>
             <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">dest</span><span class="p">,</span> <span class="s2">"wb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">resp</span><span class="o">.</span><span class="n">iter_content</span><span class="p">(</span><span class="n">chunk_size</span><span class="o">=</span><span class="mi">8192</span><span class="p">):</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
         <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">RequestException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">log_error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"RDH download failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-            <span class="k">raise</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="n">redact_url_secrets</span><span class="p">(</span><span class="sa">f</span><span class="s2">"RDH download failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="n">log_error</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="n">error</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">e</span><span class="p">)(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">error</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># A fresh exception drops request/response URLs and suppressed context.</span>
+            <span class="k">raise</span> <span class="n">error</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
 
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">dest</span><span class="p">,</span> <span class="s2">"wb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">resp</span><span class="o">.</span><span class="n">iter_content</span><span class="p">(</span><span class="n">chunk_size</span><span class="o">=</span><span class="mi">8192</span><span class="p">):</span>
-                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
-
-        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"RDH: Saved </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">dest</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> bytes)"</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="n">redact_url_secrets</span><span class="p">(</span><span class="sa">f</span><span class="s2">"RDH: Saved </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">dest</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> bytes)"</span><span class="p">))</span>
 
         <span class="c1"># Auto-extract ZIP files</span>
         <span class="k">if</span> <span class="n">dest</span><span class="o">.</span><span class="n">suffix</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">".zip"</span><span class="p">:</span>
@@ -9488,7 +9642,7 @@
         <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">zip_path</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">)</span> <span class="k">as</span> <span class="n">zf</span><span class="p">:</span>
             <span class="n">zf</span><span class="o">.</span><span class="n">extractall</span><span class="p">(</span><span class="n">extract_dir</span><span class="p">)</span>
 
-        <span class="n">log_info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"RDH: Extracted to </span><span class="si">{</span><span class="n">extract_dir</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">log_info</span><span class="p">(</span><span class="n">redact_url_secrets</span><span class="p">(</span><span class="sa">f</span><span class="s2">"RDH: Extracted to </span><span class="si">{</span><span class="n">extract_dir</span><span class="si">}</span><span class="s2">"</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">extract_dir</span>
 
     <span class="c1"># -- Loading into DataFrames ----------------------------------------------</span>
@@ -9505,9 +9659,19 @@
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        dataset : RDHDataset, str, or Path</span>
-<span class="sd">            Dataset to load.</span>
+<span class="sd">            Dataset to load. A directory must contain exactly one ``.csv``.</span>
 <span class="sd">        **kwargs</span>
-<span class="sd">            Passed to ``pd.read_csv()``.</span>
+<span class="sd">            Passed to ``pd.read_csv()``. Unless ``dtype`` is given, GEOID-like</span>
+<span class="sd">            columns (``GEOID*``, ``*FP``, ``*CE``, ``*NS``) are read as ``str``</span>
+<span class="sd">            so leading zeros survive.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        FileNotFoundError</span>
+<span class="sd">            The directory contains no CSV.</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            The directory contains more than one CSV, so the choice would be</span>
+<span class="sd">            arbitrary.</span>
 <span class="sd">        """</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">HAS_PANDAS</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s2">"pandas is required to load CSV data"</span><span class="p">)</span>
@@ -9520,11 +9684,20 @@
             <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
-            <span class="c1"># Find CSV in extracted directory</span>
-            <span class="n">csvs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">"*.csv"</span><span class="p">))</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">csvs</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"No CSV files found in </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-            <span class="n">path</span> <span class="o">=</span> <span class="n">csvs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">_single_member</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">"*.csv"</span><span class="p">,</span> <span class="s2">"CSV"</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">"dtype"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">header_kwargs</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"sep"</span><span class="p">,</span> <span class="s2">"delimiter"</span><span class="p">,</span> <span class="s2">"encoding"</span><span class="p">,</span> <span class="s2">"header"</span><span class="p">,</span> <span class="s2">"skiprows"</span><span class="p">,</span> <span class="s2">"compression"</span><span class="p">)</span>
+            <span class="p">}</span>
+            <span class="n">header</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">nrows</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="o">**</span><span class="n">header_kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">columns</span>
+            <span class="n">geoid_cols</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">c</span><span class="p">:</span> <span class="nb">str</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">header</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">_GEOID_LIKE_COLUMN</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">upper</span><span class="p">())</span>
+            <span class="p">}</span>
+            <span class="k">if</span> <span class="n">geoid_cols</span><span class="p">:</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="s2">"dtype"</span><span class="p">]</span> <span class="o">=</span> <span class="n">geoid_cols</span>
 
         <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
@@ -9541,9 +9714,18 @@
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        dataset : RDHDataset, str, or Path</span>
-<span class="sd">            Dataset to load.</span>
+<span class="sd">            Dataset to load. A directory must contain exactly one ``.shp``</span>
+<span class="sd">            (searched recursively).</span>
 <span class="sd">        **kwargs</span>
 <span class="sd">            Passed to ``gpd.read_file()``.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        FileNotFoundError</span>
+<span class="sd">            The directory contains no shapefile.</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            The directory contains more than one shapefile, so the choice</span>
+<span class="sd">            would be arbitrary.</span>
 <span class="sd">        """</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">HAS_GEOPANDAS</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
@@ -9559,11 +9741,7 @@
             <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
-            <span class="c1"># Find .shp in extracted directory</span>
-            <span class="n">shps</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">"**/*.shp"</span><span class="p">))</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">shps</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"No .shp files found in </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-            <span class="n">path</span> <span class="o">=</span> <span class="n">shps</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">_single_member</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">"**/*.shp"</span><span class="p">,</span> <span class="s2">".shp"</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">gpd</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
@@ -10095,31 +10273,28 @@
 <span class="sd">    year : str, optional</span>
 <span class="sd">        Data year filter.</span>
 <span class="sd">    geography : str</span>
-<span class="sd">        Geographic level hint for filtering (e.g. ``"tract"``, ``"block_group"``).</span>
+<span class="sd">        Geographic level (e.g. ``"tract"``, ``"block_group"``). Only datasets</span>
+<span class="sd">        at exactly this level are eligible; ``None`` or ``""`` disables the</span>
+<span class="sd">        filter.</span>
 <span class="sd">    client : RDHClient, optional</span>
 <span class="sd">        Existing client instance.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    DataFrame with CVAP estimates.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    FileNotFoundError</span>
+<span class="sd">        No CVAP dataset exists, or none at the requested geography (the</span>
+<span class="sd">        message lists the available titles).</span>
 <span class="sd">    """</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">HAS_PANDAS</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s2">"pandas is required to load CVAP data"</span><span class="p">)</span>
     <span class="n">c</span> <span class="o">=</span> <span class="n">client</span> <span class="ow">or</span> <span class="n">RDHClient</span><span class="p">()</span>
-    <span class="n">datasets</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">get_cvap_data</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">year</span><span class="o">=</span><span class="n">year</span><span class="p">)</span>
-    <span class="c1"># Filter by geography keyword if multiple results</span>
-    <span class="k">if</span> <span class="n">geography</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">datasets</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="n">filtered</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">ds</span> <span class="k">for</span> <span class="n">ds</span> <span class="ow">in</span> <span class="n">datasets</span>
-            <span class="k">if</span> <span class="n">geography</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-        <span class="p">]</span>
-        <span class="k">if</span> <span class="n">filtered</span><span class="p">:</span>
-            <span class="n">datasets</span> <span class="o">=</span> <span class="n">filtered</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">datasets</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">"No CVAP data found for </span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2">"</span>
-            <span class="o">+</span> <span class="p">(</span><span class="sa">f</span><span class="s2">" year=</span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">year</span> <span class="k">else</span> <span class="s2">""</span><span class="p">)</span>
-        <span class="p">)</span>
+    <span class="n">datasets</span> <span class="o">=</span> <span class="n">_select_by_geography</span><span class="p">(</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">get_cvap_data</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">year</span><span class="o">=</span><span class="n">year</span><span class="p">),</span> <span class="n">geography</span><span class="p">,</span> <span class="s2">"CVAP"</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">year</span><span class="p">,</span>
+    <span class="p">)</span>
     <span class="k">return</span> <span class="n">c</span><span class="o">.</span><span class="n">load_csv</span><span class="p">(</span><span class="n">datasets</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></div>
 
 
@@ -10141,30 +10316,28 @@
 <span class="sd">    year : str, optional</span>
 <span class="sd">        Decennial year filter.</span>
 <span class="sd">    geography : str</span>
-<span class="sd">        Geographic level hint (e.g. ``"block"``, ``"tract"``).</span>
+<span class="sd">        Geographic level (e.g. ``"block"``, ``"tract"``). Only datasets at</span>
+<span class="sd">        exactly this level are eligible (``"block"`` never matches</span>
+<span class="sd">        "Block Group"); ``None`` or ``""`` disables the filter.</span>
 <span class="sd">    client : RDHClient, optional</span>
 <span class="sd">        Existing client instance.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    DataFrame with PL 94-171 population data.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    FileNotFoundError</span>
+<span class="sd">        No PL 94-171 dataset exists, or none at the requested geography (the</span>
+<span class="sd">        message lists the available titles).</span>
 <span class="sd">    """</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">HAS_PANDAS</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s2">"pandas is required to load PL 94-171 data"</span><span class="p">)</span>
     <span class="n">c</span> <span class="o">=</span> <span class="n">client</span> <span class="ow">or</span> <span class="n">RDHClient</span><span class="p">()</span>
-    <span class="n">datasets</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">get_pl94171_data</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">year</span><span class="o">=</span><span class="n">year</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">geography</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">datasets</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="n">filtered</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">ds</span> <span class="k">for</span> <span class="n">ds</span> <span class="ow">in</span> <span class="n">datasets</span>
-            <span class="k">if</span> <span class="n">geography</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-        <span class="p">]</span>
-        <span class="k">if</span> <span class="n">filtered</span><span class="p">:</span>
-            <span class="n">datasets</span> <span class="o">=</span> <span class="n">filtered</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">datasets</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">"No PL 94-171 data found for </span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2">"</span>
-            <span class="o">+</span> <span class="p">(</span><span class="sa">f</span><span class="s2">" year=</span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">year</span> <span class="k">else</span> <span class="s2">""</span><span class="p">)</span>
-        <span class="p">)</span>
+    <span class="n">datasets</span> <span class="o">=</span> <span class="n">_select_by_geography</span><span class="p">(</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">get_pl94171_data</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">year</span><span class="o">=</span><span class="n">year</span><span class="p">),</span> <span class="n">geography</span><span class="p">,</span> <span class="s2">"PL 94-171"</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">year</span><span class="p">,</span>
+    <span class="p">)</span>
     <span class="k">return</span> <span class="n">c</span><span class="o">.</span><span class="n">load_csv</span><span class="p">(</span><span class="n">datasets</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></div>
 
 

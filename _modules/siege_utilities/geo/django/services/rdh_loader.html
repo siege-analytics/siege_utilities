@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.geo.django.services.rdh_loader &mdash; Siege Utilities 4.0.0 documentation</title>
+  <title>siege_utilities.geo.django.services.rdh_loader &mdash; Siege Utilities 4.1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../../../_static/documentation_options.js?v=3304f9e4"></script>
+      <script src="../../../../../_static/documentation_options.js?v=42d1b3bd"></script>
       <script src="../../../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../../../_static/js/theme.js"></script>
@@ -4498,7 +4498,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../../packages/geo_django.html#module-siege_utilities.geo.django.models.base">Models</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.save"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.prepare_for_bulk()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.get_geoid_length"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.get_geoid_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.parse_geoid"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.parse_geoid()</span></code></a></li>
 </ul>
@@ -4507,12 +4507,14 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.total_area"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.total_area</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.land_percentage"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.land_percentage</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.save"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.Meta"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.is_current"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.is_current</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.prepare_for_bulk()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.save"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.save()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalLinearFeature"><code class="docutils literal notranslate"><span class="pre">TemporalLinearFeature</span></code></a><ul>
@@ -4547,6 +4549,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.state"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.Meta"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.get_geoid_length"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.get_geoid_length()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.normalize_geoid"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.normalize_geoid()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.parse_geoid"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.parse_geoid()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.is_at_large"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.is_at_large</span></code></a></li>
 </ul>
@@ -4632,16 +4635,19 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.DATASET_CHOICES"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.DATASET_CHOICES</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.content_object"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.content_object</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.get_value"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.get_value()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.get_moe"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.get_moe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.prepare_for_bulk()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.save"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.save()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.content_object"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries.content_object</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries.Meta</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicKeyArchive"><code class="docutils literal notranslate"><span class="pre">DemographicKeyArchive</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicKeyArchive.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicKeyArchive.Meta</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolDistrictBase"><code class="docutils literal notranslate"><span class="pre">SchoolDistrictBase</span></code></a><ul>
@@ -4665,28 +4671,28 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.save"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation"><code class="docutils literal notranslate"><span class="pre">SchoolLocation</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.state"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.Meta"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.save"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion"><code class="docutils literal notranslate"><span class="pre">NLRBRegion</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.Meta"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.save"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.Meta"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.save"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary"><code class="docutils literal notranslate"><span class="pre">GADMBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.save"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMCountry"><code class="docutils literal notranslate"><span class="pre">GADMCountry</span></code></a><ul>
@@ -4747,7 +4753,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult"><code class="docutils literal notranslate"><span class="pre">IsochroneResult</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.Meta"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.save"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.nlrb_cases.NLRBCase"><code class="docutils literal notranslate"><span class="pre">NLRBCase</span></code></a><ul>
@@ -4841,7 +4847,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.Meta"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.save"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -4849,6 +4855,8 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../../packages/geo_django.html#module-siege_utilities.geo.django.managers">Managers</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager"><code class="docutils literal notranslate"><span class="pre">BoundaryManager</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.get_queryset"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.get_queryset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.snapshots()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.for_year"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_year()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.for_state"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_state()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.current"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.current()</span></code></a></li>
@@ -4873,6 +4881,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.nearest"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.nearest()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.with_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.with_area()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.by_land_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_land_area()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.snapshots()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.geojson"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.geojson()</span></code></a></li>
 </ul>
@@ -4888,12 +4897,15 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.nearest"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.nearest()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.with_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.with_area()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_land_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_land_area()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.snapshots()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.geojson"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.geojson()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager"><code class="docutils literal notranslate"><span class="pre">BoundaryManager</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.get_queryset"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.get_queryset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.snapshots()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.for_year"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_year()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.for_state"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_state()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.current"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.current()</span></code></a></li>
@@ -4996,6 +5008,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_updated"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.errors"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_without_geometry"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_without_geometry</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.success"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.__init__"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.__init__()</span></code></a></li>
 </ul>
@@ -5012,6 +5025,8 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.records_updated"><code class="docutils literal notranslate"><span class="pre">PopulationResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">PopulationResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.errors"><code class="docutils literal notranslate"><span class="pre">PopulationResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.sources_skipped"><code class="docutils literal notranslate"><span class="pre">PopulationResult.sources_skipped</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.warnings"><code class="docutils literal notranslate"><span class="pre">PopulationResult.warnings</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.total_processed"><code class="docutils literal notranslate"><span class="pre">PopulationResult.total_processed</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.success"><code class="docutils literal notranslate"><span class="pre">PopulationResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.__init__"><code class="docutils literal notranslate"><span class="pre">PopulationResult.__init__()</span></code></a></li>
@@ -5019,7 +5034,8 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.GEOGRAPHY_MODELS"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.GEOGRAPHY_MODELS</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.TIGER_TYPES"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.TIGER_TYPES</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.GEOGRAPHIC_LEVELS"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.GEOGRAPHIC_LEVELS</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.VTD_NOT_PUBLISHED"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.VTD_NOT_PUBLISHED</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.__init__"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.populate"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.populate()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.populate_states"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.populate_states()</span></code></a></li>
@@ -5039,6 +5055,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.records_updated"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.errors"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.warnings"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.warnings</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.total_processed"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.total_processed</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.success"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.__init__"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.__init__()</span></code></a></li>
@@ -5058,6 +5075,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.target_level"><code class="docutils literal notranslate"><span class="pre">RollupResult.target_level</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.variable_code"><code class="docutils literal notranslate"><span class="pre">RollupResult.variable_code</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_created"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_created</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_updated"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.coverage_ratio"><code class="docutils literal notranslate"><span class="pre">RollupResult.coverage_ratio</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.errors"><code class="docutils literal notranslate"><span class="pre">RollupResult.errors</span></code></a></li>
@@ -5699,6 +5717,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/analytics.html#siege_utilities.analytics.google_slides.get_presentation"><code class="docutils literal notranslate"><span class="pre">get_presentation()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/analytics.html#siege_utilities.analytics.google_slides.insert_image"><code class="docutils literal notranslate"><span class="pre">insert_image()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/analytics.html#siege_utilities.analytics.google_slides.insert_text"><code class="docutils literal notranslate"><span class="pre">insert_text()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../packages/analytics.html#siege_utilities.analytics.google_slides.temporary_public_figure"><code class="docutils literal notranslate"><span class="pre">temporary_public_figure()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/analytics.html#siege_utilities.analytics.google_slides.upload_figure_to_drive"><code class="docutils literal notranslate"><span class="pre">upload_figure_to_drive()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/analytics.html#siege_utilities.analytics.google_workspace.GoogleWorkspaceClient"><code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/analytics.html#siege_utilities.analytics.google_workspace.GoogleWorkspaceClient.__init__"><code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient.__init__()</span></code></a></li>
@@ -6291,9 +6310,12 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../packages/config.html">Config</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.get_service_timeout"><code class="docutils literal notranslate"><span class="pre">get_service_timeout()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.normalize_state_identifier"><code class="docutils literal notranslate"><span class="pre">normalize_state_identifier()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.get_fips_info"><code class="docutils literal notranslate"><span class="pre">get_fips_info()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../packages/config.html#sharing-exports-without-secrets">Sharing exports without secrets</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.get_service_timeout"><code class="docutils literal notranslate"><span class="pre">get_service_timeout()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.normalize_state_identifier"><code class="docutils literal notranslate"><span class="pre">normalize_state_identifier()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.get_fips_info"><code class="docutils literal notranslate"><span class="pre">get_fips_info()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../../packages/config.html#module-siege_utilities.config.credential_manager">Submodules</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.credential_manager.CredentialNotFoundError"><code class="docutils literal notranslate"><span class="pre">CredentialNotFoundError</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.credential_manager.CredentialNotFoundError.__init__"><code class="docutils literal notranslate"><span class="pre">CredentialNotFoundError.__init__()</span></code></a></li>
@@ -6650,6 +6672,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.DatabaseConnection"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_host"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_host()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_password_length"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_password"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_port"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_port()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_database_name"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_database_name()</span></code></a></li>
@@ -6657,10 +6680,10 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.refresh_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.refresh_token</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.api_version</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.rate_limit_remaining"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.rate_limit_remaining</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.last_updated"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.last_updated</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_access_token_length"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_access_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_account_id"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_account_id()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_api_version()</span></code></a></li>
@@ -6733,7 +6756,6 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.DataSource.source_type"><code class="docutils literal notranslate"><span class="pre">DataSource.source_type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.DataSource.jurisdiction"><code class="docutils literal notranslate"><span class="pre">DataSource.jurisdiction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.DataSource.status"><code class="docutils literal notranslate"><span class="pre">DataSource.status</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.DataSource.auth_required"><code class="docutils literal notranslate"><span class="pre">DataSource.auth_required</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.DataSource.notes"><code class="docutils literal notranslate"><span class="pre">DataSource.notes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.DataSource.validate_auth_type"><code class="docutils literal notranslate"><span class="pre">DataSource.validate_auth_type()</span></code></a></li>
 </ul>
@@ -6964,7 +6986,6 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.source_type"><code class="docutils literal notranslate"><span class="pre">DataSource.source_type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.jurisdiction"><code class="docutils literal notranslate"><span class="pre">DataSource.jurisdiction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.status"><code class="docutils literal notranslate"><span class="pre">DataSource.status</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.auth_required"><code class="docutils literal notranslate"><span class="pre">DataSource.auth_required</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.notes"><code class="docutils literal notranslate"><span class="pre">DataSource.notes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.data_sources.DataSource.validate_auth_type"><code class="docutils literal notranslate"><span class="pre">DataSource.validate_auth_type()</span></code></a></li>
 </ul>
@@ -6975,6 +6996,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_host"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_host()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_password_length"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_password"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_port"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_port()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_database_name"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_database_name()</span></code></a></li>
@@ -7130,10 +7152,10 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.refresh_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.refresh_token</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.api_version</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.rate_limit_remaining"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.rate_limit_remaining</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.last_updated"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.last_updated</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token_length"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_account_id"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_account_id()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_api_version()</span></code></a></li>
@@ -7870,7 +7892,10 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../packages/hygiene.html">Hygiene</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings"><code class="docutils literal notranslate"><span class="pre">generate_docstrings()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../../packages/hygiene.html#docstring-generation">Docstring generation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings"><code class="docutils literal notranslate"><span class="pre">generate_docstrings()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../../packages/hygiene.html#module-siege_utilities.hygiene.generate_docstrings">Submodules</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.analyze_function_signature"><code class="docutils literal notranslate"><span class="pre">analyze_function_signature()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.categorize_function"><code class="docutils literal notranslate"><span class="pre">categorize_function()</span></code></a></li>
@@ -7878,6 +7903,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder"><code class="docutils literal notranslate"><span class="pre">DocstringAdder</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.__init__"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_FunctionDef"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.visit_FunctionDef()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_AsyncFunctionDef"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.visit_AsyncFunctionDef()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../../../packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.process_python_file"><code class="docutils literal notranslate"><span class="pre">process_python_file()</span></code></a></li>
@@ -8993,15 +9019,29 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Optional</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">django.db</span><span class="w"> </span><span class="kn">import</span> <span class="n">transaction</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">django.db.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">Q</span>
 
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
     <span class="kn">import</span><span class="w"> </span><span class="nn">geopandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">gpd</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">_VEST_VOTE_COLUMN_RE</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">"^[GSRCP][0-9]</span><span class="si">{2}</span><span class="s2">(?:[A-Z]</span><span class="si">{3}</span><span class="s2">|H[0-9]</span><span class="si">{2}</span><span class="s2">)[A-Z][A-Z0-9]</span><span class="si">{3}</span><span class="s2">$"</span><span class="p">)</span>
+<span class="n">_VEST_VOTE_PREFIX_RE</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">"^[GSRCP][0-9]</span><span class="si">{2}</span><span class="s2">"</span><span class="p">)</span>
+<span class="n">_VEST_HOUSE_RE</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">"^H(?:[0-9]</span><span class="si">{2}</span><span class="s2">|AL)$"</span><span class="p">)</span>
+<span class="n">_VEST_PARTY_MAP</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"D"</span><span class="p">:</span> <span class="s2">"DEM"</span><span class="p">,</span> <span class="s2">"R"</span><span class="p">:</span> <span class="s2">"REP"</span><span class="p">,</span> <span class="s2">"L"</span><span class="p">:</span> <span class="s2">"LIB"</span><span class="p">,</span> <span class="s2">"G"</span><span class="p">:</span> <span class="s2">"GRN"</span><span class="p">,</span> <span class="s2">"I"</span><span class="p">:</span> <span class="s2">"IND"</span><span class="p">}</span>
+<span class="n">_VEST_OFFICE_MAP</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"PRE"</span><span class="p">:</span> <span class="s2">"president"</span><span class="p">,</span>
+    <span class="s2">"GOV"</span><span class="p">:</span> <span class="s2">"governor"</span><span class="p">,</span>
+    <span class="s2">"USS"</span><span class="p">:</span> <span class="s2">"senate"</span><span class="p">,</span>
+    <span class="s2">"SOS"</span><span class="p">:</span> <span class="s2">"secretary_of_state"</span><span class="p">,</span>
+    <span class="s2">"ATG"</span><span class="p">:</span> <span class="s2">"attorney_general"</span><span class="p">,</span>
+<span class="p">}</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s1">'RDHLoadResult'</span><span class="p">,</span>
@@ -9013,13 +9053,14 @@
 <a class="viewcode-back" href="../../../../../packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult">[docs]</a>
 <span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">RDHLoadResult</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Result of an RDH load operation."""</span>
+<span class="w">    </span><span class="sd">"""Result of an RDH load operation; warnings describe recoverable omissions."""</span>
 
     <span class="n">operation</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">records_created</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="n">records_updated</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="n">records_skipped</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="n">errors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">warnings</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">total_processed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
@@ -9182,7 +9223,32 @@
         <span class="n">year</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">plan</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RDHLoadResult</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Fetch and load precinct election results.</span>
+<span class="w">        </span><span class="sd">"""Replace RDH results for a state, election year and next-year runoffs.</span>
+
+<span class="sd">        Read VEST vote columns (TYYOOOPCCC), including general, special, runoff,</span>
+<span class="sd">        recount and primary elections. Store the raw election type, House</span>
+<span class="sd">        district (two digits or AL), and party letter in the result identity.</span>
+<span class="sd">        Next-year runoffs in the same file use their own election year (e.g.</span>
+<span class="sd">        GA's R21 Senate columns in the 2020 file are stored as 2021). Other-year</span>
+<span class="sd">        columns are skipped with warnings. Reload replaces the requested year</span>
+<span class="sd">        and next-year runoff scope, including candidates removed from the file.</span>
+<span class="sd">        In DC only, DEL is House/AL; USS and HAL are shadow offices, skipped</span>
+<span class="sd">        with warnings. Known party display labels do not replace the source</span>
+<span class="sd">        party code; unmapped letters are preserved and warned per column.</span>
+<span class="sd">        Store the three-character alphanumeric candidate code in candidate_name;</span>
+<span class="sd">        full surnames are not in the file. Skip non-conforming year-prefixed</span>
+<span class="sd">        columns and columns with unmapped offices with logged warnings recorded</span>
+<span class="sd">        in the result. Missing</span>
+<span class="sd">        or blank vote cells count as zero. Totals include every conforming</span>
+<span class="sd">        candidate column in each mapped office prefix, including unrecognized</span>
+<span class="sd">        parties.</span>
+<span class="sd">        Prefer existing GEOID and county-qualified precinct identifiers, then</span>
+<span class="sd">        GEOID16/18, county-qualified VTDST16/18 and statewide VTDID alternatives.</span>
+<span class="sd">        WARDID also needs its municipality when supplied.</span>
+<span class="sd">        Every resolved identifier must be nonblank and unique within the state.</span>
+<span class="sd">        Blank-ID rows may be skipped only when every vote-prefixed column is</span>
+<span class="sd">        zero (missing vote cells count as zero), with the skipped count warned.</span>
+<span class="sd">        Geometry is expected in WGS 84 (EPSG:4326) and stored as 2D boundaries.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -9198,12 +9264,24 @@
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        RDHLoadResult</span>
+<span class="sd">            Number of replacement rows created, skipped blank-ID precincts,</span>
+<span class="sd">            warnings for skipped columns and unknown parties,</span>
+<span class="sd">            or errors if RDH has no file. Warnings do not mark the load failed.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If the state or precinct identifiers are invalid, or no conforming</span>
+<span class="sd">            vote columns with mapped offices match election_year. Existing</span>
+<span class="sd">            rows remain intact.</span>
 <span class="sd">        """</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.geo.providers.redistricting_data_hub</span><span class="w"> </span><span class="kn">import</span> <span class="n">fetch_precinct_results</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.geo.django.models.boundaries</span><span class="w"> </span><span class="kn">import</span> <span class="n">State</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.geo.django.models.redistricting</span><span class="w"> </span><span class="kn">import</span> <span class="n">PrecinctElectionResult</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 
         <span class="n">result</span> <span class="o">=</span> <span class="n">RDHLoadResult</span><span class="p">(</span><span class="n">operation</span><span class="o">=</span><span class="s2">"load_precinct_results"</span><span class="p">)</span>
+        <span class="n">state_fips</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state_abbr_to_fips</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
 
         <span class="k">try</span><span class="p">:</span>
             <span class="n">gdf</span> <span class="o">=</span> <span class="n">fetch_precinct_results</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">year</span><span class="o">=</span><span class="n">year</span> <span class="ow">or</span> <span class="nb">str</span><span class="p">(</span><span class="n">election_year</span><span class="p">),</span> <span class="n">client</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">)</span>
@@ -9211,62 +9289,106 @@
             <span class="n">result</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
             <span class="k">return</span> <span class="n">result</span>
 
-        <span class="n">state_fips</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state_abbr_to_fips</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
         <span class="n">state_obj</span> <span class="o">=</span> <span class="n">State</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">state_fips</span><span class="o">=</span><span class="n">state_fips</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
 
         <span class="c1"># Identify columns</span>
-        <span class="n">precinct_col</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_column</span><span class="p">(</span>
-            <span class="n">gdf</span><span class="p">,</span> <span class="p">[</span><span class="s2">"PRECINCT"</span><span class="p">,</span> <span class="s2">"PREC_ID"</span><span class="p">,</span> <span class="s2">"VTDST"</span><span class="p">,</span> <span class="s2">"precinct_id"</span><span class="p">,</span> <span class="s2">"VTD"</span><span class="p">,</span> <span class="s2">"PCTNUM"</span><span class="p">]</span>
-        <span class="p">)</span>
         <span class="n">name_col</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_column</span><span class="p">(</span>
-            <span class="n">gdf</span><span class="p">,</span> <span class="p">[</span><span class="s2">"PRECINCT_NAME"</span><span class="p">,</span> <span class="s2">"PREC_NAME"</span><span class="p">,</span> <span class="s2">"NAME"</span><span class="p">,</span> <span class="s2">"precinct_name"</span><span class="p">]</span>
+            <span class="n">gdf</span><span class="p">,</span> <span class="p">[</span><span class="s2">"PRECINCT_NAME"</span><span class="p">,</span> <span class="s2">"PREC_NAME"</span><span class="p">,</span> <span class="s2">"PRECINCT_N"</span><span class="p">,</span> <span class="s2">"NAME20"</span><span class="p">,</span> <span class="s2">"NAME"</span><span class="p">,</span> <span class="s2">"precinct_name"</span><span class="p">]</span>
         <span class="p">)</span>
 
-        <span class="c1"># Find vote columns — look for party-prefixed columns</span>
-        <span class="n">vote_cols</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">gdf</span><span class="o">.</span><span class="n">columns</span>
-            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span>
-                <span class="n">c</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
-                <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"G20PRE"</span><span class="p">,</span> <span class="s2">"G18GOV"</span><span class="p">,</span> <span class="s2">"G22GOV"</span><span class="p">,</span> <span class="s2">"G20USS"</span><span class="p">,</span> <span class="s2">"G22USS"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">gdf</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"No precinct results for </span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">election_year</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">vote_cols</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">column_years</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">source_vote_cols</span> <span class="o">=</span> <span class="p">[</span><span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">gdf</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">_VEST_VOTE_PREFIX_RE</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">col</span><span class="o">.</span><span class="n">upper</span><span class="p">())]</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">source_vote_cols</span><span class="p">:</span>
+            <span class="n">col_upper</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+            <span class="n">column_year</span> <span class="o">=</span> <span class="n">election_year</span> <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">col_upper</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">])</span> <span class="o">==</span> <span class="n">election_year</span> <span class="o">%</span> <span class="mi">100</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">col_upper</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="sa">f</span><span class="s2">"R</span><span class="si">{</span><span class="p">(</span><span class="n">election_year</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">100</span><span class="si">:</span><span class="s2">02d</span><span class="si">}</span><span class="s2">"</span><span class="p">):</span>
+                <span class="n">column_year</span> <span class="o">=</span> <span class="n">election_year</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">_VEST_VOTE_COLUMN_RE</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="n">col_upper</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">warning</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Skipping non-conforming VEST vote column </span><span class="si">{</span><span class="n">col</span><span class="si">!r}</span><span class="s2"> for "</span>
+                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">election_year</span><span class="si">}</span><span class="s2">; expected </span><span class="si">{</span><span class="n">_VEST_VOTE_COLUMN_RE</span><span class="o">.</span><span class="n">pattern</span><span class="si">}</span><span class="s2">"</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">column_year</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">warning</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Skipping VEST vote column </span><span class="si">{</span><span class="n">col</span><span class="si">!r}</span><span class="s2"> for </span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">election_year</span><span class="si">}</span><span class="s2">; "</span>
+                    <span class="s2">"outside the requested election year and next-year runoffs"</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">state_fips</span> <span class="o">==</span> <span class="s2">"11"</span> <span class="ow">and</span> <span class="n">col_upper</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">"USS"</span><span class="p">,</span> <span class="s2">"HAL"</span><span class="p">}:</span>
+                <span class="n">warning</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Skipping VEST vote column </span><span class="si">{</span><span class="n">col</span><span class="si">!r}</span><span class="s2"> for </span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">election_year</span><span class="si">}</span><span class="s2">; "</span>
+                    <span class="sa">f</span><span class="s2">"DC shadow office </span><span class="si">{</span><span class="n">col_upper</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span><span class="si">!r}</span><span class="s2">"</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="p">(</span>
+                <span class="n">col_upper</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_VEST_OFFICE_MAP</span>
+                <span class="ow">and</span> <span class="n">_VEST_HOUSE_RE</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="n">col_upper</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">])</span> <span class="ow">is</span> <span class="kc">None</span>
+                <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span><span class="n">state_fips</span> <span class="o">==</span> <span class="s2">"11"</span> <span class="ow">and</span> <span class="n">col_upper</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"DEL"</span><span class="p">)</span>
+            <span class="p">):</span>
+                <span class="n">warning</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Skipping VEST vote column </span><span class="si">{</span><span class="n">col</span><span class="si">!r}</span><span class="s2"> for </span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">election_year</span><span class="si">}</span><span class="s2">; "</span>
+                    <span class="sa">f</span><span class="s2">"unmapped office </span><span class="si">{</span><span class="n">col_upper</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span><span class="si">!r}</span><span class="s2">"</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">vote_cols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+                <span class="n">column_years</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">column_year</span>
+                <span class="k">if</span> <span class="n">col_upper</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="ow">in</span> <span class="n">_VEST_PARTY_MAP</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">warning</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Preserving unmapped party letter </span><span class="si">{</span><span class="n">col_upper</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span><span class="si">!r}</span><span class="s2"> in VEST vote column "</span>
+                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">col</span><span class="si">!r}</span><span class="s2"> for </span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">election_year</span><span class="si">}</span><span class="s2">"</span>
+                <span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">warning</span><span class="p">)</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">warning</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">vote_cols</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"No VEST vote columns for election year </span><span class="si">{</span><span class="n">election_year</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">parsed_cols</span> <span class="o">=</span> <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_vote_column</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="n">state_fips</span><span class="o">=</span><span class="n">state_fips</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">vote_cols</span><span class="p">}</span>
+
+        <span class="c1"># Include skipped offices, years and malformed columns in the zero test.</span>
+        <span class="c1"># Invalid numeric text must not become evidence that a row has no votes.</span>
+        <span class="n">zero_vote_rows</span> <span class="o">=</span> <span class="n">gdf</span><span class="p">[</span><span class="n">source_vote_cols</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">col</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_numeric</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s2">"coerce"</span><span class="p">)</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="o">|</span> <span class="n">col</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span> <span class="o">|</span> <span class="n">col</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="s2">""</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">precinct_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_precinct_ids</span><span class="p">(</span><span class="n">gdf</span><span class="p">,</span> <span class="n">zero_vote_rows</span><span class="o">=</span><span class="n">zero_vote_rows</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">records_skipped</span> <span class="o">=</span> <span class="n">precinct_ids</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">records_skipped</span><span class="p">:</span>
+            <span class="n">warning</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Skipping </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">records_skipped</span><span class="si">}</span><span class="s2"> precinct rows for </span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">election_year</span><span class="si">}</span><span class="s2">: "</span>
+                <span class="s2">"missing or blank identifiers and zero votes in every vote column"</span>
             <span class="p">)</span>
-        <span class="p">]</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">warning</span><span class="p">)</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">warning</span><span class="p">)</span>
 
         <span class="n">records</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">gdf</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
-            <span class="n">precinct_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">precinct_col</span><span class="p">])</span> <span class="k">if</span> <span class="n">precinct_col</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">_</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">precinct_id</span><span class="p">,</span> <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">row</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">precinct_ids</span><span class="p">,</span> <span class="n">gdf</span><span class="o">.</span><span class="n">iterrows</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="n">precinct_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">continue</span>
             <span class="n">precinct_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">name_col</span><span class="p">])</span> <span class="k">if</span> <span class="n">name_col</span> <span class="k">else</span> <span class="s2">""</span>
 
             <span class="n">geom</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="k">if</span> <span class="n">row</span><span class="o">.</span><span class="n">geometry</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">row</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">is_empty</span><span class="p">:</span>
                 <span class="kn">from</span><span class="w"> </span><span class="nn">django.contrib.gis.geos</span><span class="w"> </span><span class="kn">import</span> <span class="n">GEOSGeometry</span><span class="p">,</span> <span class="n">MultiPolygon</span>
+                <span class="kn">from</span><span class="w"> </span><span class="nn">shapely</span><span class="w"> </span><span class="kn">import</span> <span class="n">force_2d</span>
 
-                <span class="n">geos_geom</span> <span class="o">=</span> <span class="n">GEOSGeometry</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">wkt</span><span class="p">,</span> <span class="n">srid</span><span class="o">=</span><span class="mi">4326</span><span class="p">)</span>
+                <span class="n">geos_geom</span> <span class="o">=</span> <span class="n">GEOSGeometry</span><span class="p">(</span><span class="n">force_2d</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">geometry</span><span class="p">)</span><span class="o">.</span><span class="n">wkt</span><span class="p">,</span> <span class="n">srid</span><span class="o">=</span><span class="mi">4326</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">geos_geom</span><span class="o">.</span><span class="n">geom_type</span> <span class="o">==</span> <span class="s2">"Polygon"</span><span class="p">:</span>
                     <span class="n">geos_geom</span> <span class="o">=</span> <span class="n">MultiPolygon</span><span class="p">(</span><span class="n">geos_geom</span><span class="p">,</span> <span class="n">srid</span><span class="o">=</span><span class="mi">4326</span><span class="p">)</span>
                 <span class="n">geom</span> <span class="o">=</span> <span class="n">geos_geom</span>
 
-            <span class="c1"># Create a record for each vote column found</span>
-            <span class="k">if</span> <span class="n">vote_cols</span><span class="p">:</span>
-                <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">vote_cols</span><span class="p">:</span>
-                    <span class="n">party</span><span class="p">,</span> <span class="n">office</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_vote_column</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
-                    <span class="n">votes</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">col</span><span class="p">])</span> <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
-                    <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">PrecinctElectionResult</span><span class="p">(</span>
-                        <span class="n">plan</span><span class="o">=</span><span class="n">plan</span><span class="p">,</span>
-                        <span class="n">state</span><span class="o">=</span><span class="n">state_obj</span><span class="p">,</span>
-                        <span class="n">state_fips</span><span class="o">=</span><span class="n">state_fips</span><span class="p">,</span>
-                        <span class="n">precinct_id</span><span class="o">=</span><span class="n">precinct_id</span><span class="p">,</span>
-                        <span class="n">precinct_name</span><span class="o">=</span><span class="n">precinct_name</span><span class="p">,</span>
-                        <span class="n">geometry</span><span class="o">=</span><span class="n">geom</span><span class="p">,</span>
-                        <span class="n">election_year</span><span class="o">=</span><span class="n">election_year</span><span class="p">,</span>
-                        <span class="n">office</span><span class="o">=</span><span class="n">office</span><span class="p">,</span>
-                        <span class="n">party</span><span class="o">=</span><span class="n">party</span><span class="p">,</span>
-                        <span class="n">votes</span><span class="o">=</span><span class="n">votes</span><span class="p">,</span>
-                        <span class="n">data_source</span><span class="o">=</span><span class="s2">"rdh"</span><span class="p">,</span>
-                    <span class="p">))</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="c1"># Fallback: store as a single record with total votes</span>
-                <span class="n">total_col</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_column</span><span class="p">(</span><span class="n">gdf</span><span class="p">,</span> <span class="p">[</span><span class="s2">"TOTAL"</span><span class="p">,</span> <span class="s2">"TOTVOTES"</span><span class="p">,</span> <span class="s2">"total_votes"</span><span class="p">])</span>
-                <span class="n">total</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">total_col</span><span class="p">])</span> <span class="k">if</span> <span class="n">total_col</span> <span class="ow">and</span> <span class="n">row</span><span class="p">[</span><span class="n">total_col</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="n">votes_by_col</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">totals</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">vote_cols</span><span class="p">:</span>
+                <span class="n">raw</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">col</span><span class="p">]</span>
+                <span class="n">votes</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">raw</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span> <span class="k">else</span> <span class="nb">int</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+                <span class="n">votes_by_col</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">votes</span>
+                <span class="n">prefix</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">upper</span><span class="p">()[:</span><span class="mi">6</span><span class="p">]</span>
+                <span class="n">totals</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span> <span class="o">=</span> <span class="n">totals</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">votes</span>
+
+            <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="p">(</span><span class="n">party</span><span class="p">,</span> <span class="n">office</span><span class="p">)</span> <span class="ow">in</span> <span class="n">parsed_cols</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">votes</span> <span class="o">=</span> <span class="n">votes_by_col</span><span class="p">[</span><span class="n">col</span><span class="p">]</span>
+                <span class="n">total</span> <span class="o">=</span> <span class="n">totals</span><span class="p">[</span><span class="n">col</span><span class="o">.</span><span class="n">upper</span><span class="p">()[:</span><span class="mi">6</span><span class="p">]]</span>
                 <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">PrecinctElectionResult</span><span class="p">(</span>
                     <span class="n">plan</span><span class="o">=</span><span class="n">plan</span><span class="p">,</span>
                     <span class="n">state</span><span class="o">=</span><span class="n">state_obj</span><span class="p">,</span>
@@ -9274,23 +9396,38 @@
                     <span class="n">precinct_id</span><span class="o">=</span><span class="n">precinct_id</span><span class="p">,</span>
                     <span class="n">precinct_name</span><span class="o">=</span><span class="n">precinct_name</span><span class="p">,</span>
                     <span class="n">geometry</span><span class="o">=</span><span class="n">geom</span><span class="p">,</span>
-                    <span class="n">election_year</span><span class="o">=</span><span class="n">election_year</span><span class="p">,</span>
-                    <span class="n">office</span><span class="o">=</span><span class="s2">"president"</span><span class="p">,</span>
-                    <span class="n">party</span><span class="o">=</span><span class="s2">"TOTAL"</span><span class="p">,</span>
-                    <span class="n">votes</span><span class="o">=</span><span class="n">total</span><span class="p">,</span>
+                    <span class="n">election_year</span><span class="o">=</span><span class="n">column_years</span><span class="p">[</span><span class="n">col</span><span class="p">],</span>
+                    <span class="n">election_type</span><span class="o">=</span><span class="n">col</span><span class="o">.</span><span class="n">upper</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="n">office</span><span class="o">=</span><span class="n">office</span><span class="p">,</span>
+                    <span class="n">district</span><span class="o">=</span><span class="p">(</span><span class="s2">"AL"</span> <span class="k">if</span> <span class="n">col</span><span class="o">.</span><span class="n">upper</span><span class="p">()[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"DEL"</span> <span class="k">else</span> <span class="n">col</span><span class="o">.</span><span class="n">upper</span><span class="p">()[</span><span class="mi">4</span><span class="p">:</span><span class="mi">6</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="n">office</span> <span class="o">==</span> <span class="s2">"house"</span> <span class="k">else</span> <span class="s2">""</span><span class="p">,</span>
+                    <span class="n">party</span><span class="o">=</span><span class="n">party</span><span class="p">,</span>
+                    <span class="n">party_code</span><span class="o">=</span><span class="n">col</span><span class="o">.</span><span class="n">upper</span><span class="p">()[</span><span class="mi">6</span><span class="p">],</span>
+                    <span class="n">candidate_name</span><span class="o">=</span><span class="n">col</span><span class="o">.</span><span class="n">upper</span><span class="p">()[</span><span class="mi">7</span><span class="p">:</span><span class="mi">10</span><span class="p">],</span>
+                    <span class="n">votes</span><span class="o">=</span><span class="n">votes</span><span class="p">,</span>
+                    <span class="n">total_votes</span><span class="o">=</span><span class="n">total</span><span class="p">,</span>
+                    <span class="n">vote_share</span><span class="o">=</span><span class="n">votes</span> <span class="o">/</span> <span class="n">total</span> <span class="k">if</span> <span class="n">total</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
                     <span class="n">data_source</span><span class="o">=</span><span class="s2">"rdh"</span><span class="p">,</span>
                 <span class="p">))</span>
 
-        <span class="k">if</span> <span class="n">records</span><span class="p">:</span>
-            <span class="n">PrecinctElectionResult</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">bulk_create</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
-            <span class="n">result</span><span class="o">.</span><span class="n">records_created</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">records</span><span class="p">)</span>
+        <span class="c1"># Replace the source snapshot only after all input has been parsed.</span>
+        <span class="c1"># The transaction restores the previous snapshot if insertion fails.</span>
+        <span class="n">scope</span> <span class="o">=</span> <span class="n">Q</span><span class="p">(</span><span class="n">election_year</span><span class="o">=</span><span class="n">election_year</span><span class="p">)</span>
+        <span class="n">runoff_offices</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">office</span> <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">office</span><span class="p">)</span> <span class="ow">in</span> <span class="n">parsed_cols</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">column_years</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">==</span> <span class="n">election_year</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="n">runoff_offices</span><span class="p">:</span>
+            <span class="n">scope</span> <span class="o">|=</span> <span class="n">Q</span><span class="p">(</span><span class="n">election_year</span><span class="o">=</span><span class="n">election_year</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">election_type</span><span class="o">=</span><span class="s2">"R"</span><span class="p">,</span> <span class="n">office__in</span><span class="o">=</span><span class="n">runoff_offices</span><span class="p">)</span>
+        <span class="n">PrecinctElectionResult</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">scope</span><span class="p">,</span> <span class="n">state_fips</span><span class="o">=</span><span class="n">state_fips</span><span class="p">,</span> <span class="n">data_source</span><span class="o">=</span><span class="s2">"rdh"</span><span class="p">)</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
+        <span class="n">PrecinctElectionResult</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">bulk_create</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">records_created</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">records</span><span class="p">)</span>
 
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"Loaded </span><span class="si">%d</span><span class="s2"> precinct results for </span><span class="si">%s</span><span class="s2"> </span><span class="si">%d</span><span class="s2">"</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">records</span><span class="p">),</span> <span class="n">state</span><span class="p">,</span> <span class="n">election_year</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">result</span>
 
     <span class="nd">@transaction</span><span class="o">.</span><span class="n">atomic</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">load_cvap_for_plan</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plan</span><span class="p">,</span> <span class="n">year</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RDHLoadResult</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Overlay CVAP data onto plan districts via spatial join.</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_cvap_for_plan</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plan</span><span class="p">,</span> <span class="n">year</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">geography</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"tract"</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RDHLoadResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Set ``district.cvap`` by matching district GEOIDs to an RDH CVAP table.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -9298,10 +9435,17 @@
 <span class="sd">            Plan whose districts will be updated.</span>
 <span class="sd">        year : int</span>
 <span class="sd">            CVAP data year.</span>
+<span class="sd">        geography : str</span>
+<span class="sd">            CVAP dataset level, passed to ``fetch_cvap``. It must be the level</span>
+<span class="sd">            whose GEOIDs equal the plan's district GEOIDs; a level with no</span>
+<span class="sd">            matching GEOIDs is reported in ``errors``, not silently skipped.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        RDHLoadResult</span>
+<span class="sd">            ``errors`` is set when no CVAP dataset exists at ``geography``,</span>
+<span class="sd">            the GEOID column is numeric (leading zeros lost), or no district</span>
+<span class="sd">            matches. ``warnings`` lists districts left without a match.</span>
 <span class="sd">        """</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.geo.providers.redistricting_data_hub</span><span class="w"> </span><span class="kn">import</span> <span class="n">fetch_cvap</span>
 
@@ -9309,7 +9453,9 @@
 
         <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fips_to_state_abbr</span><span class="p">(</span><span class="n">plan</span><span class="o">.</span><span class="n">state_fips</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">cvap_df</span> <span class="o">=</span> <span class="n">fetch_cvap</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">year</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">year</span><span class="p">),</span> <span class="n">client</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">)</span>
+            <span class="n">cvap_df</span> <span class="o">=</span> <span class="n">fetch_cvap</span><span class="p">(</span>
+                <span class="n">state</span><span class="p">,</span> <span class="n">year</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">year</span><span class="p">),</span> <span class="n">geography</span><span class="o">=</span><span class="n">geography</span><span class="p">,</span> <span class="n">client</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span>
+            <span class="p">)</span>
         <span class="k">except</span> <span class="ne">FileNotFoundError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">result</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
             <span class="k">return</span> <span class="n">result</span>
@@ -9326,19 +9472,33 @@
             <span class="n">result</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"Could not identify CVAP or GEOID columns"</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">result</span>
 
+        <span class="n">numeric_geoid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_numeric_geoid_error</span><span class="p">(</span><span class="n">cvap_df</span><span class="p">,</span> <span class="n">geoid_col</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">numeric_geoid</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">numeric_geoid</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">result</span>
+
         <span class="n">cvap_lookup</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">cvap_df</span><span class="p">[</span><span class="n">geoid_col</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">),</span> <span class="n">cvap_df</span><span class="p">[</span><span class="n">cvap_col</span><span class="p">]))</span>
 
         <span class="n">updated</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">matched</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">unmatched</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">district</span> <span class="ow">in</span> <span class="n">plan</span><span class="o">.</span><span class="n">districts</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">district</span><span class="o">.</span><span class="n">geoid</span> <span class="ow">in</span> <span class="n">cvap_lookup</span><span class="p">:</span>
-                <span class="n">raw</span> <span class="o">=</span> <span class="n">cvap_lookup</span><span class="p">[</span><span class="n">district</span><span class="o">.</span><span class="n">geoid</span><span class="p">]</span>
-                <span class="k">if</span> <span class="n">raw</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">and</span> <span class="n">raw</span> <span class="o">!=</span> <span class="n">raw</span><span class="p">):</span>
-                    <span class="k">continue</span>
-                <span class="n">district</span><span class="o">.</span><span class="n">cvap</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
-                <span class="n">district</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">update_fields</span><span class="o">=</span><span class="p">[</span><span class="s2">"cvap"</span><span class="p">])</span>
-                <span class="n">updated</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">district</span><span class="o">.</span><span class="n">geoid</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cvap_lookup</span><span class="p">:</span>
+                <span class="n">unmatched</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">district</span><span class="o">.</span><span class="n">geoid</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">matched</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">raw</span> <span class="o">=</span> <span class="n">cvap_lookup</span><span class="p">[</span><span class="n">district</span><span class="o">.</span><span class="n">geoid</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">raw</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span> <span class="ow">and</span> <span class="n">raw</span> <span class="o">!=</span> <span class="n">raw</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">district</span><span class="o">.</span><span class="n">cvap</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+            <span class="n">district</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">update_fields</span><span class="o">=</span><span class="p">[</span><span class="s2">"cvap"</span><span class="p">])</span>
+            <span class="n">updated</span> <span class="o">+=</span> <span class="mi">1</span>
 
         <span class="n">result</span><span class="o">.</span><span class="n">records_updated</span> <span class="o">=</span> <span class="n">updated</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">records_skipped</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">unmatched</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_report_unmatched</span><span class="p">(</span>
+            <span class="n">result</span><span class="p">,</span> <span class="n">unmatched</span><span class="p">,</span> <span class="n">matched</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"CVAP </span><span class="si">{</span><span class="n">geoid_col</span><span class="si">}</span><span class="s2"> (geography=</span><span class="si">{</span><span class="n">geography</span><span class="si">!r}</span><span class="s2">)"</span><span class="p">,</span>
+        <span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"Updated CVAP for </span><span class="si">%d</span><span class="s2"> districts in plan </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span> <span class="n">updated</span><span class="p">,</span> <span class="n">plan</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">result</span>
 
@@ -9398,9 +9558,15 @@
             <span class="c1"># Store what we can by GEOID match</span>
             <span class="n">geoid_col</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_column_df</span><span class="p">(</span><span class="n">census_gdf</span><span class="p">,</span> <span class="p">[</span><span class="s2">"GEOID"</span><span class="p">,</span> <span class="s2">"geoid"</span><span class="p">,</span> <span class="s2">"GEOID20"</span><span class="p">])</span>
             <span class="k">if</span> <span class="n">geoid_col</span><span class="p">:</span>
+                <span class="n">numeric_geoid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_numeric_geoid_error</span><span class="p">(</span><span class="n">census_gdf</span><span class="p">,</span> <span class="n">geoid_col</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">numeric_geoid</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">numeric_geoid</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">result</span>
+                <span class="n">unmatched</span> <span class="o">=</span> <span class="p">[]</span>
                 <span class="k">for</span> <span class="n">district</span> <span class="ow">in</span> <span class="n">districts_qs</span><span class="p">:</span>
                     <span class="n">row</span> <span class="o">=</span> <span class="n">census_gdf</span><span class="p">[</span><span class="n">census_gdf</span><span class="p">[</span><span class="n">geoid_col</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span> <span class="o">==</span> <span class="n">district</span><span class="o">.</span><span class="n">geoid</span><span class="p">]</span>
                     <span class="k">if</span> <span class="n">row</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+                        <span class="n">unmatched</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">district</span><span class="o">.</span><span class="n">geoid</span><span class="p">)</span>
                         <span class="n">result</span><span class="o">.</span><span class="n">records_skipped</span> <span class="o">+=</span> <span class="mi">1</span>
                         <span class="k">continue</span>
                     <span class="n">row</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -9416,6 +9582,9 @@
                         <span class="n">defaults</span><span class="o">=</span><span class="p">{</span><span class="s2">"values"</span><span class="p">:</span> <span class="n">values</span><span class="p">},</span>
                     <span class="p">)</span>
                     <span class="n">result</span><span class="o">.</span><span class="n">records_created</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_report_unmatched</span><span class="p">(</span>
+                    <span class="n">result</span><span class="p">,</span> <span class="n">unmatched</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">records_created</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"ACS </span><span class="si">{</span><span class="n">geoid_col</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                <span class="p">)</span>
                 <span class="k">return</span> <span class="n">result</span>
 
         <span class="c1"># Spatial join path (when census_gdf is a GeoDataFrame)</span>
@@ -9490,6 +9659,70 @@
 
     <span class="c1"># -- Helpers --------------------------------------------------------------</span>
 
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_resolve_precinct_ids</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">gdf</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">zero_vote_rows</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">"""Resolve a complete statewide key from observed VEST identifier fields.</span>
+
+<span class="sd">        Try whole-file alternatives, never row numbers or per-row substitutions.</span>
+<span class="sd">        County-local VTDs are qualified even when this file happens to be unique.</span>
+<span class="sd">        GA's CTYSOSID is an alternative when PRECINCT_I includes missing codes.</span>
+<span class="sd">        Prefer a complete candidate over one requiring omission of zero-vote</span>
+<span class="sd">        blank-ID rows. Return None at omitted positions to preserve row alignment.</span>
+<span class="sd">        """</span>
+        <span class="n">county_col</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_find_column</span><span class="p">(</span><span class="n">gdf</span><span class="p">,</span> <span class="p">[</span>
+            <span class="s2">"COUNTYFP20"</span><span class="p">,</span> <span class="s2">"COUNTYFP10"</span><span class="p">,</span> <span class="s2">"COUNTYFP"</span><span class="p">,</span> <span class="s2">"CNTY_FIPS"</span><span class="p">,</span> <span class="s2">"COUNTY_FIPS"</span><span class="p">,</span>
+            <span class="s2">"FIPS2"</span><span class="p">,</span> <span class="s2">"CDE_COUNTY"</span><span class="p">,</span> <span class="s2">"COUNTY"</span><span class="p">,</span> <span class="s2">"CNTY"</span><span class="p">,</span> <span class="s2">"CNTY_NAME"</span><span class="p">,</span> <span class="s2">"LOCALITY"</span><span class="p">,</span>
+        <span class="p">])</span>
+        <span class="n">municipality_col</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_find_column</span><span class="p">(</span><span class="n">gdf</span><span class="p">,</span> <span class="p">[</span><span class="s2">"MCD_FIPS"</span><span class="p">,</span> <span class="s2">"MCD"</span><span class="p">,</span> <span class="s2">"MCD_NAME"</span><span class="p">])</span>
+        <span class="n">candidates</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">[</span>
+            <span class="s2">"GEOID20"</span><span class="p">,</span> <span class="s2">"GEOID10"</span><span class="p">,</span> <span class="s2">"GEOID"</span><span class="p">,</span> <span class="s2">"VTDST20"</span><span class="p">,</span> <span class="s2">"VTDST10"</span><span class="p">,</span> <span class="s2">"PRECINCT"</span><span class="p">,</span>
+            <span class="s2">"PRECINCT_I"</span><span class="p">,</span> <span class="s2">"SOSPRECINC"</span><span class="p">,</span> <span class="s2">"WARDID"</span><span class="p">,</span> <span class="s2">"CTYSOSID"</span><span class="p">,</span> <span class="s2">"PREC_ID"</span><span class="p">,</span>
+            <span class="s2">"VTDST"</span><span class="p">,</span> <span class="s2">"precinct_id"</span><span class="p">,</span> <span class="s2">"VTD"</span><span class="p">,</span> <span class="s2">"PCTNUM"</span><span class="p">,</span>
+            <span class="s2">"GEOID16"</span><span class="p">,</span> <span class="s2">"GEOID18"</span><span class="p">,</span> <span class="s2">"VTDST16"</span><span class="p">,</span> <span class="s2">"VTDST18"</span><span class="p">,</span> <span class="s2">"VTDID"</span><span class="p">,</span>
+        <span class="p">]:</span>
+            <span class="n">col</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_find_column</span><span class="p">(</span><span class="n">gdf</span><span class="p">,</span> <span class="p">[</span><span class="n">name</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">col</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">parts</span> <span class="o">=</span> <span class="p">[</span><span class="n">col</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"GEOID"</span><span class="p">)</span> <span class="ow">and</span> <span class="n">name</span> <span class="o">!=</span> <span class="s2">"VTDID"</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">"WARDID"</span> <span class="ow">and</span> <span class="n">municipality_col</span><span class="p">:</span>
+                    <span class="n">parts</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">municipality_col</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">county_col</span><span class="p">:</span>
+                    <span class="n">parts</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">county_col</span><span class="p">)</span>
+            <span class="n">candidates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">candidates</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Could not identify a precinct identifier column"</span><span class="p">)</span>
+
+        <span class="n">failures</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">partial_ids</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">columns</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">:</span>
+            <span class="n">parts</span> <span class="o">=</span> <span class="n">gdf</span><span class="p">[</span><span class="n">columns</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+            <span class="n">missing</span> <span class="o">=</span> <span class="n">gdf</span><span class="p">[</span><span class="n">columns</span><span class="p">]</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">|</span> <span class="n">parts</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="s2">""</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">missing</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="n">failures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">columns</span><span class="si">}</span><span class="s2">: Precinct identifiers must not be missing or blank"</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">zero_vote_rows</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">zero_vote_rows</span><span class="p">[</span><span class="n">missing</span><span class="p">]</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> <span class="ow">or</span> <span class="n">missing</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+                    <span class="k">continue</span>
+            <span class="c1"># Escape the separator so component boundaries cannot alias.</span>
+            <span class="n">parts</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"%"</span><span class="p">,</span> <span class="s2">"%25"</span><span class="p">,</span> <span class="n">regex</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">":"</span><span class="p">,</span> <span class="s2">"%3A"</span><span class="p">,</span> <span class="n">regex</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">ids</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="s2">":"</span><span class="o">.</span><span class="n">join</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ids</span><span class="p">[</span><span class="o">~</span><span class="n">missing</span><span class="p">]</span><span class="o">.</span><span class="n">duplicated</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="n">failures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">columns</span><span class="si">}</span><span class="s2">: Duplicate precinct identifiers"</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">ids</span><span class="p">[</span><span class="o">~</span><span class="n">missing</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">len</span><span class="p">()</span><span class="o">.</span><span class="n">gt</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="n">failures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">columns</span><span class="si">}</span><span class="s2">: Precinct identifiers exceed 60 characters"</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">missing</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"Resolved statewide precinct identifiers from </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span> <span class="n">columns</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">ids</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">partial_ids</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">partial_ids</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span> <span class="k">if</span> <span class="n">absent</span> <span class="k">else</span> <span class="n">value</span> <span class="k">for</span> <span class="n">value</span><span class="p">,</span> <span class="n">absent</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">ids</span><span class="p">,</span> <span class="n">missing</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="n">partial_ids</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">partial_ids</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Cannot resolve statewide precinct identifiers; "</span> <span class="o">+</span> <span class="s2">"; "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">failures</span><span class="p">))</span>
+
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_find_column</span><span class="p">(</span><span class="n">gdf</span><span class="p">,</span> <span class="n">candidates</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">"""Find first matching column name (case-insensitive)."""</span>
@@ -9498,6 +9731,35 @@
             <span class="k">if</span> <span class="n">candidate</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="ow">in</span> <span class="n">cols_upper</span><span class="p">:</span>
                 <span class="k">return</span> <span class="n">cols_upper</span><span class="p">[</span><span class="n">candidate</span><span class="o">.</span><span class="n">upper</span><span class="p">()]</span>
         <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_numeric_geoid_error</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">geoid_col</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Return an error if ``geoid_col`` is numeric, i.e. leading zeros are gone.</span>
+
+<span class="sd">        A numeric GEOID for states 01-09 has lost its leading zero, so a string</span>
+<span class="sd">        match against ``district.geoid`` would silently miss. (#1571)</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="n">df</span><span class="p">[</span><span class="n">geoid_col</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">kind</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"i"</span><span class="p">,</span> <span class="s2">"u"</span><span class="p">,</span> <span class="s2">"f"</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"GEOID column </span><span class="si">{</span><span class="n">geoid_col</span><span class="si">!r}</span><span class="s2"> is numeric (</span><span class="si">{</span><span class="n">df</span><span class="p">[</span><span class="n">geoid_col</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">); "</span>
+                <span class="s2">"leading zeros are lost and districts in states 01-09 cannot match. "</span>
+                <span class="s2">"Read it as str (RDHClient.load_csv does by default)."</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_report_unmatched</span><span class="p">(</span>
+        <span class="n">result</span><span class="p">:</span> <span class="n">RDHLoadResult</span><span class="p">,</span> <span class="n">unmatched</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">matched</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Record districts with no GEOID match: an error if none matched, else a warning."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">unmatched</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">sample</span> <span class="o">=</span> <span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">g</span><span class="p">)</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">unmatched</span><span class="p">)[:</span><span class="mi">5</span><span class="p">])</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">unmatched</span><span class="p">)</span><span class="si">}</span><span class="s2"> district GEOID(s) not found in </span><span class="si">{</span><span class="n">source</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">sample</span><span class="si">}</span><span class="s2">"</span>
+        <span class="k">if</span> <span class="n">matched</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"No district matched; </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_find_column_df</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">candidates</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
@@ -9509,34 +9771,21 @@
         <span class="k">return</span> <span class="kc">None</span>
 
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_vote_column</span><span class="p">(</span><span class="n">col</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">"""Parse a vote column name like G20PREDEM into (party, office)."""</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_vote_column</span><span class="p">(</span><span class="n">col</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">state_fips</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Parse a VEST TYYOOOPCCC column into (party display label, office)."""</span>
         <span class="n">col_upper</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
-        <span class="c1"># Common patterns: G20PREDEM, G20PREREP, G18GOVDEM, G20USSDEM</span>
-        <span class="n">office_map</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">"PRE"</span><span class="p">:</span> <span class="s2">"president"</span><span class="p">,</span>
-            <span class="s2">"GOV"</span><span class="p">:</span> <span class="s2">"governor"</span><span class="p">,</span>
-            <span class="s2">"USS"</span><span class="p">:</span> <span class="s2">"senate"</span><span class="p">,</span>
-            <span class="s2">"USH"</span><span class="p">:</span> <span class="s2">"house"</span><span class="p">,</span>
-            <span class="s2">"SOS"</span><span class="p">:</span> <span class="s2">"secretary_of_state"</span><span class="p">,</span>
-            <span class="s2">"ATG"</span><span class="p">:</span> <span class="s2">"attorney_general"</span><span class="p">,</span>
-        <span class="p">}</span>
-        <span class="n">party</span> <span class="o">=</span> <span class="s2">"OTHER"</span>
-        <span class="n">office</span> <span class="o">=</span> <span class="s2">"president"</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">col_upper</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">6</span><span class="p">:</span>
-            <span class="n">office_code</span> <span class="o">=</span> <span class="n">col_upper</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span>
-            <span class="n">office</span> <span class="o">=</span> <span class="n">office_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">office_code</span><span class="p">,</span> <span class="s2">"president"</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">col_upper</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">"DEM"</span><span class="p">):</span>
-            <span class="n">party</span> <span class="o">=</span> <span class="s2">"DEM"</span>
-        <span class="k">elif</span> <span class="n">col_upper</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">"REP"</span><span class="p">):</span>
-            <span class="n">party</span> <span class="o">=</span> <span class="s2">"REP"</span>
-        <span class="k">elif</span> <span class="n">col_upper</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">"LIB"</span><span class="p">):</span>
-            <span class="n">party</span> <span class="o">=</span> <span class="s2">"LIB"</span>
-        <span class="k">elif</span> <span class="n">col_upper</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">"GRN"</span><span class="p">):</span>
-            <span class="n">party</span> <span class="o">=</span> <span class="s2">"GRN"</span>
-        <span class="k">elif</span> <span class="n">col_upper</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">"IND"</span><span class="p">):</span>
-            <span class="n">party</span> <span class="o">=</span> <span class="s2">"IND"</span>
-        <span class="k">return</span> <span class="n">party</span><span class="p">,</span> <span class="n">office</span>
+        <span class="k">if</span> <span class="n">_VEST_VOTE_COLUMN_RE</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="n">col_upper</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Invalid VEST vote column: </span><span class="si">{</span><span class="n">col</span><span class="si">!r}</span><span class="s2">; expected TYYOOOPCCC"</span><span class="p">)</span>
+        <span class="n">office_code</span> <span class="o">=</span> <span class="n">col_upper</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">]</span>
+        <span class="n">office</span> <span class="o">=</span> <span class="s2">"house"</span> <span class="k">if</span> <span class="n">_VEST_HOUSE_RE</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="n">office_code</span><span class="p">)</span> <span class="k">else</span> <span class="n">_VEST_OFFICE_MAP</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">office_code</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">state_fips</span> <span class="o">==</span> <span class="s2">"11"</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">office_code</span> <span class="o">==</span> <span class="s2">"DEL"</span><span class="p">:</span>
+                <span class="n">office</span> <span class="o">=</span> <span class="s2">"house"</span>
+            <span class="k">elif</span> <span class="n">office_code</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">"USS"</span><span class="p">,</span> <span class="s2">"HAL"</span><span class="p">}:</span>
+                <span class="n">office</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">office</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unsupported VEST office </span><span class="si">{</span><span class="n">office_code</span><span class="si">!r}</span><span class="s2"> in column </span><span class="si">{</span><span class="n">col</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_VEST_PARTY_MAP</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">col_upper</span><span class="p">[</span><span class="mi">6</span><span class="p">],</span> <span class="n">col_upper</span><span class="p">[</span><span class="mi">6</span><span class="p">]),</span> <span class="n">office</span>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_state_abbr_to_fips</span><span class="p">(</span><span class="n">abbr</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -9554,7 +9803,10 @@
             <span class="s2">"VA"</span><span class="p">:</span> <span class="s2">"51"</span><span class="p">,</span> <span class="s2">"WA"</span><span class="p">:</span> <span class="s2">"53"</span><span class="p">,</span> <span class="s2">"WV"</span><span class="p">:</span> <span class="s2">"54"</span><span class="p">,</span> <span class="s2">"WI"</span><span class="p">:</span> <span class="s2">"55"</span><span class="p">,</span> <span class="s2">"WY"</span><span class="p">:</span> <span class="s2">"56"</span><span class="p">,</span>
             <span class="s2">"DC"</span><span class="p">:</span> <span class="s2">"11"</span><span class="p">,</span> <span class="s2">"PR"</span><span class="p">:</span> <span class="s2">"72"</span><span class="p">,</span>
         <span class="p">}</span>
-        <span class="k">return</span> <span class="n">_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">abbr</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span> <span class="s2">"00"</span><span class="p">)</span>
+        <span class="n">normalized</span> <span class="o">=</span> <span class="n">abbr</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">normalized</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_map</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unknown state abbreviation: </span><span class="si">{</span><span class="n">abbr</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_map</span><span class="p">[</span><span class="n">normalized</span><span class="p">]</span>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_fips_to_state_abbr</span><span class="p">(</span><span class="n">fips</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>

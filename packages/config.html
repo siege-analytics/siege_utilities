@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Config &mdash; Siege Utilities 4.0.0 documentation</title>
+  <title>Config &mdash; Siege Utilities 4.1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=3304f9e4"></script>
+      <script src="../_static/documentation_options.js?v=42d1b3bd"></script>
       <script src="../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/js/theme.js"></script>
@@ -4501,7 +4501,7 @@
 <li class="toctree-l2"><a class="reference internal" href="geo_django.html#module-siege_utilities.geo.django.models.base">Models</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.save"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.prepare_for_bulk()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.get_geoid_length"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.get_geoid_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.parse_geoid"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.parse_geoid()</span></code></a></li>
 </ul>
@@ -4510,12 +4510,14 @@
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.total_area"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.total_area</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.land_percentage"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.land_percentage</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.save"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.Meta"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.is_current"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.is_current</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.prepare_for_bulk()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.save"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.save()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalLinearFeature"><code class="docutils literal notranslate"><span class="pre">TemporalLinearFeature</span></code></a><ul>
@@ -4550,6 +4552,7 @@
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.state"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.Meta"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.get_geoid_length"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.get_geoid_length()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.normalize_geoid"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.normalize_geoid()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.parse_geoid"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.parse_geoid()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.is_at_large"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.is_at_large</span></code></a></li>
 </ul>
@@ -4635,16 +4638,19 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.DATASET_CHOICES"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.DATASET_CHOICES</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.content_object"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.content_object</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.get_value"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.get_value()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.get_moe"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.get_moe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.prepare_for_bulk()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.save"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.save()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.content_object"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries.content_object</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries.Meta</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicKeyArchive"><code class="docutils literal notranslate"><span class="pre">DemographicKeyArchive</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicKeyArchive.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicKeyArchive.Meta</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.SchoolDistrictBase"><code class="docutils literal notranslate"><span class="pre">SchoolDistrictBase</span></code></a><ul>
@@ -4668,28 +4674,28 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.save"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation"><code class="docutils literal notranslate"><span class="pre">SchoolLocation</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.state"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.Meta"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.save"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion"><code class="docutils literal notranslate"><span class="pre">NLRBRegion</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.Meta"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.save"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.Meta"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.save"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary"><code class="docutils literal notranslate"><span class="pre">GADMBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.save"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.gadm.GADMCountry"><code class="docutils literal notranslate"><span class="pre">GADMCountry</span></code></a><ul>
@@ -4750,7 +4756,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult"><code class="docutils literal notranslate"><span class="pre">IsochroneResult</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.Meta"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.save"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.nlrb_cases.NLRBCase"><code class="docutils literal notranslate"><span class="pre">NLRBCase</span></code></a><ul>
@@ -4844,7 +4850,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.Meta"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.save"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -4852,6 +4858,8 @@
 <li class="toctree-l2"><a class="reference internal" href="geo_django.html#module-siege_utilities.geo.django.managers">Managers</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryManager"><code class="docutils literal notranslate"><span class="pre">BoundaryManager</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.get_queryset"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.get_queryset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.snapshots()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.for_year"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_year()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.for_state"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_state()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.current"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.current()</span></code></a></li>
@@ -4876,6 +4884,7 @@
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.nearest"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.nearest()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.with_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.with_area()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.by_land_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_land_area()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.snapshots()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.geojson"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.geojson()</span></code></a></li>
 </ul>
@@ -4891,12 +4900,15 @@
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.nearest"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.nearest()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.with_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.with_area()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_land_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_land_area()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.snapshots()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.geojson"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.geojson()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager"><code class="docutils literal notranslate"><span class="pre">BoundaryManager</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.get_queryset"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.get_queryset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.snapshots()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.for_year"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_year()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.for_state"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_state()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.current"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.current()</span></code></a></li>
@@ -4999,6 +5011,7 @@
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_updated"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.errors"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_without_geometry"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_without_geometry</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.success"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.__init__"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.__init__()</span></code></a></li>
 </ul>
@@ -5015,6 +5028,8 @@
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.records_updated"><code class="docutils literal notranslate"><span class="pre">PopulationResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">PopulationResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.errors"><code class="docutils literal notranslate"><span class="pre">PopulationResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.sources_skipped"><code class="docutils literal notranslate"><span class="pre">PopulationResult.sources_skipped</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.warnings"><code class="docutils literal notranslate"><span class="pre">PopulationResult.warnings</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.total_processed"><code class="docutils literal notranslate"><span class="pre">PopulationResult.total_processed</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.success"><code class="docutils literal notranslate"><span class="pre">PopulationResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.__init__"><code class="docutils literal notranslate"><span class="pre">PopulationResult.__init__()</span></code></a></li>
@@ -5022,7 +5037,8 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.GEOGRAPHY_MODELS"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.GEOGRAPHY_MODELS</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.TIGER_TYPES"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.TIGER_TYPES</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.GEOGRAPHIC_LEVELS"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.GEOGRAPHIC_LEVELS</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.VTD_NOT_PUBLISHED"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.VTD_NOT_PUBLISHED</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.__init__"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.populate"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.populate()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.populate_states"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.populate_states()</span></code></a></li>
@@ -5042,6 +5058,7 @@
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.records_updated"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.errors"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.warnings"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.warnings</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.total_processed"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.total_processed</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.success"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.__init__"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.__init__()</span></code></a></li>
@@ -5061,6 +5078,7 @@
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.target_level"><code class="docutils literal notranslate"><span class="pre">RollupResult.target_level</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.variable_code"><code class="docutils literal notranslate"><span class="pre">RollupResult.variable_code</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_created"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_created</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_updated"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.coverage_ratio"><code class="docutils literal notranslate"><span class="pre">RollupResult.coverage_ratio</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.errors"><code class="docutils literal notranslate"><span class="pre">RollupResult.errors</span></code></a></li>
@@ -5702,6 +5720,7 @@
 <li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_slides.get_presentation"><code class="docutils literal notranslate"><span class="pre">get_presentation()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_slides.insert_image"><code class="docutils literal notranslate"><span class="pre">insert_image()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_slides.insert_text"><code class="docutils literal notranslate"><span class="pre">insert_text()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_slides.temporary_public_figure"><code class="docutils literal notranslate"><span class="pre">temporary_public_figure()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_slides.upload_figure_to_drive"><code class="docutils literal notranslate"><span class="pre">upload_figure_to_drive()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_workspace.GoogleWorkspaceClient"><code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_workspace.GoogleWorkspaceClient.__init__"><code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient.__init__()</span></code></a></li>
@@ -6294,9 +6313,12 @@
 </ul>
 </li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Config</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#siege_utilities.config.get_service_timeout"><code class="docutils literal notranslate"><span class="pre">get_service_timeout()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="#siege_utilities.config.normalize_state_identifier"><code class="docutils literal notranslate"><span class="pre">normalize_state_identifier()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="#siege_utilities.config.get_fips_info"><code class="docutils literal notranslate"><span class="pre">get_fips_info()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#sharing-exports-without-secrets">Sharing exports without secrets</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.config.get_service_timeout"><code class="docutils literal notranslate"><span class="pre">get_service_timeout()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.config.normalize_state_identifier"><code class="docutils literal notranslate"><span class="pre">normalize_state_identifier()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.config.get_fips_info"><code class="docutils literal notranslate"><span class="pre">get_fips_info()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#module-siege_utilities.config.credential_manager">Submodules</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.config.credential_manager.CredentialNotFoundError"><code class="docutils literal notranslate"><span class="pre">CredentialNotFoundError</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.credential_manager.CredentialNotFoundError.__init__"><code class="docutils literal notranslate"><span class="pre">CredentialNotFoundError.__init__()</span></code></a></li>
@@ -6653,6 +6675,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.config.models.DatabaseConnection"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.DatabaseConnection.validate_host"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_host()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.DatabaseConnection.validate_password_length"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.DatabaseConnection.validate_password"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.DatabaseConnection.validate_port"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_port()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.DatabaseConnection.validate_database_name"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_database_name()</span></code></a></li>
@@ -6660,10 +6683,10 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.config.models.SocialMediaAccount"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.SocialMediaAccount.refresh_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.refresh_token</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.SocialMediaAccount.api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.api_version</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.SocialMediaAccount.rate_limit_remaining"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.rate_limit_remaining</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.SocialMediaAccount.last_updated"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.last_updated</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.SocialMediaAccount.validate_access_token_length"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.SocialMediaAccount.validate_access_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.SocialMediaAccount.validate_account_id"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_account_id()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.SocialMediaAccount.validate_api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_api_version()</span></code></a></li>
@@ -6736,7 +6759,6 @@
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.DataSource.source_type"><code class="docutils literal notranslate"><span class="pre">DataSource.source_type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.DataSource.jurisdiction"><code class="docutils literal notranslate"><span class="pre">DataSource.jurisdiction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.DataSource.status"><code class="docutils literal notranslate"><span class="pre">DataSource.status</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.DataSource.auth_required"><code class="docutils literal notranslate"><span class="pre">DataSource.auth_required</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.DataSource.notes"><code class="docutils literal notranslate"><span class="pre">DataSource.notes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.DataSource.validate_auth_type"><code class="docutils literal notranslate"><span class="pre">DataSource.validate_auth_type()</span></code></a></li>
 </ul>
@@ -6967,7 +6989,6 @@
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.data_sources.DataSource.source_type"><code class="docutils literal notranslate"><span class="pre">DataSource.source_type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.data_sources.DataSource.jurisdiction"><code class="docutils literal notranslate"><span class="pre">DataSource.jurisdiction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.data_sources.DataSource.status"><code class="docutils literal notranslate"><span class="pre">DataSource.status</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.data_sources.DataSource.auth_required"><code class="docutils literal notranslate"><span class="pre">DataSource.auth_required</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.data_sources.DataSource.notes"><code class="docutils literal notranslate"><span class="pre">DataSource.notes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.data_sources.DataSource.validate_auth_type"><code class="docutils literal notranslate"><span class="pre">DataSource.validate_auth_type()</span></code></a></li>
 </ul>
@@ -6978,6 +6999,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.config.models.database_connection.DatabaseConnection"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.database_connection.DatabaseConnection.validate_host"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_host()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.database_connection.DatabaseConnection.validate_password_length"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.database_connection.DatabaseConnection.validate_password"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.database_connection.DatabaseConnection.validate_port"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_port()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.database_connection.DatabaseConnection.validate_database_name"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_database_name()</span></code></a></li>
@@ -7133,10 +7155,10 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.config.models.social_media_account.SocialMediaAccount"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.social_media_account.SocialMediaAccount.refresh_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.refresh_token</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.social_media_account.SocialMediaAccount.api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.api_version</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.social_media_account.SocialMediaAccount.rate_limit_remaining"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.rate_limit_remaining</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.social_media_account.SocialMediaAccount.last_updated"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.last_updated</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token_length"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_account_id"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_account_id()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_api_version()</span></code></a></li>
@@ -7873,7 +7895,10 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="hygiene.html">Hygiene</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings"><code class="docutils literal notranslate"><span class="pre">generate_docstrings()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="hygiene.html#docstring-generation">Docstring generation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings"><code class="docutils literal notranslate"><span class="pre">generate_docstrings()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="hygiene.html#module-siege_utilities.hygiene.generate_docstrings">Submodules</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.analyze_function_signature"><code class="docutils literal notranslate"><span class="pre">analyze_function_signature()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.categorize_function"><code class="docutils literal notranslate"><span class="pre">categorize_function()</span></code></a></li>
@@ -7881,6 +7906,7 @@
 <li class="toctree-l3"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder"><code class="docutils literal notranslate"><span class="pre">DocstringAdder</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.__init__"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_FunctionDef"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.visit_FunctionDef()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_AsyncFunctionDef"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.visit_AsyncFunctionDef()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.process_python_file"><code class="docutils literal notranslate"><span class="pre">process_python_file()</span></code></a></li>
@@ -8987,6 +9013,54 @@
 <h1>Config<a class="headerlink" href="#config" title="Link to this heading"></a></h1>
 <p>User and project configuration: credentials, database connections, client
 profiles, project management.</p>
+<section id="sharing-exports-without-secrets">
+<h2>Sharing exports without secrets<a class="headerlink" href="#sharing-exports-without-secrets" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">Person.to_dict</span></code>, <code class="docutils literal notranslate"><span class="pre">Person.to_yaml</span></code> and <code class="docutils literal notranslate"><span class="pre">export_entities</span></code> accept
+<code class="docutils literal notranslate"><span class="pre">exclude_sensitive=True</span></code>. Redaction walks live models, including subclass
+fields, nested dataclasses and plain objects, dictionaries and lists. YAML
+exports use safe mappings rather than Python-object constructor tags. A field declared with
+<code class="docutils literal notranslate"><span class="pre">Field(json_schema_extra={&quot;sensitive&quot;:</span> <span class="pre">True})</span></code> is redacted in full. An
+explicit <code class="docutils literal notranslate"><span class="pre">sensitive=False</span></code> preserves the field while still walking its
+contents.</p>
+<p>Unmarked names use the same token-aware classifier as the field-marker guard.
+CamelCase boundaries, hyphens, dots and spaces are normalized to underscores,
+then whole tokens identify credentials such as <code class="docutils literal notranslate"><span class="pre">accessKey</span></code>, <code class="docutils literal notranslate"><span class="pre">api-key</span></code>,
+<code class="docutils literal notranslate"><span class="pre">authorization</span></code>, <code class="docutils literal notranslate"><span class="pre">session_cookie</span></code>, <code class="docutils literal notranslate"><span class="pre">credentials</span></code>, <code class="docutils literal notranslate"><span class="pre">pem</span></code> and bare <code class="docutils literal notranslate"><span class="pre">key</span></code>.
+Adjacent count, policy, min, max, length, type and version qualifiers describe
+non-secret metadata. Relational and public key qualifiers preserve names such
+as <code class="docutils literal notranslate"><span class="pre">primary_key</span></code> and <code class="docutils literal notranslate"><span class="pre">public_key</span></code>. These exclusions apply per token:
+<code class="docutils literal notranslate"><span class="pre">public_key_secret</span></code> still redacts.
+Trailing digits are ignored on each token, so <code class="docutils literal notranslate"><span class="pre">apiKey2</span></code> and <code class="docutils literal notranslate"><span class="pre">password2</span></code>
+redact. Secret plurals and compounds such as <code class="docutils literal notranslate"><span class="pre">secrets</span></code>, <code class="docutils literal notranslate"><span class="pre">passwords</span></code>,
+<code class="docutils literal notranslate"><span class="pre">clientsecret</span></code> and <code class="docutils literal notranslate"><span class="pre">accesstoken</span></code> also redact. Run-together tokens containing
+secret, token, password, passwd, apikey, privatekey or accesskey redact too,
+including <code class="docutils literal notranslate"><span class="pre">secretaccesskey</span></code>, <code class="docutils literal notranslate"><span class="pre">googleapikey</span></code> and <code class="docutils literal notranslate"><span class="pre">passwordhash</span></code>.
+<code class="docutils literal notranslate"><span class="pre">secretary</span></code>, <code class="docutils literal notranslate"><span class="pre">secretariat</span></code>, <code class="docutils literal notranslate"><span class="pre">tokenizer</span></code> and <code class="docutils literal notranslate"><span class="pre">tokenized</span></code> remain public,
+but they do not exempt an additional secret indicator in the same joined name:
+<code class="docutils literal notranslate"><span class="pre">secretarypassword</span></code> and <code class="docutils literal notranslate"><span class="pre">tokenizersecret</span></code> redact. Other compounds ending in <code class="docutils literal notranslate"><span class="pre">key</span></code> or <code class="docutils literal notranslate"><span class="pre">keys</span></code> require a known secret prefix
+(api, access, secret, private, signing or ssh); <code class="docutils literal notranslate"><span class="pre">sessionid</span></code> is also recognized.
+Names such as <code class="docutils literal notranslate"><span class="pre">monkey</span></code>, <code class="docutils literal notranslate"><span class="pre">turkey</span></code> and <code class="docutils literal notranslate"><span class="pre">hockey</span></code> remain public.</p>
+<p>String values containing URL userinfo passwords are scrubbed regardless of
+their field name: <code class="docutils literal notranslate"><span class="pre">https://user:password&#64;host/path</span></code> becomes
+<code class="docutils literal notranslate"><span class="pre">https://user:***REDACTED***&#64;host/path</span></code>. The rest of the URL is preserved.
+Secret query and fragment parameters use the same name classifier as model
+fields (plus provider signature aliases), including <code class="docutils literal notranslate"><span class="pre">refresh_token</span></code>,
+<code class="docutils literal notranslate"><span class="pre">id_token</span></code>, <code class="docutils literal notranslate"><span class="pre">clientSecret</span></code>, <code class="docutils literal notranslate"><span class="pre">access_token</span></code>, <code class="docutils literal notranslate"><span class="pre">api_key</span></code>,
+<code class="docutils literal notranslate"><span class="pre">X-Amz-Signature</span></code> and <code class="docutils literal notranslate"><span class="pre">password</span></code>. For
+example, <code class="docutils literal notranslate"><span class="pre">https://host/path?access_token=value&amp;page=1</span></code> becomes
+<code class="docutils literal notranslate"><span class="pre">https://host/path?access_token=***REDACTED***&amp;page=1</span></code>. The same placeholder
+is used for these values, including in JDBC URLs and nested metadata.
+Percent-encoded nested redirect URL userinfo is decoded in layers for password
+scrubbing while non-credential redirect parameters keep their original value.</p>
+<p>Secrets inside JSON-encoded strings are <strong>not redacted</strong> by name. Store these
+secrets in dictionary fields or fields explicitly marked <code class="docutils literal notranslate"><span class="pre">sensitive=True</span></code>.
+For example, use <code class="docutils literal notranslate"><span class="pre">{&quot;client_secret&quot;:</span> <span class="pre">value}</span></code> as a dictionary, rather than
+encoding that dictionary as a string in an unmarked field. Secrets under
+innocuous names also require an explicit sensitivity marker.</p>
+<p><code class="docutils literal notranslate"><span class="pre">from_yaml</span></code> and <code class="docutils literal notranslate"><span class="pre">import_entities</span></code> reject values containing
+<code class="docutils literal notranslate"><span class="pre">***REDACTED***</span></code>, including scrubbed URLs, so placeholders cannot overwrite
+credentials. Use an unredacted export for backups and restoration. Exports
+containing only public values can round-trip with <code class="docutils literal notranslate"><span class="pre">exclude_sensitive=True</span></code>.</p>
 <p id="module-siege_utilities.config">Configuration module for siege_utilities.
 Centralized constants and configuration management.</p>
 <p>All submodules load on first attribute access via PEP 562 __getattr__.
@@ -9065,6 +9139,7 @@ ImportError when pydantic is not installed.</p>
 </div>
 </dd></dl>
 
+</section>
 <section id="module-siege_utilities.config.credential_manager">
 <span id="submodules"></span><h2>Submodules<a class="headerlink" href="#module-siege_utilities.config.credential_manager" title="Link to this heading"></a></h2>
 <p>Centralized Credential Management for siege_utilities</p>
@@ -9073,6 +9148,16 @@ ImportError when pydantic is not installed.</p>
 - Environment variables
 - Apple Keychain (macOS)
 - Interactive prompts (fallback)</p>
+<p>Default resolution order: environment variables, 1Password, service-scoped
+local files, Apple Keychain, then interactive prompts. Callers may override
+backend_priority. Files must name the service (for example postgres/password.txt
+or postgres_password.txt); unscoped password.txt, credentials.json, and
+client_secret_*.json files are not searched outside a service directory.
+Keychain supports only the password field; other fields skip it.
+1Password retrieval errors stop resolution, including exit code 1: no
+documented exit-code distinction establishes that an item is merely absent.
+1Password reads and writes target the exact item title or ID; stores refuse
+legacy title variations rather than writing an item the reader cannot find.</p>
 <p>Supports all analytics services (Google Analytics, Facebook Business, etc.)
 and database connections with a unified interface.</p>
 <dl class="py exception">
@@ -9111,10 +9196,10 @@ keychain: no entry; env: no matching variable”).</p>
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.config.credential_manager.</span></span><span class="sig-name descname"><span class="pre">CredentialManager</span></span><a class="reference internal" href="../_modules/siege_utilities/config/credential_manager.html#CredentialManager"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.credential_manager.CredentialManager" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.15)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Unified credential management system with fallback hierarchy.</p>
-<p>Fallback priority (mirrors Zsh system):
-1. Local files (JSON, tokens, etc.)
-2. Environment variables (for existing workflows)
-3. 1Password CLI (secure storage)
+<p>Default fallback priority:
+1. Environment variables (for existing workflows)
+2. 1Password CLI (secure storage)
+3. Service-scoped local files (JSON, tokens, etc.)
 4. Apple Keychain (macOS only)
 5. Interactive prompts (fallback)</p>
 <dl class="py method">
@@ -9125,7 +9210,7 @@ keychain: no entry; env: no matching variable”).</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>backend_priority</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.15)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>]</em>) – List of backends in priority order
-[‘files’, ‘env’, ‘1password’, ‘keychain’, ‘prompt’]</p></li>
+[‘env’, ‘1password’, ‘files’, ‘keychain’, ‘prompt’]</p></li>
 <li><p><strong>default_vault</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Default 1Password vault to use</p></li>
 <li><p><strong>default_account</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Default 1Password account shorthand or UUID</p></li>
 <li><p><strong>credential_paths</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.15)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a><em>]</em>) – Additional paths to search for credential files.</p></li>
@@ -9160,13 +9245,15 @@ directories during construction.</p></li>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If a CLI backend receives a service or username
+    starting with ‘-‘.</p></li>
 <li><p><a class="reference internal" href="#siege_utilities.config.credential_manager.CredentialNotFoundError" title="siege_utilities.config.credential_manager.CredentialNotFoundError"><strong>CredentialNotFoundError</strong></a> – when every configured + available backend
     was consulted and none had the credential. The error’s
     <code class="docutils literal notranslate"><span class="pre">attempts</span></code> list names each backend and its outcome
     (“skipped” / “no credential” / unknown-backend), so callers
     can surface a precise diagnostic instead of guessing.</p></li>
 <li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#Exception" title="(in Python v3.15)"><strong>Exception</strong></a> – backend-specific transport / auth / permission errors
-    (e.g., 1Password CLI non-found-nonzero exits) propagate
+    (including every nonzero 1Password retrieval exit) propagate
     directly from the per-backend helpers without being
     wrapped. See SU-1 in CLAUDE.md.</p></li>
 </ul>
@@ -9196,8 +9283,20 @@ directories during construction.</p></li>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>True if successful, False otherwise</p>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)">bool</a></p>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>SiegeConfigError</strong> – An existing 1Password item cannot be safely
+    replaced as JSON, or its updated value cannot be verified.
+    Also raised when only a legacy title variation exists;
+    supply the exact item title or ID instead.
+    See <code class="docutils literal notranslate"><span class="pre">_store_in_1password</span></code> for the supported edit scope.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If a CLI service/field name or Keychain username
+    starts with ‘-’, or Keychain is asked to store a field
+    other than password.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)">bool</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -9235,12 +9334,16 @@ directories during construction.</p></li>
 <dd class="field-even"><p>Tuple of (client_id, client_secret).</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.config.credential_manager.CredentialNotFoundError" title="siege_utilities.config.credential_manager.CredentialNotFoundError"><strong>CredentialNotFoundError</strong></a> – when neither 1Password item lookup
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#RuntimeError" title="(in Python v3.15)"><strong>RuntimeError</strong></a> – when 1Password retrieval exits nonzero. This stops
+    fallback because the exit code cannot establish item absence.</p></li>
+<li><p><a class="reference internal" href="#siege_utilities.config.credential_manager.CredentialNotFoundError" title="siege_utilities.config.credential_manager.CredentialNotFoundError"><strong>CredentialNotFoundError</strong></a> – when neither 1Password item lookup
     nor the general credential backends yield both
     <code class="docutils literal notranslate"><span class="pre">client_id</span></code> and <code class="docutils literal notranslate"><span class="pre">client_secret</span></code>.  The error’s
     <code class="docutils literal notranslate"><span class="pre">field</span></code> attribute names which field was missing;
     <code class="docutils literal notranslate"><span class="pre">attempts</span></code> carries per-backend diagnostics so callers
-    can surface an actionable message.</p>
+    can surface an actionable message.</p></li>
+</ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.15)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>, <a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>]</p>
@@ -9307,7 +9410,7 @@ directories during construction.</p></li>
     attempt-log shape.</p></li>
 <li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#Exception" title="(in Python v3.15)"><strong>Exception</strong></a> – backend-specific transport / auth errors propagate
     from the underlying helpers (e.g., 1Password CLI nonzero
-    exits other than “not found”).</p></li>
+    retrieval exits).</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -9335,8 +9438,13 @@ directories during construction.</p></li>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>True if successful</p>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)">bool</a></p>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>SiegeConfigError</strong> – A 1Password edit is unsafe or its value fails
+    verification. Login items are refused because CLI JSON cannot
+    establish passkey absence; use the 1Password app for these edits.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)">bool</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -9456,6 +9564,7 @@ Based on working implementation from GA project.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If item_title starts with ‘-‘.</p></li>
 <li><p><a class="reference external" href="https://docs.python.org/3/library/subprocess.html#subprocess.CalledProcessError" title="(in Python v3.15)"><strong>subprocess.CalledProcessError</strong></a> – If 1Password CLI fails (item not found,
     auth required, etc.)</p></li>
 <li><p><a class="reference external" href="https://docs.python.org/3/library/subprocess.html#subprocess.TimeoutExpired" title="(in Python v3.15)"><strong>subprocess.TimeoutExpired</strong></a> – If the <code class="docutils literal notranslate"><span class="pre">op</span></code> command exceeds 60 s.</p></li>
@@ -9489,7 +9598,8 @@ suitable for GoogleAnalyticsConnector(auth_method=”oauth2”).</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><a class="reference external" href="https://docs.python.org/3/library/subprocess.html#subprocess.CalledProcessError" title="(in Python v3.15)"><strong>subprocess.CalledProcessError</strong></a> – If 1Password CLI fails.</p></li>
 <li><p><a class="reference external" href="https://docs.python.org/3/library/subprocess.html#subprocess.TimeoutExpired" title="(in Python v3.15)"><strong>subprocess.TimeoutExpired</strong></a> – If the <code class="docutils literal notranslate"><span class="pre">op</span></code> command exceeds 60 s.</p></li>
-<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If the item exists but lacks client_id or client_secret.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If item_title starts with ‘-’, or the item exists but lacks
+    client_id or client_secret.</p></li>
 <li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#OSError" title="(in Python v3.15)"><strong>OSError</strong></a> – If the <code class="docutils literal notranslate"><span class="pre">op</span></code> binary cannot be executed.</p></li>
 </ul>
 </dd>
@@ -9519,6 +9629,7 @@ a 1Password Document item.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If item_title starts with ‘-‘.</p></li>
 <li><p><a class="reference external" href="https://docs.python.org/3/library/subprocess.html#subprocess.CalledProcessError" title="(in Python v3.15)"><strong>subprocess.CalledProcessError</strong></a> – If 1Password CLI fails (item not found,
     auth required, etc.)</p></li>
 <li><p><a class="reference external" href="https://docs.python.org/3/library/subprocess.html#subprocess.TimeoutExpired" title="(in Python v3.15)"><strong>subprocess.TimeoutExpired</strong></a> – If the <code class="docutils literal notranslate"><span class="pre">op</span></code> command exceeds 60 s.</p></li>
@@ -9535,14 +9646,14 @@ a 1Password Document item.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.config.credential_manager.create_temporary_service_account_file">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.config.credential_manager.</span></span><span class="sig-name descname"><span class="pre">create_temporary_service_account_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">service_account_data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/credential_manager.html#create_temporary_service_account_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.credential_manager.create_temporary_service_account_file" title="Link to this definition"></a></dt>
-<dd><p>Create a temporary service account file for Google APIs.
-Useful for APIs that require a file path.</p>
+<dd><p>Yield a private service account file for Google APIs inside a with block.</p>
+<p>The key and its private directory are deleted on exit, including on error.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>service_account_data</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>]</em>) – Service account credentials dictionary</p>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Path to temporary file.</p>
+<dt class="field-even">Yields<span class="colon">:</span></dt>
+<dd class="field-even"><p>Path to a mode-0600 JSON file, valid only inside the context.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -9551,7 +9662,7 @@ Useful for APIs that require a file path.</p>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a></p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Iterator" title="(in Python v3.15)"><em>Iterator</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9596,13 +9707,13 @@ Handles notebook connections, Spark connections, and their persistence.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.config.connections.save_connection_profile">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.config.connections.</span></span><span class="sig-name descname"><span class="pre">save_connection_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">profile</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'config'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/connections.html#save_connection_profile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.connections.save_connection_profile" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.config.connections.</span></span><span class="sig-name descname"><span class="pre">save_connection_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">profile</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/connections.html#save_connection_profile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.connections.save_connection_profile" title="Link to this definition"></a></dt>
 <dd><p>Save connection profile to JSON file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>profile</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a><em>]</em>) – Connection profile dictionary</p></li>
-<li><p><strong>config_directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Directory to save config files</p></li>
+<li><p><strong>config_directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Config root; defaults to ~/.siege_utilities</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -9621,13 +9732,13 @@ Handles notebook connections, Spark connections, and their persistence.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.config.connections.load_connection_profile">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.config.connections.</span></span><span class="sig-name descname"><span class="pre">load_connection_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connection_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'config'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/connections.html#load_connection_profile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.connections.load_connection_profile" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.config.connections.</span></span><span class="sig-name descname"><span class="pre">load_connection_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connection_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/connections.html#load_connection_profile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.connections.load_connection_profile" title="Link to this definition"></a></dt>
 <dd><p>Load connection profile from JSON file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>connection_id</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Connection ID to load</p></li>
-<li><p><strong>config_directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Directory containing config files</p></li>
+<li><p><strong>config_directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Config root; defaults to ~/.siege_utilities</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -9653,13 +9764,13 @@ Handles notebook connections, Spark connections, and their persistence.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.config.connections.find_connection_by_name">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.config.connections.</span></span><span class="sig-name descname"><span class="pre">find_connection_by_name</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'config'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/connections.html#find_connection_by_name"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.connections.find_connection_by_name" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.config.connections.</span></span><span class="sig-name descname"><span class="pre">find_connection_by_name</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/connections.html#find_connection_by_name"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.connections.find_connection_by_name" title="Link to this definition"></a></dt>
 <dd><p>Find a connection profile by name.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Connection name to search for</p></li>
-<li><p><strong>config_directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Directory containing config files</p></li>
+<li><p><strong>config_directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Config root; defaults to ~/.siege_utilities</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -9679,13 +9790,13 @@ Handles notebook connections, Spark connections, and their persistence.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.config.connections.list_connection_profiles">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.config.connections.</span></span><span class="sig-name descname"><span class="pre">list_connection_profiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connection_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'config'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/connections.html#list_connection_profiles"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.connections.list_connection_profiles" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.config.connections.</span></span><span class="sig-name descname"><span class="pre">list_connection_profiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connection_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/connections.html#list_connection_profiles"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.connections.list_connection_profiles" title="Link to this definition"></a></dt>
 <dd><p>List all available connection profiles, optionally filtered by type.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>connection_type</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Optional filter by connection type</p></li>
-<li><p><strong>config_directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Directory containing config files</p></li>
+<li><p><strong>config_directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Config root; defaults to ~/.siege_utilities</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -9705,14 +9816,14 @@ Handles notebook connections, Spark connections, and their persistence.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.config.connections.update_connection_profile">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.config.connections.</span></span><span class="sig-name descname"><span class="pre">update_connection_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connection_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">updates</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'config'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/connections.html#update_connection_profile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.connections.update_connection_profile" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.config.connections.</span></span><span class="sig-name descname"><span class="pre">update_connection_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connection_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">updates</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/connections.html#update_connection_profile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.connections.update_connection_profile" title="Link to this definition"></a></dt>
 <dd><p>Update an existing connection profile.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>connection_id</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Connection ID to update</p></li>
 <li><p><strong>updates</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a><em>]</em>) – Dictionary of updates to apply</p></li>
-<li><p><strong>config_directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Directory containing config files</p></li>
+<li><p><strong>config_directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Config root; defaults to ~/.siege_utilities</p></li>
 </ul>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
@@ -9736,13 +9847,13 @@ Handles notebook connections, Spark connections, and their persistence.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.config.connections.verify_connection_profile">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.config.connections.</span></span><span class="sig-name descname"><span class="pre">verify_connection_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connection_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'config'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/connections.html#verify_connection_profile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.connections.verify_connection_profile" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.config.connections.</span></span><span class="sig-name descname"><span class="pre">verify_connection_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connection_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/connections.html#verify_connection_profile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.connections.verify_connection_profile" title="Link to this definition"></a></dt>
 <dd><p>Test a connection to verify it’s working.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>connection_id</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Connection ID to test</p></li>
-<li><p><strong>config_directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Directory containing config files</p></li>
+<li><p><strong>config_directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Config root; defaults to ~/.siege_utilities</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -9762,13 +9873,13 @@ Handles notebook connections, Spark connections, and their persistence.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.config.connections.get_connection_status">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.config.connections.</span></span><span class="sig-name descname"><span class="pre">get_connection_status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connection_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'config'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/connections.html#get_connection_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.connections.get_connection_status" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.config.connections.</span></span><span class="sig-name descname"><span class="pre">get_connection_status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connection_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/connections.html#get_connection_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.connections.get_connection_status" title="Link to this definition"></a></dt>
 <dd><p>Get the current status and health of a connection.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>connection_id</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Connection ID to check</p></li>
-<li><p><strong>config_directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Directory containing config files</p></li>
+<li><p><strong>config_directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Config root; defaults to ~/.siege_utilities</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -9787,13 +9898,13 @@ Handles notebook connections, Spark connections, and their persistence.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.config.connections.cleanup_old_connections">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.config.connections.</span></span><span class="sig-name descname"><span class="pre">cleanup_old_connections</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">days_old</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">90</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'config'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/connections.html#cleanup_old_connections"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.connections.cleanup_old_connections" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.config.connections.</span></span><span class="sig-name descname"><span class="pre">cleanup_old_connections</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">days_old</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">90</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/connections.html#cleanup_old_connections"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.connections.cleanup_old_connections" title="Link to this definition"></a></dt>
 <dd><p>Remove old, unused connection profiles.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>days_old</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Remove connections older than this many days</p></li>
-<li><p><strong>config_directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Directory containing config files</p></li>
+<li><p><strong>config_directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Config root; defaults to ~/.siege_utilities</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -9854,7 +9965,9 @@ Handles database connection settings for Spark and other uses.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.config.databases.save_database_config">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.config.databases.</span></span><span class="sig-name descname"><span class="pre">save_database_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'config'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/databases.html#save_database_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.databases.save_database_config" title="Link to this definition"></a></dt>
-<dd><p>Save database configuration to JSON file.</p>
+<dd><p>Save database configuration to a private JSON file.</p>
+<p>The legacy default is CWD-relative config/. On shared hosts pass a private
+per-user config_directory; custom connection parameters can contain secrets.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -10664,7 +10777,9 @@ Enhanced with Pydantic validation while maintaining backward compatibility.</p>
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.config.user_config.</span></span><span class="sig-name descname"><span class="pre">UserConfigManager</span></span><a class="reference internal" href="../_modules/siege_utilities/config/user_config.html#UserConfigManager"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.user_config.UserConfigManager" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.15)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Manages user configuration and preferences.
-Handles user profiles, default settings, and configuration persistence.</p>
+Handles user profiles, default settings, and configuration persistence.
+POSIX writes enforce 0700 directories and 0600 files. On Windows, the
+per-user AppData default inherits the user’s ACL; chmod is not an ACL check.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.config.user_config.UserConfigManager.__init__">
 <span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/user_config.html#UserConfigManager.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.user_config.UserConfigManager.__init__" title="Link to this definition"></a></dt>
@@ -10672,6 +10787,9 @@ Handles user profiles, default settings, and configuration persistence.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>config_dir</strong> (<a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a><em> | </em><em>None</em>) – Directory containing user configuration files</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If a safe per-user fallback cannot be determined.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -10791,10 +10909,16 @@ warnings and ignored.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.config.user_config.UserConfigManager.export_config">
 <span class="sig-name descname"><span class="pre">export_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/user_config.html#UserConfigManager.export_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.user_config.UserConfigManager.export_config" title="Link to this definition"></a></dt>
-<dd><p>Export user configuration to a file.</p>
+<dd><p>Export user configuration without secrets (POSIX 0600; Windows parent ACL).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>output_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Path to export configuration</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#OSError" title="(in Python v3.15)"><strong>OSError</strong></a> – If the export cannot be written or replaced.</p></li>
+<li><p><strong>yaml.YAMLError</strong> – If the profile cannot be serialized.</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
@@ -10806,6 +10930,12 @@ warnings and ignored.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>input_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Path to import configuration from</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#OSError" title="(in Python v3.15)"><strong>OSError</strong></a> – If the input cannot be read or the profile cannot be saved.</p></li>
+<li><p><strong>yaml.YAMLError</strong> – If parsing or serialization fails.</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
@@ -10891,7 +11021,8 @@ and other configuration data to the new system.</p>
 <dd class="field-odd"><p><strong>legacy_file</strong> (<a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a><em> | </em><em>None</em>) – Path to legacy user config file</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>New UserProfile instance</p>
+<dd class="field-even"><p>New UserProfile instance. Missing files raise FileNotFoundError;
+read, parse and validation errors propagate.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.config.models.user_profile.UserProfile" title="siege_utilities.config.models.user_profile.UserProfile"><em>UserProfile</em></a></p>
@@ -10911,7 +11042,8 @@ and other configuration data to the new system.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>New ClientProfile instance</p>
+<dd class="field-even"><p>New ClientProfile instance. Missing files raise FileNotFoundError;
+read, parse and validation errors propagate.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.config.models.client_profile.ClientProfile" title="siege_utilities.config.models.client_profile.ClientProfile"><em>ClientProfile</em></a></p>
@@ -13202,7 +13334,8 @@ and other configuration data to the new system.</p>
 <dd class="field-odd"><p><strong>legacy_file</strong> (<a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a><em> | </em><em>None</em>) – Path to legacy user config file</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>New UserProfile instance</p>
+<dd class="field-even"><p>New UserProfile instance. Missing files raise FileNotFoundError;
+read, parse and validation errors propagate.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.config.models.user_profile.UserProfile" title="siege_utilities.config.models.user_profile.UserProfile"><em>UserProfile</em></a></p>
@@ -13222,7 +13355,8 @@ and other configuration data to the new system.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>New ClientProfile instance</p>
+<dd class="field-even"><p>New ClientProfile instance. Missing files raise FileNotFoundError;
+read, parse and validation errors propagate.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.config.models.client_profile.ClientProfile" title="siege_utilities.config.models.client_profile.ClientProfile"><em>ClientProfile</em></a></p>
@@ -13357,7 +13491,7 @@ detailed field constraints and business logic validation.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.config.models.UserProfile.model_config">
-<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.UserProfile.model_config" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'hide_input_in_errors':</span> <span class="pre">True,</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.UserProfile.model_config" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -13526,7 +13660,7 @@ detailed field constraints and business logic validation.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.config.models.ClientProfile.model_config">
-<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.ClientProfile.model_config" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'hide_input_in_errors':</span> <span class="pre">True,</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.ClientProfile.model_config" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -13601,6 +13735,12 @@ detailed field constraints and security validation.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.config.models.DatabaseConnection.validate_password_length">
+<span class="sig-name descname"><span class="pre">validate_password_length</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.config.models.DatabaseConnection.validate_password_length" title="Link to this definition"></a></dt>
+<dd><p>Keep minimum-length errors value-free before secret conversion.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.config.models.DatabaseConnection.validate_password">
 <span class="sig-name descname"><span class="pre">validate_password</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.config.models.DatabaseConnection.validate_password" title="Link to this definition"></a></dt>
 <dd><p>Validate password strength.</p>
@@ -13639,11 +13779,6 @@ detailed field constraints and security validation.</p>
 <p>Provides type-safe, validated social media account settings with
 platform-specific validation and security constraints.</p>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="siege_utilities.config.models.SocialMediaAccount.refresh_token">
-<span class="sig-name descname"><span class="pre">refresh_token</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#siege_utilities.config.models.SocialMediaAccount.refresh_token" title="Link to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.config.models.SocialMediaAccount.api_version">
 <span class="sig-name descname"><span class="pre">api_version</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#siege_utilities.config.models.SocialMediaAccount.api_version" title="Link to this definition"></a></dt>
 <dd></dd></dl>
@@ -13657,6 +13792,12 @@ platform-specific validation and security constraints.</p>
 <dt class="sig sig-object py" id="siege_utilities.config.models.SocialMediaAccount.last_updated">
 <span class="sig-name descname"><span class="pre">last_updated</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.15)"><span class="pre">datetime</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#siege_utilities.config.models.SocialMediaAccount.last_updated" title="Link to this definition"></a></dt>
 <dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.config.models.SocialMediaAccount.validate_access_token_length">
+<span class="sig-name descname"><span class="pre">validate_access_token_length</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.config.models.SocialMediaAccount.validate_access_token_length" title="Link to this definition"></a></dt>
+<dd><p>Keep minimum-length errors value-free before secret conversion.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.config.models.SocialMediaAccount.validate_access_token">
@@ -13700,7 +13841,7 @@ platform-specific validation and security constraints.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.config.models.SocialMediaAccount.model_config">
-<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.SocialMediaAccount.model_config" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'hide_input_in_errors':</span> <span class="pre">True,</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.SocialMediaAccount.model_config" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -14022,11 +14163,6 @@ format constraints and layout validation.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.config.models.DataSource.status">
 <span class="sig-name descname"><span class="pre">status</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#siege_utilities.config.models.data_sources.DataSourceStatus" title="siege_utilities.config.models.data_sources.DataSourceStatus"><span class="pre">DataSourceStatus</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'planned'</span></span><a class="headerlink" href="#siege_utilities.config.models.DataSource.status" title="Link to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="siege_utilities.config.models.DataSource.auth_required">
-<span class="sig-name descname"><span class="pre">auth_required</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></span><a class="headerlink" href="#siege_utilities.config.models.DataSource.auth_required" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -14751,11 +14887,15 @@ OAuthIntegration on the owning Person. For service accounts,
 <span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">from_yaml</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">yaml_str_or_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/models/actor_types.html#Organization.from_yaml"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.models.actor_types.Organization.from_yaml" title="Link to this definition"></a></dt>
 <dd><p>Deserialize from a YAML string or file path.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>yaml_str_or_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If the document contains redacted placeholders. Use an
+    unredacted export to restore credentials.</p>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference internal" href="#siege_utilities.config.models.actor_types.Organization" title="siege_utilities.config.models.actor_types.Organization"><em>Organization</em></a></p>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>yaml_str_or_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.config.models.actor_types.Organization" title="siege_utilities.config.models.actor_types.Organization"><em>Organization</em></a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -14879,11 +15019,15 @@ OAuthIntegration on the owning Person. For service accounts,
 <span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">from_yaml</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">yaml_str_or_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/models/actor_types.html#Collaboration.from_yaml"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.models.actor_types.Collaboration.from_yaml" title="Link to this definition"></a></dt>
 <dd><p>Deserialize from a YAML string or file path.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>yaml_str_or_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If the document contains redacted placeholders. Use an
+    unredacted export to restore credentials.</p>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference internal" href="#siege_utilities.config.models.actor_types.Collaboration" title="siege_utilities.config.models.actor_types.Collaboration"><em>Collaboration</em></a></p>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>yaml_str_or_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.config.models.actor_types.Collaboration" title="siege_utilities.config.models.actor_types.Collaboration"><em>Collaboration</em></a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -15198,7 +15342,7 @@ detailed field constraints and business logic validation.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.config.models.client_profile.ClientProfile.model_config">
-<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.client_profile.ClientProfile.model_config" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'hide_input_in_errors':</span> <span class="pre">True,</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.client_profile.ClientProfile.model_config" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -15372,7 +15516,7 @@ detailed field constraints and security validation.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.config.models.credential.Credential.model_config">
-<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.credential.Credential.model_config" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'hide_input_in_errors':</span> <span class="pre">True,</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.credential.Credential.model_config" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -15573,11 +15717,6 @@ for tracking external data providers and their authentication.</p>
 <dd></dd></dl>
 
 <dl class="py attribute">
-<dt class="sig sig-object py" id="siege_utilities.config.models.data_sources.DataSource.auth_required">
-<span class="sig-name descname"><span class="pre">auth_required</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></span><a class="headerlink" href="#siege_utilities.config.models.data_sources.DataSource.auth_required" title="Link to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.config.models.data_sources.DataSource.notes">
 <span class="sig-name descname"><span class="pre">notes</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#siege_utilities.config.models.data_sources.DataSource.notes" title="Link to this definition"></a></dt>
 <dd></dd></dl>
@@ -15613,6 +15752,12 @@ detailed field constraints and security validation.</p>
 <dt class="sig sig-object py" id="siege_utilities.config.models.database_connection.DatabaseConnection.validate_host">
 <span class="sig-name descname"><span class="pre">validate_host</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.config.models.database_connection.DatabaseConnection.validate_host" title="Link to this definition"></a></dt>
 <dd><p>Validate host format.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.config.models.database_connection.DatabaseConnection.validate_password_length">
+<span class="sig-name descname"><span class="pre">validate_password_length</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.config.models.database_connection.DatabaseConnection.validate_password_length" title="Link to this definition"></a></dt>
+<dd><p>Keep minimum-length errors value-free before secret conversion.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -15688,8 +15833,12 @@ organizations, collaborations) to a single YAML document and deserialize back.</
 the corresponding model instances. Also includes ‘version’
 and ‘exported_at’ metadata.</p>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>]</p>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If any value is a redacted placeholder. Use an unredacted export
+    to restore credentials; redacted exports are for sharing only.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.15)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -16078,7 +16227,7 @@ detailed field constraints and security validation.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.config.models.oauth_integration.OAuthIntegration.model_config">
-<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.oauth_integration.OAuthIntegration.model_config" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'hide_input_in_errors':</span> <span class="pre">True,</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.oauth_integration.OAuthIntegration.model_config" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -16685,18 +16834,22 @@ with shared credential management, relationships, and common fields.</p>
 <span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">from_yaml</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">yaml_str_or_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/config/models/person.html#Person.from_yaml"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.config.models.person.Person.from_yaml" title="Link to this definition"></a></dt>
 <dd><p>Deserialize from a YAML string or file path.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>yaml_str_or_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If the document contains redacted placeholders. Use an
+    unredacted export to restore credentials.</p>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference internal" href="#siege_utilities.config.models.person.Person" title="siege_utilities.config.models.person.Person"><em>Person</em></a></p>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>yaml_str_or_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.config.models.person.Person" title="siege_utilities.config.models.person.Person"><em>Person</em></a></p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.config.models.person.Person.model_config">
-<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.person.Person.model_config" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'hide_input_in_errors':</span> <span class="pre">True,</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.person.Person.model_config" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -16835,11 +16988,6 @@ format constraints and layout validation.</p>
 <p>Provides type-safe, validated social media account settings with
 platform-specific validation and security constraints.</p>
 <dl class="py attribute">
-<dt class="sig sig-object py" id="siege_utilities.config.models.social_media_account.SocialMediaAccount.refresh_token">
-<span class="sig-name descname"><span class="pre">refresh_token</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#siege_utilities.config.models.social_media_account.SocialMediaAccount.refresh_token" title="Link to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.config.models.social_media_account.SocialMediaAccount.api_version">
 <span class="sig-name descname"><span class="pre">api_version</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#siege_utilities.config.models.social_media_account.SocialMediaAccount.api_version" title="Link to this definition"></a></dt>
 <dd></dd></dl>
@@ -16853,6 +17001,12 @@ platform-specific validation and security constraints.</p>
 <dt class="sig sig-object py" id="siege_utilities.config.models.social_media_account.SocialMediaAccount.last_updated">
 <span class="sig-name descname"><span class="pre">last_updated</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.15)"><span class="pre">datetime</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#siege_utilities.config.models.social_media_account.SocialMediaAccount.last_updated" title="Link to this definition"></a></dt>
 <dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token_length">
+<span class="sig-name descname"><span class="pre">validate_access_token_length</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token_length" title="Link to this definition"></a></dt>
+<dd><p>Keep minimum-length errors value-free before secret conversion.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token">
@@ -16896,7 +17050,7 @@ platform-specific validation and security constraints.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.config.models.social_media_account.SocialMediaAccount.model_config">
-<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.social_media_account.SocialMediaAccount.model_config" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'hide_input_in_errors':</span> <span class="pre">True,</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.social_media_account.SocialMediaAccount.model_config" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -16947,7 +17101,7 @@ detailed field constraints and business logic validation.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.config.models.user_profile.UserProfile.model_config">
-<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.user_profile.UserProfile.model_config" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">model_config</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'extra':</span> <span class="pre">'forbid',</span> <span class="pre">'hide_input_in_errors':</span> <span class="pre">True,</span> <span class="pre">'json_schema_serialization_mode':</span> <span class="pre">'json',</span> <span class="pre">'validate_assignment':</span> <span class="pre">True}</span></span><a class="headerlink" href="#siege_utilities.config.models.user_profile.UserProfile.model_config" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>

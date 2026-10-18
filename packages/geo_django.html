@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Geo Django &mdash; Siege Utilities 4.0.0 documentation</title>
+  <title>Geo Django &mdash; Siege Utilities 4.1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=3304f9e4"></script>
+      <script src="../_static/documentation_options.js?v=42d1b3bd"></script>
       <script src="../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/js/theme.js"></script>
@@ -4501,7 +4501,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#module-siege_utilities.geo.django.models.base">Models</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.models.base.CensusTIGERBoundary"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.base.CensusTIGERBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.base.CensusTIGERBoundary.save"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.base.CensusTIGERBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.prepare_for_bulk()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.base.CensusTIGERBoundary.get_geoid_length"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.get_geoid_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.base.CensusTIGERBoundary.parse_geoid"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.parse_geoid()</span></code></a></li>
 </ul>
@@ -4510,12 +4510,14 @@
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.base.TemporalBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.base.TemporalBoundary.total_area"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.total_area</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.base.TemporalBoundary.land_percentage"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.land_percentage</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.base.TemporalBoundary.save"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.base.TemporalBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.models.base.TemporalGeographicFeature"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.base.TemporalGeographicFeature.Meta"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.base.TemporalGeographicFeature.is_current"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.is_current</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.base.TemporalGeographicFeature.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.prepare_for_bulk()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.base.TemporalGeographicFeature.save"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.save()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.models.base.TemporalLinearFeature"><code class="docutils literal notranslate"><span class="pre">TemporalLinearFeature</span></code></a><ul>
@@ -4550,6 +4552,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.state"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.Meta"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.get_geoid_length"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.get_geoid_length()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.normalize_geoid"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.normalize_geoid()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.parse_geoid"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.parse_geoid()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.is_at_large"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.is_at_large</span></code></a></li>
 </ul>
@@ -4635,16 +4638,19 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.models.demographics.DemographicSnapshot"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.demographics.DemographicSnapshot.DATASET_CHOICES"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.DATASET_CHOICES</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.demographics.DemographicSnapshot.content_object"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.content_object</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.demographics.DemographicSnapshot.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.demographics.DemographicSnapshot.get_value"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.get_value()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.demographics.DemographicSnapshot.get_moe"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.get_moe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.demographics.DemographicSnapshot.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.prepare_for_bulk()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.demographics.DemographicSnapshot.save"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.save()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.models.demographics.DemographicTimeSeries"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.content_object"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries.content_object</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries.Meta</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.models.demographics.DemographicKeyArchive"><code class="docutils literal notranslate"><span class="pre">DemographicKeyArchive</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.demographics.DemographicKeyArchive.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicKeyArchive.Meta</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.models.education.SchoolDistrictBase"><code class="docutils literal notranslate"><span class="pre">SchoolDistrictBase</span></code></a><ul>
@@ -4668,28 +4674,28 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.models.education.NCESLocaleBoundary"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.education.NCESLocaleBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.education.NCESLocaleBoundary.save"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.education.NCESLocaleBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.models.education.SchoolLocation"><code class="docutils literal notranslate"><span class="pre">SchoolLocation</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.education.SchoolLocation.state"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.education.SchoolLocation.Meta"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.education.SchoolLocation.save"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.education.SchoolLocation.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.models.federal.NLRBRegion"><code class="docutils literal notranslate"><span class="pre">NLRBRegion</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.federal.NLRBRegion.Meta"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.federal.NLRBRegion.save"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.federal.NLRBRegion.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.models.federal.FederalJudicialDistrict"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.Meta"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.save"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.models.gadm.GADMBoundary"><code class="docutils literal notranslate"><span class="pre">GADMBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.gadm.GADMBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.gadm.GADMBoundary.save"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.gadm.GADMBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.models.gadm.GADMCountry"><code class="docutils literal notranslate"><span class="pre">GADMCountry</span></code></a><ul>
@@ -4750,7 +4756,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.models.isochrone.IsochroneResult"><code class="docutils literal notranslate"><span class="pre">IsochroneResult</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.isochrone.IsochroneResult.Meta"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.isochrone.IsochroneResult.save"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.isochrone.IsochroneResult.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.models.nlrb_cases.NLRBCase"><code class="docutils literal notranslate"><span class="pre">NLRBCase</span></code></a><ul>
@@ -4844,7 +4850,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.models.timezone.TimezoneGeometry"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.timezone.TimezoneGeometry.Meta"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.timezone.TimezoneGeometry.save"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.models.timezone.TimezoneGeometry.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -4852,6 +4858,8 @@
 <li class="toctree-l2"><a class="reference internal" href="#module-siege_utilities.geo.django.managers">Managers</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.managers.BoundaryManager"><code class="docutils literal notranslate"><span class="pre">BoundaryManager</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.BoundaryManager.get_queryset"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.get_queryset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.BoundaryManager.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.snapshots()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.BoundaryManager.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.BoundaryManager.for_year"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_year()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.BoundaryManager.for_state"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_state()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.BoundaryManager.current"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.current()</span></code></a></li>
@@ -4876,6 +4884,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.BoundaryQuerySet.nearest"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.nearest()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.BoundaryQuerySet.with_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.with_area()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.BoundaryQuerySet.by_land_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_land_area()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.BoundaryQuerySet.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.snapshots()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.BoundaryQuerySet.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.BoundaryQuerySet.geojson"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.geojson()</span></code></a></li>
 </ul>
@@ -4891,12 +4900,15 @@
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.nearest"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.nearest()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.with_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.with_area()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_land_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_land_area()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.snapshots()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.geojson"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.geojson()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager"><code class="docutils literal notranslate"><span class="pre">BoundaryManager</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.get_queryset"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.get_queryset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.snapshots()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.for_year"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_year()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.for_state"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_state()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.current"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.current()</span></code></a></li>
@@ -4999,6 +5011,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_updated"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.errors"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_without_geometry"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_without_geometry</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.success"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.__init__"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.__init__()</span></code></a></li>
 </ul>
@@ -5015,6 +5028,8 @@
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.PopulationResult.records_updated"><code class="docutils literal notranslate"><span class="pre">PopulationResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.PopulationResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">PopulationResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.PopulationResult.errors"><code class="docutils literal notranslate"><span class="pre">PopulationResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.PopulationResult.sources_skipped"><code class="docutils literal notranslate"><span class="pre">PopulationResult.sources_skipped</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.PopulationResult.warnings"><code class="docutils literal notranslate"><span class="pre">PopulationResult.warnings</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.PopulationResult.total_processed"><code class="docutils literal notranslate"><span class="pre">PopulationResult.total_processed</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.PopulationResult.success"><code class="docutils literal notranslate"><span class="pre">PopulationResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.PopulationResult.__init__"><code class="docutils literal notranslate"><span class="pre">PopulationResult.__init__()</span></code></a></li>
@@ -5022,7 +5037,8 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.BoundaryPopulationService"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.GEOGRAPHY_MODELS"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.GEOGRAPHY_MODELS</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.TIGER_TYPES"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.TIGER_TYPES</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.GEOGRAPHIC_LEVELS"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.GEOGRAPHIC_LEVELS</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.VTD_NOT_PUBLISHED"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.VTD_NOT_PUBLISHED</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.__init__"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.populate"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.populate()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.populate_states"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.populate_states()</span></code></a></li>
@@ -5042,6 +5058,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.records_updated"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.errors"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.warnings"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.warnings</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.total_processed"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.total_processed</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.success"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.__init__"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.__init__()</span></code></a></li>
@@ -5061,6 +5078,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.rollup_service.RollupResult.target_level"><code class="docutils literal notranslate"><span class="pre">RollupResult.target_level</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.rollup_service.RollupResult.variable_code"><code class="docutils literal notranslate"><span class="pre">RollupResult.variable_code</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.rollup_service.RollupResult.records_created"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_created</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.rollup_service.RollupResult.records_updated"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.rollup_service.RollupResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.rollup_service.RollupResult.coverage_ratio"><code class="docutils literal notranslate"><span class="pre">RollupResult.coverage_ratio</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#siege_utilities.geo.django.services.rollup_service.RollupResult.errors"><code class="docutils literal notranslate"><span class="pre">RollupResult.errors</span></code></a></li>
@@ -5702,6 +5720,7 @@
 <li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_slides.get_presentation"><code class="docutils literal notranslate"><span class="pre">get_presentation()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_slides.insert_image"><code class="docutils literal notranslate"><span class="pre">insert_image()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_slides.insert_text"><code class="docutils literal notranslate"><span class="pre">insert_text()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_slides.temporary_public_figure"><code class="docutils literal notranslate"><span class="pre">temporary_public_figure()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_slides.upload_figure_to_drive"><code class="docutils literal notranslate"><span class="pre">upload_figure_to_drive()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_workspace.GoogleWorkspaceClient"><code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_workspace.GoogleWorkspaceClient.__init__"><code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient.__init__()</span></code></a></li>
@@ -6294,9 +6313,12 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="config.html">Config</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="config.html#siege_utilities.config.get_service_timeout"><code class="docutils literal notranslate"><span class="pre">get_service_timeout()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="config.html#siege_utilities.config.normalize_state_identifier"><code class="docutils literal notranslate"><span class="pre">normalize_state_identifier()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="config.html#siege_utilities.config.get_fips_info"><code class="docutils literal notranslate"><span class="pre">get_fips_info()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="config.html#sharing-exports-without-secrets">Sharing exports without secrets</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="config.html#siege_utilities.config.get_service_timeout"><code class="docutils literal notranslate"><span class="pre">get_service_timeout()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="config.html#siege_utilities.config.normalize_state_identifier"><code class="docutils literal notranslate"><span class="pre">normalize_state_identifier()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="config.html#siege_utilities.config.get_fips_info"><code class="docutils literal notranslate"><span class="pre">get_fips_info()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="config.html#module-siege_utilities.config.credential_manager">Submodules</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="config.html#siege_utilities.config.credential_manager.CredentialNotFoundError"><code class="docutils literal notranslate"><span class="pre">CredentialNotFoundError</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.credential_manager.CredentialNotFoundError.__init__"><code class="docutils literal notranslate"><span class="pre">CredentialNotFoundError.__init__()</span></code></a></li>
@@ -6653,6 +6675,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="config.html#siege_utilities.config.models.DatabaseConnection"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DatabaseConnection.validate_host"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_host()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DatabaseConnection.validate_password_length"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DatabaseConnection.validate_password"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DatabaseConnection.validate_port"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_port()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DatabaseConnection.validate_database_name"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_database_name()</span></code></a></li>
@@ -6660,10 +6683,10 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount.refresh_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.refresh_token</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount.api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.api_version</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount.rate_limit_remaining"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.rate_limit_remaining</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount.last_updated"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.last_updated</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount.validate_access_token_length"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount.validate_access_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount.validate_account_id"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_account_id()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount.validate_api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_api_version()</span></code></a></li>
@@ -6736,7 +6759,6 @@
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DataSource.source_type"><code class="docutils literal notranslate"><span class="pre">DataSource.source_type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DataSource.jurisdiction"><code class="docutils literal notranslate"><span class="pre">DataSource.jurisdiction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DataSource.status"><code class="docutils literal notranslate"><span class="pre">DataSource.status</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DataSource.auth_required"><code class="docutils literal notranslate"><span class="pre">DataSource.auth_required</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DataSource.notes"><code class="docutils literal notranslate"><span class="pre">DataSource.notes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DataSource.validate_auth_type"><code class="docutils literal notranslate"><span class="pre">DataSource.validate_auth_type()</span></code></a></li>
 </ul>
@@ -6967,7 +6989,6 @@
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.data_sources.DataSource.source_type"><code class="docutils literal notranslate"><span class="pre">DataSource.source_type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.data_sources.DataSource.jurisdiction"><code class="docutils literal notranslate"><span class="pre">DataSource.jurisdiction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.data_sources.DataSource.status"><code class="docutils literal notranslate"><span class="pre">DataSource.status</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.data_sources.DataSource.auth_required"><code class="docutils literal notranslate"><span class="pre">DataSource.auth_required</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.data_sources.DataSource.notes"><code class="docutils literal notranslate"><span class="pre">DataSource.notes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.data_sources.DataSource.validate_auth_type"><code class="docutils literal notranslate"><span class="pre">DataSource.validate_auth_type()</span></code></a></li>
 </ul>
@@ -6978,6 +6999,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="config.html#siege_utilities.config.models.database_connection.DatabaseConnection"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_host"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_host()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_password_length"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_password"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_port"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_port()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_database_name"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_database_name()</span></code></a></li>
@@ -7133,10 +7155,10 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.refresh_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.refresh_token</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.api_version</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.rate_limit_remaining"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.rate_limit_remaining</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.last_updated"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.last_updated</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token_length"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_account_id"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_account_id()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_api_version()</span></code></a></li>
@@ -7873,7 +7895,10 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="hygiene.html">Hygiene</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings"><code class="docutils literal notranslate"><span class="pre">generate_docstrings()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="hygiene.html#docstring-generation">Docstring generation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings"><code class="docutils literal notranslate"><span class="pre">generate_docstrings()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="hygiene.html#module-siege_utilities.hygiene.generate_docstrings">Submodules</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.analyze_function_signature"><code class="docutils literal notranslate"><span class="pre">analyze_function_signature()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.categorize_function"><code class="docutils literal notranslate"><span class="pre">categorize_function()</span></code></a></li>
@@ -7881,6 +7906,7 @@
 <li class="toctree-l3"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder"><code class="docutils literal notranslate"><span class="pre">DocstringAdder</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.__init__"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_FunctionDef"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.visit_FunctionDef()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_AsyncFunctionDef"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.visit_AsyncFunctionDef()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.process_python_file"><code class="docutils literal notranslate"><span class="pre">process_python_file()</span></code></a></li>
@@ -9068,7 +9094,7 @@ boundaries with full GeoDjango spatial support and temporal validity tracking.</
 <p>Adds GEOID-based identity and TIGER-specific metadata fields that are
 common to ALL Census geography types (states, counties, tracts, etc.).</p>
 <p>The geoid is the authoritative identifier; feature_id and boundary_id
-are automatically synced from it in save().</p>
+are automatically synced from it in save() and prepare_for_bulk().</p>
 <dl class="simple">
 <dt>GEOID Format by Geography Type:</dt><dd><p>State: 2 digits (e.g., “06” for California)
 County: 5 digits = state (2) + county (3) (e.g., “06037”)
@@ -9097,9 +9123,9 @@ CD: 4 digits = state (2) + district (2)</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.django.models.base.CensusTIGERBoundary.save">
-<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/base.html#CensusTIGERBoundary.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.base.CensusTIGERBoundary.save" title="Link to this definition"></a></dt>
-<dd><p>Sync feature_id and boundary_id from geoid.</p>
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.base.CensusTIGERBoundary.prepare_for_bulk">
+<span class="sig-name descname"><span class="pre">prepare_for_bulk</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/base.html#CensusTIGERBoundary.prepare_for_bulk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.base.CensusTIGERBoundary.prepare_for_bulk" title="Link to this definition"></a></dt>
+<dd><p>Sync feature_id and boundary_id from geoid (also applied by <code class="docutils literal notranslate"><span class="pre">save()</span></code>).</p>
 </dd></dl>
 
 <dl class="py method">
@@ -9141,7 +9167,8 @@ WGS 84 (SRID 4326) for maximum interoperability.</p>
 <dt>Fields inherited from TemporalGeographicFeature:</dt><dd><p>feature_id, name, vintage_year, valid_from, valid_to, source</p>
 </dd>
 <dt>Fields added here:</dt><dd><dl class="simple">
-<dt>boundary_id: Alias for feature_id, kept for readability in boundary contexts.</dt><dd><p>Automatically synced from feature_id in save().</p>
+<dt>boundary_id: Alias for feature_id, kept for readability in boundary contexts.</dt><dd><p>Automatically synced from feature_id in save() and
+prepare_for_bulk().</p>
 </dd>
 </dl>
 <p>geometry: MultiPolygon, SRID 4326.
@@ -9178,9 +9205,9 @@ internal_point: Representative point for labeling (INTPTLAT/INTPTLON).</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.django.models.base.TemporalBoundary.save">
-<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/base.html#TemporalBoundary.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.base.TemporalBoundary.save" title="Link to this definition"></a></dt>
-<dd><p>Sync boundary_id from feature_id.</p>
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.base.TemporalBoundary.prepare_for_bulk">
+<span class="sig-name descname"><span class="pre">prepare_for_bulk</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/base.html#TemporalBoundary.prepare_for_bulk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.base.TemporalBoundary.prepare_for_bulk" title="Link to this definition"></a></dt>
+<dd><p>Sync boundary_id from feature_id (also applied by <code class="docutils literal notranslate"><span class="pre">save()</span></code>).</p>
 </dd></dl>
 
 </dd></dl>
@@ -9231,6 +9258,27 @@ valid_from / valid_to: Date range during which this feature was in effect.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.django.models.base.TemporalGeographicFeature.is_current">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">is_current</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span><a class="headerlink" href="#siege_utilities.geo.django.models.base.TemporalGeographicFeature.is_current" title="Link to this definition"></a></dt>
 <dd><p>True if this feature has no valid_to date (still in effect).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.base.TemporalGeographicFeature.prepare_for_bulk">
+<span class="sig-name descname"><span class="pre">prepare_for_bulk</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/base.html#TemporalGeographicFeature.prepare_for_bulk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.base.TemporalGeographicFeature.prepare_for_bulk" title="Link to this definition"></a></dt>
+<dd><p>Fill the fields <code class="docutils literal notranslate"><span class="pre">save()</span></code> derives, without touching the database.</p>
+<p><code class="docutils literal notranslate"><span class="pre">QuerySet.bulk_create</span></code> never calls <code class="docutils literal notranslate"><span class="pre">save()</span></code>, so bulk loaders must
+call this on each instance first: <code class="docutils literal notranslate"><span class="pre">Model(**kwargs).prepare_for_bulk()</span></code>
+(#1539). Subclasses extend it and end with
+<code class="docutils literal notranslate"><span class="pre">return</span> <span class="pre">super().prepare_for_bulk()</span></code>. Idempotent.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">self</span></code>, so it can be chained in a list comprehension.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.base.TemporalGeographicFeature.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/base.html#TemporalGeographicFeature.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.base.TemporalGeographicFeature.save" title="Link to this definition"></a></dt>
+<dd><p>Persist the model after applying <a class="reference internal" href="#siege_utilities.geo.django.models.base.TemporalGeographicFeature.prepare_for_bulk" title="siege_utilities.geo.django.models.base.TemporalGeographicFeature.prepare_for_bulk"><code class="xref py py-meth docutils literal notranslate"><span class="pre">prepare_for_bulk()</span></code></a>.</p>
 </dd></dl>
 
 </dd></dl>
@@ -9478,7 +9526,10 @@ Example: “060371011001” for block group 1 in tract 1011.00, LA County, CA</p
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.django.models.boundaries.</span></span><span class="sig-name descname"><span class="pre">CongressionalDistrict</span></span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/boundaries.html#CongressionalDistrict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.boundaries.CongressionalDistrict" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="#siege_utilities.geo.django.models.base.CensusTIGERBoundary" title="siege_utilities.geo.django.models.base.CensusTIGERBoundary"><code class="xref py py-class docutils literal notranslate"><span class="pre">CensusTIGERBoundary</span></code></a></p>
 <p>Congressional District boundary.</p>
-<p>GEOID: 4 digits = state (2) + district (2)
+<p>GEOID: 4 characters = state digits (2) + district code (2).
+District codes accept ASCII letters and digits, including ZZ (unassigned).
+The CHECK also accepts observed seven-digit STATEFP + 112 + CD codes;
+ingestion normalizes session-embedded codes to the four-character identity.
 Example: “0614” for California’s 14th district</p>
 <p>Note: District numbers change after reapportionment (every 10 years).
 Use vintage_year to track which Congress the districts represent.</p>
@@ -9526,6 +9577,29 @@ Use vintage_year to track which Congress the districts represent.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)">int</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.boundaries.CongressionalDistrict.normalize_geoid">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">normalize_geoid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">geoid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">congress_number</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/boundaries.html#CongressionalDistrict.normalize_geoid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.normalize_geoid" title="Link to this definition"></a></dt>
+<dd><p>Return the canonical STATEFP + district code for a matching Congress.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>geoid</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Four-character district GEOID or seven-digit STATEFP + Congress + CD.</p></li>
+<li><p><strong>congress_number</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> or </em><em>None</em>) – Expected Congress from the source vintage. Required for embedded codes.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Two state digits followed by the two-character district code.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)">str</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If the GEOID shape is invalid or its embedded Congress does not match.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -10337,13 +10411,17 @@ and validation purposes.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.models.demographics.DemographicSnapshot">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.django.models.demographics.</span></span><span class="sig-name descname"><span class="pre">DemographicSnapshot</span></span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/demographics.html#DemographicSnapshot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.demographics.DemographicSnapshot" title="Link to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></p>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">_GEOIDBoundaryLink</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></p>
 <p>Demographic data snapshot for a Census boundary.</p>
-<p>Uses generic foreign key to attach to any boundary type.
-Stores values as JSON to allow flexible variable sets.</p>
+<p>Uses (content_type, object_id/GEOID, dataset, year) as its identity.
+<code class="docutils literal notranslate"><span class="pre">object_id</span></code> is an indexed GEOID CharField, never a boundary PK.
+Stores values as JSON to allow flexible variable sets. The deprecated
+create(content_object=tract) convenience stores tract.geoid, not tract.pk,
+and will be removed in v4.2.0 alongside the content_object property.</p>
 <p class="rubric">Example</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">snapshot</span> <span class="o">=</span> <span class="n">DemographicSnapshot</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
-<span class="gp">... </span>    <span class="n">content_object</span><span class="o">=</span><span class="n">tract</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">content_type</span><span class="o">=</span><span class="n">ContentType</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get_for_model</span><span class="p">(</span><span class="n">tract</span><span class="p">),</span>
+<span class="gp">... </span>    <span class="n">object_id</span><span class="o">=</span><span class="n">tract</span><span class="o">.</span><span class="n">geoid</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">year</span><span class="o">=</span><span class="mi">2022</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">dataset</span><span class="o">=</span><span class="s1">'acs5'</span><span class="p">,</span>
 <span class="gp">... </span>    <span class="n">values</span><span class="o">=</span><span class="p">{</span><span class="s1">'B01001_001E'</span><span class="p">:</span> <span class="mi">4521</span><span class="p">,</span> <span class="s1">'B19013_001E'</span><span class="p">:</span> <span class="mi">75000</span><span class="p">},</span>
@@ -10354,11 +10432,6 @@ Stores values as JSON to allow flexible variable sets.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.models.demographics.DemographicSnapshot.DATASET_CHOICES">
 <span class="sig-name descname"><span class="pre">DATASET_CHOICES</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[('acs5',</span> <span class="pre">'American</span> <span class="pre">Community</span> <span class="pre">Survey</span> <span class="pre">5-Year'),</span> <span class="pre">('acs1',</span> <span class="pre">'American</span> <span class="pre">Community</span> <span class="pre">Survey</span> <span class="pre">1-Year'),</span> <span class="pre">('dec',</span> <span class="pre">'Decennial</span> <span class="pre">Census'),</span> <span class="pre">('dec_pl',</span> <span class="pre">'Decennial</span> <span class="pre">Census</span> <span class="pre">P.L.</span> <span class="pre">94-171')]</span></span><a class="headerlink" href="#siege_utilities.geo.django.models.demographics.DemographicSnapshot.DATASET_CHOICES" title="Link to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="siege_utilities.geo.django.models.demographics.DemographicSnapshot.content_object">
-<span class="sig-name descname"><span class="pre">content_object</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'content_type'</span></span><a class="headerlink" href="#siege_utilities.geo.django.models.demographics.DemographicSnapshot.content_object" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py class">
@@ -10376,8 +10449,8 @@ Stores values as JSON to allow flexible variable sets.</p>
 <dd></dd></dl>
 
 <dl class="py attribute">
-<dt class="sig sig-object py" id="siege_utilities.geo.django.models.demographics.DemographicSnapshot.Meta.unique_together">
-<span class="sig-name descname"><span class="pre">unique_together</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[('content_type',</span> <span class="pre">'object_id',</span> <span class="pre">'year',</span> <span class="pre">'dataset')]</span></span><a class="headerlink" href="#siege_utilities.geo.django.models.demographics.DemographicSnapshot.Meta.unique_together" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.demographics.DemographicSnapshot.Meta.constraints">
+<span class="sig-name descname"><span class="pre">constraints</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[django.db.models.UniqueConstraint]</span></span><a class="headerlink" href="#siege_utilities.geo.django.models.demographics.DemographicSnapshot.Meta.constraints" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -10422,9 +10495,28 @@ Stores values as JSON to allow flexible variable sets.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.demographics.DemographicSnapshot.prepare_for_bulk">
+<span class="sig-name descname"><span class="pre">prepare_for_bulk</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/demographics.html#DemographicSnapshot.prepare_for_bulk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.demographics.DemographicSnapshot.prepare_for_bulk" title="Link to this definition"></a></dt>
+<dd><p>Derive the summary columns from <code class="docutils literal notranslate"><span class="pre">values</span></code> without touching the database.</p>
+<p><code class="docutils literal notranslate"><span class="pre">bulk_create</span></code> never calls <code class="docutils literal notranslate"><span class="pre">save()</span></code>, so bulk loaders call this on
+each instance first (#1539); <code class="docutils literal notranslate"><span class="pre">save()</span></code> calls it too. A summary column
+is only touched when its source variable is present in <code class="docutils literal notranslate"><span class="pre">values</span></code>.
+Census sentinels and non-numeric values become <code class="docutils literal notranslate"><span class="pre">None</span></code> rather than
+violating the columns’ <code class="docutils literal notranslate"><span class="pre">&gt;=</span> <span class="pre">0</span></code> CHECK constraints (#1550).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot(...).prepare_for_bulk()</span></code>.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">self</span></code>, so it can be chained</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.models.demographics.DemographicSnapshot.save">
 <span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/demographics.html#DemographicSnapshot.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.demographics.DemographicSnapshot.save" title="Link to this definition"></a></dt>
-<dd><p>Auto-populate summary fields from values if present.</p>
+<dd><p>Auto-populate summary fields from values (see <a class="reference internal" href="#siege_utilities.geo.django.models.demographics.DemographicSnapshot.prepare_for_bulk" title="siege_utilities.geo.django.models.demographics.DemographicSnapshot.prepare_for_bulk"><code class="xref py py-meth docutils literal notranslate"><span class="pre">prepare_for_bulk()</span></code></a>).</p>
 </dd></dl>
 
 </dd></dl>
@@ -10432,15 +10524,11 @@ Stores values as JSON to allow flexible variable sets.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.models.demographics.DemographicTimeSeries">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.django.models.demographics.</span></span><span class="sig-name descname"><span class="pre">DemographicTimeSeries</span></span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/demographics.html#DemographicTimeSeries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.demographics.DemographicTimeSeries" title="Link to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></p>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">_GEOIDBoundaryLink</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></p>
 <p>Pre-computed time series for frequently-accessed demographic trends.</p>
 <p>This model stores aggregated time series data for performance,
-avoiding repeated joins across multiple DemographicSnapshot records.</p>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="siege_utilities.geo.django.models.demographics.DemographicTimeSeries.content_object">
-<span class="sig-name descname"><span class="pre">content_object</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'content_type'</span></span><a class="headerlink" href="#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.content_object" title="Link to this definition"></a></dt>
-<dd></dd></dl>
-
+avoiding repeated joins across multiple DemographicSnapshot records.
+As with snapshots, object_id is GEOID-only storage, with a geoid alias.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">Meta</span></span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/demographics.html#DemographicTimeSeries.Meta"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta" title="Link to this definition"></a></dt>
@@ -10456,13 +10544,34 @@ avoiding repeated joins across multiple DemographicSnapshot records.</p>
 <dd></dd></dl>
 
 <dl class="py attribute">
-<dt class="sig sig-object py" id="siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta.unique_together">
-<span class="sig-name descname"><span class="pre">unique_together</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[('content_type',</span> <span class="pre">'object_id',</span> <span class="pre">'variable_code',</span> <span class="pre">'dataset',</span> <span class="pre">'start_year',</span> <span class="pre">'end_year')]</span></span><a class="headerlink" href="#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta.unique_together" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta.constraints">
+<span class="sig-name descname"><span class="pre">constraints</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[django.db.models.UniqueConstraint]</span></span><a class="headerlink" href="#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta.constraints" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta.indexes">
 <span class="sig-name descname"><span class="pre">indexes</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[django.db.models.Index,</span> <span class="pre">django.db.models.Index]</span></span><a class="headerlink" href="#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta.indexes" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.demographics.DemographicKeyArchive">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.django.models.demographics.</span></span><span class="sig-name descname"><span class="pre">DemographicKeyArchive</span></span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/demographics.html#DemographicKeyArchive"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.demographics.DemographicKeyArchive" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></p>
+<p>Recovery copies from the GEOID migration; never queried as live data.</p>
+<p>Includes converted originals, quarantined keys and discarded duplicates.
+The migration’s reverse operation restores them only if the migrated rows
+have not subsequently changed; otherwise it fails without overwriting data.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.demographics.DemographicKeyArchive.Meta">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">Meta</span></span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/demographics.html#DemographicKeyArchive.Meta"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.demographics.DemographicKeyArchive.Meta" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.15)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.demographics.DemographicKeyArchive.Meta.constraints">
+<span class="sig-name descname"><span class="pre">constraints</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[django.db.models.UniqueConstraint]</span></span><a class="headerlink" href="#siege_utilities.geo.django.models.demographics.DemographicKeyArchive.Meta.constraints" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -10665,10 +10774,10 @@ boundaries that can be used for spatial joins without recomputing.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.django.models.education.NCESLocaleBoundary.save">
-<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/education.html#NCESLocaleBoundary.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.education.NCESLocaleBoundary.save" title="Link to this definition"></a></dt>
-<dd><p>Persist the model, auto-populating feature_id and source.</p>
-<p><a href="#id1"><span class="problematic" id="id2">*</span></a>args/<a href="#id3"><span class="problematic" id="id4">**</span></a>kwargs: Forwarded to <code class="docutils literal notranslate"><span class="pre">super().save()</span></code>.</p>
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.education.NCESLocaleBoundary.prepare_for_bulk">
+<span class="sig-name descname"><span class="pre">prepare_for_bulk</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/education.html#NCESLocaleBoundary.prepare_for_bulk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.education.NCESLocaleBoundary.prepare_for_bulk" title="Link to this definition"></a></dt>
+<dd><p>Auto-populate feature_id and source (also applied by <code class="docutils literal notranslate"><span class="pre">save()</span></code>).</p>
+<p><code class="docutils literal notranslate"><span class="pre">bulk_create</span></code> skips <code class="docutils literal notranslate"><span class="pre">save()</span></code>; bulk loaders call this instead (#1539).</p>
 </dd></dl>
 
 </dd></dl>
@@ -10713,10 +10822,10 @@ a school with its geocoded coordinates and NCES locale classification.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.django.models.education.SchoolLocation.save">
-<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/education.html#SchoolLocation.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.education.SchoolLocation.save" title="Link to this definition"></a></dt>
-<dd><p>Persist the model, auto-populating feature_id and source.</p>
-<p><a href="#id5"><span class="problematic" id="id6">*</span></a>args/<a href="#id7"><span class="problematic" id="id8">**</span></a>kwargs: Forwarded to <code class="docutils literal notranslate"><span class="pre">super().save()</span></code>.</p>
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.education.SchoolLocation.prepare_for_bulk">
+<span class="sig-name descname"><span class="pre">prepare_for_bulk</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/education.html#SchoolLocation.prepare_for_bulk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.education.SchoolLocation.prepare_for_bulk" title="Link to this definition"></a></dt>
+<dd><p>Auto-populate feature_id and source (also applied by <code class="docutils literal notranslate"><span class="pre">save()</span></code>).</p>
+<p><code class="docutils literal notranslate"><span class="pre">bulk_create</span></code> skips <code class="docutils literal notranslate"><span class="pre">save()</span></code>; bulk loaders call this instead (#1539).</p>
 </dd></dl>
 
 </dd></dl>
@@ -10758,10 +10867,10 @@ Boundaries change infrequently but do shift over time.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.django.models.federal.NLRBRegion.save">
-<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/federal.html#NLRBRegion.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.federal.NLRBRegion.save" title="Link to this definition"></a></dt>
-<dd><p>Persist the model, auto-populating feature_id and source.</p>
-<p><a href="#id9"><span class="problematic" id="id10">*</span></a>args/<a href="#id11"><span class="problematic" id="id12">**</span></a>kwargs: Forwarded to <code class="docutils literal notranslate"><span class="pre">super().save()</span></code>.</p>
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.federal.NLRBRegion.prepare_for_bulk">
+<span class="sig-name descname"><span class="pre">prepare_for_bulk</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/federal.html#NLRBRegion.prepare_for_bulk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.federal.NLRBRegion.prepare_for_bulk" title="Link to this definition"></a></dt>
+<dd><p>Auto-populate feature_id and source (also applied by <code class="docutils literal notranslate"><span class="pre">save()</span></code>).</p>
+<p><code class="docutils literal notranslate"><span class="pre">bulk_create</span></code> skips <code class="docutils literal notranslate"><span class="pre">save()</span></code>; bulk loaders call this instead (#1539).</p>
 </dd></dl>
 
 </dd></dl>
@@ -10800,10 +10909,10 @@ District boundaries follow state lines and sometimes county lines.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.django.models.federal.FederalJudicialDistrict.save">
-<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/federal.html#FederalJudicialDistrict.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.save" title="Link to this definition"></a></dt>
-<dd><p>Persist the model, auto-populating feature_id and source.</p>
-<p><a href="#id13"><span class="problematic" id="id14">*</span></a>args/<a href="#id15"><span class="problematic" id="id16">**</span></a>kwargs: Forwarded to <code class="docutils literal notranslate"><span class="pre">super().save()</span></code>.</p>
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.federal.FederalJudicialDistrict.prepare_for_bulk">
+<span class="sig-name descname"><span class="pre">prepare_for_bulk</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/federal.html#FederalJudicialDistrict.prepare_for_bulk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.prepare_for_bulk" title="Link to this definition"></a></dt>
+<dd><p>Auto-populate feature_id and source (also applied by <code class="docutils literal notranslate"><span class="pre">save()</span></code>).</p>
+<p><code class="docutils literal notranslate"><span class="pre">bulk_create</span></code> skips <code class="docutils literal notranslate"><span class="pre">save()</span></code>; bulk loaders call this instead (#1539).</p>
 </dd></dl>
 
 </dd></dl>
@@ -10839,9 +10948,9 @@ Source defaults to “GADM”.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.django.models.gadm.GADMBoundary.save">
-<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/gadm.html#GADMBoundary.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.gadm.GADMBoundary.save" title="Link to this definition"></a></dt>
-<dd><p>Sync feature_id from gid; default source to GADM.</p>
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.gadm.GADMBoundary.prepare_for_bulk">
+<span class="sig-name descname"><span class="pre">prepare_for_bulk</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/gadm.html#GADMBoundary.prepare_for_bulk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.gadm.GADMBoundary.prepare_for_bulk" title="Link to this definition"></a></dt>
+<dd><p>Sync feature_id from gid; default source to GADM (also applied by <code class="docutils literal notranslate"><span class="pre">save()</span></code>).</p>
 </dd></dl>
 
 </dd></dl>
@@ -11320,9 +11429,9 @@ Supports spatial queries like “which tracts are within 15 min of X?”</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.django.models.isochrone.IsochroneResult.save">
-<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/isochrone.html#IsochroneResult.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.isochrone.IsochroneResult.save" title="Link to this definition"></a></dt>
-<dd><p>Sync boundary_id from feature_id.</p>
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.isochrone.IsochroneResult.prepare_for_bulk">
+<span class="sig-name descname"><span class="pre">prepare_for_bulk</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/isochrone.html#IsochroneResult.prepare_for_bulk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.isochrone.IsochroneResult.prepare_for_bulk" title="Link to this definition"></a></dt>
+<dd><p>Derive feature_id, boundary_id, source and name (also applied by <code class="docutils literal notranslate"><span class="pre">save()</span></code>).</p>
 </dd></dl>
 
 </dd></dl>
@@ -11495,7 +11604,8 @@ districts (VTDs), and precincts.  All inherit from CensusTIGERBoundary.</p>
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.django.models.political.</span></span><span class="sig-name descname"><span class="pre">StateLegislativeUpper</span></span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/political.html#StateLegislativeUpper"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.political.StateLegislativeUpper" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="#siege_utilities.geo.django.models.base.CensusTIGERBoundary" title="siege_utilities.geo.django.models.base.CensusTIGERBoundary"><code class="xref py py-class docutils literal notranslate"><span class="pre">CensusTIGERBoundary</span></code></a></p>
 <p>State Legislative District — Upper Chamber (Senate).</p>
-<p>GEOID: 5 digits = state (2) + district (3)
+<p>GEOID: 5 characters = state digits (2) + district code (3).
+District codes accept ASCII letters, digits, and hyphens, including ZZZ.
 Example: “06001” for California State Senate District 1</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.models.political.StateLegislativeUpper.state">
@@ -11566,7 +11676,8 @@ Example: “06001” for California State Senate District 1</p>
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.django.models.political.</span></span><span class="sig-name descname"><span class="pre">StateLegislativeLower</span></span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/political.html#StateLegislativeLower"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.political.StateLegislativeLower" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="#siege_utilities.geo.django.models.base.CensusTIGERBoundary" title="siege_utilities.geo.django.models.base.CensusTIGERBoundary"><code class="xref py py-class docutils literal notranslate"><span class="pre">CensusTIGERBoundary</span></code></a></p>
 <p>State Legislative District — Lower Chamber (House/Assembly).</p>
-<p>GEOID: 5 digits = state (2) + district (3)
+<p>GEOID: 5 characters = state digits (2) + district code (3).
+District codes accept ASCII letters, digits, and hyphens, including ZZZ.
 Example: “06001” for California State Assembly District 1</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.models.political.StateLegislativeLower.state">
@@ -11640,7 +11751,8 @@ Example: “06001” for California State Assembly District 1</p>
 <p>VTDs are the smallest geographic units for which Census tabulates
 voting-age population data.  They approximate but don’t exactly match
 election precincts.</p>
-<p>GEOID: 11 digits = state (2) + county (3) + VTD (6)
+<p>GEOID: 11 characters = state digits (2) + county digits (3) + VTD (6).
+The VTD component accepts ASCII letters, digits, periods, slashes, and hyphens.
 Example: “06037001234” for VTD 001234 in LA County, CA</p>
 <p>Enhanced fields support enterprise-compatible workflows:
 - precinct_name/precinct_code for election data linkage
@@ -12121,10 +12233,10 @@ vintage year.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="siege_utilities.geo.django.models.timezone.TimezoneGeometry.save">
-<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/timezone.html#TimezoneGeometry.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.timezone.TimezoneGeometry.save" title="Link to this definition"></a></dt>
-<dd><p>Persist the model, auto-populating feature_id and source.</p>
-<p><a href="#id17"><span class="problematic" id="id18">*</span></a>args/<a href="#id19"><span class="problematic" id="id20">**</span></a>kwargs: Forwarded to <code class="docutils literal notranslate"><span class="pre">super().save()</span></code>.</p>
+<dt class="sig sig-object py" id="siege_utilities.geo.django.models.timezone.TimezoneGeometry.prepare_for_bulk">
+<span class="sig-name descname"><span class="pre">prepare_for_bulk</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/models/timezone.html#TimezoneGeometry.prepare_for_bulk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.models.timezone.TimezoneGeometry.prepare_for_bulk" title="Link to this definition"></a></dt>
+<dd><p>Auto-populate feature_id and source (also applied by <code class="docutils literal notranslate"><span class="pre">save()</span></code>).</p>
+<p><code class="docutils literal notranslate"><span class="pre">bulk_create</span></code> skips <code class="docutils literal notranslate"><span class="pre">save()</span></code>; bulk loaders call this instead (#1539).</p>
 </dd></dl>
 
 </dd></dl>
@@ -12149,6 +12261,35 @@ vintage year.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.django.managers.BoundaryManager.get_queryset">
 <span class="sig-name descname"><span class="pre">get_queryset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/managers/boundary_manager.html#BoundaryManager.get_queryset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.managers.BoundaryManager.get_queryset" title="Link to this definition"></a></dt>
 <dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.managers.BoundaryManager.snapshots">
+<span class="sig-name descname"><span class="pre">snapshots</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/managers/boundary_manager.html#BoundaryManager.snapshots"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.managers.BoundaryManager.snapshots" title="Link to this definition"></a></dt>
+<dd><p>Return GEOID snapshots for this boundary type.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.managers.BoundaryManager.by_population">
+<span class="sig-name descname"><span class="pre">by_population</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ascending</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'acs5'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/managers/boundary_manager.html#BoundaryManager.by_population"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.managers.BoundaryManager.by_population" title="Link to this definition"></a></dt>
+<dd><p>Order by the selected dataset’s population (latest year by default).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
+<li><p><strong>ascending</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>)</p></li>
+<li><p><strong>dataset</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.managers.BoundaryManager.for_year">
@@ -12275,7 +12416,10 @@ vintage year.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>List of created boundary objects</p>
+<dd class="field-even"><p>List of the boundary objects actually inserted. Rows whose
+<code class="docutils literal notranslate"><span class="pre">(geoid,</span> <span class="pre">vintage_year)</span></code> already existed, or that repeat a GEOID
+earlier in <code class="docutils literal notranslate"><span class="pre">gdf</span></code>, are dropped by <code class="docutils literal notranslate"><span class="pre">ON</span> <span class="pre">CONFLICT</span> <span class="pre">DO</span> <span class="pre">NOTHING</span></code> and
+are not returned (#1539). Returned instances have no primary key.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -12356,7 +12500,8 @@ vintage year.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.django.managers.BoundaryQuerySet.within_distance">
 <span class="sig-name descname"><span class="pre">within_distance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">point</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_meters</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/managers/boundary_manager.html#BoundaryQuerySet.within_distance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.managers.BoundaryQuerySet.within_distance" title="Link to this definition"></a></dt>
 <dd><p>Find boundaries within a distance of a point.</p>
-<p>Uses geodesic distance via PostGIS ST_DWithin(geography).</p>
+<p>Casts the SRID-4326 geometry column to geography for PostGIS
+ST_DWithin, so the distance is measured in meters rather than degrees.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -12374,7 +12519,9 @@ vintage year.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.django.managers.BoundaryQuerySet.nearest">
 <span class="sig-name descname"><span class="pre">nearest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">point</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_distance_m</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">srid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/managers/boundary_manager.html#BoundaryQuerySet.nearest"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.managers.BoundaryQuerySet.nearest" title="Link to this definition"></a></dt>
 <dd><p>Find boundaries ordered by distance from a point (nearest first).</p>
-<p>Uses geodesic distance via PostGIS ST_Distance(geography).</p>
+<p>Orders by geodesic distance on the geometry column. When a maximum
+distance is supplied, within_distance casts the column to geography
+for ST_DWithin so the cutoff is in meters rather than degrees.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -12415,19 +12562,36 @@ vintage year.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.managers.BoundaryQuerySet.snapshots">
+<span class="sig-name descname"><span class="pre">snapshots</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/managers/boundary_manager.html#BoundaryQuerySet.snapshots"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.managers.BoundaryQuerySet.snapshots" title="Link to this definition"></a></dt>
+<dd><p>Return snapshots for this boundary selection, scoped by content type.</p>
+<p>Snapshots refer to GEOIDs across boundary vintages. For one boundary,
+use County.objects.filter(pk=county.pk).snapshots().</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.managers.BoundaryQuerySet.by_population">
-<span class="sig-name descname"><span class="pre">by_population</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ascending</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/managers/boundary_manager.html#BoundaryQuerySet.by_population"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.managers.BoundaryQuerySet.by_population" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">by_population</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ascending</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'acs5'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/managers/boundary_manager.html#BoundaryQuerySet.by_population"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.managers.BoundaryQuerySet.by_population" title="Link to this definition"></a></dt>
 <dd><p>Order boundaries by population.</p>
 <p>Requires DemographicSnapshot records to be joined.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Census year for population data</p></li>
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Census year for population data (latest available if omitted)</p></li>
 <li><p><strong>ascending</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – True for smallest first, False for largest first</p></li>
+<li><p><strong>dataset</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Census dataset to select (default acs5)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Ordered QuerySet (may be empty if no demographics loaded)</p>
+<dd class="field-even"><p>Ordered QuerySet (population is NULL where no matching data exists)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -12527,7 +12691,8 @@ convert the result to a GeoDataFrame if you need reprojection.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.within_distance">
 <span class="sig-name descname"><span class="pre">within_distance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">point</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_meters</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/managers/boundary_manager.html#BoundaryQuerySet.within_distance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.within_distance" title="Link to this definition"></a></dt>
 <dd><p>Find boundaries within a distance of a point.</p>
-<p>Uses geodesic distance via PostGIS ST_DWithin(geography).</p>
+<p>Casts the SRID-4326 geometry column to geography for PostGIS
+ST_DWithin, so the distance is measured in meters rather than degrees.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -12545,7 +12710,9 @@ convert the result to a GeoDataFrame if you need reprojection.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.nearest">
 <span class="sig-name descname"><span class="pre">nearest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">point</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_distance_m</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">srid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/managers/boundary_manager.html#BoundaryQuerySet.nearest"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.nearest" title="Link to this definition"></a></dt>
 <dd><p>Find boundaries ordered by distance from a point (nearest first).</p>
-<p>Uses geodesic distance via PostGIS ST_Distance(geography).</p>
+<p>Orders by geodesic distance on the geometry column. When a maximum
+distance is supplied, within_distance casts the column to geography
+for ST_DWithin so the cutoff is in meters rather than degrees.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -12586,19 +12753,36 @@ convert the result to a GeoDataFrame if you need reprojection.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.snapshots">
+<span class="sig-name descname"><span class="pre">snapshots</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/managers/boundary_manager.html#BoundaryQuerySet.snapshots"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.snapshots" title="Link to this definition"></a></dt>
+<dd><p>Return snapshots for this boundary selection, scoped by content type.</p>
+<p>Snapshots refer to GEOIDs across boundary vintages. For one boundary,
+use County.objects.filter(pk=county.pk).snapshots().</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_population">
-<span class="sig-name descname"><span class="pre">by_population</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ascending</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/managers/boundary_manager.html#BoundaryQuerySet.by_population"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_population" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">by_population</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ascending</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'acs5'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/managers/boundary_manager.html#BoundaryQuerySet.by_population"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_population" title="Link to this definition"></a></dt>
 <dd><p>Order boundaries by population.</p>
 <p>Requires DemographicSnapshot records to be joined.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Census year for population data</p></li>
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Census year for population data (latest available if omitted)</p></li>
 <li><p><strong>ascending</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – True for smallest first, False for largest first</p></li>
+<li><p><strong>dataset</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Census dataset to select (default acs5)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Ordered QuerySet (may be empty if no demographics loaded)</p>
+<dd class="field-even"><p>Ordered QuerySet (population is NULL where no matching data exists)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -12639,6 +12823,35 @@ convert the result to a GeoDataFrame if you need reprojection.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.get_queryset">
 <span class="sig-name descname"><span class="pre">get_queryset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/managers/boundary_manager.html#BoundaryManager.get_queryset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.get_queryset" title="Link to this definition"></a></dt>
 <dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.snapshots">
+<span class="sig-name descname"><span class="pre">snapshots</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/managers/boundary_manager.html#BoundaryManager.snapshots"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.snapshots" title="Link to this definition"></a></dt>
+<dd><p>Return GEOID snapshots for this boundary type.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.by_population">
+<span class="sig-name descname"><span class="pre">by_population</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ascending</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'acs5'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/managers/boundary_manager.html#BoundaryManager.by_population"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.by_population" title="Link to this definition"></a></dt>
+<dd><p>Order by the selected dataset’s population (latest year by default).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
+<li><p><strong>ascending</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>)</p></li>
+<li><p><strong>dataset</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.for_year">
@@ -12765,7 +12978,10 @@ convert the result to a GeoDataFrame if you need reprojection.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>List of created boundary objects</p>
+<dd class="field-even"><p>List of the boundary objects actually inserted. Rows whose
+<code class="docutils literal notranslate"><span class="pre">(geoid,</span> <span class="pre">vintage_year)</span></code> already existed, or that repeat a GEOID
+earlier in <code class="docutils literal notranslate"><span class="pre">gdf</span></code>, are dropped by <code class="docutils literal notranslate"><span class="pre">ON</span> <span class="pre">CONFLICT</span> <span class="pre">DO</span> <span class="pre">NOTHING</span></code> and
+are not returned (#1539). Returned instances have no primary key.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -12896,7 +13112,9 @@ module to load crosswalk relationships into TemporalCrosswalk models.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>geography_type</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Type of geography (tract, blockgroup, etc.)</p></li>
+<li><p><strong>geography_type</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Type of geography (‘tract’, ‘block_group’, ‘county’).
+Aliases such as ‘blockgroup’ are canonicalised before loading
+and storage.</p></li>
 <li><p><strong>source_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Source Census year (earlier)</p></li>
 <li><p><strong>target_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Target Census year (later)</p></li>
 <li><p><strong>state_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Optional state filter</p></li>
@@ -13113,12 +13331,19 @@ to fetch demographic data and store it in DemographicSnapshot models.</p>
 <li><p><strong>state_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – State FIPS code</p></li>
 <li><p><strong>variable_group</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Variable group name (income, education, housing, etc.)</p></li>
 <li><p><strong>dataset</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Census dataset (acs5, acs1, dec)</p></li>
-<li><p><strong>update_existing</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – If True, update existing records; otherwise skip</p></li>
+<li><p><strong>update_existing</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – If True, overwrite variables an existing snapshot
+already holds. Either way, variables the snapshot does not hold
+yet are merged into it, so successive variable groups accumulate
+on the one snapshot per boundary/year/dataset (#1550).</p></li>
 <li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Number of records per database batch</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>DemographicPopulationResult with statistics</p>
+<dd class="field-even"><p>DemographicPopulationResult with statistics. <code class="docutils literal notranslate"><span class="pre">records_updated</span></code>
+counts existing snapshots that gained or overwrote variables;
+<code class="docutils literal notranslate"><span class="pre">records_skipped</span></code> counts those left unchanged. <code class="docutils literal notranslate"><span class="pre">records_created</span></code>
+counts rows actually inserted, excluding any dropped by a unique
+conflict (#1539).</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.django.services.demographic_service.DemographicPopulationResult" title="siege_utilities.geo.django.services.demographic_service.DemographicPopulationResult"><em>DemographicPopulationResult</em></a></p>
@@ -13501,11 +13726,10 @@ then updates locale_code, locale_category, and locale_subcategory.</p>
 </dd></dl>
 
 <p id="module-siege_utilities.geo.django.services.nlrb_service">Service for populating NLRB (National Labor Relations Board) region data.</p>
-<p>NLRB divides the US into 26 active regions (numbered 1-31 with gaps).
-Boundaries are county-based and change infrequently.  Since the NLRB does
-not publish shapefiles, this service builds region geometries by dissolving
-county boundaries for the counties assigned to each region.</p>
-<p>Data source: NLRB region-to-county mapping (manual maintenance).</p>
+<p>This service creates registry rows with optional geometry. Dissolving counties
+in the registry’s primary states produces a state-level approximation, with
+overlaps between regions, rather than authoritative NLRB jurisdictions.</p>
+<p>Data source: manually maintained regional-office registry.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.django.services.nlrb_service.</span></span><span class="sig-name descname"><span class="pre">NLRBPopulationResult</span></span><a class="reference internal" href="../_modules/siege_utilities/geo/django/services/nlrb_service.html#NLRBPopulationResult"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult" title="Link to this definition"></a></dt>
@@ -13531,6 +13755,11 @@ county boundaries for the counties assigned to each region.</p>
 <span class="sig-name descname"><span class="pre">errors</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><span class="pre">list</span></a></span><a class="headerlink" href="#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.errors" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_without_geometry">
+<span class="sig-name descname"><span class="pre">records_without_geometry</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></span><a class="headerlink" href="#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_without_geometry" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py property">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.success">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">success</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span><a class="headerlink" href="#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.success" title="Link to this definition"></a></dt>
@@ -13538,7 +13767,7 @@ county boundaries for the counties assigned to each region.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">records_created</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_updated</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_skipped</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.__init__" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">records_created</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_updated</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_skipped</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_without_geometry</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.__init__" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -13546,6 +13775,7 @@ county boundaries for the counties assigned to each region.</p>
 <li><p><strong>records_updated</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
 <li><p><strong>records_skipped</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
 <li><p><strong>errors</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><em>list</em></a>)</p></li>
+<li><p><strong>records_without_geometry</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -13575,17 +13805,22 @@ geometries.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.nlrb_service.NLRBPopulationService.populate">
 <span class="sig-name descname"><span class="pre">populate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vintage_year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2024</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_existing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dissolve_counties</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/services/nlrb_service.html#NLRBPopulationService.populate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationService.populate" title="Link to this definition"></a></dt>
 <dd><p>Populate NLRBRegion records from the built-in registry.</p>
+<p>Registry-only rows have NULL geometry. Optional dissolves are a
+state-level approximation: whole states shared by multiple regions
+produce overlapping polygons, not precise county/sub-county
+jurisdictions. Authoritative mapping is deferred to #1713.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>vintage_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Vintage year for the records.</p></li>
+<li><p><strong>vintage_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Vintage year for both region records and counties.</p></li>
 <li><p><strong>update_existing</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – If True, update existing records instead of skipping.</p></li>
 <li><p><strong>dissolve_counties</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – If True, attempt to build region geometry by
 dissolving county boundaries (requires populated County model).</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>NLRBPopulationResult with counts.</p>
+<dd class="field-even"><p>NLRBPopulationResult with counts, including records_without_geometry
+for all registry rows visited (created, updated, or skipped).</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult" title="siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult"><em>NLRBPopulationResult</em></a></p>
@@ -13602,7 +13837,7 @@ boundaries, then loads them into Django models.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.population_service.PopulationResult">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.django.services.population_service.</span></span><span class="sig-name descname"><span class="pre">PopulationResult</span></span><a class="reference internal" href="../_modules/siege_utilities/geo/django/services/population_service.html#PopulationResult"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.services.population_service.PopulationResult" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.15)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
-<p>Result of a boundary population operation.</p>
+<p>Population counts, with unpublished sources counted separately from rows.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.population_service.PopulationResult.geography_type">
 <span class="sig-name descname"><span class="pre">geography_type</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.geo.django.services.population_service.PopulationResult.geography_type" title="Link to this definition"></a></dt>
@@ -13638,6 +13873,16 @@ boundaries, then loads them into Django models.</p>
 <span class="sig-name descname"><span class="pre">errors</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#siege_utilities.geo.django.services.population_service.PopulationResult.errors" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.services.population_service.PopulationResult.sources_skipped">
+<span class="sig-name descname"><span class="pre">sources_skipped</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></span><a class="headerlink" href="#siege_utilities.geo.django.services.population_service.PopulationResult.sources_skipped" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.services.population_service.PopulationResult.warnings">
+<span class="sig-name descname"><span class="pre">warnings</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#siege_utilities.geo.django.services.population_service.PopulationResult.warnings" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py property">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.population_service.PopulationResult.total_processed">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">total_processed</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><a class="headerlink" href="#siege_utilities.geo.django.services.population_service.PopulationResult.total_processed" title="Link to this definition"></a></dt>
@@ -13650,7 +13895,7 @@ boundaries, then loads them into Django models.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.population_service.PopulationResult.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">geography_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_fips</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_created</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_updated</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_skipped</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.django.services.population_service.PopulationResult.__init__" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">geography_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_fips</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_created</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_updated</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_skipped</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sources_skipped</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warnings</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.django.services.population_service.PopulationResult.__init__" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -13661,6 +13906,8 @@ boundaries, then loads them into Django models.</p>
 <li><p><strong>records_updated</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
 <li><p><strong>records_skipped</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
 <li><p><strong>errors</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>]</em>)</p></li>
+<li><p><strong>sources_skipped</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
+<li><p><strong>warnings</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>]</em>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -13698,8 +13945,13 @@ to download TIGER/Line shapefiles and load them into Django models.</p>
 <dd></dd></dl>
 
 <dl class="py attribute">
-<dt class="sig sig-object py" id="siege_utilities.geo.django.services.population_service.BoundaryPopulationService.TIGER_TYPES">
-<span class="sig-name descname"><span class="pre">TIGER_TYPES</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'block':</span> <span class="pre">'TABBLOCK',</span> <span class="pre">'blockgroup':</span> <span class="pre">'BG',</span> <span class="pre">'cbsa':</span> <span class="pre">'CBSA',</span> <span class="pre">'cd':</span> <span class="pre">'CD',</span> <span class="pre">'county':</span> <span class="pre">'COUNTY',</span> <span class="pre">'elsd':</span> <span class="pre">'ELSD',</span> <span class="pre">'place':</span> <span class="pre">'PLACE',</span> <span class="pre">'scsd':</span> <span class="pre">'SCSD',</span> <span class="pre">'sldl':</span> <span class="pre">'SLDL',</span> <span class="pre">'sldu':</span> <span class="pre">'SLDU',</span> <span class="pre">'state':</span> <span class="pre">'STATE',</span> <span class="pre">'tract':</span> <span class="pre">'TRACT',</span> <span class="pre">'unsd':</span> <span class="pre">'UNSD',</span> <span class="pre">'urbanarea':</span> <span class="pre">'UA',</span> <span class="pre">'vtd':</span> <span class="pre">'VTD',</span> <span class="pre">'zcta':</span> <span class="pre">'ZCTA5'}</span></span><a class="headerlink" href="#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.TIGER_TYPES" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="siege_utilities.geo.django.services.population_service.BoundaryPopulationService.GEOGRAPHIC_LEVELS">
+<span class="sig-name descname"><span class="pre">GEOGRAPHIC_LEVELS</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'block':</span> <span class="pre">'block',</span> <span class="pre">'blockgroup':</span> <span class="pre">'block_group',</span> <span class="pre">'cbsa':</span> <span class="pre">'cbsa',</span> <span class="pre">'cd':</span> <span class="pre">'cd',</span> <span class="pre">'county':</span> <span class="pre">'county',</span> <span class="pre">'elsd':</span> <span class="pre">'elsd',</span> <span class="pre">'place':</span> <span class="pre">'place',</span> <span class="pre">'scsd':</span> <span class="pre">'scsd',</span> <span class="pre">'sldl':</span> <span class="pre">'sldl',</span> <span class="pre">'sldu':</span> <span class="pre">'sldu',</span> <span class="pre">'state':</span> <span class="pre">'state',</span> <span class="pre">'tract':</span> <span class="pre">'tract',</span> <span class="pre">'unsd':</span> <span class="pre">'unsd',</span> <span class="pre">'urbanarea':</span> <span class="pre">'uac',</span> <span class="pre">'vtd':</span> <span class="pre">'vtd',</span> <span class="pre">'zcta':</span> <span class="pre">'zcta'}</span></span><a class="headerlink" href="#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.GEOGRAPHIC_LEVELS" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.services.population_service.BoundaryPopulationService.VTD_NOT_PUBLISHED">
+<span class="sig-name descname"><span class="pre">VTD_NOT_PUBLISHED</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{2020:</span> <span class="pre">frozenset({'06',</span> <span class="pre">'15',</span> <span class="pre">'41'})}</span></span><a class="headerlink" href="#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.VTD_NOT_PUBLISHED" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
@@ -13728,10 +13980,21 @@ to download TIGER/Line shapefiles and load them into Django models.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>PopulationResult with statistics</p>
+<dd class="field-even"><p>PopulationResult with statistics. Rows rejected by validation or
+database integrity constraints are logged with their GEOID, counted
+as skipped, and included in errors; valid rows are retained. CD
+session codes are normalized using the TIGER year’s Congress before
+identity lookup, with mismatched CDSESSN or embedded sessions rejected.</p>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.PopulationResult" title="siege_utilities.geo.django.services.population_service.PopulationResult"><em>PopulationResult</em></a></p>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If geography_type is unknown or unsupported.</p></li>
+<li><p><a class="reference internal" href="geo.html#siege_utilities.geo.boundary_result.BoundaryRetrievalError" title="siege_utilities.geo.boundary_result.BoundaryRetrievalError"><strong>BoundaryRetrievalError</strong></a> – If retrieval fails or returns no boundaries.
+    Download and normalization exceptions also propagate to callers.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#siege_utilities.geo.django.services.population_service.PopulationResult" title="siege_utilities.geo.django.services.population_service.PopulationResult"><em>PopulationResult</em></a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -13870,7 +14133,9 @@ to download TIGER/Line shapefiles and load them into Django models.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.population_service.BoundaryPopulationService.link_parent_relationships">
 <span class="sig-name descname"><span class="pre">link_parent_relationships</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">geography_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/services/population_service.html#BoundaryPopulationService.link_parent_relationships"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.link_parent_relationships" title="Link to this definition"></a></dt>
 <dd><p>Link child boundaries to their parent boundaries.</p>
-<p>For example, link counties to states, tracts to counties, etc.</p>
+<p>Resolve every missing FIPS-based parent at the same vintage. Existing
+links are preserved. VTD congressional-district assignment requires a
+spatial/crosswalk policy and is not resolved from FIPS components.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -13882,8 +14147,11 @@ to download TIGER/Line shapefiles and load them into Django models.</p>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Number of relationships linked</p>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)">int</a></p>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If geography_type is unknown.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)">int</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -13898,7 +14166,7 @@ redistricting Django models.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.rdh_loader.RDHLoadResult">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.django.services.rdh_loader.</span></span><span class="sig-name descname"><span class="pre">RDHLoadResult</span></span><a class="reference internal" href="../_modules/siege_utilities/geo/django/services/rdh_loader.html#RDHLoadResult"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.15)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
-<p>Result of an RDH load operation.</p>
+<p>Result of an RDH load operation; warnings describe recoverable omissions.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.operation">
 <span class="sig-name descname"><span class="pre">operation</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span><a class="headerlink" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.operation" title="Link to this definition"></a></dt>
@@ -13924,6 +14192,11 @@ redistricting Django models.</p>
 <span class="sig-name descname"><span class="pre">errors</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.errors" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
+<dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.warnings">
+<span class="sig-name descname"><span class="pre">warnings</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.warnings" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py property">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.total_processed">
 <span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">total_processed</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><a class="headerlink" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.total_processed" title="Link to this definition"></a></dt>
@@ -13936,7 +14209,7 @@ redistricting Django models.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">operation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_created</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_updated</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_skipped</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.__init__" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">operation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_created</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_updated</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_skipped</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warnings</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.__init__" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -13945,6 +14218,7 @@ redistricting Django models.</p>
 <li><p><strong>records_updated</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
 <li><p><strong>records_skipped</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
 <li><p><strong>errors</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>]</em>)</p></li>
+<li><p><strong>warnings</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>]</em>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -14004,7 +14278,31 @@ redistricting Django models.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.rdh_loader.RDHLoaderService.load_precinct_results">
 <span class="sig-name descname"><span class="pre">load_precinct_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">election_year</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plan</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoaderService.load_precinct_results" title="Link to this definition"></a></dt>
-<dd><p>Fetch and load precinct election results.</p>
+<dd><p>Replace RDH results for a state, election year and next-year runoffs.</p>
+<p>Read VEST vote columns (TYYOOOPCCC), including general, special, runoff,
+recount and primary elections. Store the raw election type, House
+district (two digits or AL), and party letter in the result identity.
+Next-year runoffs in the same file use their own election year (e.g.
+GA’s R21 Senate columns in the 2020 file are stored as 2021). Other-year
+columns are skipped with warnings. Reload replaces the requested year
+and next-year runoff scope, including candidates removed from the file.
+In DC only, DEL is House/AL; USS and HAL are shadow offices, skipped
+with warnings. Known party display labels do not replace the source
+party code; unmapped letters are preserved and warned per column.
+Store the three-character alphanumeric candidate code in candidate_name;
+full surnames are not in the file. Skip non-conforming year-prefixed
+columns and columns with unmapped offices with logged warnings recorded
+in the result. Missing
+or blank vote cells count as zero. Totals include every conforming
+candidate column in each mapped office prefix, including unrecognized
+parties.
+Prefer existing GEOID and county-qualified precinct identifiers, then
+GEOID16/18, county-qualified VTDST16/18 and statewide VTDID alternatives.
+WARDID also needs its municipality when supplied.
+Every resolved identifier must be nonblank and unique within the state.
+Blank-ID rows may be skipped only when every vote-prefixed column is
+zero (missing vote cells count as zero), with the skipped count warned.
+Geometry is expected in WGS 84 (EPSG:4326) and stored as 2D boundaries.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -14014,25 +14312,43 @@ redistricting Django models.</p>
 <li><p><strong>plan</strong> (<a class="reference internal" href="geo.html#siege_utilities.geo.RedistrictingPlan" title="siege_utilities.geo.RedistrictingPlan"><em>RedistrictingPlan</em></a><em>, </em><em>optional</em>) – Link results to a specific plan.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference internal" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult" title="siege_utilities.geo.django.services.rdh_loader.RDHLoadResult">RDHLoadResult</a></p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Number of replacement rows created, skipped blank-ID precincts,
+warnings for skipped columns and unknown parties,
+or errors if RDH has no file. Warnings do not mark the load failed.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult" title="siege_utilities.geo.django.services.rdh_loader.RDHLoadResult">RDHLoadResult</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If the state or precinct identifiers are invalid, or no conforming
+    vote columns with mapped offices match election_year. Existing
+    rows remain intact.</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.rdh_loader.RDHLoaderService.load_cvap_for_plan">
-<span class="sig-name descname"><span class="pre">load_cvap_for_plan</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">plan</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoaderService.load_cvap_for_plan" title="Link to this definition"></a></dt>
-<dd><p>Overlay CVAP data onto plan districts via spatial join.</p>
+<span class="sig-name descname"><span class="pre">load_cvap_for_plan</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">plan</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geography</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'tract'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoaderService.load_cvap_for_plan" title="Link to this definition"></a></dt>
+<dd><p>Set <code class="docutils literal notranslate"><span class="pre">district.cvap</span></code> by matching district GEOIDs to an RDH CVAP table.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>plan</strong> (<a class="reference internal" href="geo.html#siege_utilities.geo.RedistrictingPlan" title="siege_utilities.geo.RedistrictingPlan"><em>RedistrictingPlan</em></a>) – Plan whose districts will be updated.</p></li>
 <li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – CVAP data year.</p></li>
+<li><p><strong>geography</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – CVAP dataset level, passed to <code class="docutils literal notranslate"><span class="pre">fetch_cvap</span></code>. It must be the level
+whose GEOIDs equal the plan’s district GEOIDs; a level with no
+matching GEOIDs is reported in <code class="docutils literal notranslate"><span class="pre">errors</span></code>, not silently skipped.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference internal" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult" title="siege_utilities.geo.django.services.rdh_loader.RDHLoadResult">RDHLoadResult</a></p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">errors</span></code> is set when no CVAP dataset exists at <code class="docutils literal notranslate"><span class="pre">geography</span></code>,
+the GEOID column is numeric (leading zeros lost), or no district
+matches. <code class="docutils literal notranslate"><span class="pre">warnings</span></code> lists districts left without a match.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult" title="siege_utilities.geo.django.services.rdh_loader.RDHLoadResult">RDHLoadResult</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -14102,6 +14418,11 @@ temporal crosswalk mappings.  Supports sum, avg, and weighted_avg
 <dd></dd></dl>
 
 <dl class="py attribute">
+<dt class="sig sig-object py" id="siege_utilities.geo.django.services.rollup_service.RollupResult.records_updated">
+<span class="sig-name descname"><span class="pre">records_updated</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></span><a class="headerlink" href="#siege_utilities.geo.django.services.rollup_service.RollupResult.records_updated" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.rollup_service.RollupResult.records_skipped">
 <span class="sig-name descname"><span class="pre">records_skipped</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></span><a class="headerlink" href="#siege_utilities.geo.django.services.rollup_service.RollupResult.records_skipped" title="Link to this definition"></a></dt>
 <dd></dd></dl>
@@ -14123,7 +14444,7 @@ temporal crosswalk mappings.  Supports sum, avg, and weighted_avg
 
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.rollup_service.RollupResult.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_level</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_level</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variable_code</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_created</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_skipped</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coverage_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.django.services.rollup_service.RollupResult.__init__" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_level</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_level</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variable_code</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_created</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_updated</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">records_skipped</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coverage_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">errors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#siege_utilities.geo.django.services.rollup_service.RollupResult.__init__" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -14131,6 +14452,7 @@ temporal crosswalk mappings.  Supports sum, avg, and weighted_avg
 <li><p><strong>target_level</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
 <li><p><strong>variable_code</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
 <li><p><strong>records_created</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
+<li><p><strong>records_updated</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
 <li><p><strong>records_skipped</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
 <li><p><strong>coverage_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><em>float</em></a>)</p></li>
 <li><p><strong>errors</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><em>list</em></a>)</p></li>
@@ -14184,7 +14506,7 @@ operation=’sum’,</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.django.services.rollup_service.DemographicRollupService.rollup">
-<span class="sig-name descname"><span class="pre">rollup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_level</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_level</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">operation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sum'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">500</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crosswalk_year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_coverage</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/services/rollup_service.html#DemographicRollupService.rollup"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.services.rollup_service.DemographicRollupService.rollup" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">rollup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_level</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_level</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">operation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sum'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">500</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crosswalk_year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_coverage</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/django/services/rollup_service.html#DemographicRollupService.rollup"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.django.services.rollup_service.DemographicRollupService.rollup" title="Link to this definition"></a></dt>
 <dd><p>Aggregate demographic data from source to target geography level.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -14197,11 +14519,21 @@ operation=’sum’,</p>
 <li><p><strong>state_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Optional state filter</p></li>
 <li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Bulk create batch size</p></li>
 <li><p><strong>crosswalk_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>) – When set, use TemporalCrosswalk mappings from
-<code class="docutils literal notranslate"><span class="pre">crosswalk_year</span></code> → <code class="docutils literal notranslate"><span class="pre">year</span></code> instead of GEOID prefix truncation.
-Enables rollup across boundary changes.</p></li>
-<li><p><strong>min_coverage</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><em>float</em></a>) – Minimum coverage ratio (0-1, default 0.5).  When a
-target geography has data for fewer than <code class="docutils literal notranslate"><span class="pre">min_coverage</span></code> of its
-expected children, a warning is logged.</p></li>
+<code class="docutils literal notranslate"><span class="pre">crosswalk_year</span></code> → <code class="docutils literal notranslate"><span class="pre">year</span></code> (at <code class="docutils literal notranslate"><span class="pre">source_level</span></code>) and then
+truncate each crosswalk target GEOID to <code class="docutils literal notranslate"><span class="pre">target_level</span></code>.
+Enables rollup across boundary changes.  The crosswalk weight
+is applied exactly once: it scales the value for <code class="docutils literal notranslate"><span class="pre">sum</span></code> and
+the contribution weight for <code class="docutils literal notranslate"><span class="pre">avg</span></code>/<code class="docutils literal notranslate"><span class="pre">weighted_avg</span></code>.</p></li>
+<li><p><strong>min_coverage</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><em>float</em></a>) – Minimum coverage ratio (0-1, default 0.5).  When
+fewer than <code class="docutils literal notranslate"><span class="pre">min_coverage</span></code> of the expected children have data,
+a warning is logged.  Expected children are the <code class="docutils literal notranslate"><span class="pre">source_level</span></code>
+boundaries (latest vintage &lt;= <code class="docutils literal notranslate"><span class="pre">year</span></code>) in prefix mode, and the
+crosswalk source boundaries in crosswalk mode.</p></li>
+<li><p><strong>overwrite</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – When False (default), a target snapshot that already
+holds <code class="docutils literal notranslate"><span class="pre">variable</span></code> is left unchanged and counted as skipped,
+so authoritative values (e.g. fetched from the Census API) are
+never replaced by derived aggregates.  When True, the value is
+replaced and counted in <code class="docutils literal notranslate"><span class="pre">records_updated</span></code>.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>

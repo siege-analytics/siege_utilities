@@ -6,14 +6,14 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Geo &mdash; Siege Utilities 4.0.0 documentation</title>
+  <title>Geo &mdash; Siege Utilities 4.1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=3304f9e4"></script>
+      <script src="../_static/documentation_options.js?v=42d1b3bd"></script>
       <script src="../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/js/theme.js"></script>
@@ -4501,7 +4501,7 @@
 <li class="toctree-l2"><a class="reference internal" href="geo_django.html#module-siege_utilities.geo.django.models.base">Models</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.save"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.prepare_for_bulk()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.get_geoid_length"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.get_geoid_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.parse_geoid"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.parse_geoid()</span></code></a></li>
 </ul>
@@ -4510,12 +4510,14 @@
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.total_area"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.total_area</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.land_percentage"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.land_percentage</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.save"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.Meta"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.is_current"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.is_current</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.prepare_for_bulk()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.save"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.save()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.base.TemporalLinearFeature"><code class="docutils literal notranslate"><span class="pre">TemporalLinearFeature</span></code></a><ul>
@@ -4550,6 +4552,7 @@
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.state"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.Meta"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.get_geoid_length"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.get_geoid_length()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.normalize_geoid"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.normalize_geoid()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.parse_geoid"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.parse_geoid()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.is_at_large"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.is_at_large</span></code></a></li>
 </ul>
@@ -4635,16 +4638,19 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.DATASET_CHOICES"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.DATASET_CHOICES</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.content_object"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.content_object</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.get_value"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.get_value()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.get_moe"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.get_moe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.prepare_for_bulk()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.save"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.save()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.content_object"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries.content_object</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries.Meta</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicKeyArchive"><code class="docutils literal notranslate"><span class="pre">DemographicKeyArchive</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.demographics.DemographicKeyArchive.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicKeyArchive.Meta</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.SchoolDistrictBase"><code class="docutils literal notranslate"><span class="pre">SchoolDistrictBase</span></code></a><ul>
@@ -4668,28 +4674,28 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.save"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation"><code class="docutils literal notranslate"><span class="pre">SchoolLocation</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.state"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.Meta"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.save"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion"><code class="docutils literal notranslate"><span class="pre">NLRBRegion</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.Meta"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.save"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.Meta"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.save"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary"><code class="docutils literal notranslate"><span class="pre">GADMBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.save"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.gadm.GADMCountry"><code class="docutils literal notranslate"><span class="pre">GADMCountry</span></code></a><ul>
@@ -4750,7 +4756,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult"><code class="docutils literal notranslate"><span class="pre">IsochroneResult</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.Meta"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.save"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.nlrb_cases.NLRBCase"><code class="docutils literal notranslate"><span class="pre">NLRBCase</span></code></a><ul>
@@ -4844,7 +4850,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.Meta"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.save"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -4852,6 +4858,8 @@
 <li class="toctree-l2"><a class="reference internal" href="geo_django.html#module-siege_utilities.geo.django.managers">Managers</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryManager"><code class="docutils literal notranslate"><span class="pre">BoundaryManager</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.get_queryset"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.get_queryset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.snapshots()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.for_year"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_year()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.for_state"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_state()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.current"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.current()</span></code></a></li>
@@ -4876,6 +4884,7 @@
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.nearest"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.nearest()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.with_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.with_area()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.by_land_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_land_area()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.snapshots()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.geojson"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.geojson()</span></code></a></li>
 </ul>
@@ -4891,12 +4900,15 @@
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.nearest"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.nearest()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.with_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.with_area()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_land_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_land_area()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.snapshots()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.geojson"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.geojson()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager"><code class="docutils literal notranslate"><span class="pre">BoundaryManager</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.get_queryset"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.get_queryset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.snapshots()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.for_year"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_year()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.for_state"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_state()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.current"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.current()</span></code></a></li>
@@ -4999,6 +5011,7 @@
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_updated"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.errors"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_without_geometry"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_without_geometry</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.success"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.__init__"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.__init__()</span></code></a></li>
 </ul>
@@ -5015,6 +5028,8 @@
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.records_updated"><code class="docutils literal notranslate"><span class="pre">PopulationResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">PopulationResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.errors"><code class="docutils literal notranslate"><span class="pre">PopulationResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.sources_skipped"><code class="docutils literal notranslate"><span class="pre">PopulationResult.sources_skipped</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.warnings"><code class="docutils literal notranslate"><span class="pre">PopulationResult.warnings</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.total_processed"><code class="docutils literal notranslate"><span class="pre">PopulationResult.total_processed</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.success"><code class="docutils literal notranslate"><span class="pre">PopulationResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.__init__"><code class="docutils literal notranslate"><span class="pre">PopulationResult.__init__()</span></code></a></li>
@@ -5022,7 +5037,8 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.GEOGRAPHY_MODELS"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.GEOGRAPHY_MODELS</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.TIGER_TYPES"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.TIGER_TYPES</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.GEOGRAPHIC_LEVELS"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.GEOGRAPHIC_LEVELS</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.VTD_NOT_PUBLISHED"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.VTD_NOT_PUBLISHED</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.__init__"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.populate"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.populate()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.populate_states"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.populate_states()</span></code></a></li>
@@ -5042,6 +5058,7 @@
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.records_updated"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.errors"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.warnings"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.warnings</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.total_processed"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.total_processed</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.success"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.__init__"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.__init__()</span></code></a></li>
@@ -5061,6 +5078,7 @@
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.target_level"><code class="docutils literal notranslate"><span class="pre">RollupResult.target_level</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.variable_code"><code class="docutils literal notranslate"><span class="pre">RollupResult.variable_code</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_created"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_created</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_updated"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.coverage_ratio"><code class="docutils literal notranslate"><span class="pre">RollupResult.coverage_ratio</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.errors"><code class="docutils literal notranslate"><span class="pre">RollupResult.errors</span></code></a></li>
@@ -5702,6 +5720,7 @@
 <li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_slides.get_presentation"><code class="docutils literal notranslate"><span class="pre">get_presentation()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_slides.insert_image"><code class="docutils literal notranslate"><span class="pre">insert_image()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_slides.insert_text"><code class="docutils literal notranslate"><span class="pre">insert_text()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_slides.temporary_public_figure"><code class="docutils literal notranslate"><span class="pre">temporary_public_figure()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_slides.upload_figure_to_drive"><code class="docutils literal notranslate"><span class="pre">upload_figure_to_drive()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_workspace.GoogleWorkspaceClient"><code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="analytics.html#siege_utilities.analytics.google_workspace.GoogleWorkspaceClient.__init__"><code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient.__init__()</span></code></a></li>
@@ -6294,9 +6313,12 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="config.html">Config</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="config.html#siege_utilities.config.get_service_timeout"><code class="docutils literal notranslate"><span class="pre">get_service_timeout()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="config.html#siege_utilities.config.normalize_state_identifier"><code class="docutils literal notranslate"><span class="pre">normalize_state_identifier()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="config.html#siege_utilities.config.get_fips_info"><code class="docutils literal notranslate"><span class="pre">get_fips_info()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="config.html#sharing-exports-without-secrets">Sharing exports without secrets</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="config.html#siege_utilities.config.get_service_timeout"><code class="docutils literal notranslate"><span class="pre">get_service_timeout()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="config.html#siege_utilities.config.normalize_state_identifier"><code class="docutils literal notranslate"><span class="pre">normalize_state_identifier()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="config.html#siege_utilities.config.get_fips_info"><code class="docutils literal notranslate"><span class="pre">get_fips_info()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="config.html#module-siege_utilities.config.credential_manager">Submodules</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="config.html#siege_utilities.config.credential_manager.CredentialNotFoundError"><code class="docutils literal notranslate"><span class="pre">CredentialNotFoundError</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.credential_manager.CredentialNotFoundError.__init__"><code class="docutils literal notranslate"><span class="pre">CredentialNotFoundError.__init__()</span></code></a></li>
@@ -6653,6 +6675,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="config.html#siege_utilities.config.models.DatabaseConnection"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DatabaseConnection.validate_host"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_host()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DatabaseConnection.validate_password_length"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DatabaseConnection.validate_password"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DatabaseConnection.validate_port"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_port()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DatabaseConnection.validate_database_name"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_database_name()</span></code></a></li>
@@ -6660,10 +6683,10 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount.refresh_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.refresh_token</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount.api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.api_version</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount.rate_limit_remaining"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.rate_limit_remaining</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount.last_updated"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.last_updated</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount.validate_access_token_length"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount.validate_access_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount.validate_account_id"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_account_id()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.SocialMediaAccount.validate_api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_api_version()</span></code></a></li>
@@ -6736,7 +6759,6 @@
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DataSource.source_type"><code class="docutils literal notranslate"><span class="pre">DataSource.source_type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DataSource.jurisdiction"><code class="docutils literal notranslate"><span class="pre">DataSource.jurisdiction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DataSource.status"><code class="docutils literal notranslate"><span class="pre">DataSource.status</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DataSource.auth_required"><code class="docutils literal notranslate"><span class="pre">DataSource.auth_required</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DataSource.notes"><code class="docutils literal notranslate"><span class="pre">DataSource.notes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.DataSource.validate_auth_type"><code class="docutils literal notranslate"><span class="pre">DataSource.validate_auth_type()</span></code></a></li>
 </ul>
@@ -6967,7 +6989,6 @@
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.data_sources.DataSource.source_type"><code class="docutils literal notranslate"><span class="pre">DataSource.source_type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.data_sources.DataSource.jurisdiction"><code class="docutils literal notranslate"><span class="pre">DataSource.jurisdiction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.data_sources.DataSource.status"><code class="docutils literal notranslate"><span class="pre">DataSource.status</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.data_sources.DataSource.auth_required"><code class="docutils literal notranslate"><span class="pre">DataSource.auth_required</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.data_sources.DataSource.notes"><code class="docutils literal notranslate"><span class="pre">DataSource.notes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.data_sources.DataSource.validate_auth_type"><code class="docutils literal notranslate"><span class="pre">DataSource.validate_auth_type()</span></code></a></li>
 </ul>
@@ -6978,6 +6999,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="config.html#siege_utilities.config.models.database_connection.DatabaseConnection"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_host"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_host()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_password_length"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_password"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_port"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_port()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_database_name"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_database_name()</span></code></a></li>
@@ -7133,10 +7155,10 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.refresh_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.refresh_token</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.api_version</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.rate_limit_remaining"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.rate_limit_remaining</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.last_updated"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.last_updated</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token_length"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_account_id"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_account_id()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_api_version()</span></code></a></li>
@@ -7873,7 +7895,10 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="hygiene.html">Hygiene</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings"><code class="docutils literal notranslate"><span class="pre">generate_docstrings()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="hygiene.html#docstring-generation">Docstring generation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings"><code class="docutils literal notranslate"><span class="pre">generate_docstrings()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="hygiene.html#module-siege_utilities.hygiene.generate_docstrings">Submodules</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.analyze_function_signature"><code class="docutils literal notranslate"><span class="pre">analyze_function_signature()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.categorize_function"><code class="docutils literal notranslate"><span class="pre">categorize_function()</span></code></a></li>
@@ -7881,6 +7906,7 @@
 <li class="toctree-l3"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder"><code class="docutils literal notranslate"><span class="pre">DocstringAdder</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.__init__"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_FunctionDef"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.visit_FunctionDef()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_AsyncFunctionDef"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.visit_AsyncFunctionDef()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="hygiene.html#siege_utilities.hygiene.generate_docstrings.process_python_file"><code class="docutils literal notranslate"><span class="pre">process_python_file()</span></code></a></li>
@@ -10005,9 +10031,10 @@ often block or throttle HEAD requests from non-browser User-Agents.</p>
 <p>Census TIGER/Line boundary data source with dynamic year discovery.</p>
 <p>Supports all standard TIGER/Line boundary types:</p>
 <dl class="simple">
-<dt><strong>National-scope</strong> (no state_fips required):</dt><dd><p><code class="docutils literal notranslate"><span class="pre">nation</span></code>, <code class="docutils literal notranslate"><span class="pre">state</span></code>, <code class="docutils literal notranslate"><span class="pre">county</span></code>, <code class="docutils literal notranslate"><span class="pre">place</span></code>, <code class="docutils literal notranslate"><span class="pre">zcta</span></code>, <code class="docutils literal notranslate"><span class="pre">cd</span></code></p>
+<dt><strong>National-scope</strong> (no state_fips required):</dt><dd><p><code class="docutils literal notranslate"><span class="pre">nation</span></code>, <code class="docutils literal notranslate"><span class="pre">state</span></code>, <code class="docutils literal notranslate"><span class="pre">county</span></code>, <code class="docutils literal notranslate"><span class="pre">zcta</span></code>, <code class="docutils literal notranslate"><span class="pre">cd</span></code> (through 2021)</p>
 </dd>
-<dt><strong>State-scope</strong> (state_fips required):</dt><dd><p><code class="docutils literal notranslate"><span class="pre">tract</span></code>, <code class="docutils literal notranslate"><span class="pre">block_group</span></code>, <code class="docutils literal notranslate"><span class="pre">block</span></code>, <code class="docutils literal notranslate"><span class="pre">tabblock20</span></code>, <code class="docutils literal notranslate"><span class="pre">sldu</span></code>, <code class="docutils literal notranslate"><span class="pre">sldl</span></code></p>
+<dt><strong>State-scope</strong> (state_fips required):</dt><dd><p><code class="docutils literal notranslate"><span class="pre">tract</span></code>, <code class="docutils literal notranslate"><span class="pre">block_group</span></code>, <code class="docutils literal notranslate"><span class="pre">block</span></code>, <code class="docutils literal notranslate"><span class="pre">tabblock20</span></code>, <code class="docutils literal notranslate"><span class="pre">sldu</span></code>, <code class="docutils literal notranslate"><span class="pre">sldl</span></code>,
+<code class="docutils literal notranslate"><span class="pre">place</span></code>, <code class="docutils literal notranslate"><span class="pre">elsd</span></code>, <code class="docutils literal notranslate"><span class="pre">scsd</span></code>, <code class="docutils literal notranslate"><span class="pre">unsd</span></code>, <code class="docutils literal notranslate"><span class="pre">vtd</span></code>, <code class="docutils literal notranslate"><span class="pre">cd</span></code> (from 2022)</p>
 </dd>
 </dl>
 <p>GEOID formats by boundary type:</p>
@@ -10129,10 +10156,11 @@ For structured diagnostics, use <a class="reference internal" href="#siege_utili
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Census year (will find closest available if not available)</p></li>
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Census year (an unpublished vintage returns None; see
+<a class="reference internal" href="#siege_utilities.geo.fetch_geographic_boundaries" title="siege_utilities.geo.fetch_geographic_boundaries"><code class="xref py py-meth docutils literal notranslate"><span class="pre">fetch_geographic_boundaries()</span></code></a> <code class="docutils literal notranslate"><span class="pre">allow_nearest_year</span></code>)</p></li>
 <li><p><strong>geographic_level</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Geographic level (state, county, tract, etc.)</p></li>
 <li><p><strong>state_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – State FIPS code for filtering (required for some levels)</p></li>
-<li><p><strong>county_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – County FIPS code for filtering</p></li>
+<li><p><strong>county_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – 3-digit county FIPS code for filtering (requires state_fips)</p></li>
 <li><p><strong>congress_number</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>) – Congress number for congressional districts</p></li>
 </ul>
 </dd>
@@ -10147,19 +10175,30 @@ For structured diagnostics, use <a class="reference internal" href="#siege_utili
 
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.CensusDataSource.fetch_geographic_boundaries">
-<span class="sig-name descname"><span class="pre">fetch_geographic_boundaries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2026</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geographic_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'county'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">county_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">congress_number</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/spatial_data.html#CensusDataSource.fetch_geographic_boundaries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.CensusDataSource.fetch_geographic_boundaries" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">fetch_geographic_boundaries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2026</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geographic_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'county'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">county_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">congress_number</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_nearest_year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/spatial_data.html#CensusDataSource.fetch_geographic_boundaries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.CensusDataSource.fetch_geographic_boundaries" title="Link to this definition"></a></dt>
 <dd><p>Download geographic boundaries with structured diagnostics.</p>
 <p>Returns a <a class="reference internal" href="#siege_utilities.geo.BoundaryFetchResult" title="siege_utilities.geo.BoundaryFetchResult"><code class="xref py py-class docutils literal notranslate"><span class="pre">BoundaryFetchResult</span></code></a> that carries either the
 GeoDataFrame on success or a machine-readable error code, stage, and
 context dict on failure.</p>
+<p><code class="docutils literal notranslate"><span class="pre">context['served_year']</span></code> always records the TIGER vintage that was
+(or would have been) downloaded, and the <code class="docutils literal notranslate"><span class="pre">census_year</span></code> column of a
+successful frame holds that vintage.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Census year (will find closest available if not available)</p></li>
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Census year requested.</p></li>
 <li><p><strong>geographic_level</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Geographic level (state, county, tract, etc.)</p></li>
-<li><p><strong>state_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – State FIPS code for filtering (required for some levels)</p></li>
-<li><p><strong>county_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – County FIPS code for filtering</p></li>
+<li><p><strong>state_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – State FIPS code (required for some levels). For
+national-only layers the national file is filtered on its
+<code class="docutils literal notranslate"><span class="pre">statefp</span></code> column; a layer without one fails rather than
+returning the national file.</p></li>
+<li><p><strong>county_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – 3-digit county FIPS code. Requires <code class="docutils literal notranslate"><span class="pre">state_fips</span></code>;
+the frame is filtered on its <code class="docutils literal notranslate"><span class="pre">countyfp</span></code> column, and a layer
+without one fails.</p></li>
 <li><p><strong>congress_number</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>) – Congress number for congressional districts</p></li>
+<li><p><strong>allow_nearest_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – When <code class="docutils literal notranslate"><span class="pre">year</span></code> is not published, serve the
+closest published vintage instead of failing with
+<code class="docutils literal notranslate"><span class="pre">VINTAGE_NOT_PUBLISHED</span></code>. Off by default.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -10456,18 +10495,22 @@ If both are provided, state_identifier takes precedence.</p>
 </div>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>GeoDataFrame with Census boundaries (filtered by state if specified)</p>
+<dd class="field-odd"><p>GeoDataFrame with Census boundaries (filtered by state if specified),
+or None when the source reports no data.</p>
 </dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – Invalid state identifier or no state FIPS column for filtering.</p>
+</dd>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
 <li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
 <li><p><strong>geographic_level</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
 <li><p><strong>state_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
 <li><p><strong>state_identifier</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
 </ul>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.2.1.dev0.dev+g199fc53c8)">geopandas.GeoDataFrame</a> | None</p>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.2.1.dev0.dev+g199fc53c8)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -10710,7 +10753,7 @@ If both are provided, state_identifier takes precedence.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.geo.fetch_geographic_boundaries">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.</span></span><span class="sig-name descname"><span class="pre">fetch_geographic_boundaries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2026</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geographic_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'county'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">congress_number</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/spatial_data.html#fetch_geographic_boundaries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.fetch_geographic_boundaries" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.</span></span><span class="sig-name descname"><span class="pre">fetch_geographic_boundaries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2026</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geographic_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'county'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">congress_number</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">county_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_nearest_year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/spatial_data.html#fetch_geographic_boundaries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.fetch_geographic_boundaries" title="Link to this definition"></a></dt>
 <dd><p>Get geographic boundaries with structured diagnostics.</p>
 <p>Returns a <a class="reference internal" href="#siege_utilities.geo.BoundaryFetchResult" title="siege_utilities.geo.BoundaryFetchResult"><code class="xref py py-class docutils literal notranslate"><span class="pre">BoundaryFetchResult</span></code></a> instead of <code class="docutils literal notranslate"><span class="pre">Optional[GeoDataFrame]</span></code>.</p>
 <dl class="field-list simple">
@@ -10720,11 +10763,15 @@ If both are provided, state_identifier takes precedence.</p>
 <li><p><strong>geographic_level</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Geographic level (state, county, tract, etc.)</p></li>
 <li><p><strong>state_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – State FIPS code (required for tract, block_group, etc.)</p></li>
 <li><p><strong>congress_number</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>) – Congress number for congressional districts</p></li>
+<li><p><strong>county_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – 3-digit county FIPS code to filter on (requires state_fips).</p></li>
+<li><p><strong>allow_nearest_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – Serve the closest published vintage when <em>year</em>
+is not published, instead of failing with <code class="docutils literal notranslate"><span class="pre">VINTAGE_NOT_PUBLISHED</span></code>.</p></li>
 <li><p><strong>crs</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Output CRS. Defaults to <a class="reference internal" href="#siege_utilities.geo.crs.get_default_crs" title="siege_utilities.geo.crs.get_default_crs"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_default_crs()</span></code></a>.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>BoundaryFetchResult with .success, .geodataframe in <em>crs</em>, .error_stage, etc.</p>
+<dd class="field-even"><p>BoundaryFetchResult with .success, .geodataframe in <em>crs</em>, .error_stage, etc.
+<code class="docutils literal notranslate"><span class="pre">context['served_year']</span></code> records the vintage served.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.boundary_result.BoundaryFetchResult" title="siege_utilities.geo.boundary_result.BoundaryFetchResult"><em>BoundaryFetchResult</em></a></p>
@@ -11979,7 +12026,8 @@ when every coordinate row carries a non-null <code class="docutils literal notra
 otherwise.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">attributes</span></code> — <code class="docutils literal notranslate"><span class="pre">{field_name:</span> <span class="pre">value}</span></code> mapping pulled from
 <code class="docutils literal notranslate"><span class="pre">attribute_values</span></code> joined to <code class="docutils literal notranslate"><span class="pre">attribute_fields</span></code>. Keys can be
-renamed by passing <code class="docutils literal notranslate"><span class="pre">mapper</span></code>.</p></li>
+renamed by passing <code class="docutils literal notranslate"><span class="pre">mapper</span></code>. When neither optional attribute table
+exists, attributes are empty; incomplete schemas and query errors raise.</p></li>
 </ul>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -11995,7 +12043,10 @@ Unknown source keys are logged and skipped (kept verbatim).</p></li>
 are logged at WARNING and skipped.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ImportError" title="(in Python v3.15)"><strong>ImportError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">shapely</span></code> is not installed.</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ImportError" title="(in Python v3.15)"><strong>ImportError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">shapely</span></code> is not installed.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/library/sqlite3.html#sqlite3.DatabaseError" title="(in Python v3.15)"><strong>sqlite3.DatabaseError</strong></a> – If the attribute schema is incomplete or a query fails.</p></li>
+</ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterator" title="(in Python v3.15)"><em>Iterator</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)">dict</a>]</p>
@@ -12668,12 +12719,21 @@ names follow the <code class="docutils literal notranslate"><span class="pre">&l
 <dt class="sig sig-object py" id="siege_utilities.geo.select_vintage_for_cycle">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.</span></span><span class="sig-name descname"><span class="pre">select_vintage_for_cycle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/providers/census_geocoder.html#select_vintage_for_cycle"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.select_vintage_for_cycle" title="Link to this definition"></a></dt>
 <dd><p>Select the appropriate Census vintage for an FEC cycle year.</p>
+<p>The 2012-2020 election cycles used districts drawn on 2010 Census
+geography, so years from 2012 through 2021 use CENSUS_2010 on the
+Census2020 benchmark. Years from 2022 onward preserve the CURRENT
+tier, which currently supplies 2020 Census blocks. CURRENT follows
+Census updates; use CENSUS_2020 explicitly for a fixed 2020 vintage.</p>
+<p>Years before 2012 retain the CENSUS_2010 fallback. CensusVintage does
+not offer 2000 or earlier geography, so this fallback does not match
+the historical district boundaries for those cycles.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – The FEC election cycle year.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>CensusVintage matching the boundaries in effect for that cycle.</p>
+<dd class="field-even"><p>CensusVintage for the cycle’s decennial geography, subject to the
+pre-2012 fallback and the CURRENT tier described above.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.providers.census_geocoder.CensusVintage" title="siege_utilities.geo.providers.census_geocoder.CensusVintage"><em>CensusVintage</em></a></p>
@@ -12683,7 +12743,13 @@ names follow the <code class="docutils literal notranslate"><span class="pre">&l
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2024</span><span class="p">)</span>
 <span class="go">&lt;CensusVintage.CURRENT: 'Public_AR_Current|Current_Current'&gt;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2016</span><span class="p">)</span>
-<span class="go">&lt;CensusVintage.CENSUS_2020: 'Public_AR_Census2020|Census2020_Census2020'&gt;</span>
+<span class="go">&lt;CensusVintage.CENSUS_2010: 'Public_AR_Census2020|Census2010_Census2020'&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2012</span><span class="p">)</span>
+<span class="go">&lt;CensusVintage.CENSUS_2010: 'Public_AR_Census2020|Census2010_Census2020'&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2020</span><span class="p">)</span>
+<span class="go">&lt;CensusVintage.CENSUS_2010: 'Public_AR_Census2020|Census2010_Census2020'&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2022</span><span class="p">)</span>
+<span class="go">&lt;CensusVintage.CURRENT: 'Public_AR_Current|Current_Current'&gt;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2008</span><span class="p">)</span>
 <span class="go">&lt;CensusVintage.CENSUS_2010: 'Public_AR_Census2020|Census2010_Census2020'&gt;</span>
 </pre></div>
@@ -13016,8 +13082,9 @@ Census abbreviations (CD), and common aliases (zip_code → zcta).</p>
 and population thresholds to implement the NCES urban-centric locale
 classification algorithm (12-code system).</p>
 <p>The classifier can be initialized with pre-loaded GeoDataFrames (for
-testing or custom data) or constructed from Census downloads via the
-<code class="docutils literal notranslate"><span class="pre">from_census_year</span></code> and <code class="docutils literal notranslate"><span class="pre">from_nces_boundaries</span></code> factory methods.</p>
+testing or custom data) or constructed from published NCES boundaries via
+<code class="docutils literal notranslate"><span class="pre">from_nces_boundaries</span></code>. <code class="docutils literal notranslate"><span class="pre">from_census_year</span></code> raises until the required
+population and principal-city sources are implemented.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -13028,8 +13095,11 @@ Must contain a <code class="docutils literal notranslate"><span class="pre">geom
 Census data where UCs were eliminated.</p></li>
 <li><p><strong>principal_cities</strong> – GeoDataFrame of Place polygons that are designated
 principal cities of CBSAs.</p></li>
-<li><p><strong>place_populations</strong> – Dict mapping place identifiers to population counts.
-Used to classify City subtypes (Large/Midsize/Small).</p></li>
+<li><p><strong>place_populations</strong> – Dict mapping 7-digit place GEOIDs (2-digit state
+FIPS + 5-digit PLACEFP) to population counts. Used to classify
+City subtypes (Large/Midsize/Small). Principal-city boundaries
+must carry GEOID or both STATEFP and PLACEFP (including 10/20
+suffixed variants).</p></li>
 <li><p><strong>ua_populations</strong> – Optional dict mapping UA identifiers to populations.
 Used to classify Suburb subtypes. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, reads from the
 <code class="docutils literal notranslate"><span class="pre">urbanized_areas</span></code> GeoDataFrame attributes.</p></li>
@@ -13101,7 +13171,10 @@ spatial classification.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.NCESLocaleClassifier.classify_point">
 <span class="sig-name descname"><span class="pre">classify_point</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lat</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/locale.html#NCESLocaleClassifier.classify_point"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.NCESLocaleClassifier.classify_point" title="Link to this definition"></a></dt>
 <dd><p>Classify a single geographic point.</p>
-<p>Implements the NCES decision tree:
+<p>For published NCES boundaries, returns the polygon’s locale code.
+Shared edges and overlaps use the first matching row in download
+order. Points outside the published coverage raise ValueError.</p>
+<p>For caller-supplied Census inputs, implements the NCES decision tree:
 1. Spatial join against Urbanized Areas
 2. If in UA: check principal city → City or Suburb
 3. If not in UA: check Urban Cluster → Town (by distance to UA)
@@ -13201,34 +13274,28 @@ If <code class="docutils literal notranslate"><span class="pre">method=&quot;dis
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.NCESLocaleClassifier.from_census_year">
 <span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">from_census_year</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2020</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">projection_crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/locale.html#NCESLocaleClassifier.from_census_year"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.NCESLocaleClassifier.from_census_year" title="Link to this definition"></a></dt>
-<dd><p>Construct a classifier from Census TIGER downloads.</p>
-<p>Downloads UA/UC (uac), Place, and CBSA shapefiles for the given year,
-identifies principal cities from population thresholds, and loads
-population estimates from shapefile attributes.</p>
-<p>For 2020+ Census data where Urban Clusters were eliminated, this
-method derives a UC-equivalent set by filtering urban areas with
-population &lt; 50,000 (the original UC threshold). This ensures Town
-codes (31-33) remain reachable.</p>
-<p>Principal cities are identified by population threshold (&gt;= 25,000),
-not from the OMB CBSA delineation file. This is a best-effort
-approximation. For precise NCES-matching classification, use
-<code class="docutils literal notranslate"><span class="pre">from_nces_boundaries()</span></code> when available.</p>
+<dd><p>Reject construction from TIGER boundaries without required sources.</p>
+<p>TIGER UAC/PLACE shapefiles do not supply population counts. Correct
+classification requires PL 94-171 / DHC population data joined by
+UA ID and 7-digit place GEOID, plus PCICBSA / OMB principal-city
+designations. These source integrations are not implemented here.
+Population thresholds cannot substitute for principal-city status.</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">from_nces_boundaries</span></code> for published NCES classifications, or
+the direct constructor with externally sourced populations and
+principal-city boundaries. No downloads or approximations are made.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Census year for boundary data (2010 or 2020 recommended).</p></li>
-<li><p><strong>cache_dir</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Local directory for caching downloaded shapefiles.</p></li>
-<li><p><strong>projection_crs</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>) – EPSG code for distance computation.</p></li>
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Requested Census year.</p></li>
+<li><p><strong>cache_dir</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Retained for API compatibility.</p></li>
+<li><p><strong>projection_crs</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>) – Retained for API compatibility.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>An initialized <code class="docutils literal notranslate"><span class="pre">NCESLocaleClassifier</span></code>.</p>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – Always, until the required source integrations exist.</p>
 </dd>
-<dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ImportError" title="(in Python v3.15)"><strong>ImportError</strong></a> – If geopandas is not available.</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference internal" href="#siege_utilities.geo.locale.NCESLocaleClassifier" title="siege_utilities.geo.locale.NCESLocaleClassifier"><em>NCESLocaleClassifier</em></a></p>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.locale.NCESLocaleClassifier" title="siege_utilities.geo.locale.NCESLocaleClassifier"><em>NCESLocaleClassifier</em></a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -13240,11 +13307,11 @@ approximation. For precise NCES-matching classification, use
 <p>NCES publishes locale territory polygons that are already classified
 with locale codes (11-43). This is faster than computing from Census
 inputs but limited to years NCES has published.</p>
-<p>The downloaded boundaries are split into:
-- Urbanized Area proxies: City (11-13) + Suburb (21-23) territories
-- Urban Cluster proxies: Town (31-33) territories
-- Principal city proxies: City (11-13) territories only</p>
-<p>The classifier then works identically to the Census-based one.</p>
+<p>Points are looked up directly in the published <code class="docutils literal notranslate"><span class="pre">locale_code</span></code>
+polygons, without synthetic populations or distance-based reclassification.
+Polygon edges are included. If multiple polygons match, the first row
+in download order wins; NCES territories normally partition space.
+Points outside coverage raise ValueError instead of inventing a locale.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -15709,8 +15776,10 @@ module).</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>The attribute value (as stored in <code class="docutils literal notranslate"><span class="pre">attribute_values.value</span></code>) or
-<code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+<dd class="field-even"><p>The attribute value (as stored in <code class="docutils literal notranslate"><span class="pre">attribute_values.value</span></code>), or
+<code class="docutils literal notranslate"><span class="pre">None</span></code> for an absent attribute under the selected missing policy.
+When neither optional attribute table exists, the missing policy applies.
+Incomplete schemas and database errors always raise sqlite3.DatabaseError.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a></p>
@@ -16139,9 +16208,10 @@ the underlying exception (HTTPError, JSONDecodeError, etc.).</p>
 <p>Census TIGER/Line boundary data source with dynamic year discovery.</p>
 <p>Supports all standard TIGER/Line boundary types:</p>
 <dl class="simple">
-<dt><strong>National-scope</strong> (no state_fips required):</dt><dd><p><code class="docutils literal notranslate"><span class="pre">nation</span></code>, <code class="docutils literal notranslate"><span class="pre">state</span></code>, <code class="docutils literal notranslate"><span class="pre">county</span></code>, <code class="docutils literal notranslate"><span class="pre">place</span></code>, <code class="docutils literal notranslate"><span class="pre">zcta</span></code>, <code class="docutils literal notranslate"><span class="pre">cd</span></code></p>
+<dt><strong>National-scope</strong> (no state_fips required):</dt><dd><p><code class="docutils literal notranslate"><span class="pre">nation</span></code>, <code class="docutils literal notranslate"><span class="pre">state</span></code>, <code class="docutils literal notranslate"><span class="pre">county</span></code>, <code class="docutils literal notranslate"><span class="pre">zcta</span></code>, <code class="docutils literal notranslate"><span class="pre">cd</span></code> (through 2021)</p>
 </dd>
-<dt><strong>State-scope</strong> (state_fips required):</dt><dd><p><code class="docutils literal notranslate"><span class="pre">tract</span></code>, <code class="docutils literal notranslate"><span class="pre">block_group</span></code>, <code class="docutils literal notranslate"><span class="pre">block</span></code>, <code class="docutils literal notranslate"><span class="pre">tabblock20</span></code>, <code class="docutils literal notranslate"><span class="pre">sldu</span></code>, <code class="docutils literal notranslate"><span class="pre">sldl</span></code></p>
+<dt><strong>State-scope</strong> (state_fips required):</dt><dd><p><code class="docutils literal notranslate"><span class="pre">tract</span></code>, <code class="docutils literal notranslate"><span class="pre">block_group</span></code>, <code class="docutils literal notranslate"><span class="pre">block</span></code>, <code class="docutils literal notranslate"><span class="pre">tabblock20</span></code>, <code class="docutils literal notranslate"><span class="pre">sldu</span></code>, <code class="docutils literal notranslate"><span class="pre">sldl</span></code>,
+<code class="docutils literal notranslate"><span class="pre">place</span></code>, <code class="docutils literal notranslate"><span class="pre">elsd</span></code>, <code class="docutils literal notranslate"><span class="pre">scsd</span></code>, <code class="docutils literal notranslate"><span class="pre">unsd</span></code>, <code class="docutils literal notranslate"><span class="pre">vtd</span></code>, <code class="docutils literal notranslate"><span class="pre">cd</span></code> (from 2022)</p>
 </dd>
 </dl>
 <p>GEOID formats by boundary type:</p>
@@ -16263,10 +16333,11 @@ For structured diagnostics, use <a class="reference internal" href="#siege_utili
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Census year (will find closest available if not available)</p></li>
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Census year (an unpublished vintage returns None; see
+<a class="reference internal" href="#siege_utilities.geo.spatial_data.fetch_geographic_boundaries" title="siege_utilities.geo.spatial_data.fetch_geographic_boundaries"><code class="xref py py-meth docutils literal notranslate"><span class="pre">fetch_geographic_boundaries()</span></code></a> <code class="docutils literal notranslate"><span class="pre">allow_nearest_year</span></code>)</p></li>
 <li><p><strong>geographic_level</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Geographic level (state, county, tract, etc.)</p></li>
 <li><p><strong>state_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – State FIPS code for filtering (required for some levels)</p></li>
-<li><p><strong>county_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – County FIPS code for filtering</p></li>
+<li><p><strong>county_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – 3-digit county FIPS code for filtering (requires state_fips)</p></li>
 <li><p><strong>congress_number</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>) – Congress number for congressional districts</p></li>
 </ul>
 </dd>
@@ -16281,19 +16352,30 @@ For structured diagnostics, use <a class="reference internal" href="#siege_utili
 
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.CensusDataSource.fetch_geographic_boundaries">
-<span class="sig-name descname"><span class="pre">fetch_geographic_boundaries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2026</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geographic_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'county'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">county_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">congress_number</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/spatial_data.html#CensusDataSource.fetch_geographic_boundaries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.spatial_data.CensusDataSource.fetch_geographic_boundaries" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">fetch_geographic_boundaries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2026</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geographic_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'county'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">county_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">congress_number</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_nearest_year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/spatial_data.html#CensusDataSource.fetch_geographic_boundaries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.spatial_data.CensusDataSource.fetch_geographic_boundaries" title="Link to this definition"></a></dt>
 <dd><p>Download geographic boundaries with structured diagnostics.</p>
 <p>Returns a <code class="xref py py-class docutils literal notranslate"><span class="pre">BoundaryFetchResult</span></code> that carries either the
 GeoDataFrame on success or a machine-readable error code, stage, and
 context dict on failure.</p>
+<p><code class="docutils literal notranslate"><span class="pre">context['served_year']</span></code> always records the TIGER vintage that was
+(or would have been) downloaded, and the <code class="docutils literal notranslate"><span class="pre">census_year</span></code> column of a
+successful frame holds that vintage.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Census year (will find closest available if not available)</p></li>
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Census year requested.</p></li>
 <li><p><strong>geographic_level</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Geographic level (state, county, tract, etc.)</p></li>
-<li><p><strong>state_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – State FIPS code for filtering (required for some levels)</p></li>
-<li><p><strong>county_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – County FIPS code for filtering</p></li>
+<li><p><strong>state_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – State FIPS code (required for some levels). For
+national-only layers the national file is filtered on its
+<code class="docutils literal notranslate"><span class="pre">statefp</span></code> column; a layer without one fails rather than
+returning the national file.</p></li>
+<li><p><strong>county_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – 3-digit county FIPS code. Requires <code class="docutils literal notranslate"><span class="pre">state_fips</span></code>;
+the frame is filtered on its <code class="docutils literal notranslate"><span class="pre">countyfp</span></code> column, and a layer
+without one fails.</p></li>
 <li><p><strong>congress_number</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>) – Congress number for congressional districts</p></li>
+<li><p><strong>allow_nearest_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – When <code class="docutils literal notranslate"><span class="pre">year</span></code> is not published, serve the
+closest published vintage instead of failing with
+<code class="docutils literal notranslate"><span class="pre">VINTAGE_NOT_PUBLISHED</span></code>. Off by default.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -16711,18 +16793,22 @@ If both are provided, state_identifier takes precedence.</p>
 </div>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>GeoDataFrame with Census boundaries (filtered by state if specified)</p>
+<dd class="field-odd"><p>GeoDataFrame with Census boundaries (filtered by state if specified),
+or None when the source reports no data.</p>
 </dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – Invalid state identifier or no state FIPS column for filtering.</p>
+</dd>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
 <li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>)</p></li>
 <li><p><strong>geographic_level</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p></li>
 <li><p><strong>state_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
 <li><p><strong>state_identifier</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
 </ul>
 </dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.2.1.dev0.dev+g199fc53c8)">geopandas.GeoDataFrame</a> | None</p>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.html#geopandas.GeoDataFrame" title="(in GeoPandas v1.2.1.dev0.dev+g199fc53c8)">geopandas.GeoDataFrame</a> | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -16840,7 +16926,7 @@ If both are provided, state_identifier takes precedence.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.geo.spatial_data.fetch_geographic_boundaries">
-<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.spatial_data.</span></span><span class="sig-name descname"><span class="pre">fetch_geographic_boundaries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2026</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geographic_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'county'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">congress_number</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/spatial_data.html#fetch_geographic_boundaries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.spatial_data.fetch_geographic_boundaries" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.spatial_data.</span></span><span class="sig-name descname"><span class="pre">fetch_geographic_boundaries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2026</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geographic_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'county'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">congress_number</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">county_fips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_nearest_year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/spatial_data.html#fetch_geographic_boundaries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.spatial_data.fetch_geographic_boundaries" title="Link to this definition"></a></dt>
 <dd><p>Get geographic boundaries with structured diagnostics.</p>
 <p>Returns a <code class="xref py py-class docutils literal notranslate"><span class="pre">BoundaryFetchResult</span></code> instead of <code class="docutils literal notranslate"><span class="pre">Optional[GeoDataFrame]</span></code>.</p>
 <dl class="field-list simple">
@@ -16850,11 +16936,15 @@ If both are provided, state_identifier takes precedence.</p>
 <li><p><strong>geographic_level</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Geographic level (state, county, tract, etc.)</p></li>
 <li><p><strong>state_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – State FIPS code (required for tract, block_group, etc.)</p></li>
 <li><p><strong>congress_number</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>) – Congress number for congressional districts</p></li>
+<li><p><strong>county_fips</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – 3-digit county FIPS code to filter on (requires state_fips).</p></li>
+<li><p><strong>allow_nearest_year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – Serve the closest published vintage when <em>year</em>
+is not published, instead of failing with <code class="docutils literal notranslate"><span class="pre">VINTAGE_NOT_PUBLISHED</span></code>.</p></li>
 <li><p><strong>crs</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Output CRS. Defaults to <a class="reference internal" href="#siege_utilities.geo.crs.get_default_crs" title="siege_utilities.geo.crs.get_default_crs"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_default_crs()</span></code></a>.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>BoundaryFetchResult with .success, .geodataframe in <em>crs</em>, .error_stage, etc.</p>
+<dd class="field-even"><p>BoundaryFetchResult with .success, .geodataframe in <em>crs</em>, .error_stage, etc.
+<code class="docutils literal notranslate"><span class="pre">context['served_year']</span></code> records the vintage served.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.boundary_result.BoundaryFetchResult" title="siege_utilities.geo.boundary_result.BoundaryFetchResult"><em>BoundaryFetchResult</em></a></p>
@@ -17318,8 +17408,8 @@ inspect the underlying database exception.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>connection_string</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – PostgreSQL connection string. When omitted,
 we look up the configured <code class="docutils literal notranslate"><span class="pre">postgresql</span></code> connection from
-the user-config; if that’s unavailable too, the connector
-stays uninitialized (<code class="docutils literal notranslate"><span class="pre">self.connection</span> <span class="pre">is</span> <span class="pre">None</span></code>).</p>
+the user-config. Missing settings raise ValueError; config
+errors propagate and connection failures raise ConnectionError.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -18174,8 +18264,10 @@ can_fix = can_normalize_geoid(“6037”, “county”)  # Returns True</p>
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.geoid_utils.</span></span><span class="sig-name descname"><span class="pre">GEOIDValidator</span></span><a class="reference internal" href="../_modules/siege_utilities/geo/geoid_utils.html#GEOIDValidator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.geoid_utils.GEOIDValidator" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.15)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Callable validator for GEOID fields.</p>
-<p>Validates that a GEOID is digits-only and the correct length for the
-given geography level.</p>
+<p>Validates the length and alphabet for the given geography level.
+VTD GEOIDs have a five-digit FIPS prefix and six VTDST characters:
+ASCII digits, letters, periods, slashes, or hyphens. Other levels
+require digits only.</p>
 <dl class="simple">
 <dt>Usage in Django models:</dt><dd><p>geoid = CharField(validators=[GEOIDValidator(‘tract’)])</p>
 </dd>
@@ -18380,6 +18472,9 @@ or <code class="docutils literal notranslate"><span class="pre">&quot;tract&quot
 leading zeros (e.g., ‘6037’ instead of ‘06037’) is NOT a valid GEOID — it
 may be normalizable via normalize_geoid(), but it would fail joins against
 Census shapefiles.</p>
+<p>VTD GEOIDs allow ASCII digits, letters, periods, slashes, and hyphens
+in the six-character VTDST tail after the five-digit FIPS prefix.
+Every other geography level requires digits only.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -19880,7 +19975,7 @@ classification system. Classifies arbitrary geographic points and polygons
 into City/Suburb/Town/Rural categories with size/distance subtypes.</p>
 <p>Two modes of operation:
 1. Pre-computed: Uses NCES-published locale boundary shapefiles (fastest)
-2. On-the-fly: Computes from Census UA/UC/Place inputs (any year)</p>
+2. On-the-fly: Computes from caller-supplied UA/UC/Place and population inputs</p>
 <p>See docs/design/nces-locale-classification.md for full algorithm description.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="siege_utilities.geo.locale.LocaleCode">
@@ -20107,8 +20202,9 @@ into City/Suburb/Town/Rural categories with size/distance subtypes.</p>
 and population thresholds to implement the NCES urban-centric locale
 classification algorithm (12-code system).</p>
 <p>The classifier can be initialized with pre-loaded GeoDataFrames (for
-testing or custom data) or constructed from Census downloads via the
-<code class="docutils literal notranslate"><span class="pre">from_census_year</span></code> and <code class="docutils literal notranslate"><span class="pre">from_nces_boundaries</span></code> factory methods.</p>
+testing or custom data) or constructed from published NCES boundaries via
+<code class="docutils literal notranslate"><span class="pre">from_nces_boundaries</span></code>. <code class="docutils literal notranslate"><span class="pre">from_census_year</span></code> raises until the required
+population and principal-city sources are implemented.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -20119,8 +20215,11 @@ Must contain a <code class="docutils literal notranslate"><span class="pre">geom
 Census data where UCs were eliminated.</p></li>
 <li><p><strong>principal_cities</strong> – GeoDataFrame of Place polygons that are designated
 principal cities of CBSAs.</p></li>
-<li><p><strong>place_populations</strong> – Dict mapping place identifiers to population counts.
-Used to classify City subtypes (Large/Midsize/Small).</p></li>
+<li><p><strong>place_populations</strong> – Dict mapping 7-digit place GEOIDs (2-digit state
+FIPS + 5-digit PLACEFP) to population counts. Used to classify
+City subtypes (Large/Midsize/Small). Principal-city boundaries
+must carry GEOID or both STATEFP and PLACEFP (including 10/20
+suffixed variants).</p></li>
 <li><p><strong>ua_populations</strong> – Optional dict mapping UA identifiers to populations.
 Used to classify Suburb subtypes. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, reads from the
 <code class="docutils literal notranslate"><span class="pre">urbanized_areas</span></code> GeoDataFrame attributes.</p></li>
@@ -20192,7 +20291,10 @@ spatial classification.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.locale.NCESLocaleClassifier.classify_point">
 <span class="sig-name descname"><span class="pre">classify_point</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lat</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/locale.html#NCESLocaleClassifier.classify_point"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.locale.NCESLocaleClassifier.classify_point" title="Link to this definition"></a></dt>
 <dd><p>Classify a single geographic point.</p>
-<p>Implements the NCES decision tree:
+<p>For published NCES boundaries, returns the polygon’s locale code.
+Shared edges and overlaps use the first matching row in download
+order. Points outside the published coverage raise ValueError.</p>
+<p>For caller-supplied Census inputs, implements the NCES decision tree:
 1. Spatial join against Urbanized Areas
 2. If in UA: check principal city → City or Suburb
 3. If not in UA: check Urban Cluster → Town (by distance to UA)
@@ -20292,34 +20394,28 @@ If <code class="docutils literal notranslate"><span class="pre">method=&quot;dis
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.locale.NCESLocaleClassifier.from_census_year">
 <span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">from_census_year</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2020</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">projection_crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/locale.html#NCESLocaleClassifier.from_census_year"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.locale.NCESLocaleClassifier.from_census_year" title="Link to this definition"></a></dt>
-<dd><p>Construct a classifier from Census TIGER downloads.</p>
-<p>Downloads UA/UC (uac), Place, and CBSA shapefiles for the given year,
-identifies principal cities from population thresholds, and loads
-population estimates from shapefile attributes.</p>
-<p>For 2020+ Census data where Urban Clusters were eliminated, this
-method derives a UC-equivalent set by filtering urban areas with
-population &lt; 50,000 (the original UC threshold). This ensures Town
-codes (31-33) remain reachable.</p>
-<p>Principal cities are identified by population threshold (&gt;= 25,000),
-not from the OMB CBSA delineation file. This is a best-effort
-approximation. For precise NCES-matching classification, use
-<code class="docutils literal notranslate"><span class="pre">from_nces_boundaries()</span></code> when available.</p>
+<dd><p>Reject construction from TIGER boundaries without required sources.</p>
+<p>TIGER UAC/PLACE shapefiles do not supply population counts. Correct
+classification requires PL 94-171 / DHC population data joined by
+UA ID and 7-digit place GEOID, plus PCICBSA / OMB principal-city
+designations. These source integrations are not implemented here.
+Population thresholds cannot substitute for principal-city status.</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">from_nces_boundaries</span></code> for published NCES classifications, or
+the direct constructor with externally sourced populations and
+principal-city boundaries. No downloads or approximations are made.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Census year for boundary data (2010 or 2020 recommended).</p></li>
-<li><p><strong>cache_dir</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Local directory for caching downloaded shapefiles.</p></li>
-<li><p><strong>projection_crs</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>) – EPSG code for distance computation.</p></li>
+<li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – Requested Census year.</p></li>
+<li><p><strong>cache_dir</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><em>None</em>) – Retained for API compatibility.</p></li>
+<li><p><strong>projection_crs</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a><em> | </em><em>None</em>) – Retained for API compatibility.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>An initialized <code class="docutils literal notranslate"><span class="pre">NCESLocaleClassifier</span></code>.</p>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – Always, until the required source integrations exist.</p>
 </dd>
-<dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ImportError" title="(in Python v3.15)"><strong>ImportError</strong></a> – If geopandas is not available.</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference internal" href="#siege_utilities.geo.locale.NCESLocaleClassifier" title="siege_utilities.geo.locale.NCESLocaleClassifier"><em>NCESLocaleClassifier</em></a></p>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.locale.NCESLocaleClassifier" title="siege_utilities.geo.locale.NCESLocaleClassifier"><em>NCESLocaleClassifier</em></a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -20331,11 +20427,11 @@ approximation. For precise NCES-matching classification, use
 <p>NCES publishes locale territory polygons that are already classified
 with locale codes (11-43). This is faster than computing from Census
 inputs but limited to years NCES has published.</p>
-<p>The downloaded boundaries are split into:
-- Urbanized Area proxies: City (11-13) + Suburb (21-23) territories
-- Urban Cluster proxies: Town (31-33) territories
-- Principal city proxies: City (11-13) territories only</p>
-<p>The classifier then works identically to the Census-based one.</p>
+<p>Points are looked up directly in the published <code class="docutils literal notranslate"><span class="pre">locale_code</span></code>
+polygons, without synthetic populations or distance-based reclassification.
+Polygon edges are included. If multiple polygons match, the first row
+in download order wins; NCES territories normally partition space.
+Points outside coverage raise ValueError instead of inventing a locale.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -21167,7 +21263,7 @@ cd, sldu, sldl, vtd, cbsa.</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.geo.boundary_sources.load_gadm_boundaries">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.boundary_sources.</span></span><span class="sig-name descname"><span class="pre">load_gadm_boundaries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">engine</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">country</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">s3_base</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'s3a://boundaries/gadm'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/boundary_sources.html#load_gadm_boundaries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.boundary_sources.load_gadm_boundaries" title="Link to this definition"></a></dt>
-<dd><p>Load GADM (Global Administrative Areas) boundaries via any engine.</p>
+<dd><p>Load staged GADM boundaries; read failures raise RuntimeError.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -21218,10 +21314,10 @@ to the engine’s format, writes to the staging path.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>str</strong></p>
+<dd class="field-even"><p><strong>str</strong> – Local callers own the returned temporary directory and its cleanup.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>path where boundaries were written.</p>
+<dd class="field-odd"><p>Actual S3 path (Spark) or local file path (other engines).</p>
 </dd>
 </dl>
 </dd></dl>
@@ -21654,7 +21750,7 @@ result = geocode_single(“1600 Pennsylvania Ave”, “Washington”, “DC”,
 <p># Batch (up to 10,000)
 results = geocode_batch(addresses, vintage=CensusVintage.CENSUS_2020)</p>
 <p># Auto-select vintage for an FEC cycle year
-vintage = select_vintage_for_cycle(2018)  # -&gt; CensusVintage.CENSUS_2020</p>
+vintage = select_vintage_for_cycle(2018)  # -&gt; CensusVintage.CENSUS_2010</p>
 </dd>
 </dl>
 <dl class="py exception">
@@ -22096,12 +22192,21 @@ columns are empty strings.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.providers.census_geocoder.select_vintage_for_cycle">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.providers.census_geocoder.</span></span><span class="sig-name descname"><span class="pre">select_vintage_for_cycle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/providers/census_geocoder.html#select_vintage_for_cycle"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.providers.census_geocoder.select_vintage_for_cycle" title="Link to this definition"></a></dt>
 <dd><p>Select the appropriate Census vintage for an FEC cycle year.</p>
+<p>The 2012-2020 election cycles used districts drawn on 2010 Census
+geography, so years from 2012 through 2021 use CENSUS_2010 on the
+Census2020 benchmark. Years from 2022 onward preserve the CURRENT
+tier, which currently supplies 2020 Census blocks. CURRENT follows
+Census updates; use CENSUS_2020 explicitly for a fixed 2020 vintage.</p>
+<p>Years before 2012 retain the CENSUS_2010 fallback. CensusVintage does
+not offer 2000 or earlier geography, so this fallback does not match
+the historical district boundaries for those cycles.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – The FEC election cycle year.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>CensusVintage matching the boundaries in effect for that cycle.</p>
+<dd class="field-even"><p>CensusVintage for the cycle’s decennial geography, subject to the
+pre-2012 fallback and the CURRENT tier described above.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.providers.census_geocoder.CensusVintage" title="siege_utilities.geo.providers.census_geocoder.CensusVintage"><em>CensusVintage</em></a></p>
@@ -22111,7 +22216,13 @@ columns are empty strings.</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2024</span><span class="p">)</span>
 <span class="go">&lt;CensusVintage.CURRENT: 'Public_AR_Current|Current_Current'&gt;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2016</span><span class="p">)</span>
-<span class="go">&lt;CensusVintage.CENSUS_2020: 'Public_AR_Census2020|Census2020_Census2020'&gt;</span>
+<span class="go">&lt;CensusVintage.CENSUS_2010: 'Public_AR_Census2020|Census2010_Census2020'&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2012</span><span class="p">)</span>
+<span class="go">&lt;CensusVintage.CENSUS_2010: 'Public_AR_Census2020|Census2010_Census2020'&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2020</span><span class="p">)</span>
+<span class="go">&lt;CensusVintage.CENSUS_2010: 'Public_AR_Census2020|Census2010_Census2020'&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2022</span><span class="p">)</span>
+<span class="go">&lt;CensusVintage.CURRENT: 'Public_AR_Current|Current_Current'&gt;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2008</span><span class="p">)</span>
 <span class="go">&lt;CensusVintage.CENSUS_2010: 'Public_AR_Census2020|Census2010_Census2020'&gt;</span>
 </pre></div>
@@ -23554,12 +23665,21 @@ Due to API limits, queries more than 4 states sequentially.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>dataset</strong> (<a class="reference internal" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHDataset" title="siege_utilities.geo.providers.redistricting_data_hub.RDHDataset"><em>RDHDataset</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, or </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="siege_utilities.conf.Path"><em>Path</em></a>) – Dataset to load.</p></li>
-<li><p><strong>**kwargs</strong> – Passed to <code class="docutils literal notranslate"><span class="pre">pd.read_csv()</span></code>.</p></li>
+<li><p><strong>dataset</strong> (<a class="reference internal" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHDataset" title="siege_utilities.geo.providers.redistricting_data_hub.RDHDataset"><em>RDHDataset</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, or </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="siege_utilities.conf.Path"><em>Path</em></a>) – Dataset to load. A directory must contain exactly one <code class="docutils literal notranslate"><span class="pre">.csv</span></code>.</p></li>
+<li><p><strong>**kwargs</strong> – Passed to <code class="docutils literal notranslate"><span class="pre">pd.read_csv()</span></code>. Unless <code class="docutils literal notranslate"><span class="pre">dtype</span></code> is given, GEOID-like
+columns (<code class="docutils literal notranslate"><span class="pre">GEOID*</span></code>, <code class="docutils literal notranslate"><span class="pre">*FP</span></code>, <code class="docutils literal notranslate"><span class="pre">*CE</span></code>, <code class="docutils literal notranslate"><span class="pre">*NS</span></code>) are read as <code class="docutils literal notranslate"><span class="pre">str</span></code>
+so leading zeros survive.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>pd.DataFrame</p>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#FileNotFoundError" title="(in Python v3.15)"><strong>FileNotFoundError</strong></a> – The directory contains no CSV.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – The directory contains more than one CSV, so the choice would be
+    arbitrary.</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
 </dd>
 </dl>
 </dd></dl>
@@ -23571,12 +23691,20 @@ Due to API limits, queries more than 4 states sequentially.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>dataset</strong> (<a class="reference internal" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHDataset" title="siege_utilities.geo.providers.redistricting_data_hub.RDHDataset"><em>RDHDataset</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, or </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="siege_utilities.conf.Path"><em>Path</em></a>) – Dataset to load.</p></li>
+<li><p><strong>dataset</strong> (<a class="reference internal" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHDataset" title="siege_utilities.geo.providers.redistricting_data_hub.RDHDataset"><em>RDHDataset</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, or </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="siege_utilities.conf.Path"><em>Path</em></a>) – Dataset to load. A directory must contain exactly one <code class="docutils literal notranslate"><span class="pre">.shp</span></code>
+(searched recursively).</p></li>
 <li><p><strong>**kwargs</strong> – Passed to <code class="docutils literal notranslate"><span class="pre">gpd.read_file()</span></code>.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>gpd.GeoDataFrame</p>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#FileNotFoundError" title="(in Python v3.15)"><strong>FileNotFoundError</strong></a> – The directory contains no shapefile.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – The directory contains more than one shapefile, so the choice
+    would be arbitrary.</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>gpd.GeoDataFrame</p>
 </dd>
 </dl>
 </dd></dl>
@@ -24093,12 +24221,18 @@ block/tract geometries, then aggregates demographics per district.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>state</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Two-letter state abbreviation.</p></li>
 <li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, </em><em>optional</em>) – Data year filter.</p></li>
-<li><p><strong>geography</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Geographic level hint for filtering (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;tract&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;block_group&quot;</span></code>).</p></li>
+<li><p><strong>geography</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Geographic level (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;tract&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;block_group&quot;</span></code>). Only datasets
+at exactly this level are eligible; <code class="docutils literal notranslate"><span class="pre">None</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;&quot;</span></code> disables the
+filter.</p></li>
 <li><p><strong>client</strong> (<a class="reference internal" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHClient" title="siege_utilities.geo.providers.redistricting_data_hub.RDHClient"><em>RDHClient</em></a><em>, </em><em>optional</em>) – Existing client instance.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>DataFrame with CVAP estimates.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#FileNotFoundError" title="(in Python v3.15)"><strong>FileNotFoundError</strong></a> – No CVAP dataset exists, or none at the requested geography (the
+    message lists the available titles).</p>
 </dd>
 </dl>
 </dd></dl>
@@ -24112,12 +24246,18 @@ block/tract geometries, then aggregates demographics per district.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>state</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Two-letter state abbreviation.</p></li>
 <li><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em>, </em><em>optional</em>) – Decennial year filter.</p></li>
-<li><p><strong>geography</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Geographic level hint (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;block&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;tract&quot;</span></code>).</p></li>
+<li><p><strong>geography</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>) – Geographic level (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;block&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;tract&quot;</span></code>). Only datasets at
+exactly this level are eligible (<code class="docutils literal notranslate"><span class="pre">&quot;block&quot;</span></code> never matches
+“Block Group”); <code class="docutils literal notranslate"><span class="pre">None</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;&quot;</span></code> disables the filter.</p></li>
 <li><p><strong>client</strong> (<a class="reference internal" href="#siege_utilities.geo.providers.redistricting_data_hub.RDHClient" title="siege_utilities.geo.providers.redistricting_data_hub.RDHClient"><em>RDHClient</em></a><em>, </em><em>optional</em>) – Existing client instance.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p>DataFrame with PL 94-171 population data.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#FileNotFoundError" title="(in Python v3.15)"><strong>FileNotFoundError</strong></a> – No PL 94-171 dataset exists, or none at the requested geography (the
+    message lists the available titles).</p>
 </dd>
 </dl>
 </dd></dl>
@@ -24291,7 +24431,7 @@ The loader orchestrates: <strong>cache hit → API fetch → cache write</strong
 <dl class="py method">
 <dt class="sig sig-object py" id="siege_utilities.geo.providers.nlrb_cache.NLRBCache.get">
 <span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/providers/nlrb_cache.html#NLRBCache.get"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.providers.nlrb_cache.NLRBCache.get" title="Link to this definition"></a></dt>
-<dd><p>Load a cached result if it exists and is not expired.</p>
+<dd><p>Load a cached result; None means absent, expired or unreadable metadata.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>key</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a>)</p>
@@ -24795,7 +24935,8 @@ fetches the XML feed and parses it into structured records.</p>
 <dd class="field-odd"><p><strong>params</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><em>dict</em></a><em> | </em><em>None</em>) – Optional query parameters for filtering.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>NLRBFetchResult with parsed case records.</p>
+<dd class="field-even"><p>NLRBFetchResult with parsed case records. HTTP/XML failures raise
+RuntimeError; empty successful responses remain empty results.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.providers.nlrb_clients.NLRBFetchResult" title="siege_utilities.geo.providers.nlrb_clients.NLRBFetchResult"><em>NLRBFetchResult</em></a></p>
@@ -24900,6 +25041,7 @@ client downloads the CSV files and parses them into structured records.</p>
 <span class="sig-name descname"><span class="pre">fetch_cases</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/providers/nlrb_clients.html#NLRBLabordataClient.fetch_cases"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.providers.nlrb_clients.NLRBLabordataClient.fetch_cases" title="Link to this definition"></a></dt>
 <dd><p>Fetch all available data from the labordata repository.</p>
 <p>Downloads cases, elections, and ULP charges CSVs.</p>
+<p>HTTP failures raise RuntimeError rather than returning partial data.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.providers.nlrb_clients.NLRBFetchResult" title="siege_utilities.geo.providers.nlrb_clients.NLRBFetchResult"><em>NLRBFetchResult</em></a></p>
@@ -24954,6 +25096,7 @@ insufficient. Prefer the other clients for bulk data.</p>
 <dd class="field-even"><p><a class="reference internal" href="#siege_utilities.geo.providers.nlrb_clients.NLRBFetchResult" title="siege_utilities.geo.providers.nlrb_clients.NLRBFetchResult"><em>NLRBFetchResult</em></a></p>
 </dd>
 </dl>
+<p>HTTP and parse failures raise RuntimeError rather than returning partial data.</p>
 </dd></dl>
 
 </dd></dl>
@@ -25096,7 +25239,8 @@ Records without a region are grouped under key 0.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.providers.nlrb_regions.assign_region">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.providers.nlrb_regions.</span></span><span class="sig-name descname"><span class="pre">assign_region</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">case_record</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/providers/nlrb_regions.html#assign_region"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.providers.nlrb_regions.assign_region" title="Link to this definition"></a></dt>
 <dd><p>Assign an NLRB region number to a case record.</p>
-<p>Uses the region number from the case number if available,
+<p>Uses the region number from the case number if available, rolling verified
+subregional prefixes up to their parent regional offices,
 otherwise falls back to state-based lookup (first match).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -26220,7 +26364,9 @@ for unknown variable metadata.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.census.VariableRegistry.get_variable_metadata">
 <span class="sig-name descname"><span class="pre">get_variable_metadata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">variable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'acs5'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_url</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/census/variable_registry.html#VariableRegistry.get_variable_metadata"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.census.VariableRegistry.get_variable_metadata" title="Link to this definition"></a></dt>
 <dd><p>Get metadata for a Census variable.</p>
-<p>Checks local descriptions first, falls back to API if needed.</p>
+<p>Checks local descriptions first, then the API. A 404 raises LookupError;
+transport/HTTP errors and invalid JSON propagate. Missing labels raise
+ValueError. Operational failures never masquerade as unknown variables.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -27506,7 +27652,9 @@ for unknown variable metadata.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.census.variable_registry.VariableRegistry.get_variable_metadata">
 <span class="sig-name descname"><span class="pre">get_variable_metadata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">variable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'acs5'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_url</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/census/variable_registry.html#VariableRegistry.get_variable_metadata"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.census.variable_registry.VariableRegistry.get_variable_metadata" title="Link to this definition"></a></dt>
 <dd><p>Get metadata for a Census variable.</p>
-<p>Checks local descriptions first, falls back to API if needed.</p>
+<p>Checks local descriptions first, then the API. A 404 raises LookupError;
+transport/HTTP errors and invalid JSON propagate. Missing labels raise
+ValueError. Operational failures never masquerade as unknown variables.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -29263,12 +29411,21 @@ columns are empty strings.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.census_geocoder.select_vintage_for_cycle">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.census_geocoder.</span></span><span class="sig-name descname"><span class="pre">select_vintage_for_cycle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">year</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/providers/census_geocoder.html#select_vintage_for_cycle"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.census_geocoder.select_vintage_for_cycle" title="Link to this definition"></a></dt>
 <dd><p>Select the appropriate Census vintage for an FEC cycle year.</p>
+<p>The 2012-2020 election cycles used districts drawn on 2010 Census
+geography, so years from 2012 through 2021 use CENSUS_2010 on the
+Census2020 benchmark. Years from 2022 onward preserve the CURRENT
+tier, which currently supplies 2020 Census blocks. CURRENT follows
+Census updates; use CENSUS_2020 explicitly for a fixed 2020 vintage.</p>
+<p>Years before 2012 retain the CENSUS_2010 fallback. CensusVintage does
+not offer 2000 or earlier geography, so this fallback does not match
+the historical district boundaries for those cycles.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>year</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><em>int</em></a>) – The FEC election cycle year.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>CensusVintage matching the boundaries in effect for that cycle.</p>
+<dd class="field-even"><p>CensusVintage for the cycle’s decennial geography, subject to the
+pre-2012 fallback and the CURRENT tier described above.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.providers.census_geocoder.CensusVintage" title="siege_utilities.geo.providers.census_geocoder.CensusVintage"><em>CensusVintage</em></a></p>
@@ -29278,7 +29435,13 @@ columns are empty strings.</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2024</span><span class="p">)</span>
 <span class="go">&lt;CensusVintage.CURRENT: 'Public_AR_Current|Current_Current'&gt;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2016</span><span class="p">)</span>
-<span class="go">&lt;CensusVintage.CENSUS_2020: 'Public_AR_Census2020|Census2020_Census2020'&gt;</span>
+<span class="go">&lt;CensusVintage.CENSUS_2010: 'Public_AR_Census2020|Census2010_Census2020'&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2012</span><span class="p">)</span>
+<span class="go">&lt;CensusVintage.CENSUS_2010: 'Public_AR_Census2020|Census2010_Census2020'&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2020</span><span class="p">)</span>
+<span class="go">&lt;CensusVintage.CENSUS_2010: 'Public_AR_Census2020|Census2010_Census2020'&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2022</span><span class="p">)</span>
+<span class="go">&lt;CensusVintage.CURRENT: 'Public_AR_Current|Current_Current'&gt;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">select_vintage_for_cycle</span><span class="p">(</span><span class="mi">2008</span><span class="p">)</span>
 <span class="go">&lt;CensusVintage.CENSUS_2010: 'Public_AR_Census2020|Census2010_Census2020'&gt;</span>
 </pre></div>
@@ -40159,7 +40322,8 @@ builds a structured area portrait.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>CodificationResult with block-level profiles.</p>
+<dd class="field-even"><p>CodificationResult with block-level profiles. Default-geocoder
+construction failures raise RuntimeError.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#siege_utilities.geo.codification.CodificationResult" title="siege_utilities.geo.codification.CodificationResult"><em>CodificationResult</em></a></p>
@@ -42903,7 +43067,9 @@ mapped via column_map or auto-matched to schema field names.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.schemas.schemas_to_orm">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.schemas.</span></span><span class="sig-name descname"><span class="pre">schemas_to_orm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schemas</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_class</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geometry_wkts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">srid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/schemas/converters.html#schemas_to_orm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.schemas.schemas_to_orm" title="Link to this definition"></a></dt>
 <dd><p>Convert a list of Pydantic schemas to Django ORM model instances.</p>
-<p>Does NOT call save() — returns unsaved instances for bulk_create.</p>
+<p>Does NOT call save() — returns unsaved instances for bulk_create. Each
+instance has been passed through <code class="docutils literal notranslate"><span class="pre">prepare_for_bulk()</span></code> when the model
+defines one, so fields <code class="docutils literal notranslate"><span class="pre">save()</span></code> would derive are already set (#1539).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -43143,7 +43309,9 @@ mapped via column_map or auto-matched to schema field names.</p>
 <dt class="sig sig-object py" id="siege_utilities.geo.schemas.converters.schemas_to_orm">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.geo.schemas.converters.</span></span><span class="sig-name descname"><span class="pre">schemas_to_orm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schemas</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_class</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geometry_wkts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">srid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4326</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/geo/schemas/converters.html#schemas_to_orm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.geo.schemas.converters.schemas_to_orm" title="Link to this definition"></a></dt>
 <dd><p>Convert a list of Pydantic schemas to Django ORM model instances.</p>
-<p>Does NOT call save() — returns unsaved instances for bulk_create.</p>
+<p>Does NOT call save() — returns unsaved instances for bulk_create. Each
+instance has been passed through <code class="docutils literal notranslate"><span class="pre">prepare_for_bulk()</span></code> when the model
+defines one, so fields <code class="docutils literal notranslate"><span class="pre">save()</span></code> would derive are already set (#1539).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -44523,7 +44691,8 @@ If None, loads from self.store.</p></li>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>List of TimeseriesBuildResult (one per variable), with
 created DemographicTimeSeriesSchema instances accessible
-via result.series.</p>
+via result.series. A missing stored year fails every requested
+variable with an error per year and creates no series.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)">list</a>[<a class="reference internal" href="#siege_utilities.geo.temporal.TimeseriesBuildResult" title="siege_utilities.geo.temporal.TimeseriesBuildResult">TimeseriesBuildResult</a>]</p>
@@ -44834,7 +45003,8 @@ If None, loads from self.store.</p></li>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>List of TimeseriesBuildResult (one per variable), with
 created DemographicTimeSeriesSchema instances accessible
-via result.series.</p>
+via result.series. A missing stored year fails every requested
+variable with an error per year and creates no series.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)">list</a>[<a class="reference internal" href="#siege_utilities.geo.temporal.services.TimeseriesBuildResult" title="siege_utilities.geo.temporal.services.TimeseriesBuildResult">TimeseriesBuildResult</a>]</p>
@@ -48243,7 +48413,10 @@ _color: hex color string (if matplotlib available)</p>
 <dd class="field-even"><p>ClassificationResult with bin assignments, break points, and metadata.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If scheme is unknown or values are empty.</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If scheme is unknown or values are empty.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#RuntimeError" title="(in Python v3.15)"><strong>RuntimeError</strong></a> – If the selected mapclassify backend fails.</p></li>
+</ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><em>ClassificationResult</em></p>
@@ -48655,8 +48828,10 @@ module).</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>The attribute value (as stored in <code class="docutils literal notranslate"><span class="pre">attribute_values.value</span></code>) or
-<code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+<dd class="field-even"><p>The attribute value (as stored in <code class="docutils literal notranslate"><span class="pre">attribute_values.value</span></code>), or
+<code class="docutils literal notranslate"><span class="pre">None</span></code> for an absent attribute under the selected missing policy.
+When neither optional attribute table exists, the missing policy applies.
+Incomplete schemas and database errors always raise sqlite3.DatabaseError.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><em>Any</em></a></p>
@@ -49599,7 +49774,8 @@ when every coordinate row carries a non-null <code class="docutils literal notra
 otherwise.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">attributes</span></code> — <code class="docutils literal notranslate"><span class="pre">{field_name:</span> <span class="pre">value}</span></code> mapping pulled from
 <code class="docutils literal notranslate"><span class="pre">attribute_values</span></code> joined to <code class="docutils literal notranslate"><span class="pre">attribute_fields</span></code>. Keys can be
-renamed by passing <code class="docutils literal notranslate"><span class="pre">mapper</span></code>.</p></li>
+renamed by passing <code class="docutils literal notranslate"><span class="pre">mapper</span></code>. When neither optional attribute table
+exists, attributes are empty; incomplete schemas and query errors raise.</p></li>
 </ul>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -49615,7 +49791,10 @@ Unknown source keys are logged and skipped (kept verbatim).</p></li>
 are logged at WARNING and skipped.</p>
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ImportError" title="(in Python v3.15)"><strong>ImportError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">shapely</span></code> is not installed.</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ImportError" title="(in Python v3.15)"><strong>ImportError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">shapely</span></code> is not installed.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/library/sqlite3.html#sqlite3.DatabaseError" title="(in Python v3.15)"><strong>sqlite3.DatabaseError</strong></a> – If the attribute schema is incomplete or a query fails.</p></li>
+</ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterator" title="(in Python v3.15)"><em>Iterator</em></a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)">dict</a>]</p>

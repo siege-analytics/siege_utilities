@@ -5,14 +5,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Index &mdash; Siege Utilities 4.0.0 documentation</title>
+  <title>Index &mdash; Siege Utilities 4.1.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=3304f9e4"></script>
+      <script src="_static/documentation_options.js?v=42d1b3bd"></script>
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
@@ -4498,7 +4498,7 @@
 <li class="toctree-l2"><a class="reference internal" href="packages/geo_django.html#module-siege_utilities.geo.django.models.base">Models</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.save"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.prepare_for_bulk()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.get_geoid_length"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.get_geoid_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.parse_geoid"><code class="docutils literal notranslate"><span class="pre">CensusTIGERBoundary.parse_geoid()</span></code></a></li>
 </ul>
@@ -4507,12 +4507,14 @@
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.total_area"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.total_area</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.land_percentage"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.land_percentage</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.save"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TemporalBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.Meta"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.is_current"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.is_current</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.prepare_for_bulk()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.save"><code class="docutils literal notranslate"><span class="pre">TemporalGeographicFeature.save()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalLinearFeature"><code class="docutils literal notranslate"><span class="pre">TemporalLinearFeature</span></code></a><ul>
@@ -4547,6 +4549,7 @@
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.state"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.Meta"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.get_geoid_length"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.get_geoid_length()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.normalize_geoid"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.normalize_geoid()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.parse_geoid"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.parse_geoid()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.is_at_large"><code class="docutils literal notranslate"><span class="pre">CongressionalDistrict.is_at_large</span></code></a></li>
 </ul>
@@ -4632,16 +4635,19 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.DATASET_CHOICES"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.DATASET_CHOICES</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.content_object"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.content_object</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.Meta</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.get_value"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.get_value()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.get_moe"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.get_moe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.prepare_for_bulk()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.save"><code class="docutils literal notranslate"><span class="pre">DemographicSnapshot.save()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.content_object"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries.content_object</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicTimeSeries.Meta</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicKeyArchive"><code class="docutils literal notranslate"><span class="pre">DemographicKeyArchive</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicKeyArchive.Meta"><code class="docutils literal notranslate"><span class="pre">DemographicKeyArchive.Meta</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolDistrictBase"><code class="docutils literal notranslate"><span class="pre">SchoolDistrictBase</span></code></a><ul>
@@ -4665,28 +4671,28 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.save"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">NCESLocaleBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation"><code class="docutils literal notranslate"><span class="pre">SchoolLocation</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.state"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.state</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.Meta"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.save"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">SchoolLocation.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion"><code class="docutils literal notranslate"><span class="pre">NLRBRegion</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.Meta"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.save"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">NLRBRegion.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.Meta"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.save"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">FederalJudicialDistrict.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary"><code class="docutils literal notranslate"><span class="pre">GADMBoundary</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.Meta"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.save"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">GADMBoundary.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMCountry"><code class="docutils literal notranslate"><span class="pre">GADMCountry</span></code></a><ul>
@@ -4747,7 +4753,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult"><code class="docutils literal notranslate"><span class="pre">IsochroneResult</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.Meta"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.save"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">IsochroneResult.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.nlrb_cases.NLRBCase"><code class="docutils literal notranslate"><span class="pre">NLRBCase</span></code></a><ul>
@@ -4841,7 +4847,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.Meta"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.Meta</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.save"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.prepare_for_bulk"><code class="docutils literal notranslate"><span class="pre">TimezoneGeometry.prepare_for_bulk()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -4849,6 +4855,8 @@
 <li class="toctree-l2"><a class="reference internal" href="packages/geo_django.html#module-siege_utilities.geo.django.managers">Managers</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager"><code class="docutils literal notranslate"><span class="pre">BoundaryManager</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.get_queryset"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.get_queryset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.snapshots()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.for_year"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_year()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.for_state"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_state()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.current"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.current()</span></code></a></li>
@@ -4873,6 +4881,7 @@
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.nearest"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.nearest()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.with_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.with_area()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.by_land_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_land_area()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.snapshots()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.geojson"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.geojson()</span></code></a></li>
 </ul>
@@ -4888,12 +4897,15 @@
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.nearest"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.nearest()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.with_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.with_area()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_land_area"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_land_area()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.snapshots()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.geojson"><code class="docutils literal notranslate"><span class="pre">BoundaryQuerySet.geojson()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager"><code class="docutils literal notranslate"><span class="pre">BoundaryManager</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.get_queryset"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.get_queryset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.snapshots"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.snapshots()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.by_population"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.by_population()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.for_year"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_year()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.for_state"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.for_state()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.current"><code class="docutils literal notranslate"><span class="pre">BoundaryManager.current()</span></code></a></li>
@@ -4996,6 +5008,7 @@
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_updated"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.errors"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_without_geometry"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.records_without_geometry</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.success"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.__init__"><code class="docutils literal notranslate"><span class="pre">NLRBPopulationResult.__init__()</span></code></a></li>
 </ul>
@@ -5012,6 +5025,8 @@
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.records_updated"><code class="docutils literal notranslate"><span class="pre">PopulationResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">PopulationResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.errors"><code class="docutils literal notranslate"><span class="pre">PopulationResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.sources_skipped"><code class="docutils literal notranslate"><span class="pre">PopulationResult.sources_skipped</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.warnings"><code class="docutils literal notranslate"><span class="pre">PopulationResult.warnings</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.total_processed"><code class="docutils literal notranslate"><span class="pre">PopulationResult.total_processed</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.success"><code class="docutils literal notranslate"><span class="pre">PopulationResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.__init__"><code class="docutils literal notranslate"><span class="pre">PopulationResult.__init__()</span></code></a></li>
@@ -5019,7 +5034,8 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.GEOGRAPHY_MODELS"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.GEOGRAPHY_MODELS</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.TIGER_TYPES"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.TIGER_TYPES</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.GEOGRAPHIC_LEVELS"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.GEOGRAPHIC_LEVELS</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.VTD_NOT_PUBLISHED"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.VTD_NOT_PUBLISHED</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.__init__"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.populate"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.populate()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.populate_states"><code class="docutils literal notranslate"><span class="pre">BoundaryPopulationService.populate_states()</span></code></a></li>
@@ -5039,6 +5055,7 @@
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.records_updated"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.errors"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.errors</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.warnings"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.warnings</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.total_processed"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.total_processed</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.success"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.success</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.__init__"><code class="docutils literal notranslate"><span class="pre">RDHLoadResult.__init__()</span></code></a></li>
@@ -5058,6 +5075,7 @@
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.target_level"><code class="docutils literal notranslate"><span class="pre">RollupResult.target_level</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.variable_code"><code class="docutils literal notranslate"><span class="pre">RollupResult.variable_code</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_created"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_created</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_updated"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_updated</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_skipped"><code class="docutils literal notranslate"><span class="pre">RollupResult.records_skipped</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.coverage_ratio"><code class="docutils literal notranslate"><span class="pre">RollupResult.coverage_ratio</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.errors"><code class="docutils literal notranslate"><span class="pre">RollupResult.errors</span></code></a></li>
@@ -5699,6 +5717,7 @@
 <li class="toctree-l3"><a class="reference internal" href="packages/analytics.html#siege_utilities.analytics.google_slides.get_presentation"><code class="docutils literal notranslate"><span class="pre">get_presentation()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="packages/analytics.html#siege_utilities.analytics.google_slides.insert_image"><code class="docutils literal notranslate"><span class="pre">insert_image()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="packages/analytics.html#siege_utilities.analytics.google_slides.insert_text"><code class="docutils literal notranslate"><span class="pre">insert_text()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="packages/analytics.html#siege_utilities.analytics.google_slides.temporary_public_figure"><code class="docutils literal notranslate"><span class="pre">temporary_public_figure()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="packages/analytics.html#siege_utilities.analytics.google_slides.upload_figure_to_drive"><code class="docutils literal notranslate"><span class="pre">upload_figure_to_drive()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="packages/analytics.html#siege_utilities.analytics.google_workspace.GoogleWorkspaceClient"><code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/analytics.html#siege_utilities.analytics.google_workspace.GoogleWorkspaceClient.__init__"><code class="docutils literal notranslate"><span class="pre">GoogleWorkspaceClient.__init__()</span></code></a></li>
@@ -6291,9 +6310,12 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="packages/config.html">Config</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="packages/config.html#siege_utilities.config.get_service_timeout"><code class="docutils literal notranslate"><span class="pre">get_service_timeout()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="packages/config.html#siege_utilities.config.normalize_state_identifier"><code class="docutils literal notranslate"><span class="pre">normalize_state_identifier()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="packages/config.html#siege_utilities.config.get_fips_info"><code class="docutils literal notranslate"><span class="pre">get_fips_info()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="packages/config.html#sharing-exports-without-secrets">Sharing exports without secrets</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="packages/config.html#siege_utilities.config.get_service_timeout"><code class="docutils literal notranslate"><span class="pre">get_service_timeout()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="packages/config.html#siege_utilities.config.normalize_state_identifier"><code class="docutils literal notranslate"><span class="pre">normalize_state_identifier()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="packages/config.html#siege_utilities.config.get_fips_info"><code class="docutils literal notranslate"><span class="pre">get_fips_info()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="packages/config.html#module-siege_utilities.config.credential_manager">Submodules</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="packages/config.html#siege_utilities.config.credential_manager.CredentialNotFoundError"><code class="docutils literal notranslate"><span class="pre">CredentialNotFoundError</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.credential_manager.CredentialNotFoundError.__init__"><code class="docutils literal notranslate"><span class="pre">CredentialNotFoundError.__init__()</span></code></a></li>
@@ -6650,6 +6672,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.DatabaseConnection"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_host"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_host()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_password_length"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_password"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_port"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_port()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_database_name"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_database_name()</span></code></a></li>
@@ -6657,10 +6680,10 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.SocialMediaAccount"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.SocialMediaAccount.refresh_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.refresh_token</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.SocialMediaAccount.api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.api_version</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.SocialMediaAccount.rate_limit_remaining"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.rate_limit_remaining</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.SocialMediaAccount.last_updated"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.last_updated</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_access_token_length"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_access_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_account_id"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_account_id()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_api_version()</span></code></a></li>
@@ -6733,7 +6756,6 @@
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.DataSource.source_type"><code class="docutils literal notranslate"><span class="pre">DataSource.source_type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.DataSource.jurisdiction"><code class="docutils literal notranslate"><span class="pre">DataSource.jurisdiction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.DataSource.status"><code class="docutils literal notranslate"><span class="pre">DataSource.status</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.DataSource.auth_required"><code class="docutils literal notranslate"><span class="pre">DataSource.auth_required</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.DataSource.notes"><code class="docutils literal notranslate"><span class="pre">DataSource.notes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.DataSource.validate_auth_type"><code class="docutils literal notranslate"><span class="pre">DataSource.validate_auth_type()</span></code></a></li>
 </ul>
@@ -6964,7 +6986,6 @@
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.data_sources.DataSource.source_type"><code class="docutils literal notranslate"><span class="pre">DataSource.source_type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.data_sources.DataSource.jurisdiction"><code class="docutils literal notranslate"><span class="pre">DataSource.jurisdiction</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.data_sources.DataSource.status"><code class="docutils literal notranslate"><span class="pre">DataSource.status</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.data_sources.DataSource.auth_required"><code class="docutils literal notranslate"><span class="pre">DataSource.auth_required</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.data_sources.DataSource.notes"><code class="docutils literal notranslate"><span class="pre">DataSource.notes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.data_sources.DataSource.validate_auth_type"><code class="docutils literal notranslate"><span class="pre">DataSource.validate_auth_type()</span></code></a></li>
 </ul>
@@ -6975,6 +6996,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_host"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_host()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_password_length"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_password"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_password()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_port"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_port()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_database_name"><code class="docutils literal notranslate"><span class="pre">DatabaseConnection.validate_database_name()</span></code></a></li>
@@ -7130,10 +7152,10 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.refresh_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.refresh_token</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.api_version</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.rate_limit_remaining"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.rate_limit_remaining</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.last_updated"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.last_updated</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token_length"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token_length()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_access_token()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_account_id"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_account_id()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_api_version"><code class="docutils literal notranslate"><span class="pre">SocialMediaAccount.validate_api_version()</span></code></a></li>
@@ -7870,7 +7892,10 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="packages/hygiene.html">Hygiene</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="packages/hygiene.html#siege_utilities.hygiene.generate_docstrings"><code class="docutils literal notranslate"><span class="pre">generate_docstrings()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="packages/hygiene.html#docstring-generation">Docstring generation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="packages/hygiene.html#siege_utilities.hygiene.generate_docstrings"><code class="docutils literal notranslate"><span class="pre">generate_docstrings()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="packages/hygiene.html#module-siege_utilities.hygiene.generate_docstrings">Submodules</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.analyze_function_signature"><code class="docutils literal notranslate"><span class="pre">analyze_function_signature()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.categorize_function"><code class="docutils literal notranslate"><span class="pre">categorize_function()</span></code></a></li>
@@ -7878,6 +7903,7 @@
 <li class="toctree-l3"><a class="reference internal" href="packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder"><code class="docutils literal notranslate"><span class="pre">DocstringAdder</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.__init__"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.__init__()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_FunctionDef"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.visit_FunctionDef()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_AsyncFunctionDef"><code class="docutils literal notranslate"><span class="pre">DocstringAdder.visit_AsyncFunctionDef()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.process_python_file"><code class="docutils literal notranslate"><span class="pre">process_python_file()</span></code></a></li>
@@ -10267,10 +10293,10 @@
 </li>
       <li><a href="packages/geo.html#siege_utilities.geo.codification_recency.AddressVintageProvider">AddressVintageProvider (class in siege_utilities.geo.codification_recency)</a>
 </li>
-      <li><a href="packages/geo.html#siege_utilities.geo.timeseries.longitudinal_data.LongitudinalAligner.adjust_inflation">adjust_inflation() (siege_utilities.geo.timeseries.longitudinal_data.LongitudinalAligner static method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="packages/geo.html#siege_utilities.geo.timeseries.longitudinal_data.LongitudinalAligner.adjust_inflation">adjust_inflation() (siege_utilities.geo.timeseries.longitudinal_data.LongitudinalAligner static method)</a>
+</li>
       <li><a href="packages/config.html#siege_utilities.config.models.oauth_integration.OAuthScope.ADMIN">ADMIN (siege_utilities.config.models.oauth_integration.OAuthScope attribute)</a>
 </li>
       <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMAdmin2.admin1">admin1 (siege_utilities.geo.django.models.gadm.GADMAdmin2 attribute)</a>
@@ -10575,12 +10601,6 @@
 
       <ul>
         <li><a href="packages/identifiers.html#siege_utilities.identifiers.uuid_generation.attestation_uuid">(in module siege_utilities.identifiers.uuid_generation)</a>
-</li>
-      </ul></li>
-      <li><a href="packages/config.html#siege_utilities.config.models.data_sources.DataSource.auth_required">auth_required (siege_utilities.config.models.data_sources.DataSource attribute)</a>
-
-      <ul>
-        <li><a href="packages/config.html#siege_utilities.config.models.DataSource.auth_required">(siege_utilities.config.models.DataSource attribute)</a>
 </li>
       </ul></li>
       <li><a href="analytics.html#siege_utilities.analytics.google_analytics.GoogleAnalyticsConnector.authenticate">authenticate() (siege_utilities.analytics.google_analytics.GoogleAnalyticsConnector method)</a>, <a href="packages/analytics.html#siege_utilities.analytics.google_analytics.GoogleAnalyticsConnector.authenticate">[1]</a>
@@ -11191,9 +11211,13 @@
         <li><a href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.by_land_area">(siege_utilities.geo.django.managers.BoundaryQuerySet method)</a>
 </li>
       </ul></li>
-      <li><a href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_population">by_population() (siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet method)</a>
+      <li><a href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.by_population">by_population() (siege_utilities.geo.django.managers.boundary_manager.BoundaryManager method)</a>
 
       <ul>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.by_population">(siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet method)</a>
+</li>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.by_population">(siege_utilities.geo.django.managers.BoundaryManager method)</a>
+</li>
         <li><a href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.by_population">(siege_utilities.geo.django.managers.BoundaryQuerySet method)</a>
 </li>
       </ul></li>
@@ -12273,8 +12297,6 @@
 </li>
       <li><a href="logging_utilities.html#siege_utilities.core.logging.LoggingConfig.console_level">console_level (siege_utilities.core.logging.LoggingConfig attribute)</a>, <a href="packages/core.html#siege_utilities.core.logging.LoggingConfig.console_level">[1]</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.boundaries.Block.Meta.constraints">constraints (siege_utilities.geo.django.models.boundaries.Block.Meta attribute)</a>
 
       <ul>
@@ -12296,6 +12318,12 @@
 </li>
         <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.census_extended.PUMA.Meta.constraints">(siege_utilities.geo.django.models.census_extended.PUMA.Meta attribute)</a>
 </li>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicKeyArchive.Meta.constraints">(siege_utilities.geo.django.models.demographics.DemographicKeyArchive.Meta attribute)</a>
+</li>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.Meta.constraints">(siege_utilities.geo.django.models.demographics.DemographicSnapshot.Meta attribute)</a>
+</li>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta.constraints">(siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta attribute)</a>
+</li>
         <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.political.StateLegislativeLower.Meta.constraints">(siege_utilities.geo.django.models.political.StateLegislativeLower.Meta attribute)</a>
 </li>
         <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.political.StateLegislativeUpper.Meta.constraints">(siege_utilities.geo.django.models.political.StateLegislativeUpper.Meta attribute)</a>
@@ -12303,6 +12331,8 @@
         <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.political.VTD.Meta.constraints">(siege_utilities.geo.django.models.political.VTD.Meta attribute)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="packages/geo.html#siege_utilities.geo.construct_download_url">construct_download_url() (in module siege_utilities.geo)</a>
 
       <ul>
@@ -12351,12 +12381,6 @@
 
       <ul>
         <li><a href="packages/geo.html#siege_utilities.geo.RelationSemantics.CONTAINS_CENTROID">(siege_utilities.geo.RelationSemantics attribute)</a>
-</li>
-      </ul></li>
-      <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.content_object">content_object (siege_utilities.geo.django.models.demographics.DemographicSnapshot attribute)</a>
-
-      <ul>
-        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.content_object">(siege_utilities.geo.django.models.demographics.DemographicTimeSeries attribute)</a>
 </li>
       </ul></li>
       <li><a href="packages/reporting.html#siege_utilities.reporting.pages.ContentPage">ContentPage (class in siege_utilities.reporting.pages)</a>
@@ -13627,6 +13651,10 @@
         <li><a href="packages/geo.html#siege_utilities.geo.providers.redistricting_data_hub.demographic_profile">(in module siege_utilities.geo.providers.redistricting_data_hub)</a>
 </li>
       </ul></li>
+      <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicKeyArchive">DemographicKeyArchive (class in siege_utilities.geo.django.models.demographics)</a>
+</li>
+      <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicKeyArchive.Meta">DemographicKeyArchive.Meta (class in siege_utilities.geo.django.models.demographics)</a>
+</li>
       <li><a href="packages/geo.html#siege_utilities.geo.overlays.demographics.DemographicPoint">DemographicPoint (class in siege_utilities.geo.overlays.demographics)</a>
 </li>
       <li><a href="packages/geo_django.html#siege_utilities.geo.django.services.demographic_service.DemographicPopulationResult">DemographicPopulationResult (class in siege_utilities.geo.django.services.demographic_service)</a>
@@ -13769,10 +13797,10 @@
       </ul></li>
       <li><a href="packages/geo.html#siege_utilities.geo.codification_recency.DictAddressVintageProvider">DictAddressVintageProvider (class in siege_utilities.geo.codification_recency)</a>
 </li>
-      <li><a href="packages/geo.html#siege_utilities.geo.codification_demographics.DictBlockDemographicsProvider">DictBlockDemographicsProvider (class in siege_utilities.geo.codification_demographics)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="packages/geo.html#siege_utilities.geo.codification_demographics.DictBlockDemographicsProvider">DictBlockDemographicsProvider (class in siege_utilities.geo.codification_demographics)</a>
+</li>
       <li><a href="packages/geo.html#siege_utilities.geo.codification_urbanicity.DictBlockLocaleProvider">DictBlockLocaleProvider (class in siege_utilities.geo.codification_urbanicity)</a>
 </li>
       <li><a href="packages/geo.html#siege_utilities.geo.place_history.DictCrosswalkProvider">DictCrosswalkProvider (class in siege_utilities.geo.place_history)</a>
@@ -15497,6 +15525,8 @@
         <li><a href="packages/geo.html#id1">(siege_utilities.geo.BoundaryFetchResult attribute)</a>, <a href="packages/geo.html#siege_utilities.geo.BoundaryFetchResult.geodataframe">[1]</a>
 </li>
       </ul></li>
+      <li><a href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.GEOGRAPHIC_LEVELS">GEOGRAPHIC_LEVELS (siege_utilities.geo.django.services.population_service.BoundaryPopulationService attribute)</a>
+</li>
       <li><a href="packages/data.html#id27">geography (siege_utilities.data.cross_tabulation.CrossTabSpec attribute)</a>, <a href="packages/data.html#siege_utilities.data.cross_tabulation.CrossTabSpec.geography">[1]</a>
 
       <ul>
@@ -20221,7 +20251,11 @@
 </li>
       </ul></li>
       <li><a href="packages/geo.html#siege_utilities.geo.geoid_utils.normalize_geoid">normalize_geoid() (in module siege_utilities.geo.geoid_utils)</a>
+
+      <ul>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.boundaries.CongressionalDistrict.normalize_geoid">(siege_utilities.geo.django.models.boundaries.CongressionalDistrict class method)</a>
 </li>
+      </ul></li>
       <li><a href="packages/geo.html#siege_utilities.geo.geoid_utils.normalize_geoid_column">normalize_geoid_column() (in module siege_utilities.geo.geoid_utils)</a>
 </li>
       <li><a href="packages/identifiers.html#siege_utilities.identifiers.normalize_name_v1">normalize_name_v1() (in module siege_utilities.identifiers)</a>
@@ -21000,8 +21034,6 @@
         <li><a href="packages/geo.html#siege_utilities.geo.plans.registry.PlanRegistry">(class in siege_utilities.geo.plans.registry)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="packages/geo.html#siege_utilities.geo.PlanResolutionError">PlanResolutionError</a>, <a href="packages/geo.html#siege_utilities.geo.plans.PlanResolutionError">[1]</a>, <a href="packages/geo.html#siege_utilities.geo.plans.registry.PlanResolutionError">[2]</a>
 </li>
       <li><a href="packages/geo.html#id331">plans (siege_utilities.geo.plan_lifecycle.PlanLineage attribute)</a>, <a href="packages/geo.html#siege_utilities.geo.plan_lifecycle.PlanLineage.plans">[1]</a>
@@ -21014,6 +21046,8 @@
         <li><a href="packages/geo.html#siege_utilities.geo.plans.registry.PlanRegistry.plans_for_state">(siege_utilities.geo.plans.registry.PlanRegistry method)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="packages/geo.html#siege_utilities.geo.plan_lifecycle.PlanType">PlanType (class in siege_utilities.geo.plan_lifecycle)</a>
 </li>
       <li><a href="packages/geo.html#siege_utilities.geo.census_files.PLFileDownloader">PLFileDownloader (class in siege_utilities.geo.census_files)</a>
@@ -21292,6 +21326,30 @@
 
       <ul>
         <li><a href="packages/distributed.html#siege_utilities.distributed.spark_utils.prepare_dataframe_for_export">(in module siege_utilities.distributed.spark_utils)</a>, <a href="spark_utilities.html#siege_utilities.distributed.spark_utils.prepare_dataframe_for_export">[1]</a>
+</li>
+      </ul></li>
+      <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.prepare_for_bulk">prepare_for_bulk() (siege_utilities.geo.django.models.base.CensusTIGERBoundary method)</a>
+
+      <ul>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.prepare_for_bulk">(siege_utilities.geo.django.models.base.TemporalBoundary method)</a>
+</li>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.prepare_for_bulk">(siege_utilities.geo.django.models.base.TemporalGeographicFeature method)</a>
+</li>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.prepare_for_bulk">(siege_utilities.geo.django.models.demographics.DemographicSnapshot method)</a>
+</li>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.prepare_for_bulk">(siege_utilities.geo.django.models.education.NCESLocaleBoundary method)</a>
+</li>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.prepare_for_bulk">(siege_utilities.geo.django.models.education.SchoolLocation method)</a>
+</li>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.prepare_for_bulk">(siege_utilities.geo.django.models.federal.FederalJudicialDistrict method)</a>
+</li>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.prepare_for_bulk">(siege_utilities.geo.django.models.federal.NLRBRegion method)</a>
+</li>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.prepare_for_bulk">(siege_utilities.geo.django.models.gadm.GADMBoundary method)</a>
+</li>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.prepare_for_bulk">(siege_utilities.geo.django.models.isochrone.IsochroneResult method)</a>
+</li>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.prepare_for_bulk">(siege_utilities.geo.django.models.timezone.TimezoneGeometry method)</a>
 </li>
       </ul></li>
       <li><a href="packages/geo.html#siege_utilities.geo.geoid_utils.prepare_geoid_for_join">prepare_geoid_for_join() (in module siege_utilities.geo.geoid_utils)</a>
@@ -21947,11 +22005,15 @@
 </li>
         <li><a href="packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.records_updated">(siege_utilities.geo.django.services.rdh_loader.RDHLoadResult attribute)</a>
 </li>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.services.rollup_service.RollupResult.records_updated">(siege_utilities.geo.django.services.rollup_service.RollupResult attribute)</a>
+</li>
         <li><a href="packages/geo_django.html#siege_utilities.geo.django.services.timeseries_service.TimeseriesResult.records_updated">(siege_utilities.geo.django.services.timeseries_service.TimeseriesResult attribute)</a>
 </li>
         <li><a href="packages/geo_django.html#siege_utilities.geo.django.services.timezone_service.TimezonePopulationResult.records_updated">(siege_utilities.geo.django.services.timezone_service.TimezonePopulationResult attribute)</a>
 </li>
       </ul></li>
+      <li><a href="packages/geo_django.html#siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult.records_without_geometry">records_without_geometry (siege_utilities.geo.django.services.nlrb_service.NLRBPopulationResult attribute)</a>
+</li>
       <li><a href="packages/reporting.html#siege_utilities.reporting.legend_manager.ColorScheme.RED">RED (siege_utilities.reporting.legend_manager.ColorScheme attribute)</a>
 </li>
       <li><a href="packages/political.html#siege_utilities.political.readers.redistricting_plans">redistricting_plans() (in module siege_utilities.political.readers)</a>
@@ -21978,14 +22040,14 @@
         <li><a href="packages/geo.html#siege_utilities.geo.schemas.redistricting.RedistrictingPlanSchema">(class in siege_utilities.geo.schemas.redistricting)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="packages/geo.html#id38">reference (siege_utilities.geo.EtterGeometryResult attribute)</a>, <a href="packages/geo.html#siege_utilities.geo.EtterGeometryResult.reference">[1]</a>
 
       <ul>
         <li><a href="packages/geo.html#id102">(siege_utilities.geo.providers.etter_to_geometry.EtterGeometryResult attribute)</a>, <a href="packages/geo.html#siege_utilities.geo.providers.etter_to_geometry.EtterGeometryResult.reference">[1]</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="packages/geo.html#id32">reference_location (siege_utilities.geo.EtterFilter attribute)</a>, <a href="packages/geo.html#siege_utilities.geo.EtterFilter.reference_location">[1]</a>
 
       <ul>
@@ -22000,12 +22062,6 @@
         <li><a href="packages/geo.html#siege_utilities.geo.CensusDataSource.refresh_discovery_cache">(siege_utilities.geo.CensusDataSource method)</a>
 </li>
         <li><a href="packages/geo.html#siege_utilities.geo.spatial_data.CensusDataSource.refresh_discovery_cache">(siege_utilities.geo.spatial_data.CensusDataSource method)</a>
-</li>
-      </ul></li>
-      <li><a href="packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.refresh_token">refresh_token (siege_utilities.config.models.social_media_account.SocialMediaAccount attribute)</a>
-
-      <ul>
-        <li><a href="packages/config.html#siege_utilities.config.models.SocialMediaAccount.refresh_token">(siege_utilities.config.models.SocialMediaAccount attribute)</a>
 </li>
       </ul></li>
       <li><a href="packages/config.html#siege_utilities.config.census_constants.GeographyLevel.REGION">REGION (siege_utilities.config.census_constants.GeographyLevel attribute)</a>
@@ -22615,25 +22671,9 @@
       <li><a href="packages/config.html#siege_utilities.config.google_account_registry.GoogleAccountRegistry.save">save() (siege_utilities.config.google_account_registry.GoogleAccountRegistry method)</a>
 
       <ul>
-        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.base.CensusTIGERBoundary.save">(siege_utilities.geo.django.models.base.CensusTIGERBoundary method)</a>
-</li>
-        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalBoundary.save">(siege_utilities.geo.django.models.base.TemporalBoundary method)</a>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.base.TemporalGeographicFeature.save">(siege_utilities.geo.django.models.base.TemporalGeographicFeature method)</a>
 </li>
         <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.save">(siege_utilities.geo.django.models.demographics.DemographicSnapshot method)</a>
-</li>
-        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.save">(siege_utilities.geo.django.models.education.NCESLocaleBoundary method)</a>
-</li>
-        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.education.SchoolLocation.save">(siege_utilities.geo.django.models.education.SchoolLocation method)</a>
-</li>
-        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.federal.FederalJudicialDistrict.save">(siege_utilities.geo.django.models.federal.FederalJudicialDistrict method)</a>
-</li>
-        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.federal.NLRBRegion.save">(siege_utilities.geo.django.models.federal.NLRBRegion method)</a>
-</li>
-        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.gadm.GADMBoundary.save">(siege_utilities.geo.django.models.gadm.GADMBoundary method)</a>
-</li>
-        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.isochrone.IsochroneResult.save">(siege_utilities.geo.django.models.isochrone.IsochroneResult method)</a>
-</li>
-        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.timezone.TimezoneGeometry.save">(siege_utilities.geo.django.models.timezone.TimezoneGeometry method)</a>
 </li>
         <li><a href="packages/reporting.html#siege_utilities.reporting.idml_export.IDMLExporter.save">(siege_utilities.reporting.idml_export.IDMLExporter method)</a>
 </li>
@@ -24352,8 +24392,6 @@
         <li><a href="packages/geo.html#module-siege_utilities.geo.overlays.redistricting">module</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     siege_utilities.geo.overlays.seats
 
@@ -24382,6 +24420,8 @@
         <li><a href="packages/geo.html#module-siege_utilities.geo.plan_lifecycle">module</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     siege_utilities.geo.plans
 
@@ -25264,6 +25304,16 @@
         <li><a href="packages/core.html#siege_utilities.core.string_utils.snake_case">(in module siege_utilities.core.string_utils)</a>, <a href="string_utilities.html#siege_utilities.core.string_utils.snake_case">[1]</a>
 </li>
       </ul></li>
+      <li><a href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryManager.snapshots">snapshots() (siege_utilities.geo.django.managers.boundary_manager.BoundaryManager method)</a>
+
+      <ul>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet.snapshots">(siege_utilities.geo.django.managers.boundary_manager.BoundaryQuerySet method)</a>
+</li>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryManager.snapshots">(siege_utilities.geo.django.managers.BoundaryManager method)</a>
+</li>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.managers.BoundaryQuerySet.snapshots">(siege_utilities.geo.django.managers.BoundaryQuerySet method)</a>
+</li>
+      </ul></li>
       <li><a href="analytics.html#siege_utilities.analytics.SnowflakeConnector">SnowflakeConnector (class in siege_utilities.analytics)</a>, <a href="packages/analytics.html#siege_utilities.analytics.SnowflakeConnector">[1]</a>
 
       <ul>
@@ -25426,6 +25476,8 @@
         <li><a href="packages/config.html#siege_utilities.config.models.data_sources.SourceCredential">(class in siege_utilities.config.models.data_sources)</a>
 </li>
       </ul></li>
+      <li><a href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.sources_skipped">sources_skipped (siege_utilities.geo.django.services.population_service.PopulationResult attribute)</a>
+</li>
       <li><a href="packages/data.html#siege_utilities.data.Engine.SPARK">SPARK (siege_utilities.data.Engine attribute)</a>
 
       <ul>
@@ -26348,6 +26400,8 @@
       </ul></li>
       <li><a href="logging_utilities.html#siege_utilities.core.logging.temporary_logging_config">temporary_logging_config() (in module siege_utilities.core.logging)</a>, <a href="packages/core.html#siege_utilities.core.logging.temporary_logging_config">[1]</a>
 </li>
+      <li><a href="google_workspace.html#siege_utilities.analytics.google_slides.temporary_public_figure">temporary_public_figure() (in module siege_utilities.analytics.google_slides)</a>, <a href="packages/analytics.html#siege_utilities.analytics.google_slides.temporary_public_figure">[1]</a>
+</li>
       <li><a href="packages/geo.html#id207">terminal_geoids (siege_utilities.geo.place_history.Lineage attribute)</a>, <a href="packages/geo.html#siege_utilities.geo.place_history.Lineage.terminal_geoids">[1]</a>
 
       <ul>
@@ -26382,8 +26436,6 @@
         <li><a href="packages/geo.html#id82">(siege_utilities.geo.providers.census_geocoder.CensusGeocodeResult attribute)</a>, <a href="packages/geo.html#siege_utilities.geo.providers.census_geocoder.CensusGeocodeResult.tiger_line_id">[1]</a>
 </li>
       </ul></li>
-      <li><a href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.TIGER_TYPES">TIGER_TYPES (siege_utilities.geo.django.services.population_service.BoundaryPopulationService attribute)</a>
-</li>
       <li><a href="packages/geo.html#siege_utilities.geo.census_dataset_mapper.CensusDataset.time_period">time_period (siege_utilities.geo.census_dataset_mapper.CensusDataset attribute)</a>
 
       <ul>
@@ -26949,10 +27001,6 @@
 </li>
         <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.census_extended.UrbanArea.Meta.unique_together">(siege_utilities.geo.django.models.census_extended.UrbanArea.Meta attribute)</a>
 </li>
-        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicSnapshot.Meta.unique_together">(siege_utilities.geo.django.models.demographics.DemographicSnapshot.Meta attribute)</a>
-</li>
-        <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta.unique_together">(siege_utilities.geo.django.models.demographics.DemographicTimeSeries.Meta attribute)</a>
-</li>
         <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.demographics.DemographicVariable.Meta.unique_together">(siege_utilities.geo.django.models.demographics.DemographicVariable.Meta attribute)</a>
 </li>
         <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.education.NCESLocaleBoundary.Meta.unique_together">(siege_utilities.geo.django.models.education.NCESLocaleBoundary.Meta attribute)</a>
@@ -27030,10 +27078,10 @@
       </ul></li>
       <li><a href="packages/geo.html#siege_utilities.geo.providers.nlrb_clients.CaseStatus.UNKNOWN">UNKNOWN (siege_utilities.geo.providers.nlrb_clients.CaseStatus attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="exception_hierarchy.html#siege_utilities.reporting.chart_types.UnknownChartTypeError">UnknownChartTypeError</a>, <a href="packages/reporting.html#siege_utilities.reporting.chart_types.UnknownChartTypeError">[1]</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="packages/conf.html#siege_utilities.conf.Path.unlink">unlink() (siege_utilities.conf.Path method)</a>
 </li>
       <li><a href="packages/geo.html#id359">unmatched_precincts (siege_utilities.geo.precinct_vtd.ReconciliationResult attribute)</a>, <a href="packages/geo.html#siege_utilities.geo.precinct_vtd.ReconciliationResult.unmatched_precincts">[1]</a>
@@ -27238,6 +27286,12 @@
 
       <ul>
         <li><a href="packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_access_token">(siege_utilities.config.models.SocialMediaAccount method)</a>
+</li>
+      </ul></li>
+      <li><a href="packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_access_token_length">validate_access_token_length() (siege_utilities.config.models.social_media_account.SocialMediaAccount method)</a>
+
+      <ul>
+        <li><a href="packages/config.html#siege_utilities.config.models.SocialMediaAccount.validate_access_token_length">(siege_utilities.config.models.SocialMediaAccount method)</a>
 </li>
       </ul></li>
       <li><a href="packages/config.html#siege_utilities.config.models.social_media_account.SocialMediaAccount.validate_account_id">validate_account_id() (siege_utilities.config.models.social_media_account.SocialMediaAccount method)</a>
@@ -27530,6 +27584,12 @@
         <li><a href="packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_password">(siege_utilities.config.models.database_connection.DatabaseConnection method)</a>
 </li>
         <li><a href="packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_password">(siege_utilities.config.models.DatabaseConnection method)</a>
+</li>
+      </ul></li>
+      <li><a href="packages/config.html#siege_utilities.config.models.database_connection.DatabaseConnection.validate_password_length">validate_password_length() (siege_utilities.config.models.database_connection.DatabaseConnection method)</a>
+
+      <ul>
+        <li><a href="packages/config.html#siege_utilities.config.models.DatabaseConnection.validate_password_length">(siege_utilities.config.models.DatabaseConnection method)</a>
 </li>
       </ul></li>
       <li><a href="packages/config.html#siege_utilities.config.models.actor_types.User.validate_permissions">validate_permissions() (siege_utilities.config.models.actor_types.User method)</a>
@@ -28014,6 +28074,8 @@
         <li><a href="packages/geo.html#siege_utilities.geo.schemas.VTDCDIntersectionSchema.vintage_year">(siege_utilities.geo.schemas.VTDCDIntersectionSchema attribute)</a>
 </li>
       </ul></li>
+      <li><a href="packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_AsyncFunctionDef">visit_AsyncFunctionDef() (siege_utilities.hygiene.generate_docstrings.DocstringAdder method)</a>
+</li>
       <li><a href="packages/hygiene.html#siege_utilities.hygiene.generate_docstrings.DocstringAdder.visit_FunctionDef">visit_FunctionDef() (siege_utilities.hygiene.generate_docstrings.DocstringAdder method)</a>
 </li>
       <li><a href="analytics.html#siege_utilities.analytics.VistaSocialAuthError">VistaSocialAuthError</a>, <a href="packages/analytics.html#siege_utilities.analytics.VistaSocialAuthError">[1]</a>, <a href="packages/analytics.html#siege_utilities.analytics.vista_social.VistaSocialAuthError">[2]</a>
@@ -28116,6 +28178,8 @@
         <li><a href="packages/geo.html#siege_utilities.geo.schemas.VTDCDIntersectionSchema.vtd_id">(siege_utilities.geo.schemas.VTDCDIntersectionSchema attribute)</a>
 </li>
       </ul></li>
+      <li><a href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.BoundaryPopulationService.VTD_NOT_PUBLISHED">VTD_NOT_PUBLISHED (siege_utilities.geo.django.services.population_service.BoundaryPopulationService attribute)</a>
+</li>
       <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.intersections.VTDCDIntersection">VTDCDIntersection (class in siege_utilities.geo.django.models.intersections)</a>
 </li>
       <li><a href="packages/geo_django.html#siege_utilities.geo.django.models.intersections.VTDCDIntersection.Meta">VTDCDIntersection.Meta (class in siege_utilities.geo.django.models.intersections)</a>
@@ -28138,9 +28202,13 @@
 <h2 id="W">W</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="packages/geo.html#id186">warnings (siege_utilities.geo.interpolation.areal.ArealInterpolationResult attribute)</a>, <a href="packages/geo.html#siege_utilities.geo.interpolation.areal.ArealInterpolationResult.warnings">[1]</a>
+      <li><a href="packages/geo_django.html#siege_utilities.geo.django.services.population_service.PopulationResult.warnings">warnings (siege_utilities.geo.django.services.population_service.PopulationResult attribute)</a>
 
       <ul>
+        <li><a href="packages/geo_django.html#siege_utilities.geo.django.services.rdh_loader.RDHLoadResult.warnings">(siege_utilities.geo.django.services.rdh_loader.RDHLoadResult attribute)</a>
+</li>
+        <li><a href="packages/geo.html#id186">(siege_utilities.geo.interpolation.areal.ArealInterpolationResult attribute)</a>, <a href="packages/geo.html#siege_utilities.geo.interpolation.areal.ArealInterpolationResult.warnings">[1]</a>
+</li>
         <li><a href="packages/geo.html#id177">(siege_utilities.geo.interpolation.ArealInterpolationResult attribute)</a>, <a href="packages/geo.html#siege_utilities.geo.interpolation.ArealInterpolationResult.warnings">[1]</a>
 </li>
         <li><a href="packages/geo.html#id512">(siege_utilities.geo.timeseries.longitudinal_data.AlignmentResult attribute)</a>, <a href="packages/geo.html#siege_utilities.geo.timeseries.longitudinal_data.AlignmentResult.warnings">[1]</a>
