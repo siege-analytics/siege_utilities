@@ -144,7 +144,11 @@ def test_cd112_migration_is_single_leaf_and_matches_model():
     from django.db.migrations.loader import MigrationLoader
 
     loader = MigrationLoader(None)
-    assert loader.graph.leaf_nodes("siege_geo") == [("siege_geo", "0018_nlrbregion_geometry_nullable")]
+    assert loader.graph.leaf_nodes("siege_geo") == [("siege_geo", "0019_demographic_geoid_keys")]
+    assert loader.disk_migrations["siege_geo", "0019_demographic_geoid_keys"].dependencies == [
+        ("contenttypes", "0002_remove_content_type_name"),
+        ("siege_geo", "0018_nlrbregion_geometry_nullable"),
+    ]
     assert loader.disk_migrations["siege_geo", "0018_nlrbregion_geometry_nullable"].dependencies == [
         ("siege_geo", "0017_cd112_geoid_format"),
     ]
