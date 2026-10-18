@@ -69,7 +69,7 @@ The granularity is operation-level, not backend-level. If an engine can't meet a
 - **Tolerance:**
   - **Relation semantics modes** (BOUNDED / HALFPLANE / CONTAINS_CENTROID) are an explicit parameter; engines must respect it identically.
   - Sort order is not guaranteed.
-- **Caller-aligned CRS contract.** Both inputs must already be in the same CRS at call time. Engines do not inspect, validate, or reproject the geometry columns. PandasEngine routes through `gpd.sjoin`, which works on whatever the inputs report as CRS; SparkEngine routes through Sedona's `ST_GeomFromText`, which strips SRID at parse time and runs the predicate on raw coordinates. Two frames in different CRSes will produce wrong results, not a clear error. The right place to handle this is upstream of the call: reproject to a shared CRS before calling, or attach an explicit CRS check to whatever surface fronts the engine. A future engine helper that takes a `crs=` kwarg and reprojects can fix this at the boundary; tracked in #467.
+- **Caller-aligned CRS contract.** Both inputs must already be in the same CRS at call time. A shared check raises `ValueError` before the join when both inputs have known, different CRS. Pandas, DuckDB, and PostGIS check the GeoDataFrames passed to `gpd.sjoin`; Spark checks explicit frame `crs` attributes when available. Missing or `None` CRS remains allowed. Spark's WKT conversion does not preserve CRS metadata, and a data column named `crs` is not metadata, so callers must still align those coordinates themselves. Engines do not reproject inputs. The convenience methods that delegate to `spatial_join` inherit the check (#1619).
 
 ### `to_geodataframe(geometry_column="geometry")`
 
