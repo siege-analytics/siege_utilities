@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   paragraphs and tables across page breaks, repeating table headers and raising
   when a fragment cannot fit, instead of silently discarding content (#1485).
 
+- `is_sensitive_path` again blocks `_`/`-` prefixed private-key names outside
+  `.ssh` (`deploy_id_rsa`, `github-id_ecdsa`) and now covers `id_ed25519`;
+  `paid_rsa` and `*.pub` stay allowed (#1702).
 - Demographic population queries now keep equal GEOIDs in different boundary
   types and datasets separate. Boundary lookups use GEOIDs instead of integer
   PKs; plan assignments accept BigAutoField-sized boundary PKs. The migration
@@ -269,6 +272,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fallback files are not migrated or trusted automatically. Platforms without
   a POSIX uid use per-user Windows LocalAppData/AppData instead of shared temp;
   Windows file privacy depends on the user's inherited ACLs, not POSIX chmod.
+  (#1452)
+- `UserConfigManager.export_config()` no longer writes `postgresql_connection`
+  or `duckdb_path` (in addition to the three API keys), and writes the export
+  atomically at mode 0600 on POSIX. Exports are no longer a way to copy the
+  database DSN between machines; set it again with `set_database_connection`.
   (#1452)
 - `Person.from_yaml` and `import_entities` now reject imported string values
   containing `***REDACTED***` (including nested mapping/list values and
