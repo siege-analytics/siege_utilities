@@ -23,12 +23,10 @@ def secure_write_text(path: str | os.PathLike[str], data: str) -> None:
     """
     from siege_utilities.files.validation import reject_unsafe_new_directory_names
 
-    # Refuse unsafe new names, then write under the resolved parent that was
-    # checked and created (#1716).
-    parent = reject_unsafe_new_directory_names(Path(path).parent)
-    path = parent / Path(path).name
-    _mkdir_private(parent)
-    fd, temporary = tempfile.mkstemp(dir=parent)
+    path = Path(path)
+    reject_unsafe_new_directory_names(path.parent)  # (#1716)
+    _mkdir_private(path.parent)
+    fd, temporary = tempfile.mkstemp(dir=path.parent)
     try:
         try:
             if hasattr(os, "fchmod"):  # absent on Windows before Python 3.13

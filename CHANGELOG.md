@@ -26,8 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `safe_file_write`, `safe_json_write`, `atomic_write_path`,
   `atomic_write_shapefile`, `download_file`, `save_spatial`, `save_tabular`
   and the credential writer `secure_write_text`. Each raises
-  `PathSecurityError` and creates nothing. A parent is created at its resolved
-  path, so `a/<new>/../b` creates only `a/b`. New components containing a lone surrogate, which is
+  `PathSecurityError` and creates nothing. Paths are checked as written, so in
+  `a/<new>/../b` the `<new>` that `mkdir` would create on the way is checked
+  too; where files land and how symlinks are treated are unchanged. New components containing a lone surrogate, which is
   how undecodable (non-UTF-8) bytes reach Python, are refused as well. The
   check is public as `reject_unsafe_new_directory_names` (#1716).
 
