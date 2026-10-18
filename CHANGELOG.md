@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
+  `48-49` and excludes the `10` all-industry total that caused double-counting,
+  along with supersector aggregates. **Behavior change:** `parse()` and
+  `load()` now default to `own_code=5` (private) and `area_level="state"`
+  (statewide, `agglvl_code=54` at the default `naics_depth=2`), instead of
+  mixing ownerships and statewide/county rows. Callers can select another
+  ownership and `county`, `national`, or `msa` area level; the aggregation
+  code follows the requested NAICS depth. Suppressed rows (`disclosure_code`
+  of `N`) carry a boolean `is_suppressed` flag, so their source employment
+  and wage zeros can be excluded from calculations. When their source
+  disclosure columns exist, boolean `is_lq_suppressed` and `is_oty_suppressed`
+  flags separately identify `lq_disclosure_code` and `oty_disclosure_code`
+  values of `N`; corresponding `lq_*`/`oty_*` zeros are sentinels, not measured
+  zeros. The parser docstring now describes all preserved source columns
+  plus these flags (#1507).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
