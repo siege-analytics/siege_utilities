@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `notebooks/analytics/01_connectors.ipynb` no longer advertises live
+  Google Analytics / Snowflake queries while only initializing the
+  connectors and always returning a hardcoded fixture. The notebook now
+  has an explicitly opted-in credentialed path (GA4 when
+  `GOOGLE_APPLICATION_CREDENTIALS` and `GA_PROPERTY_ID` are set, else a
+  configured Snowflake rollup) that issues the real `get_ga4_data` /
+  `execute_query` calls over a seven-complete-day window and fails visibly
+  on a missing property or query error, and an offline path whose output is
+  clearly labelled an illustrative fixture. Empty or malformed live results
+  fail rather than silently becoming the fixture. Adds
+  `tests/test_1661_notebook_connector_truth.py` asserting the promised
+  branch behavior (#1661).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
