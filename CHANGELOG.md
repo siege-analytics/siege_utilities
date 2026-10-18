@@ -23,8 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `atomic_write_shapefile`, `download_file`, `save_spatial` and
     `save_tabular`
 
-  A parent is created at its resolved path, so `a/<new>/../b` creates only
-  `a/b`.
+  Paths are checked as written, so in `a/<new>/../b` the `<new>` that `mkdir`
+  would create on the way is checked too; where files land and how symlinks
+  are treated are unchanged.
 
   Existing directories with such names, and file-path validation, are
   unchanged. The check is public as `reject_unsafe_new_directory_names`.

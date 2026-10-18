@@ -105,7 +105,8 @@ def test_unsafe_new_component_is_refused_and_nothing_is_created(creator, tmp_pat
     case = 0
     for ch in UNSAFE:
         bad = f"p{ch}q"
-        for parts in ((bad, "b", "c"), ("a", bad, "c"), ("a", "b", bad), (ch,)):
+        # The last shape: mkdir creates <bad> on the way even though ".." cancels it.
+        for parts in ((bad, "b", "c"), ("a", bad, "c"), ("a", "b", bad), (ch,), ("a", bad, "..", "c")):
             for absolute in (True, False):
                 case += 1
                 root = tmp_path / f"case{case}"
@@ -151,42 +152,44 @@ def test_unencodable_names_create_nothing(creator, tmp_path, monkeypatch):
     assert os.listdir(tmp_path) == ["source.txt"]
 
 
-@pytest.mark.parametrize("creator", sorted(CREATORS))
-def test_unsafe_component_followed_by_dotdot_is_never_created(creator, tmp_path, monkeypatch):
-    """``a/<bad>/../c`` resolves to ``a/c``. Helpers may refuse it or create
-    ``a/c``, but the unsafe name must never appear on disk."""
-    if creator == "download_file":
-        pytest.importorskip("requests")
-    monkeypatch.chdir(tmp_path)
-    _source(tmp_path).write_text("x")
-    for ch in UNSAFE:
-        target = tmp_path / "a" / f"p{ch}q" / ".." / "c"
-        try:
-            CREATORS[creator](tmp_path, target)
-        except Exception:  # refusal, or the fake writer input failing after mkdir
-            pass
-    unsafe = [name for _, dirs, files in os.walk(tmp_path) for name in dirs + files
-              if any(ch in name for ch in UNSAFE)]
-    assert unsafe == [], [repr(name) for name in unsafe[:5]]
+WRITERS = ["atomic_write_path", "save_tabular", "secure_write_text"]
 
 
-def _write_through(creator, target):
+def _write(creator, target):
     if creator == "atomic_write_path":
         with operations.atomic_write_path(target / "f.csv") as tmp:
             tmp.write_text("x")
-    else:
-        CREATORS[creator](None, target)
+        return target / "f.csv"
+    if creator == "save_tabular":
+        return formats.save_tabular(_tabular_frame(), target / "f.parquet")
+    CREATORS[creator](None, target)
+    return target / "f.txt"
 
 
-@pytest.mark.parametrize("creator", ["atomic_write_path", "save_tabular", "secure_write_text"])
-def test_dotdot_writes_under_the_resolved_parent_only(creator, tmp_path, monkeypatch):
+@pytest.mark.parametrize("creator", WRITERS)
+def test_dotdot_path_is_written_as_given_and_stays_usable(creator, tmp_path, monkeypatch):
+    """A legitimate ``x/new/../y`` behaves as before #1716: ``new`` is created
+    and the path the caller holds still opens (review of #1718, round 2)."""
     if creator not in CREATORS:
         pytest.skip(f"{creator} is not on this branch")
     monkeypatch.chdir(tmp_path)
-    target = tmp_path / "out" / "skipped" / ".." / "kept"
-    _write_through(creator, target)
-    assert sorted(os.listdir(tmp_path / "out")) == ["kept"]
-    assert len(os.listdir(tmp_path / "out" / "kept")) == 1
+    written = _write(creator, Path("x") / "new" / ".." / "y")
+    assert (tmp_path / "x" / "new").is_dir()
+    assert Path(written).is_file()
+    assert written == Path("x") / "new" / ".." / "y" / Path(written).name
+
+
+@pytest.mark.parametrize("creator", WRITERS)
+def test_dangling_symlink_parent_fails_closed(creator, tmp_path, monkeypatch):
+    """A dangling symlink in the parent is not followed: the write fails and
+    the link's target is not created (review of #1718, round 2)."""
+    if creator not in CREATORS:
+        pytest.skip(f"{creator} is not on this branch")
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "dangling").symlink_to(tmp_path / "elsewhere" / "deep")
+    with pytest.raises(OSError):
+        _write(creator, tmp_path / "dangling")
+    assert not (tmp_path / "elsewhere").exists()
 
 
 def test_existing_directory_with_unsafe_name_still_accepted(tmp_path):

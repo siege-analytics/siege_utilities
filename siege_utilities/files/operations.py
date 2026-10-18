@@ -58,18 +58,10 @@ def sanitize_filename(name: str) -> str:
     return cleaned or "_"
 
 
-def _create_parent_directory(path: Path) -> Path:
-    """Create ``path``'s parent, refusing unsafe names for the parts that are new (#1716).
-
-    Returns ``path`` under its resolved parent. Write through that: the
-    resolved parent is what was checked and created, so an unresolved
-    ``new/..`` component would not exist.
-    """
+def _create_parent_directory(path: Path) -> None:
+    """Create ``path``'s parent, refusing unsafe names for the parts that are new (#1716)."""
     from siege_utilities.files.validation import reject_unsafe_new_directory_names
-    # mkdir on an unresolved "new\x1b/.." would create "new\x1b" on the way.
-    parent = reject_unsafe_new_directory_names(path.parent)
-    parent.mkdir(parents=True, exist_ok=True)
-    return parent / path.name
+    reject_unsafe_new_directory_names(path.parent).mkdir(parents=True, exist_ok=True)
 
 
 @contextlib.contextmanager
@@ -86,7 +78,8 @@ def atomic_write_path(target: FilePath) -> Generator[Path, None, None]:
     If the block raises, the temp file is cleaned up and the target
     is left unchanged.
     """
-    target = _create_parent_directory(Path(target))
+    target = Path(target)
+    _create_parent_directory(target)
     fd, tmp_path = tempfile.mkstemp(
         dir=target.parent,
         prefix="atomic_",
@@ -108,7 +101,8 @@ def atomic_write_shapefile(gdf, target: FilePath, **kwargs) -> None:
     Shapefiles produce sidecar files (.shx, .dbf, .prj, .cpg). This writes
     to a temp stem then renames all produced files to the final stem.
     """
-    target = _create_parent_directory(Path(target))
+    target = Path(target)
+    _create_parent_directory(target)
     tmp_dir = Path(tempfile.mkdtemp(dir=target.parent, prefix="atomic_shp_"))
     tmp_shp = tmp_dir / target.name
     try:

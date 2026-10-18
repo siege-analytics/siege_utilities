@@ -309,20 +309,34 @@ def _reject_control_characters_in_new_components(path: Path) -> None:
 def reject_unsafe_new_directory_names(directory: FilePath) -> Path:
     """Refuse a directory path whose not-yet-existing components would be unsafe names.
 
-    Call this immediately before creating ``directory`` (for example a file's
-    parent). Components that already exist are accepted whatever their name;
-    a new one containing a C0, DEL or C1 control, or a lone surrogate
-    (undecodable bytes), raises. Nothing is created.
+    Call this immediately before ``Path(directory).mkdir(parents=True)``, for
+    example on a file's parent. The path is checked as written, not resolved,
+    because that is what ``mkdir`` creates: in ``a/<new>/../b`` it creates
+    ``<new>`` on the way, so ``<new>`` is checked even though ``..`` cancels
+    it. Components that already exist (including symlinks) are accepted
+    whatever their name; a new one containing a C0, DEL or C1 control, or a
+    lone surrogate (undecodable bytes), raises. Nothing is created.
 
     Returns:
-        The resolved directory path.
+        ``directory`` as a Path, unchanged.
 
     Raises:
         PathSecurityError: If a component to be created has an unsafe name.
     """
-    resolved = Path(directory).resolve()
-    _reject_control_characters_in_new_components(resolved)
-    return resolved
+    path = Path(directory)
+    prefix = Path(path.anchor)
+    for part in path.parts[1 if path.anchor else 0:]:
+        prefix = prefix / part
+        if part in ('.', '..'):
+            continue
+        # lexists returns False on errors such as an unencodable name, so
+        # such a component is treated as new and checked.
+        if not os.path.lexists(prefix) and any(_is_unsafe_name_character(ch) for ch in part):
+            raise PathSecurityError(
+                f"Control character or undecodable byte in new directory name "
+                f"{part!r}: {str(path)!r}"
+            )
+    return path
 
 
 def validate_directory_path(dir_path: FilePath,
