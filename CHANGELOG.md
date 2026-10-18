@@ -92,7 +92,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   how undecodable (non-UTF-8) bytes reach Python, are refused as well. The
   check is public as `reject_unsafe_new_directory_names` (#1716).
 
+- Git branch operations now reject refs that used to be accepted, so some
+  callers must change their inputs: a bare dotted name such as `v1.2` or
+  `hotfix-1.2.3` now raises (use a slash namespace like `release/1.2`); a name
+  equal to a top-level file or directory in `repo_path` now raises, for remotes
+  as well as branches; and Git 2.23 or newer is required (the helpers use
+  `git switch`). `push_branch`/`pull_branch` keep their historical behaviour
+  for a falsy `branch_name` (`None` or `""` pushes/pulls the current branch);
+  only a non-empty name is validated and used as an exact `refs/heads/<name>`
+  (#1543).
+
 ### Fixed
+
+- Git branch operations and workflows reject option-like refs/remotes, reserved
+  revision aliases, bare filenames and bare worktree path collisions before
+  running git. Validate every base, target and generated branch name; use
+  `git switch` (requires Git 2.23+) and explicit option/path boundaries for ref
+  arguments. `switch_branch` resolves exact local and remote-tracking refs
+  instead of substring matching, preventing accidental path restoration (#1543).
 
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
