@@ -9,7 +9,7 @@ import pathlib
 import logging
 import re
 from typing import Dict, Any
-from urllib.parse import quote_plus
+from urllib.parse import quote, quote_plus
 
 from siege_utilities.files.secure_write import secure_write_text
 
@@ -89,8 +89,9 @@ def create_database_config(name: str, connection_type: str, host: str, port: int
         ... )
     """
 
-    safe_host = quote_plus(str(host))
-    safe_db = quote_plus(str(database))
+    # Hosts are authorities, not path segments; preserve bracketed IPv6 literals.
+    safe_host = str(host)
+    safe_db = quote(str(database), safe='')
 
     jdbc_urls = {
         'postgres': f"jdbc:postgresql://{safe_host}:{port}/{safe_db}",
@@ -114,7 +115,7 @@ def create_database_config(name: str, connection_type: str, host: str, port: int
         'database': database,
         'username': username,
         'password': password,  # Note: In production, this should be encrypted
-        'jdbc_url': jdbc_urls.get(connection_type.lower(), f"jdbc:{connection_type}://{host}:{port}/{database}"),
+        'jdbc_url': jdbc_urls.get(connection_type.lower(), f"jdbc:{connection_type}://{safe_host}:{port}/{safe_db}"),
         'jdbc_driver': jdbc_drivers.get(connection_type.lower(), f"com.{connection_type}.jdbc.Driver"),
         'connection_params': {
             'ssl_mode': kwargs.get('ssl_mode'),
@@ -142,6 +143,10 @@ def save_database_config(config: Dict[str, Any], config_directory: str = "config
 
     The legacy default is CWD-relative config/. On shared hosts pass a private
     per-user config_directory; custom connection parameters can contain secrets.
+    Plaintext passwords become ``${DB_<NORMALIZED_NAME>_PASSWORD}`` references.
+    Non-ASCII-identifier characters in the name become underscores, and the
+    chosen environment variable is logged. Names can normalize to the same
+    variable; supply an explicit ``${VAR}`` reference to distinguish them.
 
     Args:
         config: Database configuration dictionary
@@ -165,7 +170,7 @@ def save_database_config(config: Dict[str, Any], config_directory: str = "config
     safe_config = dict(config)
     password = safe_config.get('password', '')
     if password and not _is_env_ref(str(password)):
-        env_name = f"DB_{db_name.upper()}_PASSWORD"
+        env_name = f"DB_{re.sub(r'[^A-Za-z0-9_]', '_', db_name).upper()}_PASSWORD"
         log_warning(
             f"Plaintext password replaced with env var reference ${{{env_name}}}. "
             f"Set this variable in your environment before loading the config."
@@ -192,7 +197,8 @@ def load_database_config(db_name: str, config_directory: str = "config") -> Dict
     Raises:
         FileNotFoundError: If the database config file does not exist.
         json.JSONDecodeError: If the file contains invalid JSON.
-        OSError: If the file cannot be read.
+        OSError: If the file cannot be read or a referenced env var is unset.
+        ValueError: If a password uses an invalid ``${...}`` env-var reference.
 
     Example:
         >>> db_config = siege_utilities.load_database_config("analytics_db")  # doctest: +SKIP
@@ -211,6 +217,12 @@ def load_database_config(db_name: str, config_directory: str = "config") -> Dict
         val = config.get(key, '')
         if isinstance(val, str) and _is_env_ref(val):
             config[key] = _resolve_env_var(val)
+        elif key == 'password' and isinstance(val, str) and val.startswith('${') and val.endswith('}'):
+            raise ValueError(
+                f"Invalid password environment variable reference {val!r}; "
+                "use a variable name containing only ASCII letters, digits and "
+                "underscores, starting with a letter or underscore"
+            )
 
     log_info(f"Loaded database config: {db_name}")
     return config
@@ -219,6 +231,10 @@ def load_database_config(db_name: str, config_directory: str = "config") -> Dict
 def get_spark_database_options(db_name: str, config_directory: str = "config") -> Dict[str, str]:
     """
     Get Spark-compatible options for database connection.
+
+    Non-None connection parameters are forwarded as string-valued JDBC options.
+    For PostgreSQL, ``ssl_mode`` is mapped to the driver's ``sslmode`` property.
+    Connection parameters take precedence over duplicate ``spark_options``.
 
     Args:
         db_name: Database configuration name
@@ -253,6 +269,13 @@ def get_spark_database_options(db_name: str, config_directory: str = "config") -
     }
 
     spark_options.update(config.get('spark_options', {}))
+
+    is_postgres = config.get('connection_type', '').lower() == 'postgres'
+    for key, value in config.get('connection_params', {}).items():
+        if value is None:
+            continue
+        option_key = 'sslmode' if is_postgres and key == 'ssl_mode' else key
+        spark_options[option_key] = str(value).lower() if isinstance(value, bool) else str(value)
 
     log_info(f"Retrieved Spark options for database: {db_name}")
     return spark_options

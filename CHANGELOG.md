@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Database JSON configs now normalize password environment-variable names and
+  log the chosen name; loading raises for unset variables or invalid password
+  references. Spark JDBC options retain connection parameters and map PostgreSQL
+  `ssl_mode` to `sslmode`, preventing a security-relevant silent TLS downgrade.
+  JDBC URLs preserve hosts (including bracketed IPv6) and consistently encode
+  database path segments with `%20` for spaces (#1476).
+
 - `is_sensitive_path` again blocks `_`/`-` prefixed private-key names outside
   `.ssh` (`deploy_id_rsa`, `github-id_ecdsa`) and now covers `id_ed25519`;
   `paid_rsa` and `*.pub` stay allowed (#1702).

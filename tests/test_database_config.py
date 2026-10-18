@@ -52,18 +52,17 @@ class TestConnectionStringInjection:
         assert "p@ss" not in jdbc
         assert "localhost" in jdbc
 
-    def test_special_chars_in_host_encoded(self):
+    def test_host_preserved_and_database_path_encoded(self):
         config = create_database_config(
             name="test",
             connection_type="postgres",
-            host="my host",
+            host="db.example.com",
             port=5432,
             database="test db",
             username="user",
             password="pass",
         )
-        assert "my+host" in config["jdbc_url"]
-        assert "test+db" in config["jdbc_url"]
+        assert config["jdbc_url"] == "jdbc:postgresql://db.example.com:5432/test%20db"
 
 
 class TestPlaintextCredentialSave:
