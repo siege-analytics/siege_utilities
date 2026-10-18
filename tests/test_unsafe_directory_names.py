@@ -261,6 +261,7 @@ FILE_CREATORS = {
     "safe_file_write": lambda root, target: operations.safe_file_write(target, "x"),
     "safe_file_write(create_dirs=False)": lambda root, target: operations.safe_file_write(target, "x", create_dirs=False),
     "safe_json_write": lambda root, target: operations.safe_json_write(target, {}),
+    "safe_json_write(create_dirs=False)": lambda root, target: operations.safe_json_write(target, {}, create_dirs=False),
     "atomic_write_path": lambda root, target: operations.atomic_write_path(target).__enter__(),
     "atomic_write_shapefile": lambda root, target: operations.atomic_write_shapefile(None, target),
     "download_file": lambda root, target: remote.download_file("https://example.invalid/f", target),
@@ -375,6 +376,23 @@ def test_shapefile_layer_and_file_names_follow_the_target(name: str, tmp_path: P
     shp = tmp_path / f"{stem}.shp" if name.endswith(".shp") else tmp_path / name / f"{stem}.shp"
     assert shp.is_file(), sorted(str(p.relative_to(tmp_path)) for p in tmp_path.rglob("*"))
     assert [layer[0] for layer in pyogrio.list_layers(shp)] == [stem]
+
+
+def test_shapefile_with_existing_unsafe_name_is_refused(tmp_path: Path) -> None:
+    """An existing "report.s\\x1bhp" must not be published as "report.shp",
+    overwriting an unrelated file (CodeRabbit on #1742)."""
+    geopandas = pytest.importorskip("geopandas")
+    shapely = pytest.importorskip("shapely.geometry")
+    gdf = geopandas.GeoDataFrame({"a": [1]}, geometry=[shapely.Point(0, 0)], crs="EPSG:4326")
+    target = tmp_path / "report.s\x1bhp"
+    target.write_bytes(b"odd")
+    unrelated = tmp_path / "report.shp"
+    unrelated.write_bytes(b"unrelated")
+    before = sorted(os.listdir(tmp_path))
+    with pytest.raises(PathSecurityError):
+        operations.atomic_write_shapefile(gdf, target)
+    assert sorted(os.listdir(tmp_path)) == before
+    assert unrelated.read_bytes() == b"unrelated"
 
 
 def test_temporary_names_do_not_inherit_an_unsafe_suffix(tmp_path: Path) -> None:
