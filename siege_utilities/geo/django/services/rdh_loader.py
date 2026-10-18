@@ -408,8 +408,8 @@ class RDHLoaderService:
         return result
 
     @transaction.atomic
-    def load_cvap_for_plan(self, plan, year: int) -> RDHLoadResult:
-        """Overlay CVAP data onto plan districts via spatial join.
+    def load_cvap_for_plan(self, plan, year: int, geography: str = "tract") -> RDHLoadResult:
+        """Set ``district.cvap`` by matching district GEOIDs to an RDH CVAP table.
 
         Parameters
         ----------
@@ -417,10 +417,17 @@ class RDHLoaderService:
             Plan whose districts will be updated.
         year : int
             CVAP data year.
+        geography : str
+            CVAP dataset level, passed to ``fetch_cvap``. It must be the level
+            whose GEOIDs equal the plan's district GEOIDs; a level with no
+            matching GEOIDs is reported in ``errors``, not silently skipped.
 
         Returns
         -------
         RDHLoadResult
+            ``errors`` is set when no CVAP dataset exists at ``geography``,
+            the GEOID column is numeric (leading zeros lost), or no district
+            matches. ``warnings`` lists districts left without a match.
         """
         from siege_utilities.geo.providers.redistricting_data_hub import fetch_cvap
 
@@ -428,7 +435,9 @@ class RDHLoaderService:
 
         state = self._fips_to_state_abbr(plan.state_fips)
         try:
-            cvap_df = fetch_cvap(state, year=str(year), client=self.client)
+            cvap_df = fetch_cvap(
+                state, year=str(year), geography=geography, client=self.client,
+            )
         except FileNotFoundError as e:
             result.errors.append(str(e))
             return result
@@ -445,19 +454,33 @@ class RDHLoaderService:
             result.errors.append("Could not identify CVAP or GEOID columns")
             return result
 
+        numeric_geoid = self._numeric_geoid_error(cvap_df, geoid_col)
+        if numeric_geoid:
+            result.errors.append(numeric_geoid)
+            return result
+
         cvap_lookup = dict(zip(cvap_df[geoid_col].astype(str), cvap_df[cvap_col]))
 
         updated = 0
+        matched = 0
+        unmatched = []
         for district in plan.districts.all():
-            if district.geoid in cvap_lookup:
-                raw = cvap_lookup[district.geoid]
-                if raw is None or (isinstance(raw, float) and raw != raw):
-                    continue
-                district.cvap = int(raw)
-                district.save(update_fields=["cvap"])
-                updated += 1
+            if district.geoid not in cvap_lookup:
+                unmatched.append(district.geoid)
+                continue
+            matched += 1
+            raw = cvap_lookup[district.geoid]
+            if raw is None or (isinstance(raw, float) and raw != raw):
+                continue
+            district.cvap = int(raw)
+            district.save(update_fields=["cvap"])
+            updated += 1
 
         result.records_updated = updated
+        result.records_skipped = len(unmatched)
+        self._report_unmatched(
+            result, unmatched, matched, f"CVAP {geoid_col} (geography={geography!r})",
+        )
         logger.info("Updated CVAP for %d districts in plan %s", updated, plan)
         return result
 
@@ -517,9 +540,15 @@ class RDHLoaderService:
             # Store what we can by GEOID match
             geoid_col = self._find_column_df(census_gdf, ["GEOID", "geoid", "GEOID20"])
             if geoid_col:
+                numeric_geoid = self._numeric_geoid_error(census_gdf, geoid_col)
+                if numeric_geoid:
+                    result.errors.append(numeric_geoid)
+                    return result
+                unmatched = []
                 for district in districts_qs:
                     row = census_gdf[census_gdf[geoid_col].astype(str) == district.geoid]
                     if row.empty:
+                        unmatched.append(district.geoid)
                         result.records_skipped += 1
                         continue
                     row = row.iloc[0]
@@ -535,6 +564,9 @@ class RDHLoaderService:
                         defaults={"values": values},
                     )
                     result.records_created += 1
+                self._report_unmatched(
+                    result, unmatched, result.records_created, f"ACS {geoid_col}",
+                )
                 return result
 
         # Spatial join path (when census_gdf is a GeoDataFrame)
@@ -678,6 +710,35 @@ class RDHLoaderService:
             if candidate.upper() in cols_upper:
                 return cols_upper[candidate.upper()]
         return None
+
+    @staticmethod
+    def _numeric_geoid_error(df, geoid_col: str) -> Optional[str]:
+        """Return an error if ``geoid_col`` is numeric, i.e. leading zeros are gone.
+
+        A numeric GEOID for states 01-09 has lost its leading zero, so a string
+        match against ``district.geoid`` would silently miss. (#1571)
+        """
+        if df[geoid_col].dtype.kind in ("i", "u", "f"):
+            return (
+                f"GEOID column {geoid_col!r} is numeric ({df[geoid_col].dtype}); "
+                "leading zeros are lost and districts in states 01-09 cannot match. "
+                "Read it as str (RDHClient.load_csv does by default)."
+            )
+        return None
+
+    @staticmethod
+    def _report_unmatched(
+        result: RDHLoadResult, unmatched: list, matched: int, source: str,
+    ) -> None:
+        """Record districts with no GEOID match: an error if none matched, else a warning."""
+        if not unmatched:
+            return
+        sample = ", ".join(sorted(str(g) for g in unmatched)[:5])
+        message = f"{len(unmatched)} district GEOID(s) not found in {source}: {sample}"
+        if matched == 0:
+            result.errors.append(f"No district matched; {message}")
+        else:
+            result.warnings.append(message)
 
     @staticmethod
     def _find_column_df(df, candidates: list[str]) -> Optional[str]:
