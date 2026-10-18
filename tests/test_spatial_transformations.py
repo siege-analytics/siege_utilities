@@ -66,20 +66,14 @@ class TestSpatialDataTransformerInit:
         assert base_formats.issubset(set(transformer.supported_formats["output"]))
 
     def test_user_config_failure_handled(self):
-        """When get_user_config raises, user_config is None.
-
-        Previously the fallback was {}, which silently AttributeError'd
-        on .get_database_connection() in the converters. None lets
-        downstream code branch on `is None` uniformly across all three
-        connector classes.
-        """
+        """Configuration failures propagate during construction."""
         with patch(
             "siege_utilities.geo.spatial_transformations.get_user_config",
             side_effect=RuntimeError("no config"),
         ):
             from siege_utilities.geo.spatial_transformations import SpatialDataTransformer
-            t = SpatialDataTransformer()
-            assert t.user_config is None
+            with pytest.raises(RuntimeError, match="no config"):
+                SpatialDataTransformer()
 
 
 # ---------------------------------------------------------------------------

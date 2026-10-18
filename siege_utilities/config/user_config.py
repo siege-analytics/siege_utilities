@@ -236,9 +236,11 @@ class UserConfigManager:
         # Return default profile
         return UserProfile()
     
-    def _save_user_profile(self):
-        """Save user profile to configuration file."""
+    def _save_user_profile(self, *, raise_on_error: bool = False):
+        """Save the profile; explicit imports require write failures to propagate."""
         if self._read_only:
+            if raise_on_error:
+                raise PermissionError(f"Configuration directory is read-only: {self.config_dir}")
             return
         temporary_file = None
         try:
@@ -260,6 +262,8 @@ class UserConfigManager:
                     temporary_file.unlink(missing_ok=True)
         except (OSError, yaml.YAMLError, TypeError) as e:
             log.error(f"Failed to save user config: {e}")
+            if raise_on_error:
+                raise
 
     def _convert_to_yaml_safe(self, obj):
         """Convert Python objects to YAML-safe types."""
@@ -434,6 +438,10 @@ class UserConfigManager:
         
         Args:
             output_path: Path to export configuration
+
+        Raises:
+            OSError: If the export cannot be written or replaced.
+            yaml.YAMLError: If the profile cannot be serialized.
         """
         temporary_file = None
         try:
@@ -463,6 +471,7 @@ class UserConfigManager:
             log.info(f"Configuration exported to: {output_path}")
         except (OSError, yaml.YAMLError) as e:
             log.error(f"Failed to export configuration: {e}")
+            raise
     
     def import_config(self, input_path: str):
         """
@@ -470,6 +479,10 @@ class UserConfigManager:
         
         Args:
             input_path: Path to import configuration from
+
+        Raises:
+            OSError: If the input cannot be read or the profile cannot be saved.
+            yaml.YAMLError: If parsing or serialization fails.
         """
         try:
             with open(input_path, 'r', encoding='utf-8') as f:
@@ -480,10 +493,11 @@ class UserConfigManager:
                 if hasattr(self.user_profile, key):
                     setattr(self.user_profile, key, value)
             
-            self._save_user_profile()
+            self._save_user_profile(raise_on_error=True)
             log.info(f"Configuration imported from: {input_path}")
         except (OSError, yaml.YAMLError, AttributeError) as e:
             log.error(f"Failed to import configuration: {e}")
+            raise
 
 _user_config = None
 _user_config_lock = threading.Lock()

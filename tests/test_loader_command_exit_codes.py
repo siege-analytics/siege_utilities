@@ -1,6 +1,6 @@
 """Loader commands report service failures to schedulers through CommandError."""
 
-from contextlib import nullcontext
+from contextlib import ExitStack, nullcontext
 from functools import partial
 from io import StringIO
 from unittest.mock import patch
@@ -107,7 +107,15 @@ def make_result(command, *, created=0, updated=0, skipped=0, errors=()):
 def loader(request):
     command = request.param
     target, method, _, options, summary = LOADERS[command]
-    with patch(target, autospec=True) as service:
+    with ExitStack() as stack:
+        service = stack.enter_context(patch(target, autospec=True))
+        if command == "populate_nlrb_regions":
+            # These tests isolate exit handling; live stale-row reporting is
+            # covered by TestNLRBPopulationPostGIS in test_nlrb.py.
+            manager = stack.enter_context(patch(
+                "siege_utilities.geo.django.models.NLRBRegion.objects",
+            ))
+            manager.exclude.return_value.values.return_value.annotate.return_value.order_by.return_value = []
         yield command, getattr(service.return_value, method), options, summary
 
 

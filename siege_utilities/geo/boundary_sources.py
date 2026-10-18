@@ -100,7 +100,7 @@ def load_gadm_boundaries(
     country: Optional[str] = None,
     s3_base: str = "s3a://boundaries/gadm",
 ) -> Any:
-    """Load GADM (Global Administrative Areas) boundaries via any engine.
+    """Load staged GADM boundaries; read failures raise RuntimeError.
 
     Parameters
     ----------
@@ -116,9 +116,8 @@ def load_gadm_boundaries(
 
     try:
         df = engine.load_polygons(path)
-    except (OSError, ValueError, RuntimeError, ImportError):
-        # Fallback: load via GADM provider + engine conversion
-        return _load_gadm_via_provider(engine, level, country)
+    except (OSError, ValueError, RuntimeError, ImportError) as exc:
+        raise RuntimeError(f"Could not read staged GADM boundaries at {path}") from exc
 
     if country and hasattr(df, "__getitem__"):
         df = engine.filter(df, df["iso3"] == country.upper())

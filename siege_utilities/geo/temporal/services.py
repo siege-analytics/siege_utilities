@@ -93,7 +93,8 @@ class TemporalTimeseriesBuilder:
         Returns:
             List of TimeseriesBuildResult (one per variable), with
             created DemographicTimeSeriesSchema instances accessible
-            via result.series.
+            via result.series. A missing stored year fails every requested
+            variable with an error per year and creates no series.
         """
         import pandas as _pd
 
@@ -105,6 +106,7 @@ class TemporalTimeseriesBuilder:
                     "Either snapshots_df or a store must be provided"
                 )
             frames = []
+            missing_years = []
             for y in years_sorted:
                 try:
                     df = self.store.load_demographics(
@@ -112,12 +114,14 @@ class TemporalTimeseriesBuilder:
                     )
                     frames.append(df)
                 except FileNotFoundError:
-                    continue
-            if not frames:
+                    missing_years.append(y)
+            if missing_years or not frames:
                 return [
                     TimeseriesBuildResult(
                         variable_code=v, geography_type=geography_type,
-                        errors=[f"No snapshot data found for {geography_type}"],
+                        errors=[f"Missing snapshot year {y} for {geography_type}"
+                                for y in missing_years]
+                        or [f"No snapshot data found for {geography_type}"],
                     )
                     for v in variables
                 ]

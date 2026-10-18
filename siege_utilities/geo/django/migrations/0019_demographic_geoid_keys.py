@@ -202,7 +202,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("contenttypes", "0002_remove_content_type_name"),
-        ("siege_geo", "0017_cd112_geoid_format"),
+        ("siege_geo", "0018_nlrbregion_geometry_nullable"),
     ]
 
     operations = [

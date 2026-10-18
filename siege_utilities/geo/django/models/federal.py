@@ -5,6 +5,7 @@ These models inherit directly from TemporalBoundary (not CensusTIGERBoundary)
 because they don't use Census GEOIDs or TIGER metadata.
 """
 
+from django.contrib.gis.db.models import MultiPolygonField
 from django.db import models
 
 from .base import TemporalBoundary
@@ -23,6 +24,12 @@ class NLRBRegion(TemporalBoundary):
     Boundaries change infrequently but do shift over time.
     """
 
+    geometry = MultiPolygonField(
+        srid=4326,
+        null=True,
+        blank=True,
+        help_text="Boundary geometry (WGS 84)",
+    )
     region_number = models.PositiveSmallIntegerField(
         db_index=True,
         help_text="NLRB region number (1-34, with gaps)",

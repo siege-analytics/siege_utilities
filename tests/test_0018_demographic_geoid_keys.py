@@ -21,8 +21,8 @@ from siege_utilities.geo.django.models.demographics import DemographicSnapshot
 pytestmark = pytest.mark.postgis
 
 
-PREVIOUS = ("siege_geo", "0017_cd112_geoid_format")
-CURRENT = ("siege_geo", "0018_demographic_geoid_keys")
+PREVIOUS = ("siege_geo", "0018_nlrbregion_geometry_nullable")
+CURRENT = ("siege_geo", "0019_demographic_geoid_keys")
 
 
 @pytest.fixture

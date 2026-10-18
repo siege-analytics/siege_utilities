@@ -74,6 +74,12 @@ _FILE_SENSITIVE_PATH_ADDITIONS = {
 
 SENSITIVE_PATHS = _FILE_SENSITIVE_PATH_ADDITIONS | ROOT_CREDENTIAL_STORES
 
+# C0 controls, DEL and C1 controls. Names containing them break line-oriented
+# tools and can replay terminal escapes when listed (#1692).
+_CONTROL_CHARACTERS = frozenset(
+    [chr(c) for c in range(0x20)] + ['\x7f'] + [chr(c) for c in range(0x80, 0xA0)]
+)
+
 
 def is_path_traversal_attempt(path: FilePath) -> bool:
     """
@@ -246,12 +252,12 @@ def validate_safe_path(path: FilePath,
 
     # Check for null bytes
     if '\x00' in path_str:
-        raise PathSecurityError(f"Null byte detected in path: {path_str}")
+        raise PathSecurityError(f"Null byte detected in path: {path_str!r}")
 
     # Check for path traversal
     if is_path_traversal_attempt(path):
         raise PathSecurityError(
-            f"Path traversal attempt blocked: {path_str}"
+            f"Path traversal attempt blocked: {path_str!r}"
         )
 
     try:
@@ -285,7 +291,7 @@ def validate_safe_path(path: FilePath,
                     f"Path {resolved_path} is outside base directory {base_path}"
                 ) from e
 
-        log.debug(f"Path validation passed: {path_str} -> {resolved_path}")
+        log.debug(f"Path validation passed: {path_str!r} -> {str(resolved_path)!r}")
         return resolved_path
 
     except PathSecurityError:
@@ -332,11 +338,29 @@ def validate_file_path(file_path: FilePath,
     return validated_path
 
 
+def _reject_control_characters_in_new_components(path: Path) -> None:
+    """Raise if a not-yet-existing component of a resolved path has a control character."""
+    current = path
+    # os.path.exists, unlike Path.exists on 3.11, returns False on any OSError
+    # (e.g. ENAMETOOLONG), leaving that failure to the caller's mkdir.
+    while not os.path.exists(current) and current != current.parent:
+        if any(ch in _CONTROL_CHARACTERS for ch in current.name):
+            raise PathSecurityError(
+                f"Control character in new directory name {current.name!r}: {str(path)!r}"
+            )
+        current = current.parent
+
+
 def validate_directory_path(dir_path: FilePath,
                            must_exist: bool = False,
                            base_directory: Optional[FilePath] = None) -> Path:
     """
     Validate a directory path.
+
+    When must_exist is False the directory may be about to be created, so any
+    component that does not exist yet must be free of control characters (C0,
+    DEL, C1). Existing directories with such names still validate, provided
+    they can be stat'ed; one under an unreadable parent counts as new.
 
     Args:
         dir_path: Path to validate
@@ -347,7 +371,8 @@ def validate_directory_path(dir_path: FilePath,
         Validated Path object
 
     Raises:
-        PathSecurityError: If path fails security validation
+        PathSecurityError: If path fails security validation, or a component
+            that would be created contains a control character
         FileNotFoundError: If must_exist=True and directory doesn't exist
         ValueError: If path is invalid or not a directory
 
@@ -360,6 +385,9 @@ def validate_directory_path(dir_path: FilePath,
         allow_absolute=True,
         base_directory=base_directory
     )
+
+    if not must_exist:
+        _reject_control_characters_in_new_components(validated_path)
 
     if must_exist:
         if not validated_path.exists():

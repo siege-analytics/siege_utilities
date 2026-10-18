@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `validate_directory_path(..., must_exist=False)` now raises
+  `PathSecurityError` when a path component that does not exist yet contains a
+  C0 control character, DEL or a C1 control character. This covers callers that
+  create directories through it, such as `ensure_path_exists`, and the
+  zip-named subdirectory `unzip_file_to_directory` creates. Member paths inside
+  an archive are not checked. Existing directories with such names still
+  validate when they can be stat'ed, and file-path validation is unchanged.
+  Path-validation messages and the debug log now show paths with `repr()`, so
+  escape sequences are not written raw. Because the zip-named subdirectory is
+  now validated, a zip whose stem is `..` (e.g. `...zip`) raises instead of
+  extracting into the parent of `extract_to` (#1692).
+
 ### Fixed
 
 - Demographic population queries now keep equal GEOIDs in different boundary
@@ -32,6 +46,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   into `siege_geo_demographickeyarchive`; this archive table is dropped when
   the migration is reversed.
   (#1560)
+
+- Failed legacy profile migrations no longer create defaults or report
+  `migrated=True`; missing files are not migrations. Missing snapshot years
+  fail the requested time-series interval and report every missing year.
+  Unknown city/UA populations cannot silently classify as Small. State boundary
+  requests cannot return an unfiltered national file. Invalid NLRB cache
+  timestamps expire the entry. Add a blocking exception-contract AST guard
+  with reviewed, fingerprinted exceptions and zero unlisted handlers (#1532).
+- Bulk configuration migration records missing/corrupt user-profile errors and
+  continues migrating valid clients. SWMaps files with neither optional attribute
+  table retain empty attributes and the selected missing-value policy; incomplete
+  schemas and broken queries against existing tables raise. The exception guard
+  now covers all 14 reviewer shapes, including factories, tuples, strings, log-only handlers,
+  empty-frame assignments and unannotated data functions. Package `log_*` helpers,
+  including attribute calls, are recognized; 14 existing log-only handlers are
+  fingerprinted for consumer tracing under #1708 (#1532).
+
+- `populate_nlrb_regions` now creates registry-only rows by default without
+  raising `IntegrityError`. Migration 0018 makes only `NLRBRegion.geometry`
+  nullable; callers must allow NULL geometry, and population returns and logs
+  the count of regions without geometry. County dissolves filter by the
+  requested vintage and use a database-side `Union` aggregate, returning NULL
+  if any requested state has no counties at that vintage. Explicit rebuilds
+  clear incomplete geometry; metadata-only updates retain existing geometry.
+  The command reports the without-geometry count and warns instead of printing
+  a success message when any region lacks geometry. The provider and service
+  now share one registry of the 26 regional offices listed by
+  [nlrb.gov](https://www.nlrb.gov/about-nlrb/who-we-are/regional-offices)
+  (checked 2026-10-17), excluding subregional offices 11, 17, 24 and 26.
+  State lists are corrected for Regions 20 (CA/HI), 21 (CA), 27 (CO/UT/WY),
+  28 (Phoenix, AZ/NM/NV) and 32 (Oakland, CA/NV). The lists still approximate
+  primary coverage with whole states; dissolved polygons overlap where regions
+  share states and do not certify that every county is loaded. Exhaustive
+  sub-state jurisdiction mapping is tracked in [#1713](https://github.com/siege-analytics/siege_utilities/issues/1713).
+  Restore IA/KS/NE/OK coverage under Region 14 and AR under Region 15;
+  remove WY from Region 19, leaving WY under Region 27 only. Coverage tests
+  require all 50 states plus DC, PR and VI to resolve to a regional office.
+  The command prints `stale_registry_rows=N` and the offending region numbers
+  across all vintages without deleting any rows. See the BREAKING upgrade
+  note below for existing databases. Historical subregional case prefixes
+  roll up to verified parent offices through `NLRB_SUBREGIONS`.
+  (#1585)
 
 - Cache/output/config writers now publish complete files atomically so interrupted
   downloads, extractions and serialization cannot be served as valid cached data.
@@ -67,6 +123,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `by_population(..., dataset="acs5")` now scopes by content type and dataset and
   selects the newest data year when no year is specified. GFK-specific relation
   introspection/prefetch APIs no longer apply. (#1560)
+
+- `ConfigurationMigrator.migrate_user_profile` and `migrate_client_profile`
+  in both `config.enhanced_config` and `config.migration` now propagate file,
+  YAML/JSON and validation errors; missing files raise `FileNotFoundError`.
+  `migrate_all_configurations` records user failures in `user_profile.error`
+  while continuing independent client migrations. `UserConfigManager.export_config`
+  and `import_config` propagate file/YAML errors, including failed persistence
+  of an imported profile (#1532).
+- Direct `NCESLocaleClassifier` classification raises `ValueError` for missing
+  or unparseable place/UA populations. `get_census_boundaries` raises
+  `ValueError` for invalid state identifiers or missing state FIPS columns.
+  `VariableRegistry.get_variable_metadata` raises `LookupError` for a 404,
+  transport/HTTP errors for request failures, and `ValueError` for malformed
+  JSON/metadata. The public `CensusAPIClient.get_variable_metadata` and
+  `CensusAPI.get_variable_metadata` wrappers propagate these failures too.
+  These calls no longer return defaults or unknown labels (#1532).
+- `ChartGenerator.create_bar_chart`, `create_line_chart`, `create_pie_chart`,
+  `create_proportional_text_bar_chart` and `create_heatmap_text_chart` raise
+  `RuntimeError` on rendering errors instead of returning error placeholders.
+  `read_features` and `extract_attributes_swmaps` raise `sqlite3.DatabaseError`
+  for failed joins when either attribute table exists. Only when neither table
+  exists do they yield empty attributes or honor the documented missing policy (#1532).
+- `SpatialDataTransformer`, `PostGISConnector` and `DuckDBConnector` propagate
+  user-configuration failures. `PostGISConnector` raises for missing connection
+  settings/dependencies and uses `ConnectionError` for connection failures.
+  `classify_series` raises `RuntimeError` when mapclassify fails rather than
+  changing algorithms; CRS normalization (including `detect_crs`) raises for
+  invalid CRS input or missing pyproj (#1532).
+- `TimezonePopulationService` raises `ValueError` and stops population at the
+  first unresolved timezone ID;
+  `load_gadm_boundaries` raises `RuntimeError` when staged data cannot be read;
+  `codify_area` raises on default-geocoder construction failure. NLRB
+  `NLRBDatagovClient.fetch_cases`, `NLRBLabordataClient.fetch_cases` and
+  `NLRBNxGenClient.fetch_case` raise `RuntimeError` on the listed HTTP/XML
+  failures. `NLRBNxGenClient.fetch_case` also raises on result parsing failures,
+  and `NLRBDataClient.fetch_all` aborts when any source fails.
+  `setup_distributed_environment` raises `RuntimeError` on HDFS sync
+  failure instead of returning a local path (#1532).
+
+- The public `NLRB_REGIONS` registry removes keys 11, 17, 24 and 26 because
+  these are subregional offices, not regional offices. Direct dictionary
+  callers must use the parent regional keys. `assign_region` and
+  `region_summary` now roll historical prefixes up through
+  `NLRB_SUBREGIONS = {11: 10, 17: 14, 24: 12, 26: 15, 30: 18, 37: 20}`;
+  summaries combine their counts under the parent office. Unverified prefixes
+  33, 34 and 36 remain unmapped and report office `"Unknown"`.
+  Upgrade existing NLRB tables by re-running `populate_nlrb_regions --update`
+  (with `--year` for each stored vintage) to refresh regional metadata, then
+  manually delete rows whose `region_number` is 11, 17, 24 or 26. The command
+  only reports stale rows; it does not delete them. (#1585)
 
 - `NCESLocaleClassifier.from_census_year` now raises instead of approximating
   missing population and principal-city inputs. Use `from_nces_boundaries` or

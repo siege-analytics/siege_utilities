@@ -157,6 +157,14 @@ class TestTimezonePopulationService:
         assert dst == -7.0
         assert obs is False
 
+    def test_lookup_unknown_timezone_raises(self):
+        from siege_utilities.geo.django.services.timezone_service import (
+            TimezonePopulationService,
+        )
+
+        with pytest.raises(ValueError, match="timezone"):
+            TimezonePopulationService()._lookup_offset("Invalid/Nowhere")
+
     def test_lookup_offset_fallback(self):
         from siege_utilities.geo.django.services.timezone_service import (
             TimezonePopulationService,
