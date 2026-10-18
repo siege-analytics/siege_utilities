@@ -1,6 +1,7 @@
 """Keep the engines tutorial's parity claim aligned with its query cells (#1663)."""
 
 from pathlib import Path
+import re
 
 import nbformat
 import pytest
@@ -56,3 +57,9 @@ def test_separate_engine_queries_keep_the_result_comparison(notebook: nbformat.N
     assert "pd.testing.assert_frame_equal(" in comparison
     assert "pandas_result[['committee_id', 'total_receipts']]" in comparison
     assert "duckdb_result[['committee_id', 'total_receipts']]" in comparison
+
+
+def test_synthetic_data_description_matches_generator(notebook):
+    cells = {c.id: c.source for c in notebook.cells}
+    counties = re.search(r"'county_fips':.*?rng\.choice\(\[([^\]]*)\]", cells["c1"]).group(1).split(",")
+    assert f"{len(counties)} TX counties" in cells["s1"], cells["s1"]
