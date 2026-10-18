@@ -1,6 +1,8 @@
 """Documentation contract for the schematic GeoDjango workflow (#1671)."""
 
+import ast
 import importlib.util
+import json
 import re
 from pathlib import Path
 
@@ -8,10 +10,8 @@ import nbformat
 import pytest
 
 
-NOTEBOOK_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "notebooks/spatial/06_geodjango.ipynb"
-)
+REPO = Path(__file__).resolve().parents[1]
+NOTEBOOK_PATH = REPO / "notebooks/spatial/06_geodjango.ipynb"
 
 
 @pytest.fixture(scope="module")
@@ -60,3 +60,18 @@ def test_markdown_only_validation_is_not_workflow_execution(
     assert "no code cells" in markdown
     assert "does not exercise the loader, orm, or postgis" in markdown
     assert "tests/test_1671_geodjango_notebook_truth.py" in markdown
+
+
+def test_notebooks_doc_drops_copy_paste_promise_for_schematics():
+    doc = (REPO / "docs/NOTEBOOKS.md").read_text(encoding="utf-8")
+    assert "copy-pasteable" not in doc.lower()
+    assert "Full call-shape recipe" not in doc
+
+def test_execution_groups_do_not_list_markdown_only_notebooks():
+    tree = ast.parse((REPO / "tests/test_notebooks.py").read_text(encoding="utf-8"))
+    groups = next(ast.literal_eval(n.value) for n in tree.body
+                  if isinstance(n, ast.AnnAssign) and getattr(n.target, "id", "") == "NOTEBOOK_GROUPS")
+    empty = [rel for rels in groups.values() for rel in rels
+             if not any(c["cell_type"] == "code" for c in
+                        json.loads((REPO / "notebooks" / rel).read_text(encoding="utf-8"))["cells"])]
+    assert not empty, f"execution groups list markdown-only notebooks: {empty}"

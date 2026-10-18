@@ -14,7 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `spatial_05_unified` refers to the spatial/05 notebook, not an importable
   module, and requires a real ingestion loader and Django project setup.
   Add a regression test for the documentation contract and clarify that
-  notebook validation does not exercise the loader, ORM, or PostGIS (#1671).
+  notebook validation does not exercise the loader, ORM, or PostGIS. Track
+  markdown-only schematics separately from execution groups and require code
+  cells in every execution notebook. Align the notebook-system documentation
+  with the schematic execution scope (#1671).
 
 ## [4.1.0] - 2026-10-18
 
