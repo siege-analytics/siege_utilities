@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Plan lifecycle resolution excludes court-stayed plans from those in effect,
+  while challenged plans remain active. Same-date lifecycle events now resolve
+  to the most advanced stage in both `status_at` and `latest_event`, so a plan
+  adopted and enacted on the same day is correctly returned by `resolve_plan_at`.
+  Effective date remains the primary ordering key (#1442).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
