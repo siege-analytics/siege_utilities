@@ -98,10 +98,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   passes `state_identifier` into the `county_fips` slot (#1482).
 - TIGER URL construction: `anrc` always resolves to the Alaska file
   `tl_{year}_02_anrc.zip`; `concity` requires `state_fips`; `cd{n}` resolves
-  to the `CD/` directory for every congress in `YEAR_TO_CONGRESS` (so
-  `cd119` for 2024 works); the 403/429 fallback directory list names `COUSUB`
-  and `ADDRFEAT` and drops the non-existent `COUNTYSUB`, `SDELM`, `SDSEC` and
-  `SDUNI` (#1464).
+  to the `CD/` directory for the congress that vintage publishes
+  (`YEAR_TO_CONGRESS[year]`, so `cd119` for 2024 works; other pairings stay
+  "not available" instead of building a 404); `rails` is national
+  (`tl_{year}_us_rails.zip`, flat `TIGER2010/RAILS/` in 2010); `submcd` uses
+  the published `subbarrio` filename from 2013; the 403/429 fallback directory
+  list names `COUSUB` and `ADDRFEAT` and drops the non-existent `COUNTYSUB`,
+  `SDELM`, `SDSEC` and `SDUNI`. An opt-in `-m integration` test HEADs one
+  built URL per catalog type for 2010, 2019 and 2023 (#1464).
 
 ### BREAKING
 
@@ -136,7 +140,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`tl_{year}_{state}{county}_linearwater.zip`, `areawater`, `roads`,
   `edges`, `addrfeat`) until county-level support lands. `anrc` with a
   `state_fips` other than `02`, and `concity` without `state_fips`, now raise
-  `BoundaryConfigurationError` (#1464).
+  `BoundaryConfigurationError`. `rails` with `state_fips` now fails with
+  `STATE_FILTER_UNAVAILABLE` (the national file has no state column) instead
+  of building a per-state URL that 404'd (#1464).
 
 - `ConfigurationMigrator.migrate_user_profile` and `migrate_client_profile`
   in both `config.enhanced_config` and `config.migration` now propagate file,

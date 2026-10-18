@@ -94,13 +94,44 @@ def test_concity_is_built_per_state(discovery):
 @pytest.mark.parametrize("year,layer,state,url", [
     (2010, "cd111", None, f"{T}/TIGER2010/CD/111/tl_2010_us_cd111.zip"),
     (2019, "cd116", None, f"{T}/TIGER2019/CD/tl_2019_us_cd116.zip"),
-    (2024, "cd118", "06", f"{T}/TIGER2024/CD/tl_2024_06_cd118.zip"),
+    (2024, "cd119", "06", f"{T}/TIGER2024/CD/tl_2024_06_cd119.zip"),
 ])
 def test_cd_congress_aliases_resolve_to_the_cd_directory(discovery, year, layer, state, url):
     assert discovery.construct_download_url(year, layer, state) == url
 
 
-def test_every_congress_is_aliased_when_cd_is_listed(discovery):
+@pytest.mark.parametrize("year,layer,state", [
+    (2019, "cd118", None), (2024, "cd118", "06"), (2010, "cd116", None),
+])
+def test_cd_congress_not_published_in_vintage_is_not_available(discovery, year, layer, state):
+    # Each TIGER vintage's CD/ holds one congress; other pairings 404 live.
+    with pytest.raises(BoundaryDiscoveryError, match="not available"):
+        discovery.construct_download_url(year, layer, state)
+
+
+def test_only_the_vintage_congress_is_aliased(discovery):
     types = discovery.discover_boundary_types(2024)
-    for congress in set(sd.YEAR_TO_CONGRESS.values()):
-        assert types[f"cd{congress}"] == "CD"
+    assert types["cd119"] == "CD"
+    assert not {"cd116", "cd118", "cd120"} & set(types)
+
+
+@pytest.mark.parametrize("year,state,url", [
+    (2010, None, f"{T}/TIGER2010/RAILS/tl_2010_us_rails.zip"),
+    (2019, None, f"{T}/TIGER2019/RAILS/tl_2019_us_rails.zip"),
+    (2019, "06", f"{T}/TIGER2019/RAILS/tl_2019_us_rails.zip"),
+])
+def test_rails_is_national(year, state, url):
+    D = sd.CensusDirectoryDiscovery
+    with patch.object(D, "get_year_directory_contents", lambda self, y, *a, **k: ["RAILS"]):
+        assert D(timeout=1).construct_download_url(year, "rails", state) == url
+
+
+@pytest.mark.parametrize("year,url", [
+    (2010, f"{T}/TIGER2010/SUBMCD/2010/tl_2010_72_submcd10.zip"),
+    (2012, f"{T}/TIGER2012/SUBMCD/tl_2012_72_submcd.zip"),
+    (2019, f"{T}/TIGER2019/SUBMCD/tl_2019_72_subbarrio.zip"),
+])
+def test_submcd_uses_published_filename(year, url):
+    D = sd.CensusDirectoryDiscovery
+    with patch.object(D, "get_year_directory_contents", lambda self, y, *a, **k: ["SUBMCD"]):
+        assert D(timeout=1).construct_download_url(year, "submcd", "72") == url

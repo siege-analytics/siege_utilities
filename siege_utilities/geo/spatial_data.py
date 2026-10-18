@@ -175,8 +175,12 @@ _PER_COUNTY_TYPES = frozenset({
 _NATIONAL_ONLY_TYPES = frozenset({
     'state', 'county', 'cbsa', 'csa', 'metdiv', 'micro', 'necta',
     'nectadiv', 'cnecta', 'aiannh', 'aitsce', 'ttract', 'tbg',
-    'uac', 'uac10', 'uac20',
+    'uac', 'uac10', 'uac20', 'rails',
 })
+
+# TIGER2010 layers published flat (no 2010/ subdirectory, no "10" suffix),
+# e.g. TIGER2010/RAILS/tl_2010_us_rails.zip.
+_FLAT_2010_TYPES = frozenset({'rails'})
 
 # ---------------------------------------------------------------------------
 # TIGER Redistricting (PL 94-171) URL constants
@@ -734,11 +738,13 @@ class CensusDirectoryDiscovery:
             available_types['block'] = available_types['tabblock20']
         if year >= 2024 and 'uac20' in available_types:
             available_types['uac'] = available_types['uac20']
-        # TIGER has no CDnnn directories: every congress lives under CD/.
-        # Alias cd{n} to that directory so congress-specific names resolve.
-        if 'cd' in available_types:
-            for congress in sorted(set(YEAR_TO_CONGRESS.values())):
-                available_types.setdefault(f'cd{congress}', available_types['cd'])
+        # TIGER has no CDnnn directories: each vintage's CD/ directory holds
+        # the congress in YEAR_TO_CONGRESS for that year. Alias cd{n} for
+        # that congress only; other congresses are not published in this
+        # vintage (live HEAD checks 404) and stay "not available".
+        congress = YEAR_TO_CONGRESS.get(year)
+        if 'cd' in available_types and congress:
+            available_types.setdefault(f'cd{congress}', available_types['cd'])
         return available_types
     
     def get_year_specific_url_patterns(self, year: int) -> Dict[str, Any]:
@@ -896,7 +902,8 @@ class CensusDirectoryDiscovery:
             is_cd = boundary_type == 'cd' or (
                 boundary_type.startswith('cd') and boundary_type[2:].isdigit()
             )
-            if year == 2010:
+            flat_2010 = year == 2010 and boundary_type in _FLAT_2010_TYPES
+            if year == 2010 and not flat_2010:
                 # CD uses a Congress subdirectory, not the census vintage:
                 # https://www2.census.gov/geo/tiger/TIGER2010/CD/111/
                 if boundary_type == 'cd':
@@ -919,7 +926,7 @@ class CensusDirectoryDiscovery:
                     context=ctx,
                 )
 
-            if year == 2010 and not is_cd and not filename.endswith('10.zip'):
+            if year == 2010 and not is_cd and not flat_2010 and not filename.endswith('10.zip'):
                 filename = filename.removesuffix('.zip') + '10.zip'
 
             final_url = f"{base_url}/{filename}"
@@ -963,6 +970,10 @@ class CensusDirectoryDiscovery:
             _FILENAME_ABBREVS['block'] = 'tabblock'
         if year == 2021:
             _FILENAME_ABBREVS['uac'] = 'uac10'
+        # Puerto Rico sub-minor civil divisions are published as "subbarrio"
+        # from 2013: https://www2.census.gov/geo/tiger/TIGER2013/SUBMCD/
+        if year >= 2013:
+            _FILENAME_ABBREVS['submcd'] = 'subbarrio'
 
         # Per-county layers: a state-only request cannot name a published file.
         if boundary_type in _PER_COUNTY_TYPES:
