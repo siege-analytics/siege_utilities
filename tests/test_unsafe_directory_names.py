@@ -240,6 +240,125 @@ def test_archive_with_ordinary_member_directories_still_extracts(tmp_path: Path)
     assert (extracted / "empty dir").is_dir()
 
 
+# Each entry creates the file ``target`` itself (#1737).
+FILE_CREATORS = {
+    "touch_file": lambda root, target: operations.touch_file(target),
+    "touch_file(create_parents=False)": lambda root, target: operations.touch_file(target, create_parents=False),
+    "copy_file": lambda root, target: operations.copy_file(_source(root), target),
+    "move_file": lambda root, target: operations.move_file(_source(root), target),
+    "replace_with_empty_file": lambda root, target: (
+        operations.delete_existing_file_and_replace_it_with_an_empty_file(target)
+    ),
+    "replace_with_empty_file(create_parents=False)": lambda root, target: (
+        operations.delete_existing_file_and_replace_it_with_an_empty_file(target, create_parents=False)
+    ),
+    "safe_file_write": lambda root, target: operations.safe_file_write(target, "x"),
+    "safe_file_write(create_dirs=False)": lambda root, target: operations.safe_file_write(target, "x", create_dirs=False),
+    "safe_json_write": lambda root, target: operations.safe_json_write(target, {}),
+    "atomic_write_path": lambda root, target: operations.atomic_write_path(target).__enter__(),
+    "atomic_write_shapefile": lambda root, target: operations.atomic_write_shapefile(None, target),
+    "download_file": lambda root, target: remote.download_file("https://example.invalid/f", target),
+    "save_spatial": lambda root, target: formats.save_spatial(None, target),
+    "save_tabular": lambda root, target: formats.save_tabular(_tabular_frame(), target),
+}
+if "secure_write_text" in CREATORS:
+    from siege_utilities.files.secure_write import secure_write_text as _secure_write_text
+
+    FILE_CREATORS["secure_write_text"] = lambda root, target: _secure_write_text(target, "x")
+
+
+@pytest.mark.parametrize("creator", sorted(FILE_CREATORS))
+def test_unsafe_new_file_name_is_refused_and_nothing_is_created(
+    creator: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if creator == "download_file":
+        pytest.importorskip("requests")
+    created = []
+    for n, ch in enumerate(UNSAFE):
+        for name in (f"f{ch}.csv", f"{ch}.csv", f"f.c{ch}"):
+            for absolute in (True, False):
+                root = tmp_path / f"case{n}-{len(name)}-{absolute}"
+                root.mkdir()
+                (root / "existing").mkdir()
+                _source(root).write_text("x")
+                before = _snapshot(root)
+                monkeypatch.chdir(root)
+                target = (root if absolute else Path()) / "existing" / name
+                with pytest.raises(PathSecurityError):
+                    FILE_CREATORS[creator](root, target)
+                after = _snapshot(root)
+                if after != before:
+                    created.append((repr(ch), name, absolute, after))
+                monkeypatch.chdir(tmp_path)
+    assert created == [], f"{creator} created entries for {len(created)} cases, e.g. {created[:3]}"
+
+
+@pytest.mark.parametrize("creator", sorted(FILE_CREATORS))
+def test_ordinary_file_names_still_work(creator: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    if creator in ("download_file", "atomic_write_shapefile", "save_spatial"):
+        pytest.skip("needs the network or a GeoDataFrame once the name is accepted")
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "existing").mkdir()
+    for name in ("plain.csv", "café é.csv", "数据.csv", "📁 emoji.csv", "a#b.csv", "back\\slash.csv",
+                 "nb\u00a0sp.csv", "zw\u200bsp.csv", "שלום.csv"):
+        _source(tmp_path).write_text("x")
+        target = tmp_path / "existing" / name
+        if creator == "atomic_write_path":
+            with operations.atomic_write_path(target) as tmp:
+                tmp.write_text("x")
+        else:
+            FILE_CREATORS[creator](tmp_path, target)
+        assert target.exists(), (creator, name)
+
+
+@pytest.mark.parametrize("mover", ["copy_file", "move_file"])
+def test_copy_or_move_into_directory_checks_the_source_name(mover: str, tmp_path: Path) -> None:
+    """Into an existing directory the file is created under the source's name."""
+    existing = tmp_path / "odd\x1bsource.txt"
+    existing.write_text("x")
+    dest = tmp_path / "dest"
+    dest.mkdir()
+    try:
+        with pytest.raises(PathSecurityError):
+            getattr(operations, mover)(existing, dest)
+        assert os.listdir(dest) == []
+    finally:
+        existing.unlink(missing_ok=True)
+
+
+@pytest.mark.parametrize("creator", ["touch_file", "safe_file_write", "atomic_write_path", "copy_file"])
+def test_existing_file_with_unsafe_name_can_be_overwritten(creator: str, tmp_path: Path) -> None:
+    target = tmp_path / "odd\x16name.csv"
+    target.write_text("old")
+    _source(tmp_path).write_text("x")
+    if creator == "atomic_write_path":
+        with operations.atomic_write_path(target) as tmp:
+            tmp.write_text("new")
+    elif creator == "copy_file":
+        operations.copy_file(_source(tmp_path), target, overwrite=True)
+    else:
+        FILE_CREATORS[creator](tmp_path, target)
+    assert target.exists()
+
+
+def test_archive_member_file_names_are_checked(tmp_path: Path) -> None:
+    import zipfile
+
+    created = []
+    for i, ch in enumerate(ZIP_UNSAFE):
+        archive = tmp_path / f"a{i}.zip"
+        with zipfile.ZipFile(archive, "w") as z:
+            z.writestr("ok.txt", "x")
+            z.writestr(f"f{ch}.txt", "x")
+        out = tmp_path / f"out{i}"
+        out.mkdir()
+        with pytest.raises(PathSecurityError):
+            paths.unzip_file_to_directory(archive, out, create_subdirectory=False)
+        if os.listdir(out):
+            created.append((repr(ch), os.listdir(out)))
+    assert created == [], created[:3]
+
+
 def test_existing_directory_with_unsafe_name_still_accepted(tmp_path: Path) -> None:
     existing = tmp_path / "odd\x16name"
     existing.mkdir()
