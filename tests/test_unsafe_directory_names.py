@@ -6,6 +6,7 @@ Each refusal raises PathSecurityError and leaves the filesystem untouched.
 Readers that never create anything keep their pre-#1710 not-found behaviour.
 """
 
+import logging
 import os
 from pathlib import Path
 
@@ -18,6 +19,20 @@ from siege_utilities.files.validation import (
     reject_unsafe_new_directory_names,
     validate_directory_path,
 )
+
+# The helpers log the paths they are given. Captured log lines and warnings
+# travel in each test report, and xdist cannot send a lone surrogate over its
+# UTF-8 channel, so this module emits neither; it asserts on exceptions and
+# on the filesystem only.
+pytestmark = pytest.mark.filterwarnings("ignore")
+
+
+@pytest.fixture(autouse=True)
+def _no_log_output():
+    logging.disable(logging.CRITICAL)
+    yield
+    logging.disable(logging.NOTSET)
+
 
 UNSAFE = (
     [chr(c) for c in range(1, 0x20)]  # NUL is refused earlier, as a null byte
@@ -132,9 +147,7 @@ def test_existing_directory_with_unsafe_name_still_accepted(tmp_path):
 class TestReadersKeepNotFoundBehaviour:
     """Readers create nothing, so a missing unsafe name is simply not found."""
 
-    # Control characters only: the readers log the missing path, and a
-    # surrogate in captured output cannot cross xdist's UTF-8 channel.
-    @pytest.mark.parametrize("ch", ["\x1b", "\x7f", "\x85"], ids=lambda ch: f"U+{ord(ch):04X}")
+    @pytest.mark.parametrize("ch", ["\x1b", "\x7f", "\x85", "\udc80"], ids=lambda ch: f"U+{ord(ch):04X}")
     def test_readers(self, ch, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         missing = str(tmp_path / f"no{ch}such")
