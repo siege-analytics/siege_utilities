@@ -27,7 +27,7 @@ except ImportError:
     gpd = None  # type: ignore[assignment]
     _GEOPANDAS_AVAILABLE = False
 
-from ..chart_generator import ChartGenerator
+from ..chart_generator import ChartGenerator, create_bivariate_choropleth
 
 __all__ = [
     'create_sample_data',
@@ -63,26 +63,22 @@ def create_sample_data():
 
 def create_sample_geodata():
     """
-    Create sample geographic data for examples.
-    In practice, you would load real GeoJSON files.
+    Create synthetic polygon geometry for all sample locations.
+    Replace these illustrative rectangles with real GeoJSON boundaries in production.
 
     Returns:
         geopandas.GeoDataFrame: Sample geographic data
     """
-    from shapely.geometry import Point
+    from shapely.geometry import box
 
-    sample_geodata = {
-        'state': ['California', 'Texas', 'New York', 'Florida', 'Illinois'],
-        'geometry': [
-            Point(-119.4179, 36.7783),
-            Point(-99.9018, 31.9686),
-            Point(-74.2179, 43.2994),
-            Point(-81.5158, 27.6648),
-            Point(-88.9861, 40.3495)
-        ]
-    }
-
-    return gpd.GeoDataFrame(sample_geodata, crs="EPSG:4326")
+    # Synthetic rectangles near each state's center, not administrative boundaries.
+    centers = [(-119, 37), (-100, 32), (-75, 43), (-82, 28), (-89, 40),
+               (-78, 41), (-83, 40), (-83, 33), (-85, 44), (-79, 35)]
+    return gpd.GeoDataFrame(
+        {'state': create_sample_data()['state']},
+        geometry=[box(lon - 1, lat - 1, lon + 1, lat + 1) for lon, lat in centers],
+        crs="EPSG:4326",
+    )
 
 def example_basic_bivariate_choropleth():
     """
@@ -93,14 +89,14 @@ def example_basic_bivariate_choropleth():
     """
     print("=== Example 1: Basic Bivariate Choropleth (Folium) ===")
 
-    chart_gen = ChartGenerator()
     data = create_sample_data()
 
-    chart = chart_gen.create_bivariate_choropleth(
+    chart = create_bivariate_choropleth(
         data=data,
-        location_column='state',
-        value_column1='population_density',
-        value_column2='median_income',
+        geo_data=create_sample_geodata(),
+        geoid_column='state',
+        x_column='population_density',
+        y_column='median_income',
         title="Population Density vs Median Income by State",
         width=10.0,
         height=8.0
@@ -121,7 +117,7 @@ def example_advanced_bivariate_choropleth():
     """
     print("\n=== Example 2: Advanced Bivariate Choropleth (Matplotlib) ===")
 
-    chart_gen = ChartGenerator()
+    chart_gen = ChartGenerator(output_dir="bivariate_output")
     data = create_sample_data()
     geodata = create_sample_geodata()
 
@@ -134,7 +130,7 @@ def example_advanced_bivariate_choropleth():
         title="Advanced Bivariate Choropleth: Population Density vs Income",
         width=12.0,
         height=10.0,
-        color_scheme='custom'
+        color_scheme='blue_red'
     )
 
     print("✓ Advanced bivariate choropleth created successfully")
@@ -152,13 +148,14 @@ def example_custom_chart_configuration():
     """
     print("\n=== Example 3: Custom Chart Configuration ===")
 
-    chart_gen = ChartGenerator()
+    chart_gen = ChartGenerator(output_dir="bivariate_output")
     data = create_sample_data()
 
     chart_config = {
         'type': 'bivariate_choropleth',
         'title': 'Custom Bivariate Choropleth Configuration',
         'data': data,
+        'geo_data': create_sample_geodata(),
         'location_column': 'state',
         'value_columns': ['population_density', 'median_income']
     }
@@ -184,11 +181,12 @@ def example_dataframe_integration():
     """
     print("\n=== Example 4: DataFrame Integration ===")
 
-    chart_gen = ChartGenerator()
+    chart_gen = ChartGenerator(output_dir="bivariate_output")
     data = create_sample_data()
 
     chart = chart_gen.generate_chart_from_dataframe(
         df=data,
+        geo_data=create_sample_geodata(),
         chart_type='bivariate_choropleth',
         x_column='state',
         y_columns=['population_density', 'median_income'],
@@ -212,7 +210,7 @@ def example_advanced_choropleth():
     """
     print("\n=== Example 5: Advanced Choropleth with Classification ===")
 
-    chart_gen = ChartGenerator()
+    chart_gen = ChartGenerator(output_dir="bivariate_output")
     data = create_sample_data()
     geodata = create_sample_geodata()
 
@@ -272,13 +270,14 @@ def create_report_with_bivariate_maps():
     """
     print("\n=== Example 6: Report Integration ===")
 
-    chart_gen = ChartGenerator()
+    chart_gen = ChartGenerator(output_dir="bivariate_output")
     data = create_sample_data()
 
     charts = []
 
     chart1 = chart_gen.create_bivariate_choropleth(
         data=data,
+        geo_data=create_sample_geodata(),
         location_column='state',
         value_column1='population_density',
         value_column2='median_income',

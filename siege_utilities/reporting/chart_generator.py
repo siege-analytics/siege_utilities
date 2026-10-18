@@ -4,6 +4,7 @@ Supports multiple chart types, maps, and data sources including pandas and Spark
 """
 
 import logging
+from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 
 # Core plotting libraries
@@ -109,9 +110,9 @@ def create_bar_chart(data: Union['pd.DataFrame', Dict[str, Any]],
                     x_column: Optional[str] = None,
                     y_column: Optional[str] = None,
                     title: str = "",
-                    width: int = 800,
-                    height: int = 600,
-                    **kwargs) -> Optional[Dict[str, Any]]:
+                    width: float = 8.0,
+                    height: float = 6.0,
+                    **kwargs) -> 'Image':
     """
     Standalone function to create a bar chart.
 
@@ -120,44 +121,49 @@ def create_bar_chart(data: Union['pd.DataFrame', Dict[str, Any]],
         x_column: Column name for x-axis
         y_column: Column name for y-axis
         title: Chart title
-        width: Chart width in pixels
-        height: Chart height in pixels
+        width: Chart width in inches
+        height: Chart height in inches
         **kwargs: Additional chart parameters
 
     Returns:
-        Chart configuration dictionary or None if error
+        ReportLab Image object (including dependency placeholders).
+        Chart generation errors propagate to the caller.
     """
     generator = ChartGenerator()
     return generator.create_bar_chart(
-        data, x_column, y_column, title, width, height, **kwargs
+        data=data, x_column=x_column, y_column=y_column,
+        title=title, width=width, height=height, **kwargs
     )
 
 
 def create_line_chart(data: Union['pd.DataFrame', Dict[str, Any]],
                      x_column: Optional[str] = None,
-                     y_column: Optional[str] = None,
+                     y_column: Optional[Union[str, List[str]]] = None,
                      title: str = "",
-                     width: int = 800,
-                     height: int = 600,
-                     **kwargs) -> Optional[Dict[str, Any]]:
+                     width: float = 8.0,
+                     height: float = 6.0,
+                     **kwargs) -> 'Image':
     """
     Standalone function to create a line chart.
 
     Args:
         data: DataFrame or data dictionary
         x_column: Column name for x-axis
-        y_column: Column name for y-axis
+        y_column: One column name or a list of column names for y-axis
         title: Chart title
-        width: Chart width in pixels
-        height: Chart height in pixels
+        width: Chart width in inches
+        height: Chart height in inches
         **kwargs: Additional chart parameters
 
     Returns:
-        Chart configuration dictionary or None if error
+        ReportLab Image object (including dependency placeholders).
+        Chart generation errors propagate to the caller.
     """
+    y_columns = [y_column] if isinstance(y_column, str) else y_column
     generator = ChartGenerator()
     return generator.create_line_chart(
-        data, x_column, y_column, title, width, height, **kwargs
+        data=data, x_column=x_column, y_columns=y_columns,
+        title=title, width=width, height=height, **kwargs
     )
 
 
@@ -165,9 +171,9 @@ def create_scatter_plot(data: Union['pd.DataFrame', Dict[str, Any]],
                        x_column: Optional[str] = None,
                        y_column: Optional[str] = None,
                        title: str = "",
-                       width: int = 800,
-                       height: int = 600,
-                       **kwargs) -> Optional[Dict[str, Any]]:
+                       width: float = 8.0,
+                       height: float = 6.0,
+                       **kwargs) -> 'Image':
     """
     Standalone function to create a scatter plot.
 
@@ -176,16 +182,18 @@ def create_scatter_plot(data: Union['pd.DataFrame', Dict[str, Any]],
         x_column: Column name for x-axis
         y_column: Column name for y-axis
         title: Chart title
-        width: Chart width in pixels
-        height: Chart height in pixels
+        width: Chart width in inches
+        height: Chart height in inches
         **kwargs: Additional chart parameters
 
     Returns:
-        Chart configuration dictionary or None if error
+        ReportLab Image object (including dependency placeholders).
+        Chart generation errors propagate to the caller.
     """
     generator = ChartGenerator()
     return generator.create_scatter_plot(
-        data, x_column, y_column, title, width, height, **kwargs
+        data=data, x_column=x_column, y_column=y_column,
+        title=title, width=width, height=height, **kwargs
     )
 
 
@@ -193,9 +201,9 @@ def create_pie_chart(data: Union['pd.DataFrame', Dict[str, Any]],
                     label_column: Optional[str] = None,
                     value_column: Optional[str] = None,
                     title: str = "",
-                    width: int = 800,
-                    height: int = 600,
-                    **kwargs) -> Optional[Dict[str, Any]]:
+                    width: float = 8.0,
+                    height: float = 6.0,
+                    **kwargs) -> 'Image':
     """
     Standalone function to create a pie chart.
 
@@ -204,16 +212,18 @@ def create_pie_chart(data: Union['pd.DataFrame', Dict[str, Any]],
         label_column: Column name for labels
         value_column: Column name for values
         title: Chart title
-        width: Chart width in pixels
-        height: Chart height in pixels
+        width: Chart width in inches
+        height: Chart height in inches
         **kwargs: Additional chart parameters
 
     Returns:
-        Chart configuration dictionary or None if error
+        ReportLab Image object (including dependency placeholders).
+        Chart generation errors propagate to the caller.
     """
     generator = ChartGenerator()
     return generator.create_pie_chart(
-        data, label_column, value_column, title, width, height, **kwargs
+        data=data, labels_column=label_column, values_column=value_column,
+        title=title, width=width, height=height, **kwargs
     )
 
 def create_bivariate_choropleth(data: Union['pd.DataFrame', Dict[str, Any]],
@@ -223,7 +233,9 @@ def create_bivariate_choropleth(data: Union['pd.DataFrame', Dict[str, Any]],
                                title: str = "Bivariate Choropleth Map",
                                width: float = 12.0,
                                height: float = 8.0,
-                               **kwargs) -> Optional['Image']:
+                               *,
+                               geo_data: Union['gpd.GeoDataFrame', str, Path, Dict, None] = None,
+                               **kwargs) -> 'Image':
     """
     Standalone function to create a bivariate choropleth map.
 
@@ -235,14 +247,19 @@ def create_bivariate_choropleth(data: Union['pd.DataFrame', Dict[str, Any]],
         title: Map title
         width: Map width in inches
         height: Map height in inches
+        geo_data: GeoDataFrame, GeoJSON path or dictionary. Required for maps
+            unless bivariate data already contains geometry.
         **kwargs: Additional arguments
 
     Returns:
-        PIL Image object or None if error
+        ReportLab Image object (including dependency placeholders).
+        Chart generation errors propagate to the caller.
     """
     generator = ChartGenerator()
     return generator.create_bivariate_choropleth(
-        data, x_column, y_column, geoid_column, title, width, height, **kwargs
+        data=data, geo_data=geo_data, location_column=geoid_column,
+        value_column1=x_column, value_column2=y_column,
+        title=title, width=width, height=height, **kwargs
     )
 
 def create_heatmap(data: Union['pd.DataFrame', Dict[str, Any]],
@@ -252,7 +269,7 @@ def create_heatmap(data: Union['pd.DataFrame', Dict[str, Any]],
                   title: str = "",
                   width: float = 8.0,
                   height: float = 6.0,
-                  **kwargs) -> Optional['Image']:
+                  **kwargs) -> 'Image':
     """
     Standalone function to create a heatmap.
 
@@ -267,11 +284,13 @@ def create_heatmap(data: Union['pd.DataFrame', Dict[str, Any]],
         **kwargs: Additional arguments to pass to create_heatmap
 
     Returns:
-        PIL Image object or None if error
+        ReportLab Image object (including dependency placeholders).
+        Chart generation errors propagate to the caller.
     """
     generator = ChartGenerator()
     return generator.create_heatmap(
-        data, x_column, y_column, value_column, title, width, height, **kwargs
+        data=data, x_column=x_column, y_column=y_column, value_column=value_column,
+        title=title, width=width, height=height, **kwargs
     )
 
 
@@ -282,7 +301,9 @@ def create_choropleth_map(data: Union['pd.DataFrame', Dict[str, Any]],
                          width: float = 8.0,
                          height: float = 6.0,
                          map_type: str = "world",
-                         **kwargs) -> Optional['Image']:
+                         *,
+                         geo_data: Union['gpd.GeoDataFrame', str, Path, Dict, None] = None,
+                         **kwargs) -> 'Image':
     """
     Standalone function to create a choropleth map.
 
@@ -294,14 +315,19 @@ def create_choropleth_map(data: Union['pd.DataFrame', Dict[str, Any]],
         width: Chart width in inches
         height: Chart height in inches
         map_type: Type of map ("world", "usa", "europe", etc.)
+        geo_data: GeoDataFrame, GeoJSON path or dictionary. Required to render
+            the choropleth; locations alone do not provide geometry.
         **kwargs: Additional arguments
 
     Returns:
-        PIL Image object or None if error
+        ReportLab Image object (including dependency placeholders).
+        Chart generation errors propagate to the caller.
     """
     generator = ChartGenerator()
     return generator.create_choropleth_map(
-        data, location_column, value_column, title, width, height, map_type, **kwargs
+        data=data, geo_data=geo_data, location_column=location_column,
+        value_column=value_column, title=title, width=width, height=height,
+        map_type=map_type, **kwargs
     )
 
 
@@ -315,7 +341,7 @@ def create_marker_map(data: Union['pd.DataFrame', Dict[str, Any]],
                      height: float = 8.0,
                      map_style: str = "open-street-map",
                      zoom_level: int = 10,
-                     **kwargs) -> Optional['Image']:
+                     **kwargs) -> 'Image':
     """
     Standalone function to create a marker map.
 
@@ -333,12 +359,15 @@ def create_marker_map(data: Union['pd.DataFrame', Dict[str, Any]],
         **kwargs: Additional arguments
 
     Returns:
-        PIL Image object or None if error
+        ReportLab Image object (including dependency placeholders).
+        Chart generation errors propagate to the caller.
     """
     generator = ChartGenerator()
     return generator.create_marker_map(
-        data, latitude_column, longitude_column, value_column, label_column,
-        title, width, height, map_style, zoom_level, **kwargs
+        data=data, latitude_column=latitude_column, longitude_column=longitude_column,
+        value_column=value_column, label_column=label_column,
+        title=title, width=width, height=height,
+        map_style=map_style, zoom_level=zoom_level, **kwargs
     )
 
 
@@ -351,7 +380,7 @@ def create_flow_map(data: Union['pd.DataFrame', Dict[str, Any]],
                    title: str = "",
                    width: float = 12.0,
                    height: float = 10.0,
-                   **kwargs) -> Optional['Image']:
+                   **kwargs) -> 'Image':
     """
     Standalone function to create a flow map.
 
@@ -368,12 +397,14 @@ def create_flow_map(data: Union['pd.DataFrame', Dict[str, Any]],
         **kwargs: Additional arguments
 
     Returns:
-        PIL Image object or None if error
+        ReportLab Image object (including dependency placeholders).
+        Chart generation errors propagate to the caller.
     """
     generator = ChartGenerator()
     return generator.create_flow_map(
-        data, origin_lat_column, origin_lon_column, dest_lat_column, dest_lon_column,
-        flow_value_column, title, width, height, **kwargs
+        data=data, origin_lat_column=origin_lat_column, origin_lon_column=origin_lon_column,
+        dest_lat_column=dest_lat_column, dest_lon_column=dest_lon_column,
+        flow_value_column=flow_value_column, title=title, width=width, height=height, **kwargs
     )
 
 
@@ -383,7 +414,7 @@ def create_convergence_diagram(sources: List[Dict[str, Any]],
                                title: str = "Convergence Diagram",
                                width: float = 10.0,
                                height: float = 6.0,
-                               **kwargs) -> Optional['Image']:
+                               **kwargs) -> 'Image':
     """Standalone function to create a convergence diagram.
 
     Args:
@@ -401,7 +432,8 @@ def create_convergence_diagram(sources: List[Dict[str, Any]],
             ``show_magnitudes``, and ``magnitude_key``.
 
     Returns:
-        ReportLab Image object or None if error.
+        ReportLab Image object (including dependency placeholders).
+        Chart generation errors propagate to the caller.
     """
     generator = ChartGenerator()
     return generator.create_convergence_diagram(
@@ -419,7 +451,7 @@ def create_dashboard(charts: list,
                     layout: str = "2x2",
                     width: float = 12.0,
                     height: float = 8.0,
-                    **kwargs) -> Optional['Image']:
+                    **kwargs) -> 'Image':
     """
     Standalone function to create a dashboard with multiple charts.
 
@@ -431,17 +463,20 @@ def create_dashboard(charts: list,
         **kwargs: Additional arguments
 
     Returns:
-        PIL Image object or None if error
+        ReportLab Image object (including dependency placeholders).
+        Chart generation errors propagate to the caller.
     """
     generator = ChartGenerator()
-    return generator.create_dashboard(charts, layout, width, height, **kwargs)
+    return generator.create_dashboard(
+        charts=charts, layout=layout, width=width, height=height, **kwargs
+    )
 
 
 def create_dataframe_summary_charts(df: 'pd.DataFrame',
                                    title: str = "",
                                    width: float = 8.0,
                                    height: float = 6.0,
-                                   **kwargs) -> Optional['Image']:
+                                   **kwargs) -> 'Image':
     """
     Standalone function to create summary charts from a DataFrame.
 
@@ -453,10 +488,13 @@ def create_dataframe_summary_charts(df: 'pd.DataFrame',
         **kwargs: Additional arguments
 
     Returns:
-        PIL Image object or None if error
+        ReportLab Image object (including dependency placeholders).
+        Chart generation errors propagate to the caller.
     """
     generator = ChartGenerator()
-    return generator.create_dataframe_summary_charts(df, title, width, height, **kwargs)
+    return generator.create_dataframe_summary_charts(
+        df=df, title=title, width=width, height=height, **kwargs
+    )
 
 
 def generate_chart_from_dataframe(df: 'pd.DataFrame',
@@ -466,7 +504,9 @@ def generate_chart_from_dataframe(df: 'pd.DataFrame',
                                  title: str = "",
                                  width: float = 6.0,
                                  height: float = 4.0,
-                                 **kwargs) -> Optional['Image']:
+                                 *,
+                                 geo_data: Union['gpd.GeoDataFrame', str, Path, Dict, None] = None,
+                                 **kwargs) -> 'Image':
     """
     Standalone function to generate a chart from a DataFrame.
 
@@ -478,12 +518,16 @@ def generate_chart_from_dataframe(df: 'pd.DataFrame',
         title: Chart title
         width: Chart width in inches
         height: Chart height in inches
+        geo_data: GeoDataFrame, GeoJSON path or dictionary. Required for maps
+            unless bivariate data already contains geometry.
         **kwargs: Additional arguments
 
     Returns:
-        PIL Image object or None if error
+        ReportLab Image object (including dependency placeholders).
+        Chart generation errors propagate to the caller.
     """
     generator = ChartGenerator()
     return generator.generate_chart_from_dataframe(
-        df, chart_type, x_column, y_columns, title, width, height, **kwargs
+        df=df, chart_type=chart_type, x_column=x_column, y_columns=y_columns,
+        title=title, width=width, height=height, geo_data=geo_data, **kwargs
     )

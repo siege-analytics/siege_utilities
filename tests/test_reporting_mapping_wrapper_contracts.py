@@ -20,13 +20,25 @@ def test_create_scatter_plot_delegates(monkeypatch):
         x_column="x",
         y_column="y",
         title="Scatter",
-        width=640,
-        height=480,
+        width=6.4,
+        height=4.8,
         color="blue",
     ) == {"kind": "scatter"}
 
     assert FakeChartGenerator.instances[0].calls == [
-        ("scatter", (data, "x", "y", "Scatter", 640, 480), {"color": "blue"})
+        (
+            "scatter",
+            (),
+            {
+                "data": data,
+                "x_column": "x",
+                "y_column": "y",
+                "title": "Scatter",
+                "width": 6.4,
+                "height": 4.8,
+                "color": "blue",
+            },
+        )
     ]
 
 
@@ -48,8 +60,18 @@ def test_create_bivariate_choropleth_delegates(monkeypatch):
     assert FakeChartGenerator.instances[0].calls == [
         (
             "bivariate_choropleth",
-            (data, "income", "education", "fips", "Bivariate", 12.0, 8.0),
-            {"palette": "brand"},
+            (),
+            {
+                "data": data,
+                "value_column1": "income",
+                "value_column2": "education",
+                "location_column": "fips",
+                "title": "Bivariate",
+                "width": 12.0,
+                "height": 8.0,
+                "geo_data": None,
+                "palette": "brand",
+            },
         )
     ]
 
@@ -72,8 +94,17 @@ def test_create_heatmap_delegates(monkeypatch):
     assert FakeChartGenerator.instances[0].calls == [
         (
             "heatmap",
-            (data, "col", "row", "val", "Heat", 8.0, 6.0),
-            {"cmap": "viridis"},
+            (),
+            {
+                "data": data,
+                "x_column": "col",
+                "y_column": "row",
+                "value_column": "val",
+                "title": "Heat",
+                "width": 8.0,
+                "height": 6.0,
+                "cmap": "viridis",
+            },
         )
     ]
 
@@ -96,8 +127,18 @@ def test_create_choropleth_map_delegates(monkeypatch):
     assert FakeChartGenerator.instances[0].calls == [
         (
             "choropleth",
-            (data, "state", "pop", "Choropleth", 8.0, 6.0, "usa"),
-            {"projection": "albers"},
+            (),
+            {
+                "data": data,
+                "location_column": "state",
+                "value_column": "pop",
+                "title": "Choropleth",
+                "width": 8.0,
+                "height": 6.0,
+                "map_type": "usa",
+                "geo_data": None,
+                "projection": "albers",
+            },
         )
     ]
 
@@ -123,19 +164,20 @@ def test_create_marker_map_delegates(monkeypatch):
     assert FakeChartGenerator.instances[0].calls == [
         (
             "marker",
-            (
-                data,
-                "lat",
-                "lon",
-                "mag",
-                "name",
-                "Markers",
-                10.0,
-                8.0,
-                "carto",
-                5,
-            ),
-            {"opacity": 0.7},
+            (),
+            {
+                "data": data,
+                "latitude_column": "lat",
+                "longitude_column": "lon",
+                "value_column": "mag",
+                "label_column": "name",
+                "title": "Markers",
+                "width": 10.0,
+                "height": 8.0,
+                "map_style": "carto",
+                "zoom_level": 5,
+                "opacity": 0.7,
+            },
         )
     ]
 
@@ -160,17 +202,18 @@ def test_create_flow_map_delegates(monkeypatch):
     assert FakeChartGenerator.instances[0].calls == [
         (
             "flow",
-            (
-                data,
-                "olat",
-                "olon",
-                "dlat",
-                "dlon",
-                "volume",
-                "Flows",
-                12.0,
-                10.0,
-            ),
-            {"curve": 0.3},
+            (),
+            {
+                "data": data,
+                "origin_lat_column": "olat",
+                "origin_lon_column": "olon",
+                "dest_lat_column": "dlat",
+                "dest_lon_column": "dlon",
+                "flow_value_column": "volume",
+                "title": "Flows",
+                "width": 12.0,
+                "height": 10.0,
+                "curve": 0.3,
+            },
         )
     ]
