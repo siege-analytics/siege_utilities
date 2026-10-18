@@ -180,8 +180,8 @@ def load_project_config(project_code: str, config_directory: str = "config") -> 
         >>> print(f"Loaded: {config['project_name']}")  # doctest: +SKIP
     """
     try:
-        from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
-        config_dir = validate_directory_path(config_directory, must_exist=False)
+        from siege_utilities.files.validation import validate_safe_path, PathSecurityError  # noqa: F401, F811
+        config_dir = validate_safe_path(config_directory, allow_absolute=True)
     except ImportError:
         config_dir = pathlib.Path(config_directory)
 
@@ -294,8 +294,8 @@ def list_projects(config_directory: str = "config") -> list:
     try:
         # Validate config directory path
         try:
-            from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
-            config_dir = validate_directory_path(config_directory, must_exist=False)
+            from siege_utilities.files.validation import validate_safe_path, PathSecurityError  # noqa: F401, F811
+            config_dir = validate_safe_path(config_directory, allow_absolute=True)
         except ImportError:
             config_dir = pathlib.Path(config_directory)
     except (OSError, ValueError) as e:

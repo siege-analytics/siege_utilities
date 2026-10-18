@@ -13,14 +13,21 @@ import tempfile
 import os
 import sys
 import shutil
+from pathlib import Path
 from unittest.mock import Mock
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 try:
     from hypothesis import settings as hyp_settings
+    from hypothesis.database import DirectoryBasedExampleDatabase
 
-    hyp_settings.register_profile("ci", max_examples=100)
-    hyp_settings.register_profile("dev", max_examples=50)
-    hyp_settings.register_profile("thorough", max_examples=1000)
+    # Tests run in a per-test cwd (see _isolated_cwd), so the example database
+    # needs an absolute home to keep replaying failures across runs.
+    _hyp_db = DirectoryBasedExampleDatabase(str(REPO_ROOT / ".hypothesis" / "examples"))
+    hyp_settings.register_profile("ci", max_examples=100, database=_hyp_db)
+    hyp_settings.register_profile("dev", max_examples=50, database=_hyp_db)
+    hyp_settings.register_profile("thorough", max_examples=1000, database=_hyp_db)
     hyp_settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "ci"))
 except (ImportError, RuntimeError):
     pass
@@ -34,17 +41,96 @@ sys.path.insert(0, os.path.abspath('.'))
 
 # Module-level temp base so pytest_configure and pytest_unconfigure can share it.
 _TEMP_BASE = None
+_SAVED_HOME_ENV = {}
+
+# Tool state the suite needs from the real home: the DuckDB extensions CI
+# prepares, Java/Spark discovery (siege_utilities/testing/environment.py), the
+# Spark jar caches, git identity, and the Jupyter kernels CI registers with
+# `ipykernel install --user` (Linux and macOS data dirs). Everything else in
+# HOME starts empty (#1693).
+_HOME_PASSTHROUGH = (
+    '.duckdb', '.sdkman', 'spark', 'hadoop', '.ivy2', '.m2', '.gitconfig', '.config/git',
+    '.local/share/jupyter', 'Library/Jupyter',
+)
 
 
+def _isolate_home(base: str) -> None:
+    """Point HOME at an empty directory so library defaults under Path.home() stay out of it.
+
+    pytest-django imports parts of siege_utilities before this runs; none of
+    them read Path.home() at import time, and anything imported later sees
+    the isolated HOME.
+    """
+    # xdist workers inherit the parent's isolated HOME; keep the original.
+    real_home = Path(os.environ.get('SIEGE_TEST_REAL_HOME') or Path.home())
+    fake_home = Path(base) / 'home'
+    fake_home.mkdir()
+    for name in _HOME_PASSTHROUGH:
+        source = real_home / name
+        if source.exists():
+            link = fake_home / name
+            link.parent.mkdir(parents=True, exist_ok=True)
+            link.symlink_to(source, target_is_directory=source.is_dir())
+    for var in ('HOME', 'USERPROFILE', 'SIEGE_TEST_REAL_HOME'):
+        _SAVED_HOME_ENV[var] = os.environ.get(var)
+    os.environ['SIEGE_TEST_REAL_HOME'] = str(real_home)
+    os.environ['HOME'] = str(fake_home)
+    if sys.platform == 'win32':
+        os.environ['USERPROFILE'] = str(fake_home)
+
+
+def _restore_home() -> None:
+    for var, value in _SAVED_HOME_ENV.items():
+        if value is None:
+            os.environ.pop(var, None)
+        else:
+            os.environ[var] = value
+    _SAVED_HOME_ENV.clear()
+
+
+# Test-run controls (database targets, credentials file, the real home). CI
+# sets these and the library never reads them.
+_SIEGE_TEST_CONTROL_PREFIXES = ('SIEGE_TEST_', 'SIEGE_UTILITIES_TEST_PG_DSN')
+_SAVED_SIEGE_ENV = {}
+
+
+def _drop_inherited_siege_env() -> None:
+    """Unset every inherited SIEGE_* variable except the test-run controls.
+
+    The library reads SIEGE_<NAME> for every setting (conf/__init__.py) and
+    honours SIEGE_USER_CONFIG_DIR, SIEGE_SETTINGS_FILE and other directory
+    overrides, so anything inherited from the developer's shell would point
+    the suite at their real config (#1717). pytest_configure sets the
+    variables the suite needs afterwards.
+    """
+    for var in [v for v in os.environ if v.startswith('SIEGE_')]:
+        if var.startswith(_SIEGE_TEST_CONTROL_PREFIXES):
+            continue
+        _SAVED_SIEGE_ENV[var] = os.environ.pop(var)
+
+
+def _restore_siege_env() -> None:
+    for var in [v for v in os.environ if v.startswith('SIEGE_')]:
+        if not var.startswith(_SIEGE_TEST_CONTROL_PREFIXES):
+            os.environ.pop(var)
+    os.environ.update(_SAVED_SIEGE_ENV)
+    _SAVED_SIEGE_ENV.clear()
+
+
+@pytest.hookimpl(tryfirst=True)
 def pytest_configure(config):
     """Set up temp directories and disable auto-init BEFORE siege_utilities imports."""
     global _TEMP_BASE
     _TEMP_BASE = tempfile.mkdtemp(prefix='siege_test_')
+    _drop_inherited_siege_env()
+    _isolate_home(_TEMP_BASE)
 
     # Prevent paths.py from auto-creating real directories
     os.environ['SIEGE_AUTO_INIT_DIRS'] = 'false'
 
-    # Point all path env vars into the temp tree
+    # Point all path env vars into the isolated HOME. config.paths._env_path
+    # refuses overrides outside Path.home(), so directories beside HOME were
+    # silently replaced by defaults.
     _subdirs = {
         'SIEGE_UTILITIES': 'siege_utilities',
         'SIEGE_UTILITIES_TEST': 'siege_utilities_test',
@@ -65,7 +151,7 @@ def pytest_configure(config):
         'SIEGE_BACKUP': 'backups',
     }
     for env_var, subdir in _subdirs.items():
-        path = os.path.join(_TEMP_BASE, subdir)
+        path = os.path.join(_TEMP_BASE, 'home', subdir)
         os.makedirs(path, exist_ok=True)
         os.environ[env_var] = path
 
@@ -73,7 +159,16 @@ def pytest_configure(config):
 def pytest_unconfigure(config):
     """Clean up the temp directory tree and reset singletons after the session."""
     global _TEMP_BASE
+    _restore_home()
+    _restore_siege_env()
     if _TEMP_BASE and os.path.isdir(_TEMP_BASE):
+        # Unlink the HOME passthrough symlinks first so cleanup can never
+        # reach into the real home they point at.
+        for dirpath, dirnames, filenames in os.walk(_TEMP_BASE):
+            for name in dirnames + filenames:
+                entry = os.path.join(dirpath, name)
+                if os.path.islink(entry):
+                    os.unlink(entry)
         shutil.rmtree(_TEMP_BASE, ignore_errors=True)
     _TEMP_BASE = None
 
@@ -95,6 +190,17 @@ def _siege_test_directories():
     yield
 
 
+@pytest.fixture(autouse=True)
+def _isolated_cwd(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run each test from an empty directory of its own.
+
+    Library defaults such as Path.cwd() / "reports" otherwise land in the
+    checkout (#1693). This is a sibling of tmp_path, not tmp_path itself, so
+    tests that assert on their tmp_path contents are unaffected.
+    """
+    monkeypatch.chdir(tmp_path_factory.mktemp("cwd"))
+
+
 @pytest.fixture
 def api_credentials():
     """Load connector API credentials from a developer-local YAML file.
@@ -112,8 +218,10 @@ def api_credentials():
     """
     import yaml  # local import -- yaml is in extras_require, not core
 
-    path = os.environ.get("SIEGE_TEST_CREDENTIALS") or os.path.expanduser(
-        "~/.siege-test-credentials.yaml"
+    # HOME points at the isolated test home, so look in the real one.
+    real_home = os.environ.get("SIEGE_TEST_REAL_HOME") or os.path.expanduser("~")
+    path = os.environ.get("SIEGE_TEST_CREDENTIALS") or os.path.join(
+        real_home, ".siege-test-credentials.yaml"
     )
     if not os.path.exists(path):
         pytest.skip(

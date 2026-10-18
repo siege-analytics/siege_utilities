@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- No public helper creates a directory with an unsafe name any more. When a
+  path component that does not exist yet contains a C0 control character, DEL,
+  a C1 control character or a lone surrogate (how undecodable, non-UTF-8 bytes
+  reach Python), `validate_directory_path(..., must_exist=False)` and every
+  helper that creates a directory or a file's parent raise `PathSecurityError`
+  and create nothing. The helpers are:
+  - `ensure_path_exists`, `ensure_directory_exists`, and
+    `unzip_file_to_directory`, both for the zip-named subdirectory and for
+    every member directory: an archive that would create an unsafe directory
+    is refused before anything is extracted
+  - `touch_file`, `copy_file`, `move_file`,
+    `delete_existing_file_and_replace_it_with_an_empty_file`
+  - `safe_file_write`, `safe_json_write`, `atomic_write_path`,
+    `atomic_write_shapefile`, `download_file`, `save_spatial` and
+    `save_tabular`
+
+  Paths are checked as written, so in `a/<new>/../b` the `<new>` that `mkdir`
+  would create on the way is checked too; where files land and how symlinks
+  are treated are unchanged.
+
+  Existing directories with such names, and file-path validation, are
+  unchanged. The check is public as `reject_unsafe_new_directory_names`.
+  Path-validation messages show paths with `repr()`, so escape sequences are
+  not written raw. A zip whose stem is `..` (e.g. `...zip`) now raises instead
+  of extracting into the parent of `extract_to` (#1692, #1716).
+
+### Fixed
+
+- The test suite no longer writes into the checkout, the real `$HOME` or the
+  developer's config. Each test runs from its own empty directory, and `HOME`
+  points at a scratch directory. Every inherited `SIEGE_*` variable is
+  dropped except the `SIEGE_TEST_*` run controls, so `SIEGE_USER_CONFIG_DIR`,
+  `SIEGE_SETTINGS_FILE` and `SIEGE_<SETTING>` overrides cannot point the suite
+  at real files. CI fails if a run leaves untracked files (#1693, #1717).
+
 ## [4.0.0] - 2026-10-11
 
 Major release. The public surface changes incompatibly (the data.world

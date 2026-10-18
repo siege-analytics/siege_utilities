@@ -1,5 +1,10 @@
 """Tests for siege_utilities.files.validation — path security validation (#578)."""
 
+import os
+import shutil
+from collections.abc import Iterator
+from pathlib import Path
+
 import pytest
 
 from siege_utilities.files.validation import (
@@ -127,6 +132,108 @@ class TestValidateDirectoryPath:
         f.write_text("not a dir")
         with pytest.raises(ValueError, match="not a directory"):
             validate_directory_path(str(f), must_exist=True)
+
+
+class TestDirectoryControlCharacters:
+    """New directory names must not contain control characters (#1692)."""
+
+    @pytest.fixture(autouse=True)
+    def _remove_tmp_path(self, tmp_path: Path) -> Iterator[None]:
+        # Some cases create control-character names on purpose; never leave
+        # them in pytest's basetemp for file watchers to trip on (#1690).
+        yield
+        shutil.rmtree(tmp_path, ignore_errors=True)
+
+    @pytest.mark.parametrize("name", ["a\nb", "\x1b[31m", "\x16", "x\x7f", "\x9a"])
+    def test_new_component_rejected(self, tmp_path, name):
+        with pytest.raises(PathSecurityError, match="Control character"):
+            validate_directory_path(str(tmp_path / name / "child"), must_exist=False)
+
+    def test_message_escapes_the_name(self, tmp_path):
+        with pytest.raises(PathSecurityError) as excinfo:
+            validate_directory_path(str(tmp_path / "\x1b[31m"), must_exist=False)
+        assert "\x1b" not in str(excinfo.value)
+        assert "\\x1b" in str(excinfo.value)
+
+    def test_existing_directory_still_validates(self, tmp_path):
+        existing = tmp_path / "odd\x16name"
+        existing.mkdir()
+        assert validate_directory_path(str(existing), must_exist=True) == existing.resolve()
+        assert validate_directory_path(str(existing), must_exist=False) == existing.resolve()
+
+    def test_clean_child_of_existing_odd_directory_allowed(self, tmp_path):
+        existing = tmp_path / "odd\x16name"
+        existing.mkdir()
+        child = existing / "reports"
+        assert validate_directory_path(str(child), must_exist=False) == child.resolve()
+
+    def test_file_validation_unaffected(self, tmp_path):
+        assert validate_file_path(str(tmp_path / "a\nb.txt")).name == "a\nb.txt"
+
+    def test_printable_unicode_allowed(self, tmp_path):
+        target = tmp_path / "données é 日本"
+        assert validate_directory_path(str(target), must_exist=False) == target.resolve()
+
+    def test_over_long_new_component_is_left_to_mkdir(self, tmp_path):
+        """Path.exists raises ENAMETOOLONG on 3.11; the walk must not."""
+        target = tmp_path / ("a" * 300) / "b"
+        assert validate_directory_path(str(target), must_exist=False) == target.resolve()
+
+    def test_debug_log_escapes_the_name(self, tmp_path, caplog):
+        caplog.set_level("DEBUG", logger="siege_utilities.files.validation")
+        with pytest.raises(PathSecurityError):
+            validate_directory_path(str(tmp_path / "esc\x1b[31m"), must_exist=False)
+        assert "\x1b" not in caplog.text
+        assert "\\x1b" in caplog.text
+
+    def test_zip_named_subdirectory_is_validated(self, tmp_path):
+        import zipfile
+        from siege_utilities.files.paths import unzip_file_to_directory
+
+        archive = tmp_path / "evil\x1b[31m.zip"
+        with zipfile.ZipFile(archive, "w") as z:
+            z.writestr("x.txt", "x")
+        out = tmp_path / "out"
+        with pytest.raises(PathSecurityError, match="Control character"):
+            unzip_file_to_directory(archive, out)
+        assert not (out / "evil\x1b[31m").exists()
+
+    def test_dot_dot_zip_stem_no_longer_escapes_extract_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """'...zip' has stem '..' before Python 3.14 (3.14 parses it as having
+        no suffix); with stem '..' it used to extract into extract_to's parent.
+
+        On main the archive path itself is refused first, because
+        is_path_traversal_attempt matches '..' anywhere in the string. That
+        check is stubbed out here so the zip-named subdirectory check is the
+        only defence under test: removing it lets stem '..' extract into
+        tmp_path.
+        """
+        import zipfile
+        from siege_utilities.files import validation
+        from siege_utilities.files.paths import unzip_file_to_directory
+
+        monkeypatch.setattr(
+            validation, "validate_file_path",
+            lambda path, must_exist=False, base_directory=None: Path(path).resolve(),
+        )
+        archive = tmp_path / "...zip"
+        with zipfile.ZipFile(archive, "w") as z:
+            z.writestr("x.txt", "x")
+        out = tmp_path / "out"
+        out.mkdir()
+        with pytest.raises(PathSecurityError, match="traversal"):
+            unzip_file_to_directory(archive, out)
+        assert not (tmp_path / "x.txt").exists()
+        assert os.listdir(out) == []
+
+    @pytest.mark.parametrize("path", ["esc\x1b[31m\x00", "../esc\x1b[31m"])
+    def test_rejection_messages_escape_the_path(self, path):
+        with pytest.raises(PathSecurityError) as excinfo:
+            validate_safe_path(path)
+        assert "\x1b" not in str(excinfo.value)
+        assert "\\x1b" in str(excinfo.value)
 
 
 class TestSafeJoinPaths:

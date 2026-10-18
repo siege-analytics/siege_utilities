@@ -247,6 +247,10 @@ jobs:
         uv run flake8 siege_utilities --count --select=E9,F63,F7,F82 --show-source --statistics
         uv run flake8 siege_utilities --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     
+    - name: Snapshot untracked paths before tests
+      id: litter_snapshot
+      run: uv run python scripts/check_test_litter.py snapshot "$RUNNER_TEMP/untracked-before"
+
     - name: Test with pytest
       run: |
         uv run pytest tests/ -v --cov=siege_utilities --cov-report=xml --cov-fail-under=45 \
@@ -254,6 +258,10 @@ jobs:
           --ignore=tests/test_django_temporal_models_orm.py \
           --ignore=tests/test_nces_service_bulk_update_timestamp.py \
           --ignore=tests/test_nces_service_enrich_districts.py
+
+    - name: Fail if tests left files in the checkout
+      if: ${{ !cancelled() && steps.litter_snapshot.outcome == 'success' }}
+      run: uv run python scripts/check_test_litter.py compare "$RUNNER_TEMP/untracked-before"
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
