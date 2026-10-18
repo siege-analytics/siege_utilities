@@ -9,7 +9,8 @@ This module extends the GA reporting with geographic visualization:
 
 Requirements:
 - siege_utilities with geo and reporting extras
-- Census API key (for demographic data)
+- The main demo uses synthetic geometry and demographics; no credentials needed.
+- Omit the supplied sample frames to fetch real Census data.
 """
 
 import pandas as pd
@@ -20,6 +21,7 @@ import tempfile
 
 # Geographic imports
 try:
+    import geopandas as gpd
     GEOPANDAS_AVAILABLE = True
 except ImportError:
     GEOPANDAS_AVAILABLE = False
@@ -157,23 +159,25 @@ def aggregate_by_state(ga_city_df: pd.DataFrame) -> pd.DataFrame:
             "cannot aggregate to state level"
         )
 
-    # Aggregate metrics
+    # Aggregate only columns present in the input; missing optional metrics are zero.
+    aggregations = {'sessions': 'sum', 'users': 'sum', 'pageviews': 'sum',
+                    'bounce_rate': 'mean', 'avg_duration': 'mean'}
     state_data = valid.groupby(['state', 'state_fips']).agg({
-        'sessions': 'sum',
-        'users': 'sum',
-        'pageviews': 'sum' if 'pageviews' in valid.columns else lambda x: 0,
-        'bounce_rate': 'mean' if 'bounce_rate' in valid.columns else lambda x: 0,
-        'avg_duration': 'mean' if 'avg_duration' in valid.columns else lambda x: 0,
+        column: operation for column, operation in aggregations.items() if column in valid.columns
     }).reset_index()
+    for column in aggregations:
+        if column not in state_data:
+            state_data[column] = 0
 
     return state_data
 
 
 def create_state_choropleth(state_data: pd.DataFrame, value_column: str = 'sessions',
                             title: str = "Website Traffic by State",
-                            output_path: Optional[str] = None) -> str:
+                            output_path: Optional[str] = None, *,
+                            states_gdf: Optional['gpd.GeoDataFrame'] = None) -> str:
     """
-    Create a choropleth map of US states colored by a metric.
+    Create a choropleth map; optionally supply boundaries to run without downloads.
     """
     if not GEOPANDAS_AVAILABLE or not MATPLOTLIB_AVAILABLE:
         raise ImportError(
@@ -181,17 +185,12 @@ def create_state_choropleth(state_data: pd.DataFrame, value_column: str = 'sessi
             "Install with: pip install 'siege-utilities[geo,reporting]'"
         )
 
-    if not GEO_AVAILABLE:
-        raise ImportError(
-            "siege_utilities.geo is required for state boundaries. "
-            "Install with: pip install 'siege-utilities[geo]'"
+    if states_gdf is None:
+        if not GEO_AVAILABLE:
+            raise ImportError("siege_utilities.geo is required to download state boundaries")
+        states_gdf = get_geographic_boundaries(
+            geographic_level='state', year=2020, crs='EPSG:4326'
         )
-
-    states_gdf = get_geographic_boundaries(
-        boundary_type='state',
-        year=2020,
-        state=None
-    )
 
     if states_gdf is None or states_gdf.empty:
         raise RuntimeError(
@@ -287,37 +286,36 @@ def create_city_heatmap(ga_city_df: pd.DataFrame, value_column: str = 'sessions'
 
 
 def create_traffic_demographics_comparison(ga_state_data: pd.DataFrame,
-                                            census_year: int = 2022) -> pd.DataFrame:
+                                            census_year: int = 2022, *,
+                                            demographics: Optional[pd.DataFrame] = None) -> pd.DataFrame:
     """
     Join GA state-level data with Census demographics.
 
-    Returns a DataFrame with both traffic metrics and demographic data.
+    Returns traffic and demographics joined by state FIPS. Supply a Census-format
+    demographics frame to run without an API request.
     """
-    if not GEO_AVAILABLE:
-        raise ImportError("siege_utilities geo module not available for Census data")
-
-    census_client = CensusAPIClient()
-
-    demographics = census_client.fetch_data(
-        year=census_year,
-        dataset='acs5',
-        geography='state',
-        variables=['B01001_001E', 'B19013_001E', 'B15003_022E'],
-        state='*'
-    )
+    if demographics is None:
+        if not GEO_AVAILABLE:
+            raise ImportError("siege_utilities geo module not available for Census data")
+        census_client = CensusAPIClient()
+        demographics = census_client.fetch_data(
+            year=census_year, dataset='acs5', geography='state',
+            variables=['B01001_001E', 'B19013_001E', 'B15003_022E'],
+        )
 
     if demographics.empty:
         raise ValueError("Census API returned no data for the requested variables")
 
     demographics = demographics.rename(columns={
+        'GEOID': 'state_fips',
         'B01001_001E': 'total_population',
         'B19013_001E': 'median_income',
         'B15003_022E': 'bachelors_degree'
     })
 
     merged = ga_state_data.merge(
-        demographics[['state', 'total_population', 'median_income', 'bachelors_degree']],
-        on='state',
+        demographics[['state_fips', 'total_population', 'median_income', 'bachelors_degree']],
+        on='state_fips',
         how='left'
     )
 
@@ -328,9 +326,10 @@ def create_traffic_demographics_comparison(ga_state_data: pd.DataFrame,
 
 
 def create_bivariate_traffic_income_map(merged_data: pd.DataFrame,
-                                         output_path: Optional[str] = None) -> str:
+                                         output_path: Optional[str] = None, *,
+                                         states_gdf: Optional['gpd.GeoDataFrame'] = None) -> str:
     """
-    Create a bivariate choropleth showing traffic vs income.
+    Create a bivariate traffic/income map; optionally supply boundaries.
     """
     if not GEOPANDAS_AVAILABLE or not MATPLOTLIB_AVAILABLE:
         raise ImportError(
@@ -338,17 +337,12 @@ def create_bivariate_traffic_income_map(merged_data: pd.DataFrame,
             "Install with: pip install 'siege-utilities[geo,reporting]'"
         )
 
-    if not GEO_AVAILABLE:
-        raise ImportError(
-            "siege_utilities.geo is required for state boundaries. "
-            "Install with: pip install 'siege-utilities[geo]'"
+    if states_gdf is None:
+        if not GEO_AVAILABLE:
+            raise ImportError("siege_utilities.geo is required to download state boundaries")
+        states_gdf = get_geographic_boundaries(
+            geographic_level='state', year=2020, crs='EPSG:4326'
         )
-
-    states_gdf = get_geographic_boundaries(
-        boundary_type='state',
-        year=2020,
-        state=None
-    )
 
     if states_gdf is None or states_gdf.empty:
         raise RuntimeError(
@@ -496,19 +490,39 @@ def main():
     state_df = aggregate_by_state(ga_df)
     print(f"   {len(state_df)} states with data")
 
-    print("\n3. Creating state choropleth map...")
-    choropleth = create_state_choropleth(state_df, 'sessions', 'Website Sessions by State')
+    # Synthetic rectangles and demographic values keep the demo offline.
+    # These are illustrative data, not actual state boundaries or Census estimates.
+    from shapely.geometry import box
+    centers = ga_df.groupby('state_fips')[['longitude', 'latitude']].mean().reset_index()
+    states_gdf = gpd.GeoDataFrame(
+        {'STATEFP': centers['state_fips']},
+        geometry=[box(row.longitude - 1, row.latitude - 1, row.longitude + 1, row.latitude + 1)
+                  for row in centers.itertuples()], crs='EPSG:4326',
+    )
+    demographics = pd.DataFrame({
+        'GEOID': state_df['state_fips'],
+        'B01001_001E': [1000000 + i * 500000 for i in range(len(state_df))],
+        'B19013_001E': [45000 + i * 3000 for i in range(len(state_df))],
+        'B15003_022E': [200000 + i * 50000 for i in range(len(state_df))],
+    })
+    print("\n3. Creating state choropleth map (synthetic geometry)...")
+    choropleth = create_state_choropleth(state_df, 'sessions', 'Website Sessions by State (Synthetic)',
+                                          output_path='ga_state_choropleth.png', states_gdf=states_gdf)
     if choropleth:
         print(f"   Saved: {choropleth}")
 
     print("\n4. Creating city heatmap...")
-    heatmap = create_city_heatmap(ga_df, 'sessions')
+    heatmap = create_city_heatmap(ga_df, 'sessions', output_path='ga_city_heatmap.html')
     if heatmap:
         print(f"   Saved: {heatmap}")
 
-    print("\n5. Adding Census demographics...")
-    merged = create_traffic_demographics_comparison(state_df)
-    print("   Census data merged successfully")
+    print("\n5. Adding synthetic demographics...")
+    merged = create_traffic_demographics_comparison(state_df, demographics=demographics)
+    print("   Synthetic demographics merged successfully")
+
+    create_bivariate_traffic_income_map(
+        merged, output_path='ga_bivariate.png', states_gdf=states_gdf,
+    )
 
     print("\n6. Generating geographic insights...")
     insights = generate_geographic_insights(merged)

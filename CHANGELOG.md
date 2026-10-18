@@ -36,6 +36,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Chart wrappers and both DataFrame/custom-chart dispatchers now forward engine
+  arguments by keyword, preserving titles and column mappings and exposing
+  `geo_data` for choropleth and bivariate maps. The line wrapper accepts either
+  a column string or a list. Basic wrapper size defaults are now 8 x 6 inches;
+  docstrings describe inch units, ReportLab images and propagated errors (#1517).
+- Repair the bivariate and geographic analytics examples with explicit sample
+  geometry, current API arguments and offline sample data. Remove
+  `reporting/examples/comprehensive_mapping_example.py`: it depends on broken
+  Folium tile handling in the map engine and stale report-section arguments.
+  All three remaining bundled reporting examples run end to end (#1517).
+
 - `get_directory_info`, `load_directory_config`, `list_directory_configs`,
   `load_project_config` and `list_projects` create nothing, so they are back to
   their behaviour before #1692: a missing name containing a control character

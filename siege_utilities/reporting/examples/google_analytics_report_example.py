@@ -12,7 +12,8 @@ This example demonstrates a comprehensive GA4 report with:
 
 Requirements:
 - siege_utilities with reporting extras
-- Google Analytics credentials (service account or OAuth)
+- The main demo uses generated sample data and needs no credentials.
+- Google Analytics credentials are needed only for fetch_real_ga4_data.
 """
 from __future__ import annotations
 

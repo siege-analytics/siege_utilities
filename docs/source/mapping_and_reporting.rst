@@ -508,7 +508,6 @@ Examples and Recipes
 --------------------
 
 For comprehensive examples, see:
-- ``siege_utilities/reporting/examples/comprehensive_mapping_example.py`` - Full demonstration
 - ``siege_utilities/reporting/examples/bivariate_choropleth_example.py`` - Basic choropleth usage
 - ``docs/EXAMPLES.md`` - canonical maintained examples index
 
