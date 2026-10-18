@@ -143,7 +143,13 @@ def test_ordinary_names_still_work(creator: str, tmp_path: Path, monkeypatch: py
     for name in ("plain", "café é", "数据", "📁 emoji", "a#b", "back\\slash", "nb\u00a0sp", "שלום"):
         target = tmp_path / name / "sub"
         _source(tmp_path).write_text("x")
-        CREATORS[creator](tmp_path, target)
+        if creator == "atomic_write_path":
+            # Complete the write: the matrix entry stops at __enter__.
+            with operations.atomic_write_path(target / "f.csv") as tmp:
+                tmp.write_text("x")
+            assert (target / "f.csv").is_file(), name
+        else:
+            CREATORS[creator](tmp_path, target)
         assert target.is_dir(), (creator, name)
 
 
