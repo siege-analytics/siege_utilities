@@ -58,6 +58,36 @@ def _is_env_ref(value: str) -> bool:
     return bool(_ENV_VAR_RE.match(value))
 
 
+_HOSTNAME_RE = re.compile(r'^[A-Za-z0-9._-]+$')
+_IPV6_CHARS_RE = re.compile(r'^[0-9A-Fa-f:.%]+$')
+
+
+def _validate_host(host: Any) -> str:
+    """Return a JDBC-safe host, validating instead of percent-encoding it.
+
+    A host is an authority, not a path segment, so percent-encoding it (the old
+    ``quote_plus``) both mangled IPv6 literals and still let characters like
+    ``/ ? # @ & ; :`` smuggle extra URL components into the JDBC URL (for
+    example a ``?socketFactory=...`` that overrides this config's TLS). Accept a
+    hostname/IPv4 (``[A-Za-z0-9._-]``), a bracketed IPv6 literal (returned
+    verbatim), or a bare IPv6 literal (returned bracketed); raise ``ValueError``
+    for anything else.
+    """
+    h = str(host)
+    if h.startswith('[') and h.endswith(']'):
+        if _IPV6_CHARS_RE.match(h[1:-1]):
+            return h
+        raise ValueError("Invalid IPv6 host literal")
+    if _HOSTNAME_RE.match(h):
+        return h
+    if ':' in h and _IPV6_CHARS_RE.match(h):
+        return f'[{h}]'
+    raise ValueError(
+        "Invalid database host: expected a hostname, IPv4 address, or "
+        "(optionally bracketed) IPv6 literal with no URL-structural characters"
+    )
+
+
 def create_database_config(name: str, connection_type: str, host: str, port: int,
                            database: str, username: str, password: str, **kwargs) -> Dict[str, Any]:
     """
@@ -89,8 +119,10 @@ def create_database_config(name: str, connection_type: str, host: str, port: int
         ... )
     """
 
-    # Hosts are authorities, not path segments; preserve bracketed IPv6 literals.
-    safe_host = str(host)
+    # Hosts are authorities, not path segments: validate (never encode) so an
+    # IPv6 literal stays usable and URL-structural characters cannot inject
+    # extra JDBC URL components. Only the database path segment is encoded.
+    safe_host = _validate_host(host)
     safe_db = quote(str(database), safe='')
 
     jdbc_urls = {
@@ -218,10 +250,13 @@ def load_database_config(db_name: str, config_directory: str = "config") -> Dict
         if isinstance(val, str) and _is_env_ref(val):
             config[key] = _resolve_env_var(val)
         elif key == 'password' and isinstance(val, str) and val.startswith('${') and val.endswith('}'):
+            # Do not echo the rejected value: a hand-written legacy file may put
+            # a plaintext secret in a ${...}-shaped password, and the exception
+            # text must not leak it.
             raise ValueError(
-                f"Invalid password environment variable reference {val!r}; "
-                "use a variable name containing only ASCII letters, digits and "
-                "underscores, starting with a letter or underscore"
+                f"Invalid password environment variable reference in config "
+                f"{db_name!r}; use a variable name containing only ASCII letters, "
+                "digits and underscores, starting with a letter or underscore"
             )
 
     log_info(f"Loaded database config: {db_name}")
@@ -261,21 +296,37 @@ def get_spark_database_options(db_name: str, config_directory: str = "config") -
             f"Database config {db_name!r} missing required keys: {missing}"
         )
 
-    spark_options = {
-        'url': config['jdbc_url'],
-        'driver': config['jdbc_driver'],
-        'user': config['username'],
-        'password': config['password']
-    }
-
+    spark_options: Dict[str, str] = {}
     spark_options.update(config.get('spark_options', {}))
 
     is_postgres = config.get('connection_type', '').lower() == 'postgres'
     for key, value in config.get('connection_params', {}).items():
         if value is None:
             continue
-        option_key = 'sslmode' if is_postgres and key == 'ssl_mode' else key
+        if key == 'ssl_mode':
+            if not is_postgres:
+                # Forwarding the literal key `ssl_mode` is silently ignored by
+                # Connector/J (`sslMode`), mssql-jdbc (`encrypt`) and the Oracle
+                # thin driver, which would leave the requested TLS mode
+                # ineffective. Fail closed rather than mis-map a security
+                # setting; set the driver's own option in spark_options instead.
+                raise ValueError(
+                    f"ssl_mode is not supported for connection_type "
+                    f"{config.get('connection_type')!r}; set the driver's own "
+                    f"TLS option in the config's spark_options instead of ssl_mode"
+                )
+            option_key = 'sslmode'
+        else:
+            option_key = key
         spark_options[option_key] = str(value).lower() if isinstance(value, bool) else str(value)
+
+    # Core connection keys are authoritative and set LAST, so neither
+    # spark_options nor connection_params can shadow url/driver/user/password
+    # (a param named e.g. `url` must not redirect the connection).
+    spark_options['url'] = config['jdbc_url']
+    spark_options['driver'] = config['jdbc_driver']
+    spark_options['user'] = config['username']
+    spark_options['password'] = config['password']
 
     log_info(f"Retrieved Spark options for database: {db_name}")
     return spark_options

@@ -135,3 +135,59 @@ def test_database_segment_encoding_is_consistent(connection_type, expected_url):
     )
 
     assert config["jdbc_url"] == expected_url
+
+
+# --- #1476 re-review: host injection, core-key precedence, non-postgres
+# ssl_mode, and no secret echo (reviewer drop-in set) ---
+
+@pytest.mark.parametrize("host", [
+    "evil.example/x?socketFactory=org.example.Evil&socketFactoryArg=http://a/b#",
+    "db.example.com:5432/other?sslmode=disable&",
+    "user:pw@db.example.com",
+    "db.example.com ; x",
+])
+def test_host_cannot_inject_jdbc_url_components(host):
+    with pytest.raises(ValueError):
+        create_database_config("h", "postgres", host, 5432, "db", "u", "p")
+
+
+def test_bare_ipv6_host_is_bracketed_or_rejected():
+    try:
+        url = create_database_config("h", "postgres", "::1", 5432, "db", "u", "p")["jdbc_url"]
+    except ValueError:
+        return
+    assert url == "jdbc:postgresql://[::1]:5432/db"
+
+
+def test_connection_params_cannot_replace_core_spark_options(tmp_path):
+    try:
+        config = create_database_config(
+            "ov", "postgres", "h", 1, "db", "u", "",
+            url="jdbc:postgresql://other/db", driver="x.Other", user="root",
+        )
+        save_database_config(config, str(tmp_path))
+        options = get_spark_database_options("ov", str(tmp_path))
+    except ValueError:
+        return  # rejecting the collision is acceptable
+    assert (options["url"], options["driver"], options["user"]) == (
+        "jdbc:postgresql://h:1/db", "org.postgresql.Driver", "u")
+
+
+@pytest.mark.parametrize("connection_type", ["mysql", "sqlserver", "oracle"])
+def test_ssl_mode_is_mapped_or_rejected_for_every_type(connection_type, tmp_path, monkeypatch):
+    config = create_database_config(
+        "tls", connection_type, "h", 1, "db", "u", "${RV_TLS_PW}", ssl_mode="require")
+    save_database_config(config, str(tmp_path))
+    monkeypatch.setenv("RV_TLS_PW", "x")
+    try:
+        options = get_spark_database_options("tls", str(tmp_path))
+    except ValueError:
+        return  # rejecting an unmappable ssl_mode is acceptable
+    assert "ssl_mode" not in options  # not a driver property; would be ignored
+
+
+def test_invalid_reference_error_does_not_echo_the_value(tmp_path):
+    (tmp_path / "database_legacy.json").write_text(json.dumps({"password": "${RvSentinel-7}"}))
+    with pytest.raises(ValueError) as excinfo:
+        load_database_config("legacy", str(tmp_path))
+    assert "RvSentinel-7" not in str(excinfo.value)

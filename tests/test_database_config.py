@@ -64,6 +64,22 @@ class TestConnectionStringInjection:
         )
         assert config["jdbc_url"] == "jdbc:postgresql://db.example.com:5432/test%20db"
 
+    @pytest.mark.parametrize("host", [
+        "evil.example/x?socketFactory=org.example.Evil&socketFactoryArg=http://a/b#",
+        "db.example.com:5432/other?sslmode=disable&",
+        "user:pw@db.example.com",
+        "db.example.com ; x",
+    ])
+    def test_injection_host_rejected(self, host):
+        # A host is validated, not encoded, so URL-structural characters cannot
+        # smuggle extra JDBC components (e.g. a socketFactory or a competing
+        # sslmode) into the connection URL.
+        with pytest.raises(ValueError):
+            create_database_config(
+                name="t", connection_type="postgres", host=host,
+                port=5432, database="db", username="u", password="p",
+            )
+
 
 class TestPlaintextCredentialSave:
     def test_plaintext_password_replaced_with_env_ref(self, tmp_path):
