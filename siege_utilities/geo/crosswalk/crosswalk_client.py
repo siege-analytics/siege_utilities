@@ -54,6 +54,7 @@ __all__ = [
     'COUNTY_COLUMNS_2010_2020',
     'COLUMN_MAPPINGS',
     'CrosswalkClient',
+    'CrosswalkUnavailable',
     'get_crosswalk_client',
     'get_crosswalk',
     'get_crosswalk_metadata',
