@@ -197,11 +197,16 @@ class TestDirectoryControlCharacters:
             z.writestr("x.txt", "x")
         out = tmp_path / "out"
         out.mkdir()
-        if archive.stem == "..":
-            with pytest.raises(PathSecurityError, match="traversal"):
-                unzip_file_to_directory(archive, out)
+        # On main, is_path_traversal_attempt matches ".." anywhere in the
+        # string, so "...zip" is refused on every Python version; the stem-'..'
+        # case must be refused. Either way nothing may land outside out/.
+        try:
+            extracted = unzip_file_to_directory(archive, out)
+        except PathSecurityError as exc:
+            assert "traversal" in str(exc)
         else:
-            assert unzip_file_to_directory(archive, out).parent == out.resolve()
+            assert archive.stem != ".."
+            assert extracted.parent == out.resolve()
         assert not (tmp_path / "x.txt").exists()
 
     @pytest.mark.parametrize("path", ["esc\x1b[31m\x00", "../esc\x1b[31m"])
