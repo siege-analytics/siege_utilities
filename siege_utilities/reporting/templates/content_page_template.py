@@ -27,6 +27,7 @@ from datetime import datetime
 from typing import Dict, Any, List
 
 from siege_utilities.core.logging import log_info, log_warning
+from .._markup import _escape_paragraph
 
 __all__ = [
     'ContentPageTemplate',
@@ -68,8 +69,11 @@ class ContentPageTemplate:
         # Available content area (excluding header/footer)
         self.available_content_height = self.content_height - self.header_height - self.footer_height
         
-        # Current Y position for content
+        # Current Y position and continuation-page context.
         self.current_y = self.height - self.margin_top - self.header_height - 20
+        self.page_number = self.canvas.getPageNumber()
+        self.page_title = ""
+        self.section_name = ""
     
     def _load_brand_config(self) -> Dict[str, Any]:
         """Load brand configuration from client branding system"""
@@ -135,6 +139,7 @@ class ContentPageTemplate:
         # Store page info for footer
         self.page_number = page_number
         self.page_title = page_title
+        self.section_name = section_name
         
         # Reset current Y position
         self.current_y = self.height - self.margin_top - self.header_height - 20
@@ -144,8 +149,7 @@ class ContentPageTemplate:
     def add_section_title(self, title: str, font_size: int = 16) -> None:
         """Add a section title to the page"""
         if self.current_y < (self.margin_bottom + self.footer_height + 50):
-            log_warning("Not enough space for section title, consider new page")
-            return
+            self._continue_page()
         
         self.canvas.setFillColor(self.colors['primary'])
         self.canvas.setFont('Helvetica-Bold', font_size)
@@ -161,46 +165,50 @@ class ContentPageTemplate:
         
         self.current_y -= 35
     
-    def add_paragraph(self, text: str, font_size: int = 11, 
+    def _continue_page(self) -> None:
+        """Finish the current page and repeat its header on the next page."""
+        self.finish_page()
+        self.start_page(self.page_title, self.page_number + 1, self.section_name)
+
+    def _add_flowable(self, flowable, spacing: float) -> None:
+        """Draw all fragments, or raise if a fragment cannot fit an empty page."""
+        pending = [flowable]
+        page_top = self.height - self.margin_top - self.header_height - 20
+        while pending:
+            current = pending.pop(0)
+            available = max(0, self.get_remaining_space())
+            width, height = current.wrapOn(self.canvas, self.content_width, available)
+            if width > self.content_width + 1e-6:
+                raise ValueError("Content cannot fit within the page width")
+            if height <= available:
+                current.drawOn(self.canvas, self.margin_left, self.current_y - height)
+                self.current_y -= height
+                continue
+
+            fragments = current.splitOn(self.canvas, self.content_width, available)
+            if len(fragments) >= 2:
+                pending[0:0] = fragments
+                continue
+            if self.current_y >= page_top:
+                raise ValueError("Content cannot fit on an empty page")
+            self._continue_page()
+            pending.insert(0, current)
+        self.current_y -= spacing
+
+    def add_paragraph(self, text: str, font_size: int = 11,
                      text_color: str = None, line_spacing: float = 1.2) -> None:
-        """Add a paragraph of text to the page"""
+        """Add plain text, continuing onto subsequent pages when necessary."""
         if not text:
             return
-        
-        color = HexColor(text_color) if text_color else self.colors['text']
-        self.canvas.setFillColor(color)
-        self.canvas.setFont('Helvetica', font_size)
-        
-        # Simple text wrapping
-        words = text.split()
-        lines = []
-        current_line = ""
-        
-        for word in words:
-            test_line = f"{current_line} {word}".strip()
-            if self.canvas.stringWidth(test_line, 'Helvetica', font_size) <= self.content_width:
-                current_line = test_line
-            else:
-                if current_line:
-                    lines.append(current_line)
-                current_line = word
-        
-        if current_line:
-            lines.append(current_line)
-        
-        # Draw lines
-        line_height = font_size * line_spacing
-        for line in lines:
-            if self.current_y < (self.margin_bottom + self.footer_height + line_height):
-                log_warning("Not enough space for paragraph, consider new page")
-                break
-            
-            self.canvas.drawString(self.margin_left, self.current_y, line)
-            self.current_y -= line_height
-        
-        # Add spacing after paragraph
-        self.current_y -= 10
-    
+        if font_size <= 0 or line_spacing <= 0:
+            raise ValueError("Paragraph font size and line spacing must be positive")
+        style = ParagraphStyle(
+            'ContentBody', fontName='Helvetica', fontSize=font_size,
+            leading=font_size * line_spacing,
+            textColor=HexColor(text_color) if text_color else self.colors['text'],
+        )
+        self._add_flowable(Paragraph(_escape_paragraph(text), style), spacing=10)
+
     def add_table(self, data: List[List[str]],
                   headers: List[str] = None,
                   table_title: str = "",
@@ -235,72 +243,35 @@ class ContentPageTemplate:
                 has_header=bool(headers),
             )
         
-        # Calculate column widths
-        num_cols = len(table_data[0]) if table_data else 0
-        if num_cols == 0:
-            return
-        
-        col_width = self.content_width / num_cols
-        table_width = self.content_width
-        
-        # Estimate table height
-        row_height = 20
-        table_height = len(table_data) * row_height
-        
-        if self.current_y - table_height < (self.margin_bottom + self.footer_height):
-            log_warning("Not enough space for table, consider new page")
-            return
-        
-        # Draw table manually (simple version)
-        start_y = self.current_y
-        
-        # Table border
-        self.canvas.setStrokeColor(self.colors['text'])
-        self.canvas.setLineWidth(1)
-        self.canvas.rect(self.margin_left, start_y - table_height, 
-                        table_width, table_height)
-        
-        # Draw rows
-        for i, row in enumerate(table_data):
-            row_y = start_y - (i * row_height)
-            
-            # Header row styling
-            if i == 0 and headers:
-                self.canvas.setFillColor(self.colors['primary'])
-                self.canvas.rect(self.margin_left, row_y - row_height, 
-                               table_width, row_height, fill=1)
-                self.canvas.setFillColor(self.colors['background'])
-                self.canvas.setFont('Helvetica-Bold', 10)
-            else:
-                self.canvas.setFillColor(self.colors['text'])
-                self.canvas.setFont('Helvetica', 10)
-            
-            # Draw cells
-            for j, cell in enumerate(row):
-                cell_x = self.margin_left + (j * col_width) + 5
-                cell_y = row_y - 15
-                
-                # Truncate text if too long
-                max_width = col_width - 10
-                while self.canvas.stringWidth(str(cell), self.canvas._fontname, 10) > max_width and len(str(cell)) > 3:
-                    cell = str(cell)[:-4] + "..."
-                
-                self.canvas.drawString(cell_x, cell_y, str(cell))
-            
-            # Row separator
-            if i < len(table_data) - 1:
-                self.canvas.setStrokeColor(self.colors['light_gray'])
-                self.canvas.line(self.margin_left, row_y - row_height, 
-                               self.margin_left + table_width, row_y - row_height)
-        
-        # Column separators
-        self.canvas.setStrokeColor(self.colors['light_gray'])
-        for j in range(1, num_cols):
-            col_x = self.margin_left + (j * col_width)
-            self.canvas.line(col_x, start_y, col_x, start_y - table_height)
-        
-        self.current_y = start_y - table_height - 20
-    
+        num_cols = len(table_data[0])
+        if not num_cols or any(len(row) != num_cols for row in table_data):
+            raise ValueError("Table rows must have the same nonzero number of columns")
+        body_style = ParagraphStyle(
+            'ContentCell', fontName='Helvetica', fontSize=10, leading=12,
+            textColor=self.colors['text'],
+        )
+        header_style = ParagraphStyle(
+            'ContentHeader', parent=body_style, fontName='Helvetica-Bold',
+            textColor=self.colors['background'],
+        )
+        rows = [
+            [Paragraph(_escape_paragraph(str(cell)), header_style if headers and i == 0 else body_style)
+             for cell in row]
+            for i, row in enumerate(table_data)
+        ]
+        table = Table(rows, colWidths=[self.content_width / num_cols] * num_cols,
+                      repeatRows=1 if headers else 0)
+        commands = [
+            ('GRID', (0, 0), (-1, -1), 0.5, self.colors['light_gray']),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]
+        if headers:
+            commands.append(('BACKGROUND', (0, 0), (-1, 0), self.colors['primary']))
+        table.setStyle(TableStyle(commands))
+        self._add_flowable(table, spacing=20)
+
     def add_bullet_list(self, items: List[str], bullet_char: str = "•") -> None:
         """Add a bullet list to the page"""
         self.canvas.setFillColor(self.colors['text'])

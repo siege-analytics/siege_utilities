@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Render analytics and comprehensive PDF report sections, including chart lists,
+  insight and recommendation bullets, title-page details, a table of contents
+  with page numbers, and appendix dividers. Reject unsupported section shapes
+  and warn about empty content or missing chart images. Continue content-page
+  paragraphs and tables across page breaks, repeating table headers and raising
+  when a fragment cannot fit, instead of silently discarding content (#1485).
+
 - Demographic population queries now keep equal GEOIDs in different boundary
   types and datasets separate. Boundary lookups use GEOIDs instead of integer
   PKs; plan assignments accept BigAutoField-sized boundary PKs. The migration
