@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- New *file* names now get the same check as new directory names. Every
+  public helper that creates a file refuses a name containing a C0, DEL or C1
+  control character, or a lone surrogate, raises `PathSecurityError` and
+  creates nothing. The helpers are `touch_file`, `copy_file`, `move_file`
+  (into an existing directory, the source's name is checked),
+  `delete_existing_file_and_replace_it_with_an_empty_file`, `safe_file_write`,
+  `safe_json_write`, `atomic_write_path`, `atomic_write_shapefile`,
+  `download_file`, `save_spatial`, `save_tabular`, `secure_write_text`, and
+  `unzip_file_to_directory` for member files. Existing files with such names
+  can still be overwritten. The check is public as
+  `reject_unsafe_new_file_path` (#1737).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
