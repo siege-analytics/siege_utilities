@@ -14,6 +14,8 @@ from difflib import SequenceMatcher
 from enum import Enum
 from typing import Any, Optional
 
+from siege_utilities.config.census_registry import STATE_FIPS_CODES as _STATE_FIPS_CODES
+
 log = logging.getLogger(__name__)
 
 __all__ = [
@@ -178,7 +180,8 @@ class OfficialCrosswalkEntry:
         precinct_id: Precinct identifier as published.
         vtd_geoid: VTD GEOID as published.
         state: State abbreviation.
-        county: County name or FIPS.
+        county: County name or FIPS. Name matching uses numeric FIPS only;
+            a county-only code needs state context from state or vtd_geoid.
         source: Source of the crosswalk (e.g., "NC SBE 2022").
     """
 
@@ -225,6 +228,15 @@ class NameMatchProvider(abc.ABC):
     def get_vtd_names(self) -> dict[str, str]:
         """Get display names for VTDs (geoid → name)."""
 
+    def get_precinct_counties(self, precinct_ids: list[str]) -> dict[str, str]:
+        """Return optional precinct ID → five-digit state+county FIPS keys.
+
+        Used only when no numeric crosswalk county or spatial county is
+        available. Existing providers may omit county data; those precincts
+        are skipped by name matching when no other county evidence exists.
+        """
+        return {}
+
 
 class DictNameMatchProvider(NameMatchProvider):
     """In-memory name match provider for testing."""
@@ -232,9 +244,13 @@ class DictNameMatchProvider(NameMatchProvider):
     def __init__(self):
         self._precinct_names: dict[str, str] = {}
         self._vtd_names: dict[str, str] = {}
+        self._precinct_counties: dict[str, str] = {}
 
-    def add_precinct(self, precinct_id: str, name: str):
+    def add_precinct(self, precinct_id: str, name: str, *, county: Optional[str] = None) -> None:
+        """Add a precinct name and optional state+county FIPS key."""
         self._precinct_names[precinct_id] = name
+        if county is not None:
+            self._precinct_counties[precinct_id] = county
 
     def add_vtd(self, vtd_geoid: str, name: str):
         self._vtd_names[vtd_geoid] = name
@@ -245,8 +261,56 @@ class DictNameMatchProvider(NameMatchProvider):
     def get_vtd_names(self) -> dict[str, str]:
         return dict(self._vtd_names)
 
+    def get_precinct_counties(self, precinct_ids: list[str]) -> dict[str, str]:
+        """Return supplied county keys for the requested precincts."""
+        return {pid: self._precinct_counties[pid] for pid in precinct_ids if pid in self._precinct_counties}
+
 
 _NORMALIZE_RE = re.compile(r"[^a-z0-9\s]")
+# Same VTD alphabet as geoid_utils, without importing its pandas dependency.
+_VTD_GEOID_RE = re.compile(r"[0-9]{5}[0-9A-Za-z./-]{6}")
+
+
+def _vtd_county(geoid: str) -> str:
+    """Extract a county key only from a well-formed VTD GEOID."""
+    if isinstance(geoid, str) and _VTD_GEOID_RE.fullmatch(geoid):
+        return geoid[:5]
+    return ""
+
+
+def _county_key(county: str, state_fips: str = "") -> str:
+    """Normalize numeric FIPS, leaving county names and ambiguous codes unset."""
+    code = str(county).strip()
+    if re.fullmatch(r"[0-9]{4,5}", code):
+        return code.zfill(5)
+    if re.fullmatch(r"[0-9]{1,3}", code) and re.fullmatch(r"[0-9]{2}", state_fips):
+        return state_fips + code.zfill(3)
+    return ""
+
+
+def _county_candidates(
+    crosswalk: list[OfficialCrosswalkEntry],
+    overlaps: list[SpatialOverlap],
+) -> dict[str, set[str]]:
+    """Collect county evidence, preferring numeric crosswalk counties to overlaps."""
+    counties: dict[str, set[str]] = {}
+    for entry in crosswalk:
+        state = entry.state.strip().upper()
+        state_fips = _STATE_FIPS_CODES.get(state, state)
+        if not re.fullmatch(r"[0-9]{2}", state_fips):
+            state_fips = _vtd_county(entry.vtd_geoid)[:2]
+        county = _county_key(entry.county, state_fips)
+        if county:
+            counties.setdefault(entry.precinct_id, set()).add(county)
+
+    official_precincts = set(counties)
+    for overlap in overlaps:
+        if overlap.precinct_id in official_precincts or overlap.overlap_pct <= 0:
+            continue
+        county = _vtd_county(overlap.vtd_geoid)
+        if county:
+            counties.setdefault(overlap.precinct_id, set()).add(county)
+    return counties
 
 
 def _normalize_name(name: str) -> str:
@@ -289,13 +353,30 @@ def reconcile_spatial(
 def reconcile_names(
     precinct_names: dict[str, str],
     vtd_names: dict[str, str],
+    precinct_county: Optional[dict[str, str]] = None,
 ) -> list[PrecinctVTDMapping]:
-    """Create mappings from fuzzy name matching."""
+    """Match precinct names only against VTDs in their known county.
+
+    ``precinct_county`` maps precinct IDs to state+county FIPS keys. Missing
+    or invalid county keys skip name matching, even if all VTD candidates
+    happen to share a county. Malformed VTD GEOIDs are ignored.
+    """
+    by_county: dict[str, dict[str, str]] = {}
+    for vgeoid, vname in vtd_names.items():
+        county = _vtd_county(vgeoid)
+        if county:
+            by_county.setdefault(county, {})[vgeoid] = vname
+
     mappings = []
     for pid, pname in precinct_names.items():
+        county = _county_key((precinct_county or {}).get(pid, ""))
+        # Fail safe: a name (or the provider's candidate set) is not evidence
+        # of the precinct's county. Never guess when that county is unknown.
+        if not county:
+            continue
         best_geoid = ""
         best_sim = 0.0
-        for vgeoid, vname in vtd_names.items():
+        for vgeoid, vname in by_county.get(county, {}).items():
             sim = _name_similarity(pname, vname)
             if sim > best_sim:
                 best_sim = sim
@@ -417,6 +498,11 @@ class PrecinctVTDReconciler:
     ) -> ReconciliationResult:
         """Reconcile the given precincts against VTDs.
 
+        Name matching uses numeric official county FIPS first, then counties
+        from positive spatial overlaps, then optional provider county keys.
+        Conflicting counties at the first available evidence level skip name
+        matching; weaker evidence cannot override that ambiguity.
+
         Args:
             precinct_ids: List of precinct identifiers to reconcile.
 
@@ -429,6 +515,7 @@ class PrecinctVTDReconciler:
         spatial_mappings: list[PrecinctVTDMapping] = []
         name_mappings: list[PrecinctVTDMapping] = []
         official_mappings: list[PrecinctVTDMapping] = []
+        overlaps: list[SpatialOverlap] = []
         errors: list[str] = []
 
         relevant_crosswalk = [
@@ -449,7 +536,21 @@ class PrecinctVTDReconciler:
                 pnames = self._names.get_precinct_names(precinct_ids)
                 vnames = self._names.get_vtd_names()
                 if pnames and vnames:
-                    name_mappings = reconcile_names(pnames, vnames)
+                    counties = _county_candidates(relevant_crosswalk, overlaps)
+                    precinct_county = {
+                        pid: next(iter(keys)) for pid, keys in counties.items() if len(keys) == 1
+                    }
+                    # Ambiguous official/spatial evidence is deliberately not
+                    # replaced by a lower-priority provider county.
+                    unresolved = [pid for pid in pnames if pid not in counties]
+                    get_counties = getattr(self._names, "get_precinct_counties", None)
+                    if unresolved and get_counties is not None:
+                        supplied = get_counties(unresolved)
+                        for pid in unresolved:
+                            county = _county_key(supplied.get(pid, ""))
+                            if county:
+                                precinct_county[pid] = county
+                    name_mappings = reconcile_names(pnames, vnames, precinct_county)
             except (ValueError, TypeError, KeyError, AttributeError) as exc:
                 errors.append(f"Name matching error: {exc}")
 

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Precinct/VTD name matching now restricts candidates to the precinct's county,
+  using official county FIPS, spatial overlap counties, then optional provider
+  county keys. Unknown or conflicting counties skip name matching, and malformed
+  VTD GEOIDs are ignored. Direct `reconcile_names` callers must supply
+  `precinct_county`; name-only providers can supply `get_precinct_counties`.
+  Official-crosswalk mapping precedence is unchanged (#1433).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed

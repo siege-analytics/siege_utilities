@@ -186,30 +186,34 @@ class TestReconcileSpatial:
 class TestReconcileNames:
     def test_exact_match(self):
         mappings = reconcile_names(
-            {"P1": "Precinct 1"}, {"V1": "Precinct 1"},
+            {"P1": "Precinct 1"}, {"37001000001": "Precinct 1"},
+            precinct_county={"P1": "37001"},
         )
         assert len(mappings) == 1
         assert mappings[0].name_similarity == pytest.approx(1.0)
 
     def test_fuzzy_match(self):
         mappings = reconcile_names(
-            {"P1": "Precinct 001"}, {"V1": "Precinct 1", "V2": "District 99"},
+            {"P1": "Precinct 001"}, {"37001000001": "Precinct 1", "37001000002": "District 99"},
+            precinct_county={"P1": "37001"},
         )
         assert len(mappings) == 1
-        assert mappings[0].vtd_geoid == "V1"
+        assert mappings[0].vtd_geoid == "37001000001"
 
     def test_no_match(self):
         mappings = reconcile_names(
-            {"P1": "Alpha"}, {"V1": "Zulu"},
+            {"P1": "Alpha"}, {"37001000001": "Zulu"},
+            precinct_county={"P1": "37001"},
         )
         assert len(mappings) == 0
 
     def test_best_match_selected(self):
         mappings = reconcile_names(
             {"P1": "North Ward 5"},
-            {"V1": "North Ward 5", "V2": "North Ward 6"},
+            {"37001000001": "North Ward 5", "37001000002": "North Ward 6"},
+            precinct_county={"P1": "37001"},
         )
-        assert mappings[0].vtd_geoid == "V1"
+        assert mappings[0].vtd_geoid == "37001000001"
 
 
 class TestReconcileOfficial:
@@ -246,8 +250,8 @@ class TestPrecinctVTDReconciler:
 
     def test_name_only(self):
         np = DictNameMatchProvider()
-        np.add_precinct("P1", "Ward 1")
-        np.add_vtd("V1", "Ward 1")
+        np.add_precinct("P1", "Ward 1", county="37001")
+        np.add_vtd("37001000001", "Ward 1")
 
         rec = PrecinctVTDReconciler(name_provider=np)
         result = rec.reconcile(["P1"])
@@ -275,11 +279,11 @@ class TestPrecinctVTDReconciler:
 
     def test_combined_boost(self):
         sp = DictSpatialOverlapProvider()
-        sp.add(SpatialOverlap(precinct_id="P1", vtd_geoid="V1", overlap_pct=0.80))
+        sp.add(SpatialOverlap(precinct_id="P1", vtd_geoid="37001000001", overlap_pct=0.80))
 
         np = DictNameMatchProvider()
         np.add_precinct("P1", "Ward 1")
-        np.add_vtd("V1", "Ward 1")
+        np.add_vtd("37001000001", "Ward 1")
 
         rec = PrecinctVTDReconciler(spatial_provider=sp, name_provider=np)
         result = rec.reconcile(["P1"])
