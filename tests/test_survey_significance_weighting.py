@@ -243,3 +243,27 @@ def test_invalid_survey_weights_raise(weight):
     df = pd.DataFrame({"answer": ["yes", "no"], "grp": "A", "weight": [1, weight]})
     with pytest.raises(crosstab.CrosstabInputError, match="finite and nonnegative"):
         build_chain(df, "answer", ["grp"], weight_var="weight")
+
+
+def test_multiple_response_metric_sum_refuses_proportion_test():
+    """MULTIPLE_RESPONSE must gate effective_n like the other count builders,
+    so a metric-sum table refuses the proportion test instead of lettering
+    dollar sums (sibling-path fix for #1478)."""
+    df = pd.DataFrame({"item": ["x", "y"] * 50, "grp": ["A"] * 50 + ["B"] * 50,
+                       "dollars": [10000.0] * 100})
+    chain = build_chain(df, "item", ["grp"], metric="dollars",
+                        table_type=TableType.MULTIPLE_RESPONSE)
+    assert all(v.effective_n is None for vs in chain.views.values() for v in vs)
+    with pytest.raises(SignificanceError, match="effective_n"):
+        column_proportion_test(chain)
+
+
+def test_zero_weight_rows_are_not_chi_square_respondents():
+    """Zero-weight rows are excluded from the weighted display, so they must
+    also be excluded from the chi-square respondent base (sibling-path fix
+    for #1478)."""
+    df = pd.DataFrame({"ans": ["x"] * 30 + ["y"] * 60, "grp": ["A"] * 30 + ["B"] * 30 + ["A"] * 30,
+                       "w": [1.0] * 60 + [0.0] * 30})
+    cells = {v.metric: v for v in build_chain(df, "ans", ["grp"], weight_var="w").views["grp=A"]}
+    assert cells["y"].count == 0.0
+    assert cells["y"].respondent_count == 0

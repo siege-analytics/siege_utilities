@@ -182,14 +182,21 @@ def _effective_n(df: pd.DataFrame, weight_var: Optional[str]) -> float:
     return float(weights.sum() ** 2 / (weights ** 2).sum())
 
 
-def _respondent_counts(df, row_var, metric) -> Optional[pd.Series]:
+def _respondent_counts(df, row_var, metric, weight_var=None) -> Optional[pd.Series]:
     """Only count tables have respondent-frequency metadata.
 
     A unit-valued metric is a respondent indicator, used by existing callers.
     Other metrics represent sums, for which count-based inference is invalid.
+
+    When ``weight_var`` is set, only rows with a positive weight are counted,
+    so the chi-square respondent base matches the weighted display (which
+    already excludes ``w == 0`` rows). Otherwise a zero-weight row would be
+    counted as a respondent the weighting dropped.
     """
     if metric in df.columns and not df[metric].eq(1).all():
         return None
+    if weight_var is not None and weight_var in df.columns:
+        df = df[df[weight_var] > 0]
     return df.groupby(row_var).size()
 
 
@@ -233,7 +240,7 @@ def _grouped_counts_views(
             base = _base_respondents(subset, weight_var)
             counts = _weighted_counts(subset, row_var, metric, weight_var)
             total = float(counts.sum())
-            respondents = _respondent_counts(subset, row_var, metric)
+            respondents = _respondent_counts(subset, row_var, metric, weight_var)
             if top_n:
                 counts = counts.nlargest(top_n)
             views[f"{bv}={bval}"] = _views_from_counts(
@@ -269,13 +276,15 @@ def _build_multiple_response(
             subset = df[df[bv] == bval]
             n_respondents = _base_respondents(subset, weight_var)
             counts = _weighted_counts(subset, row_var, metric, weight_var)
+            respondents = _respondent_counts(subset, row_var, metric, weight_var)
             if top_n:
                 counts = counts.nlargest(top_n)
             key = f"{bv}={bval}"
             views[key] = _views_from_counts(
                 counts, base=n_respondents, pct_base=float(n_respondents),
-                effective_n=_effective_n(subset, weight_var),
-                respondent_counts=_respondent_counts(subset, row_var, metric),
+                effective_n=_effective_n(subset, weight_var)
+                if respondents is not None else None,
+                respondent_counts=respondents,
             )
     n_total = _base_respondents(df, weight_var)
     # Display-only: round for the base_note; downstream math keeps full precision.
@@ -313,7 +322,7 @@ def _build_longitudinal(
         base = _base_respondents(subset, weight_var)
         counts = _weighted_counts(subset, row_var, metric, weight_var)
         total = float(counts.sum())
-        respondents = _respondent_counts(subset, row_var, metric)
+        respondents = _respondent_counts(subset, row_var, metric, weight_var)
         if top_n:
             counts = counts.nlargest(top_n)
         key = str(period)
@@ -359,7 +368,7 @@ def _build_ranking(
             counts = _weighted_counts(subset, row_var, metric, weight_var)
             counts = counts.sort_values(ascending=False)
             total = float(counts.sum())
-            respondents = _respondent_counts(subset, row_var, metric)
+            respondents = _respondent_counts(subset, row_var, metric, weight_var)
             if top_n:
                 counts = counts.head(top_n)
             key = f"{bv}={bval}"

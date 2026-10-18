@@ -29,7 +29,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   MEAN_SCALE uses weighted means and standard errors. Small-sample mean CIs
   require SciPy for Student's t; chi-square rejects metric-sum tables.
   Manually constructed Views must provide `effective_n` for proportion tests
-  and `respondent_count` for chi-square (#1478).
+  and `respondent_count` for chi-square. Migration notes for new behaviours:
+  `build_chain` now raises `CrosstabInputError` for negative or non-finite
+  weights; `column_proportion_test` now raises `SignificanceError` on
+  builder-produced metric-sum tables (a non-unit `metric`), not only on
+  manually constructed Views; and MEAN_SCALE `ci` is now `None` (was `0.0`)
+  when the effective n is ≤ 1, while an effective n below 30 without SciPy now
+  raises `SignificanceError` — install SciPy for small-sample Student's t
+  intervals (#1478).
 
 - Demographic population queries now keep equal GEOIDs in different boundary
   types and datasets separate. Boundary lookups use GEOIDs instead of integer
