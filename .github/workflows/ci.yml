@@ -500,14 +500,14 @@ jobs:
           --ignore-vuln PYSEC-2026-1835 --format json --output pip-audit-report.json \
           || { pip-audit -r security-requirements.txt --no-deps --disable-pip --progress-spinner off --ignore-vuln PYSEC-2026-1835; exit 1; }
 
-    - name: Fail on high-severity bandit findings
+    - name: Fail on high-severity bandit findings (any confidence)
       if: ${{ !cancelled() }}
       # The findings known today carry line-level `# nosec` and are tracked in
       # #1754. A baseline file would match by file and test, not line, and let
       # a new finding in the same file through, so none is used.
       run: |
         bandit -r siege_utilities/ -f json -o bandit-report.json || true
-        bandit -q -r siege_utilities/ -lll -iii
+        bandit -q -r siege_utilities/ -lll
 
     - name: Upload security reports
       if: ${{ !cancelled() }}
