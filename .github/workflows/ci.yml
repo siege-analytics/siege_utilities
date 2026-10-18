@@ -11,6 +11,8 @@ on:
       - 'hotfix/**'
   pull_request:
     branches: [ main, develop ]
+  merge_group:
+    types: [ checks_requested ]
   # publish-tag.yml calls this workflow on a v* tag and publishes only if it
   # passes. Publishing a GitHub release no longer triggers CI or an upload
   # (#1419).
@@ -156,10 +158,11 @@ jobs:
         path: ${{ runner.temp }}/notebook-artifacts
         if-no-files-found: ignore
 
-  lint-ratchet-phase1:
+  lint-ratchet:
     runs-on: ubuntu-latest
-    name: "lint ratchet phase1"
-
+    name: "lint ratchet"
+    # Phase 1 and phases 2-4 in one job (#1729); every phase reports even
+    # after an earlier one fails.
     steps:
     - uses: actions/checkout@v4
       with:
@@ -176,37 +179,19 @@ jobs:
         python -m pip install flake8
 
     - name: Enforce phase 1 lint ratchet on touched Python files
+      if: ${{ !cancelled() }}
       env:
-        BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
       run: |
         python scripts/check_lint_ratchet_phase1.py \
           --base-sha "${BASE_SHA}" \
           --head-sha "${HEAD_SHA}"
-
-  lint-ratchet-phase2-4:
-    runs-on: ubuntu-latest
-    name: "lint ratchet phases2-4"
-
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-
-    - name: Install flake8
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install flake8
-
     - name: Enforce phase 2 (touched files)
+      if: ${{ !cancelled() }}
       env:
-        BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
       run: |
         python scripts/check_lint_ratchet.py \
           --phase phase2 \
@@ -214,9 +199,10 @@ jobs:
           --head-sha "${HEAD_SHA}"
 
     - name: Enforce phase 3 (full-module on touched high-change domains)
+      if: ${{ !cancelled() }}
       env:
-        BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
       run: |
         python scripts/check_lint_ratchet.py \
           --phase phase3 \
@@ -224,6 +210,7 @@ jobs:
           --head-sha "${HEAD_SHA}"
 
     - name: Enforce phase 4 (full-repo ratchet baseline gate)
+      if: ${{ !cancelled() }}
       run: |
         python scripts/check_lint_ratchet.py --phase phase4
 
@@ -298,6 +285,25 @@ jobs:
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
+
+    - name: Install pydantic v1 (3.11 only)
+      if: matrix.python-version == '3.11'
+      run: uv pip install 'pydantic>=1.10,<2.0' --force-reinstall
+
+    - name: Test pydantic v1 compatibility (3.11 only)
+      if: matrix.python-version == '3.11'
+      # Was the separate 'pydantic v1 compat' job (#1729). Runs last, after
+      # the main suite and the litter check, because it downgrades pydantic.
+      env:
+        PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+      run: |
+        # --no-sync: `uv run` would otherwise re-sync the env to the
+        # pydantic>=2.0 core pin and silently revert the v1 downgrade above,
+        # making the v1-fallback tests SKIP (the hollow gate, #1118). Keep
+        # the pinned pydantic 1.x the previous step installed.
+        # -o addopts=: plugin autoload is disabled below, so pytest-cov's
+        # options from pytest.ini are intentionally unavailable in this job.
+        uv run --no-sync pytest -o addopts= tests/test_pydantic_v1_compat.py -v
 
   test-postgis:
     runs-on: ubuntu-latest
@@ -401,56 +407,6 @@ jobs:
         assert not skipped, f"PostGIS database tests must not skip: {skipped}"
         PY
 
-  test-pydantic-v1:
-    runs-on: ubuntu-latest
-    name: "pydantic v1 compat"
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Install system geospatial libraries
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends \
-          gdal-bin libgdal-dev libgeos-dev libproj-dev
-
-    - name: Set up Java 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: temurin
-        java-version: '17'
-
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-
-    - name: Install UV
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-    - name: Install with pydantic v1
-      run: |
-        uv sync --extra all --extra dev
-        uv pip install 'pydantic>=1.10,<2.0' --force-reinstall
-
-    - name: Test pydantic v1 compatibility
-      env:
-        # #1216: keep unrelated third-party pytest plugins from auto-loading
-        # after this job intentionally downgrades the environment to
-        # pydantic 1.x. The job is testing siege_utilities' fallback surface,
-        # not plugins pulled in by broad optional extras.
-        PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
-      run: |
-        # --no-sync: `uv run` would otherwise re-sync the env to the
-        # pydantic>=2.0 core pin and silently revert the v1 downgrade above,
-        # making the v1-fallback tests SKIP (the hollow gate, #1118). Keep
-        # the pinned pydantic 1.x the previous step installed.
-        # -o addopts=: plugin autoload is disabled below, so pytest-cov's
-        # options from pytest.ini are intentionally unavailable in this job.
-        uv run --no-sync pytest -o addopts= tests/test_pydantic_v1_compat.py -v
-
   test-core:
     runs-on: ubuntu-latest
     name: "core-only (no heavy deps)"
@@ -480,10 +436,11 @@ jobs:
       run: |
         uv run pytest tests/test_backward_compat.py tests/test_pydantic_v1_compat.py tests/test_sql_safety.py -v --no-cov
 
-  api-contract-regression:
+  api-security-build:
     runs-on: ubuntu-latest
-    name: "api contract regression"
-
+    name: "api, security and build"
+    # API contract regression, security and build share one runner (#1729).
+    # Each part reports even after an earlier one fails; any failure fails the job.
     steps:
     - uses: actions/checkout@v4
 
@@ -528,6 +485,73 @@ jobs:
           --candidate /tmp/contract_candidate.json \
           --release-impact "${{ steps.impact.outputs.level }}" \
           --allowlist scripts/contracts/contract_allowlist.json
+    - name: Install security tools
+      if: ${{ !cancelled() }}
+      run: python -m pip install pip-audit bandit
+
+    - name: Audit the project's resolved dependencies (pip-audit)
+      if: ${{ !cancelled() }}
+      # Resolves every pinned dependency of --extra all --extra dev without
+      # installing it. PYSEC-2026-1835 (PyPDF2) is ignored until #1754.
+      run: |
+        python -m pip install uv
+        uv pip compile pyproject.toml --extra all --extra dev --python-version 3.11 -o security-requirements.txt
+        pip-audit -r security-requirements.txt --no-deps --disable-pip --progress-spinner off \
+          --ignore-vuln PYSEC-2026-1835 --format json --output pip-audit-report.json \
+          || { pip-audit -r security-requirements.txt --no-deps --disable-pip --progress-spinner off --ignore-vuln PYSEC-2026-1835; exit 1; }
+
+    - name: Fail on new high-severity bandit findings
+      if: ${{ !cancelled() }}
+      # Findings that exist today are in .bandit-baseline.json and tracked in
+      # #1754; anything new at high severity and confidence fails.
+      run: |
+        bandit -r siege_utilities/ -f json -o bandit-report.json || true
+        bandit -q -r siege_utilities/ -lll -iii -b .bandit-baseline.json
+
+    - name: Upload security reports
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-reports
+        path: |
+          pip-audit-report.json
+          bandit-report.json
+        retention-days: 30
+
+    - name: Install build dependencies
+      if: ${{ !cancelled() }}
+      run: |
+                pip install build twine
+
+    - name: Verify version consistency
+      if: ${{ !cancelled() }}
+      run: |
+        python scripts/release_manager.py --check
+
+    - name: Build package
+      if: ${{ !cancelled() }}
+      run: |
+        python -m build
+
+    - name: Check package
+      if: ${{ !cancelled() }}
+      run: |
+        twine check dist/*
+
+    - name: Check wheel contents (#1420)
+      if: ${{ !cancelled() }}
+      # Only siege_utilities at the wheel root, every data file the code
+      # loads via Path(__file__)/importlib.resources present, no member
+      # names with whitespace (Finder " 2.py" copies), no bytecode.
+      run: |
+        python scripts/check_wheel_contents.py dist/*.whl
+
+    - name: Upload build artifacts
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist
+        path: dist/
 
   test-geo-no-gdal:
     runs-on: ubuntu-latest
@@ -651,7 +675,7 @@ jobs:
       run: pip install "griffe>=1.0.0"
 
     - name: Fetch base branch
-      run: git fetch origin ${{ github.base_ref || 'develop' }}
+      run: git fetch origin ${{ github.base_ref || github.event.merge_group.base_ref || 'develop' }}
 
     - name: Run griffe check
       continue-on-error: true  # advisory; ratchet to blocking after 1 release cycle
@@ -660,58 +684,8 @@ jobs:
         # commit. Non-zero exit means a breaking change was detected;
         # reviewer decides whether the CHANGELOG needs a BREAKING entry.
         griffe check siege_utilities \
-          --against origin/${{ github.base_ref || 'develop' }} \
+          --against origin/${{ github.base_ref || github.event.merge_group.base_ref || 'develop' }} \
           || echo "::warning::griffe found API changes vs base branch — review whether BREAKING changelog entry is needed (writing-releases:1)"
-
-  test-smoke:
-    runs-on: ubuntu-latest
-    name: "smoke tests (fast, no GDAL)"
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-
-    - name: Install UV
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-    - name: Install core + geo + dev
-      run: |
-        uv sync --extra data --extra geo --extra dev --extra config-extras --extra web
-
-    - name: Run smoke tests
-      run: |
-        uv run pytest tests/test_smoke.py -v --no-cov
-
-  test-databricks:
-    runs-on: ubuntu-latest
-    name: "databricks SDK tests"
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-
-    - name: Install UV
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-    - name: Install with databricks extras
-      run: |
-        uv sync --extra databricks --extra data --extra geo --extra dev
-
-    - name: Run databricks tests
-      run: |
-        uv run pytest tests/test_databricks_auth_session_secrets.py tests/test_databricks_dataframe_bridge.py tests/test_databricks_lakebase_unity.py tests/test_databricks_fallback.py tests/test_databricks_download_dir.py -v --no-cov
 
   battle-test:
     runs-on: ubuntu-latest
@@ -762,82 +736,6 @@ jobs:
       with:
         name: battle-test-results
         path: overnight_results/
-        retention-days: 30
-
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-
-    - name: Install build dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install build twine
-
-    - name: Verify version consistency
-      run: |
-        python scripts/release_manager.py --check
-
-    - name: Build package
-      run: |
-        python -m build
-
-    - name: Check package
-      run: |
-        twine check dist/*
-
-    - name: Check wheel contents (#1420)
-      # Only siege_utilities at the wheel root, every data file the code
-      # loads via Path(__file__)/importlib.resources present, no member
-      # names with whitespace (Finder " 2.py" copies), no bytecode.
-      run: |
-        python scripts/check_wheel_contents.py dist/*.whl
-
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: dist
-        path: dist/
-
-  security:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pip-audit bandit
-
-    - name: Run pip-audit vulnerability check
-      continue-on-error: true
-      run: |
-        pip-audit --format json --output pip-audit-report.json
-
-    - name: Run bandit security linter
-      continue-on-error: true
-      run: |
-        bandit -r siege_utilities/ -f json -o bandit-report.json
-
-    - name: Upload security reports
-      uses: actions/upload-artifact@v4
-      with:
-        name: security-reports
-        path: |
-          pip-audit-report.json
-          bandit-report.json
         retention-days: 30
 
   documentation:
