@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- CRM deduplication now skips entire frames missing a required source column
+  and ignores null name parts. Canonical IDs include normalized strong
+  identifiers (`identifier_columns`, default `["email"]`), so namesakes with
+  different emails remain distinct. Identifier-aware IDs change from the
+  previous name-only IDs; callers persisting merge tables should regenerate
+  them. Name-only matching retains its previous IDs with confidence `0.5`
+  instead of `1.0`; full confidence requires identifier evidence (#1416).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
