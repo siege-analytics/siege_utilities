@@ -58,6 +58,16 @@ def test_unknown_demo_name_is_rejected(gazetteer):
         gazetteer.lookup("Atlantis")
 
 
+@pytest.mark.parametrize("town, lon, lat", [
+    ("Thonon-les-Bains", 6.479, 46.371),
+    ("Evian-les-Bains", 6.590, 46.401),
+])
+def test_south_shore_towns_are_not_north_of_lake_geneva(gazetteer, town, lon, lat):
+    lake = gazetteer.lookup("Lake Geneva")
+    assert lake.geometry.contains(Point(6.55, 46.45)), "fixture must cover the Grand Lac"
+    assert lat < lake.centroid.y, f"{town} is on the south shore"
+
+
 def test_directional_demo_uses_the_lake_reference(notebook):
     namespace = {}
     for cell in notebook.cells:

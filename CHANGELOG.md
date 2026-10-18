@@ -11,7 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The natural-language geometry notebook resolves Lausanne and Lake Geneva to
   distinct illustrative fixtures, rejects unknown place names, and labels
-  directional results against the queried fixture's centroid (#1672).
+  directional results against the queried fixture's centroid. The Lake Geneva
+  fixture joins Grand Lac and Petit Lac boxes so south-shore towns fall south of
+  its centroid (#1672).
 
 ## [4.1.0] - 2026-10-18
 
