@@ -8698,6 +8698,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_file_path"><code class="docutils literal notranslate"><span class="pre">validate_file_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_directory_path"><code class="docutils literal notranslate"><span class="pre">validate_directory_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.reject_unsafe_new_directory_names"><code class="docutils literal notranslate"><span class="pre">reject_unsafe_new_directory_names()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.reject_unsafe_new_file_path"><code class="docutils literal notranslate"><span class="pre">reject_unsafe_new_file_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.safe_join_paths"><code class="docutils literal notranslate"><span class="pre">safe_join_paths()</span></code></a></li>
 </ul>
 </li>
@@ -9073,10 +9074,23 @@
 
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_safe_suffix</span><span class="p">(</span><span class="n">suffix</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Whether a name or suffix can be reused for a temporary name (#1737)."""</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">_is_unsafe_name_character</span>
+    <span class="k">return</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">_is_unsafe_name_character</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">suffix</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_reject_unsafe_new_file</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Refuse ``path`` if its file name or any new parent would be an unsafe name (#1716, #1737)."""</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">reject_unsafe_new_file_path</span>
+    <span class="n">reject_unsafe_new_file_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+
 <span class="k">def</span><span class="w"> </span><span class="nf">_create_parent_directory</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""Create ``path``'s parent, refusing unsafe names for the parts that are new (#1716)."""</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">reject_unsafe_new_directory_names</span>
-    <span class="n">reject_unsafe_new_directory_names</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">parent</span><span class="p">)</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="w">    </span><span class="sd">"""Create ``path``'s parent, refusing unsafe names for the parts that are new,</span>
+<span class="sd">    the file name included (#1716, #1737)."""</span>
+    <span class="n">_reject_unsafe_new_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="atomic_write_path">
@@ -9099,7 +9113,8 @@
 <span class="sd">    """</span>
     <span class="n">target</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
     <span class="n">_create_parent_directory</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
-    <span class="n">tmp</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"atomic_</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="si">}{</span><span class="n">target</span><span class="o">.</span><span class="n">suffix</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="s1">'.tmp'</span><span class="si">}</span><span class="s2">"</span>
+    <span class="n">suffix</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">suffix</span> <span class="k">if</span> <span class="n">target</span><span class="o">.</span><span class="n">suffix</span> <span class="ow">and</span> <span class="n">_safe_suffix</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">suffix</span><span class="p">)</span> <span class="k">else</span> <span class="s1">'.tmp'</span>
+    <span class="n">tmp</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"atomic_</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="si">}{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span>
     <span class="c1"># O_EXCL reserves a random sibling without following a pre-existing link.</span>
     <span class="c1"># Let the kernel apply umask: reading it via os.umask would temporarily</span>
     <span class="c1"># change process-wide permissions for concurrent threads.</span>
@@ -9142,13 +9157,24 @@
 <span class="sd">    to a temp stem then renames all produced files to the final stem.</span>
 <span class="sd">    """</span>
     <span class="n">target</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">_safe_suffix</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">name</span><span class="p">):</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">PathSecurityError</span>
+        <span class="k">raise</span> <span class="n">PathSecurityError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unsafe shapefile name </span><span class="si">{</span><span class="n">target</span><span class="o">.</span><span class="n">name</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">target</span><span class="p">)</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
     <span class="n">_create_parent_directory</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
     <span class="n">tmp_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="n">target</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s2">"atomic_shp_"</span><span class="p">))</span>
+    <span class="c1"># GDAL names the layer, and for a suffix-less target the output files,</span>
+    <span class="c1"># after this stem, so the temporary file keeps the target's name. A</span>
+    <span class="c1"># shapefile always publishes sidecars under that name, so an unsafe name is</span>
+    <span class="c1"># refused even when the target exists (#1737).</span>
     <span class="n">tmp_shp</span> <span class="o">=</span> <span class="n">tmp_dir</span> <span class="o">/</span> <span class="n">target</span><span class="o">.</span><span class="n">name</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">gdf</span><span class="o">.</span><span class="n">to_file</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">tmp_shp</span><span class="p">),</span> <span class="n">driver</span><span class="o">=</span><span class="s2">"ESRI Shapefile"</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">tmp_dir</span><span class="o">.</span><span class="n">iterdir</span><span class="p">():</span>
-            <span class="n">dest</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">stem</span> <span class="o">+</span> <span class="n">f</span><span class="o">.</span><span class="n">suffix</span><span class="p">)</span>
+        <span class="n">produced</span> <span class="o">=</span> <span class="p">[(</span><span class="n">f</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">stem</span> <span class="o">+</span> <span class="n">f</span><span class="o">.</span><span class="n">suffix</span><span class="p">))</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">tmp_dir</span><span class="o">.</span><span class="n">iterdir</span><span class="p">()]</span>
+        <span class="c1"># Check every sidecar before publishing any: a sidecar the existing</span>
+        <span class="c1"># target lacked would be a new file under its name (#1737).</span>
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">dest</span> <span class="ow">in</span> <span class="n">produced</span><span class="p">:</span>
+            <span class="n">_reject_unsafe_new_file</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">f</span><span class="p">,</span> <span class="n">dest</span> <span class="ow">in</span> <span class="n">produced</span><span class="p">:</span>
             <span class="n">os</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
         <span class="n">tmp_dir</span><span class="o">.</span><span class="n">rmdir</span><span class="p">()</span>
     <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
@@ -9277,6 +9303,8 @@
 
     <span class="k">if</span> <span class="n">create_parents</span><span class="p">:</span>
         <span class="n">_create_parent_directory</span><span class="p">(</span><span class="n">path_obj</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">_reject_unsafe_new_file</span><span class="p">(</span><span class="n">path_obj</span><span class="p">)</span>
 
     <span class="n">path_obj</span><span class="o">.</span><span class="n">touch</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Created/updated file: </span><span class="si">{</span><span class="n">path_obj</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
@@ -9365,6 +9393,9 @@
         <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Source is not a file: </span><span class="si">{</span><span class="n">source_obj</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
     <span class="n">_create_parent_directory</span><span class="p">(</span><span class="n">dest_obj</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">dest_obj</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+        <span class="c1"># The file is created inside it under the source's name (#1737).</span>
+        <span class="n">_reject_unsafe_new_file</span><span class="p">(</span><span class="n">dest_obj</span> <span class="o">/</span> <span class="n">source_obj</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">dest_obj</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">FileExistsError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Destination file exists and overwrite=False: </span><span class="si">{</span><span class="n">dest_obj</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
@@ -9411,6 +9442,9 @@
         <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Source is not a file: </span><span class="si">{</span><span class="n">source_obj</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
     <span class="n">_create_parent_directory</span><span class="p">(</span><span class="n">dest_obj</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">dest_obj</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+        <span class="c1"># The file is created inside it under the source's name (#1737).</span>
+        <span class="n">_reject_unsafe_new_file</span><span class="p">(</span><span class="n">dest_obj</span> <span class="o">/</span> <span class="n">source_obj</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">dest_obj</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">FileExistsError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Destination file exists and overwrite=False: </span><span class="si">{</span><span class="n">dest_obj</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
@@ -9726,6 +9760,8 @@
         <span class="c1"># Create parent directories if needed</span>
         <span class="k">if</span> <span class="n">create_parents</span><span class="p">:</span>
             <span class="n">_create_parent_directory</span><span class="p">(</span><span class="n">path_obj</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_reject_unsafe_new_file</span><span class="p">(</span><span class="n">path_obj</span><span class="p">)</span>
 
         <span class="c1"># Remove existing file if it exists</span>
         <span class="k">if</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>

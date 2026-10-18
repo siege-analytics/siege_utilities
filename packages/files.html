@@ -8701,6 +8701,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.files.validation.validate_file_path"><code class="docutils literal notranslate"><span class="pre">validate_file_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.files.validation.validate_directory_path"><code class="docutils literal notranslate"><span class="pre">validate_directory_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.files.validation.reject_unsafe_new_directory_names"><code class="docutils literal notranslate"><span class="pre">reject_unsafe_new_directory_names()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.files.validation.reject_unsafe_new_file_path"><code class="docutils literal notranslate"><span class="pre">reject_unsafe_new_file_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.files.validation.safe_join_paths"><code class="docutils literal notranslate"><span class="pre">safe_join_paths()</span></code></a></li>
 </ul>
 </li>
@@ -12012,6 +12013,31 @@ lone surrogate (undecodable bytes), raises. Nothing is created.</p>
 </dd>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.files.validation.reject_unsafe_new_file_path">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.files.validation.</span></span><span class="sig-name descname"><span class="pre">reject_unsafe_new_file_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/files/validation.html#reject_unsafe_new_file_path"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.files.validation.reject_unsafe_new_file_path" title="Link to this definition"></a></dt>
+<dd><p>Refuse a file path whose new components, the file name included, would be unsafe names.</p>
+<p>Call this immediately before creating <code class="docutils literal notranslate"><span class="pre">file_path</span></code>. It applies the same
+as-written check as <a class="reference internal" href="#siege_utilities.files.validation.reject_unsafe_new_directory_names" title="siege_utilities.files.validation.reject_unsafe_new_directory_names"><code class="xref py py-func docutils literal notranslate"><span class="pre">reject_unsafe_new_directory_names()</span></code></a> to every
+component, so a new file name containing a C0, DEL or C1 control, or a
+lone surrogate, raises, as does any new parent directory. An existing
+file may be overwritten whatever its name (#1737). Nothing is created.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">file_path</span></code> as a Path, unchanged.</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#siege_utilities.files.validation.PathSecurityError" title="siege_utilities.files.validation.PathSecurityError"><strong>PathSecurityError</strong></a> – If a component to be created has an unsafe name.</p>
+</dd>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>file_path</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a></p>
