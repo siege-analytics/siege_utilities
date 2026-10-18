@@ -23,11 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   at the path `zipfile` actually writes (so `a/../f<ESC>.txt` is refused). The
   check is public as `reject_unsafe_new_file_path` (#1737).
   **Migration:** existing files with such names can still be read, moved and
-  overwritten, except by `atomic_write_shapefile`, which refuses any unsafe
-  target name even when it exists (its sidecars are published under that
-  name); rename such a shapefile first. Callers that build file names from
-  external input should pass them through `sanitize_filename`. The rejection
-  message now reads "...in new name" rather than "...in new directory name".
+  overwritten, except as a shapefile: `atomic_write_shapefile` and
+  `save_spatial(..., fmt=SpatialFormat.SHAPEFILE)` refuse an unsafe target
+  name even when it exists (its sidecars are published under that name), so
+  rename such a shapefile first. Callers that build file names from external
+  input should pass them through
+  `siege_utilities.files.operations.sanitize_filename`. This check's message
+  now reads "...in new name" rather than "...in new directory name";
+  `validate_directory_path` (and so `ensure_path_exists`) keeps the old text.
   Writers outside `siege_utilities.files` are not yet covered (#1763).
 - Docstring generation now defaults to a dry run. CLI callers must pass
   `--write` (or `--apply`), and Python callers must pass `dry_run=False` to
