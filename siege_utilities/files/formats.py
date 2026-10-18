@@ -80,9 +80,10 @@ def save_spatial(
     Path to the written file.
     """
     path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
 
-    from siege_utilities.files.operations import atomic_write_path
+    from siege_utilities.files.operations import _create_parent_directory, atomic_write_path
+
+    _create_parent_directory(path)
 
     if fmt is SpatialFormat.GEOPARQUET:
         with atomic_write_path(path) as tmp:
@@ -162,9 +163,10 @@ def save_tabular(
     Path to the written file.
     """
     path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
 
-    from siege_utilities.files.operations import atomic_write_path
+    from siege_utilities.files.operations import _create_parent_directory, atomic_write_path
+
+    _create_parent_directory(path)
 
     if fmt is TabularFormat.PARQUET:
         with atomic_write_path(path) as tmp:

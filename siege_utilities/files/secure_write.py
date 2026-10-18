@@ -21,7 +21,10 @@ def secure_write_text(path: str | os.PathLike[str], data: str) -> None:
     intact. Final-component symlinks are replaced without following them.
     Sync the file before replacement and the directory afterward where supported.
     """
+    from siege_utilities.files.validation import reject_unsafe_new_directory_names
+
     path = Path(path)
+    reject_unsafe_new_directory_names(path.parent)  # (#1716)
     _mkdir_private(path.parent)
     fd, temporary = tempfile.mkstemp(dir=path.parent)
     try:
