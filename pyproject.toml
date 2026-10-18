@@ -10,7 +10,7 @@ constraint-dependencies = ["greenlet!=3.5.6"]
 
 [project]
 name = "siege-utilities"
-version = "4.0.0"
+version = "4.1.0"
 description = "A comprehensive Python utilities package with enhanced auto-discovery"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -44,7 +44,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Data manipulation (pandas, numpy, openpyxl, pyarrow, faker)
+# Data manipulation (pandas, numpy, openpyxl, pyarrow, faker, scipy)
 # pandas capped below 3.0 (#1365): pandas 3.0 makes the default string dtype
 # Arrow-backed, so .str operations dispatch into pyarrow.compute and segfault
 # on 3.13 with the current native stack. Lift the cap once pandas 3.x + pyarrow
@@ -119,6 +119,9 @@ wkls = [
 # Etter — natural-language geographic query parser (LLM-driven)
 etter = [
     "etter>=0.1.0",
+    # etter requires geopandas>=1.1, which pulls pandas; cap it here so an
+    # etter-only install cannot resolve pandas 3.0 and hit the #1365 crash.
+    "pandas>=2.0.0,<3.0",
 ]
 # Reporting and visualization
 reporting = [
@@ -171,13 +174,15 @@ web = [
     "beautifulsoup4>=4.12.0",
     "lxml>=4.9.0",
 ]
-# Note: `streamlit` extra removed in v3.19 — see #1180. No library code
-# imported streamlit / altair / bokeh; installing the extra added deps
+# Note: `streamlit` extra removed in 3.24.0 (#1180, #1186); 3.23.0 on PyPI
+# still has it and 4.0.0 is the first PyPI release without it. No library
+# code imported streamlit / altair / bokeh; installing the extra added deps
 # without adding library capability. Users needing streamlit can
 # `pip install streamlit altair bokeh` directly.
 #
-# Note: `export` extra removed in v3.19 — see #1179. No library code
-# imported xlsxwriter / openpyxl / psutil / memory-profiler; the extra
+# Note: `export` extra removed in 3.24.0 (#1179, #1186); 3.23.0 on PyPI
+# still has it and 4.0.0 is the first PyPI release without it. No library
+# code imported xlsxwriter / openpyxl / psutil / memory-profiler; the extra
 # was ecosystem convenience with no siege_utilities-specific consumer.
 # Users needing these can install them directly.
 # 3D map rendering (pydeck / deck.gl)
@@ -254,7 +259,10 @@ survey = [
     "pandas>=2.0.0,<3.0",
     "scipy>=1.11.0",
 ]
-# Everything — convenience meta-extra for full installs
+# Convenience meta-extra for a broad install. Not every extra: it leaves out
+# gdal (needs a matching system libgdal), wkls, schema (psycopg 3), survey
+# (weightipy), credentials (keyring), notebooks and dev, plus geo's topojson
+# and geoalchemy2.
 all = [
     # data
     "pandas>=2.0.0,<3.0",
@@ -336,30 +344,37 @@ Homepage = "https://github.com/siege-analytics/siege_utilities"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["*"]
-exclude = [
-    # Repo-tooling directories that contain .py files but are NOT runtime
-    # packages. Without an exclude here, setuptools find_packages picked
-    # them up and shipped them at site-packages root, polluting every
-    # downstream venv (any user could then `from scripts import
-    # release_manager` and collide with their own top-level `scripts/`
-    # package). See issue #496.
-    "scripts*",
-    "tests*",
-    "docs*",
-]
+# Allow-list, not deny-list: only the library ships. The earlier
+# include=["*"] + exclude of scripts/tests/docs (#496) still shipped any new
+# top-level directory with .py files; 4.0.0 installed a top-level `spikes`
+# package at site-packages root (#1420). scripts/check_wheel_contents.py
+# fails the build if anything but siege_utilities is at the wheel root.
+include = ["siege_utilities*"]
 
 [tool.setuptools.exclude-package-data]
 "*" = [
     # macOS Finder "copy" duplicates (e.g. "file 2.py", "file 3.py").
     # These are gitignored but can contaminate wheels built from dirty
-    # working trees. See issues #1040, #1049.
+    # working trees. See issues #1040, #1049. This only filters package
+    # *data*: setuptools still collects "file 2.py" as a module, which is how
+    # 3.22.0 shipped two of them. scripts/check_wheel_contents.py rejects any
+    # wheel member whose name contains whitespace (#1420).
     "* [0-9].py",
     "* [0-9][0-9].py",
 ]
 
 [tool.setuptools.package-data]
-siege_utilities = ["py.typed"]
+# Non-.py files the library loads at runtime through Path(__file__). Keep in
+# step with FILE_RELATIVE_REFERENCES in scripts/check_wheel_contents.py,
+# which CI runs against the built wheel (#1420).
+siege_utilities = [
+    "py.typed",
+    # political.schema_migrations_dir()
+    "political/migrations/*.sql",
+    # Hydra config dir (config/hydra_manager.py, enhanced_config.py, migration.py)
+    "configs/*/*.yaml",
+    "configs/*/*/*.yaml",
+]
 
 [tool.pytest.ini_options]
 markers = [

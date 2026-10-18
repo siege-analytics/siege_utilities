@@ -99,6 +99,9 @@ def test_get_geographic_boundaries_warns_and_reprojects(fake_census_source):
         )
 
     assert result == {"reprojected": {"fake": "geodataframe"}, "crs": "EPSG:3310"}
+    # state_identifier wins and is passed as the state. The source method's
+    # fourth positional parameter is county_fips, so it must not be passed
+    # there (#1482).
     assert fake_census_source.calls == [
-        ("get_geographic_boundaries", 2020, "tract", "06", "CA")
+        ("get_geographic_boundaries", 2020, "tract", "CA", None)
     ]

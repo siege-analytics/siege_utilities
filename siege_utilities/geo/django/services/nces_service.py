@@ -91,6 +91,18 @@ class NCESPopulationService:
         from siege_utilities.conf import settings
 
         from ..models import NCESLocaleBoundary
+        from ._bulk import bulk_insert_counted
+
+        def _insert(batch):
+            # Count rows inserted, not rows offered (#1539)
+            return bulk_insert_counted(
+                NCESLocaleBoundary.objects,
+                batch,
+                scope={
+                    "nces_year": year,
+                    "locale_code__in": [obj.locale_code for obj in batch],
+                },
+            )
 
         result = NCESPopulationResult(action="locale_boundaries", year=year)
 
@@ -152,12 +164,10 @@ class NCESPopulationService:
                         result.records_updated += len(objects_to_update)
                         objects_to_update = []
                 else:
-                    objects_to_create.append(NCESLocaleBoundary(**kwargs))
+                    # bulk_create skips save(); derive feature_id/boundary_id (#1539)
+                    objects_to_create.append(NCESLocaleBoundary(**kwargs).prepare_for_bulk())
                     if len(objects_to_create) >= batch_size:
-                        NCESLocaleBoundary.objects.bulk_create(
-                            objects_to_create, ignore_conflicts=True
-                        )
-                        result.records_created += len(objects_to_create)
+                        result.records_created += _insert(objects_to_create)
                         objects_to_create = []
 
             except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
@@ -165,10 +175,7 @@ class NCESPopulationService:
                 result.errors.append(f"Locale {idx}: {e}")
 
         if objects_to_create:
-            NCESLocaleBoundary.objects.bulk_create(
-                objects_to_create, ignore_conflicts=True
-            )
-            result.records_created += len(objects_to_create)
+            result.records_created += _insert(objects_to_create)
 
         if objects_to_update:
             NCESLocaleBoundary.objects.bulk_update(
@@ -205,6 +212,18 @@ class NCESPopulationService:
         from django.utils import timezone
 
         from ..models import SchoolLocation, State
+        from ._bulk import bulk_insert_counted
+
+        def _insert(batch):
+            # Count rows inserted, not rows offered (#1539)
+            return bulk_insert_counted(
+                SchoolLocation.objects,
+                batch,
+                scope={
+                    "vintage_year": year,
+                    "ncessch__in": [obj.ncessch for obj in batch],
+                },
+            )
 
         result = NCESPopulationResult(action="school_locations", year=year)
 
@@ -308,12 +327,10 @@ class NCESPopulationService:
                         result.records_updated += len(objects_to_update)
                         objects_to_update = []
                 else:
-                    objects_to_create.append(SchoolLocation(**kwargs))
+                    # bulk_create skips save(); derive feature_id (#1539)
+                    objects_to_create.append(SchoolLocation(**kwargs).prepare_for_bulk())
                     if len(objects_to_create) >= batch_size:
-                        SchoolLocation.objects.bulk_create(
-                            objects_to_create, ignore_conflicts=True
-                        )
-                        result.records_created += len(objects_to_create)
+                        result.records_created += _insert(objects_to_create)
                         objects_to_create = []
 
             except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
@@ -321,10 +338,7 @@ class NCESPopulationService:
                 result.errors.append(f"School {idx}: {e}")
 
         if objects_to_create:
-            SchoolLocation.objects.bulk_create(
-                objects_to_create, ignore_conflicts=True
-            )
-            result.records_created += len(objects_to_create)
+            result.records_created += _insert(objects_to_create)
 
         if objects_to_update:
             SchoolLocation.objects.bulk_update(

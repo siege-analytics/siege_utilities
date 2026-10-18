@@ -88,6 +88,24 @@ class TemporalGeographicFeature(models.Model):
         """True if this feature has no valid_to date (still in effect)."""
         return self.valid_to is None
 
+    def prepare_for_bulk(self):
+        """Fill the fields ``save()`` derives, without touching the database.
+
+        ``QuerySet.bulk_create`` never calls ``save()``, so bulk loaders must
+        call this on each instance first: ``Model(**kwargs).prepare_for_bulk()``
+        (#1539). Subclasses extend it and end with
+        ``return super().prepare_for_bulk()``. Idempotent.
+
+        Returns:
+            ``self``, so it can be chained in a list comprehension.
+        """
+        return self
+
+    def save(self, *args, **kwargs):
+        """Persist the model after applying :meth:`prepare_for_bulk`."""
+        self.prepare_for_bulk()
+        super().save(*args, **kwargs)
+
 
 class TemporalBoundary(TemporalGeographicFeature):
     """
@@ -102,7 +120,8 @@ class TemporalBoundary(TemporalGeographicFeature):
 
     Fields added here:
         boundary_id: Alias for feature_id, kept for readability in boundary contexts.
-                     Automatically synced from feature_id in save().
+                     Automatically synced from feature_id in save() and
+                     prepare_for_bulk().
         geometry: MultiPolygon, SRID 4326.
         area_land / area_water: Area in square meters (from TIGER ALAND/AWATER).
         internal_point: Representative point for labeling (INTPTLAT/INTPTLON).
@@ -155,11 +174,11 @@ class TemporalBoundary(TemporalGeographicFeature):
             return 0.0
         return (self.area_land or 0) / total * 100
 
-    def save(self, *args, **kwargs):
-        """Sync boundary_id from feature_id."""
+    def prepare_for_bulk(self):
+        """Sync boundary_id from feature_id (also applied by ``save()``)."""
         if self.feature_id and not self.boundary_id:
             self.boundary_id = self.feature_id
-        super().save(*args, **kwargs)
+        return super().prepare_for_bulk()
 
 
 class CensusTIGERBoundary(TemporalBoundary):
@@ -170,7 +189,7 @@ class CensusTIGERBoundary(TemporalBoundary):
     common to ALL Census geography types (states, counties, tracts, etc.).
 
     The geoid is the authoritative identifier; feature_id and boundary_id
-    are automatically synced from it in save().
+    are automatically synced from it in save() and prepare_for_bulk().
 
     GEOID Format by Geography Type:
         State: 2 digits (e.g., "06" for California)
@@ -221,14 +240,14 @@ class CensusTIGERBoundary(TemporalBoundary):
     def __str__(self):
         return f"{self.name} ({self.geoid})"
 
-    def save(self, *args, **kwargs):
-        """Sync feature_id and boundary_id from geoid."""
+    def prepare_for_bulk(self):
+        """Sync feature_id and boundary_id from geoid (also applied by ``save()``)."""
         if self.geoid:
             self.feature_id = self.geoid
             self.boundary_id = self.geoid
         if not self.source:
             self.source = "TIGER/Line"
-        super().save(*args, **kwargs)
+        return super().prepare_for_bulk()
 
     @classmethod
     def get_geoid_length(cls) -> int:

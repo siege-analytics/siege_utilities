@@ -460,6 +460,41 @@ class TestLoadShapefile:
             with pytest.raises(ImportError, match="geopandas"):
                 client.load_shapefile(tmp_path / "test.shp")
 
+    @staticmethod
+    def _shapefile(directory, stem):
+        directory.mkdir(parents=True, exist_ok=True)
+        for ext in (".shp", ".shx", ".dbf", ".prj"):
+            (directory / f"{stem}{ext}").write_text("dummy")
+
+    def test_single_shapefile_in_nested_dir_is_picked(self, client, tmp_path):
+        # #1571: the one .shp is found recursively, sidecars are ignored.
+        pytest.importorskip("geopandas")
+        root = tmp_path / "va_cd"
+        self._shapefile(root / "nested", "va_cd_2021")
+        with patch("siege_utilities.geo.providers.redistricting_data_hub.gpd.read_file",
+                   return_value="gdf") as read_file:
+            assert client.load_shapefile(root) == "gdf"
+        read_file.assert_called_once_with(root / "nested" / "va_cd_2021.shp")
+
+    def test_multiple_shapefiles_raise_naming_candidates(self, client, tmp_path):
+        # #1571: previously shps[0] of an unsorted glob, i.e. an arbitrary member.
+        pytest.importorskip("geopandas")
+        root = tmp_path / "va_plans"
+        self._shapefile(root, "b_house")
+        self._shapefile(root / "sub", "a_senate")
+        with patch("siege_utilities.geo.providers.redistricting_data_hub.gpd.read_file") as read_file:
+            with pytest.raises(ValueError, match="Ambiguous .shp") as exc:
+                client.load_shapefile(root)
+        assert "b_house.shp" in str(exc.value) and "a_senate.shp" in str(exc.value)
+        read_file.assert_not_called()
+
+    def test_no_shapefile_in_dir_raises(self, client, tmp_path):
+        pytest.importorskip("geopandas")
+        root = tmp_path / "empty"
+        root.mkdir()
+        with pytest.raises(FileNotFoundError, match="No .shp"):
+            client.load_shapefile(root)
+
 
 # ---------------------------------------------------------------------------
 # Convenience functions
@@ -791,17 +826,25 @@ class TestFetchPrecinctResults:
 class TestFetchCVAP:
 
     def test_calls_client(self, client):
+        # #1571: a single dataset is no longer loaded unfiltered; it passes
+        # the geography filter because its underscore title tokenises to
+        # "tract" (the default geography), and a mismatch raises.
         mock_df = MagicMock()
+        ds = RDHDataset(
+            title="VA_CVAP_2021_tract",
+            url="https://example.com/cvap.csv",
+            format="csv",
+        )
         with patch.object(client, "get_cvap_data") as mock_get, \
-             patch.object(client, "load_csv", return_value=mock_df):
-            mock_get.return_value = [RDHDataset(
-                title="VA_CVAP_2021_tract",
-                url="https://example.com/cvap.csv",
-                format="csv",
-            )]
+             patch.object(client, "load_csv", return_value=mock_df) as mock_load:
+            mock_get.return_value = [ds]
             result = fetch_cvap("VA", year="2021", client=client)
             mock_get.assert_called_once_with("VA", year="2021")
+            mock_load.assert_called_once_with(ds)
             assert result is mock_df
+
+            with pytest.raises(FileNotFoundError, match="VA_CVAP_2021_tract"):
+                fetch_cvap("VA", year="2021", geography="county", client=client)
 
     def test_raises_on_no_data(self, client):
         with patch.object(client, "get_cvap_data", return_value=[]):
@@ -809,31 +852,41 @@ class TestFetchCVAP:
                 fetch_cvap("XX", client=client)
 
     def test_filters_by_geography(self, client):
-        mock_df = MagicMock()
+        # #1571: matching is by geography token, not substring. Block group is
+        # listed first so a first-element fallback would be caught.
         ds_tract = RDHDataset(title="VA_CVAP_tract", url="https://example.com/t.csv", format="csv")
         ds_block = RDHDataset(title="VA_CVAP_block_group", url="https://example.com/b.csv", format="csv")
-        with patch.object(client, "get_cvap_data", return_value=[ds_tract, ds_block]), \
-             patch.object(client, "load_csv", return_value=mock_df) as mock_load:
-            result = fetch_cvap("VA", geography="tract", client=client)
-            # Should load the tract one (first match after filtering)
-            mock_load.assert_called_once_with(ds_tract)
-            assert result is mock_df
+        with patch.object(client, "get_cvap_data", return_value=[ds_block, ds_tract]), \
+             patch.object(client, "load_csv", side_effect=lambda ds: ds):
+            assert fetch_cvap("VA", geography="tract", client=client) is ds_tract
+            assert fetch_cvap("VA", geography="block_group", client=client) is ds_block
+            assert fetch_cvap("VA", geography="Block Group", client=client) is ds_block
+            # "block" must not select the block-group dataset.
+            with pytest.raises(FileNotFoundError, match="geography='block'"):
+                fetch_cvap("VA", geography="block", client=client)
 
 
 class TestFetchPL94171:
 
     def test_calls_client(self, client):
+        # #1571: the single dataset goes through the geography filter
+        # ("block" is the default); a mismatch raises instead of loading it.
         mock_df = MagicMock()
+        ds = RDHDataset(
+            title="VA_PL_94171_block",
+            url="https://example.com/pl.csv",
+            format="csv",
+        )
         with patch.object(client, "get_pl94171_data") as mock_get, \
-             patch.object(client, "load_csv", return_value=mock_df):
-            mock_get.return_value = [RDHDataset(
-                title="VA_PL_94171_block",
-                url="https://example.com/pl.csv",
-                format="csv",
-            )]
+             patch.object(client, "load_csv", return_value=mock_df) as mock_load:
+            mock_get.return_value = [ds]
             result = fetch_pl94171("VA", year="2020", client=client)
             mock_get.assert_called_once_with("VA", year="2020")
+            mock_load.assert_called_once_with(ds)
             assert result is mock_df
+
+            with pytest.raises(FileNotFoundError, match="VA_PL_94171_block"):
+                fetch_pl94171("VA", year="2020", geography="tract", client=client)
 
     def test_raises_on_no_data(self, client):
         with patch.object(client, "get_pl94171_data", return_value=[]):

@@ -452,8 +452,8 @@ class BoundaryPopulationService:
                         existing.save()
                     updated += 1
                 else:
-                    # Create
-                    objects_to_create.append(model(**kwargs))
+                    # Create; bulk_create skips save(), so derive its fields here (#1539)
+                    objects_to_create.append(model(**kwargs).prepare_for_bulk())
 
                     # Batch create
                     if len(objects_to_create) >= batch_size:

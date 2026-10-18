@@ -19,7 +19,8 @@ Usage:
 
 import logging
 import uuid
-from typing import Any, Dict, List, Optional
+from contextlib import contextmanager
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ __all__ = [
     "get_presentation",
     "insert_image",
     "insert_text",
+    "temporary_public_figure",
     "upload_figure_to_drive",
 ]
 
@@ -327,22 +329,31 @@ _LAYOUTS = {
 }
 
 
-def upload_figure_to_drive(
+def _http_error_types() -> Tuple[type, ...]:
+    """Return ``(googleapiclient.errors.HttpError,)`` if it can have been raised.
+
+    Evaluated in an ``except`` clause, after the Google call has run. An
+    ``HttpError`` can only come from googleapiclient code, which imports
+    ``googleapiclient.errors`` itself, so when that module is not loaded no
+    ``HttpError`` exists to catch and the empty tuple is exact. This keeps
+    googleapiclient an optional dependency of this module.
+    """
+    import sys
+
+    errors = sys.modules.get("googleapiclient.errors")
+    http_error = getattr(errors, "HttpError", None)
+    return (http_error,) if isinstance(http_error, type) else ()
+
+
+def _upload_figure_file(
     client,
     figure,
     filename: str,
     folder_id: Optional[str] = None,
 ) -> str:
-    """Save a matplotlib Figure to a temp PNG, upload to Google Drive, return URL.
+    """Save a matplotlib Figure to a temp PNG, upload it to Drive, return its file ID.
 
-    Args:
-        client: Authenticated GoogleWorkspaceClient.
-        figure: matplotlib Figure object.
-        filename: Name for the uploaded file (without extension).
-        folder_id: Optional Drive folder ID.
-
-    Returns:
-        Public URL string for the uploaded image (suitable for insert_image).
+    The uploaded file is private: no sharing permission is created here.
     """
     import tempfile
     import os
@@ -358,14 +369,104 @@ def upload_figure_to_drive(
             mime_type="image/png",
             folder_id=folder_id,
         )
-        url = client.public_url(file_id)
-        log.info("Uploaded figure %r → Drive %s", filename, file_id)
-        return url
+        log.debug("Uploaded figure %r -> Drive %s", filename, file_id)
+        return file_id
     finally:
         try:
             os.unlink(tmp_path)
         except FileNotFoundError:
             pass
+
+
+def upload_figure_to_drive(
+    client,
+    figure,
+    filename: str,
+    folder_id: Optional[str] = None,
+) -> str:
+    """Save a matplotlib Figure to a temp PNG, upload to Google Drive, return URL.
+
+    Warning:
+        The uploaded file is shared **anyone-with-the-link (reader)** via
+        ``GoogleWorkspaceClient.public_url`` and is left in Drive. Nothing
+        revokes that permission or deletes the file. For inserting a figure
+        into a slide, use :func:`temporary_public_figure`, which deletes the
+        Drive file once the insert has run.
+
+    Args:
+        client: Authenticated GoogleWorkspaceClient.
+        figure: matplotlib Figure object.
+        filename: Name for the uploaded file (without extension).
+        folder_id: Optional Drive folder ID. Without it the file lands in the
+            root of the authenticated account's My Drive.
+
+    Returns:
+        Public URL string for the uploaded image (suitable for insert_image).
+    """
+    file_id = _upload_figure_file(client, figure, filename, folder_id=folder_id)
+    return client.public_url(file_id)
+
+
+def _delete_figure_file(client, file_id: str, raise_on_failure: bool) -> None:
+    """Delete a temporary figure file from Drive (this also drops its permissions).
+
+    A failure is always logged at ERROR with the file ID, because the file is
+    still readable by anyone with its link. It is re-raised only when
+    ``raise_on_failure`` is true, so that a cleanup failure never replaces an
+    insert error that is already propagating.
+    """
+    try:
+        client.drive_service().files().delete(fileId=file_id).execute()
+        log.debug("Deleted temporary figure file %s from Drive", file_id)
+    except Exception as exc:  # includes googleapiclient HttpError
+        log.error(
+            "Failed to delete temporary figure file %s from Drive; it remains "
+            "readable by anyone with the link and must be removed manually: %s",
+            file_id, exc,
+        )
+        if raise_on_failure:
+            raise RuntimeError(
+                f"Could not delete temporary public figure file {file_id} "
+                f"from Drive: {exc}"
+            ) from exc
+
+
+@contextmanager
+def temporary_public_figure(
+    client,
+    figure,
+    filename: str,
+    folder_id: Optional[str] = None,
+) -> Iterator[str]:
+    """Upload a figure, publish it for the duration of the block, then delete it.
+
+    Slides ``createImage`` fetches the image once, at request time, from a
+    URL that must be reachable without authentication, and stores its own
+    copy. This context manager uploads the figure to ``folder_id``, grants an
+    anyone-with-the-link reader permission, yields the public URL, and in a
+    ``finally`` deletes the Drive file (which removes the permission too),
+    whether or not the block raised.
+
+    If the delete fails, the file ID is logged at ERROR. The delete error is
+    raised only when the block itself succeeded; an error from the block is
+    never masked by a cleanup failure.
+
+    Args:
+        client: Authenticated GoogleWorkspaceClient.
+        figure: matplotlib Figure object.
+        filename: Name for the uploaded file (without extension).
+        folder_id: Optional Drive folder for the temporary file.
+
+    Yields:
+        The public URL of the uploaded image.
+    """
+    file_id = _upload_figure_file(client, figure, filename, folder_id=folder_id)
+    block_succeeded = False
+    try:
+        yield client.public_url(file_id)
+        block_succeeded = True
+    finally:
+        _delete_figure_file(client, file_id, raise_on_failure=block_succeeded)
 
 
 def _table_to_text(table) -> str:
@@ -397,6 +498,8 @@ def create_argument_slide(
     presentation_id: str,
     argument,
     slide_index: Optional[int] = None,
+    folder_id: Optional[str] = None,
+    publish_figures: bool = True,
 ) -> str:
     """Add one slide for an Argument.
 
@@ -404,11 +507,20 @@ def create_argument_slide(
       "full_width"   → title / narrative / figure stacked vertically
       "side_by_side" → title top; narrative left, figure right
 
+    A figure is inserted through :func:`temporary_public_figure`: it is
+    uploaded to ``folder_id``, shared anyone-with-the-link while Slides copies
+    it, then deleted from Drive.
+
     Args:
         client: Authenticated GoogleWorkspaceClient.
         presentation_id: Target presentation ID.
         argument: Argument dataclass instance.
         slide_index: Insertion position. None → append at end.
+        folder_id: Drive folder for the temporary figure file. None → the
+            root of the authenticated account's My Drive.
+        publish_figures: If False, the figure is not uploaded, no
+            anyone-with-the-link permission is created, and the slide is
+            built without it (a WARNING is logged).
 
     Returns:
         Slide object ID.
@@ -442,14 +554,22 @@ def create_argument_slide(
 
     # Figure (chart or map)
     fig = argument.map_figure if layout_key == "full_width" and argument.map_figure else argument.chart
-    if fig is not None:
+    if fig is not None and not publish_figures:
+        log.warning(
+            "Slide %s: figure omitted because publish_figures=False "
+            "(Slides can only insert images from a public URL)", slide_id,
+        )
+    elif fig is not None:
         fl, ft, fw, fh = layout["figure"]
         fig_name = f"fig_{slide_id}"
         try:
-            img_url = upload_figure_to_drive(client, fig, fig_name)
-            insert_image(client, presentation_id, slide_id, img_url,
-                         left=fl, top=ft, width=fw, height=fh)
-        except (OSError, ValueError, RuntimeError, KeyError) as exc:
+            with temporary_public_figure(
+                client, fig, fig_name, folder_id=folder_id,
+            ) as img_url:
+                insert_image(client, presentation_id, slide_id, img_url,
+                             left=fl, top=ft, width=fw, height=fh)
+        except (OSError, ValueError, RuntimeError, KeyError,
+                *_http_error_types()) as exc:
             # A map/chart is the core content of the slide; a failed figure is
             # a failed slide, not a text-only success. Propagate so
             # create_report_from_arguments aggregates it into its failure list
@@ -468,16 +588,32 @@ def create_report_from_arguments(
     arguments: List,
     folder_id: Optional[str] = None,
     theme_presentation_id: Optional[str] = None,
+    publish_figures: bool = True,
 ) -> str:
     """Create a complete presentation from a list of Arguments.
+
+    Public exposure of figures:
+        The Slides API can only insert an image from a URL that is reachable
+        without authentication. With ``publish_figures=True`` (the default),
+        each chart or map is therefore uploaded to Drive (into ``folder_id``
+        when given), shared **anyone-with-the-link (reader)** for the
+        duration of its ``createImage`` request, and then deleted from Drive,
+        including when the insert fails. While it exists, anyone holding the
+        URL can fetch the image without signing in. If the delete fails, the
+        file ID is logged at ERROR and the file must be removed manually.
+        Pass ``publish_figures=False`` to never create an anyone permission;
+        figures are then left out of the slides.
 
     Args:
         client: Authenticated GoogleWorkspaceClient.
         title: Presentation title.
         arguments: List of Argument dataclass instances (one slide each).
-        folder_id: Optional Drive folder to place the presentation in.
+        folder_id: Optional Drive folder to place the presentation, and the
+            temporary figure files, in.
         theme_presentation_id: If given, copies this presentation first
             (preserves master slides / theme).
+        publish_figures: If False, figures are not uploaded or published and
+            are omitted from the slides.
 
     Returns:
         Presentation ID of the newly created report.
@@ -492,7 +628,10 @@ def create_report_from_arguments(
     failures = []
     for i, argument in enumerate(arguments):
         try:
-            create_argument_slide(client, pres_id, argument, slide_index=i)
+            create_argument_slide(
+                client, pres_id, argument, slide_index=i,
+                folder_id=folder_id, publish_figures=publish_figures,
+            )
         except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError) as exc:
             headline = getattr(argument, "headline", "?")
             log.error("Failed to create slide %d for argument %r: %s", i, headline, exc)

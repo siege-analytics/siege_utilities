@@ -190,12 +190,12 @@
   },
   {
     "scope": "process_python_file",
-    "rule": "open",
-    "sha256": "2167db6411572f0ccc05724516c2e98ad82cbf5c3f54b4fee0990ddaad5207c2",
-    "call": "open(file_path, 'w', encoding='utf-8')",
+    "rule": "write_bytes",
+    "sha256": "0a40c8d462974ff18efa2d0d4ec6b74dbfd910bd26f1412383bdf47a5393d3e2",
+    "call": "file_path.write_bytes(new_content.encode(encoding))",
     "file": "hygiene/generate_docstrings.py",
     "count": 1,
-    "reason": "Deliberate in-place Python source editing by a development utility, outside #1509."
+    "reason": "Explicitly opted-in source editing (#1589), outside #1509. In-place byte writes preserve encoding, file mode and symlinks; syntax and encoding are validated before writing."
   },
   {
     "scope": "ChartTypeRegistry.export_chart_type_config",
