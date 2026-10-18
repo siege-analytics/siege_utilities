@@ -2,6 +2,7 @@
 
 import os
 import shutil
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -137,7 +138,7 @@ class TestDirectoryControlCharacters:
     """New directory names must not contain control characters (#1692)."""
 
     @pytest.fixture(autouse=True)
-    def _remove_tmp_path(self, tmp_path):
+    def _remove_tmp_path(self, tmp_path: Path) -> Iterator[None]:
         # Some cases create control-character names on purpose; never leave
         # them in pytest's basetemp for file watchers to trip on (#1690).
         yield
@@ -197,7 +198,9 @@ class TestDirectoryControlCharacters:
             unzip_file_to_directory(archive, out)
         assert not (out / "evil\x1b[31m").exists()
 
-    def test_dot_dot_zip_stem_no_longer_escapes_extract_dir(self, tmp_path, monkeypatch):
+    def test_dot_dot_zip_stem_no_longer_escapes_extract_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """'...zip' has stem '..' before Python 3.14 (3.14 parses it as having
         no suffix); with stem '..' it used to extract into extract_to's parent.
 
