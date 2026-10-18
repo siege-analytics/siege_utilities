@@ -149,7 +149,7 @@ def test_migration_converts_without_opt_in_when_no_rows_removed(legacy_demograph
 
 
 def test_migration_noopt_clean_probe_preserves_native_rows_and_orphans(legacy_demographics, caplog):
-    caplog.set_level("WARNING", logger="siege_utilities.geo.django.migrations.0018_demographic_geoid_keys")
+    caplog.set_level("WARNING", logger="siege_utilities.geo.django.migrations.0019_demographic_geoid_keys")
     geometry = MultiPolygon(Polygon.from_bbox((-119, 33, -118, 34)), srid=4326)
     fixtures = {
         "County": list(zip(
@@ -199,7 +199,7 @@ def test_migration_noopt_clean_probe_preserves_native_rows_and_orphans(legacy_de
 
 
 def test_migration_geoid_only_probe_keeps_all_10059_rows(legacy_demographics, caplog):
-    caplog.set_level("WARNING", logger="siege_utilities.geo.django.migrations.0018_demographic_geoid_keys")
+    caplog.set_level("WARNING", logger="siege_utilities.geo.django.migrations.0019_demographic_geoid_keys")
     geometry = MultiPolygon(Polygon.from_bbox((-119, 33, -118, 34)), srid=4326)
     state_codes = (
         "01 02 04 05 06 08 09 10 11 12 13 15 16 17 18 19 20 21 22 23 24 25 26 27 "
@@ -270,7 +270,7 @@ def _legacy_rows(apps, winner="pk_newest"):
 @pytest.mark.parametrize("winner", ["pk_newest", "geoid_newest", "tie"])
 def test_migration_converts_quarantines_dedupes_and_reverses(legacy_demographics, caplog, winner, monkeypatch):
     monkeypatch.setenv("SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE", "1")
-    caplog.set_level("WARNING", logger="siege_utilities.geo.django.migrations.0018_demographic_geoid_keys")
+    caplog.set_level("WARNING", logger="siege_utilities.geo.django.migrations.0019_demographic_geoid_keys")
     original = _legacy_rows(legacy_demographics, winner)
     executor = MigrationExecutor(connection)
     executor.migrate([CURRENT])
