@@ -405,7 +405,9 @@ class VariableRegistry:
         """
         Get metadata for a Census variable.
 
-        Checks local descriptions first, falls back to API if needed.
+        Checks local descriptions first, then the API. A 404 raises LookupError;
+        transport/HTTP errors and invalid JSON propagate. Missing labels raise
+        ValueError. Operational failures never masquerade as unknown variables.
         """
         if variable in self.descriptions:
             return {
@@ -422,22 +424,24 @@ class VariableRegistry:
         dataset_path = DatasetSelector.get_dataset_path(year, dataset)
         url = f"{base_url}/{dataset_path}/variables/{variable}.json"
 
-        try:
-            import requests
-            response = requests.get(url, timeout=timeout)
-            if response.ok:
-                data = response.json()
-                return {
-                    'code': variable,
-                    'label': data.get('label', 'Unknown'),
-                    'concept': data.get('concept', ''),
-                    'predicateType': data.get('predicateType', ''),
-                    'source': 'api',
-                }
-        except (requests.exceptions.RequestException, OSError, ValueError) as e:
-            log.debug(f"Could not fetch variable metadata: {e}")
+        import requests
 
-        return {'code': variable, 'label': 'Unknown', 'source': 'unknown'}
+        response = requests.get(url, timeout=timeout)
+        if response.status_code == 404:
+            raise LookupError(f"Census variable {variable!r} not found for {dataset_path}")
+        response.raise_for_status()
+        if response.status_code != 200:
+            raise requests.HTTPError(f"Unexpected metadata status: {response.status_code}", response=response)
+        data = response.json()
+        if not isinstance(data, dict) or not isinstance(data.get('label'), str) or not data['label']:
+            raise ValueError(f"Malformed metadata for Census variable {variable!r}")
+        return {
+            'code': variable,
+            'label': data['label'],
+            'concept': data.get('concept', ''),
+            'predicateType': data.get('predicateType', ''),
+            'source': 'api',
+        }
 
     def list_available_variables(
         self,

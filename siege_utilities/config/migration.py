@@ -52,18 +52,21 @@ class ConfigurationMigrator:
             legacy_file: Path to legacy user config file
             
         Returns:
-            New UserProfile instance
+            New UserProfile instance. Missing files raise FileNotFoundError;
+            read, parse and validation errors propagate.
         """
         if legacy_file is None:
             legacy_file = self.legacy_config_dir / "user_config.yaml"
         
         if not legacy_file.exists():
-            logger.warning(f"Legacy user profile not found: {legacy_file}")
-            return self._create_default_user_profile()
+            raise FileNotFoundError(f"Legacy user profile not found: {legacy_file}")
         
         try:
             with open(legacy_file, 'r', encoding='utf-8') as f:
                 legacy_data = yaml.safe_load(f)
+
+            if not isinstance(legacy_data, dict):
+                raise ValueError(f"Legacy user profile must be a mapping: {legacy_file}")
 
             logger.info(f"Loading legacy user profile from: {legacy_file}")
             
@@ -78,7 +81,7 @@ class ConfigurationMigrator:
             
         except (OSError, yaml.YAMLError, ValueError) as e:
             logger.error(f"Failed to migrate user profile: {e}")
-            return self._create_default_user_profile()
+            raise
     
     def migrate_client_profile(self, legacy_file: Path, client_code: str) -> ClientProfile:
         """
@@ -89,16 +92,19 @@ class ConfigurationMigrator:
             client_code: Client code for the profile
             
         Returns:
-            New ClientProfile instance
+            New ClientProfile instance. Missing files raise FileNotFoundError;
+            read, parse and validation errors propagate.
         """
         if not legacy_file.exists():
-            logger.warning(f"Legacy client profile not found: {legacy_file}")
-            return self._create_default_client_profile(client_code)
+            raise FileNotFoundError(f"Legacy client profile not found: {legacy_file}")
         
         try:
             with open(legacy_file, 'r', encoding='utf-8') as f:
                 legacy_data = yaml.safe_load(f) if legacy_file.suffix in ['.yaml', '.yml'] else json.load(f)
             
+            if not isinstance(legacy_data, dict):
+                raise ValueError(f"Legacy client profile must be a mapping: {legacy_file}")
+
             logger.info(f"Loading legacy client profile from: {legacy_file}")
             
             # Map legacy fields to new ClientProfile fields
@@ -112,7 +118,7 @@ class ConfigurationMigrator:
             
         except (OSError, yaml.YAMLError, json.JSONDecodeError, ValueError) as e:
             logger.error(f"Failed to migrate client profile for {client_code}: {e}")
-            return self._create_default_client_profile(client_code)
+            raise
     
     def migrate_all_configurations(self, dry_run: bool = False) -> Dict[str, Any]:
         """
@@ -136,9 +142,13 @@ class ConfigurationMigrator:
         try:
             # Migrate user profile
             if not dry_run:
-                self.migrate_user_profile()
-                results["user_profile"]["migrated"] = True
-                logger.info("User profile migrated successfully")
+                try:
+                    self.migrate_user_profile()
+                    results["user_profile"]["migrated"] = True
+                    logger.info("User profile migrated successfully")
+                except (OSError, yaml.YAMLError, ValueError) as e:
+                    results["user_profile"]["error"] = str(e)
+                    logger.error(f"Failed to migrate user profile: {e}")
             else:
                 logger.info("Would migrate user profile")
             

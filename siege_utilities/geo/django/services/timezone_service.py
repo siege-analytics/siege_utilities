@@ -196,7 +196,7 @@ class TimezonePopulationService:
         Attempt to resolve UTC offset from the standard library zoneinfo.
 
         Returns (utc_offset_std, utc_offset_dst, observes_dst) tuple.
-        Falls back to (None, None, None) if resolution fails.
+        Raises ValueError if resolution fails, preventing invalid persistence.
         """
         try:
             from datetime import datetime
@@ -214,5 +214,4 @@ class TimezonePopulationService:
 
             return std_offset, dst_offset, observes_dst
         except (ValueError, TypeError, KeyError, AttributeError) as exc:
-            log.warning("Could not resolve UTC offset for timezone %s: %s", tz_id, exc)
-            return None, None, None
+            raise ValueError(f"Could not resolve timezone {tz_id!r}") from exc

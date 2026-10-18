@@ -288,8 +288,10 @@ def extract_attributes_swmaps(
         missing: ``"none"`` / ``"raise"`` / ``"warn"``.
 
     Returns:
-        The attribute value (as stored in ``attribute_values.value``) or
-        ``None``.
+        The attribute value (as stored in ``attribute_values.value``), or
+        ``None`` for an absent attribute under the selected missing policy.
+        When neither optional attribute table exists, the missing policy applies.
+        Incomplete schemas and database errors always raise sqlite3.DatabaseError.
     """
     candidates = list(field_names)
     if not candidates:
@@ -303,10 +305,17 @@ def extract_attributes_swmaps(
     )
     try:
         with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5.0) as conn:
-            rows = dict(conn.execute(query, (feature_id,)).fetchall())
+            tables = {
+                row[0].lower()
+                for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            }
+            rows = (
+                dict(conn.execute(query, (feature_id,)).fetchall())
+                if {"attribute_values", "attribute_fields"} & tables
+                else {}
+            )
     except sqlite3.DatabaseError as exc:
-        log.warning("SWMaps query failed for %s: %s", db_path, exc)
-        return _resolve_missing(candidates[0], missing)
+        raise sqlite3.DatabaseError(f"SWMaps attribute query failed for {db_path}") from exc
 
     for name in candidates:
         if name in rows:

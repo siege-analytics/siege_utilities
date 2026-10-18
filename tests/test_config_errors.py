@@ -25,15 +25,15 @@ from siege_utilities.config.models.user_profile import UserProfile
 # ===========================================================================
 
 class TestConfigurationMigratorErrors:
-    def test_missing_legacy_file_returns_default_profile(self, tmp_path):
+    def test_missing_legacy_file_raises(self, tmp_path):
         migrator = ConfigurationMigrator(
             legacy_config_dir=tmp_path / "nonexistent",
             new_config_dir=tmp_path / "new",
         )
-        profile = migrator.migrate_user_profile()
-        assert isinstance(profile, UserProfile)
+        with pytest.raises(FileNotFoundError):
+            migrator.migrate_user_profile()
 
-    def test_invalid_yaml_returns_default_profile(self, tmp_path):
+    def test_invalid_yaml_raises(self, tmp_path):
         legacy_dir = tmp_path / "legacy"
         legacy_dir.mkdir()
         bad_file = legacy_dir / "user_config.yaml"
@@ -42,10 +42,10 @@ class TestConfigurationMigratorErrors:
             legacy_config_dir=legacy_dir,
             new_config_dir=tmp_path / "new",
         )
-        profile = migrator.migrate_user_profile(bad_file)
-        assert isinstance(profile, UserProfile)
+        with pytest.raises(ValueError):
+            migrator.migrate_user_profile(bad_file)
 
-    def test_empty_yaml_returns_default_profile(self, tmp_path):
+    def test_empty_yaml_raises(self, tmp_path):
         legacy_dir = tmp_path / "legacy"
         legacy_dir.mkdir()
         empty_file = legacy_dir / "user_config.yaml"
@@ -54,20 +54,18 @@ class TestConfigurationMigratorErrors:
             legacy_config_dir=legacy_dir,
             new_config_dir=tmp_path / "new",
         )
-        profile = migrator.migrate_user_profile(empty_file)
-        assert isinstance(profile, UserProfile)
+        with pytest.raises(ValueError):
+            migrator.migrate_user_profile(empty_file)
 
-    def test_migrate_client_missing_file_returns_default(self, tmp_path):
+    def test_migrate_client_missing_file_raises(self, tmp_path):
         migrator = ConfigurationMigrator(
             legacy_config_dir=tmp_path / "nonexistent",
             new_config_dir=tmp_path / "new",
         )
-        profile = migrator.migrate_client_profile(
-            tmp_path / "no-such-file.yaml", "DEMO"
-        )
-        assert profile.client_code == "DEMO"
+        with pytest.raises(FileNotFoundError):
+            migrator.migrate_client_profile(tmp_path / "no-such-file.yaml", "DEMO")
 
-    def test_migrate_client_unsupported_extension_returns_default(self, tmp_path):
+    def test_migrate_client_unsupported_extension_raises(self, tmp_path):
         legacy_dir = tmp_path / "legacy"
         legacy_dir.mkdir()
         bad_file = legacy_dir / "client.toml"
@@ -76,10 +74,10 @@ class TestConfigurationMigratorErrors:
             legacy_config_dir=legacy_dir,
             new_config_dir=tmp_path / "new",
         )
-        profile = migrator.migrate_client_profile(bad_file, "DEMO")
-        assert profile.client_code == "DEMO"
+        with pytest.raises(ValueError):
+            migrator.migrate_client_profile(bad_file, "DEMO")
 
-    def test_migrate_client_non_mapping_yaml_returns_default(self, tmp_path):
+    def test_migrate_client_non_mapping_yaml_raises(self, tmp_path):
         legacy_dir = tmp_path / "legacy"
         legacy_dir.mkdir()
         bad_file = legacy_dir / "client.yaml"
@@ -88,8 +86,8 @@ class TestConfigurationMigratorErrors:
             legacy_config_dir=legacy_dir,
             new_config_dir=tmp_path / "new",
         )
-        profile = migrator.migrate_client_profile(bad_file, "DEMO")
-        assert profile.client_code == "DEMO"
+        with pytest.raises(ValueError):
+            migrator.migrate_client_profile(bad_file, "DEMO")
 
     def test_migrate_client_reserved_code_uses_fallback(self, tmp_path):
         migrator = ConfigurationMigrator(

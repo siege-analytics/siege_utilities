@@ -136,7 +136,8 @@ def codify_area(
         **kwargs: Passed through to the geocoder.
 
     Returns:
-        CodificationResult with block-level profiles.
+        CodificationResult with block-level profiles. Default-geocoder
+        construction failures raise RuntimeError.
     """
     result = CodificationResult(
         total_addresses=len(addresses),
@@ -149,9 +150,8 @@ def codify_area(
     if geocoder is None:
         try:
             geocoder = _get_default_geocoder()
-        except (ImportError, Exception) as exc:
-            result.errors.append(f"No geocoder available: {exc}")
-            return result
+        except (ImportError, OSError, ValueError, RuntimeError) as exc:
+            raise RuntimeError("Could not construct the default geocoder") from exc
 
     result.geocoding_backend = geocoder.backend_name
 

@@ -303,6 +303,7 @@ def classify_series(
 
     Raises:
         ValueError: If scheme is unknown or values are empty.
+        RuntimeError: If the selected mapclassify backend fails.
     """
     arr = np.asarray(values, dtype=np.float64).ravel()
 
@@ -343,10 +344,8 @@ def classify_series(
                 len(clean), result.k, scheme,
             )
             return result
-        except Exception:
-            log.warning(
-                "mapclassify failed for scheme '%s'; falling back to numpy.", scheme,
-            )
+        except Exception as exc:
+            raise RuntimeError(f"mapclassify failed for scheme {scheme!r}") from exc
 
     if scheme not in _NUMPY_SCHEMES:
         available = sorted(set(list(_NUMPY_SCHEMES.keys()) + (

@@ -9,8 +9,8 @@ match user_config.py at the time of writing:
 - L144 (_resolve_config_dir):   Path.home() RuntimeError/KeyError -> TMPDIR
 - L158 (_load_user_profile):    OSError/YAMLError/ValueError/KeyError -> defaults
 - L174 (_save_user_profile):    OSError/YAMLError/TypeError -> log.error
-- L361 (export_config):         OSError/YAMLError -> log.error, no raise
-- L382 (import_config):         OSError/YAMLError/AttributeError -> log.error
+- L361 (export_config):         OSError/YAMLError -> log.error and propagate
+- L382 (import_config):         OSError/YAMLError/AttributeError -> log.error and propagate
 - L439 (get_download_directory): ImportError/OSError/YAMLError/ValueError -> log.debug
 - L449 (get_download_directory): OSError on mkdir -> pass (writability check owns)
 
@@ -231,21 +231,22 @@ def test_line_174_save_type_error_logged_not_raised(
 
 
 # ---------------------------------------------------------------------------
-# L361 — export_config: OSError/YAMLError → log.error, no raise
+# L361 — export_config: OSError/YAMLError → log.error and propagate
 # ---------------------------------------------------------------------------
 
 
-def test_line_361_export_os_error_logged_not_raised(
+def test_line_361_export_os_error_logged_and_raised(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """L361: export to unwritable path is logged; caller sees no exception."""
+    """L361: export to an unwritable path logs and propagates the failure."""
     monkeypatch.setenv("SIEGE_USER_CONFIG_DIR", str(tmp_path))
     mgr = UserConfigManager()
 
     with caplog.at_level(logging.ERROR, logger="siege_utilities.config.user_config"):
-        mgr.export_config(str(tmp_path / "nonexistent-dir" / "out.yaml"))
+        with pytest.raises(OSError):
+            mgr.export_config(str(tmp_path / "nonexistent-dir" / "out.yaml"))
 
     assert any("Failed to export configuration" in r.message for r in caplog.records)
 
@@ -307,7 +308,7 @@ def test_failed_export_preserves_file_and_removes_temporary_file(
     tmp_path: Path, caplog: pytest.LogCaptureFixture,
     operation: str, error: Exception,
 ) -> None:
-    """Serialization or replacement failure must log and leave the old export intact."""
+    """Serialization or replacement failure raises and leaves the old export intact."""
     mgr = UserConfigManager(config_dir=tmp_path / "config")
     export_dir = tmp_path / "exports"
     export_dir.mkdir()
@@ -317,7 +318,8 @@ def test_failed_export_preserves_file_and_removes_temporary_file(
     with patch(
         f"siege_utilities.config.user_config.{operation}", side_effect=error,
     ), caplog.at_level(logging.INFO, logger="siege_utilities.config.user_config"):
-        mgr.export_config(str(output))
+        with pytest.raises(type(error), match=str(error)):
+            mgr.export_config(str(output))
 
     assert output.read_text(encoding="utf-8") == "username: original\n"
     assert list(export_dir.iterdir()) == [output]
@@ -326,31 +328,32 @@ def test_failed_export_preserves_file_and_removes_temporary_file(
 
 
 # ---------------------------------------------------------------------------
-# L382 — import_config: OSError/YAMLError/AttributeError → log.error
+# L382 — import_config: OSError/YAMLError/AttributeError → log.error and propagate
 # ---------------------------------------------------------------------------
 
 
-def test_line_382_import_missing_file_logged_not_raised(
+def test_line_382_import_missing_file_logged_and_raised(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """L382: import from missing path logs error, does not raise FileNotFoundError."""
+    """L382: import from a missing path logs and raises FileNotFoundError."""
     monkeypatch.setenv("SIEGE_USER_CONFIG_DIR", str(tmp_path))
     mgr = UserConfigManager()
 
     with caplog.at_level(logging.ERROR, logger="siege_utilities.config.user_config"):
-        mgr.import_config(str(tmp_path / "does-not-exist.yaml"))
+        with pytest.raises(FileNotFoundError):
+            mgr.import_config(str(tmp_path / "does-not-exist.yaml"))
 
     assert any("Failed to import configuration" in r.message for r in caplog.records)
 
 
-def test_line_382_import_malformed_yaml_logged_not_raised(
+def test_line_382_import_malformed_yaml_logged_and_raised(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """L382: malformed YAML during import is logged, not raised."""
+    """L382: malformed YAML during import is logged and raised."""
     monkeypatch.setenv("SIEGE_USER_CONFIG_DIR", str(tmp_path))
     mgr = UserConfigManager()
 
@@ -358,7 +361,8 @@ def test_line_382_import_malformed_yaml_logged_not_raised(
     bad.write_text("this: is: not: valid: [\n")
 
     with caplog.at_level(logging.ERROR, logger="siege_utilities.config.user_config"):
-        mgr.import_config(str(bad))
+        with pytest.raises(yaml.YAMLError):
+            mgr.import_config(str(bad))
 
     assert any("Failed to import configuration" in r.message for r in caplog.records)
 
