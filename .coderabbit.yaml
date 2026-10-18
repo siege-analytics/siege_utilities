@@ -6,7 +6,10 @@ enable_free_tier: true
 
 reviews:
   profile: "assertive"
-  request_changes_workflow: true
+  # Comment-only reviews: a CHANGES_REQUESTED verdict stays in force after its
+  # threads are fixed and resolved, until someone dismisses it, so it stalled
+  # PRs (#1719, #1742). Resolving every thread is still required to merge.
+  request_changes_workflow: false
   high_level_summary: true
   review_status: true
   commit_status: true
