@@ -8,6 +8,8 @@ import pathlib
 import logging
 from typing import Dict, Any, Optional, List
 
+from siege_utilities.files.operations import atomic_write_path
+
 __all__ = [
     'create_directory_structure',
     'create_standard_project_structure',
@@ -221,8 +223,9 @@ def save_directory_config(paths: Dict[str, str], config_name: str,
         'created_date': str(pathlib.Path().stat().st_mtime)
     }
 
-    with open(config_file, 'w', encoding='utf-8') as f:
-        json.dump(config, f, indent=2)
+    with atomic_write_path(config_file) as tmp:
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2)
 
     log_info(f"Saved directory config to: {config_file}")
     return str(config_file)

@@ -161,7 +161,8 @@ python scripts/release_manager.py --set-version 2.0.0
 python scripts/release_manager.py --build --clean
 
 # Build and upload to PyPI
-python scripts/release_manager.py --build --clean --pypi --token $PYPI_API_TOKEN
+# Export PYPI_API_TOKEN in the environment before running.
+python scripts/release_manager.py --build --clean --pypi
 
 # Run tests
 python scripts/release_manager.py --test
@@ -206,7 +207,7 @@ python scripts/release_manager.py --release \
 | `--skip-github` | Skip GitHub release creation |
 | `--pypi` | Upload to PyPI after build |
 | `--repository REPO` | `pypi` (default) or `testpypi` |
-| `--token TOKEN` | PyPI API token (or `PYPI_API_TOKEN` env var) |
+| `--token TOKEN` | Rejected; set `PYPI_API_TOKEN` in the environment instead |
 | `--dry-run` | Show actions without executing |
 | `--clean` | Clean build artifacts before building |
 

@@ -18,6 +18,8 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 import pandas as pd
 
+from siege_utilities.files.secure_write import secure_write_text
+
 logger = logging.getLogger(__name__)
 
 # GA4 accepts these relative-date keywords in place of an absolute date.
@@ -180,10 +182,7 @@ class GoogleAnalyticsConnector:
 
     def _save_credentials(self, token_path: pathlib.Path):
         """Save OAuth credentials to file."""
-        import os
-        with open(token_path, 'w', encoding='utf-8') as token:
-            token.write(self.credentials.to_json())
-        os.chmod(token_path, 0o600)
+        secure_write_text(token_path, self.credentials.to_json())
         log_info(f"Saved credentials to: {token_path}")
 
     def authenticate_service_account(self) -> None:
@@ -198,14 +197,11 @@ class GoogleAnalyticsConnector:
         """
         from google.oauth2 import service_account
         from ..config import create_temporary_service_account_file
-        from pathlib import Path
 
         if not self.service_account_data:
             raise ValueError("No service account data available for authentication")
 
-        temp_file = create_temporary_service_account_file(self.service_account_data)
-
-        try:
+        with create_temporary_service_account_file(self.service_account_data) as temp_file:
             self.credentials = service_account.Credentials.from_service_account_file(
                 temp_file,
                 scopes=['https://www.googleapis.com/auth/analytics.readonly']
@@ -215,9 +211,6 @@ class GoogleAnalyticsConnector:
             self.ga4_client = BetaAnalyticsDataClient(credentials=self.credentials)
 
             log_info(f"Service account authentication successful: {self.service_account_data['client_email']}")
-
-        finally:
-            Path(temp_file).unlink(missing_ok=True)
 
     @staticmethod
     def _validate_ga_date(value: str, field: str) -> None:
@@ -462,45 +455,43 @@ def create_ga_account_profile(client_id: str, ga_property_id: str,
 
 
 def save_ga_account_profile(profile: Dict[str, Any],
-                           config_directory: str = "config") -> str:
+                           config_directory: str | None = None) -> str:
     """
     Save GA account profile to JSON file.
 
     Args:
         profile: GA account profile dictionary
-        config_directory: Directory to save config files
+        config_directory: Config root; defaults to ~/.siege_utilities
 
     Returns:
         Path to saved config file
     """
-    config_dir = pathlib.Path(config_directory) / "google_analytics"
-    config_dir.mkdir(parents=True, exist_ok=True)
+    config_dir = (pathlib.Path(config_directory) if config_directory is not None
+                  else pathlib.Path.home() / ".siege_utilities") / "google_analytics"
 
     account_id = profile['ga_account_id']
     config_file = config_dir / f"ga_account_{account_id}.json"
 
-    import os
-    with open(config_file, 'w', encoding='utf-8') as f:
-        json.dump(profile, f, indent=2)
-    os.chmod(config_file, 0o600)
+    secure_write_text(config_file, json.dumps(profile, indent=2))
 
     log_info(f"Saved GA account profile to: {config_file}")
     return str(config_file)
 
 
 def load_ga_account_profile(account_id: str,
-                           config_directory: str = "config") -> Optional[Dict[str, Any]]:
+                           config_directory: str | None = None) -> Optional[Dict[str, Any]]:
     """
     Load GA account profile from JSON file.
 
     Args:
         account_id: GA account ID to load
-        config_directory: Directory containing config files
+        config_directory: Config root; defaults to ~/.siege_utilities
 
     Returns:
         GA account profile dictionary or None if not found
     """
-    config_dir = pathlib.Path(config_directory) / "google_analytics"
+    config_dir = (pathlib.Path(config_directory) if config_directory is not None
+                  else pathlib.Path.home() / ".siege_utilities") / "google_analytics"
     config_file = config_dir / f"ga_account_{account_id}.json"
 
     if not config_file.exists():
@@ -520,18 +511,19 @@ def load_ga_account_profile(account_id: str,
 
 
 def list_ga_accounts_for_client(client_id: str,
-                                config_directory: str = "config") -> List[Dict[str, Any]]:
+                                config_directory: str | None = None) -> List[Dict[str, Any]]:
     """
     List all GA accounts associated with a client.
 
     Args:
         client_id: Client ID to search for
-        config_directory: Directory containing config files
+        config_directory: Config root; defaults to ~/.siege_utilities
 
     Returns:
         List of GA account profiles
     """
-    config_dir = pathlib.Path(config_directory) / "google_analytics"
+    config_dir = (pathlib.Path(config_directory) if config_directory is not None
+                  else pathlib.Path.home() / ".siege_utilities") / "google_analytics"
 
     if not config_dir.exists():
         return []

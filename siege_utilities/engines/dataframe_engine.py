@@ -103,6 +103,17 @@ def _normalise_pandas_aggs(agg_dict: "Dict[str, str]") -> "Dict[str, str]":
     return {col: _PANDAS_AGG_SPELLING.get(fn, fn) for col, fn in agg_dict.items()}
 
 
+def _aggregate_pandas_groups(grouped: Any, normalised: Dict[str, str]) -> Any:
+    """Aggregate with SQL NULL sums while retaining pandas' native operations."""
+    result = grouped.agg(normalised)
+    sum_cols = [col for col, fn in normalised.items() if fn == "sum"]
+    if sum_cols:
+        # pandas sums all-null groups to zero. Mask only those groups, keeping
+        # real zero sums and nullable dtypes; equivalent to sum(min_count=1).
+        result[sum_cols] = result[sum_cols].where(grouped[sum_cols].count() > 0)
+    return result.reset_index()
+
+
 # ---------------------------------------------------------------------------
 # ABC
 # ---------------------------------------------------------------------------
@@ -786,7 +797,8 @@ class PandasEngine(DataFrameEngine):
     ) -> Any:
         _validate_agg_names(agg_dict, "PandasEngine")
         normalised = _normalise_pandas_aggs(agg_dict)
-        return df.groupby(list(group_cols)).agg(normalised).reset_index()
+        grouped = df.groupby(list(group_cols), dropna=False)
+        return _aggregate_pandas_groups(grouped, normalised)
 
     def filter(self, df: Any, condition: Any) -> Any:
         return df.loc[condition].reset_index(drop=True)
@@ -1085,7 +1097,8 @@ class DuckDBEngine(DataFrameEngine):
         import pandas as pd
         normalised = _normalise_pandas_aggs(agg_dict)
         if isinstance(df, pd.DataFrame):
-            return df.groupby(list(group_cols)).agg(normalised).reset_index()
+            grouped = df.groupby(list(group_cols), dropna=False)
+            return _aggregate_pandas_groups(grouped, normalised)
         raise TypeError(
             "DuckDBEngine.groupby_agg expects a pandas DataFrame "
             "(use .query() with GROUP BY for pure-SQL workflows)"
@@ -1684,7 +1697,7 @@ class SparkEngine(DataFrameEngine):
         df.createOrReplaceTempView(lv)
         if isinstance(other, (BaseGeometry, str)):
             wkt_str = other.wkt if isinstance(other, BaseGeometry) else other
-            wkt_escaped = escape_string_literal(wkt_str)
+            wkt_escaped = escape_string_literal(wkt_str, dialect="spark")
             sql = (
                 f"SELECT *, ST_Distance(ST_GeomFromText({geometry_col}), "
                 f"ST_GeomFromText('{wkt_escaped}')) AS _distance FROM {lv}"
@@ -2034,7 +2047,8 @@ class PostGISEngine(DataFrameEngine):
     ) -> Any:
         _validate_agg_names(agg_dict, "PostGISEngine")
         normalised = _normalise_pandas_aggs(agg_dict)
-        return df.groupby(list(group_cols)).agg(normalised).reset_index()
+        grouped = df.groupby(list(group_cols), dropna=False)
+        return _aggregate_pandas_groups(grouped, normalised)
 
     def filter(self, df: Any, condition: Any) -> Any:
         return df.loc[condition].reset_index(drop=True)

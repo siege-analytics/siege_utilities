@@ -8,6 +8,8 @@ import pathlib
 import logging
 from typing import Dict, Any, Optional
 
+from siege_utilities.files.operations import atomic_write_path
+
 __all__ = [
     'create_project_config',
     'save_project_config',
@@ -149,8 +151,9 @@ def save_project_config(config: Dict[str, Any], config_directory: str = "config"
     project_code = config['project_code']
     config_file = config_dir / f"project_{project_code}.json"
 
-    with open(config_file, 'w', encoding='utf-8') as f:
-        json.dump(config, f, indent=2)
+    with atomic_write_path(config_file) as tmp:
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2)
 
     log_info(f"Saved project config to: {config_file}")
     return str(config_file)

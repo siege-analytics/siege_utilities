@@ -7,6 +7,8 @@ from __future__ import annotations
 import logging
 from typing import Dict, Any, Union
 
+from .._markup import _escape_paragraph
+
 # Core plotting libraries
 try:
     import matplotlib.pyplot as plt
@@ -197,7 +199,7 @@ class StatsChartMixin:
         """
         try:
             if data.empty:
-                return f"<i>No data available for {title}</i>"
+                return f"<i>No data available for {_escape_paragraph(title)}</i>"
 
             # Create pivot table
             pivot_data = data.pivot_table(
@@ -213,11 +215,11 @@ class StatsChartMixin:
             value_range = max_value - min_value if max_value > min_value else 1
 
             # Create heatmap
-            chart_lines = [f"<b>{title}</b>", "=" * len(title), ""]
+            chart_lines = [f"<b>{_escape_paragraph(title)}</b>", "=" * len(title), ""]
 
             # Add column headers
             col_headers = [f"{col:<8}" for col in pivot_data.columns]
-            chart_lines.append(" " * 12 + "".join(col_headers))
+            chart_lines.append(_escape_paragraph(" " * 12 + "".join(col_headers)))
             chart_lines.append(" " * 12 + "-" * len("".join(col_headers)))
 
             # Add rows
@@ -232,14 +234,14 @@ class StatsChartMixin:
                     char_index = max(0, min(char_index, len(heat_chars) - 1))
                     heat_row += heat_chars[char_index] * 2
 
-                chart_lines.append(f"{row_label} {heat_row}")
+                chart_lines.append(_escape_paragraph(f"{row_label} {heat_row}"))
 
             # Add legend
             chart_lines.append("")
-            chart_lines.append("Legend: " + " ".join([f"{heat_chars[i]} {i/(len(heat_chars)-1)*100:.0f}%" for i in range(len(heat_chars))]))
+            legend = " ".join(f"{char} {i/(len(heat_chars)-1)*100:.0f}%" for i, char in enumerate(heat_chars))
+            chart_lines.append("Legend: " + _escape_paragraph(legend))
 
             return "<br/>".join(chart_lines)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
-            log.error(f"Error creating text heatmap: {e}")
-            return f"<i>Error creating text heatmap: {str(e)}</i>"
+            raise RuntimeError("Text heatmap generation failed") from e

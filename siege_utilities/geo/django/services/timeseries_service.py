@@ -11,6 +11,8 @@ import math
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from ._bulk import bulk_insert_counted
+
 log = logging.getLogger(__name__)
 
 __all__ = [
@@ -203,14 +205,20 @@ class TimeseriesService:
                     )
                 )
 
-            # Bulk create
+            # Bulk create, counting rows inserted rather than rows offered (#1539)
             if to_create:
                 for i in range(0, len(to_create), batch_size):
                     batch = to_create[i: i + batch_size]
-                    DemographicTimeSeries.objects.bulk_create(
-                        batch, ignore_conflicts=True
+                    result.records_created += bulk_insert_counted(
+                        DemographicTimeSeries.objects,
+                        batch,
+                        scope={
+                            "content_type": content_type,
+                            "variable_code": variable,
+                            "dataset": self.dataset,
+                            "object_id__in": [series.object_id for series in batch],
+                        },
                     )
-                result.records_created = len(to_create)
 
             results.append(result)
             log.info(

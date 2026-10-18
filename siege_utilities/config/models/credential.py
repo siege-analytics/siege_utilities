@@ -2,7 +2,7 @@
 Credential management model with comprehensive validation.
 """
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import SecretStr, BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -60,22 +60,26 @@ class Credential(BaseModel):
         max_length=100,
         description="Username (if applicable)"
     )
-    password: Optional[str] = Field(
+    password: Optional[SecretStr] = Field(
+        json_schema_extra={"sensitive": True},
         default=None,
         max_length=500,
         description="Password (if applicable)"
     )
-    api_key: Optional[str] = Field(
+    api_key: Optional[SecretStr] = Field(
+        json_schema_extra={"sensitive": True},
         default=None,
         max_length=500,
         description="API key (if applicable)"
     )
-    token: Optional[str] = Field(
+    token: Optional[SecretStr] = Field(
+        json_schema_extra={"sensitive": True},
         default=None,
         max_length=1000,
         description="OAuth token or other token (if applicable)"
     )
-    secret: Optional[str] = Field(
+    secret: Optional[SecretStr] = Field(
+        json_schema_extra={"sensitive": True},
         default=None,
         max_length=500,
         description="Secret key (if applicable)"
@@ -130,7 +134,7 @@ class Credential(BaseModel):
     @classmethod
     def validate_password(cls, v):
         """Validate password strength if provided."""
-        if v and len(v) < 8:
+        if v and len(v.get_secret_value()) < 8:
             raise ValueError('Password must be at least 8 characters')
         return v
     
@@ -138,7 +142,7 @@ class Credential(BaseModel):
     @classmethod
     def validate_api_key(cls, v):
         """Validate API key format if provided."""
-        if v and len(v) < 10:
+        if v and len(v.get_secret_value()) < 10:
             raise ValueError('API key must be at least 10 characters')
         return v
     
@@ -202,6 +206,7 @@ class Credential(BaseModel):
     model_config = {
         "json_schema_serialization_mode": "json",
         "validate_assignment": True,
+        "hide_input_in_errors": True,
         "extra": "forbid"
     }
 
@@ -232,6 +237,7 @@ class OnePasswordCredential(BaseModel):
     
     # Credential reference
     credential_name: str = Field(
+        json_schema_extra={"sensitive": False},
         min_length=1,
         max_length=100,
         description="Name of the credential in 1Password"

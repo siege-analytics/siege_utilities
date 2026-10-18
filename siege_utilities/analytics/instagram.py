@@ -20,6 +20,7 @@ import pathlib
 import time
 from datetime import date, datetime
 from typing import Any, Mapping
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import pandas as pd
 
@@ -35,6 +36,9 @@ from siege_utilities.analytics._social_protocol import (
     SocialMediaError,
     SocialMediaRateLimitError,
 )
+from siege_utilities.core._http import redact_url_secrets
+
+from siege_utilities.files.secure_write import secure_write_text
 
 log = logging.getLogger(__name__)
 
@@ -103,6 +107,7 @@ class InstagramConnector:
         self._session.headers.update({
             "Accept": "application/json",
             "User-Agent": "siege_utilities/InstagramConnector",
+            "Authorization": f"Bearer {self._access_token}",
         })
         log.info("InstagramConnector initialised (API %s)", API_VERSION)
 
@@ -343,8 +348,18 @@ class InstagramConnector:
         params: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Send an authenticated request to an absolute URL."""
-        req_params = dict(params) if params else {}
-        req_params["access_token"] = self._access_token
+        req_params = {
+            key: value for key, value in (params or {}).items()
+            if key.lower() != "access_token"
+        }
+        # Graph paging links can repeat the token; authenticate via the header.
+        parts = urlsplit(url)
+        query = [
+            (key, value) for key, value in parse_qsl(parts.query, keep_blank_values=True)
+            if key.lower() != "access_token"
+        ]
+        url = urlunsplit(parts._replace(query=urlencode(query)))
+        safe_url = redact_url_secrets(url)
         last_exc: BaseException | None = None
 
         for attempt in range(1, self._retry_attempts + 1):
@@ -355,10 +370,10 @@ class InstagramConnector:
                     timeout=self._timeout,
                 )
             except requests.exceptions.RequestException as exc:
-                last_exc = exc
+                last_exc = SocialMediaError(redact_url_secrets(str(exc)))
                 log.warning(
                     "Instagram %s %s attempt %d/%d failed: %s",
-                    method, url, attempt, self._retry_attempts, exc,
+                    method, safe_url, attempt, self._retry_attempts, str(last_exc),
                 )
                 if attempt < self._retry_attempts:
                     time.sleep(self._retry_backoff ** attempt)
@@ -373,17 +388,17 @@ class InstagramConnector:
             if resp.status_code == 429:
                 retry_after = self._parse_retry_after(resp)
                 raise SocialMediaRateLimitError(
-                    f"Instagram API rate limit hit on {method} {url}.",
+                    f"Instagram API rate limit hit on {method} {safe_url}.",
                     retry_after=retry_after,
                 )
 
             if 500 <= resp.status_code < 600:
                 last_exc = SocialMediaError(
-                    f"Instagram API {resp.status_code} on {method} {url}."
+                    f"Instagram API {resp.status_code} on {method} {safe_url}."
                 )
                 log.warning(
                     "Instagram %s %s 5xx %d attempt %d/%d",
-                    method, url, resp.status_code, attempt, self._retry_attempts,
+                    method, safe_url, resp.status_code, attempt, self._retry_attempts,
                 )
                 if attempt < self._retry_attempts:
                     time.sleep(self._retry_backoff ** attempt)
@@ -397,14 +412,15 @@ class InstagramConnector:
 
             try:
                 return resp.json()
-            except ValueError as exc:
-                raise SocialMediaError(
-                    f"Instagram API returned non-JSON response on {method} {url}: "
-                    f"{resp.text[:200]!r}"
-                ) from exc
+            except ValueError:
+                error = SocialMediaError(
+                    f"Instagram API returned non-JSON response on {method} {safe_url}: "
+                    f"{redact_url_secrets(resp.text)[:200]!r}"
+                )
+            raise error from None
 
         raise SocialMediaError(
-            f"Instagram API {method} {url} failed after {self._retry_attempts} "
+            f"Instagram API {method} {safe_url} failed after {self._retry_attempts} "
             f"attempts: {last_exc}"
         )
 
@@ -412,9 +428,11 @@ class InstagramConnector:
     def _extract_error_message(resp: requests.Response) -> str:
         try:
             body = resp.json()
-            return body.get("error", {}).get("message", resp.text[:200])
+            return redact_url_secrets(str(body.get("error", {}).get(
+                "message", redact_url_secrets(resp.text)[:200],
+            )))
         except ValueError:
-            return resp.text[:200]
+            return redact_url_secrets(resp.text)[:200]
 
     @staticmethod
     def _parse_retry_after(resp: requests.Response) -> float | None:
@@ -485,17 +503,16 @@ def create_instagram_account_profile(
 
 def save_instagram_account_profile(
     profile: dict[str, Any],
-    config_directory: str = "config",
+    config_directory: str | None = None,
 ) -> str:
-    """Save Instagram account profile to JSON file."""
-    config_dir = pathlib.Path(config_directory) / "instagram"
-    config_dir.mkdir(parents=True, exist_ok=True)
+    """Save Instagram account profile to JSON under ~/.siege_utilities/instagram by default."""
+    config_dir = (pathlib.Path(config_directory) if config_directory is not None
+                  else pathlib.Path.home() / ".siege_utilities") / "instagram"
 
     account_id = profile["ig_account_id"]
     config_file = config_dir / f"ig_account_{account_id}.json"
 
-    with open(config_file, "w", encoding="utf-8") as f:
-        json.dump(profile, f, indent=2)
+    secure_write_text(config_file, json.dumps(profile, indent=2))
 
     log.info("Saved Instagram profile to %s", config_file)
     return str(config_file)
@@ -503,10 +520,11 @@ def save_instagram_account_profile(
 
 def load_instagram_account_profile(
     account_id: str,
-    config_directory: str = "config",
+    config_directory: str | None = None,
 ) -> dict[str, Any] | None:
     """Load Instagram account profile from JSON file."""
-    config_dir = pathlib.Path(config_directory) / "instagram"
+    config_dir = (pathlib.Path(config_directory) if config_directory is not None
+                  else pathlib.Path.home() / ".siege_utilities") / "instagram"
     config_file = config_dir / f"ig_account_{account_id}.json"
 
     if not config_file.exists():

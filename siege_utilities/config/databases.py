@@ -11,6 +11,8 @@ import re
 from typing import Dict, Any
 from urllib.parse import quote_plus
 
+from siege_utilities.files.secure_write import secure_write_text
+
 __all__ = [
     'create_database_config',
     'save_database_config',
@@ -136,7 +138,10 @@ def create_database_config(name: str, connection_type: str, host: str, port: int
 
 def save_database_config(config: Dict[str, Any], config_directory: str = "config") -> str:
     """
-    Save database configuration to JSON file.
+    Save database configuration to a private JSON file.
+
+    The legacy default is CWD-relative config/. On shared hosts pass a private
+    per-user config_directory; custom connection parameters can contain secrets.
 
     Args:
         config: Database configuration dictionary
@@ -151,7 +156,6 @@ def save_database_config(config: Dict[str, Any], config_directory: str = "config
     """
 
     config_dir = pathlib.Path(config_directory)
-    config_dir.mkdir(parents=True, exist_ok=True)
 
     db_name = config['name']
     if not db_name or '/' in db_name or '\\' in db_name or '..' in db_name:
@@ -168,8 +172,7 @@ def save_database_config(config: Dict[str, Any], config_directory: str = "config
         )
         safe_config['password'] = f"${{{env_name}}}"
 
-    with open(config_file, 'w', encoding='utf-8') as f:
-        json.dump(safe_config, f, indent=2)
+    secure_write_text(config_file, json.dumps(safe_config, indent=2))
 
     log_info(f"Saved database config to: {config_file}")
     return str(config_file)

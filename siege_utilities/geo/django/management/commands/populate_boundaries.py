@@ -6,12 +6,18 @@ Usage:
     python manage.py populate_boundaries --year 2020 --type tract --state 06
     python manage.py populate_boundaries --year 2020 --type tract --state CA
     python manage.py populate_boundaries --year 2020 --type all --state 06
+
+Any skipped row or reported error makes the command exit nonzero after the
+counts are printed. Use --allow-partial to tolerate errors or skipped rows
+when at least one record was created or updated. Known unpublished VTD sources
+are warned and skipped without failing. Use --update when reloading boundaries.
 """
 
 from typing import Optional
 
 from django.core.management.base import BaseCommand, CommandError
 
+from siege_utilities.geo.boundary_result import BoundaryRetrievalError
 from siege_utilities.geo.django.services import BoundaryPopulationService
 
 __all__ = ['Command']
@@ -43,6 +49,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
+            "--allow-partial",
+            action="store_true",
+            help="Allow errors or skipped rows if at least one record was created or updated",
+        )
+        parser.add_argument(
             "--year",
             type=int,
             required=True,
@@ -58,7 +69,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--state",
             type=str,
-            help="State FIPS code or abbreviation (required for tract, blockgroup, block)",
+            help="State FIPS code or abbreviation (required for state-scoped files)",
         )
         parser.add_argument(
             "--update",
@@ -129,6 +140,8 @@ class Command(BaseCommand):
 
         total_created = 0
         total_updated = 0
+        total_skipped = 0
+        total_sources_skipped = 0
         total_errors = []
 
         for gtype in types_to_process:
@@ -143,37 +156,38 @@ class Command(BaseCommand):
 
             self.stdout.write(f"Populating {gtype} boundaries for year {year}...")
 
-            result = service.populate(
-                geography_type=gtype,
-                year=year,
-                state_fips=state_fips,
-                update_existing=update_existing,
-                batch_size=batch_size,
-            )
+            try:
+                result = service.populate(
+                    geography_type=gtype,
+                    year=year,
+                    state_fips=state_fips,
+                    update_existing=update_existing,
+                    batch_size=batch_size,
+                )
+            except BoundaryRetrievalError as exc:
+                raise CommandError(f"{gtype} population failed: {exc}") from exc
 
             total_created += result.records_created
             total_updated += result.records_updated
+            total_skipped += result.records_skipped
+            total_sources_skipped += result.sources_skipped
             total_errors.extend(result.errors)
 
-            if result.success:
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f"  {gtype}: {result.records_created} created, "
-                        f"{result.records_updated} updated, "
-                        f"{result.records_skipped} skipped"
-                    )
-                )
-            else:
-                self.stdout.write(
-                    self.style.ERROR(
-                        f"  {gtype}: {len(result.errors)} errors"
-                    )
-                )
-                for error in result.errors[:5]:  # Show first 5 errors
-                    self.stdout.write(self.style.ERROR(f"    - {error}"))
+            for warning in result.warnings:
+                self.stdout.write(self.style.WARNING(f"  {warning}"))
+
+            style = self.style.ERROR if result.errors or result.records_skipped else self.style.SUCCESS
+            self.stdout.write(style(
+                f"  {gtype}: {result.records_created} created, "
+                f"{result.records_updated} updated, "
+                f"{result.records_skipped + result.sources_skipped} skipped, "
+                f"{len(result.errors)} errors"
+            ))
+            for error in result.errors[:5]:  # Show first 5 errors
+                self.stdout.write(self.style.ERROR(f"    - {error}"))
 
             # Link parents if requested
-            if link_parents and gtype != "state":
+            if link_parents and gtype != "state" and not result.sources_skipped:
                 linked = service.link_parent_relationships(gtype, year, state_fips)
                 if linked:
                     self.stdout.write(
@@ -182,13 +196,23 @@ class Command(BaseCommand):
 
         # Summary
         self.stdout.write("")
+        style = self.style.ERROR if total_errors or total_skipped else self.style.SUCCESS
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Total: {total_created} created, {total_updated} updated"
+            style(
+                f"Total: {total_created} created, {total_updated} updated, "
+                f"{total_skipped + total_sources_skipped} skipped"
             )
         )
 
         if total_errors:
             self.stdout.write(
                 self.style.WARNING(f"Total errors: {len(total_errors)}")
+            )
+
+        if (total_errors or total_skipped) and (
+            not options.get("allow_partial", False) or total_created + total_updated == 0
+        ):
+            raise CommandError(
+                f"Boundary population incomplete: {total_skipped} skipped, "
+                f"{len(total_errors)} errors"
             )

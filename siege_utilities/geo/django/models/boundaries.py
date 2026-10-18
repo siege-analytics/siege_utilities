@@ -7,6 +7,8 @@ which provides: geoid, state_fips, lsad, mtfcc, funcstat, vintage_year,
 valid_from/valid_to, geometry, area_land, area_water, internal_point, source.
 """
 
+import re
+
 from django.db import models
 
 from .base import CensusTIGERBoundary
@@ -470,7 +472,10 @@ class CongressionalDistrict(CensusTIGERBoundary):
     """
     Congressional District boundary.
 
-    GEOID: 4 digits = state (2) + district (2)
+    GEOID: 4 characters = state digits (2) + district code (2).
+    District codes accept ASCII letters and digits, including ZZ (unassigned).
+    The CHECK also accepts observed seven-digit STATEFP + 112 + CD codes;
+    ingestion normalizes session-embedded codes to the four-character identity.
     Example: "0614" for California's 14th district
 
     Note: District numbers change after reapportionment (every 10 years).
@@ -511,8 +516,8 @@ class CongressionalDistrict(CensusTIGERBoundary):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(geoid__regex=r"^\d{4}$"),
-                name="cd_geoid_4_digits",
+                condition=models.Q(geoid__regex=r"^\d{2}([0-9A-Za-z]{2}|112[0-9]{2})$"),
+                name="cd_geoid_format",
             ),
         ]
 
@@ -521,7 +526,41 @@ class CongressionalDistrict(CensusTIGERBoundary):
         return 4
 
     @classmethod
+    def normalize_geoid(cls, geoid: str, congress_number: int | None) -> str:
+        """Return the canonical STATEFP + district code for a matching Congress.
+
+        Parameters
+        ----------
+        geoid : str
+            Four-character district GEOID or seven-digit STATEFP + Congress + CD.
+        congress_number : int or None
+            Expected Congress from the source vintage. Required for embedded codes.
+
+        Returns
+        -------
+        str
+            Two state digits followed by the two-character district code.
+
+        Raises
+        ------
+        ValueError
+            If the GEOID shape is invalid or its embedded Congress does not match.
+        """
+        if re.fullmatch(r"[0-9]{2}[0-9A-Za-z]{2}", geoid):
+            return geoid
+        if re.fullmatch(r"[0-9]{7}", geoid):
+            if congress_number is None or int(geoid[2:5]) != congress_number:
+                raise ValueError(
+                    f"GEOID {geoid}: embedded Congress {geoid[2:5]} "
+                    f"does not match expected Congress {congress_number}"
+                )
+            return geoid[:2] + geoid[5:]
+        raise ValueError(f"Invalid congressional district GEOID: {geoid!r}")
+
+    @classmethod
     def parse_geoid(cls, geoid: str) -> dict:
+        # Direct reads of the admitted legacy form must not parse 112 as district 11.
+        geoid = cls.normalize_geoid(geoid, congress_number=112)
         return {
             "state_fips": geoid[:2],
             "district_number": geoid[2:4],
@@ -535,4 +574,9 @@ class CongressionalDistrict(CensusTIGERBoundary):
     def __str__(self):
         if self.is_at_large:
             return f"{self.name} At-Large ({self.geoid})"
-        return f"{self.name} District {int(self.district_number)} ({self.geoid})"
+        if self.district_number.upper() == "ZZ":
+            return f"{self.name} District {self.district_number} (unassigned) ({self.geoid})"
+        district = self.district_number
+        if district.isascii() and district.isdigit():
+            district = int(district)
+        return f"{self.name} District {district} ({self.geoid})"

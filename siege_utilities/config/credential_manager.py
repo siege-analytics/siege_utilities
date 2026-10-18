@@ -7,6 +7,17 @@ This module provides secure credential storage and retrieval using multiple back
 - Apple Keychain (macOS)
 - Interactive prompts (fallback)
 
+Default resolution order: environment variables, 1Password, service-scoped
+local files, Apple Keychain, then interactive prompts. Callers may override
+backend_priority. Files must name the service (for example postgres/password.txt
+or postgres_password.txt); unscoped password.txt, credentials.json, and
+client_secret_*.json files are not searched outside a service directory.
+Keychain supports only the password field; other fields skip it.
+1Password retrieval errors stop resolution, including exit code 1: no
+documented exit-code distinction establishes that an item is merely absent.
+1Password reads and writes target the exact item title or ID; stores refuse
+legacy title variations rather than writing an item the reader cannot find.
+
 Supports all analytics services (Google Analytics, Facebook Business, etc.)
 and database connections with a unified interface.
 """
@@ -14,7 +25,9 @@ and database connections with a unified interface.
 import subprocess
 import json
 import os
-import tempfile  # noqa: F401 -- used by create_temporary_service_account_file; test_credential_manager patches at module scope
+import tempfile
+from contextlib import contextmanager
+from collections.abc import Iterator
 from typing import Dict, Any, Optional, List, Union, Tuple
 from pathlib import Path
 
@@ -23,6 +36,9 @@ from siege_utilities.exceptions import SiegeConfigError
 # Import logging functions
 import logging
 import re
+
+from siege_utilities.files.secure_write import secure_write_text
+
 _logger = logging.getLogger(__name__)
 
 __all__ = [
@@ -79,6 +95,12 @@ _REDACT_PATTERNS = [
 ]
 
 
+def _validate_cli_value(value: str, name: str) -> None:
+    """Reject option-like values without exposing credential contents."""
+    if value.startswith('-'):
+        raise ValueError(f"{name} must not start with '-'")
+
+
 class CredentialNotFoundError(LookupError):
     """Raised by ``get_credential`` when no configured backend yields a value.
 
@@ -122,14 +144,59 @@ def _redact(text: str, *, max_len: int = 300) -> str:
     return s
 
 
+def _safe_error(error: Exception) -> str:
+    """Describe failures without command vectors or potentially secret output."""
+    if isinstance(error, subprocess.TimeoutExpired):
+        return "TimeoutExpired (command and output omitted)"
+    if isinstance(error, subprocess.CalledProcessError):
+        return f"CalledProcessError (exit code {error.returncode})"
+    return _redact(type(error).__name__)
+
+
+def _op_edit_refusal_reason(item: Dict[str, Any]) -> Optional[str]:
+    """Fail closed when CLI JSON cannot establish safe template replacement."""
+    category = item.get('category')
+    if not isinstance(category, str):
+        return "missing or unsupported category; cannot establish passkey safety"
+    if category == 'LOGIN':
+        return ("LOGIN items can contain passkeys, but op 2.34.0 item get JSON "
+                "and --fields expose no reliable passkey-absence signal; "
+                "JSON template edits can delete passkeys")
+    if category in ('SSH_KEY', 'DOCUMENT'):
+        return "SSH key or document material cannot be safely round-tripped by this JSON edit path"
+    # Unknown/new categories may carry material the CLI omits, including passkeys.
+    if category not in {
+        'API_CREDENTIAL', 'BANK_ACCOUNT', 'CREDIT_CARD', 'CRYPTO_WALLET',
+        'DATABASE', 'DRIVER_LICENSE', 'EMAIL_ACCOUNT', 'IDENTITY',
+        'MEDICAL_RECORD', 'MEMBERSHIP', 'OUTDOOR_LICENSE', 'PASSPORT',
+        'PASSWORD', 'REWARD_PROGRAM', 'SECURE_NOTE', 'SERVER',
+        'SOCIAL_SECURITY_NUMBER', 'SOFTWARE_LICENSE', 'WIRELESS_ROUTER',
+    }:
+        return "missing or unsupported category; cannot establish passkey safety"
+    if item.get('files'):
+        return "document/file attachments are not fully represented in item JSON"
+    if item.get('passkey') or item.get('passkeys'):
+        return "passkey material is not supported by JSON templates"
+    fields = item.get('fields')
+    if not isinstance(fields, list) or any(not isinstance(entry, dict) for entry in fields):
+        return "invalid item fields; cannot establish safe JSON replacement"
+    for entry in fields:
+        if entry.get('type') in ('PASSKEY', 'SSHKEY', 'OTP', 'TOTP', 'FILE', 'DOCUMENT'):
+            return ("passkey, SSH key, document, or OTP/TOTP field present; "
+                    "this edit path does not guarantee its JSON round-trip")
+    if not isinstance(item.get('id'), str) or not item['id']:
+        return "missing item ID; cannot safely target the inspected item"
+    return None
+
+
 class CredentialManager:
     """
     Unified credential management system with fallback hierarchy.
 
-    Fallback priority (mirrors Zsh system):
-    1. Local files (JSON, tokens, etc.)
-    2. Environment variables (for existing workflows)
-    3. 1Password CLI (secure storage)
+    Default fallback priority:
+    1. Environment variables (for existing workflows)
+    2. 1Password CLI (secure storage)
+    3. Service-scoped local files (JSON, tokens, etc.)
     4. Apple Keychain (macOS only)
     5. Interactive prompts (fallback)
     """
@@ -147,7 +214,7 @@ class CredentialManager:
 
         Args:
             backend_priority: List of backends in priority order
-                            ['files', 'env', '1password', 'keychain', 'prompt']
+                            ['env', '1password', 'files', 'keychain', 'prompt']
             default_vault: Default 1Password vault to use
             default_account: Default 1Password account shorthand or UUID
             credential_paths: Additional paths to search for credential files.
@@ -158,7 +225,7 @@ class CredentialManager:
             create_default_paths: When False, do not create credential
                 directories during construction.
         """
-        self.backend_priority = backend_priority or ['files', 'env', '1password', 'keychain', 'prompt']
+        self.backend_priority = backend_priority or ['env', '1password', 'files', 'keychain', 'prompt']
         self.default_vault = default_vault
         self.default_account = default_account
         self.credential_paths = self._setup_credential_paths(
@@ -202,29 +269,6 @@ class CredentialManager:
             for path in additional_paths:
                 paths.append(Path(path))
 
-        # Try to get paths from user config only when default/user paths are in
-        # scope. Offline demos can set include_default_paths=False to avoid
-        # reading machine-local credential path configuration.
-        if not include_default_paths:
-            return paths
-
-        # Try to get paths from user config. Narrow except to the two
-        # legitimate "config not available" failure modes (the module
-        # isn't importable, or the function exists but the attribute
-        # we're reading is missing). A bare `except Exception` here
-        # would have swallowed a TypeError in user_config.credential_paths
-        # iteration (e.g., if a user wrote a string instead of a list),
-        # masking a real config bug as "no credential paths configured."
-        try:
-            from .user_config import get_user_config
-        except ImportError:
-            pass  # user_config module not available; no extra paths.
-        else:
-            user_config = get_user_config()
-            if user_config is not None and hasattr(user_config, 'credential_paths'):
-                for path in user_config.credential_paths:
-                    paths.append(Path(path))
-
         return paths
 
     def _detect_available_backends(self, *, detect_external: bool = True) -> Dict[str, bool]:
@@ -249,9 +293,12 @@ class CredentialManager:
         try:
             result = subprocess.run(['op', 'account', 'list'],
                                   capture_output=True, text=True,
-                                  timeout=60)
+                                  timeout=5)
             return result.returncode == 0
         except FileNotFoundError:
+            return False
+        except subprocess.TimeoutExpired:
+            log_warning("1Password availability probe timed out after 5 seconds; backend unavailable")
             return False
 
     def _check_keychain_available(self) -> bool:
@@ -261,9 +308,12 @@ class CredentialManager:
         try:
             result = subprocess.run(['security', 'list-keychains'],
                                   capture_output=True, text=True,
-                                  timeout=60)
+                                  timeout=5)
             return result.returncode == 0
         except FileNotFoundError:
+            return False
+        except subprocess.TimeoutExpired:
+            log_warning("Keychain availability probe timed out after 5 seconds; backend unavailable")
             return False
 
     def _build_op_flags(self, vault: Optional[str] = None,
@@ -307,13 +357,15 @@ class CredentialManager:
             Credential value as a string.
 
         Raises:
+            ValueError: If a CLI backend receives a service or username
+                starting with '-'.
             CredentialNotFoundError: when every configured + available backend
                 was consulted and none had the credential. The error's
                 ``attempts`` list names each backend and its outcome
                 ("skipped" / "no credential" / unknown-backend), so callers
                 can surface a precise diagnostic instead of guessing.
             Exception: backend-specific transport / auth / permission errors
-                (e.g., 1Password CLI non-found-nonzero exits) propagate
+                (including every nonzero 1Password retrieval exit) propagate
                 directly from the per-backend helpers without being
                 wrapped. See SU-1 in CLAUDE.md.
         """
@@ -342,7 +394,7 @@ class CredentialManager:
             elif backend == '1password':
                 value = self._get_from_1password(service, field, vault=vault, account=account)
             elif backend == 'keychain':
-                value = self._get_from_keychain(service, username)
+                value = self._get_from_keychain(service, username, field)
             elif backend == 'prompt':
                 value = self._get_from_prompt(service, username, field)
             else:
@@ -364,16 +416,17 @@ class CredentialManager:
         if additional_paths:
             search_paths.extend(additional_paths)
 
-        # Common file patterns to look for
+        # Every candidate belongs to the requested service.
         patterns = [
+            f"{service}/{field}.txt",
+            f"{service}/{field}.json",
+            f"{service}/credentials.json",
+            f"{service}/client_secret.json",
             f"{service}_{field}.txt",
             f"{service}_{field}.json",
             f"{service}_credentials.json",
             f"{service}.json",
-            f"client_secret_{service}.json",  # Google-style
-            "client_secret_*.json",  # Google wildcard
-            f"{field}.txt",
-            "credentials.json"
+            f"client_secret_{service}.json",  # Google-style, exact service
         ]
 
         for path in search_paths:
@@ -381,19 +434,11 @@ class CredentialManager:
                 continue
 
             for pattern in patterns:
-                if '*' in pattern:
-                    # Handle wildcard patterns
-                    matching_files = list(path.glob(pattern))
-                    for file_path in matching_files:
-                        value = self._extract_from_file(file_path, service, field)
-                        if value:
-                            return value
-                else:
-                    file_path = path / pattern
-                    if file_path.exists():
-                        value = self._extract_from_file(file_path, service, field)
-                        if value:
-                            return value
+                file_path = path / pattern
+                if file_path.exists():
+                    value = self._extract_from_file(file_path, service, field)
+                    if value:
+                        return value
 
         return None
 
@@ -461,16 +506,14 @@ class CredentialManager:
 
     def _get_from_1password(self, service: str, field: str,
                             vault: Optional[str] = None,
-                            account: Optional[str] = None) -> Optional[str]:
+                            account: Optional[str] = None) -> str:
         """Get credential from 1Password.
 
-        Returns the credential string if found, ``None`` if the item
-        legitimately does not exist in 1Password (under the requested
-        name OR any of the documented service-name variations). Raises
-        on transport / auth / vault-permission errors so the caller
-        does not silently fall through to a less-trusted backend when
-        1Password actually had the credential but had a transient
-        access problem.
+        Return the requested field on success. Every nonzero exit raises:
+        exit code 1 also covers server errors, so it cannot establish an
+        item miss. No error text or exit-code map reliably distinguishes
+        absence here. Callers must supply the exact item title or ID;
+        failed lookups do not try name variations or another backend.
 
         Args:
             service: Item title or identifier in 1Password
@@ -478,52 +521,34 @@ class CredentialManager:
             vault: Vault override (falls back to default_vault)
             account: Account override (falls back to default_account)
         """
+        _validate_cli_value(service, 'service')
         op_flags = self._build_op_flags(vault=vault, account=account)
-        names_to_try = [
-            service,
-            f"{service} API",
-            f"{service} Credentials",
-            f"{service.replace('-', ' ').title()} API",
-            f"{service.replace('-', ' ').title()} Credentials",
-        ]
-        # op exit codes (per `op` CLI docs):
-        # 0 = success
-        # 1 = item not found / no match
-        # other = auth required, transport, vault-permission, etc.
-        # Treat exit code 1 (and only 1) as "not in this backend"; everything
-        # else is a real failure that should bubble up.
-        for name in names_to_try:
-            cmd = ['op', 'item', 'get', name, f'--field={field}', '--reveal'] + op_flags
-            # timeout=60 per writing-code:15 (v2.6.0): biometric prompts
-            # can take a moment; bare unbounded waits cascade through the
-            # backend fallback chain into the caller.
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-            if result.returncode == 0:
-                return result.stdout.strip()
-            if result.returncode == 1:
-                # Item not found under this name; try the next variation.
-                continue
-            # Non-1 nonzero exit: 1Password CLI is signalling something
-            # other than "item not found." Raise so the caller does not
-            # silently fall through to keychain/prompt for credentials
-            # 1Password actually has.
-            raise RuntimeError(
-                f"1Password CLI (`op item get {name} --field={field}`) "
-                f"exited with code {result.returncode}: "
-                f"{(result.stderr or result.stdout)[:200]!r}. "
-                f"Resolve the 1Password CLI state before falling back "
-                f"to other backends."
-            )
-        return None
+        cmd = ['op', 'item', 'get', service, f'--field={field}', '--reveal'] + op_flags
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if result.returncode == 0:
+            return result.stdout.strip()
+        raise RuntimeError(
+            f"1Password CLI (`op item get {service} --field={field}`) "
+            f"exited with code {result.returncode}: "
+            f"{_redact(result.stderr or result.stdout, max_len=200)!r}. "
+            f"Resolve the 1Password CLI state before falling back "
+            f"to other backends."
+        )
 
-    def _get_from_keychain(self, service: str, username: str) -> Optional[str]:
+    def _get_from_keychain(self, service: str, username: str,
+                           field: str = "password") -> Optional[str]:
         """Get credential from Apple Keychain.
 
-        Returns None when the keychain simply doesn't contain the
-        credential (exit code 44 = item not found).  Raises on
+        Only the password field uses the item's password. Other fields
+        return None without querying Keychain. Returns None when the keychain
+        doesn't contain the credential (exit code 44 = item not found). Raises on
         transport / permission errors so the caller doesn't silently
         fall through to the next backend.
         """
+        if field != 'password':
+            return None
+        _validate_cli_value(service, 'service')
+        _validate_cli_value(username, 'username')
         result = subprocess.run([
             'security', 'find-generic-password',
             '-s', service,
@@ -551,10 +576,9 @@ class CredentialManager:
             import getpass
             prompt = f"Enter {field} for {service} ({username}): "
 
-            if field.lower() in ['password', 'secret', 'token', 'key']:
-                return getpass.getpass(prompt)
-            else:
+            if field.lower() in {'client_id', 'client_email', 'project_id', 'username'}:
                 return input(prompt)
+            return getpass.getpass(prompt)
 
         except KeyboardInterrupt:
             # User deliberately cancelled — propagate so the caller does
@@ -584,12 +608,22 @@ class CredentialManager:
 
         Returns:
             True if successful, False otherwise
+
+        Raises:
+            SiegeConfigError: An existing 1Password item cannot be safely
+                replaced as JSON, or its updated value cannot be verified.
+                Also raised when only a legacy title variation exists;
+                supply the exact item title or ID instead.
+                See ``_store_in_1password`` for the supported edit scope.
+            ValueError: If a CLI service/field name or Keychain username
+                starts with '-', or Keychain is asked to store a field
+                other than password.
         """
         if backend == '1password' and self.available_backends.get('1password'):
             return self._store_in_1password(service, username, value, field,
                                             vault=vault, account=account)
         elif backend == 'keychain' and self.available_backends.get('keychain'):
-            return self._store_in_keychain(service, username, value)
+            return self._store_in_keychain(service, username, value, field)
         elif backend == 'env':
             return self._store_in_env(service, username, value, field)
         else:
@@ -599,62 +633,178 @@ class CredentialManager:
     def _store_in_1password(self, service: str, username: str, value: str, field: str,
                             vault: Optional[str] = None,
                             account: Optional[str] = None) -> bool:
-        """Store credential in 1Password."""
+        """Store a credential using JSON on stdin, never secret argv values.
+
+        For edits, fetch the complete item JSON and change only the target
+        field's value (or append a concealed field when absent). op 2.34.0
+        documents ``op item edit ITEM`` with piped JSON, without ``-`` or
+        ``--template``. Read the field back before reporting success.
+
+        JSON templates overwrite passkeys. Neither item JSON nor --fields
+        provides a documented, reliable passkey-absence signal, so ALL LOGIN
+        edits are refused, including password-only Logins. Missing/unknown
+        categories are also refused. SSH_KEY/DOCUMENT categories, attachments,
+        and passkey/SSHKEY/OTP/TOTP/file fields are conservatively refused:
+        this path does not guarantee their round-trip, even though CLI
+        templates support OTP values. Use the 1Password app for these edits.
+        New items use API_CREDENTIAL so subsequent rotations remain editable.
+        A read-back check cannot detect data omitted by item JSON.
+
+        Resolve only the exact service title or ID, as retrieval does. Before
+        creating an item, refuse legacy title variations found in the same
+        vault/account; callers must supply their exact title or ID explicitly.
+
+        Raises SiegeConfigError on unsafe edits or failed persistence checks.
+        CLI/JSON errors return False with a diagnostic that omits secrets.
+        """
+        _validate_cli_value(service, 'service')
+        _validate_cli_value(field, 'field')
         try:
             op_flags = self._build_op_flags(vault=vault, account=account)
 
-            # Check if item exists, update or create
-            existing = self._get_from_1password(service, field, vault=vault, account=account)
-
-            if existing:
-                cmd = ['op', 'item', 'edit', service, f'{field}[password]'] + op_flags
-                result = subprocess.run(
-                    cmd, input=value, capture_output=True, text=True, timeout=60,
+            # Determine existence from the item, not a possibly empty/missing
+            # password. Never resolve an alternate title that reads cannot find.
+            item = None
+            current = subprocess.run(
+                ['op', 'item', 'get', service, '--format=json'] + op_flags,
+                capture_output=True, text=True, timeout=60,
+            )
+            if current.returncode == 1:
+                # Metadata is used only to refuse legacy aliases, never to
+                # select an item for editing or retrieve its secret fields.
+                listing = subprocess.run(
+                    ['op', 'item', 'list', '--format=json'] + op_flags,
+                    capture_output=True, text=True, timeout=60,
                 )
+                listing.check_returncode()
+                summaries = json.loads(listing.stdout)
+                if not isinstance(summaries, list) or any(not isinstance(entry, dict) for entry in summaries):
+                    raise SiegeConfigError(f"Refusing to create 1Password item {service!r}: invalid item list JSON")
+                legacy_titles = {
+                    f"{service} API", f"{service} Credentials",
+                    f"{service.replace('-', ' ').title()} API",
+                    f"{service.replace('-', ' ').title()} Credentials",
+                }
+                if any(entry.get('title') in legacy_titles for entry in summaries):
+                    raise SiegeConfigError(
+                        f"Refusing to store 1Password item {service!r}: a legacy title variation exists. "
+                        "Use the exact item title or ID for both storing and retrieving credentials."
+                    )
             else:
+                current.check_returncode()
+                item = json.loads(current.stdout)
+                if not isinstance(item, dict):
+                    raise SiegeConfigError(f"Refusing to update 1Password item {service!r}: invalid item JSON")
+
+            editing = item is not None
+            if editing:
+                reason = _op_edit_refusal_reason(item)
+                if reason:
+                    raise SiegeConfigError(
+                        f"Refusing to update 1Password item {service!r}: {reason}. "
+                        "Use the 1Password app to update this item without losing material."
+                    )
+                fields = item['fields']
+                matches = [entry for entry in fields if entry.get('id') == field]
+                if not matches:
+                    matches = [entry for entry in fields if entry.get('label') == field]
+                if len(matches) > 1:
+                    raise SiegeConfigError(
+                        f"Refusing to update 1Password item {service!r}: ambiguous target field; use its ID"
+                    )
+                target = matches[0] if matches else None
+                if target is None:
+                    target = {'label': field, 'type': 'CONCEALED'}
+                    fields.append(target)
+                target['value'] = value
+                # Pin the edit and verification to the item actually inspected.
+                item_id = item['id']
+                cmd = ['op', 'item', 'edit', item_id] + op_flags
+            else:
+                secret_field = {'id': field, 'label': field, 'type': 'CONCEALED', 'value': value}
+                item = {'fields': [
+                    {'id': 'username', 'label': 'username', 'type': 'STRING',
+                     'value': username},
+                    secret_field,
+                ]}
                 cmd = [
-                    'op', 'item', 'create',
-                    '--category=login',
+                    'op', 'item', 'create', '-',
+                    '--category=API Credential',
                     f'--title={service}',
-                    f'username={username}',
-                    f'{field}[password]',
                     f'--tags=siege-utilities,{service}'
                 ] + op_flags
-                result = subprocess.run(
-                    cmd, input=value, capture_output=True, text=True, timeout=60,
-                )
+
+            result = subprocess.run(
+                cmd, input=json.dumps(item), capture_output=True, text=True, timeout=60,
+            )
 
             if result.returncode == 0:
+                if editing:
+                    verified = subprocess.run(
+                        ['op', 'item', 'get', item_id, '--format=json'] + op_flags,
+                        capture_output=True, text=True, check=True, timeout=60,
+                    )
+                    saved = json.loads(verified.stdout)
+                    saved_fields = saved['fields']
+                    matches = [entry for entry in saved_fields
+                               if (entry.get('id') == target['id'] if target.get('id')
+                                   else entry.get('label') == field)]
+                    if len(matches) != 1 or matches[0].get('value') != value:
+                        raise SiegeConfigError(
+                            f"1Password item {service!r}: edit did not persist the requested field value; "
+                            "check the item in the 1Password app"
+                        )
                 log_info(f"Stored {field} for {service} in 1Password")
                 return True
             else:
-                log_error(f"Failed to store in 1Password: {_redact(result.stderr)}")
+                log_error(f"Failed to store in 1Password: exit code {result.returncode}")
                 return False
 
-        except (subprocess.SubprocessError, OSError, KeyError) as e:
-            log_error(f"Error storing in 1Password: {e}")
+        except (subprocess.SubprocessError, OSError, KeyError, json.JSONDecodeError) as e:
+            log_error(f"Error storing in 1Password: {_safe_error(e)}")
             return False
 
-    def _store_in_keychain(self, service: str, username: str, value: str) -> bool:
-        """Store credential in Apple Keychain."""
+    def _store_in_keychain(self, service: str, username: str, value: str,
+                           field: str = "password") -> bool:
+        """Store a password via stdin; reject other fields with ValueError.
+
+        Return False with an error for unsafe or oversized stdin input.
+        """
+        if field != 'password':
+            raise ValueError("Keychain supports only the password field")
+        _validate_cli_value(service, 'service')
+        _validate_cli_value(username, 'username')
+        # value is encoded as -X hex in the stdin command, never an option.
+        if any(char in service + username for char in '\r\n\0'):
+            log_error("Keychain service and username must not contain line breaks or NUL")
+            return False
+
+        # security -i has its own parser, not a shell: quote whole arguments
+        # and escape backslashes and double quotes. Hex keeps password bytes,
+        # including line breaks, within one command. Never use verbose mode.
+        arguments = ['add-generic-password', '-s', service, '-a', username,
+                     '-X', value.encode('utf-8').hex(), '-U']
+        command = ' '.join('"' + arg.replace('\\', '\\\\').replace('"', '\\"') + '"'
+                           for arg in arguments) + '\n'
+        # Apple's interactive reader uses a 4096-byte buffer, including NUL.
+        if len(command.encode('utf-8')) >= 4096:
+            log_error("Keychain command exceeds the 4095-byte stdin limit; use 1Password")
+            return False
         try:
-            result = subprocess.run([
-                'security', 'add-generic-password',
-                '-s', service,
-                '-a', username,
-                '-w', value,
-                '-U'  # Update if exists
-            ], capture_output=True, text=True, timeout=60)
+            result = subprocess.run(
+                ['security', '-i'], input=command,
+                capture_output=True, text=True, timeout=60,
+            )
 
             if result.returncode == 0:
                 log_info(f"Stored credential for {service} in Keychain")
                 return True
             else:
-                log_error(f"Failed to store in Keychain: {_redact(result.stderr)}")
+                log_error(f"Failed to store in Keychain: exit code {result.returncode}")
                 return False
 
         except (subprocess.SubprocessError, OSError) as e:
-            log_error(f"Error storing in Keychain: {e}")
+            log_error(f"Error storing in Keychain: {_safe_error(e)}")
             return False
 
     def _store_in_env(self, service: str, username: str, value: str, field: str) -> bool:
@@ -692,28 +842,29 @@ class CredentialManager:
             creds = credentials_data['installed']
 
             # Create comprehensive 1Password item with both individual fields and raw JSON
-            import json
             raw_json = json.dumps(credentials_data, indent=2)
+            fields = [
+                {'label': name, 'type': 'CONCEALED' if name == 'client_secret' else 'STRING',
+                 'value': creds[name]}
+                for name in ('client_id', 'client_secret', 'auth_uri', 'token_uri')
+            ]
+            fields.append({'label': 'raw_json', 'type': 'CONCEALED', 'value': raw_json})
 
             cmd = [
-                'op', 'item', 'create',
+                'op', 'item', 'create', '-',
                 '--category=API Credential',
                 f'--title={item_title}',
                 f'--vault={vault}',
-                f'client_id={creds["client_id"]}',
-                f'client_secret={creds["client_secret"]}',
-                f'auth_uri={creds["auth_uri"]}',
-                f'token_uri={creds["token_uri"]}',
-                f'raw_json[text]={raw_json}',
                 '--tags=google-analytics,api,oauth2,siege-utilities'
             ]
 
             # Add redirect URIs if present
             if 'redirect_uris' in creds:
                 redirect_uris = ','.join(creds['redirect_uris'])
-                cmd.append(f'redirect_uris={redirect_uris}')
+                fields.append({'label': 'redirect_uris', 'type': 'STRING', 'value': redirect_uris})
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            result = subprocess.run(cmd, input=json.dumps({'fields': fields}),
+                                    capture_output=True, text=True, timeout=60)
 
             if result.returncode == 0:
                 log_info(f"Stored Google Analytics credentials: '{item_title}'")
@@ -733,11 +884,11 @@ class CredentialManager:
                     log_warning("Could not verify GA credential storage")
                     return False
             else:
-                log_error(f"Failed to store GA credentials: {_redact(result.stderr)}")
+                log_error(f"Failed to store GA credentials: exit code {result.returncode}")
                 return False
 
         except (subprocess.SubprocessError, OSError, KeyError, TypeError) as e:
-            log_error(f"Error storing Google Analytics credentials: {e}")
+            log_error(f"Error storing Google Analytics credentials: {_safe_error(e)}")
             return False
 
     def get_google_analytics_credentials(self, item_title: str = "Google Analytics API") -> Tuple[str, str]:
@@ -751,6 +902,8 @@ class CredentialManager:
             Tuple of (client_id, client_secret).
 
         Raises:
+            RuntimeError: when 1Password retrieval exits nonzero. This stops
+                fallback because the exit code cannot establish item absence.
             CredentialNotFoundError: when neither 1Password item lookup
                 nor the general credential backends yield both
                 ``client_id`` and ``client_secret``.  The error's
@@ -827,7 +980,7 @@ class CredentialManager:
                         f"Tag items with 'siege-utilities' to include them."
                     )
             except (subprocess.SubprocessError, OSError, json.JSONDecodeError) as e:
-                log_warning(f"Error listing 1Password credentials: {e}")
+                log_warning(f"Error listing 1Password credentials: {_safe_error(e)}")
 
         # List environment variables (siege-utilities related)
         env_credentials = []
@@ -950,7 +1103,7 @@ def get_credential(service: str, username: str, field: str = "password",
             attempt-log shape.
         Exception: backend-specific transport / auth errors propagate
             from the underlying helpers (e.g., 1Password CLI nonzero
-            exits other than "not found").
+            retrieval exits).
     """
     manager = _get_default_manager(vault=vault, account=account)
     path_objects = [Path(p) for p in search_paths] if search_paths else None
@@ -976,6 +1129,11 @@ def store_credential(service: str, username: str, value: str,
 
     Returns:
         True if successful
+
+    Raises:
+        SiegeConfigError: A 1Password edit is unsafe or its value fails
+            verification. Login items are refused because CLI JSON cannot
+            establish passkey absence; use the 1Password app for these edits.
     """
     manager = _get_default_manager(vault=vault, account=account)
     return manager.store_credential(service, username, value, field, backend,
@@ -1020,7 +1178,7 @@ def store_ga_credentials_from_file(credentials_file: Union[str, Path],
         return success
 
     except (OSError, json.JSONDecodeError, KeyError, subprocess.SubprocessError) as e:
-        log_error(f"Error storing GA credentials from file: {e}")
+        log_error(f"Error storing GA credentials from file: {_safe_error(e)}")
         return False
 
 
@@ -1086,31 +1244,30 @@ def store_ga_service_account_from_file(credentials_file: Union[str, Path],
 
         # Create comprehensive 1Password item with service account data
         raw_json = json.dumps(service_account_data, indent=2)
+        fields = [
+            {'label': name, 'type': 'CONCEALED' if name == 'private_key' else 'STRING',
+             'value': service_account_data[name]}
+            for name in ('project_id', 'client_email', 'private_key_id', 'private_key')
+        ]
+        fields.append({'label': 'raw_json', 'type': 'CONCEALED', 'value': raw_json})
 
         cmd = [
-            'op', 'item', 'create',
+            'op', 'item', 'create', '-',
             '--category=API Credential',
             f'--title={item_title}',
             f'--vault={vault}',
-            f'project_id={service_account_data["project_id"]}',
-            f'client_email={service_account_data["client_email"]}',
-            f'private_key_id={service_account_data["private_key_id"]}',
-            f'private_key[password]={service_account_data["private_key"]}',
-            f'raw_json[text]={raw_json}',
             '--tags=google-analytics,service-account,ga4,siege-utilities'
         ]
 
         # Add optional fields if present
-        if 'client_id' in service_account_data:
-            cmd.append(f'client_id={service_account_data["client_id"]}')
-        if 'auth_uri' in service_account_data:
-            cmd.append(f'auth_uri={service_account_data["auth_uri"]}')
-        if 'token_uri' in service_account_data:
-            cmd.append(f'token_uri={service_account_data["token_uri"]}')
+        for name in ('client_id', 'auth_uri', 'token_uri'):
+            if name in service_account_data:
+                fields.append({'label': name, 'type': 'STRING', 'value': service_account_data[name]})
 
         # Execute 1Password command — check=True raises on non-zero so
         # we don't need to bind the result to a name.
-        subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=60)
+        subprocess.run(cmd, input=json.dumps({'fields': fields}),
+                       capture_output=True, text=True, check=True, timeout=60)
 
         log_info(f"Stored Google Analytics service account: '{item_title}'")
 
@@ -1121,11 +1278,11 @@ def store_ga_service_account_from_file(credentials_file: Union[str, Path],
 
         return True
 
-    except subprocess.CalledProcessError as e:
-        log_error(f"Failed to store service account credentials: {e.stderr}")
+    except subprocess.SubprocessError as e:
+        log_error(f"Failed to store service account credentials: {_safe_error(e)}")
         return False
     except (OSError, json.JSONDecodeError, KeyError) as e:
-        log_error(f"Error storing service account credentials: {str(e)}")
+        log_error(f"Error storing service account credentials: {_safe_error(e)}")
         return False
 
 
@@ -1171,11 +1328,13 @@ def get_google_service_account_from_1password(item_title: str = "Google Analytic
         Service account credentials dictionary.
 
     Raises:
+        ValueError: If item_title starts with '-'.
         subprocess.CalledProcessError: If 1Password CLI fails (item not found,
             auth required, etc.)
         subprocess.TimeoutExpired: If the ``op`` command exceeds 60 s.
         OSError: If the ``op`` binary cannot be executed.
     """
+    _validate_cli_value(item_title, 'item_title')
     op_flags = []
     if vault:
         op_flags.append(f'--vault={vault}')
@@ -1230,9 +1389,11 @@ def get_google_oauth_from_1password(
     Raises:
         subprocess.CalledProcessError: If 1Password CLI fails.
         subprocess.TimeoutExpired: If the ``op`` command exceeds 60 s.
-        ValueError: If the item exists but lacks client_id or client_secret.
+        ValueError: If item_title starts with '-', or the item exists but lacks
+            client_id or client_secret.
         OSError: If the ``op`` binary cannot be executed.
     """
+    _validate_cli_value(item_title, 'item_title')
     op_flags = []
     if vault:
         op_flags.append(f'--vault={vault}')
@@ -1298,12 +1459,14 @@ def get_google_oauth_document_from_1password(
         Parsed client secret dict (contains ``"installed"`` or ``"web"`` key).
 
     Raises:
+        ValueError: If item_title starts with '-'.
         subprocess.CalledProcessError: If 1Password CLI fails (item not found,
             auth required, etc.)
         subprocess.TimeoutExpired: If the ``op`` command exceeds 60 s.
         json.JSONDecodeError: If the document content is not valid JSON.
         OSError: If the ``op`` binary cannot be executed.
     """
+    _validate_cli_value(item_title, 'item_title')
     cmd = ['op', 'document', 'get', item_title]
     if vault:
         cmd.append(f'--vault={vault}')
@@ -1316,24 +1479,24 @@ def get_google_oauth_document_from_1password(
     return client_config
 
 
-def create_temporary_service_account_file(service_account_data: Dict[str, str]) -> str:
+@contextmanager
+def create_temporary_service_account_file(service_account_data: Dict[str, str]) -> Iterator[str]:
     """
-    Create a temporary service account file for Google APIs.
-    Useful for APIs that require a file path.
+    Yield a private service account file for Google APIs inside a with block.
+
+    The key and its private directory are deleted on exit, including on error.
 
     Args:
         service_account_data: Service account credentials dictionary
 
-    Returns:
-        Path to temporary file.
+    Yields:
+        Path to a mode-0600 JSON file, valid only inside the context.
 
     Raises:
         OSError: If the temporary file cannot be created.
         TypeError: If service_account_data is not JSON-serializable.
     """
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-        json.dump(service_account_data, f, indent=2)
-        temp_file_path = f.name
-
-    log_info(f"Created temporary service account file: {temp_file_path}")
-    return temp_file_path
+    with tempfile.TemporaryDirectory(prefix="siege_service_account_") as directory:
+        path = Path(directory) / "key.json"
+        secure_write_text(path, json.dumps(service_account_data, indent=2))
+        yield str(path)

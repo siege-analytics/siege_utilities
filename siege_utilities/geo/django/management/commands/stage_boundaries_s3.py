@@ -4,6 +4,12 @@ Management command to stage TIGER boundaries on S3 for Spark broadcast joins.
 Exports loaded boundary data to S3-compatible storage (MinIO/AWS) in
 both Parquet (for Spark) and GeoJSON (for static map rendering) formats.
 
+Credentials use the standard boto3 provider chain, including AWS_ACCESS_KEY_ID,
+AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN, shared profiles and IAM roles.
+Set AWS_ENDPOINT_URL for S3-compatible storage, or override it with --endpoint-url.
+Exports spool to temporary disk in batches of 500 rows before upload; allow
+space for the complete output files in the system temporary directory.
+
 Layout:
     s3://{bucket}/boundaries/tiger/{type}/{year}/data.parquet
     s3://{bucket}/boundaries/tiger/{type}/{year}/data.geojson
@@ -15,7 +21,13 @@ Usage:
     python manage.py stage_boundaries_s3 --year 2020 --type county --format parquet
 """
 
+import argparse
+import json
+import os
+import re
 import tempfile
+from contextlib import ExitStack
+from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 
@@ -28,10 +40,8 @@ except ImportError:
 
 try:
     import geopandas as gpd
-    import pandas as pd
 except ImportError:
     gpd = None
-    pd = None
 
 from siege_utilities.geo.django.models import (
     State, County, Tract, BlockGroup, Block, Place, ZCTA,
@@ -40,6 +50,16 @@ from siege_utilities.geo.django.models import (
 )
 
 __all__ = ['Command']
+
+EXPORT_CHUNK_SIZE = 500
+
+_REMOVED_CREDENTIAL_MESSAGES = {
+    "access_key": "--access-key was removed; set AWS_ACCESS_KEY_ID or use a boto3 profile",
+    "secret_key": "--secret-key was removed; set AWS_SECRET_ACCESS_KEY or use a boto3 profile",
+}
+
+_UNRECOGNIZED = "unrecognized arguments: "
+_AMBIGUOUS = re.compile(r"^(ambiguous option: --[\w-]+)=.*( could match .*)$", re.S)
 
 GEOGRAPHY_MODEL_MAP = {
     "state": State,
@@ -56,12 +76,47 @@ GEOGRAPHY_MODEL_MAP = {
 }
 
 
+def _redact_parser_message(message):
+    """Remove values from unrecognized, ambiguous, and equals-form options."""
+    if message.startswith(_UNRECOGNIZED):
+        names = [t.split("=", 1)[0] for t in message[len(_UNRECOGNIZED):].split() if t.startswith("--")]
+        return _UNRECOGNIZED + " ".join(names) + " (values redacted)"
+    message = _AMBIGUOUS.sub(r"\1=<redacted>\2", message)
+    return re.sub(r"(--[\w-]+)=\S+", r"\1=<redacted>", message)
+
+
+def _reject_access_key(value: str) -> None:
+    raise argparse.ArgumentTypeError(_REMOVED_CREDENTIAL_MESSAGES["access_key"])
+
+
+def _reject_secret_key(value: str) -> None:
+    raise argparse.ArgumentTypeError(_REMOVED_CREDENTIAL_MESSAGES["secret_key"])
+
+
 class Command(BaseCommand):
     """Export TIGER boundaries to S3 in Parquet and/or GeoJSON format."""
 
     help = "Stage TIGER boundaries on S3 for Spark broadcast joins"
 
+    def create_parser(self, prog_name, subcommand, **kwargs):
+        parser = super().create_parser(prog_name, subcommand, **kwargs)
+        base_error = parser.error
+
+        def redacted_error(message):
+            # Ambiguous/unknown options bypass the credential type callables.
+            base_error(_redact_parser_message(message))
+
+        parser.error = redacted_error
+        return parser
+
     def add_arguments(self, parser):
+        # Recognize legacy flags so argparse never echoes their values on error.
+        parser.add_argument(
+            "--access-key", type=_reject_access_key, help=argparse.SUPPRESS,
+        )
+        parser.add_argument(
+            "--secret-key", type=_reject_secret_key, help=argparse.SUPPRESS,
+        )
         parser.add_argument(
             "--year",
             type=int,
@@ -90,20 +145,8 @@ class Command(BaseCommand):
         parser.add_argument(
             "--endpoint-url",
             type=str,
-            default="http://10.10.0.10:9000",
-            help="S3 endpoint URL (default: MinIO at 10.10.0.10:9000)",
-        )
-        parser.add_argument(
-            "--access-key",
-            type=str,
-            default="electinfo",
-            help="S3 access key",
-        )
-        parser.add_argument(
-            "--secret-key",
-            type=str,
-            default="electinfo123",
-            help="S3 secret key",
+            default=None,
+            help="Optional S3 endpoint override (otherwise AWS_ENDPOINT_URL or boto3 default)",
         )
         parser.add_argument(
             "--format",
@@ -119,6 +162,11 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        # call_command keyword options bypass argparse's type conversion.
+        for name, message in _REMOVED_CREDENTIAL_MESSAGES.items():
+            if options.get(name) is not None:
+                raise CommandError(message)
+
         if boto3 is None:
             raise CommandError(
                 "boto3 is required. Install with: pip install siege_utilities[s3]"
@@ -134,12 +182,18 @@ class Command(BaseCommand):
         output_format = options["format"]
         dry_run = options["dry_run"]
 
-        s3 = boto3.client(
-            "s3",
-            endpoint_url=options["endpoint_url"],
-            aws_access_key_id=options["access_key"],
-            aws_secret_access_key=options["secret_key"],
-        )
+        # boto3's supported floor predates AWS_ENDPOINT_URL support. Resolve
+        # configured endpoints here so an older SDK cannot silently send a
+        # MinIO-targeted export to the default AWS S3 endpoint instead.
+        endpoint_url = options["endpoint_url"]
+        if endpoint_url is None and os.environ.get(
+            "AWS_IGNORE_CONFIGURED_ENDPOINT_URLS", ""
+        ).lower() != "true":
+            endpoint_url = (
+                os.environ.get("AWS_ENDPOINT_URL_S3")
+                or os.environ.get("AWS_ENDPOINT_URL")
+            )
+        s3 = boto3.client("s3", endpoint_url=endpoint_url)
 
         # Ensure bucket exists
         if not dry_run:
@@ -193,53 +247,117 @@ class Command(BaseCommand):
                 self.stdout.write(f"    [DRY RUN] Would upload s3://{bucket}/{prefix}/data.geojson")
             return
 
-        # Build GeoDataFrame from queryset
-        gdf = self._queryset_to_gdf(qs, model)
+        with tempfile.TemporaryDirectory(prefix="stage-boundaries-") as directory:
+            parquet_path = (
+                Path(directory) / "data.parquet"
+                if output_format in ("parquet", "both") else None
+            )
+            geojson_path = (
+                Path(directory) / "data.geojson"
+                if output_format in ("geojson", "both") else None
+            )
+            self._write_exports(qs, parquet_path, geojson_path)
+            for path in (parquet_path, geojson_path):
+                if path is None:
+                    continue
+                key = f"{prefix}/{path.name}"
+                extra_args = (
+                    {"ContentType": "application/geo+json"}
+                    if path == geojson_path else {}
+                )
+                s3.upload_file(str(path), bucket, key, ExtraArgs=extra_args)
+                self.stdout.write(self.style.SUCCESS(f"    Uploaded s3://{bucket}/{key}"))
 
-        if output_format in ("parquet", "both"):
-            self._upload_parquet(s3, bucket, prefix, gdf)
-
-        if output_format in ("geojson", "both"):
-            self._upload_geojson(s3, bucket, prefix, gdf)
-
-    def _queryset_to_gdf(self, qs, model):
-        """Convert a Django queryset with geometry to a GeoDataFrame."""
+    def _iter_gdf_chunks(self, qs):
+        """Yield EPSG:4326 frames without retaining the full queryset or export."""
         from shapely import wkt
 
         records = []
-        for obj in qs.iterator(chunk_size=500):
-            record = {
+        offset = 0
+        for obj in qs.iterator(chunk_size=EXPORT_CHUNK_SIZE):
+            records.append({
                 "feature_id": obj.feature_id,
                 "name": obj.name,
                 "vintage_year": obj.vintage_year,
-            }
-            if hasattr(obj, "geoid"):
-                record["geoid"] = obj.geoid
-            if hasattr(obj, "state_fips"):
-                record["state_fips"] = obj.state_fips
-            if hasattr(obj, "geometry") and obj.geometry:
-                record["geometry"] = wkt.loads(obj.geometry.wkt)
-            else:
-                record["geometry"] = None
+                "geoid": obj.geoid,
+                "state_fips": obj.state_fips,
+                "geometry": wkt.loads(obj.geometry.wkt) if obj.geometry else None,
+            })
+            if len(records) == EXPORT_CHUNK_SIZE:
+                yield gpd.GeoDataFrame(
+                    records, geometry="geometry", crs="EPSG:4326",
+                    index=range(offset, offset + len(records)),
+                )
+                offset += len(records)
+                records = []
 
-            records.append(record)
+        if records:
+            yield gpd.GeoDataFrame(
+                records, geometry="geometry", crs="EPSG:4326",
+                index=range(offset, offset + len(records)),
+            )
 
-        return gpd.GeoDataFrame(records, geometry="geometry", crs="EPSG:4326")
+    def _write_exports(self, qs, parquet_path, geojson_path):
+        """Stream batches into one GeoParquet file and one GeoJSON collection."""
+        if parquet_path is not None:
+            try:
+                import pyarrow as pa
+                import pyarrow.parquet as pq
+            except ImportError as exc:
+                raise CommandError(
+                    "pyarrow is required for Parquet. "
+                    "Install with: pip install siege_utilities[data]"
+                ) from exc
 
-    def _upload_parquet(self, s3, bucket, prefix, gdf):
-        key = f"{prefix}/data.parquet"
-        with tempfile.NamedTemporaryFile(suffix=".parquet") as tmp:
-            gdf.to_parquet(tmp.name, index=False)
-            s3.upload_file(tmp.name, bucket, key)
-        self.stdout.write(self.style.SUCCESS(f"    Uploaded s3://{bucket}/{key}"))
+            # Fixed model field types also handle an all-null geometry batch.
+            schema = pa.schema([
+                ("feature_id", pa.string()),
+                ("name", pa.string()),
+                ("vintage_year", pa.int64()),
+                ("geoid", pa.string()),
+                ("state_fips", pa.string()),
+                ("geometry", pa.binary()),
+            ])
 
-    def _upload_geojson(self, s3, bucket, prefix, gdf):
-        key = f"{prefix}/data.geojson"
-        geojson_str = gdf.to_json()
-        s3.put_object(
-            Bucket=bucket,
-            Key=key,
-            Body=geojson_str.encode("utf-8"),
-            ContentType="application/geo+json",
-        )
-        self.stdout.write(self.style.SUCCESS(f"    Uploaded s3://{bucket}/{key}"))
+        with ExitStack() as stack:
+            geojson = None
+            first_feature = True
+            if geojson_path is not None:
+                geojson = stack.enter_context(geojson_path.open("w", encoding="utf-8"))
+                geojson.write('{"type": "FeatureCollection", "features": [')
+
+            writer = None
+            for gdf in self._iter_gdf_chunks(qs):
+                if parquet_path is not None:
+                    table = pa.Table.from_pandas(
+                        gdf.to_wkb(), schema=schema, preserve_index=False,
+                    )
+                    if writer is None:
+                        # A chunk's bbox/types cannot describe the entire file.
+                        # GeoParquet permits omitted bbox and unknown types ([]).
+                        metadata = {
+                            "version": "1.0.0",
+                            "primary_column": "geometry",
+                            "columns": {"geometry": {
+                                "encoding": "WKB",
+                                "crs": gdf.crs.to_json_dict(),
+                                "geometry_types": [],
+                            }},
+                        }
+                        schema = table.schema.with_metadata({
+                            **(table.schema.metadata or {}),
+                            b"geo": json.dumps(metadata).encode("utf-8"),
+                        })
+                        parquet = stack.enter_context(parquet_path.open("wb"))
+                        writer = stack.enter_context(pq.ParquetWriter(parquet, schema))
+                    writer.write_table(table)
+
+                if geojson is not None:
+                    for feature in gdf.iterfeatures():
+                        if not first_feature:
+                            geojson.write(", ")
+                        json.dump(feature, geojson)
+                        first_feature = False
+
+            if geojson is not None:
+                geojson.write("]}")

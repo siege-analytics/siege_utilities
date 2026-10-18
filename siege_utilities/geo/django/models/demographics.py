@@ -5,8 +5,15 @@ These models store demographic snapshots that can be attached to any
 Census boundary type using Django's contenttypes framework.
 """
 
-from django.contrib.contenttypes.fields import GenericForeignKey
+import math
+import numbers
+import re
+import warnings
+from decimal import Decimal
+
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import FieldDoesNotExist
+from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
@@ -14,7 +21,118 @@ __all__ = [
     'DemographicVariable',
     'DemographicSnapshot',
     'DemographicTimeSeries',
+    'DemographicKeyArchive',
 ]
+
+
+_NUMERIC_TEXT = re.compile(r"\s*[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?\s*\Z")
+
+
+def _census_summary_number(value, *, upper=None):
+    """Return a Census estimate fit for a typed, non-negative summary column.
+
+    The Census API reports missing or suppressed estimates as large negative
+    sentinels (``-666666666``, ``-999999999``, ``-888888888`` ...). Those, and
+    anything non-numeric, non-finite, or ``>= upper``, map to ``None`` so a
+    ``PositiveIntegerField``/``DecimalField`` never receives them (#1550).
+    The raw value stays in ``values``.
+    """
+    if isinstance(value, str) and _NUMERIC_TEXT.match(value):
+        value = float(value)
+    if isinstance(value, bool) or not isinstance(value, (numbers.Real, Decimal)):
+        return None
+    number = float(value)
+    if not math.isfinite(number) or number < 0:
+        return None
+    if upper is not None and number >= upper:
+        return None
+    return number
+
+
+class _GEOIDBoundaryLink:
+    """GEOID-native relation; ``object_id`` remains the ORM/storage field name.
+
+    Retaining that name preserves loader filters, values_list and bulk writes.
+    ``geoid`` is a read/write instance alias, also accepted by objects.create().
+    This is not a GenericForeignKey and never resolves a boundary by its PK.
+    """
+
+    @property
+    def geoid(self) -> str:
+        return self.object_id
+
+    @geoid.setter
+    def geoid(self, value: str) -> None:
+        self.object_id = value
+
+    def get_boundary(self, vintage_year: int | None = None):
+        """Return the GEOID boundary, or None if absent.
+
+        Select the requested vintage exactly; otherwise select the newest
+        available vintage (then highest PK as a deterministic tie breaker).
+        Snapshot year is a data year, not an implicit boundary vintage.
+        """
+        if not self.content_type_id:
+            return None
+        model = self.content_type.model_class()
+        if model is None:
+            return None
+        try:
+            model._meta.get_field("geoid")
+        except FieldDoesNotExist as error:
+            raise ValueError("Demographic boundaries must have a GEOID field") from error
+        boundaries = model._default_manager.using(self._state.db).filter(geoid=self.geoid)
+        if vintage_year is not None:
+            boundaries = boundaries.filter(vintage_year=vintage_year)
+        return boundaries.order_by("-vintage_year", "-pk").first()
+
+    @property
+    def content_object(self):
+        """Deprecated GEOID lookup; removed in v4.2.0. Use get_boundary()."""
+        warnings.warn(
+            "content_object is deprecated and will be removed in v4.2.0; "
+            "use get_boundary() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_boundary()
+
+    @content_object.setter
+    def content_object(self, boundary) -> None:
+        warnings.warn(
+            "content_object is deprecated and will be removed in v4.2.0; "
+            "create with content_type and object_id=boundary.geoid instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if not isinstance(getattr(boundary, "geoid", None), str) or not boundary.geoid:
+            raise ValueError("Demographic boundaries must have a nonempty string GEOID")
+        self.content_type = ContentType.objects.db_manager(
+            self._state.db or boundary._state.db
+        ).get_for_model(boundary)
+        self.geoid = boundary.geoid
+
+
+class DemographicKeyArchive(models.Model):
+    """Recovery copies from the GEOID migration; never queried as live data.
+
+    Includes converted originals, quarantined keys and discarded duplicates.
+    The migration's reverse operation restores them only if the migrated rows
+    have not subsequently changed; otherwise it fails without overwriting data.
+    """
+
+    model_name = models.CharField(max_length=32)
+    original_pk = models.PositiveBigIntegerField()
+    reason = models.CharField(max_length=32)
+    original_data = models.JSONField(encoder=DjangoJSONEncoder)
+    migrated_data = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["model_name", "original_pk"], name="demographic_archive_row_unique",
+            ),
+        ]
 
 
 class DemographicVariable(models.Model):
@@ -98,16 +216,20 @@ class DemographicVariable(models.Model):
         return self.code
 
 
-class DemographicSnapshot(models.Model):
+class DemographicSnapshot(_GEOIDBoundaryLink, models.Model):
     """
     Demographic data snapshot for a Census boundary.
 
-    Uses generic foreign key to attach to any boundary type.
-    Stores values as JSON to allow flexible variable sets.
+    Uses (content_type, object_id/GEOID, dataset, year) as its identity.
+    ``object_id`` is an indexed GEOID CharField, never a boundary PK.
+    Stores values as JSON to allow flexible variable sets. The deprecated
+    create(content_object=tract) convenience stores tract.geoid, not tract.pk,
+    and will be removed in v4.2.0 alongside the content_object property.
 
     Example:
         >>> snapshot = DemographicSnapshot.objects.create(
-        ...     content_object=tract,
+        ...     content_type=ContentType.objects.get_for_model(tract),
+        ...     object_id=tract.geoid,
         ...     year=2022,
         ...     dataset='acs5',
         ...     values={'B01001_001E': 4521, 'B19013_001E': 75000},
@@ -122,7 +244,7 @@ class DemographicSnapshot(models.Model):
         ("dec_pl", "Decennial Census P.L. 94-171"),
     ]
 
-    # Generic foreign key to any boundary model
+    # Plain content type FK plus a GEOID; not a GenericForeignKey.
     content_type = models.ForeignKey(
         ContentType,
         on_delete=models.CASCADE,
@@ -162,9 +284,9 @@ class DemographicSnapshot(models.Model):
     )
     object_id = models.CharField(
         max_length=20,
-        help_text="GEOID of the boundary",
+        db_index=True,
+        help_text="GEOID of the boundary (never its primary key)",
     )
-    content_object = GenericForeignKey("content_type", "object_id")
 
     # Snapshot metadata
     year = models.PositiveSmallIntegerField(
@@ -226,7 +348,12 @@ class DemographicSnapshot(models.Model):
     class Meta:
         verbose_name = "Demographic Snapshot"
         verbose_name_plural = "Demographic Snapshots"
-        unique_together = [("content_type", "object_id", "year", "dataset")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["content_type", "object_id", "dataset", "year"],
+                name="demographic_snapshot_geoid_unique",
+            ),
+        ]
         indexes = [
             models.Index(fields=["content_type", "object_id"]),
             models.Index(fields=["year", "dataset"]),
@@ -264,36 +391,57 @@ class DemographicSnapshot(models.Model):
         code = variable_code.rstrip("E")
         return self.moe_values.get(f"{code}M", self.moe_values.get(code, default))
 
-    def save(self, *args, **kwargs):
-        """Auto-populate summary fields from values if present."""
+    # PositiveIntegerField's PostgreSQL range; median_age is DecimalField(4, 1).
+    _MAX_POSITIVE_INTEGER = 2147483648
+    _MAX_MEDIAN_AGE = 999.95  # rounds to 1000.0, which overflows max_digits=4
+
+    def prepare_for_bulk(self):
+        """Derive the summary columns from ``values`` without touching the database.
+
+        ``bulk_create`` never calls ``save()``, so bulk loaders call this on
+        each instance first (#1539); ``save()`` calls it too. A summary column
+        is only touched when its source variable is present in ``values``.
+        Census sentinels and non-numeric values become ``None`` rather than
+        violating the columns' ``>= 0`` CHECK constraints (#1550).
+
+        Returns:
+            ``self``, so it can be chained: ``DemographicSnapshot(...).prepare_for_bulk()``.
+        """
         if self.values:
-            # Total population
             if "B01001_001E" in self.values:
-                self.total_population = self.values["B01001_001E"]
+                number = _census_summary_number(
+                    self.values["B01001_001E"], upper=self._MAX_POSITIVE_INTEGER
+                )
+                self.total_population = None if number is None else round(number)
 
-            # Median household income
             if "B19013_001E" in self.values:
-                self.median_household_income = self.values["B19013_001E"]
+                number = _census_summary_number(
+                    self.values["B19013_001E"], upper=self._MAX_POSITIVE_INTEGER
+                )
+                self.median_household_income = None if number is None else round(number)
 
-            # Median age
             if "B01002_001E" in self.values:
-                try:
-                    self.median_age = float(self.values["B01002_001E"])
-                except (ValueError, TypeError):
-                    pass
+                self.median_age = _census_summary_number(
+                    self.values["B01002_001E"], upper=self._MAX_MEDIAN_AGE
+                )
+        return self
 
+    def save(self, *args, **kwargs):
+        """Auto-populate summary fields from values (see :meth:`prepare_for_bulk`)."""
+        self.prepare_for_bulk()
         super().save(*args, **kwargs)
 
 
-class DemographicTimeSeries(models.Model):
+class DemographicTimeSeries(_GEOIDBoundaryLink, models.Model):
     """
     Pre-computed time series for frequently-accessed demographic trends.
 
     This model stores aggregated time series data for performance,
     avoiding repeated joins across multiple DemographicSnapshot records.
+    As with snapshots, object_id is GEOID-only storage, with a geoid alias.
     """
 
-    # Generic foreign key
+    # Plain content type FK plus a GEOID; not a GenericForeignKey.
     content_type = models.ForeignKey(
         ContentType,
         on_delete=models.CASCADE,
@@ -301,9 +449,9 @@ class DemographicTimeSeries(models.Model):
     )
     object_id = models.CharField(
         max_length=20,
-        help_text="GEOID of the boundary",
+        db_index=True,
+        help_text="GEOID of the boundary (never its primary key)",
     )
-    content_object = GenericForeignKey("content_type", "object_id")
 
     # Series metadata
     variable_code = models.CharField(
@@ -365,8 +513,11 @@ class DemographicTimeSeries(models.Model):
     class Meta:
         verbose_name = "Demographic Time Series"
         verbose_name_plural = "Demographic Time Series"
-        unique_together = [
-            ("content_type", "object_id", "variable_code", "dataset", "start_year", "end_year")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["content_type", "object_id", "variable_code", "dataset", "start_year", "end_year"],
+                name="demographic_series_geoid_unique",
+            ),
         ]
         indexes = [
             models.Index(fields=["content_type", "object_id"]),

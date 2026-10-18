@@ -227,6 +227,53 @@ class TestValidateGEOID:
         """Test validating correct tract GEOID."""
         assert validate_geoid("06037101100", "tract") is True
 
+    @pytest.mark.parametrize(
+        "geoid",
+        [
+            "0100500008A", "010110001-1", "01001000001", "0100500008a",
+            "01001ZZZZZZ", "010130012.2", "05081000L/C",
+        ],
+    )
+    def test_validate_vtd_accepts_tiger_codes(self, geoid):
+        """Accept the same real VTDST alphabet as the database constraint."""
+        assert validate_geoid(geoid, "vtd") is True
+
+    @pytest.mark.parametrize(
+        "geoid",
+        [
+            "010050008A", "01005000008A", "0100500008_", "01005000 8A",
+            "A100500008A", "01A0500008A", "0100500008\u00e9",
+        ],
+    )
+    def test_validate_vtd_rejects_invalid_codes(self, geoid):
+        """Do not accept malformed VTDST codes or non-digit FIPS prefixes."""
+        assert validate_geoid(geoid, "vtd") is False
+
+    @pytest.mark.parametrize("strict", [True, False])
+    @pytest.mark.parametrize(
+        "level,length",
+        [(level, length) for level, length in GEOID_LENGTHS.items() if level != "vtd"],
+    )
+    def test_validate_non_vtd_rejects_letters(self, level, length, strict):
+        """Every other geography remains digits-only in either mode."""
+        assert validate_geoid("0" * (length - 1) + "A", level, strict=strict) is False
+
+    @pytest.mark.parametrize(
+        "geoid,accepted",
+        [
+            ("10130012.2", True), ("5081000L/C", True),
+            ("01001000001", True), ("A100500008A", False),
+            ("01005000008A", False), ("0100500008_", False), ("   ", False),
+        ],
+    )
+    def test_validate_vtd_non_strict(self, geoid, accepted):
+        """Non-strict validation only permits values valid after zero-padding."""
+        assert validate_geoid(geoid, "vtd", strict=False) is accepted
+
+    def test_validate_unknown_geography(self):
+        """An unrecognized geography returns the documented invalid sentinel."""
+        assert validate_geoid("0100500008A", "unknown") is False
+
     def test_invalid_short_geoid_default(self):
         """Test that short GEOID missing leading zeros is invalid by default."""
         assert validate_geoid("6037", "county") is False

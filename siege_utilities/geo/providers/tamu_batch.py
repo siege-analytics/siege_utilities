@@ -17,6 +17,8 @@ import urllib.parse
 import urllib.request
 from typing import Optional, Union
 
+from siege_utilities.core._http import redact_url_secrets
+
 from .batch_geocoder import (
     AddressInput,
     BatchGeocoder,
@@ -135,7 +137,8 @@ class TAMUBatchGeocoder(BatchGeocoder):
         except Exception as exc:
             # Batch robustness: any failure on one address is logged and
             # recorded as an unmatched result so the rest of the batch proceeds.
-            log.warning("TAMU geocode failed for %s: %s", addr.input_id, exc)
+            log.warning("TAMU geocode failed for %s: %s", addr.input_id,
+                        redact_url_secrets(str(exc)))
 
         return GeocodingResult(
             input_address=query,
@@ -148,6 +151,7 @@ class TAMUBatchGeocoder(BatchGeocoder):
         """Make a single TAMU geocoding request.
 
         Returns a GeocodingResult or None if no match.
+        Raises RuntimeError with safe diagnostics when retries are exhausted.
         """
         params = {
             "streetAddress": addr.street,
@@ -160,6 +164,8 @@ class TAMUBatchGeocoder(BatchGeocoder):
             "censusYear": self._census_year,
             "version": "4.01",
         }
+        # The v4.01 HTTP endpoint documents query authentication, not POST bodies:
+        # https://geoservices.tamu.edu/Services/Geocode/WebService/v04_01/Simple/HTTP/
         url = f"{TAMU_BASE_URL}?{urllib.parse.urlencode(params)}"
 
         req = urllib.request.Request(url, headers={
@@ -171,14 +177,17 @@ class TAMUBatchGeocoder(BatchGeocoder):
                 with urllib.request.urlopen(req, timeout=15) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
                     return self._parse_response(data, addr)
-            except Exception:
-                # Retry on any request/parse failure up to max_retries, then
-                # re-raise so the caller sees the underlying error.
+            except Exception as exc:
+                # Preserve the failure message without retaining URL-bearing
+                # urllib errors, including HTTPError.url and URLError.reason.
+                error = RuntimeError(redact_url_secrets(f"TAMU request failed: {exc}"))
                 if attempt == self._max_retries:
-                    raise
+                    break
                 time.sleep(self._rate_limit)
+        else:
+            return None
 
-        return None
+        raise error from None
 
     def _parse_response(
         self, data: dict, addr: AddressInput

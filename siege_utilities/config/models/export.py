@@ -11,8 +11,10 @@ from pathlib import Path
 
 import yaml
 
+from siege_utilities.files.secure_write import secure_write_text
+
 from .actor_types import User, Client, Collaborator, Organization, Collaboration
-from .person import _convert_to_yaml_safe
+from .person import _convert_to_yaml_safe, _reject_redacted_values
 
 __all__ = ["EXPORT_FORMAT_VERSION", "export_entities", "import_entities"]
 
@@ -64,20 +66,19 @@ def export_entities(
         ]
     if organizations:
         document['entities']['organizations'] = [
-            o.to_dict() for o in organizations
+            o.to_dict(exclude_sensitive=exclude_sensitive) for o in organizations
         ]
     if collaborations:
         document['entities']['collaborations'] = [
-            c.to_dict() for c in collaborations
+            c.to_dict(exclude_sensitive=exclude_sensitive) for c in collaborations
         ]
 
     document = _convert_to_yaml_safe(document)
-    yaml_str = yaml.dump(document, default_flow_style=False, sort_keys=False)
+    yaml_str = yaml.safe_dump(document, default_flow_style=False, sort_keys=False)
 
     if path is not None:
         path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(yaml_str)
+        secure_write_text(path, yaml_str)
 
     return yaml_str
 
@@ -94,11 +95,18 @@ def import_entities(yaml_str_or_path: Union[str, Path]) -> Dict[str, Any]:
         'organizations', 'collaborations', each containing a list of
         the corresponding model instances. Also includes 'version'
         and 'exported_at' metadata.
+
+    Raises
+    ------
+    ValueError
+        If any value is a redacted placeholder. Use an unredacted export
+        to restore credentials; redacted exports are for sharing only.
     """
     source = yaml_str_or_path
     if isinstance(source, Path) or (isinstance(source, str) and '\n' not in source and Path(source).exists()):
         source = Path(source).read_text()
     data = yaml.safe_load(source)
+    _reject_redacted_values(data)
 
     result: Dict[str, Any] = {
         'version': data.get('version', '1.0'),

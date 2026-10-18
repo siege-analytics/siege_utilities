@@ -10,7 +10,9 @@ import re
 import subprocess
 import shutil
 import logging
+import stat
 import tempfile
+import uuid
 from typing import Generator, Union, Optional, List, Any
 from pathlib import Path
 
@@ -75,24 +77,44 @@ def atomic_write_path(target: FilePath) -> Generator[Path, None, None]:
             df.to_csv(tmp, index=False)
         # target is now atomically updated
 
-    If the block raises, the temp file is cleaned up and the target
-    is left unchanged.
+    If writing or syncing the file raises, the temp file is cleaned up and
+    the target is left unchanged. Files use mode 0666 filtered by the process
+    umask, including replacements. This is for data, not credentials: use
+    ``secure_write_text`` for secrets. Flush and close writers before exit.
     """
     target = Path(target)
     _create_parent_directory(target)
-    fd, tmp_path = tempfile.mkstemp(
-        dir=target.parent,
-        prefix="atomic_",
-        suffix=target.suffix or ".tmp",
+    tmp = target.parent / f"atomic_{uuid.uuid4().hex}{target.suffix or '.tmp'}"
+    # O_EXCL reserves a random sibling without following a pre-existing link.
+    # Let the kernel apply umask: reading it via os.umask would temporarily
+    # change process-wide permissions for concurrent threads.
+    fd = os.open(
+        tmp, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o666,
     )
+    mode = stat.S_IMODE(os.fstat(fd).st_mode)
     os.close(fd)
-    tmp = Path(tmp_path)
     try:
         yield tmp
+        # Some serializers recreate their destination; retain the mode chosen
+        # at creation even in that case, and sync data/metadata before publish.
+        os.chmod(tmp, mode)
+        with tmp.open("rb") as stream:
+            os.fsync(stream.fileno())
         os.replace(tmp, target)
     except BaseException:
         tmp.unlink(missing_ok=True)
         raise
+    # Persist the rename where directory fsync is supported. The replacement
+    # has already committed, so unsupported directory syncing is best effort.
+    if os.name == "posix":
+        try:
+            directory_fd = os.open(target.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+        except OSError:
+            log.debug("Directory fsync unavailable for %s", target.parent, exc_info=True)
 
 
 def atomic_write_shapefile(gdf, target: FilePath, **kwargs) -> None:
@@ -455,18 +477,20 @@ def run_command(command: Union[str, List[str]],
                 allow_list: Optional[set] = None,
                 unsafe: bool = False) -> subprocess.CompletedProcess:
     """
-    Run a shell command with security validation and proper error handling.
+    Run an argv command with optional command and argument validation.
 
     SECURITY: This function now validates commands by default. Only whitelisted
-    commands are allowed unless unsafe=True is explicitly set.
+    commands are allowed unless unsafe=True is explicitly set. Validation
+    rejects selected characters and known sensitive paths; it is not a
+    sandbox and does not guarantee read-only behavior.
 
     Args:
         command: Command to run (string or list)
-        cwd: Working directory for the command
+        cwd: Working directory for execution and relative operand validation
         timeout: Timeout in seconds (default: 30)
         capture_output: Whether to capture command output
         allow_list: Optional custom whitelist of allowed commands
-        unsafe: If True, bypass the allow-list check. The command is
+        unsafe: If True, bypass command and argument validation. The command is
             still executed via argv (shell=False) — string commands are
             shlex-split and run without shell expansion. Use this when
             you legitimately need a binary that isn't in the allow-list,
@@ -474,6 +498,8 @@ def run_command(command: Union[str, List[str]],
 
     Returns:
         CompletedProcess object on success or non-zero exit.
+        Arguments and output are omitted from logs. Raised diagnostics omit
+        command details and captured output, which may contain credentials.
 
     Raises:
         SecurityError: If command fails security validation (when unsafe=False).
@@ -491,7 +517,7 @@ def run_command(command: Union[str, List[str]],
     Security Changes:
         - Previously used shell=True with no validation (CRITICAL VULNERABILITY)
         - Now validates all commands against whitelist by default
-        - Blocks command injection, path traversal, sensitive file access
+        - Rejects selected metacharacters, '..', and known sensitive paths
         - Use unsafe=True ONLY with trusted input in trusted environments
     """
     try:
@@ -530,14 +556,23 @@ def run_command(command: Union[str, List[str]],
         else:
             command_list = list(command)
 
+        # Resolve cwd before checking operands so validation and execution agree.
+        validated_cwd = None
+        if cwd is not None:
+            try:
+                from siege_utilities.files.validation import validate_safe_path
+                validated_cwd = str(validate_safe_path(cwd, allow_absolute=True))
+            except ImportError:
+                validated_cwd = str(cwd)
+
         # Security validation (unless explicitly bypassed)
         if not unsafe:
             try:
-                validated_command = validate_command_safety(command_list, allow_list)
+                validated_command = validate_command_safety(command_list, allow_list, cwd=validated_cwd)
                 command_to_run = validated_command
             except (SecurityError, ValueError) as e:
-                log.error(f"Security validation failed: {e}")
-                raise
+                log.error("Security validation failed (command omitted)")
+                raise type(e)("Security validation failed (command redacted)") from None
         else:
             # Unsafe mode: skip the allow-list but still run the command
             # via argv (shell=False). Bypassing the whitelist is the
@@ -551,15 +586,6 @@ def run_command(command: Union[str, List[str]],
             )
             command_to_run = command_list
 
-        # Validate cwd if provided
-        validated_cwd = None
-        if cwd is not None:
-            try:
-                from siege_utilities.files.validation import validate_safe_path
-                validated_cwd = str(validate_safe_path(cwd, allow_absolute=True))
-            except ImportError:
-                validated_cwd = str(cwd)
-
         # Execute command. shell=False unconditionally — argv list, no
         # /bin/sh interpretation of the command string.
         result = subprocess.run(
@@ -572,20 +598,24 @@ def run_command(command: Union[str, List[str]],
         )
 
         if result.returncode == 0:
-            log.info(f"Command succeeded: {command}")
+            log.info("Command succeeded (arguments and output omitted)")
         else:
-            log.warning(f"Command failed with code {result.returncode}: {command}")
-            if result.stderr:
-                log.warning(f"Error output: {result.stderr}")
+            log.warning(f"Command failed with code {result.returncode} (arguments and output omitted)")
 
         return result
 
-    except subprocess.TimeoutExpired:
-        log.error(f"Command timed out: {command}")
-        raise
-    except (OSError, ValueError) as e:
-        log.error(f"Failed to run command {command}: {e}")
-        raise
+    except subprocess.TimeoutExpired as e:
+        log.error("Command timed out (arguments and output omitted)")
+        raise subprocess.TimeoutExpired('[REDACTED]', e.timeout) from None
+    except OSError as e:
+        log.error("Failed to run command (details omitted)")
+        raise OSError(e.errno, 'Failed to run command (details redacted)') from None
+    except ValueError:
+        log.error("Invalid command or execution parameters (details omitted)")
+        raise ValueError(
+            'Invalid command or execution parameters; check quoting and shell metacharacters '
+            '(details redacted)'
+        ) from None
 
 # Backward compatibility aliases
 rmtree = remove_tree
@@ -689,7 +719,7 @@ def safe_file_write(
     create_dirs: bool = True,
 ) -> bool:
     """
-    Safely write content to a file, optionally creating parent directories.
+    Atomically write content to a file, optionally creating parent directories.
 
     Args:
         file_path: Path to file
@@ -711,8 +741,11 @@ def safe_file_write(
     try:
         if create_dirs:
             _create_parent_directory(validated)
-        with open(validated, "w", encoding=encoding) as f:
-            f.write(content)
+        elif not validated.parent.is_dir():
+            raise FileNotFoundError(f"Parent directory does not exist: {validated.parent}")
+        with atomic_write_path(validated) as temporary:
+            with open(temporary, "w", encoding=encoding) as f:
+                f.write(content)
         return True
     except (OSError, TypeError) as e:
         log.error(f"Error writing to {validated}: {e}")
@@ -760,7 +793,7 @@ def safe_json_write(
     create_dirs: bool = True,
 ) -> bool:
     """
-    Safely write data to a JSON file.
+    Atomically write data to a JSON file.
 
     Args:
         file_path: Path to JSON file
@@ -782,8 +815,11 @@ def safe_json_write(
     try:
         if create_dirs:
             _create_parent_directory(validated)
-        with open(validated, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=indent, ensure_ascii=False)
+        elif not validated.parent.is_dir():
+            raise FileNotFoundError(f"Parent directory does not exist: {validated.parent}")
+        with atomic_write_path(validated) as temporary:
+            with open(temporary, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=indent, ensure_ascii=False)
         return True
     except (OSError, TypeError, ValueError) as e:
         log.error(f"Error writing JSON to {validated}: {e}")

@@ -11,8 +11,11 @@ to avoid re-downloading.
 from __future__ import annotations
 
 import logging
+import errno
 import os
+import shutil
 import tempfile
+import uuid
 import zipfile
 from pathlib import Path
 from typing import Optional
@@ -25,6 +28,9 @@ from siege_utilities.config.nces_constants import (
 )
 
 log = logging.getLogger(__name__)
+
+# Match the spatial downloader's explicit opt-in; SSL failures otherwise raise.
+_ALLOW_INSECURE_SSL = os.environ.get("SIEGE_INSECURE_SSL", "").lower() in ("1", "true", "yes")
 
 __all__ = [
     'LOCALE_BOUNDARY_COLUMNS',
@@ -132,16 +138,34 @@ class NCESDownloader:
         log.info(f"Downloading {data_type} data for {year} from {url}")
 
         try:
-            download_file(url, zip_path, timeout=self.timeout)
+            download_file(
+                url, zip_path, timeout=self.timeout,
+                allow_insecure_fallback=_ALLOW_INSECURE_SSL,
+            )
         except (OSError, ConnectionError) as e:
             raise NCESDownloadError(
                 f"Failed to download {data_type} for year {year} from {url}"
             ) from e
 
         # Extract
-        extract_dir.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(zip_path, "r") as zf:
-            zf.extractall(extract_dir)
+        # A non-empty final directory is a cache hit, so publish it only after
+        # every member has been extracted. Interrupted extraction is discarded.
+        staging = self.cache_dir / f"nces_extract_{uuid.uuid4().hex}"
+        # mkdir applies umask, retaining shared-cache directory permissions.
+        staging.mkdir()
+        try:
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                zf.extractall(staging)
+            try:
+                os.replace(staging, extract_dir)
+            except OSError as exc:
+                # Another downloader may have published a complete directory
+                # while this one was extracting. Never remove its cache.
+                if (exc.errno not in (errno.EEXIST, errno.ENOTEMPTY)
+                        or not extract_dir.is_dir() or not any(extract_dir.iterdir())):
+                    raise
+        finally:
+            shutil.rmtree(staging, ignore_errors=True)
 
         log.info(f"Extracted {data_type} data to {extract_dir}")
 

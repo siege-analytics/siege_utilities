@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
+from siege_utilities.files.operations import atomic_write_path
+
 log = logging.getLogger(__name__)
 
 __all__ = [
@@ -419,5 +421,6 @@ class RDHCatalog:
             "entries": [e.to_dict() for e in self._entries],
         }
 
-        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        with atomic_write_path(path) as tmp:
+            tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
         log.debug("Saved %d entries to cache", len(self._entries))

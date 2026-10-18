@@ -17,8 +17,11 @@ from typing import Any, Dict, List, Optional, Union
 import geopandas as gpd
 import requests
 from bs4 import BeautifulSoup
+from urllib3.exceptions import InsecureRequestWarning
 
 from siege_utilities.geo.crs import reproject_if_needed
+
+from siege_utilities.files.operations import atomic_write_path
 
 # Opt-in TLS-verification bypass for environments behind broken
 # corporate MITM proxies. Defaults to False because silent fallback to
@@ -27,8 +30,6 @@ from siege_utilities.geo.crs import reproject_if_needed
 # environment to allow verify=False as a documented fallback (and own
 # the risk).
 _ALLOW_INSECURE_SSL = os.environ.get("SIEGE_INSECURE_SSL", "").lower() in ("1", "true", "yes")
-if _ALLOW_INSECURE_SSL:
-    warnings.filterwarnings('ignore', message='Unverified HTTPS request')
 
 # Import existing library functions
 from ..files.remote import download_file, generate_local_path_from_url
@@ -103,7 +104,7 @@ YEAR_TO_CONGRESS: Dict[int, int] = {
     2023: 118,
     2024: 119,
     2025: 119,
-    2026: 119,
+    2026: 120,  # TIGER2026/CD/tl_2026_<state>_cd120.zip
 }
 
 # ---------------------------------------------------------------------------
@@ -148,12 +149,9 @@ BOUNDARY_TYPE_CATALOG = {
     'elsd':         {'category': 'general', 'abbrev': 'ELSD',        'name': 'Elementary School Districts',      'geometry_type': 'MultiPolygon'},
     'scsd':         {'category': 'general', 'abbrev': 'SCSD',        'name': 'Secondary School Districts',       'geometry_type': 'MultiPolygon'},
     'unsd':         {'category': 'general', 'abbrev': 'UNSD',        'name': 'Unified School Districts',         'geometry_type': 'MultiPolygon'},
-    'address_features': {'category': 'general', 'abbrev': 'ADDRFEAT',    'name': 'Address Features',             'geometry_type': 'MultiLineString'},
-    'linear_water': {'category': 'general', 'abbrev': 'LINEARWATER', 'name': 'Linear Water Features',            'geometry_type': 'MultiLineString'},
-    'area_water':   {'category': 'general', 'abbrev': 'AREAWATER',   'name': 'Area Water Features',              'geometry_type': 'MultiPolygon'},
-    'roads':        {'category': 'general', 'abbrev': 'ROADS',       'name': 'Roads',                            'geometry_type': 'MultiLineString'},
+    # address_features, linear_water, area_water, roads and edges are not
+    # listed: Census publishes them per county only (see _PER_COUNTY_TYPES).
     'rails':        {'category': 'general', 'abbrev': 'RAILS',       'name': 'Railroads',                        'geometry_type': 'MultiLineString'},
-    'edges':        {'category': 'general', 'abbrev': 'EDGES',       'name': 'All Edges (roads, hydro, etc.)',   'geometry_type': 'MultiLineString'},
     'anrc':         {'category': 'general', 'abbrev': 'ANRC',        'name': 'Alaska Native Regional Corps',     'geometry_type': 'MultiPolygon'},
     'concity':      {'category': 'general', 'abbrev': 'CONCITY',     'name': 'Consolidated Cities',              'geometry_type': 'MultiPolygon'},
     'submcd':       {'category': 'general', 'abbrev': 'SUBMCD',      'name': 'Sub-Minor Civil Divisions',        'geometry_type': 'MultiPolygon'},
@@ -163,6 +161,26 @@ BOUNDARY_TYPE_CATALOG = {
     'pointlm':      {'category': 'general', 'abbrev': 'POINTLM',    'name': 'Point Landmarks',                  'geometry_type': 'Point'},
     'arealm':       {'category': 'general', 'abbrev': 'AREALM',     'name': 'Area Landmarks',                   'geometry_type': 'MultiPolygon'},
 }
+
+# TIGER publishes these layers only as per-county files
+# (e.g. LINEARWATER/tl_2019_01001_linearwater.zip). The URL builder takes a
+# state, not a county, so it refuses them instead of naming a file that does
+# not exist. They stay out of BOUNDARY_TYPE_CATALOG until county support lands.
+_PER_COUNTY_TYPES = frozenset({
+    'address_features', 'linear_water', 'area_water', 'roads', 'edges',
+})
+
+# Layers published only as one national file. A state request for one of
+# these is honoured by filtering the national file on its statefp column.
+_NATIONAL_ONLY_TYPES = frozenset({
+    'state', 'county', 'cbsa', 'csa', 'metdiv', 'micro', 'necta',
+    'nectadiv', 'cnecta', 'aiannh', 'aitsce', 'ttract', 'tbg',
+    'uac', 'uac10', 'uac20', 'rails',
+})
+
+# TIGER2010 layers published flat (no 2010/ subdirectory, no "10" suffix),
+# e.g. TIGER2010/RAILS/tl_2010_us_rails.zip.
+_FLAT_2010_TYPES = frozenset({'rails'})
 
 # ---------------------------------------------------------------------------
 # TIGER Redistricting (PL 94-171) URL constants
@@ -315,8 +333,9 @@ def update_census_inventory(
 
     save_path = Path(save_path or _DEFAULT_INVENTORY_PATH)
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(save_path, "w", encoding="utf-8") as fh:
-        json.dump(inventory, fh, indent=2)
+    with atomic_write_path(save_path) as tmp:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(inventory, fh, indent=2)
     log.info("census inventory saved to %s", save_path)
     return inventory
 
@@ -374,18 +393,16 @@ def _known_tiger_directories_for_year(year: int) -> List[str]:
       * ``ZCTA5`` (with ``zcta510`` filename suffix) through 2019;
         ``ZCTA520`` (with ``zcta520`` filename suffix) from 2020 onward;
         2020 publishes both directories (`ZCTA5` is the legacy redirect).
-      * ``TABBLOCK10`` and ``VTD10`` only in 2010; ``TABBLOCK20`` and
-        ``VTD20`` only in 2020+.
-      * ``UAC10`` only 2011-2019 (Urban Area Census 2010 vintage); ``UAC20``
-        from 2022 onward (Urban Area Census 2020 vintage); 2020-2021 publish
-        ``UAC`` (the unsuffixed transitional name).
+      * ``TABBLOCK`` through 2019; ``TABBLOCK20`` from 2020.
+      * ``UA`` in 2010; ``UAC`` in 2012-2023; ``UAC20`` from 2024.
+        VTD 2020 uses the separate PL release.
     """
     # Always-published baseline (2010 onward).
     dirs = {
-        "BG", "COUNTY", "COUNTYSUB", "PLACE", "STATE", "TRACT",
+        "BG", "COUNTY", "COUSUB", "PLACE", "STATE", "TRACT",
         "AIANNH", "ANRC", "CBSA", "CSA", "CNECTA",
-        "EDGES", "FACES", "FACESAH", "FACESAL",
-        "ELSD", "SCSD", "SDELM", "SDSEC", "SDUNI", "UNSD",
+        "ADDRFEAT", "EDGES", "FACES", "FACESAH", "FACESAL",
+        "ELSD", "SCSD", "UNSD",
         "POINTLM", "PRIMARYROADS", "PRISECROADS", "RAILS", "ROADS",
         "SLDL", "SLDU",
         "METDIV", "NECTA", "NECTADIV",
@@ -400,23 +417,20 @@ def _known_tiger_directories_for_year(year: int) -> List[str]:
         # 2020 publishes ZCTA5 as a legacy redirect alongside ZCTA520; safer
         # to surface both so callers can probe either.
         dirs.update({"ZCTA5", "ZCTA520"} if year == 2020 else {"ZCTA520"})
-    elif year >= 2012:
+    elif year == 2010 or year >= 2012:
         dirs.add("ZCTA5")
 
-    # TABBLOCK + VTD: tied to the decennial vintage that produced them.
+    # Match the directory names, which differ from the filename suffixes.
+    dirs.add("TABBLOCK20" if year >= 2020 else "TABBLOCK")
     if year == 2010:
-        dirs.update({"TABBLOCK10", "VTD10"})
-    elif year >= 2020:
-        dirs.update({"TABBLOCK20", "VTD20"})
+        dirs.update({"VTD", "UA"})
 
-    # UAC (Urban Area Census): 2010 vintage 2011-2019; transitional 2020-2021;
-    # 2020 vintage 2022 onward.
-    if 2011 <= year <= 2019:
-        dirs.add("UAC10")
-    elif year in (2020, 2021):
+    if 2012 <= year <= 2023:
         dirs.add("UAC")
-    elif year >= 2022:
+    elif year >= 2024:
         dirs.add("UAC20")
+    if year == 2022:
+        dirs.discard("CBSA")
 
     return sorted(dirs)
 
@@ -480,13 +494,15 @@ class CensusDirectoryDiscovery:
             except requests.exceptions.SSLError as e:
                 last_exception = e
                 if _ALLOW_INSECURE_SSL and verify_ssl:
-                    log.warning(
+                    log.error(
                         "SSL verification failed; SIEGE_INSECURE_SSL=1 set, "
                         "retrying without verification (legacy behaviour)."
                     )
                     verify_ssl = False
                     try:
-                        response = requests.get(self.base_url, timeout=self.timeout, verify=False)
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore", InsecureRequestWarning)
+                            response = requests.get(self.base_url, timeout=self.timeout, verify=False)
                         response.raise_for_status()
                         years = self._parse_year_links(response.content)
                         self.cache[cache_key] = (time.time(), years)
@@ -573,7 +589,7 @@ class CensusDirectoryDiscovery:
                     "to opt into the legacy bypass.", year,
                 )
                 raise
-            log.warning(
+            log.error(
                 "SSL verification failed for year %s; SIEGE_INSECURE_SSL=1 "
                 "set, retrying without verification.", year,
             )
@@ -581,7 +597,9 @@ class CensusDirectoryDiscovery:
                 # Fallback: try without SSL verification (legacy behaviour
                 # behind the env-var opt-in).
                 year_url = f"{self.base_url}/TIGER{year}/"
-                response = requests.get(year_url, timeout=self.timeout, verify=False)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", InsecureRequestWarning)
+                    response = requests.get(year_url, timeout=self.timeout, verify=False)
                 response.raise_for_status()
 
                 soup = BeautifulSoup(response.content, 'html.parser')
@@ -702,6 +720,7 @@ class CensusDirectoryDiscovery:
             
             # Urban areas
             'UAC': 'uac',    # Urban Area
+            'UA': 'uac',     # 2010 urban areas
             'UAC20': 'uac20', # 2020 Urban Area
         }
         
@@ -714,6 +733,18 @@ class CensusDirectoryDiscovery:
                 clean_dir = directory.replace('_', '').replace('-', '')
                 available_types[boundary_mapping[clean_dir]] = directory
         
+        # Preserve the explicit vintage names while accepting canonical levels.
+        if year >= 2020 and 'tabblock20' in available_types:
+            available_types['block'] = available_types['tabblock20']
+        if year >= 2024 and 'uac20' in available_types:
+            available_types['uac'] = available_types['uac20']
+        # TIGER has no CDnnn directories: each vintage's CD/ directory holds
+        # the congress in YEAR_TO_CONGRESS for that year. Alias cd{n} for
+        # that congress only; other congresses are not published in this
+        # vintage (live HEAD checks 404) and stay "not available".
+        congress = YEAR_TO_CONGRESS.get(year)
+        if 'cd' in available_types and congress:
+            available_types.setdefault(f'cd{congress}', available_types['cd'])
         return available_types
     
     def get_year_specific_url_patterns(self, year: int) -> Dict[str, Any]:
@@ -868,6 +899,20 @@ class CensusDirectoryDiscovery:
 
             directory = available_types[boundary_type]
             base_url = f"{patterns['base_url']}/{directory}"
+            is_cd = boundary_type == 'cd' or (
+                boundary_type.startswith('cd') and boundary_type[2:].isdigit()
+            )
+            flat_2010 = year == 2010 and boundary_type in _FLAT_2010_TYPES
+            if year == 2010 and not flat_2010:
+                # CD uses a Congress subdirectory, not the census vintage:
+                # https://www2.census.gov/geo/tiger/TIGER2010/CD/111/
+                if boundary_type == 'cd':
+                    vintage = str(congress_number or YEAR_TO_CONGRESS[year])
+                elif is_cd:
+                    vintage = boundary_type[2:]
+                else:
+                    vintage = '2010'
+                base_url += f'/{vintage}'
 
             # Determine which filename pattern to use
             filename = self._construct_filename_with_fips_validation(
@@ -880,6 +925,9 @@ class CensusDirectoryDiscovery:
                     f"state_fips={state_fips} congress={congress_number}",
                     context=ctx,
                 )
+
+            if year == 2010 and not is_cd and not flat_2010 and not filename.endswith('10.zip'):
+                filename = filename.removesuffix('.zip') + '10.zip'
 
             final_url = f"{base_url}/{filename}"
             log.info(f"Constructed URL: {final_url}")
@@ -902,21 +950,56 @@ class CensusDirectoryDiscovery:
         # Define which boundary types require state FIPS (canonical names)
         state_required_types = {
             'tabblock', 'tabblock10', 'tabblock20', 'tract', 'block_group', 'block',
-            'sldu', 'sldl', 'vtd', 'vtd10', 'vtd20', 'cousub', 'submcd'
-        }
-        
-        # Define national-only types (never use state FIPS in URL)
-        # Note: county is national-only but we filter results post-download
-        national_only_types = {
-            'state', 'county', 'cbsa', 'csa', 'metdiv', 'micro', 'necta',
-            'nectadiv', 'cnecta', 'aiannh', 'aitsce', 'ttract', 'tbg',
-            'elsd', 'scsd', 'unsd', 'uac', 'uac10', 'uac20'
+            'sldu', 'sldl', 'vtd', 'vtd10', 'vtd20', 'cousub', 'submcd',
+            'elsd', 'scsd', 'unsd', 'place', 'concity',
         }
 
-        # Define flexible types (can be national or state-specific)
-        flexible_types = {'place', 'zcta', 'anrc', 'concity'}
+        # National-only types never use state FIPS in the URL; a state request
+        # is honoured by filtering the national file after download.
+        national_only_types = _NATIONAL_ONLY_TYPES
         # Census uses short abbreviations in filenames that differ from the canonical type name.
-        _FILENAME_ABBREVS = {'block_group': 'bg'}
+        _FILENAME_ABBREVS = {
+            'block_group': 'bg',
+            'block': 'tabblock20' if year >= 2020 else 'tabblock10',
+            'uac': 'uac20' if year >= 2020 else 'uac10',
+        }
+        # Verified exceptions in the Census TABBLOCK and UAC listings:
+        # https://www2.census.gov/geo/tiger/TIGER2011/TABBLOCK/
+        # https://www2.census.gov/geo/tiger/TIGER2021/UAC/
+        if 2011 <= year <= 2013:
+            _FILENAME_ABBREVS['block'] = 'tabblock'
+        if year == 2021:
+            _FILENAME_ABBREVS['uac'] = 'uac10'
+        # Puerto Rico sub-minor civil divisions are published as "subbarrio"
+        # from 2013: https://www2.census.gov/geo/tiger/TIGER2013/SUBMCD/
+        if year >= 2013:
+            _FILENAME_ABBREVS['submcd'] = 'subbarrio'
+
+        # Per-county layers: a state-only request cannot name a published file.
+        if boundary_type in _PER_COUNTY_TYPES:
+            raise BoundaryConfigurationError(
+                f"Census publishes '{boundary_type}' only as per-county files "
+                f"(tl_{year}_<state><county>_*.zip); per-county downloads are not "
+                f"supported, so a state or national request cannot be satisfied.",
+                context={
+                    "boundary_type": boundary_type,
+                    "year": year,
+                    "state_fips": state_fips,
+                    "requires": "county_fips",
+                },
+            )
+
+        # ANRC (Alaska Native Regional Corporations) is published only for Alaska.
+        if boundary_type == 'anrc':
+            if state_fips and state_fips != '02':
+                raise BoundaryConfigurationError(
+                    f"ANRC boundaries are published only for Alaska (state FIPS '02'); "
+                    f"got state_fips={state_fips!r}.",
+                    context={"boundary_type": boundary_type, "year": year, "state_fips": state_fips},
+                )
+            return patterns['filename_patterns']['state'].format(
+                year=year, state_fips='02', boundary_type='anrc'
+            )
 
         # Handle congressional districts specially
         if boundary_type.startswith('cd'):
@@ -986,25 +1069,9 @@ class CensusDirectoryDiscovery:
         # Handle national-only types
         elif boundary_type in national_only_types:
             return patterns['filename_patterns']['national'].format(
-                year=year, boundary_type=boundary_type
+                year=year, boundary_type=_FILENAME_ABBREVS.get(boundary_type, boundary_type)
             )
 
-        # Handle flexible types
-        elif boundary_type in flexible_types:
-            if state_fips:
-                # User provided state FIPS, use state-specific version
-                state_info = get_fips_info(state_fips)
-                log.info(f"Using state-specific {boundary_type} for {state_info['name']}")
-                return patterns['filename_patterns']['state'].format(
-                    year=year, state_fips=state_fips, boundary_type=boundary_type
-                )
-            else:
-                # No state FIPS provided, use national version
-                log.info(f"Using national {boundary_type} file")
-                return patterns['filename_patterns']['national'].format(
-                    year=year, boundary_type=boundary_type
-                )
-        
         # Default pattern for unknown types
         else:
             log.warning(f"Unknown boundary type: {boundary_type}, using default pattern")
@@ -1056,10 +1123,12 @@ class CensusDirectoryDiscovery:
                     "to opt in).", url,
                 )
                 raise
-            log.debug("SSL verification failed for %s, retrying without verification (env opt-in).", url)
+            log.error("SSL verification failed for %s, retrying without verification (env opt-in).", url)
             try:
-                response = requests.get(url, timeout=self.timeout, stream=True,
-                                        headers=headers, verify=False)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", InsecureRequestWarning)
+                    response = requests.get(url, timeout=self.timeout, stream=True,
+                                            headers=headers, verify=False)
                 response.close()
                 if response.status_code == 200:
                     return True
@@ -1145,10 +1214,11 @@ class CensusDataSource(SpatialDataSource):
     Supports all standard TIGER/Line boundary types:
 
     **National-scope** (no state_fips required):
-        ``nation``, ``state``, ``county``, ``place``, ``zcta``, ``cd``
+        ``nation``, ``state``, ``county``, ``zcta``, ``cd`` (through 2021)
 
     **State-scope** (state_fips required):
-        ``tract``, ``block_group``, ``block``, ``tabblock20``, ``sldu``, ``sldl``
+        ``tract``, ``block_group``, ``block``, ``tabblock20``, ``sldu``, ``sldl``,
+        ``place``, ``elsd``, ``scsd``, ``unsd``, ``vtd``, ``cd`` (from 2022)
 
     GEOID formats by boundary type:
 
@@ -1177,10 +1247,13 @@ class CensusDataSource(SpatialDataSource):
         self.available_years = self.discovery.get_available_years()
         
         # Geographic levels that require state FIPS
-        self.state_required_levels = ['tract', 'block_group', 'block', 'tabblock20', 'sldu', 'sldl']
+        self.state_required_levels = [
+            'tract', 'block_group', 'block', 'tabblock20', 'sldu', 'sldl',
+            'place', 'elsd', 'scsd', 'unsd', 'vtd', 'vtd20',
+        ]
         
         # Geographic levels that don't require state FIPS
-        self.national_levels = ['nation', 'state', 'county', 'place', 'zcta', 'cd']
+        self.national_levels = ['nation', 'state', 'county', 'zcta', 'cd']
 
         log.info(f"Initialized Census data source with {len(self.available_years)} available years")
 
@@ -1226,10 +1299,11 @@ class CensusDataSource(SpatialDataSource):
         For structured diagnostics, use :meth:`fetch_geographic_boundaries` instead.
 
         Args:
-            year: Census year (will find closest available if not available)
+            year: Census year (an unpublished vintage returns None; see
+                :meth:`fetch_geographic_boundaries` ``allow_nearest_year``)
             geographic_level: Geographic level (state, county, tract, etc.)
             state_fips: State FIPS code for filtering (required for some levels)
-            county_fips: County FIPS code for filtering
+            county_fips: 3-digit county FIPS code for filtering (requires state_fips)
             congress_number: Congress number for congressional districts
 
         Returns:
@@ -1259,7 +1333,8 @@ class CensusDataSource(SpatialDataSource):
                                     geographic_level: str = 'county',
                                     state_fips: Optional[str] = None,
                                     county_fips: Optional[str] = None,
-                                    congress_number: Optional[int] = None) -> BoundaryFetchResult:
+                                    congress_number: Optional[int] = None,
+                                    allow_nearest_year: bool = False) -> BoundaryFetchResult:
         """
         Download geographic boundaries with structured diagnostics.
 
@@ -1267,12 +1342,24 @@ class CensusDataSource(SpatialDataSource):
         GeoDataFrame on success or a machine-readable error code, stage, and
         context dict on failure.
 
+        ``context['served_year']`` always records the TIGER vintage that was
+        (or would have been) downloaded, and the ``census_year`` column of a
+        successful frame holds that vintage.
+
         Args:
-            year: Census year (will find closest available if not available)
+            year: Census year requested.
             geographic_level: Geographic level (state, county, tract, etc.)
-            state_fips: State FIPS code for filtering (required for some levels)
-            county_fips: County FIPS code for filtering
+            state_fips: State FIPS code (required for some levels). For
+                national-only layers the national file is filtered on its
+                ``statefp`` column; a layer without one fails rather than
+                returning the national file.
+            county_fips: 3-digit county FIPS code. Requires ``state_fips``;
+                the frame is filtered on its ``countyfp`` column, and a layer
+                without one fails.
             congress_number: Congress number for congressional districts
+            allow_nearest_year: When ``year`` is not published, serve the
+                closest published vintage instead of failing with
+                ``VINTAGE_NOT_PUBLISHED``. Off by default.
 
         Returns:
             BoundaryFetchResult with .success, .geodataframe, .error_stage, etc.
@@ -1283,6 +1370,7 @@ class CensusDataSource(SpatialDataSource):
             "state_fips": state_fips,
             "county_fips": county_fips,
             "congress_number": congress_number,
+            "allow_nearest_year": allow_nearest_year,
         }
         try:
             # --- Stage: input_validation ---
@@ -1307,6 +1395,23 @@ class CensusDataSource(SpatialDataSource):
                 state_fips = normalized_fips
                 base_ctx["normalized_fips"] = normalized_fips
 
+            if county_fips is not None:
+                county_fips = str(county_fips)
+                if not (len(county_fips) == 3 and county_fips.isdigit()):
+                    return BoundaryFetchResult.fail(
+                        error_code="INVALID_PARAMETERS",
+                        error_stage="input_validation",
+                        message=f"county_fips must be a 3-digit county FIPS code, got {county_fips!r}",
+                        context=base_ctx,
+                    )
+                if not state_fips:
+                    return BoundaryFetchResult.fail(
+                        error_code="INVALID_PARAMETERS",
+                        error_stage="input_validation",
+                        message="county_fips requires state_fips: county codes are unique only within a state",
+                        context=base_ctx,
+                    )
+
             try:
                 self._validate_census_parameters(year, geographic_level, state_fips)
             except ValueError as e:
@@ -1320,6 +1425,23 @@ class CensusDataSource(SpatialDataSource):
             # --- Stage: discovery ---
             optimal_year = self.discovery.get_optimal_year(year, geographic_level)
             base_ctx["optimal_year"] = optimal_year
+            base_ctx["served_year"] = optimal_year
+            if optimal_year != year:
+                if not allow_nearest_year:
+                    return BoundaryFetchResult.fail(
+                        error_code="VINTAGE_NOT_PUBLISHED",
+                        error_stage="discovery",
+                        message=(
+                            f"TIGER {year} is not published for {geographic_level}; "
+                            f"the nearest published vintage is {optimal_year}. "
+                            f"Pass allow_nearest_year=True to accept it."
+                        ),
+                        context=base_ctx,
+                    )
+                log.warning(
+                    f"Requested year {year} not published for {geographic_level}; "
+                    f"serving {optimal_year} (allow_nearest_year=True)"
+                )
 
             try:
                 url = self.discovery.construct_download_url(
@@ -1367,35 +1489,58 @@ class CensusDataSource(SpatialDataSource):
                     context=base_ctx,
                 )
 
+            # The vintage label is the year actually served, never the request.
+            gdf["census_year"] = optimal_year
+
             # Post-download filtering for national-only boundary types
             # These types are only available as nationwide files from Census,
             # so we download the full national file and filter by state FIPS
-            national_only_types = {
-                'state', 'county', 'cbsa', 'csa', 'metdiv', 'micro',
-                'necta', 'nectadiv', 'cnecta', 'aiannh', 'uac', 'uac10', 'uac20',
-            }
-            if normalized_fips and geographic_level in national_only_types:
-                fips_col = None
-                for col in ['statefp', 'STATEFP', 'statefp20', 'STATEFP20',
-                            'statefp10', 'STATEFP10']:
-                    if col in gdf.columns:
-                        fips_col = col
-                        break
+            if normalized_fips and geographic_level in _NATIONAL_ONLY_TYPES:
+                fips_col = self._first_present_column(gdf, 'statefp')
+                if not fips_col:
+                    base_ctx["state_filter_applied"] = False
+                    return BoundaryFetchResult.fail(
+                        error_code="STATE_FILTER_UNAVAILABLE",
+                        error_stage="configuration",
+                        message=(
+                            f"{geographic_level} is published only as a national file "
+                            f"with no state FIPS column, so it cannot be limited to "
+                            f"state {normalized_fips}. Request it without state_fips."
+                        ),
+                        context=base_ctx,
+                    )
+                original_count = len(gdf)
+                gdf = gdf[gdf[fips_col] == normalized_fips].copy()
+                log.info(
+                    f"Filtered {geographic_level} from {original_count} to "
+                    f"{len(gdf)} features for state {normalized_fips}"
+                )
+                base_ctx["state_filter_applied"] = True
+                base_ctx["filtered_from"] = original_count
+                base_ctx["filtered_to"] = len(gdf)
 
-                if fips_col:
-                    original_count = len(gdf)
-                    gdf = gdf[gdf[fips_col] == normalized_fips].copy()
-                    log.info(
-                        f"Filtered {geographic_level} from {original_count} to "
-                        f"{len(gdf)} features for state {normalized_fips}"
+            if county_fips is not None:
+                county_col = self._first_present_column(gdf, 'countyfp')
+                if not county_col:
+                    base_ctx["county_filter_applied"] = False
+                    return BoundaryFetchResult.fail(
+                        error_code="COUNTY_FILTER_UNAVAILABLE",
+                        error_stage="configuration",
+                        message=(
+                            f"{geographic_level} data has no county FIPS column, so it "
+                            f"cannot be limited to county {county_fips}."
+                        ),
+                        context=base_ctx,
                     )
-                    base_ctx["filtered_from"] = original_count
-                    base_ctx["filtered_to"] = len(gdf)
-                else:
-                    log.warning(
-                        f"No state FIPS column found in {geographic_level} data "
-                        f"— cannot filter by state"
-                    )
+                original_count = len(gdf)
+                gdf = gdf[gdf[county_col] == county_fips].copy()
+                log.info(
+                    f"Filtered {geographic_level} from {original_count} to "
+                    f"{len(gdf)} features for county {normalized_fips}{county_fips}"
+                )
+                base_ctx["county_filter_applied"] = True
+                base_ctx["county_filtered_from"] = original_count
+                base_ctx["county_filtered_to"] = len(gdf)
 
             return BoundaryFetchResult.ok(
                 gdf,
@@ -1418,6 +1563,15 @@ class CensusDataSource(SpatialDataSource):
                 context={**base_ctx, "original_error": str(e)},
             )
     
+    @staticmethod
+    def _first_present_column(gdf: GeoDataFrame, base: str) -> Optional[str]:
+        """Return the first of ``base``, ``base20``, ``base10`` (any case) in *gdf*."""
+        for col in (base, base.upper(), f'{base}20', f'{base.upper()}20',
+                    f'{base}10', f'{base.upper()}10'):
+            if col in gdf.columns:
+                return col
+        return None
+
     def get_available_boundary_types(self, year: int) -> Dict[str, str]:
         """Get available boundary types for a specific year."""
         return self.discovery.discover_boundary_types(year)
@@ -1530,6 +1684,10 @@ class CensusDataSource(SpatialDataSource):
         
         if state_fips and not self.validate_state_fips(state_fips):
             raise ValueError(f"Invalid state FIPS code: {state_fips}. Use get_available_state_fips() to see valid codes.")
+
+        # The 2020 PL release is separate from the annual TIGER directory.
+        if year == 2020 and geographic_level in ('vtd', 'vtd20'):
+            return
         
         # Validate geographic level exists in our known types
         valid_levels = set(self.discovery.discover_boundary_types(year).keys())
@@ -1564,9 +1722,9 @@ class CensusDataSource(SpatialDataSource):
             zip_filename = generate_local_path_from_url(url, download_dir)
             ctx["local_path"] = str(zip_filename)
 
-            # Download file (download_file handles SSL retry internally)
+            # SSL failures raise unless SIEGE_INSECURE_SSL explicitly permits a retry.
             try:
-                download_file(url, zip_filename)
+                download_file(url, zip_filename, allow_insecure_fallback=_ALLOW_INSECURE_SSL)
             except (OSError, ConnectionError) as dl_err:
                 raise BoundaryDownloadError(
                     f"Failed to download TIGER/Line data from {url}",
@@ -1585,7 +1743,7 @@ class CensusDataSource(SpatialDataSource):
                 zip_path.unlink(missing_ok=True)
                 # Retry once — the first attempt may have been an anti-bot challenge
                 try:
-                    download_file(url, zip_filename)
+                    download_file(url, zip_filename, allow_insecure_fallback=_ALLOW_INSECURE_SSL)
                 except (OSError, ConnectionError):
                     pass
                 if not zipfile.is_zipfile(zip_path):
@@ -1671,8 +1829,8 @@ class CensusDataSource(SpatialDataSource):
         if 'geometry' not in gdf.columns and gdf.geometry.name:
             gdf = gdf.rename(columns={gdf.geometry.name: 'geometry'})
         
-        # Add metadata columns
-        gdf['census_year'] = gdf.get('year', None)
+        # Add metadata columns. census_year is set to the served vintage by
+        # fetch_geographic_boundaries; TIGER files carry no year column.
         gdf['geographic_level'] = geographic_level
         
         return gdf
@@ -1820,7 +1978,7 @@ class GovernmentDataSource(SpatialDataSource):
             local_filename = generate_local_path_from_url(url, download_dir)
 
             # Download file
-            download_file(url, local_filename)
+            download_file(url, local_filename, allow_insecure_fallback=_ALLOW_INSECURE_SSL)
 
             # Process based on format
             if format_type.lower() == 'geojson':
@@ -1941,7 +2099,11 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
         If both are provided, state_identifier takes precedence.
 
     Returns:
-        GeoDataFrame with Census boundaries (filtered by state if specified)
+        GeoDataFrame with Census boundaries (filtered by state if specified),
+        or None when the source reports no data.
+
+    Raises:
+        ValueError: Invalid state identifier or no state FIPS column for filtering.
     """
     warnings.warn(
         "get_census_boundaries() is deprecated; will be removed in v3.17.0. "
@@ -1968,8 +2130,7 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
             # Then convert to FIPS code
             normalized_fips = normalize_state_identifier(normalized_input)
         except ValueError as e:
-            log.error(f"Invalid state identifier: '{state_param}' - {e}")
-            return None
+            raise ValueError(f"Invalid state identifier: {state_param!r}") from e
 
     # Download boundaries
     # For national-only types, don't pass state_fips to the download function
@@ -1982,8 +2143,8 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
     if gdf is not None and normalized_fips and geographic_level in national_only_types:
         # Filter by state FIPS column (statefp or STATEFP)
         fips_col = None
-        for col in ['statefp', 'STATEFP', 'statefp20', 'STATEFP20', 'statefp10', 'STATEFP10']:
-            if col in gdf.columns:
+        for col in gdf.columns:
+            if col.lower() in {'statefp', 'statefp20', 'statefp10'}:
                 fips_col = col
                 break
 
@@ -1992,7 +2153,10 @@ def get_census_boundaries(year: int = DEFAULT_CENSUS_YEAR, geographic_level: str
             gdf = gdf[gdf[fips_col] == normalized_fips].copy()
             log.info(f"Filtered {geographic_level} from {original_count} to {len(gdf)} features for state {normalized_fips}")
         else:
-            log.warning(f"No state FIPS column found in {geographic_level} data - cannot filter by state")
+            raise ValueError(
+                f"No state FIPS column found in {geographic_level} data; "
+                f"cannot satisfy state request {normalized_fips}"
+            )
 
     return gdf
 
@@ -2100,7 +2264,12 @@ def get_geographic_boundaries(
         DeprecationWarning,
         stacklevel=2,
     )
-    gdf = _get_census_source().get_geographic_boundaries(year, geographic_level, state_fips, state_identifier)
+    # state_identifier takes precedence, as in get_census_boundaries. It must
+    # not be passed positionally: the fourth parameter of the method is
+    # county_fips.
+    gdf = _get_census_source().get_geographic_boundaries(
+        year, geographic_level, state_identifier or state_fips,
+    )
     return reproject_if_needed(gdf, crs)
 
 
@@ -2110,6 +2279,8 @@ def fetch_geographic_boundaries(
     state_fips: Optional[str] = None,
     congress_number: Optional[int] = None,
     *,
+    county_fips: Optional[str] = None,
+    allow_nearest_year: bool = False,
     crs: str | None = None,
 ) -> BoundaryFetchResult:
     """Get geographic boundaries with structured diagnostics.
@@ -2121,16 +2292,22 @@ def fetch_geographic_boundaries(
         geographic_level: Geographic level (state, county, tract, etc.)
         state_fips: State FIPS code (required for tract, block_group, etc.)
         congress_number: Congress number for congressional districts
+        county_fips: 3-digit county FIPS code to filter on (requires state_fips).
+        allow_nearest_year: Serve the closest published vintage when *year*
+            is not published, instead of failing with ``VINTAGE_NOT_PUBLISHED``.
         crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
 
     Returns:
         BoundaryFetchResult with .success, .geodataframe in *crs*, .error_stage, etc.
+        ``context['served_year']`` records the vintage served.
     """
     result = _get_census_source().fetch_geographic_boundaries(
         year=year,
         geographic_level=geographic_level,
         state_fips=state_fips,
+        county_fips=county_fips,
         congress_number=congress_number,
+        allow_nearest_year=allow_nearest_year,
     )
     if result.success and result.geodataframe is not None:
         result.geodataframe = reproject_if_needed(result.geodataframe, crs)

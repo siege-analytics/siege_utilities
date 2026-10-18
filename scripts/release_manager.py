@@ -4,7 +4,12 @@ Release Manager for Siege Utilities
 
 Updates version across all five locations (pyproject.toml, __init__.py, docs/conf.py, docs/source/conf.py, docs/source/conf_fast.py),
 runs tests, builds the package, validates with twine, merges develop → main (gitflow),
-tags the release, uploads to PyPI, and creates GitHub releases.
+tags the release and creates GitHub releases.
+
+It never uploads to PyPI. Pushing the v* tag triggers
+.github/workflows/publish-tag.yml, which runs CI on the tag and publishes with
+trusted publishing and attestations; manual uploads are prohibited (#1419,
+RELEASING.md). `--build --pypi` can upload to TestPyPI only.
 
 Usage:
     python scripts/release_manager.py --check          # Check version consistency
@@ -27,7 +32,7 @@ Release workflow (12 steps):
     8. Resolve release notes
     9. Merge develop → main (gitflow)
    10. Tag on main + push
-   11. Upload to PyPI (always — requires PYPI_API_TOKEN or --token)
+   11. PyPI: none here; publish-tag.yml publishes from the pushed tag
    12. Create GitHub release (unless --skip-github)
 """
 
@@ -342,18 +347,28 @@ def validate_build() -> bool:
     return False
 
 
-def upload_to_pypi(repository: str = 'pypi', token: Optional[str] = None,
+def upload_to_pypi(repository: str = 'testpypi', token: Optional[str] = None,
                    dry_run: bool = False) -> bool:
-    """Upload distributions to PyPI using twine.
+    """Upload distributions to TestPyPI using twine.
+
+    Uploads to the production index are refused: PyPI releases go only
+    through .github/workflows/publish-tag.yml (#1419, RELEASING.md).
 
     Args:
-        repository: 'pypi' or 'testpypi'
-        token: PyPI API token. Falls back to PYPI_API_TOKEN env var.
+        repository: 'testpypi'. 'pypi' is refused and returns False.
+        token: TestPyPI API token. Falls back to PYPI_API_TOKEN env var.
         dry_run: If True, log what would happen but don't upload.
     """
+    if repository == 'pypi':
+        logger.error(
+            "Manual PyPI uploads are prohibited; push the v* tag and let "
+            "publish-tag.yml publish it (RELEASING.md)"
+        )
+        return False
+
     resolved_token = token or os.environ.get('PYPI_API_TOKEN')
     if not resolved_token:
-        logger.error("No PyPI token provided (use --token or PYPI_API_TOKEN env var)")
+        logger.error("No PyPI token provided (set PYPI_API_TOKEN in the environment)")
         return False
 
     dist_dir = PROJECT_ROOT / 'dist'
@@ -366,14 +381,26 @@ def upload_to_pypi(repository: str = 'pypi', token: Optional[str] = None,
         logger.info(f"[DRY RUN] Would upload {len(dist_files)} file(s) to {repository}")
         return True
 
-    cmd = [sys.executable, '-m', 'twine', 'upload',
-           '--username', '__token__', '--password', resolved_token]
+    cmd = [sys.executable, '-m', 'twine', 'upload']
     if repository == 'testpypi':
         cmd.extend(['--repository', 'testpypi'])
     cmd.extend([str(f) for f in dist_files])
+    upload_env = os.environ.copy()
+    upload_env.update(TWINE_USERNAME='__token__', TWINE_PASSWORD=resolved_token)
 
     logger.info(f"Uploading to {repository}...")
-    result = subprocess.run(cmd, cwd=PROJECT_ROOT, timeout=60)
+    # Twine diagnostics can echo credentials; retain only the exit status.
+    try:
+        result = subprocess.run(
+            cmd, cwd=PROJECT_ROOT, timeout=60, env=upload_env,
+            capture_output=True, text=True,
+        )
+    except subprocess.TimeoutExpired as exc:
+        logger.error("PyPI upload timed out (diagnostics omitted)")
+        raise subprocess.TimeoutExpired('twine upload', exc.timeout) from None
+    except OSError as exc:
+        logger.error("PyPI upload could not start (diagnostics omitted)")
+        raise OSError(exc.errno, 'PyPI upload could not start (details redacted)') from None
     if result.returncode == 0:
         logger.info(f"Upload to {repository} succeeded")
         return True
@@ -566,7 +593,9 @@ def git_tag_and_push(version: str, message: Optional[str] = None,
             _git(['checkout', 'main'])
 
         _git(['tag', '-a', tag, '-m', msg])
-        _git(['push', 'origin', '--tags'])
+        # Push only this tag: it triggers publish-tag.yml, and pushing every
+        # local tag could publish or re-point unrelated ones.
+        _git(['push', 'origin', f'refs/tags/{tag}'])
         logger.info(f"Tagged {tag} on main and pushed")
 
         # Return to develop
@@ -614,7 +643,7 @@ def git_commit_and_tag(version: str, message: Optional[str] = None,
         subprocess.run(['git', 'tag', '-a', tag, '-m', msg],
                        cwd=PROJECT_ROOT, check=True, timeout=60)
         subprocess.run(['git', 'push'], cwd=PROJECT_ROOT, check=True, timeout=60)
-        subprocess.run(['git', 'push', '--tags'], cwd=PROJECT_ROOT, check=True, timeout=60)
+        subprocess.run(['git', 'push', 'origin', f'refs/tags/{tag}'], cwd=PROJECT_ROOT, check=True, timeout=60)
         logger.info(f"Committed, tagged {tag}, and pushed")
         return True
     except subprocess.CalledProcessError as e:
@@ -692,6 +721,13 @@ def create_github_release(version: str, notes: str, dry_run: bool = False) -> bo
     return result.returncode == 0
 
 
+def _reject_cli_token(value: str) -> None:
+    # ArgumentTypeError keeps argparse from echoing the rejected secret value.
+    raise argparse.ArgumentTypeError(
+        "--token is no longer supported; set PYPI_API_TOKEN in the environment"
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description="Release Manager for Siege Utilities")
     parser.add_argument('--check', action='store_true', help='Check version consistency')
@@ -711,11 +747,11 @@ def main():
     parser.add_argument('--skip-tests', action='store_true', help='Skip tests during release')
     parser.add_argument('--skip-github', action='store_true', help='Skip GitHub release creation')
     parser.add_argument('--pypi', action='store_true',
-                        help='Upload to PyPI after --build (always on during --release)')
-    parser.add_argument('--repository', choices=['pypi', 'testpypi'], default='pypi',
-                        help='PyPI repository target (default: pypi)')
-    parser.add_argument('--token', type=str,
-                        help='PyPI API token (or set PYPI_API_TOKEN env var)')
+                        help='Upload to TestPyPI after --build (PyPI releases go through publish-tag.yml)')
+    parser.add_argument('--repository', choices=['pypi', 'testpypi'], default='testpypi',
+                        help='Upload target for --build --pypi (default: testpypi; pypi is refused)')
+    parser.add_argument('--token', type=_reject_cli_token,
+                        help='Removed; set PYPI_API_TOKEN in the environment')
     parser.add_argument('--dry-run', action='store_true',
                         help='Show actions without executing side effects')
     parser.add_argument('--clean', action='store_true',
@@ -757,7 +793,7 @@ def main():
         if not validate_build():
             sys.exit(1)
         if args.pypi:
-            if not upload_to_pypi(args.repository, args.token, args.dry_run):
+            if not upload_to_pypi(args.repository, dry_run=args.dry_run):
                 sys.exit(1)
 
     elif args.test:
@@ -773,14 +809,6 @@ def main():
             parser.error("--bump-type and --target-version are mutually exclusive")
         if not args.release_notes and not args.changelog:
             parser.error("--release requires --release-notes or --changelog")
-
-        # Early check: PyPI token must be available (upload is mandatory)
-        pypi_token = args.token or os.environ.get('PYPI_API_TOKEN')
-        if not pypi_token and not args.dry_run:
-            parser.error(
-                "--release requires a PyPI token. "
-                "Set PYPI_API_TOKEN env var or pass --token."
-            )
 
         # 1. Check consistency
         logger.info("Step 1/12: Checking version consistency...")
@@ -899,13 +927,15 @@ def main():
         # 10. Tag on main + push
         logger.info("Step 10/12: Tagging release on main...")
         if not git_tag_and_push(new_ver, notes, args.dry_run):
-            logger.warning("Tagging failed (non-fatal)")
-
-        # 11. Upload to PyPI (mandatory for releases)
-        logger.info("Step 11/12: PyPI upload...")
-        if not upload_to_pypi(args.repository, args.token, args.dry_run):
-            logger.error("PyPI upload failed")
+            logger.error("Tagging failed; nothing will be published")
             sys.exit(1)
+
+        # 11. PyPI: the pushed tag triggers publish-tag.yml (no upload here)
+        logger.info(
+            f"Step 11/12: PyPI publish runs in publish-tag.yml for v{new_ver} "
+            "after CI passes on the tag; watch it with "
+            "`gh run list --workflow publish-tag.yml`"
+        )
 
         # 12. GitHub release
         logger.info("Step 12/12: GitHub release...")

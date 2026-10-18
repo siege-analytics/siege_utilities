@@ -168,19 +168,13 @@ def detect_crs(geom_or_ds: Any) -> str | None:
 
 
 def _normalize_crs(value: Any) -> str:
-    """Best-effort normalization of various CRS representations to a string."""
-    try:
-        from pyproj import CRS
-    except ImportError:
-        # pyproj is a declared SU geo dep; if it's not present we just
-        # stringify and return.
-        return str(value)
+    """Normalize a CRS, raising ValueError for invalid input (requires pyproj)."""
+    from pyproj import CRS
 
     try:
         crs = CRS.from_user_input(value)
     except (ValueError, TypeError, RuntimeError) as exc:
-        log.debug("Could not parse CRS from %r, falling back to str(): %s", value, exc)
-        return str(value)
+        raise ValueError(f"Invalid CRS: {value!r}") from exc
     epsg = crs.to_epsg()
     if epsg:
         return f"EPSG:{epsg}"

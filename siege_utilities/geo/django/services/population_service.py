@@ -8,15 +8,16 @@ boundaries, then loads them into Django models.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 
 from siege_utilities.conf import settings
 
 if TYPE_CHECKING:
     import geopandas as gpd
+    from django.db.models import Model
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ __all__ = [
 
 @dataclass
 class PopulationResult:
-    """Result of a boundary population operation."""
+    """Population counts, with unpublished sources counted separately from rows."""
 
     geography_type: str
     year: int
@@ -37,6 +38,8 @@ class PopulationResult:
     records_updated: int
     records_skipped: int
     errors: list[str]
+    sources_skipped: int = 0
+    warnings: list[str] = field(default_factory=list)
 
     @property
     def total_processed(self) -> int:
@@ -88,25 +91,45 @@ class BoundaryPopulationService:
         "unsd": "SchoolDistrictUnified",
     }
 
-    # TIGER/Line geography type names
-    TIGER_TYPES = {
-        "state": "STATE",
-        "county": "COUNTY",
-        "tract": "TRACT",
-        "blockgroup": "BG",
-        "block": "TABBLOCK",
-        "place": "PLACE",
-        "zcta": "ZCTA5",
-        "cd": "CD",
-        "sldu": "SLDU",
-        "sldl": "SLDL",
-        "vtd": "VTD",
-        "cbsa": "CBSA",
-        "urbanarea": "UA",
-        "elsd": "ELSD",
-        "scsd": "SCSD",
-        "unsd": "UNSD",
+    # fetch_geographic_boundaries accepts discovery level names, not TIGER codes.
+    GEOGRAPHIC_LEVELS = {
+        "state": "state",
+        "county": "county",
+        "tract": "tract",
+        "blockgroup": "block_group",
+        "block": "block",
+        "place": "place",
+        "zcta": "zcta",
+        "cd": "cd",
+        "sldu": "sldu",
+        "sldl": "sldl",
+        "vtd": "vtd",
+        "cbsa": "cbsa",
+        "urbanarea": "uac",
+        "elsd": "elsd",
+        "scsd": "scsd",
+        "unsd": "unsd",
     }
+
+    # These states did not participate in the 2020 VTD program. See
+    # https://www2.census.gov/geo/tiger/TIGER2020PL/LAYER/VTD/2020/
+    VTD_NOT_PUBLISHED = {2020: frozenset({"06", "15", "41"})}
+
+    @staticmethod
+    def _validate_supported_year(geography_type: str, year: int) -> None:
+        """Reject unsupported vintages before constructing a network client."""
+        unsupported = {
+            "block": {2018},
+            "urbanarea": {2011},
+            "zcta": {2011},
+            "cbsa": {2022},
+        }
+        if (
+            not 2010 <= year <= 2026
+            or (geography_type == "vtd" and year != 2020)
+            or year in unsupported.get(geography_type, ())
+        ):
+            raise ValueError(f"{geography_type} not supported for year {year}")
 
     def __init__(self, cache_dir: Optional[str] = None):
         """
@@ -139,20 +162,62 @@ class BoundaryPopulationService:
 
         Returns:
             GeoDataFrame with boundary data
-        """
-        from siege_utilities.geo import get_geographic_boundaries
 
-        tiger_type = self.TIGER_TYPES.get(geography_type.lower())
-        if not tiger_type:
+        Raises:
+            ValueError: If the geography type has no supported fetch level.
+            BoundaryRetrievalError: If retrieval fails or returns no boundaries.
+        """
+        from siege_utilities.geo import fetch_geographic_boundaries
+        from siege_utilities.geo.boundary_result import BoundaryRetrievalError
+
+        geography_type = geography_type.lower()
+        geographic_level = self.GEOGRAPHIC_LEVELS.get(geography_type)
+        if geographic_level is None:
+            if geography_type in self.GEOGRAPHY_MODELS:
+                raise ValueError(
+                    f"Unsupported geography type: {geography_type}; "
+                    "no Census fetch level is available"
+                )
             raise ValueError(f"Unknown geography type: {geography_type}")
 
-        logger.info(f"Downloading {tiger_type} boundaries for year {year}")
+        self._validate_supported_year(geography_type, year)
+        requires_state = {
+            "tract", "blockgroup", "block", "place", "sldu", "sldl",
+            "vtd", "elsd", "scsd", "unsd",
+        }
+        if (geography_type in requires_state or (geography_type == "cd" and year >= 2022)) and not state_fips:
+            raise ValueError(f"State FIPS required for {geography_type}-level data")
 
-        gdf = get_geographic_boundaries(
-            state_identifier=state_fips,
-            boundary_type=tiger_type,
+        logger.info("Downloading %s boundaries for year %s", geographic_level, year)
+
+        result = fetch_geographic_boundaries(
             year=year,
+            geographic_level=geographic_level,
+            state_fips=state_fips,
         )
+        context = {
+            "year": year,
+            "geographic_level": geographic_level,
+            "state_fips": state_fips,
+        }
+        if result is None:
+            raise BoundaryRetrievalError(
+                f"No boundary result returned for {geography_type} "
+                f"(year={year}, state_fips={state_fips})",
+                stage="download",
+                context=context,
+            )
+        if not result.success:
+            result.raise_on_error()
+
+        gdf = result.geodataframe
+        if gdf is None or gdf.empty:
+            raise BoundaryRetrievalError(
+                f"No boundaries returned for {geography_type} "
+                f"(year={year}, state_fips={state_fips})",
+                stage="parse",
+                context={**result.context, **context},
+            )
 
         return gdf
 
@@ -194,6 +259,7 @@ class BoundaryPopulationService:
             "CDFP": "district_number",
             "CD116FP": "district_number",
             "CD118FP": "district_number",
+            "CDSESSN": "congress_number",
             # Common
             "GEOID": "GEOID",
             "GEOID20": "GEOID",
@@ -212,14 +278,41 @@ class BoundaryPopulationService:
             "LSAD": "legal_statistical_area",
         }
 
-        # Rename columns
-        gdf = gdf.rename(columns=column_mappings)
+        # fetch_geographic_boundaries lowercases TIGER columns; accept both
+        # its output and raw TIGER names, including decennial suffixes.
+        gdf = gdf.rename(columns={
+            column: column_mappings.get(column.upper(), column)
+            for column in gdf.columns
+        })
 
         # Ensure geometry matches storage CRS
         if gdf.crs and gdf.crs.to_epsg() != settings.STORAGE_CRS:
             gdf = gdf.to_crs(epsg=settings.STORAGE_CRS)
 
         return gdf
+
+    def _bulk_create_with_savepoints(
+        self, model: type[Model], objects: list[Model]
+    ) -> tuple[int, list[str]]:
+        """Insert a batch, retrying rows only after a rolled-back integrity failure."""
+        try:
+            with transaction.atomic():
+                model.objects.bulk_create(objects)
+            return len(objects), []
+        except IntegrityError:
+            # The batch savepoint must roll back before any retry queries run.
+            created = 0
+            errors = []
+            for obj in objects:
+                try:
+                    with transaction.atomic():
+                        model.objects.bulk_create([obj])
+                    created += 1
+                except IntegrityError as exc:
+                    error = f"GEOID {obj.geoid}: {exc}"
+                    logger.warning("Skipping %s", error)
+                    errors.append(error)
+            return created, errors
 
     @transaction.atomic
     def populate(
@@ -241,12 +334,34 @@ class BoundaryPopulationService:
             batch_size: Number of records per database batch
 
         Returns:
-            PopulationResult with statistics
+            PopulationResult with statistics. Rows rejected by validation or
+            database integrity constraints are logged with their GEOID, counted
+            as skipped, and included in errors; valid rows are retained. CD
+            session codes are normalized using the TIGER year's Congress before
+            identity lookup, with mismatched CDSESSN or embedded sessions rejected.
+
+        Raises:
+            ValueError: If geography_type is unknown or unsupported.
+            BoundaryRetrievalError: If retrieval fails or returns no boundaries.
+                Download and normalization exceptions also propagate to callers.
         """
         from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 
         model = self._get_model(geography_type)
         if not model:
+            raise ValueError(f"Unknown geography type: {geography_type}")
+
+        geography_type = geography_type.lower()
+        self._validate_supported_year(geography_type, year)
+        if state_fips:
+            from siege_utilities.config import normalize_state_identifier
+
+            state_fips = normalize_state_identifier(state_fips)
+        if geography_type == "vtd" and state_fips in self.VTD_NOT_PUBLISHED.get(year, ()):
+            from siege_utilities.config import FIPS_TO_STATE
+
+            warning = f"VTD {year} not published for {FIPS_TO_STATE[state_fips]} by Census"
+            logger.warning(warning)
             return PopulationResult(
                 geography_type=geography_type,
                 year=year,
@@ -254,24 +369,19 @@ class BoundaryPopulationService:
                 records_created=0,
                 records_updated=0,
                 records_skipped=0,
-                errors=[f"Unknown geography type: {geography_type}"],
+                errors=[],
+                sources_skipped=1,
+                warnings=[warning],
             )
 
-        # Download data
-        try:
-            gdf = self._download_boundaries(geography_type, year, state_fips)
-            gdf = self._normalize_geodataframe(gdf, geography_type)
-        except (OSError, ValueError, TypeError, ImportError, RuntimeError) as e:
-            logger.error(f"Error downloading boundaries: {e}")
-            return PopulationResult(
-                geography_type=geography_type,
-                year=year,
-                state_fips=state_fips,
-                records_created=0,
-                records_updated=0,
-                records_skipped=0,
-                errors=[str(e)],
-            )
+        congress_number = None
+        if geography_type.lower() == "cd":
+            from siege_utilities.geo.spatial_data import YEAR_TO_CONGRESS
+
+            congress_number = YEAR_TO_CONGRESS.get(year)
+
+        gdf = self._download_boundaries(geography_type, year, state_fips)
+        gdf = self._normalize_geodataframe(gdf, geography_type)
 
         created = 0
         updated = 0
@@ -285,8 +395,16 @@ class BoundaryPopulationService:
             try:
                 geoid = str(row.get("GEOID", ""))
                 if not geoid:
-                    skipped += 1
-                    continue
+                    raise ValueError("Missing GEOID")
+
+                if geography_type.lower() == "cd":
+                    source_congress = row.get("congress_number")
+                    if source_congress is not None and str(source_congress) != str(congress_number):
+                        raise ValueError(
+                            f"CDSESSN {source_congress} does not match "
+                            f"Congress {congress_number} for TIGER year {year}"
+                        )
+                    geoid = model.normalize_geoid(geoid, congress_number)
 
                 # Check if exists
                 existing = model.objects.filter(geoid=geoid, vintage_year=year).first()
@@ -313,6 +431,8 @@ class BoundaryPopulationService:
                     "area_water": row.get("AWATER"),
                 }
                 kwargs.update(parsed)
+                if geography_type.lower() == "cd":
+                    kwargs["congress_number"] = congress_number
 
                 # Add model-specific fields
                 if hasattr(model, "abbreviation") and "abbreviation" in row:
@@ -328,28 +448,42 @@ class BoundaryPopulationService:
                     # Update
                     for key, value in kwargs.items():
                         setattr(existing, key, value)
-                    existing.save()
+                    with transaction.atomic():
+                        existing.save()
                     updated += 1
                 else:
-                    # Create
-                    objects_to_create.append(model(**kwargs))
+                    # Create; bulk_create skips save(), so derive its fields here (#1539)
+                    objects_to_create.append(model(**kwargs).prepare_for_bulk())
 
                     # Batch create
                     if len(objects_to_create) >= batch_size:
-                        model.objects.bulk_create(
-                            objects_to_create, ignore_conflicts=True
+                        batch_created, batch_errors = self._bulk_create_with_savepoints(
+                            model, objects_to_create
                         )
-                        created += len(objects_to_create)
+                        created += batch_created
+                        skipped += len(batch_errors)
+                        errors.extend(batch_errors)
                         objects_to_create = []
 
+            except IntegrityError as e:
+                error = f"GEOID {geoid}: {e}"
+                logger.warning("Skipping %s", error)
+                errors.append(error)
+                skipped += 1
             except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
-                logger.error(f"Error processing record {idx}: {e}")
-                errors.append(f"Record {idx}: {e}")
+                error = f"Record {idx}, GEOID {geoid}: {e}"
+                logger.warning("Skipping %s", error)
+                errors.append(error)
+                skipped += 1
 
         # Create remaining
         if objects_to_create:
-            model.objects.bulk_create(objects_to_create, ignore_conflicts=True)
-            created += len(objects_to_create)
+            batch_created, batch_errors = self._bulk_create_with_savepoints(
+                model, objects_to_create
+            )
+            created += batch_created
+            skipped += len(batch_errors)
+            errors.extend(batch_errors)
 
         logger.info(
             f"Populated {geography_type}: {created} created, {updated} updated, {skipped} skipped"
@@ -415,7 +549,9 @@ class BoundaryPopulationService:
         """
         Link child boundaries to their parent boundaries.
 
-        For example, link counties to states, tracts to counties, etc.
+        Resolve every missing FIPS-based parent at the same vintage. Existing
+        links are preserved. VTD congressional-district assignment requires a
+        spatial/crosswalk policy and is not resolved from FIPS components.
 
         Args:
             geography_type: Type of child geography
@@ -424,31 +560,40 @@ class BoundaryPopulationService:
 
         Returns:
             Number of relationships linked
+
+        Raises:
+            ValueError: If geography_type is unknown.
         """
+        geography_type = geography_type.lower()
         model = self._get_model(geography_type)
         if not model:
-            return 0
+            raise ValueError(f"Unknown geography type: {geography_type}")
 
-        # Define parent relationships
+        # These are model FK names. Block.block_group is a derived code,
+        # while Block.block_group_ref is its FK to BlockGroup.
         parent_map = {
-            "county": ("state", "State", "state_fips"),
-            "tract": ("county", "County", "state_fips", "county_fips"),
-            "blockgroup": ("tract", "Tract", "state_fips", "county_fips", "tract_code"),
-            "block": ("blockgroup", "BlockGroup", "state_fips", "county_fips", "tract_code", "block_group"),
-            "place": ("state", "State", "state_fips"),
-            "cd": ("state", "State", "state_fips"),
+            "county": ("state",),
+            "tract": ("state", "county"),
+            "blockgroup": ("state", "county", "tract"),
+            "block": ("state", "county", "tract", "block_group_ref"),
+            "place": ("state",),
+            "cd": ("state",),
+            "sldu": ("state",),
+            "sldl": ("state",),
+            "vtd": ("state", "county"),
+            "precinct": ("state", "county"),
+            "elsd": ("state",),
+            "scsd": ("state",),
+            "unsd": ("state",),
         }
-
-        if geography_type not in parent_map:
-            return 0
-
-        parent_info = parent_map[geography_type]
-        parent_field = parent_info[0]
-        key_fields = parent_info[2:]
-
-        parent_model = self._get_model(parent_field)
-        if not parent_model:
-            return 0
+        parent_keys = {
+            "state": ("state_fips",),
+            "county": ("state_fips", "county_fips"),
+            "tract": ("state_fips", "county_fips", "tract_code"),
+            "block_group_ref": (
+                "state_fips", "county_fips", "tract_code", "block_group"
+            ),
+        }
 
         # Get all child records
         qs = model.objects.filter(vintage_year=year)
@@ -456,17 +601,18 @@ class BoundaryPopulationService:
             qs = qs.filter(state_fips=state_fips)
 
         linked = 0
-        for child in qs.filter(**{f"{parent_field}__isnull": True}):
-            # Build parent lookup
-            lookup = {"vintage_year": year}
-            for field in key_fields:
-                lookup[field] = getattr(child, field)
+        for parent_field in parent_map.get(geography_type, ()):
+            parent_model = model._meta.get_field(parent_field).remote_field.model
+            for child in qs.filter(**{f"{parent_field}__isnull": True}):
+                lookup = {"vintage_year": year}
+                for field in parent_keys[parent_field]:
+                    lookup[field] = getattr(child, field)
 
-            parent = parent_model.objects.filter(**lookup).first()
-            if parent:
-                setattr(child, parent_field, parent)
-                child.save(update_fields=[parent_field])
-                linked += 1
+                parent = parent_model.objects.filter(**lookup).first()
+                if parent:
+                    setattr(child, parent_field, parent)
+                    child.save(update_fields=[parent_field])
+                    linked += 1
 
-        logger.info(f"Linked {linked} {geography_type} records to parents")
+        logger.info("Linked %s %s parent relationships", linked, geography_type)
         return linked

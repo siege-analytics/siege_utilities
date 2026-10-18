@@ -266,5 +266,6 @@ class ClientProfile(BaseModel):
     model_config = {
         "json_schema_serialization_mode": "json",
         "validate_assignment": True,
+        "hide_input_in_errors": True,
         "extra": "forbid"
     }

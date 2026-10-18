@@ -293,6 +293,8 @@ def validate_remote_name(remote_name: str) -> str:
     """
     if not remote_name:
         raise ValueError("Remote name cannot be empty")
+    if remote_name.startswith('-'):
+        raise GitSecurityError("Remote name must not start with '-'")
 
     # Check for dangerous characters
     if has_dangerous_characters(remote_name):

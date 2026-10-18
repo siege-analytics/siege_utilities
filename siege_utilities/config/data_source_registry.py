@@ -10,6 +10,8 @@ from typing import Dict, List, Optional
 
 import yaml
 
+from siege_utilities.files.operations import atomic_write_path
+
 __all__ = [
     'DataSourceRegistry',
 ]
@@ -231,7 +233,8 @@ class DataSourceRegistry:
             for c in creds:
                 data["credentials"].append(c.model_dump(mode="json"))
 
-        path.write_text(yaml.dump(data, default_flow_style=False, sort_keys=False))
+        with atomic_write_path(path) as tmp:
+            tmp.write_text(yaml.dump(data, default_flow_style=False, sort_keys=False))
 
     def __len__(self) -> int:
         return len(self._sources)

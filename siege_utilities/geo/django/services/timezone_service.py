@@ -97,6 +97,7 @@ class TimezonePopulationService:
         from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 
         from ..models.timezone import TimezoneGeometry
+        from ._bulk import bulk_insert_counted
 
         result = TimezonePopulationResult()
         geojson_path = Path(geojson_path)
@@ -174,16 +175,21 @@ class TimezonePopulationService:
                             utc_offset_std=utc_std,
                             utc_offset_dst=utc_dst,
                             observes_dst=obs_dst,
-                        )
+                        ).prepare_for_bulk()
                     )
 
             if to_create:
                 for i in range(0, len(to_create), batch_size):
                     batch = to_create[i : i + batch_size]
-                    TimezoneGeometry.objects.bulk_create(
-                        batch, ignore_conflicts=True
+                    # Count rows inserted, not rows offered (#1539)
+                    result.records_created += bulk_insert_counted(
+                        TimezoneGeometry.objects,
+                        batch,
+                        scope={
+                            "vintage_year": vintage_year,
+                            "timezone_id__in": [tz.timezone_id for tz in batch],
+                        },
                     )
-                result.records_created = len(to_create)
 
         log.info(
             f"Timezone populate: created={result.records_created}, "
@@ -196,7 +202,7 @@ class TimezonePopulationService:
         Attempt to resolve UTC offset from the standard library zoneinfo.
 
         Returns (utc_offset_std, utc_offset_dst, observes_dst) tuple.
-        Falls back to (None, None, None) if resolution fails.
+        Raises ValueError if resolution fails, preventing invalid persistence.
         """
         try:
             from datetime import datetime
@@ -214,5 +220,4 @@ class TimezonePopulationService:
 
             return std_offset, dst_offset, observes_dst
         except (ValueError, TypeError, KeyError, AttributeError) as exc:
-            log.warning("Could not resolve UTC offset for timezone %s: %s", tz_id, exc)
-            return None, None, None
+            raise ValueError(f"Could not resolve timezone {tz_id!r}") from exc

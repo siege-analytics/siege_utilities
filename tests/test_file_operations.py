@@ -2,7 +2,7 @@
 
 import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -263,6 +263,39 @@ class TestAtomicWritePath:
 
 class TestRunCommand:
     """Tests for run_command — security validation, allow-list, and execution."""
+
+    @pytest.mark.parametrize("command, cwd", [
+        ('cat passwd', '/etc'),
+        (['cat', 'etc/passwd'], '/'),
+        (['grep', '-fpasswd', 'input.txt'], '/etc'),
+        (['date', '-ufpasswd'], '/etc'),
+    ])
+    def test_review_cwd_operand_raises_before_execution(self, monkeypatch, command, cwd):
+        from siege_utilities.files import validation
+        from siege_utilities.files.shell import SecurityError
+        # Exercise Linux's /etc cwd policy even when macOS resolves it to /private/etc.
+        monkeypatch.setattr(validation, 'SENSITIVE_PATHS', validation.SENSITIVE_PATHS - {'/private/etc'})
+        result = subprocess.CompletedProcess(command, 0, stdout='', stderr='')
+        with patch('subprocess.run', return_value=result) as run:
+            with pytest.raises(SecurityError):
+                run_command(command, cwd=cwd)
+            run.assert_not_called()
+
+    @pytest.mark.parametrize("argument", ['patterns', '-fpatterns'])
+    def test_review_cwd_symlink_raises_before_execution(self, tmp_path, argument):
+        from siege_utilities.files.shell import SecurityError
+        (tmp_path / 'patterns').symlink_to('/etc/passwd')
+        result = subprocess.CompletedProcess([], 0, stdout='', stderr='')
+        with patch('subprocess.run', return_value=result) as run:
+            with pytest.raises(SecurityError):
+                run_command(['grep', argument], cwd=tmp_path)
+            run.assert_not_called()
+
+    def test_cwd_relative_ordinary_file_is_read(self, tmp_path):
+        (tmp_path / 'passwd').write_text('public data\n')
+        result = run_command(['cat', 'passwd'], cwd=tmp_path)
+        assert result.returncode == 0
+        assert result.stdout == 'public data\n'
 
     def test_allowed_command_succeeds(self):
         result = run_command("echo hello")

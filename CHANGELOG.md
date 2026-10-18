@@ -7,49 +7,651 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-10-18
+
 ### Changed
 
-- No public helper creates a directory with an unsafe name any more. When a
-  path component that does not exist yet contains a C0 control character, DEL,
-  a C1 control character or a lone surrogate (how undecodable, non-UTF-8 bytes
-  reach Python), `validate_directory_path(..., must_exist=False)` and every
-  helper that creates a directory or a file's parent raise `PathSecurityError`
-  and create nothing. The helpers are:
-  - `ensure_path_exists`, `ensure_directory_exists`, and
-    `unzip_file_to_directory`, both for the zip-named subdirectory and for
-    every member directory: an archive that would create an unsafe directory
-    is refused before anything is extracted
-  - `touch_file`, `copy_file`, `move_file`,
-    `delete_existing_file_and_replace_it_with_an_empty_file`
-  - `safe_file_write`, `safe_json_write`, `atomic_write_path`,
-    `atomic_write_shapefile`, `download_file`, `save_spatial` and
-    `save_tabular`
+- Docstring generation now defaults to a dry run. CLI callers must pass
+  `--write` (or `--apply`), and Python callers must pass `dry_run=False` to
+  `process_python_file` or `main` to modify files (#1589).
+- **Release process:** PyPI releases go only through `publish-tag.yml`, on a
+  `v*` tag push. It checks that the tag equals `v` + the pyproject version and
+  that the tagged commit is on `main`, then runs the whole of `ci.yml` on the
+  tag. Only after that passes does it build, check wheel contents and publish
+  with `pypa/gh-action-pypi-publish` (using the existing `PYPI_API_TOKEN`
+  secret; trusted publishing with attestations once configured, RELEASING.md). The token-based `release` job
+  in `ci.yml` and its `release: published` trigger are removed.
+  `scripts/release_manager.py --release` no longer uploads or needs
+  `PYPI_API_TOKEN`. It pushes only the new tag, not `--tags`, and stops if
+  tagging fails. `--build --pypi` defaults to TestPyPI and refuses
+  `--repository pypi`. Manual uploads are prohibited; see `RELEASING.md`,
+  which also records the `v3.19.0`, `v3.21.0` and `v4.0.0` dispositions.
+  CHANGELOG entries for 3.18.0-3.23.0 have been added from the tags and git
+  log (#1419).
 
-  Paths are checked as written, so in `a/<new>/../b` the `<new>` that `mkdir`
-  would create on the way is checked too; where files land and how symlinks
-  are treated are unchanged.
-
-  Existing directories with such names, and file-path validation, are
-  unchanged. The check is public as `reject_unsafe_new_directory_names`.
-  Path-validation messages show paths with `repr()`, so escape sequences are
-  not written raw. A zip whose stem is `..` (e.g. `...zip`) now raises instead
-  of extracting into the parent of `extract_to` (#1692, #1716).
+- `validate_directory_path(..., must_exist=False)` now raises
+  `PathSecurityError` when a path component that does not exist yet contains a
+  C0 control character, DEL or a C1 control character. This covers callers that
+  create directories through it, such as `ensure_path_exists`, and the
+  zip-named subdirectory `unzip_file_to_directory` creates. Member directories
+  inside an archive are checked too (#1716). Existing directories with such names still
+  validate when they can be stat'ed, and file-path validation is unchanged.
+  Path-validation messages and the debug log now show paths with `repr()`, so
+  escape sequences are not written raw. Because the zip-named subdirectory is
+  now validated, a zip whose stem is `..` (e.g. `...zip`) raises instead of
+  extracting into the parent of `extract_to` (#1692).
+- Google Slides report figures no longer persist in Drive.
+  `create_report_from_arguments` / `create_argument_slide` now insert each
+  chart or map through the new `temporary_public_figure` context manager: the
+  PNG is uploaded into the report's `folder_id` (previously the Drive root),
+  shared anyone-with-the-link only while Slides copies it, and deleted from
+  Drive afterwards, including when the insert fails. Anyone relying on the
+  leftover `fig_slide_*.png` files in Drive no longer gets them; keep your own
+  copy of the figure if you need one. A failed delete is logged at ERROR with
+  the file ID; it is raised only when the insert itself succeeded, so it never
+  hides an insert error. New `publish_figures=True` keyword on both functions:
+  pass `False` to create no anyone-with-the-link permission at all, in which
+  case figures are left out of the slides with a WARNING. `create_argument_slide`
+  also gains an optional `folder_id`. A Google API `HttpError` from the figure
+  upload/insert is now reported as a failed slide like other figure errors.
+  `upload_figure_to_drive` is unchanged and still leaves its file public; its
+  docstring now says so. The file-ID log lines in `upload_figure_to_drive` and
+  `GoogleWorkspaceClient.public_url` moved from INFO to DEBUG (#1450).
+- The same check now covers every public helper that creates a directory or
+  a file's parent: `ensure_directory_exists`, `touch_file`, `copy_file`,
+  `move_file`, `delete_existing_file_and_replace_it_with_an_empty_file`,
+  `safe_file_write`, `safe_json_write`, `atomic_write_path`,
+  `atomic_write_shapefile`, `download_file`, `save_spatial`, `save_tabular`
+  and the credential writer `secure_write_text`. Each raises
+  `PathSecurityError` and creates nothing. Paths are checked as written, so in
+  `a/<new>/../b` the `<new>` that `mkdir` would create on the way is checked
+  too; where files land and how symlinks are treated are unchanged.
+  `unzip_file_to_directory` refuses an archive, before extracting anything,
+  if a member would create such a directory. New components containing a lone surrogate, which is
+  how undecodable (non-UTF-8) bytes reach Python, are refused as well. The
+  check is public as `reject_unsafe_new_directory_names` (#1716).
 
 ### Fixed
 
-- The test suite no longer writes into the checkout, the real `$HOME` or the
-  developer's config. Each test runs from its own empty directory, and `HOME`
-  points at a scratch directory. Every inherited `SIEGE_*` variable is
-  dropped except the `SIEGE_TEST_*` run controls, so `SIEGE_USER_CONFIG_DIR`,
-  `SIEGE_SETTINGS_FILE` and `SIEGE_<SETTING>` overrides cannot point the suite
-  at real files. CI fails if a run leaves untracked files (#1693, #1717).
+- Docstring generation inserts lines without rewriting existing comments or
+  formatting, handles async definitions, and extracts signature details without
+  importing target files. File exclusions match path components and include
+  Django migrations while retaining `distributed`, `redistricting`, and `builds`
+  paths. Templates omit CI-rejected stub markers and skip generated doctest
+  examples. Inline suites are left unchanged with a warning (#1589).
+- RDH fetch and load no longer return the wrong data silently (#1571).
+  `fetch_cvap` and `fetch_pl94171` match the requested geography against the
+  level named in the dataset title, tokenised on spaces and underscores with
+  "block group" tried before "block", or against the dataset's `geography`
+  metadata when present. `geography="block"` no longer returns block groups,
+  and `"block_group"` matches titles spelled "Block Group". A cached ZIP
+  returns the extracted directory, as the first download does, instead of
+  the archive. `load_csv` and `load_shapefile` sort the members of an
+  extracted directory and raise when there is not exactly one CSV or `.shp`.
+  A listing response of `RDH_MAX_RESULTS` entries logs a truncation warning.
+  `RDHLoaderService.load_cvap_for_plan` and the CSV path of
+  `load_demographics_for_plan` report numeric GEOID columns and unmatched
+  districts instead of skipping them silently.
+- `get_directory_info`, `load_directory_config`, `list_directory_configs`,
+  `load_project_config` and `list_projects` create nothing, so they are back to
+  their behaviour before #1692: a missing name containing a control character
+  returns `{}`, `None`, `[]`, raises `FileNotFoundError` and returns `[]`
+  respectively, instead of raising `PathSecurityError` (#1716).
+- The test suite drops every inherited `SIEGE_*` variable except the
+  `SIEGE_TEST_*` run controls, so a run never reads or rewrites the
+  developer's own config through `SIEGE_USER_CONFIG_DIR`,
+  `SIEGE_SETTINGS_FILE` or any `SIEGE_<SETTING>` override (#1717).
+- `is_sensitive_path` again blocks `_`/`-` prefixed private-key names outside
+  `.ssh` (`deploy_id_rsa`, `github-id_ecdsa`) and now covers `id_ed25519`;
+  `paid_rsa` and `*.pub` stay allowed (#1702).
+- Demographic population queries now keep equal GEOIDs in different boundary
+  types and datasets separate. Boundary lookups use GEOIDs instead of integer
+  PKs; plan assignments accept BigAutoField-sized boundary PKs. The migration
+  keeps existing GEOID matches unchanged, including those with coincident
+  boundary PKs. GEOID-shaped orphans also stay unchanged: a leading zero on a
+  multi-character key or a length present in that content type's loaded GEOIDs
+  prevents PK conversion, even when the boundary is not loaded. Only canonical
+  positive integers without leading zeros or a GEOID length can convert from a
+  matching boundary PK; other unmatched keys are unresolved.
+  Any unresolved or duplicate rows abort the migration atomically with counts
+  per model and reason. After reviewing those counts, operators can explicitly
+  set `SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE=1` for the migration command to
+  archive and remove those rows. Duplicates retain the newest `updated_at`, then
+  highest PK. Recovery copies support reversal unless migrated rows were edited.
+  Both migration directions allow 30 minutes per statement for large index and
+  constraint builds, with a five-second lock timeout.
+  Before running `migrate siege_geo`, back up `siege_geo_demographicsnapshot`
+  and `siege_geo_demographictimeseries`, for example with
+  `pg_dump -t siege_geo_demographicsnapshot -t siege_geo_demographictimeseries`.
+  The opt-in `SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE=1` archives removed rows
+  into `siege_geo_demographickeyarchive`; this archive table is dropped when
+  the migration is reversed.
+  (#1560)
+
+- Failed legacy profile migrations no longer create defaults or report
+  `migrated=True`; missing files are not migrations. Missing snapshot years
+  fail the requested time-series interval and report every missing year.
+  Unknown city/UA populations cannot silently classify as Small. State boundary
+  requests cannot return an unfiltered national file. Invalid NLRB cache
+  timestamps expire the entry. Add a blocking exception-contract AST guard
+  with reviewed, fingerprinted exceptions and zero unlisted handlers (#1532).
+- Bulk configuration migration records missing/corrupt user-profile errors and
+  continues migrating valid clients. SWMaps files with neither optional attribute
+  table retain empty attributes and the selected missing-value policy; incomplete
+  schemas and broken queries against existing tables raise. The exception guard
+  now covers all 14 reviewer shapes, including factories, tuples, strings, log-only handlers,
+  empty-frame assignments and unannotated data functions. Package `log_*` helpers,
+  including attribute calls, are recognized; 14 existing log-only handlers are
+  fingerprinted for consumer tracing under #1708 (#1532).
+
+- `populate_nlrb_regions` now creates registry-only rows by default without
+  raising `IntegrityError`. Migration 0018 makes only `NLRBRegion.geometry`
+  nullable; callers must allow NULL geometry, and population returns and logs
+  the count of regions without geometry. County dissolves filter by the
+  requested vintage and use a database-side `Union` aggregate, returning NULL
+  if any requested state has no counties at that vintage. Explicit rebuilds
+  clear incomplete geometry; metadata-only updates retain existing geometry.
+  The command reports the without-geometry count and warns instead of printing
+  a success message when any region lacks geometry. The provider and service
+  now share one registry of the 26 regional offices listed by
+  [nlrb.gov](https://www.nlrb.gov/about-nlrb/who-we-are/regional-offices)
+  (checked 2026-10-17), excluding subregional offices 11, 17, 24 and 26.
+  State lists are corrected for Regions 20 (CA/HI), 21 (CA), 27 (CO/UT/WY),
+  28 (Phoenix, AZ/NM/NV) and 32 (Oakland, CA/NV). The lists still approximate
+  primary coverage with whole states; dissolved polygons overlap where regions
+  share states and do not certify that every county is loaded. Exhaustive
+  sub-state jurisdiction mapping is tracked in [#1713](https://github.com/siege-analytics/siege_utilities/issues/1713).
+  Restore IA/KS/NE/OK coverage under Region 14 and AR under Region 15;
+  remove WY from Region 19, leaving WY under Region 27 only. Coverage tests
+  require all 50 states plus DC, PR and VI to resolve to a regional office.
+  The command prints `stale_registry_rows=N` and the offending region numbers
+  across all vintages without deleting any rows. See the BREAKING upgrade
+  note below for existing databases. Historical subregional case prefixes
+  roll up to verified parent offices through `NLRB_SUBREGIONS`.
+  (#1585)
+
+- Cache/output/config writers now publish complete files atomically so interrupted
+  downloads, extractions and serialization cannot be served as valid cached data.
+  `atomic_write_path` preserves umask-derived permissions and fsyncs before
+  replacement, with best-effort directory fsync after replacement.
+  `safe_file_write` and `safe_json_write` now use the atomic helper;
+  `secure_write_text` atomically replaces credential/profile files with mode
+  0600 throughout. Spark staged exports finish copying beside the destination
+  before publication, preserving existing data on copy failures (#1509).
+
+- Attach `BoundaryManager` to all boundary models so the documented
+  `.objects.containing_point/nearest/for_state/for_year` API works. Distance
+  filters on SRID-4326 geometry now cast to geography to honor meters, and
+  GeoJSON output emits geometry objects instead of strings (#1570).
+
+- NCES locale classification returns the published City/Suburb/Town/Rural
+  codes instead of collapsing to -Small or recomputing distance subtypes.
+  `from_census_year` now raises with the required population and principal-city
+  sources instead of silently degrading; custom place population lookups use
+  the full 7-digit GEOID to prevent cross-state PLACEFP collisions. (#1441)
+
+- `CensusDataSource.fetch_geographic_boundaries` no longer reports success
+  for a scope or vintage it did not serve. `context['served_year']` is always
+  set, and the `census_year` column holds the served vintage (it was always
+  null). `county_fips` now filters on `countyfp`. `aitsce`, `ttract` and
+  `tbg` are filtered by state like the other national-only layers, and a
+  state request against a national layer with no `statefp` column fails with
+  `STATE_FILTER_UNAVAILABLE` and `context['state_filter_applied']=False`
+  instead of returning the national file. The module-level
+  `fetch_geographic_boundaries` forwards `county_fips` and
+  `allow_nearest_year`; the module-level `get_geographic_boundaries` no longer
+  passes `state_identifier` into the `county_fips` slot (#1482).
+- TIGER URL construction: `anrc` always resolves to the Alaska file
+  `tl_{year}_02_anrc.zip`; `concity` requires `state_fips`; `cd{n}` resolves
+  to the `CD/` directory for the congress that vintage publishes
+  (`YEAR_TO_CONGRESS[year]`, so `cd119` for 2024 works; other pairings stay
+  "not available" instead of building a 404); `rails` is national
+  (`tl_{year}_us_rails.zip`, flat `TIGER2010/RAILS/` in 2010); `submcd` uses
+  the published `subbarrio` filename from 2013; the 403/429 fallback directory
+  list names `COUSUB` and `ADDRFEAT` and drops the non-existent `COUNTYSUB`,
+  `SDELM`, `SDSEC` and `SDUNI`. An opt-in `-m integration` test HEADs one
+  built URL per catalog type for 2010, 2019 and 2023 (#1464).
+
+### BREAKING
+
+- `CensusDataSource.fetch_geographic_boundaries` (and the module-level
+  wrapper) no longer substitutes the nearest published TIGER vintage. A
+  request for an unpublished year now returns `success=False`,
+  `error_code="VINTAGE_NOT_PUBLISHED"`, `error_stage="discovery"`, with
+  `context['served_year']` naming the vintage that would have been used.
+  The legacy `get_geographic_boundaries` therefore returns `None` for such a
+  year. A year with no TIGER directory at all (for example 2006, 2007 or a
+  future year) still fails earlier, with `error_code="INVALID_PARAMETERS"` at
+  `error_stage="input_validation"`, as in 4.0.0. **Migration:** callers that
+  can request a vintage Census has not published for that layer must handle
+  both codes. Treat `VINTAGE_NOT_PUBLISHED` and `INVALID_PARAMETERS` as "not
+  published" and skip or retry later, or pass `allow_nearest_year=True` and
+  key the rows by `result.context['served_year']` (or the frame's
+  `census_year` column), never by the requested year. Do not write one
+  vintage's data under another vintage's year (#1482).
+- A `state_fips` request for a national-only layer that has no state FIPS
+  column (`cbsa`, `csa`, `metdiv`, `micro`, `necta`, `nectadiv`, `cnecta`,
+  `aiannh` and similar) now fails with `STATE_FILTER_UNAVAILABLE`
+  (`error_stage="configuration"`) instead of returning the whole national
+  file. **Migration:** request these layers without `state_fips` and
+  intersect spatially if a state subset is needed. This includes
+  `populate_boundaries --type cbsa --state ...`. `county_fips` now filters
+  and must be a 3-digit code with `state_fips`; a layer without a `countyfp`
+  column fails with `COUNTY_FILTER_UNAVAILABLE` (#1482).
+- `address_features`, `linear_water`, `area_water`, `roads` and `edges` are
+  removed from `BOUNDARY_TYPE_CATALOG`, and `construct_download_url` raises
+  `BoundaryConfigurationError` for them. Census publishes these only per
+  county, so every URL the builder produced for them 404'd. **Migration:**
+  download the per-county files directly
+  (`tl_{year}_{state}{county}_linearwater.zip`, `areawater`, `roads`,
+  `edges`, `addrfeat`) until county-level support lands. `anrc` with a
+  `state_fips` other than `02`, and `concity` without `state_fips`, now raise
+  `BoundaryConfigurationError`. `rails` with `state_fips` now fails with
+  `STATE_FILTER_UNAVAILABLE` (the national file has no state column) instead
+  of building a per-state URL that 404'd (#1464).
+- `populate_demographics --variables all` stores every variable group. A
+  group whose snapshot already exists is merged into it instead of being
+  skipped, so income, education, housing and the other groups are no longer
+  silently dropped after `total_population`. The Census API's `NAME` label is
+  no longer stored in `DemographicSnapshot.values`. Census sentinels
+  (`-666666666`, `-999999999` and other negatives), non-numeric values and
+  out-of-range values become NULL in `total_population`,
+  `median_household_income` and `median_age` instead of raising
+  `IntegrityError` and rolling back the group load; the raw value stays in
+  `values` (#1550).
+- Bulk loaders now set the fields `save()` derives. Census boundaries get
+  `feature_id`, `boundary_id` and `source`; NCES locale boundaries, school
+  locations and timezones get `feature_id`/`source`; `DemographicSnapshot`
+  rows get `total_population`, `median_household_income` and `median_age`.
+  This repairs `classify_urbanicity`, `by_population()` and weighted rollups
+  after `populate_demographics`. Each model exposes `prepare_for_bulk()`,
+  which `save()` also calls, and `schemas_to_orm` returns prepared instances.
+  Loaders that insert with `ignore_conflicts=True` now report the rows
+  actually inserted. New `backfill_derived_fields` command repairs rows
+  loaded before this fix (#1539).
+
+### BREAKING
+
+- `DemographicPopulationService.populate` (and `populate_demographics`,
+  `populate_all_groups`) no longer skips an existing snapshot. Without
+  `update_existing`/`--update` it merges in only the variables the snapshot
+  lacks and counts it as `records_updated`; it counts `records_skipped` only
+  when nothing new arrived. A group load that used to report `N skipped`
+  now reports `N updated`. Variables a snapshot already holds are still
+  overwritten only with `update_existing=True` (#1550).
+- `DemographicSnapshot.total_population`, `median_household_income` and
+  `median_age` are NULL when the source estimate is a negative Census
+  sentinel or not numeric. Fractional estimates (for example rollup
+  averages) are rounded to the nearest integer instead of truncated (#1550).
+- `records_created` from the demographic, rollup, timeseries, crosswalk,
+  NCES and timezone loaders and `populate_pl_demographics` counts only rows
+  inserted: rows dropped by `ON CONFLICT DO NOTHING` (concurrent loads,
+  repeated keys in a source file) are no longer included, so counts can drop.
+  `BoundaryManager.bulk_create_from_geodataframe` returns only the objects
+  actually inserted. Crosswalk `CrosswalkDataset.record_count` follows the
+  corrected count (#1539).
+- The derivations moved from the `save()` overrides into `prepare_for_bulk()`
+  on `TemporalGeographicFeature` subclasses and `DemographicSnapshot`.
+  `save()` behaves as before. Subclasses that overrode `save()` to change a
+  derivation should override `prepare_for_bulk()` and end with
+  `return super().prepare_for_bulk()` so bulk paths see the change too (#1539).
+- **Upgrade:** rows loaded before this release keep empty `feature_id`,
+  `boundary_id` and `source`, NULL summary columns and `values["NAME"]`.
+  Nothing repairs them automatically. Run
+  `python manage.py backfill_derived_fields --dry-run --strip-name` to see
+  the counts, then the same command without `--dry-run` (#1539, #1550).
+- `CrosswalkPopulationService.populate` (and `populate_crosswalks`) now loads
+  crosswalks: it calls `get_crosswalk(geography_level=...)` instead of the
+  nonexistent `geography_type=` keyword, which raised `TypeError` on every
+  call. Weights are read from the client's `area_weight` column and stored
+  as-is, so a 0.6/0.4 split stays 0.6/0.4 and a real 0.0 stays 0.0. A frame
+  with no weight column returns an error result, and a row with a missing or
+  NaN weight is reported in `errors`; neither is defaulted to 1.0. Two or more
+  sources mapping to one target at full weight are classified `MERGED`. Level
+  names are canonicalised through `resolve_geographic_level`, so block-group
+  crosswalks are requested and stored as `block_group`; `populate_crosswalks
+  --type` accepts `block_group` and keeps `blockgroup` as an alias (#1613).
+- `DemographicRollupService.rollup` no longer overwrites a target snapshot
+  that already holds the variable, and reports writes to existing snapshots
+  in the new `RollupResult.records_updated` instead of `records_skipped`.
+  Crosswalk mode maps crosswalk targets up to `target_level` (truncating the
+  GEOID) instead of writing tract GEOIDs as county snapshots, uses only
+  crosswalk rows whose `target_type` is the source level, and applies the
+  crosswalk weight once: `sum` adds `value·w`, `avg` is `Σvalue·w / Σw`, and
+  `weighted_avg` is `Σvalue·pop·w / Σpop·w`. Level names share the
+  `block_group` vocabulary with the crosswalk loader, so block-group
+  crosswalks are found. `coverage_ratio` counts expected children from the
+  source-level boundary table (latest vintage <= `year`), or the crosswalk
+  sources in crosswalk mode, so missing children lower it; when no boundaries
+  are loaded it logs a warning and falls back to existing snapshots (#1604).
+
+### BREAKING
+
+- `DemographicRollupService.rollup` has a new `overwrite: bool = False`
+  parameter, and by default it no longer replaces a value already present on
+  the target snapshot (for example a county value fetched from the Census
+  API). Callers that refreshed targets by re-running a rollup must pass
+  `overwrite=True`; such writes are counted in `RollupResult.records_updated`.
+  Crosswalk-mode `avg`/`weighted_avg` results change numerically (the weight
+  was applied twice), and crosswalk-mode targets are now `target_level`
+  GEOIDs; snapshots previously written with source-level GEOIDs under the
+  target content type are wrong and should be deleted and recomputed (#1604).
+- Block-group crosswalks are stored with `source_type`/`target_type`
+  `"block_group"` instead of `"blockgroup"`. Rename existing rows, e.g.
+  `TemporalCrosswalk.objects.filter(source_type="blockgroup").update(source_type="block_group", target_type="block_group")`.
+  Any `TemporalCrosswalk` row written with weight 1.0 by an earlier version
+  should be reloaded with `populate_crosswalks --update` (#1613).
+- `[etter]` caps `pandas<3.0` like the other pandas-pulling extras; etter
+  requires `geopandas>=1.1`, so an etter-only install could resolve pandas 3
+  and hit #1365. The pyproject comments on the removed `streamlit`/`export`
+  extras now say 3.24.0 (#1186), not v3.19, and the `all` comment lists the
+  extras it leaves out (#1419).
+- **Packaging:** the wheel ships only `siege_utilities`. 4.0.0 also installed
+  a top-level `spikes` package at the site-packages root; package discovery is
+  now `include = ["siege_utilities*"]`. The wheel now carries the files the
+  library loads at runtime, which no published wheel had:
+  `political/migrations/V*.sql` (so `political.schema_migrations_dir()`
+  exists in an installed package) and `configs/**/*.yaml` (the default Hydra
+  config dir, which `HydraConfigManager` raises on when absent). The CI
+  `build` job runs `scripts/check_wheel_contents.py` on the built wheel and
+  fails on any other top-level entry, a missing referenced data file, a member
+  name containing whitespace (3.22.0 shipped two Finder `" 2.py"` copies) or
+  bytecode. (#1420)
+
+### BREAKING
+
+- `groupby_agg` on PandasEngine, DuckDBEngine and PostGISEngine now keeps
+  NULL-key groups (pandas `dropna=False`, matching SQL and SparkEngine);
+  previously rows with a NULL group key were silently dropped, so totals
+  could be short. The `sum` of a group with no non-null values is now NULL
+  (NaN/NA), not 0.0; INVARIANTS.md is updated to match SQL/Spark. Callers
+  that relied on 0.0 should `.fillna(0)` explicitly. `first`/`last` still
+  differ between the pandas-backed engines and Spark (documented) (#1454).
+
+- `DemographicSnapshot` and `DemographicTimeSeries` now use GEOID-native keys.
+  The indexed `object_id` CharField is retained as the ORM/storage name and
+  repurposed as GEOID-only; `geoid` is a read/write instance alias (also accepted
+  by `create`). `content_type` is a plain FK. `content_object`, including
+  `create(content_object=boundary)`, is deprecated for one release and will be
+  removed in v4.2.0; it warns and now stores/resolves the boundary's GEOID, never
+  its PK. Use `create(content_type=..., object_id=boundary.geoid)` and
+  `get_boundary(vintage_year=...)`; omitted vintage selects the newest available
+  boundary. Reverse access is `County.objects.filter(pk=...).snapshots()`.
+  `by_population(..., dataset="acs5")` now scopes by content type and dataset and
+  selects the newest data year when no year is specified. GFK-specific relation
+  introspection/prefetch APIs no longer apply. (#1560)
+
+- `ConfigurationMigrator.migrate_user_profile` and `migrate_client_profile`
+  in both `config.enhanced_config` and `config.migration` now propagate file,
+  YAML/JSON and validation errors; missing files raise `FileNotFoundError`.
+  `migrate_all_configurations` records user failures in `user_profile.error`
+  while continuing independent client migrations. `UserConfigManager.export_config`
+  and `import_config` propagate file/YAML errors, including failed persistence
+  of an imported profile (#1532).
+- Direct `NCESLocaleClassifier` classification raises `ValueError` for missing
+  or unparseable place/UA populations. `get_census_boundaries` raises
+  `ValueError` for invalid state identifiers or missing state FIPS columns.
+  `VariableRegistry.get_variable_metadata` raises `LookupError` for a 404,
+  transport/HTTP errors for request failures, and `ValueError` for malformed
+  JSON/metadata. The public `CensusAPIClient.get_variable_metadata` and
+  `CensusAPI.get_variable_metadata` wrappers propagate these failures too.
+  These calls no longer return defaults or unknown labels (#1532).
+- `ChartGenerator.create_bar_chart`, `create_line_chart`, `create_pie_chart`,
+  `create_proportional_text_bar_chart` and `create_heatmap_text_chart` raise
+  `RuntimeError` on rendering errors instead of returning error placeholders.
+  `read_features` and `extract_attributes_swmaps` raise `sqlite3.DatabaseError`
+  for failed joins when either attribute table exists. Only when neither table
+  exists do they yield empty attributes or honor the documented missing policy (#1532).
+- `SpatialDataTransformer`, `PostGISConnector` and `DuckDBConnector` propagate
+  user-configuration failures. `PostGISConnector` raises for missing connection
+  settings/dependencies and uses `ConnectionError` for connection failures.
+  `classify_series` raises `RuntimeError` when mapclassify fails rather than
+  changing algorithms; CRS normalization (including `detect_crs`) raises for
+  invalid CRS input or missing pyproj (#1532).
+- `TimezonePopulationService` raises `ValueError` and stops population at the
+  first unresolved timezone ID;
+  `load_gadm_boundaries` raises `RuntimeError` when staged data cannot be read;
+  `codify_area` raises on default-geocoder construction failure. NLRB
+  `NLRBDatagovClient.fetch_cases`, `NLRBLabordataClient.fetch_cases` and
+  `NLRBNxGenClient.fetch_case` raise `RuntimeError` on the listed HTTP/XML
+  failures. `NLRBNxGenClient.fetch_case` also raises on result parsing failures,
+  and `NLRBDataClient.fetch_all` aborts when any source fails.
+  `setup_distributed_environment` raises `RuntimeError` on HDFS sync
+  failure instead of returning a local path (#1532).
+
+- The public `NLRB_REGIONS` registry removes keys 11, 17, 24 and 26 because
+  these are subregional offices, not regional offices. Direct dictionary
+  callers must use the parent regional keys. `assign_region` and
+  `region_summary` now roll historical prefixes up through
+  `NLRB_SUBREGIONS = {11: 10, 17: 14, 24: 12, 26: 15, 30: 18, 37: 20}`;
+  summaries combine their counts under the parent office. Unverified prefixes
+  33, 34 and 36 remain unmapped and report office `"Unknown"`.
+  Upgrade existing NLRB tables by re-running `populate_nlrb_regions --update`
+  (with `--year` for each stored vintage) to refresh regional metadata, then
+  manually delete rows whose `region_number` is 11, 17, 24 or 26. The command
+  only reports stale rows; it does not delete them. (#1585)
+
+- `NCESLocaleClassifier.from_census_year` now raises instead of approximating
+  missing population and principal-city inputs. Use `from_nces_boundaries` or
+  supply authoritative data to the direct constructor, with place populations
+  keyed by 7-digit GEOID. NCES point lookups outside published coverage now
+  raise instead of assigning an inferred rural code. (#1441)
+- Non-secret data files written by `atomic_write_path` now use `0666 & ~umask`
+  (0644 with umask 022), including replacement of previously owner-only data
+  exports. Consumers that relied on the old accidental 0600 mode should use
+  umask 077. Credential/token/config exports using `secure_write_text` remain
+  0600 and are not routed through this helper. `atomic_write_path` and
+  `secure_write_text` replace final-component symlinks rather than following
+  them; the referenced file is left unchanged (#1509).
+
+- `BoundaryQuerySet.geojson()` and `BoundaryWithDemographicsSerializer.get_geometry`
+  now return GeoJSON geometry objects (dicts) instead of JSON strings. A consumer
+  that applied `json.loads()` to the geometry value must drop it; the value is
+  already a `dict`. (#1570)
+- Facebook, Instagram, X/Twitter, Google Analytics and connection profile helpers
+  now default to `~/.siege_utilities/<service>/` instead of CWD-relative `config/`.
+  Matching loaders/listers use the same new default. Pass `config_directory="config"`
+  explicitly to retain the old location; existing profiles are not migrated.
+  `create_temporary_service_account_file` must now be used as a context manager;
+  its returned path is valid only inside the `with` block. (#1541)
+- `select_vintage_for_cycle` now selects `CENSUS_2010` for the 2012-2020
+  election cycles (years 2012 through 2021), correcting the decade-off
+  block/tract GEOIDs. The `CURRENT` tier starts at 2022 and currently supplies
+  2020 Census blocks; pre-2012 years retain the documented `CENSUS_2010`
+  fallback because 2000 geography is not offered. Re-geocode affected cycle
+  results before joining them to 2010-based block-assignment or district
+  files. (#1498)
+
+- Config passwords, tokens, client secrets and API keys now use Pydantic
+  `SecretStr`, including the API keys on `User` and `postgresql_connection`
+  on `EnhancedUserProfile` and `User`. Consumers must call
+  `.get_secret_value()` when passing these values to clients or string APIs.
+  `UserConfigManager.get_database_connection()` and explicit YAML persistence
+  continue to return or store the real values. (#1552)
+
+- `populate_boundaries`, `populate_demographics`, `populate_crosswalks`,
+  `populate_timezones`, `populate_nlrb_regions`, `populate_nces`, and
+  `classify_urbanicity` now exit non-zero when a load reports errors, after
+  printing the existing details and summaries. Use `--allow-partial` to retain
+  tolerant behavior when at least one record was created, updated, or classified;
+  errors with nothing loaded still fail. Multi-result runs count successful
+  records across all requested types, groups, or actions. (#1533)
+
+- CredentialManager Keychain reads now skip every field other than `password`,
+  including `secret`; writes of other fields raise `ValueError`. Use environment
+  variables, service-scoped files, or 1Password for distinct `secret`, OAuth, and
+  service-account fields.
+  1Password retrieval raises on every nonzero exit, including exit 1, because
+  absence cannot be distinguished safely from authentication or server failure.
+  Supply the exact item title or ID for both reads and writes; failed reads no
+  longer try title variants or fall through to other backends. Stores refuse
+  legacy title variations with guidance to use the exact title or ID, rather
+  than editing an item that retrieval cannot resolve. (#1513)
+- Credential resolution now defaults to env -> 1Password -> service-scoped
+  files -> Keychain -> prompt. Unscoped credential files are no longer searched.
+  Move files to a service directory (for example `postgres/password.txt`) or
+  use a service-prefixed filename such as `postgres_password.txt`; set
+  `backend_priority` explicitly to change backend precedence. (#1402)
+- 1Password updates refuse all Login items because CLI JSON cannot establish
+  passkey absence and template edits can delete passkeys. Missing/unknown
+  categories, SSH Key/Document items, attachments, and passkey/SSHKEY/OTP/TOTP/file
+  fields are also refused with `SiegeConfigError`. Use the 1Password app for
+  these edits. New items use API Credential so password rotation stays editable;
+  existing Login items still require the app.
+  Other edits preserve the full item JSON and verify the saved field before
+  reporting success; failed persistence checks raise `SiegeConfigError`. (#1402)
+- `populate_demographics --api-key` is rejected without echoing its value.
+  Set `CENSUS_API_KEY` in the environment instead. (#1402)
+- `scripts/release_manager.py --token` is rejected without echoing its value.
+  Set `PYPI_API_TOKEN` in the environment for CLI uploads and releases. (#1402)
+- `UserConfigManager` now creates configuration directories with mode 0700
+  and atomically saves `user_config.yaml` with mode 0600, including when
+  replacing an existing file. The temporary fallback moves from
+  `$TMPDIR/siege_utilities/config` (or `/tmp/siege_utilities/config`) to
+  `tempfile.gettempdir()/siege_utilities-<uid>`. Pre-existing fallback paths
+  that are symlinks, are not directories, belong to another uid, or are
+  group/other-writable are rejected with `ValueError` before loading or
+  saving credentials, even if passed explicitly as `config_dir` (including
+  aliases of the predictable temp path). Shared config directories lose
+  group/other access; use a private `SIEGE_USER_CONFIG_DIR` if the fallback
+  is unsafe. Old
+  fallback files are not migrated or trusted automatically. Platforms without
+  a POSIX uid use per-user Windows LocalAppData/AppData instead of shared temp;
+  Windows file privacy depends on the user's inherited ACLs, not POSIX chmod.
+  (#1452)
+- `UserConfigManager.export_config()` no longer writes `postgresql_connection`
+  or `duckdb_path` (in addition to the three API keys), and writes the export
+  atomically at mode 0600 on POSIX. Exports are no longer a way to copy the
+  database DSN between machines; set it again with `set_database_connection`.
+  (#1452)
+- `Person.from_yaml` and `import_entities` now reject imported string values
+  containing `***REDACTED***` (including nested mapping/list values and
+  scrubbed URLs), rather than restoring those placeholders as credentials.
+  The redaction guard does not inspect mapping keys. `exclude_sensitive=True`
+  exports write `***REDACTED***` for redacted fields; use an unredacted export
+  for restoration. These input values were previously accepted. (#1460)
+- `safe_join_paths` now confines a joined path to its resolved first component
+  by default and rejects later absolute, rooted, or drive-qualified components
+  (including Windows forms). Joins that previously escaped this boundary now
+  raise `PathSecurityError`. Pass a trusted `base_directory` to override the
+  containment boundary; it is not prepended to path components. (#1528)
+
+- RDH (#1571). Callers of these functions need to be checked, including
+  electinfo `spark_jobs/geo/spatial_fetch_rdh.py`:
+  - `fetch_cvap` and `fetch_pl94171` raise `FileNotFoundError`, listing the
+    available titles, when no dataset is at the requested geography. Before,
+    they loaded `datasets[0]`, and with a single dataset they skipped the
+    filter. Pass the level you want, or `geography=None` to take the first
+    listed dataset unfiltered.
+  - `RDHClient.load_csv` reads `GEOID*`, `*FP`, `*CE` and `*NS` columns as
+    `str` unless you pass `dtype`. Code that compared or joined these columns
+    as integers needs string keys, or `dtype={...}` to opt out.
+  - `load_csv` and `load_shapefile` raise `ValueError` for a directory with
+    more than one CSV or `.shp`. Load the member you want by path.
+  - `download_dataset` returns the extracted directory on a cache hit for a
+    ZIP, where it used to return the `.zip` path. `gpd.read_file` and
+    `load_*` accept the directory.
+  - `RDHLoaderService.load_cvap_for_plan` takes `geography` (default
+    `"tract"`), which is passed to `fetch_cvap`. If no district matches,
+    the result now has an error and `success` is False; before, it returned
+    success with 0 updated. Unmatched districts are counted in
+    `records_skipped`, and a partial match adds a warning. Pass the CVAP
+    level whose GEOIDs equal your plan's district GEOIDs.
+
+### Security
+
+- Credential files are written with mode 0600 before writing their payload,
+  including existing files, with no write-then-chmod race. Missing parent
+  directories are created with mode 0700. Profile defaults use per-user paths;
+  service-account key files are always deleted on context exit. Non-Spark
+  boundary staging uses a private random temporary directory and returns/logs
+  its actual local path, with no predictable `/tmp` path or false S3 report.
+  A blocking AST guard rejects unsafe credential writes, write-then-chmod and
+  unlisted fixed `/tmp/` literals. Also secured configuration/entity YAML
+  exports and database configuration writes; the latter retain the legacy
+  CWD-relative `config/` default, so shared-host callers should explicitly
+  choose a private per-user directory. (#1541)
+
+- Config secret fields no longer expose their values in model `repr`/`str`
+  or those models' validation error messages, including nested validation
+  failures on `Person` and `ClientProfile`. Legacy dataclass API keys and
+  PostgreSQL connection strings are omitted from repr. A CI AST class guard
+  rejects secret-, connection- and DSN-named plain string fields without
+  `repr=False`, and treats string defaults as values, not annotations. (#1552)
+- `stage_boundaries_s3` rejects removed `--access-key` and `--secret-key`
+  options without echoing their values, for both spaced and equals forms.
+  Parser errors also redact underscore spellings and values with whitespace.
+  Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` or use a boto3 profile.
+  CI checks every management command parser for non-None credential defaults,
+  including access and private keys. The required test matrix scans the
+  published package for credential literals. (#1578)
+- Closed OData filter injection in Dynamics list filters with shared string
+  literal escaping for scalar filters and batch alternate keys. Zoho criteria
+  now escapes backslashes and parentheses while preserving quote escaping.
+  Batch alternate-key literals are percent-encoded after OData escaping to
+  prevent encoded quotes, fragments, spaces, and CR/LF from changing the inner
+  request URI or headers. Structured Dynamics, Zoho COQL, and Salesforce SOQL
+  builders reject invalid identifiers with `ValueError`; Salesforce and Zoho
+  fields allow dotted relationship paths and custom-field suffixes.
+  (#1418)
+- Escape report data in Paragraph text, Folium popup HTML, and IDML XML.
+  Closes stored XSS in saved Folium maps and fixes report/IDML crashes on
+  `& < > "` while preserving intentional markup. (#1565)
+- For the planned 4.1.0 release, SSL failures now raise instead of silently
+  retrying with `verify=False`. The optional `download_file` parameter
+  `allow_insecure_fallback=False` is allowlisted in the API contract gate as
+  a backward-compatible addition. Verified downloads honor `REQUESTS_CA_BUNDLE`,
+  then `CURL_CA_BUNDLE`, before platform defaults. TIGER, government dataset,
+  and NCES downloads honor `SIEGE_INSECURE_SSL` as an explicit opt-in with
+  ERROR logging; warning suppression is limited to individual unverified
+  discovery requests. (#1456)
+- Credential prompts hide all fields except `client_id`, `client_email`,
+  `project_id`, and `username`. Backend availability probes time out after five
+  seconds, log the timeout without command output, and mark the backend
+  unavailable. CredentialManager no longer loads user configuration for the
+  nonexistent `credential_paths` attribute; pass paths to the constructor. (#1513)
+- Path validation permits data inside a cwd or base at or below `/root` while
+  keeping root's `.aws`, `.netrc`, `.kube`, `.docker`, `.pgpass`,
+  `.git-credentials`, and `.config/gcloud` locations blocked. Both file and
+  shell validation explicitly block `/etc/shadow-`, `/etc/gshadow`,
+  `/etc/gshadow-`, and `/etc/passwd-`. (#1528)
+- HTTP diagnostics redact complete query secrets containing encoded delimiters
+  or punctuation. Nested URLs are decoded up to a fixed limit before their
+  secrets are removed, with excessive encoding redacted in full. The credential
+  URL guard also checks positional requests.get params, Request construction,
+  setdefault, and in-place dictionary merges. Userinfo matching avoids quadratic
+  scans of long alphanumeric runs. The guard follows params forwarded through
+  kwargs and positional Session.request calls. (#1400)
+- PyPI uploads pass credentials through the child environment and capture
+  diagnostics. `run_command` and `run_subprocess` log status only, omitting all
+  arguments and output rather than guessing which values are secrets. Their
+  exceptions retain failure types and timeout/errno information without raw
+  command details or output; returned output remains available to callers. (#1402)
+- `exclude_sensitive=True` now recursively redacts credentials across live
+  models, subclass fields, nested dataclasses and plain objects, dictionaries
+  and lists. YAML exports use safe mappings instead of Python-object tags.
+  One shared `SECRET_FIELD_NAME` classifier covers both config field names and
+  URL query/fragment keys, with a provider-signature alias floor. URL userinfo,
+  nested percent-encoded redirect passwords and secret query values are
+  scrubbed without discarding benign URL context; decoding is bounded and
+  fails closed. JSON-encoded strings still need an explicit sensitive marker
+  or structured dictionary fields to redact secrets by name. (#1460)
+- File-path validation rejects actual `..` components, sensitive targets and
+  symlink escapes under an explicit base, while allowing benign embedded dots,
+  literal percent sequences, and non-sensitive names such as `paid_rsa`.
+  `/dev/shm` and standard pseudo-devices remain usable; root-in-container
+  workflows have a documented `/root` cwd/base carve-out, with other listed
+  sensitive files still blocked. Without a trusted `base_directory`, the
+  blocklist is a guardrail, not a sandbox; filesystem changes after validation
+  remain outside this check. (#1528)
 
 ## [4.0.0] - 2026-10-11
 
 Major release. The public surface changes incompatibly (the data.world
 connector and its exports are removed, and several packaging extras changed),
-so this supersedes the never-published 3.24.0 in-repo version and bumps the
-major per Semantic Versioning.
+so this supersedes the 3.24.0 in-repo version and bumps the major per Semantic
+Versioning. 3.24.0 was never tagged or uploaded to PyPI, but a 3.24.0 wheel is
+on Nexus (#1401).
 
 ### BREAKING
 
@@ -225,6 +827,101 @@ implied by this changelog/version bump PR.
   guards), so a real misconfig surfaces loudly (writing-code:7).
 - **`siege_geo` migration 0006 no longer re-adds `RedistrictingPlan.state`, which broke a fresh `migrate` with `DuplicateColumn`.**
   Migration 0005 already adds `redistrictingplan.state` (identical `ForeignKey` definition); 0006 added it a second time. On an already-migrated database the second `AddField` was a no-op, but on a fresh database (CI, new deploys) it ran `ALTER TABLE siege_geo_redistrictingplan ADD COLUMN state_id` on a column 0005 had just created, aborting the whole migration graph. `state` is now owned solely by 0005; 0006 keeps its four genuinely-new fields (`effective_from`, `effective_to`, `superseded_by`, `court_case`). Model state is unchanged. A new static guard `tests/test_geo_migration_graph.py` fails if any `(model, field)` is `AddField`-ed twice without an intervening removal, so this bug class cannot recur.
+
+## [3.23.0] - 2026-06-19
+
+Tag `v3.23.0` (`09bd9cac`, on `main`). Uploaded to PyPI 2026-06-20. The
+Nexus wheel with this version number is not this tag (#1401).
+
+- Fixes from a hostile review: the lazy loader distinguishes a missing
+  dependency from an internal import bug (#1041); dead `shell=True`
+  subprocess helper removed (#1042); the GA connector raises on missing
+  credentials (#1043); `RDHProvider` raises `BoundaryFetchError` instead of
+  returning `None` (#1044); overlay registry constructor errors propagate
+  (#1045); reporting raises on missing ReportLab (#1046); `quote_ident`
+  docstring corrected (#1047); config fallbacks log warnings (#1048).
+- Packaging: `exclude-package-data` for Finder `" 2.py"` copies (#1049). It
+  filters data files only, not modules; see #1420.
+- CI: the `build` and `release` jobs no longer depend on the test jobs.
+  Since #1419, publishing waits for the full CI run on the tag.
+
+## [3.22.1] - 2026-06-04
+
+Tag `v3.22.1` (`4ce78f52`, on `main`). Uploaded to PyPI 2026-06-20.
+
+- `dir(siege_utilities)` no longer raises `NameError`, and the `connectors`
+  package is registered in the lazy-import table (#1038).
+
+## [3.22.0] - 2026-06-03
+
+Tag `v3.22.0` (`a53f5cf1`, on `main`). Uploaded to PyPI 2026-06-04. The
+wheel contains two Finder duplicates,
+`examples/enhanced_features_demo 2.py` and
+`geo/django/migrations/0010_seat_state_constraint 2.py` (#1420).
+
+- New `connectors/` package (`ConnectorProtocol`, `UpsertResult`,
+  `UpsertError`) (#1011); HubSpot, Zoho and Dynamics OAuth providers (#1014).
+- Geo: GST geocoding helpers (#515), IRS SOI files (#539), DuckDB and Shapely
+  areal-interpolation backends (#986), pure-numpy choropleth classification
+  (#987), `from_geodataframe()` and `engine=` on boundary providers (#988).
+- Fixes: HTTP session lifecycle (#979), CRS agreement before spatial joins
+  (#976), equal-area compactness (#975), atomic file writes (#978).
+
+## [3.21.0] - 2026-06-01
+
+Tag `v3.21.0` (`7764b35d`, on `main`). **Not published to PyPI** and has no
+GitHub release; a wheel exists on Nexus only (#1419). See RELEASING.md.
+
+- Architectural principles codified and the developer docs aligned (#953,
+  #955).
+- SU-1/SU-2 sweep: return-empty-on-error removed in config, distributed,
+  files, survey, geo providers and examples (#959-#961); `__all__` added
+  across the package; star imports converted to lazy loading (#962);
+  credential files written `0o600` (#950); large HTTP downloads streamed with
+  a size cap (#910).
+
+## [3.20.0] - 2026-05-30
+
+Tag `v3.20.0` (`bd187ce4`, on `main`). Uploaded to PyPI 2026-06-20.
+
+- **BREAKING:** functions in analytics, config, data/statistics, distributed,
+  files, geo and reporting that returned empty results on failure now raise
+  (SU-1). Callers that tested for an empty DataFrame, `{}`, `None` or `False`
+  need exception handling instead.
+- `__all__` completeness and annotation fixes (SU-2); `examples/` held to
+  library standards (SU-3); `raise ... from e` throughout.
+
+## [3.19.0] - 2026-05-28
+
+Tag `v3.19.0` points at `75c8125f`, a version-string-only commit made on
+2026-06-19 on top of `main`@`13a2653f` (2026-05-28); `75c8125f` is not on
+`main`. Uploaded to PyPI 2026-06-20 from that commit. See RELEASING.md.
+
+- Census table catalog with caching and search; `VARIABLE_GROUPS`
+  deprecated in favour of `CensusCatalog` (SU#601-606).
+- Place history with seats, demographics, urbanicity and events overlays
+  (SU#607-612); NCES urbanicity batch classification (SU#615-616); NLRB
+  clients and models (SU#617-621).
+- Batch geocoding with Census, Nominatim and TAMU backends and fallback
+  chaining (SU#622-626); codification pipeline (SU#627-632); Redistricting
+  Data Hub catalog, plan lifecycle and precinct-to-VTD reconciliation
+  (SU#633-636).
+- Hostile-review fixes: SQL-injection and credential-exposure surfaces
+  closed, silent `except: pass` sites narrowed (SU#558-761).
+
+## [3.18.0] - 2026-05-26
+
+Tag `v3.18.0` (`6eec45d9`, on `main`). Uploaded to PyPI 2026-06-20.
+
+- Identifiers, schema `MigrationRunner`, the `political` namespace and its
+  SQL migrations (#381). No wheel shipped those SQL files until #1420.
+- Geo boundary models: TribalArea, CountySubdivision, PUMA and special
+  districts (SU#535, SU#551); `RedistrictingPlan.plan_status` (SU#552);
+  migrations 0006-0009.
+- `detect_crs` and axis-order-aware `reproject_geom` (SU#546), format
+  detection (SU#545), `.swmz` reader (SU#547); QCEW and NCES file lifts
+  (SU#533, SU#534); Trino federation and OSS Unity Catalog external tables
+  (#521).
 
 ## [3.17.2] - 2026-05-14
 

@@ -4,13 +4,28 @@ Management command to populate Census demographic data.
 Usage:
     python manage.py populate_demographics --year 2022 --type tract --state 06 --variables income
     python manage.py populate_demographics --year 2022 --type county --state 06 --variables all
+
+Configure the API key through CENSUS_API_KEY; --api-key is rejected to keep
+credentials out of process listings and scheduler command logs.
 """
+
+import logging
+import os
 
 from django.core.management.base import BaseCommand, CommandError
 
 from siege_utilities.geo.django.services import DemographicPopulationService
 
 __all__ = ['Command']
+
+logger = logging.getLogger(__name__)
+
+
+def _reject_cli_api_key(value: str) -> None:
+    # Reject the legacy option without argparse echoing its secret value.
+    message = "--api-key is no longer supported; set CENSUS_API_KEY in the environment"
+    logger.error(message)
+    raise CommandError(message)
 
 
 class Command(BaseCommand):
@@ -30,6 +45,11 @@ class Command(BaseCommand):
     ]
 
     def add_arguments(self, parser):
+        parser.add_argument(
+            "--allow-partial",
+            action="store_true",
+            help="Allow reported errors if at least one record was created or updated",
+        )
         parser.add_argument(
             "--year",
             type=int,
@@ -65,13 +85,16 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             "--api-key",
-            type=str,
-            help="Census API key (or use CENSUS_API_KEY env var)",
+            type=_reject_cli_api_key,
+            help="Removed; set CENSUS_API_KEY in the environment",
         )
         parser.add_argument(
             "--update",
             action="store_true",
-            help="Update existing records instead of skipping",
+            help=(
+                "Overwrite variables existing snapshots already hold; without it, "
+                "new variables are still merged into existing snapshots"
+            ),
         )
         parser.add_argument(
             "--batch-size",
@@ -104,7 +127,9 @@ class Command(BaseCommand):
         state_input = options["state"]
         variables = options["variables"]
         dataset = options.get("dataset", "acs5")
-        api_key = options.get("api_key")
+        if options.get("api_key") is not None:
+            _reject_cli_api_key(options["api_key"])
+        api_key = os.environ.get("CENSUS_API_KEY")
         update_existing = options.get("update", False)
         batch_size = options.get("batch_size", 500)
 
@@ -167,3 +192,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.WARNING(f"Total errors: {len(total_errors)}")
             )
+            if not options.get("allow_partial", False) or total_created + total_updated == 0:
+                raise CommandError(
+                    f"Demographic population failed with {len(total_errors)} errors"
+                )

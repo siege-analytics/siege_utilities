@@ -19,6 +19,8 @@ from .nlrb_clients import (
     ULPRecord,
 )
 
+from siege_utilities.files.operations import atomic_write_path
+
 log = logging.getLogger(__name__)
 
 __all__ = [
@@ -168,7 +170,7 @@ class NLRBCache:
         return self._cache_dir / f"{key}.json"
 
     def get(self, key: str) -> Optional[NLRBFetchResult]:
-        """Load a cached result if it exists and is not expired."""
+        """Load a cached result; None means absent, expired or unreadable metadata."""
         path = self._cache_path(key)
         if not path.exists():
             return None
@@ -180,6 +182,8 @@ class NLRBCache:
             return None
 
         fetched_at = data.get("fetched_at")
+        if not fetched_at:
+            return None  # An entry without an expiry origin is expired.
         if fetched_at:
             try:
                 cached_time = datetime.fromisoformat(fetched_at)
@@ -187,7 +191,8 @@ class NLRBCache:
                     log.info("Cache expired for %s", key)
                     return None
             except (ValueError, TypeError):
-                pass
+                log.warning("Invalid cache timestamp for %s; treating entry as expired", key)
+                return None
 
         return _dict_to_result(data)
 
@@ -196,7 +201,8 @@ class NLRBCache:
         self._cache_dir.mkdir(parents=True, exist_ok=True)
         data = _result_to_dict(result)
         path = self._cache_path(key)
-        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        with atomic_write_path(path) as tmp:
+            tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
         log.info("Cached %d records to %s", result.total_records, path)
 
     def invalidate(self, key: str) -> bool:

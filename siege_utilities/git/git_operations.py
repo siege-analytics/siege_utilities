@@ -45,11 +45,16 @@ def create_feature_branch(
     repo_path: str = ".",
     switch_to_branch: bool = True
 ) -> Dict[str, str]:
-    """Create a new feature branch from base branch."""
+    """Create a feature branch after validating both branch names.
+
+    Raises ValueError for an invalid new branch name, or GitSecurityError
+    for an unsafe base branch name.
+    """
 
     # Validate branch name
-    if not re.match(r'^[a-zA-Z0-9/_-]+$', branch_name):
+    if branch_name.startswith('-') or not re.match(r'^[a-zA-Z0-9/_-]+$', branch_name):
         raise ValueError(f"Invalid branch name: {branch_name}")
+    base_branch = validate_branch_name(base_branch)
 
     # Check if we're on the base branch
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)

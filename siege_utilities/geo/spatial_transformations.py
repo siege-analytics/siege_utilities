@@ -57,18 +57,7 @@ class SpatialDataTransformer:
     
     def __init__(self):
         """Initialize the spatial data transformer."""
-        try:
-            self.user_config = get_user_config()
-        except Exception as e:
-            # user_config is optional; ANY failure to load it (missing pydantic,
-            # bad config file, validation error, etc.) degrades to None rather
-            # than breaking construction. The error is logged, not swallowed.
-            log.warning(f"Failed to load user config: {e}")
-            # Use None (not {}) so callers branching on `is None` work
-            # uniformly across SpatialDataTransformer / PostGISConnector
-            # / DuckDBConnector. {} would silently AttributeError on
-            # .get_database_connection() in the converters.
-            self.user_config = None
+        self.user_config = get_user_config()
 
 
         # Supported output formats (using core geospatial stack + optional DuckDB)
@@ -240,31 +229,22 @@ class PostGISConnector:
         Args:
             connection_string: PostgreSQL connection string. When omitted,
                 we look up the configured ``postgresql`` connection from
-                the user-config; if that's unavailable too, the connector
-                stays uninitialized (``self.connection is None``).
+                the user-config. Missing settings raise ValueError; config
+                errors propagate and connection failures raise ConnectionError.
         """
-        try:
-            self.user_config = get_user_config()
-        except Exception as e:
-            # user_config is optional; ANY failure to load it (missing pydantic,
-            # bad config file, validation error, etc.) degrades to None rather
-            # than breaking construction. The error is logged, not swallowed.
-            log.warning(f"Failed to load user config: {e}")
-            self.user_config = None
+        self.user_config = get_user_config()
 
         if connection_string is None and self.user_config is not None:
             try:
                 connection_string = self.user_config.get_database_connection('postgresql')
             except (AttributeError, ValueError, KeyError, TypeError) as e:
-                log.warning(f"user_config.get_database_connection('postgresql') failed: {e}")
-                connection_string = None
+                raise ValueError("Could not load configured PostgreSQL connection") from e
         self.connection_string = connection_string
 
         self.psycopg2 = None
         self.connection = None
         if self.connection_string is None:
-            log.error("PostGISConnector: no connection_string and none configured")
-            return
+            raise ValueError("PostGISConnector: no connection_string and none configured")
 
         try:
             import psycopg2
@@ -272,9 +252,9 @@ class PostGISConnector:
             self.connection = psycopg2.connect(self.connection_string)
             log.info("Successfully connected to PostGIS")
         except ImportError:
-            log.error("psycopg2 not available. Install with: pip install psycopg2-binary")
+            raise ImportError("psycopg2 not available. Install with: pip install psycopg2-binary")
         except (_Psycopg2Error, OSError) as e:
-            log.error(f"Failed to connect to PostGIS: {e}")
+            raise ConnectionError("Failed to connect to PostGIS") from e
 
     def close(self):
         """Close the database connection."""
@@ -539,14 +519,7 @@ class DuckDBConnector:
         if not DUCKDB_AVAILABLE:
             raise ImportError("DuckDB not available. Install with: pip install duckdb")
         
-        try:
-            self.user_config = get_user_config()
-        except Exception as e:
-            # user_config is optional; ANY failure to load it (missing pydantic,
-            # bad config file, validation error, etc.) degrades to None rather
-            # than breaking construction. The error is logged, not swallowed.
-            log.warning(f"Failed to load user config: {e}")
-            self.user_config = None
+        self.user_config = get_user_config()
 
         if db_path is None and self.user_config is not None:
             try:

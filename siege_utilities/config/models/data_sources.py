@@ -113,7 +113,7 @@ class DataSource(BaseModel):
         description="Link to source documentation"
     )
     status: DataSourceStatus = DataSourceStatus.PLANNED
-    auth_required: bool = False
+    auth_required: bool = Field(default=False, json_schema_extra={"sensitive": False})
     auth_type: Optional[str] = Field(
         default=None,
         description="Authentication type: 'api_key', 'oauth2', 'basic', or None"
@@ -149,6 +149,7 @@ class SourceCredential(BaseModel):
         description="Type: 'api_key', 'oauth2_client', 'basic_auth'"
     )
     credential_ref: str = Field(
+        json_schema_extra={"sensitive": False},
         min_length=1,
         description="Reference to secret store (1Password item name, env var, etc.)"
     )

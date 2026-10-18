@@ -296,16 +296,15 @@ class TestCensusDirectoryDiscovery:
         url = self.discovery.construct_download_url(2020, 'custom')
         assert url == "https://www2.census.gov/geo/tiger/TIGER2020/CUSTOM/tl_2020_us_custom.zip"
     
-    def test_construct_download_url_place_with_state_fips(self):
-        """Test URL construction for place boundaries with optional state FIPS."""
+    def test_construct_download_url_place_requires_state_fips(self):
+        """Census publishes place files per state; a national URL would 404."""
         # Mock available boundary types
         self.discovery.discover_boundary_types = Mock(return_value={
             'place': 'PLACE'
         })
         
-        # Test without state FIPS (national)
-        url = self.discovery.construct_download_url(2020, 'place')
-        assert url == "https://www2.census.gov/geo/tiger/TIGER2020/PLACE/tl_2020_us_place.zip"
+        with pytest.raises(BoundaryConfigurationError, match="State FIPS code required"):
+            self.discovery.construct_download_url(2020, 'place')
         
         # Test with state FIPS (state-specific)
         url = self.discovery.construct_download_url(2020, 'place', state_fips='06')
@@ -419,7 +418,7 @@ class TestCensusDirectoryDiscovery:
         """YEAR_TO_CONGRESS must include 2010, 2025, and 2026."""
         assert YEAR_TO_CONGRESS[2010] == 111
         assert YEAR_TO_CONGRESS[2025] == 119
-        assert YEAR_TO_CONGRESS[2026] == 119
+        assert YEAR_TO_CONGRESS[2026] == 120
 
     def test_zcta520_directory_recognized(self):
         """ZCTA520 directory name (2020+) should map to 'zcta' boundary type."""
@@ -647,7 +646,8 @@ class TestCensusDataSource:
         assert 'nation' in national
         assert 'state' in national
         assert 'county' in national
-        assert 'place' in national
+        assert 'place' not in national
+        assert 'place' in self.census.state_required_levels
         assert 'zcta' in national
         assert 'cd' in national
 

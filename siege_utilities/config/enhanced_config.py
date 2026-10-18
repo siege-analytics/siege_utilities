@@ -8,12 +8,15 @@ while maintaining backward compatibility.
 import json
 import warnings
 import yaml
+from pydantic import SecretStr
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 import logging
 
 from .models import UserProfile, ClientProfile
+
+from siege_utilities.files.secure_write import secure_write_text
 try:
     from .hydra_manager import HydraConfigManager
 except ImportError:
@@ -66,14 +69,14 @@ class ConfigurationMigrator:
             legacy_file: Path to legacy user config file
             
         Returns:
-            New UserProfile instance
+            New UserProfile instance. Missing files raise FileNotFoundError;
+            read, parse and validation errors propagate.
         """
         if legacy_file is None:
             legacy_file = self.legacy_config_dir / "user_config.yaml"
         
         if not legacy_file.exists():
-            logger.warning(f"Legacy user profile not found: {legacy_file}")
-            return self._create_default_user_profile()
+            raise FileNotFoundError(f"Legacy user profile not found: {legacy_file}")
         
         try:
             with open(legacy_file, 'r', encoding='utf-8') as f:
@@ -85,10 +88,10 @@ class ConfigurationMigrator:
             if not isinstance(legacy_data, dict):
                 logger.error(
                     "Legacy user profile %s is not a YAML mapping (got %s); "
-                    "falling back to default profile.",
+                    "migration aborted.",
                     legacy_file, type(legacy_data).__name__,
                 )
-                return self._create_default_user_profile()
+                raise ValueError(f"Invalid legacy user profile: {legacy_file}")
 
             logger.info(f"Loading legacy user profile from: {legacy_file}")
             new_data = self._map_user_profile_fields(legacy_data)
@@ -98,7 +101,7 @@ class ConfigurationMigrator:
 
         except (OSError, yaml.YAMLError, ValueError):
             logger.exception("Failed to migrate user profile from %s", legacy_file)
-            return self._create_default_user_profile()
+            raise
     
     def migrate_client_profile(self, legacy_file: Path, client_code: str) -> ClientProfile:
         """
@@ -109,11 +112,11 @@ class ConfigurationMigrator:
             client_code: Client code for the profile
             
         Returns:
-            New ClientProfile instance
+            New ClientProfile instance. Missing files raise FileNotFoundError;
+            read, parse and validation errors propagate.
         """
         if not legacy_file.exists():
-            logger.warning(f"Legacy client profile not found: {legacy_file}")
-            return self._create_default_client_profile(client_code)
+            raise FileNotFoundError(f"Legacy client profile not found: {legacy_file}")
         
         try:
             # Pick the parser by extension explicitly — falling through to
@@ -128,18 +131,18 @@ class ConfigurationMigrator:
                 else:
                     logger.error(
                         "Unsupported legacy client profile extension %r on %s; "
-                        "expected .yaml/.yml/.json. Falling back to default profile.",
+                        "expected .yaml/.yml/.json. Migration aborted.",
                         suffix, legacy_file,
                     )
-                    return self._create_default_client_profile(client_code)
+                    raise ValueError(f"Invalid legacy client profile: {legacy_file}")
 
             if not isinstance(legacy_data, dict):
                 logger.error(
                     "Legacy client profile %s is not a mapping (got %s); "
-                    "falling back to default profile for %s.",
+                    "migration aborted for %s.",
                     legacy_file, type(legacy_data).__name__, client_code,
                 )
-                return self._create_default_client_profile(client_code)
+                raise ValueError(f"Invalid legacy client profile: {legacy_file}")
 
             logger.info(f"Loading legacy client profile from: {legacy_file}")
             new_data = self._map_client_profile_fields(legacy_data, client_code)
@@ -152,7 +155,7 @@ class ConfigurationMigrator:
                 "Failed to migrate client profile for %s from %s",
                 client_code, legacy_file,
             )
-            return self._create_default_client_profile(client_code)
+            raise
     
     def migrate_all_configurations(self, dry_run: bool = False) -> Dict[str, Any]:
         """
@@ -176,9 +179,13 @@ class ConfigurationMigrator:
         try:
             # Migrate user profile
             if not dry_run:
-                self.migrate_user_profile()
-                results["user_profile"]["migrated"] = True
-                logger.info("User profile migrated successfully")
+                try:
+                    self.migrate_user_profile()
+                    results["user_profile"]["migrated"] = True
+                    logger.info("User profile migrated successfully")
+                except (OSError, yaml.YAMLError, ValueError) as e:
+                    results["user_profile"]["error"] = str(e)
+                    logger.error(f"Failed to migrate user profile: {e}")
             else:
                 logger.info("Would migrate user profile")
             
@@ -448,6 +455,8 @@ def load_user_profile(username: str, config_dir: Optional[Path] = None) -> UserP
 
 def _convert_to_yaml_safe(obj: Any) -> Any:
     """Recursively convert Python objects to YAML-safe types."""
+    if isinstance(obj, SecretStr):
+        return obj.get_secret_value()
     if isinstance(obj, dict):
         return {k: _convert_to_yaml_safe(v) for k, v in obj.items()}
     elif isinstance(obj, (list, tuple)):
@@ -484,14 +493,12 @@ def save_user_profile(profile: UserProfile, username: str, config_dir: Optional[
         stacklevel=2,
     )
     config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "users"
-    config_dir.mkdir(parents=True, exist_ok=True)
     config_file = config_dir / f"{username}.yaml"
 
     profile_data = profile.model_dump()
     profile_data = _convert_to_yaml_safe(profile_data)
 
-    with open(config_file, 'w', encoding='utf-8') as f:
-        yaml.dump(profile_data, f, default_flow_style=False)
+    secure_write_text(config_file, yaml.dump(profile_data, default_flow_style=False))
 
     logger.info(f"Saved user profile: {config_file}")
 
@@ -579,14 +586,12 @@ def save_client_profile(profile: ClientProfile, config_dir: Optional[Path] = Non
         stacklevel=2,
     )
     config_dir = config_dir or Path.home() / ".siege_utilities" / "profiles" / "clients"
-    config_dir.mkdir(parents=True, exist_ok=True)
     config_file = config_dir / f"{profile.client_code}.yaml"
 
     profile_data = profile.model_dump()
     profile_data = _convert_to_yaml_safe(profile_data)
 
-    with open(config_file, 'w', encoding='utf-8') as f:
-        yaml.dump(profile_data, f, default_flow_style=False)
+    secure_write_text(config_file, yaml.dump(profile_data, default_flow_style=False))
 
     logger.info(f"Saved client profile: {config_file}")
 
@@ -657,10 +662,7 @@ def export_config_yaml(config_data: Dict[str, Any], output_file: Path) -> None:
         OSError: If the file cannot be written.
         yaml.YAMLError: If serialization fails.
     """
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(output_file, 'w', encoding='utf-8') as f:
-        yaml.dump(config_data, f, default_flow_style=False)
+    secure_write_text(output_file, yaml.dump(config_data, default_flow_style=False))
 
     logger.info(f"Exported configuration to: {output_file}")
 

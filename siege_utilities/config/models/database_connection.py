@@ -4,7 +4,7 @@ Database connection model with comprehensive validation.
 
 from urllib.parse import quote_plus
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import SecretStr, BaseModel, Field, field_validator, ConfigDict
 import re
 
 __all__ = ["DatabaseConnection"]
@@ -19,6 +19,7 @@ class DatabaseConnection(BaseModel):
     """
     
     model_config = ConfigDict(
+        hide_input_in_errors=True,
         json_schema_serialization_mode="json",
         validate_assignment=True,
         extra="forbid"
@@ -55,7 +56,8 @@ class DatabaseConnection(BaseModel):
         max_length=50,
         description="Database username"
     )
-    password: str = Field(
+    password: SecretStr = Field(
+        json_schema_extra={"sensitive": True},
         min_length=8,
         max_length=100,
         description="Database password (minimum 8 characters)"
@@ -65,6 +67,7 @@ class DatabaseConnection(BaseModel):
         description="Enable SSL connection"
     )
     connection_timeout: int = Field(
+        json_schema_extra={"sensitive": False},
         default=30,
         ge=1,
         le=300,
@@ -98,27 +101,37 @@ class DatabaseConnection(BaseModel):
         
         return v
     
+    @field_validator('password', mode='before')
+    @classmethod
+    def validate_password_length(cls, v):
+        """Keep minimum-length errors value-free before secret conversion."""
+        value = v.get_secret_value() if isinstance(v, SecretStr) else v
+        if isinstance(value, (str, bytes, bytearray)) and len(value) < 8:
+            raise ValueError('String should have at least 8 characters')
+        return v
+
     @field_validator('password')
     @classmethod
     def validate_password(cls, v):
         """Validate password strength."""
-        if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters')
+        password = v.get_secret_value()
+        if len(password) < 8:
+            raise ValueError('String should have at least 8 characters')
         
         # Check for common weak patterns
-        if v.lower() in ['password', '12345678', 'qwerty123']:
+        if password.lower() in ['password', '12345678', 'qwerty123']:
             raise ValueError('Password is too common - please use a stronger password')
         
         # Require at least one uppercase letter
-        if not re.search(r'[A-Z]', v):
+        if not re.search(r'[A-Z]', password):
             raise ValueError('Password must contain at least one uppercase letter')
         
         # Require at least one lowercase letter
-        if not re.search(r'[a-z]', v):
+        if not re.search(r'[a-z]', password):
             raise ValueError('Password must contain at least one lowercase letter')
         
         # Require at least one number
-        if not re.search(r'[0-9]', v):
+        if not re.search(r'[0-9]', password):
             raise ValueError('Password must contain at least one number')
         
         return v
@@ -149,7 +162,7 @@ class DatabaseConnection(BaseModel):
     def get_connection_string(self) -> str:
         """Generate connection string for the database."""
         user = quote_plus(self.username)
-        pw = quote_plus(self.password)
+        pw = quote_plus(self.password.get_secret_value())
         if self.connection_type == 'postgresql':
             ssl_mode = '?sslmode=require' if self.ssl_enabled else ''
             return f"postgresql://{user}:{pw}@{self.host}:{self.port}/{self.database}{ssl_mode}"

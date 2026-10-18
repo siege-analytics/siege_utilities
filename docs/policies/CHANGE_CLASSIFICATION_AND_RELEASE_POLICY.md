@@ -101,6 +101,8 @@ A release is ready only when:
 - Backward compatibility impact is documented.
 - Documentation and notebook updates for included changes are complete.
 
+Publishing itself follows [RELEASING.md](../../RELEASING.md): PyPI uploads happen only in `publish-tag.yml`, from a `v*` tag on `main`, after CI passes. Manual uploads are prohibited.
+
 ## 5) Backport Policy
 
 - Patch branches may accept:

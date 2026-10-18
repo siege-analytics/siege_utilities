@@ -2,10 +2,13 @@
 Custom manager for temporal boundary models with spatial query helpers.
 """
 
+import json
+
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Point, GEOSGeometry
 from django.contrib.gis.measure import D
 from django.db import models
+from django.db.models.functions import Cast
 
 __all__ = ['BoundaryQuerySet', 'BoundaryManager']
 
@@ -65,7 +68,8 @@ class BoundaryQuerySet(gis_models.QuerySet):
         """
         Find boundaries within a distance of a point.
 
-        Uses geodesic distance via PostGIS ST_DWithin(geography).
+        Casts the SRID-4326 geometry column to geography for PostGIS
+        ST_DWithin, so the distance is measured in meters rather than degrees.
 
         Args:
             point: A GEOS Point object
@@ -74,13 +78,19 @@ class BoundaryQuerySet(gis_models.QuerySet):
         Returns:
             QuerySet filtered to boundaries within distance
         """
-        return self.filter(geometry__dwithin=(point, D(m=distance_meters)))
+        return self.alias(
+            _geometry_geography=Cast(
+                "geometry", gis_models.GeometryField(srid=4326, geography=True)
+            )
+        ).filter(_geometry_geography__dwithin=(point, D(m=distance_meters)))
 
     def nearest(self, point, max_distance_m=None, srid: int = 4326):
         """
         Find boundaries ordered by distance from a point (nearest first).
 
-        Uses geodesic distance via PostGIS ST_Distance(geography).
+        Orders by geodesic distance on the geometry column. When a maximum
+        distance is supplied, within_distance casts the column to geography
+        for ST_DWithin so the cutoff is in meters rather than degrees.
 
         Args:
             point: A GEOS Point object or (lon, lat) tuple
@@ -96,7 +106,7 @@ class BoundaryQuerySet(gis_models.QuerySet):
             point = Point(point[0], point[1], srid=srid)
         qs = self.annotate(distance=Distance("geometry", point)).order_by("distance")
         if max_distance_m is not None:
-            qs = qs.filter(geometry__dwithin=(point, D(m=max_distance_m)))
+            qs = qs.within_distance(point, max_distance_m)
         return qs
 
     def with_area(self):
@@ -123,27 +133,50 @@ class BoundaryQuerySet(gis_models.QuerySet):
         order = "area_land" if ascending else "-area_land"
         return self.order_by(order)
 
-    def by_population(self, year: int = None, ascending: bool = False):
+    def snapshots(self, *, dataset: str | None = None, year: int | None = None):
+        """Return snapshots for this boundary selection, scoped by content type.
+
+        Snapshots refer to GEOIDs across boundary vintages. For one boundary,
+        use County.objects.filter(pk=county.pk).snapshots().
+        """
+        from ..models.demographics import DemographicSnapshot
+
+        snapshots = DemographicSnapshot.objects.using(self.db).filter(
+            content_type__app_label=self.model._meta.app_label,
+            content_type__model=self.model._meta.model_name,
+            object_id__in=self.order_by().values("geoid"),
+        )
+        if dataset is not None:
+            snapshots = snapshots.filter(dataset=dataset)
+        if year is not None:
+            snapshots = snapshots.filter(year=year)
+        return snapshots.order_by("-year", "-pk")
+
+    def by_population(self, year: int = None, ascending: bool = False, dataset: str = "acs5"):
         """
         Order boundaries by population.
 
         Requires DemographicSnapshot records to be joined.
 
         Args:
-            year: Census year for population data
+            year: Census year for population data (latest available if omitted)
             ascending: True for smallest first, False for largest first
+            dataset: Census dataset to select (default acs5)
 
         Returns:
-            Ordered QuerySet (may be empty if no demographics loaded)
+            Ordered QuerySet (population is NULL where no matching data exists)
         """
         # This requires a subquery to DemographicSnapshot
         from django.db.models import OuterRef, Subquery
         from ..models.demographics import DemographicSnapshot
 
         subquery = DemographicSnapshot.objects.filter(
+            content_type__app_label=self.model._meta.app_label,
+            content_type__model=self.model._meta.model_name,
             object_id=OuterRef("geoid"),
-            **({"year": year} if year else {}),
-        ).values("total_population")[:1]
+            dataset=dataset,
+            **({"year": year} if year is not None else {}),
+        ).order_by("-year", "-pk").values("total_population")[:1]
 
         qs = self.annotate(population=Subquery(subquery))
 
@@ -167,7 +200,7 @@ class BoundaryQuerySet(gis_models.QuerySet):
             features.append(
                 {
                     "type": "Feature",
-                    "geometry": boundary.geometry.json,
+                    "geometry": json.loads(boundary.geometry.json),
                     "properties": {
                         "geoid": getattr(boundary, "geoid", boundary.feature_id),
                         "name": boundary.name,
@@ -194,6 +227,14 @@ class BoundaryManager(gis_models.Manager):
 
     def get_queryset(self):
         return BoundaryQuerySet(self.model, using=self._db)
+
+    def snapshots(self, *, dataset: str | None = None, year: int | None = None):
+        """Return GEOID snapshots for this boundary type."""
+        return self.get_queryset().snapshots(dataset=dataset, year=year)
+
+    def by_population(self, year: int = None, ascending: bool = False, dataset: str = "acs5"):
+        """Order by the selected dataset's population (latest year by default)."""
+        return self.get_queryset().by_population(year, ascending, dataset)
 
     def for_year(self, year: int):
         """Filter boundaries by vintage year."""
@@ -278,7 +319,10 @@ class BoundaryManager(gis_models.Manager):
             srid: Spatial reference ID for the geometry (default: 4326 WGS 84)
 
         Returns:
-            List of created boundary objects
+            List of the boundary objects actually inserted. Rows whose
+            ``(geoid, vintage_year)`` already existed, or that repeat a GEOID
+            earlier in ``gdf``, are dropped by ``ON CONFLICT DO NOTHING`` and
+            are not returned (#1539). Returned instances have no primary key.
         """
         from django.contrib.gis.geos import GEOSGeometry
 
@@ -307,14 +351,25 @@ class BoundaryManager(gis_models.Manager):
             parsed = self.model.parse_geoid(geoid)
             kwargs.update(parsed)
 
-            objects.append(self.model(**kwargs))
+            # bulk_create skips save(); derive feature_id/boundary_id/source (#1539)
+            objects.append(self.model(**kwargs).prepare_for_bulk())
 
-        # Bulk create in batches
+        # Bulk create in batches. With ignore_conflicts=True Django returns every
+        # input object, so report only the GEOIDs that were absent before.
         created = []
         for i in range(0, len(objects), batch_size):
             batch = objects[i : i + batch_size]
-            created.extend(
-                self.bulk_create(batch, ignore_conflicts=True, batch_size=batch_size)
+            geoids = {obj.geoid for obj in batch}
+            present = set(
+                self.filter(vintage_year=year, geoid__in=geoids).values_list("geoid", flat=True)
             )
+            self.bulk_create(batch, ignore_conflicts=True, batch_size=batch_size)
+            inserted = set(
+                self.filter(vintage_year=year, geoid__in=geoids).values_list("geoid", flat=True)
+            ) - present
+            for obj in batch:
+                if obj.geoid in inserted:
+                    created.append(obj)
+                    inserted.discard(obj.geoid)  # first occurrence wins in the INSERT
 
         return created

@@ -27,6 +27,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
+            "--allow-partial",
+            action="store_true",
+            help="Allow reported errors if at least one tract was classified",
+        )
+        parser.add_argument(
             "--year",
             type=int,
             required=True,
@@ -123,4 +128,8 @@ class Command(BaseCommand):
                     self.style.WARNING(
                         f"    ... and {len(result.errors) - 10} more"
                     )
+                )
+            if not options.get("allow_partial", False) or result.classified == 0:
+                raise CommandError(
+                    f"Urbanicity classification failed with {len(result.errors)} errors"
                 )

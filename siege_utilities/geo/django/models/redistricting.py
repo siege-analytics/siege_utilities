@@ -476,13 +476,30 @@ class PrecinctElectionResult(models.Model):
         db_index=True,
         validators=[MinValueValidator(1900), MaxValueValidator(2050)],
     )
+    election_type = models.CharField(
+        max_length=1,
+        default="G",
+        help_text="VEST election type (G general, S special, R runoff, C recount, P primary)",
+    )
     office = models.CharField(
         max_length=30,
         choices=OFFICE_CHOICES,
     )
+    district = models.CharField(
+        max_length=2,
+        blank=True,
+        default="",
+        help_text="VEST House district (two digits or AL); blank for statewide offices",
+    )
     party = models.CharField(
         max_length=50,
         help_text="Political party (DEM, REP, LIB, GRN, IND, etc.)",
+    )
+    party_code = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        help_text="Raw VEST party letter; legacy rows retain unmapped party labels",
     )
     candidate_name = models.CharField(
         max_length=255,
@@ -515,6 +532,15 @@ class PrecinctElectionResult(models.Model):
     class Meta:
         verbose_name = "Precinct Election Result"
         verbose_name_plural = "Precinct Election Results"
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "state_fips", "election_year", "election_type", "precinct_id",
+                    "office", "district", "party_code", "candidate_name", "data_source",
+                ],
+                name="precinct_result_identity_uniq",
+            ),
+        ]
         indexes = [
             models.Index(fields=["state_fips", "election_year"]),
             models.Index(fields=["precinct_id", "election_year"]),
@@ -558,7 +584,7 @@ class PlanDistrictAssignment(models.Model):
         on_delete=models.CASCADE,
         help_text="Content type of the boundary model",
     )
-    boundary_object_id = models.PositiveIntegerField(
+    boundary_object_id = models.PositiveBigIntegerField(
         help_text="PK of the boundary instance",
     )
     boundary = GenericForeignKey("boundary_content_type", "boundary_object_id")

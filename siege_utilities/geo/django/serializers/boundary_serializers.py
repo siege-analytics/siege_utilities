@@ -4,6 +4,8 @@ Django REST Framework GeoJSON serializers for geographic boundary models.
 Requires djangorestframework-gis for GeoJSON serialization.
 """
 
+import json
+
 from rest_framework import serializers
 
 try:
@@ -237,9 +239,9 @@ class BoundaryWithDemographicsSerializer(serializers.Serializer):
     median_household_income = serializers.IntegerField(required=False)
 
     def get_geometry(self, obj):
-        """Return GeoJSON geometry."""
+        """Return a GeoJSON geometry object."""
         if hasattr(obj, "geometry") and obj.geometry:
-            return obj.geometry.geojson
+            return json.loads(obj.geometry.json)
         return None
 
     class Meta:

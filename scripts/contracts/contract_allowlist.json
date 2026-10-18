@@ -34,6 +34,7 @@
     "BaseReportTemplate",
     "ChartGenerator",
     "ChartTypeRegistry",
+    "EnhancedUserProfile",
     "construct_download_url",
     "create_bar_chart",
     "create_bivariate_choropleth",
@@ -49,6 +50,7 @@
     "discover_boundary_types",
     "download_data",
     "download_dataset",
+    "download_file",
     "download_osm_data",
     "generate_chart_from_dataframe",
     "get_available_boundary_types",
@@ -79,7 +81,15 @@
     "get_country_code",
     "get_country_name",
     "list_countries",
-    "process_python_file"
+    "process_python_file",
+    "cleanup_old_connections",
+    "find_connection_by_name",
+    "get_connection_status",
+    "list_connection_profiles",
+    "load_connection_profile",
+    "save_connection_profile",
+    "update_connection_profile",
+    "verify_connection_profile"
   ],
   "kind_changes": [
     "BaseReportTemplate",

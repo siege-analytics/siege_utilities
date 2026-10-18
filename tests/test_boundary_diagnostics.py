@@ -281,21 +281,31 @@ class TestFetchGeographicBoundaries:
         assert result.error_stage == "parse"
 
     def test_success_returns_ok_result(self):
+        # A real frame: fetch now writes the served vintage into census_year,
+        # which a Mock cannot hold (#1482).
+        import geopandas as gpd
+        from shapely.geometry import box
+
         source = self._make_source()
         source.discovery.construct_download_url.return_value = "https://example.com/ok.zip"
         source.discovery.validate_download_url.return_value = True
 
-        mock_gdf = Mock()
-        mock_gdf.__len__ = Mock(return_value=50)
+        gdf = gpd.GeoDataFrame(
+            {"statefp": ["06"] * 50, "countyfp": [f"{i:03d}" for i in range(50)]},
+            geometry=[box(i, 0, i + 1, 1) for i in range(50)],
+            crs="EPSG:4269",
+        )
 
-        with patch.object(source, '_download_and_process_tiger', return_value=mock_gdf):
+        with patch.object(source, '_download_and_process_tiger', return_value=gdf):
             result = source.fetch_geographic_boundaries(
                 year=2020, geographic_level='county',
             )
         assert result.success
-        assert result.geodataframe is mock_gdf
+        assert result.geodataframe is gdf
         assert "50" in result.message
         assert result.error_code is None
+        assert result.context["served_year"] == 2020
+        assert set(result.geodataframe["census_year"]) == {2020}
 
     def test_context_carries_all_parameters(self):
         source = self._make_source()
@@ -491,12 +501,12 @@ class TestBoundaryConfigurationError:
                 'national': 'tl_{year}_us_{boundary_type}_shp.zip',
             }
         }
-        # year=2000 is not in YEAR_TO_CONGRESS; falls back to max known year (2026 → congress 119)
+        # year=2000 is not in YEAR_TO_CONGRESS; falls back to 2026, Congress 120.
         result = disc._construct_filename_with_fips_validation(
             year=2000, boundary_type='cd', state_fips=None,
             congress_number=None, patterns=patterns,
         )
-        assert result == 'tl_2000_us_cd119_shp.zip'
+        assert result == 'tl_2000_us_cd120_shp.zip'
 
     def test_cd_auto_resolves_congress_for_known_year(self):
         """For years in YEAR_TO_CONGRESS, congress number is auto-resolved without explicit parameter."""
