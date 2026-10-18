@@ -9,7 +9,9 @@ Readers that never create anything keep their pre-#1710 not-found behaviour.
 import logging
 import os
 import shutil
+from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -29,21 +31,24 @@ pytestmark = pytest.mark.filterwarnings("ignore")
 
 
 @pytest.fixture(autouse=True)
-def _no_log_output():
+def _no_log_output() -> Iterator[None]:
+    previous = logging.root.manager.disable
     logging.disable(logging.CRITICAL)
-    yield
-    logging.disable(logging.NOTSET)
+    try:
+        yield
+    finally:
+        logging.disable(previous)
 
 
 @pytest.fixture(autouse=True)
-def _remove_tmp_path(tmp_path):
+def _remove_tmp_path(tmp_path: Path) -> Iterator[None]:
     # A regression would leave control-character directories behind, the
     # names that crashed file watchers in #1690; remove them even on failure.
     yield
     shutil.rmtree(tmp_path, ignore_errors=True)
 
 
-def _tabular_frame():
+def _tabular_frame() -> Any:
     pandas = pytest.importorskip("pandas")
     return pandas.DataFrame({"a": [1]})
 
@@ -91,13 +96,15 @@ else:
     CREATORS["secure_write_text"] = lambda root, target: secure_write_text(target / "f.txt", "x")
 
 
-def _snapshot(root: Path):
+def _snapshot(root: Path) -> list[str]:
     return sorted(os.path.relpath(os.path.join(d, n), root)
                   for d, dirs, files in os.walk(root) for n in dirs + files)
 
 
 @pytest.mark.parametrize("creator", sorted(CREATORS))
-def test_unsafe_new_component_is_refused_and_nothing_is_created(creator, tmp_path, monkeypatch):
+def test_unsafe_new_component_is_refused_and_nothing_is_created(
+    creator: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     if creator == "download_file":
         pytest.importorskip("requests")
     create = CREATORS[creator]
@@ -125,7 +132,7 @@ def test_unsafe_new_component_is_refused_and_nothing_is_created(creator, tmp_pat
 
 
 @pytest.mark.parametrize("creator", sorted(CREATORS))
-def test_ordinary_names_still_work(creator, tmp_path, monkeypatch):
+def test_ordinary_names_still_work(creator: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     if creator == "download_file":
         pytest.skip("needs the network once the parent exists")
     if creator in ("atomic_write_shapefile", "save_spatial"):
@@ -141,7 +148,7 @@ def test_ordinary_names_still_work(creator, tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("creator", sorted(CREATORS))
-def test_unencodable_names_create_nothing(creator, tmp_path, monkeypatch):
+def test_unencodable_names_create_nothing(creator: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     if creator == "download_file":
         pytest.importorskip("requests")
     monkeypatch.chdir(tmp_path)
@@ -155,7 +162,7 @@ def test_unencodable_names_create_nothing(creator, tmp_path, monkeypatch):
 WRITERS = ["atomic_write_path", "save_tabular", "secure_write_text"]
 
 
-def _write(creator, target):
+def _write(creator: str, target: Path) -> Path:
     if creator == "atomic_write_path":
         with operations.atomic_write_path(target / "f.csv") as tmp:
             tmp.write_text("x")
@@ -167,7 +174,9 @@ def _write(creator, target):
 
 
 @pytest.mark.parametrize("creator", WRITERS)
-def test_dotdot_path_is_written_as_given_and_stays_usable(creator, tmp_path, monkeypatch):
+def test_dotdot_path_is_written_as_given_and_stays_usable(
+    creator: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """A legitimate ``x/new/../y`` behaves as before #1716: ``new`` is created
     and the path the caller holds still opens (review of #1718, round 2)."""
     if creator not in CREATORS:
@@ -180,7 +189,7 @@ def test_dotdot_path_is_written_as_given_and_stays_usable(creator, tmp_path, mon
 
 
 @pytest.mark.parametrize("creator", WRITERS)
-def test_dangling_symlink_parent_fails_closed(creator, tmp_path, monkeypatch):
+def test_dangling_symlink_parent_fails_closed(creator: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A dangling symlink in the parent is not followed: the write fails and
     the link's target is not created (review of #1718, round 2)."""
     if creator not in CREATORS:
@@ -198,7 +207,7 @@ ZIP_UNSAFE = [ch for ch in UNSAFE if not "\ud800" <= ch <= "\udfff"]
 
 @pytest.mark.parametrize("as_directory_entry", [False, True], ids=["file-entry", "dir-entry"])
 @pytest.mark.parametrize("create_subdirectory", [False, True], ids=["flat", "subdir"])
-def test_archive_member_directories_are_checked(as_directory_entry, create_subdirectory, tmp_path):
+def test_archive_member_directories_are_checked(as_directory_entry: bool, create_subdirectory: bool, tmp_path: Path) -> None:
     """An archive that would create an unsafe directory is refused before
     anything is extracted (CodeRabbit on #1719)."""
     import zipfile
@@ -218,7 +227,7 @@ def test_archive_member_directories_are_checked(as_directory_entry, create_subdi
     assert created == [], created[:3]
 
 
-def test_archive_with_ordinary_member_directories_still_extracts(tmp_path):
+def test_archive_with_ordinary_member_directories_still_extracts(tmp_path: Path) -> None:
     import zipfile
 
     archive = tmp_path / "ok.zip"
@@ -231,7 +240,7 @@ def test_archive_with_ordinary_member_directories_still_extracts(tmp_path):
     assert (extracted / "empty dir").is_dir()
 
 
-def test_existing_directory_with_unsafe_name_still_accepted(tmp_path):
+def test_existing_directory_with_unsafe_name_still_accepted(tmp_path: Path) -> None:
     existing = tmp_path / "odd\x16name"
     existing.mkdir()
     try:
@@ -251,7 +260,7 @@ class TestReadersKeepNotFoundBehaviour:
     """Readers create nothing, so a missing unsafe name is simply not found."""
 
     @pytest.mark.parametrize("ch", ["\x1b", "\x7f", "\x85", "\udc80"], ids=lambda ch: f"U+{ord(ch):04X}")
-    def test_readers(self, ch, tmp_path, monkeypatch):
+    def test_readers(self, ch: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.chdir(tmp_path)
         missing = str(tmp_path / f"no{ch}such")
         assert directories.get_directory_info(missing) == {}
