@@ -20,6 +20,11 @@ def notebook() -> nbformat.NotebookNode:
     return nbformat.read(NOTEBOOK, as_version=4)
 
 
+def test_notebooks_doc_drops_copy_paste_promise_for_engines_02():
+    doc = (Path(__file__).resolve().parents[1] / "docs/NOTEBOOKS.md").read_text(encoding="utf-8")
+    assert "copy-pasteable" not in doc
+
+
 def test_sedona_sql_is_labeled_schematic(
     notebook: nbformat.NotebookNode,
 ) -> None:
