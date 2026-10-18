@@ -35,6 +35,7 @@ from __future__ import annotations
 import enum
 import logging
 from abc import ABC, abstractmethod
+from inspect import getattr_static as _getattr_static
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 log = logging.getLogger(__name__)
@@ -112,6 +113,19 @@ def _aggregate_pandas_groups(grouped: Any, normalised: Dict[str, str]) -> Any:
         # real zero sums and nullable dtypes; equivalent to sum(min_count=1).
         result[sum_cols] = result[sum_cols].where(grouped[sum_cols].count() > 0)
     return result.reset_index()
+
+
+def _validate_spatial_join_crs(left: Any, right: Any) -> None:
+    """Reject mismatched known CRS while allowing inputs with no CRS metadata."""
+    # Spark resolves column names through __getattr__; a column named "crs"
+    # is data, not frame metadata. Only read explicitly defined attributes.
+    left_crs = left.crs if _getattr_static(left, "crs", None) is not None else None
+    right_crs = right.crs if _getattr_static(right, "crs", None) is not None else None
+    if left_crs is not None and right_crs is not None and left_crs != right_crs:
+        raise ValueError(
+            f"CRS mismatch in spatial_join: left has {left_crs}, "
+            f"right has {right_crs}. Reproject one input to match the other."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -209,7 +223,8 @@ class DataFrameEngine(ABC):
         """Spatial join using a geometric predicate.
 
         *predicate* is one of: intersects, contains, within, touches,
-        crosses, overlaps.
+        crosses, overlaps. Raises ``ValueError`` when both input CRS are
+        known and differ; unknown CRS is allowed. Inputs are not reprojected.
         """
 
     @abstractmethod
@@ -831,11 +846,7 @@ class PandasEngine(DataFrameEngine):
             left = left.set_geometry(left_geom)
         if right.geometry.name != right_geom:
             right = right.set_geometry(right_geom)
-        if left.crs is not None and right.crs is not None and left.crs != right.crs:
-            raise ValueError(
-                f"CRS mismatch in spatial_join: left has {left.crs}, "
-                f"right has {right.crs}. Reproject one input to match the other."
-            )
+        _validate_spatial_join_crs(left, right)
         return gpd.sjoin(left, right, how=how, predicate=predicate)
 
     def buffer(self, df, distance, geometry_col="geometry", *, crs=None):
@@ -1326,6 +1337,7 @@ class DuckDBEngine(DataFrameEngine):
         import geopandas as gpd
         left_gdf = self.to_geodataframe(left, left_geom) if not isinstance(left, gpd.GeoDataFrame) else left
         right_gdf = self.to_geodataframe(right, right_geom) if not isinstance(right, gpd.GeoDataFrame) else right
+        _validate_spatial_join_crs(left_gdf, right_gdf)
         return gpd.sjoin(left_gdf, right_gdf, how=how, predicate=predicate)
 
     def buffer(self, df, distance, geometry_col="geometry", *, crs=None):
@@ -1617,6 +1629,7 @@ class SparkEngine(DataFrameEngine):
 
     def spatial_join(self, left, right, how="inner", predicate="intersects",
                      *, left_geom="geometry", right_geom="geometry"):
+        _validate_spatial_join_crs(left, right)
         self._ensure_sedona()
         from siege_utilities.core.sql_safety import (
             validate_sql_identifier_in as validate_identifier_in,
@@ -2081,6 +2094,7 @@ class PostGISEngine(DataFrameEngine):
         import geopandas as gpd
         left_gdf = left if isinstance(left, gpd.GeoDataFrame) else self.to_geodataframe(left, left_geom)
         right_gdf = right if isinstance(right, gpd.GeoDataFrame) else self.to_geodataframe(right, right_geom)
+        _validate_spatial_join_crs(left_gdf, right_gdf)
         return gpd.sjoin(left_gdf, right_gdf, how=how, predicate=predicate)
 
     def buffer(self, df, distance, geometry_col="geometry", *, crs=None):
