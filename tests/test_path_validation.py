@@ -1,6 +1,7 @@
 """Tests for siege_utilities.files.validation and path containment (#1528)."""
 
 import os
+import shutil
 from pathlib import Path
 
 import pytest
@@ -136,6 +137,13 @@ class TestValidateDirectoryPath:
 
 class TestDirectoryControlCharacters:
     """New directory names must not contain control characters (#1692)."""
+
+    @pytest.fixture(autouse=True)
+    def _remove_tmp_path(self, tmp_path):
+        # Some cases create control-character names on purpose; never leave
+        # them in pytest's basetemp for file watchers to trip on (#1690).
+        yield
+        shutil.rmtree(tmp_path, ignore_errors=True)
 
     @pytest.mark.parametrize("name", ["a\nb", "\x1b[31m", "\x16", "x\x7f", "\x9a"])
     def test_new_component_rejected(self, tmp_path, name):
