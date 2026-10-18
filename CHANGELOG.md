@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Facebook page insights now merge every metric's daily values by `end_time`,
+  preserving the raw timestamp in `date` and retaining missing metrics as NaN.
+  Each connector uses its own API session for page, ad, business, and account
+  calls, preventing token sharing while preserving any existing SDK default API
+  (#1435).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed

@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 try:
     import facebook_business
     from facebook_business.api import FacebookAdsApi
+    from facebook_business.session import FacebookSession
     from facebook_business.adobjects.adaccount import AdAccount
     from facebook_business.adobjects.page import Page
     from facebook_business.adobjects.business import Business
@@ -82,15 +83,10 @@ class FacebookBusinessConnector:
         self.access_token = access_token
         self.app_id = app_id
         self.app_secret = app_secret
-        self.api = None
-
-        # Initialize Facebook API
-        if app_id and app_secret:
-            FacebookAdsApi.init(app_id, app_secret, access_token)
-        else:
-            FacebookAdsApi.init(access_token=access_token)
-
-        self.api = FacebookAdsApi.get_default_api()
+        # Own the session without replacing the SDK's process-wide default.
+        self.api = FacebookAdsApi(FacebookSession(
+            app_id=app_id, app_secret=app_secret, access_token=access_token,
+        ))
         log_info("Initialized Facebook Business connector")
 
     def get_ad_accounts(self) -> List[Dict[str, Any]]:
@@ -101,7 +97,7 @@ class FacebookBusinessConnector:
             List of ad account information
         """
         try:
-            me = facebook_business.adobjects.user.User(fbid='me')
+            me = facebook_business.adobjects.user.User(fbid='me', api=self.api)
             ad_accounts = me.get_ad_accounts()
 
             accounts = []
@@ -144,7 +140,7 @@ class FacebookBusinessConnector:
                     'cpm', 'cpc', 'ctr', 'actions', 'action_values'
                 ]
 
-            ad_account = AdAccount(ad_account_id)
+            ad_account = AdAccount(ad_account_id, api=self.api)
             insights = ad_account.get_insights(
                 fields=fields,
                 params={
@@ -191,7 +187,9 @@ class FacebookBusinessConnector:
             metrics: List of metrics to retrieve
 
         Returns:
-            Pandas DataFrame with page insights
+            Pandas DataFrame with one row per end_time and one column per
+            requested metric. The date column preserves the raw end_time;
+            missing metric/day pairs are NaN.
         """
         try:
             if not metrics:
@@ -200,7 +198,7 @@ class FacebookBusinessConnector:
                     'page_fans', 'page_views_total', 'page_actions_post_reactions_total'
                 ]
 
-            page = Page(page_id)
+            page = Page(page_id, api=self.api)
             insights = page.get_insights(
                 fields=metrics,
                 params={
@@ -210,22 +208,18 @@ class FacebookBusinessConnector:
                 }
             )
 
-            # Convert to DataFrame
-            data = []
+            # Each insight contains one metric's daily values; join by date.
+            data_by_date = {}
             for insight in insights:
-                insight_data = {}
-                for metric in metrics:
-                    values = insight.get('values', [])
-                    if values:
-                        insight_data['date'] = values[0].get('end_time', '')
-                        insight_data[metric] = values[0].get('value', 0)
-                    else:
-                        insight_data['date'] = ''
-                        insight_data[metric] = 0
+                metric = insight.get('name')
+                if metric not in metrics:
+                    continue
+                for value in insight.get('values') or []:
+                    date = value.get('end_time', '')
+                    row = data_by_date.setdefault(date, {'date': date})
+                    row[metric] = value.get('value', 0)
 
-                data.append(insight_data)
-
-            df = pd.DataFrame(data)
+            df = pd.DataFrame(data_by_date.values(), columns=['date', *metrics])
             log_info(f"Retrieved {len(df)} page insights from page {page_id}")
             return df
 
@@ -254,7 +248,7 @@ class FacebookBusinessConnector:
                     'cpm', 'cpc', 'ctr', 'actions', 'action_values'
                 ]
 
-            business = Business(business_id)
+            business = Business(business_id, api=self.api)
             insights = business.get_insights(
                 fields=metrics,
                 params={
