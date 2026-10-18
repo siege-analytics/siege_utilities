@@ -404,7 +404,7 @@ class TestPathSafetyProtection:
         monkeypatch.setattr(Path, "resolve", fail_resolve)
 
         assert is_sensitive_path("data.csv") is True
-        with pytest.raises(ValueError, match="Invalid path: data.csv - cannot resolve path") as exc:
+        with pytest.raises(ValueError, match="Invalid path: 'data.csv' - cannot resolve path") as exc:
             validate_safe_path("data.csv")
         assert isinstance(exc.value.__cause__, error_type)
 

@@ -20,9 +20,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   escape sequences are not written raw. Because the zip-named subdirectory is
   now validated, a zip whose stem is `..` (e.g. `...zip`) raises instead of
   extracting into the parent of `extract_to` (#1692).
+- The same check now covers every public helper that creates a directory or
+  a file's parent: `ensure_directory_exists`, `touch_file`, `copy_file`,
+  `move_file`, `delete_existing_file_and_replace_it_with_an_empty_file`,
+  `safe_file_write`, `safe_json_write`, `atomic_write_path`,
+  `atomic_write_shapefile` and `download_file`. Each raises `PathSecurityError`
+  and creates nothing. New components containing a lone surrogate, which is
+  how undecodable (non-UTF-8) bytes reach Python, are refused as well. The
+  check is public as `reject_unsafe_new_directory_names` (#1716).
 
 ### Fixed
 
+- `get_directory_info`, `load_directory_config`, `list_directory_configs`,
+  `load_project_config` and `list_projects` create nothing, so they are back to
+  their behaviour before #1692: a missing name containing a control character
+  returns `{}`, `None`, `[]`, raises `FileNotFoundError` and returns `[]`
+  respectively, instead of raising `PathSecurityError` (#1716).
+- The test suite drops every inherited `SIEGE_*` variable except the
+  `SIEGE_TEST_*` run controls, so a run never reads or rewrites the
+  developer's own config through `SIEGE_USER_CONFIG_DIR`,
+  `SIEGE_SETTINGS_FILE` or any `SIEGE_<SETTING>` override (#1717).
 - `populate_nlrb_regions` now creates registry-only rows by default without
   raising `IntegrityError`. Migration 0018 makes only `NLRBRegion.geometry`
   nullable; callers must allow NULL geometry, and population returns and logs
