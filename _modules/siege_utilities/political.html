@@ -9019,15 +9019,11 @@
 <span class="sd">- RedistrictingPlan / PlanDistrictAssignment — plan-scoped Seat→polygon mapping.</span>
 <span class="sd">- StateElectionCalendar — per-state election dates per cycle.</span>
 
-<span class="sd">Schema lives in a PostgreSQL schema named ``political`` — consumer</span>
+<span class="sd">Schema requires PostgreSQL 15+ and lives in a schema named ``political`` — consumer</span>
 <span class="sd">projects apply these migrations via</span>
 <span class="sd">``siege_utilities.schema.MigrationRunner`` pointed at</span>
 <span class="sd">``siege_utilities.political.schema_migrations_dir()`` BEFORE running</span>
 <span class="sd">their own enterprise-specific migrations that FK into ``political.*``.</span>
-
-<span class="sd">Django models that wrap these tables (for downstream ORM / API access)</span>
-<span class="sd">live under ``siege_utilities/political/models/`` as ``managed = False``</span>
-<span class="sd">Django models — per the project principle "ontology → DB → Django last."</span>
 <span class="sd">"""</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>

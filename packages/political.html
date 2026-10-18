@@ -9023,14 +9023,11 @@ projects (LegiNation, socialwarehouse, electinfo, future clients):</p>
 <li><p>RedistrictingPlan / PlanDistrictAssignment — plan-scoped Seat→polygon mapping.</p></li>
 <li><p>StateElectionCalendar — per-state election dates per cycle.</p></li>
 </ul>
-<p>Schema lives in a PostgreSQL schema named <code class="docutils literal notranslate"><span class="pre">political</span></code> — consumer
+<p>Schema requires PostgreSQL 15+ and lives in a schema named <code class="docutils literal notranslate"><span class="pre">political</span></code> — consumer
 projects apply these migrations via
 <code class="docutils literal notranslate"><span class="pre">siege_utilities.schema.MigrationRunner</span></code> pointed at
 <code class="docutils literal notranslate"><span class="pre">siege_utilities.political.schema_migrations_dir()</span></code> BEFORE running
 their own enterprise-specific migrations that FK into <code class="docutils literal notranslate"><span class="pre">political.*</span></code>.</p>
-<p>Django models that wrap these tables (for downstream ORM / API access)
-live under <code class="docutils literal notranslate"><span class="pre">siege_utilities/political/models/</span></code> as <code class="docutils literal notranslate"><span class="pre">managed</span> <span class="pre">=</span> <span class="pre">False</span></code>
-Django models — per the project principle “ontology → DB → Django last.”</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="siege_utilities.political.schema_migrations_dir">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.political.</span></span><span class="sig-name descname"><span class="pre">schema_migrations_dir</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/political.html#schema_migrations_dir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.political.schema_migrations_dir" title="Link to this definition"></a></dt>
