@@ -171,6 +171,22 @@ class TestParse:
             QCEWFiles(cache_dir=tmp_path).parse(singlefile_probe, year=2024, quarter=1, **kwargs)
 
 
+def test_parse_flags_lq_and_oty_suppression_separately(tmp_path):
+    # Real 2024Q1 shape (area 02164, NAICS 31-33): level disclosed, OTY not.
+    csv = tmp_path / "oty.csv"
+    csv.write_text(
+        "area_fips,own_code,industry_code,agglvl_code,qtr,year,disclosure_code,month3_emplvl,"
+        "lq_disclosure_code,lq_month3_emplvl,oty_disclosure_code,oty_month3_emplvl_chg\n"
+        "02164,5,31-33,74,1,2024,,24,,0.43,N,0\n"
+    )
+    df = QCEWFiles(cache_dir=tmp_path).parse(
+        csv, year=2024, quarter=1, state_fips="02", area_level="county",
+    )
+    assert df["is_suppressed"].tolist() == [False]
+    assert df["is_oty_suppressed"].tolist() == [True]
+    assert df["is_lq_suppressed"].tolist() == [False]
+
+
 def test_load_forwards_selection(tmp_path, singlefile_probe):
     files = QCEWFiles(cache_dir=tmp_path)
     with patch.object(files, "download", return_value=singlefile_probe):

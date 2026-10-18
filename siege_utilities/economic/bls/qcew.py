@@ -158,7 +158,11 @@ class QCEWFiles:
         Returns every input column with its original name and values,
         plus boolean `is_suppressed`, true when `disclosure_code` is "N".
         Suppressed employment/wage zeros remain source sentinels and must
-        not be treated as measured zeros; exclude flagged rows before
+        not be treated as measured zeros. When `lq_disclosure_code` or
+        `oty_disclosure_code` is present, also adds boolean `is_lq_suppressed`
+        or `is_oty_suppressed`, respectively, true when that code is "N".
+        The corresponding `lq_*`/`oty_*` zeros are sentinels whenever those
+        codes are "N". Exclude rows flagged for the relevant measures before
         calculations. `area_fips` and `industry_code` are read as strings
         to retain leading zeros. The result has a fresh integer index.
         Requires the BLS `own_code`, `agglvl_code`, and `disclosure_code`
@@ -198,6 +202,10 @@ class QCEWFiles:
             df = df[df["industry_code"].str.fullmatch(rf"[0-9]{{{naics_depth}}}", na=False)]
         df = df.reset_index(drop=True)
         df["is_suppressed"] = df["disclosure_code"].eq("N")
+        if "lq_disclosure_code" in df.columns:
+            df["is_lq_suppressed"] = df["lq_disclosure_code"].eq("N")
+        if "oty_disclosure_code" in df.columns:
+            df["is_oty_suppressed"] = df["oty_disclosure_code"].eq("N")
         return df
 
     def load(

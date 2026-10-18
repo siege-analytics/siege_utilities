@@ -18,8 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ownership and `county`, `national`, or `msa` area level; the aggregation
   code follows the requested NAICS depth. Suppressed rows (`disclosure_code`
   of `N`) carry a boolean `is_suppressed` flag, so their source employment
-  and wage zeros can be excluded from calculations. The parser docstring
-  now describes all preserved source columns plus this flag (#1507).
+  and wage zeros can be excluded from calculations. When their source
+  disclosure columns exist, boolean `is_lq_suppressed` and `is_oty_suppressed`
+  flags separately identify `lq_disclosure_code` and `oty_disclosure_code`
+  values of `N`; corresponding `lq_*`/`oty_*` zeros are sentinels, not measured
+  zeros. The parser docstring now describes all preserved source columns
+  plus these flags (#1507).
 
 ## [4.1.0] - 2026-10-18
 
