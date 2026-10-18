@@ -3,8 +3,6 @@ import os
 import pathlib
 from pathlib import Path
 import json
-import shutil
-import tempfile
 import logging
 import uuid
 
@@ -953,114 +951,189 @@ def backup_full_dataframe(df, step_name: str) -> None:
     log_info(f'{step_name}: Full DataFrame successfully backed up.')
 
 
+def _hadoop_delete_if_exists(fs, path):
+    """Delete a Hadoop path, treating a false return as a failure."""
+    if fs.exists(path):
+        if not fs.delete(path, True) or fs.exists(path):
+            raise OSError(f'Failed to delete Hadoop path: {path.toString()}')
+
+
+def _hadoop_rename(fs, source, destination):
+    """Check both Hadoop's boolean result and rename postconditions."""
+    if fs.exists(destination):
+        raise FileExistsError(f'Rename destination already exists: {destination.toString()}')
+    if not fs.rename(source, destination):
+        raise OSError(
+            f'Failed to rename {source.toString()} to {destination.toString()}'
+        )
+    if fs.exists(source) or not fs.exists(destination):
+        raise OSError(
+            f'Incomplete rename of {source.toString()} to {destination.toString()}'
+        )
+
+
+def _hadoop_data_files(fs, directory):
+    """Inventory data files, including partitions but excluding Spark markers."""
+    if not fs.isDirectory(directory):
+        raise OSError(f'Not a staged output directory: {directory.toString()}')
+    prefix = directory.toUri().getPath().rstrip('/') + '/'
+    files = {}
+    statuses = fs.listFiles(directory, True)
+    while statuses.hasNext():
+        status = statuses.next()
+        relative = status.getPath().toUri().getPath()[len(prefix):]
+        # Underscore-prefixed partition columns produce valid "_key=value" dirs.
+        if any(
+            part.startswith('.') or (part.startswith('_') and '=' not in part)
+            for part in relative.split('/')
+        ):
+            continue
+        files[relative] = status.getLen()
+    if not files:
+        raise OSError(f'Spark output contains no data files: {directory.toString()}')
+    return files
+
+
 def atomic_write_with_staging(df: "DataFrame", final_destination: str,
     staging_directory: str, file_format: str='csv', delimiter: str=',',
     header: bool=True, mode: str='overwrite') -> None:
-    """Write a DataFrame atomically via a staging directory.
+    """Publish staged Spark output using its Hadoop filesystem.
 
-    Writes ``df`` to ``staging_directory``, then copies the complete result
-    into a sibling directory on the destination filesystem before publishing
-    it by rename. Write/copy failures leave the destination untouched. Existing
-    nonempty destinations are renamed to a unique backup before publication;
-    a failed publication restores that backup. There is a brief absence between
-    those two renames, but no partially copied directory is published.
+    Resolve both paths through the DataFrame's JVM-backed Spark session, so
+    scheme-less paths use Hadoop's default filesystem. Rename the entire staged
+    directory to the destination, moving an existing destination to a unique
+    sibling backup first. Verify nonempty data files before and after promotion;
+    remove the backup only after successful verification. On promotion failure,
+    remove incomplete output and restore the previous destination.
+
+    This is not a transaction: readers may see a brief absence between renames.
+    Rename atomicity depends on the filesystem; object stores may implement it
+    as copy/delete and expose intermediate data. Recovery requires a functioning
+    filesystem. If recovery fails, raise and retain the backup for manual repair.
+    Callers must serialize writes to the destination and use exclusive staging
+    paths. Process termination or concurrent writers cannot be recovered here.
 
     Parameters
     ----------
     df : pyspark.sql.DataFrame
-        DataFrame to write.
+        DataFrame with a JVM-backed Spark session (Spark Connect is unsupported).
     final_destination : str
-        Target path where the completed output should live. Must be
-        empty or absent (unless ``mode='overwrite'``).
+        Target path, replaced after a successful staging write regardless of
+        ``mode``. Must share a filesystem with staging and must not overlap it.
     staging_directory : str
-        Working directory where the write happens before the atomic
-        move. Recommended: build via
-        :func:`create_unique_staging_directory` to avoid concurrent
-        collisions. Removed on success and on failure.
+        Exclusive working path on the same Hadoop filesystem. Existing contents
+        are removed before writing; cleanup is attempted on success and failure.
+        Supply a unique path using the same URI rules as ``df.write.save``.
     file_format : str
-        Output format. Currently supports ``'csv'`` and ``'parquet'``;
-        defaults to ``'csv'``.
+        Spark output format, default ``'csv'``; also accepts parquet, JSON and
+        other formats supported by the Spark writer.
     delimiter : str
-        Field delimiter for CSV output. Ignored for parquet. Defaults
-        to ``','``.
+        CSV field delimiter, default ``','``. Ignored for other formats.
     header : bool
-        Include header row in CSV output. Ignored for parquet.
-        Defaults to ``True``.
+        Include the CSV header, default ``True``. Ignored for other formats.
     mode : str
-        Spark write mode passed to ``df.write.mode(...)``. Defaults to
-        ``'overwrite'``.
+        Passed to Spark's write into freshly cleared staging, default
+        ``'overwrite'``. It does not govern the final destination: ``'append'``
+        does not append there and ``'ignore'`` does not preserve existing output.
 
     Returns
     -------
     None
-        Side effect only — writes to ``final_destination``.
+        Side effect only; success is logged after verified nonempty promotion.
 
     Raises
     ------
+    ValueError
+        Staging and destination use different filesystems or overlap.
     OSError
-        Filesystem failures are propagated after staging cleanup. Spark write
-        errors also propagate unchanged.
+        A Hadoop mutation returns false, a rename is incomplete, or staged or
+        promoted data is empty or differs from the staged file names and sizes.
+        Backup deletion can also raise after verified output is published.
+    RuntimeError
+        No JVM-backed Spark session is available, or recovery fails. A recovery
+        error identifies the retained backup path and chains the recovery cause.
+    Exception
+        Spark write and Hadoop API exceptions otherwise propagate unchanged.
+        Staging cleanup errors are logged without masking the primary failure.
     """
-    sibling_staging = None
     try:
-        log_info(f'Starting atomic write operation to {final_destination}')
-        log_info(f'Using staging directory: {staging_directory}')
-        if os.path.exists(staging_directory):
-            shutil.rmtree(staging_directory)
-        os.makedirs(staging_directory, exist_ok=True)
-        log_info('Writing data to staging directory')
+        spark = df.sparkSession
+        hadoop_path = spark._jvm.org.apache.hadoop.fs.Path
+        conf = spark._jsc.hadoopConfiguration()
+    except AttributeError as error:
+        raise RuntimeError('A JVM-backed Spark session is required') from error
+
+    staging = hadoop_path(str(staging_directory))
+    final = hadoop_path(str(final_destination))
+    fs = staging.getFileSystem(conf)
+    final_fs = final.getFileSystem(conf)
+    if fs.getUri().toString() != final_fs.getUri().toString():
+        raise ValueError('Staging and destination must use the same filesystem')
+    staging, final = fs.makeQualified(staging), fs.makeQualified(final)
+    # Validate before cleanup so aliases and nested paths cannot delete output.
+    for ancestor, descendant in ((staging, final), (final, staging)):
+        current = descendant
+        while current is not None:
+            if ancestor.equals(current):
+                raise ValueError('Staging and destination must not overlap')
+            current = current.getParent()
+
+    backup = None
+    backup_ready = False
+    promotion_started = False
+    try:
+        log_info(f'Starting staged write to {final.toString()}')
+        _hadoop_delete_if_exists(fs, staging)
         writer = df.write.mode(mode)
         if file_format.lower() == 'csv':
             writer = writer.format('csv').option('header', str(header).lower()
                 ).option('delimiter', delimiter)
-        elif file_format.lower() == 'parquet':
-            writer = writer.format('parquet')
-        elif file_format.lower() == 'json':
-            writer = writer.format('json')
+        elif file_format.lower() in ('parquet', 'json'):
+            writer = writer.format(file_format.lower())
         else:
             writer = writer.format(file_format)
         writer.save(staging_directory)
-        log_info('Successfully wrote data to staging directory')
-        final_path = Path(final_destination)
-        final_path.parent.mkdir(parents=True, exist_ok=True)
-        sibling_staging = tempfile.mkdtemp(
-            dir=final_path.parent, prefix=f'.{final_path.name}_staging_',
-        )
-        # Retain the directory permissions Spark chose rather than publishing
-        # mkdtemp's private mode for a potentially shared dataset.
-        shutil.copymode(staging_directory, sibling_staging)
-        log_info('Copying staged files to destination filesystem')
-        files_moved = 0
-        for item in os.listdir(staging_directory):
-            source_path = os.path.join(staging_directory, item)
-            dest_path = os.path.join(sibling_staging, item)
-            if os.path.isdir(source_path):
-                shutil.copytree(source_path, dest_path)
-            else:
-                shutil.copy2(source_path, dest_path)
-            files_moved += 1
-        backup_dir = None
-        if final_path.is_dir() and any(final_path.iterdir()):
-            backup_dir = final_path.with_name(f'{final_path.name}_backup_{uuid.uuid4().hex}')
-            log_info(f'Backing up existing data to {backup_dir}')
-            os.replace(final_path, backup_dir)
+        staged_files = _hadoop_data_files(fs, staging)
+        if not fs.mkdirs(final.getParent()):
+            raise OSError(f'Failed to create destination parent: {final.toString()}')
         try:
-            os.replace(sibling_staging, final_path)
-        except BaseException:
-            if backup_dir is not None:
-                os.replace(backup_dir, final_path)
-            raise
-        log_info(f'Successfully moved {files_moved} items to final destination'
-            )
-        log_info('Atomic write operation completed successfully')
-    finally:
-        for directory in (sibling_staging, staging_directory):
+            if fs.exists(final):
+                backup = hadoop_path(
+                    final.getParent(), f'{final.getName()}_backup_{uuid.uuid4().hex}'
+                )
+                _hadoop_rename(fs, final, backup)
+                backup_ready = True
+            promotion_started = True
+            _hadoop_rename(fs, staging, final)
+            if _hadoop_data_files(fs, final) != staged_files:
+                raise OSError(f'Promoted files differ from staging: {final.toString()}')
+        except BaseException as promotion_error:
             try:
-                if directory is not None and os.path.exists(directory):
-                    shutil.rmtree(directory)
-                    log_info(f'Cleaned up staging directory: {directory}')
-            except OSError as cleanup_error:
-                log_error(f'Error cleaning up staging directory: {cleanup_error}')
+                if backup is not None and fs.exists(backup):
+                    # A failed backup rename may still have moved the source.
+                    # If it did not, leave the original destination untouched.
+                    if backup_ready or not fs.exists(final):
+                        _hadoop_delete_if_exists(fs, final)
+                        _hadoop_rename(fs, backup, final)
+                elif promotion_started:
+                    _hadoop_delete_if_exists(fs, final)
+            except BaseException as recovery_error:
+                backup_location = backup.toString() if backup is not None else 'none'
+                raise RuntimeError(
+                    f'Promotion failed ({promotion_error}); recovery failed for '
+                    f'{final.toString()}; backup retained at {backup_location}'
+                ) from recovery_error
+            raise
+        # Do not attempt rollback once backup pruning has begun.
+        if backup is not None:
+            _hadoop_delete_if_exists(fs, backup)
+        log_info(f'Successfully promoted {len(staged_files)} data files to {final.toString()}')
+        log_info('Staged write operation completed successfully')
+    finally:
+        try:
+            _hadoop_delete_if_exists(fs, staging)
+        except Exception as cleanup_error:
+            log_error(f'Error cleaning up staging directory {staging.toString()}: {cleanup_error}')
 
 
 def create_unique_staging_directory(base_path, operation_name: str = 'operation') -> str:

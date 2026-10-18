@@ -3,12 +3,12 @@
 import os
 from pathlib import Path
 import stat
-from types import SimpleNamespace
 
 import pytest
 
 from siege_utilities.files import operations
 from siege_utilities.files.secure_write import secure_write_text
+from tests.hadoop_fs_support import HadoopFileSystem, dataframe
 
 
 def test_secure_write_encoding_failure_preserves_private_profile(tmp_path):
@@ -113,12 +113,13 @@ class ThreePartWriter:
         return self
 
     def save(self, destination):
+        Path(destination).mkdir(parents=True, exist_ok=True)
         for index in range(3):
             (Path(destination) / f"part-{index}.csv").write_text(f"id\n{index}\n")
 
 
 @pytest.mark.parametrize("existing", [False, True])
-def test_staging_copy_failure_preserves_destination(tmp_path, monkeypatch, existing):
+def test_staging_write_failure_preserves_destination(tmp_path, monkeypatch, existing):
     from siege_utilities.distributed import spark_utils
 
     final = tmp_path / "final"
@@ -126,22 +127,21 @@ def test_staging_copy_failure_preserves_destination(tmp_path, monkeypatch, exist
     if existing:
         final.mkdir()
         (final / "old.csv").write_bytes(b"old complete data")
-    real_copy = spark_utils.shutil.copy2
-    copies = []
+    fs = HadoopFileSystem("file://")
+    writer = ThreePartWriter()
 
-    def interrupted_copy(source, destination, *args, **kwargs):
-        copies.append(destination)
-        if len(copies) == 2:
-            raise OSError("second copy failed")
-        return real_copy(source, destination, *args, **kwargs)
+    def interrupted_write(destination):
+        Path(destination).mkdir()
+        (Path(destination) / "part-0.csv").write_text("partial output")
+        raise OSError("staging write failed")
 
-    monkeypatch.setattr(spark_utils.shutil, "copy2", interrupted_copy)
-    with pytest.raises(OSError, match="second copy failed"):
+    monkeypatch.setattr(writer, "save", interrupted_write)
+    with pytest.raises(OSError, match="staging write failed"):
         spark_utils.atomic_write_with_staging(
-            SimpleNamespace(write=ThreePartWriter()), str(final), str(staging),
+            dataframe(fs, writer), str(final), str(staging),
         )
 
-    assert len(copies) == 2
+    assert fs.renames == []
     if existing:
         assert sorted(p.name for p in final.iterdir()) == ["old.csv"]
         assert (final / "old.csv").read_bytes() == b"old complete data"
@@ -156,20 +156,21 @@ def test_staging_publish_failure_restores_backup(tmp_path, monkeypatch):
     final = tmp_path / "final"
     final.mkdir()
     (final / "old.csv").write_bytes(b"old complete data")
-    real_replace = os.replace
+    fs = HadoopFileSystem("file://")
+    real_rename = fs.rename
 
     def fail_publication(source, destination):
-        if Path(source).name.startswith(".final_staging_"):
-            assert sorted(p.name for p in Path(source).iterdir()) == [
+        if source.getName() == "staging":
+            assert sorted(p.name for p in fs.local(source).iterdir()) == [
                 "part-0.csv", "part-1.csv", "part-2.csv",
             ]
             raise OSError("publication failed")
-        real_replace(source, destination)
+        return real_rename(source, destination)
 
-    monkeypatch.setattr(spark_utils.os, "replace", fail_publication)
+    monkeypatch.setattr(fs, "rename", fail_publication)
     with pytest.raises(OSError, match="publication failed"):
         spark_utils.atomic_write_with_staging(
-            SimpleNamespace(write=ThreePartWriter()), str(final), str(tmp_path / "staging"),
+            dataframe(fs, ThreePartWriter()), str(final), str(tmp_path / "staging"),
         )
     assert (final / "old.csv").read_bytes() == b"old complete data"
     assert list(tmp_path.iterdir()) == [final]
@@ -185,21 +186,21 @@ def test_staging_publishes_all_parts_together(tmp_path, monkeypatch, existing):
         final.mkdir()
     if existing == "nonempty":
         (final / "old.csv").write_bytes(b"old complete data")
-    real_replace = os.replace
+    fs = HadoopFileSystem("file://")
+    real_rename = fs.rename
     publications = []
 
-    def replace(source, destination):
-        if Path(source).name.startswith(".final_staging_"):
-            assert Path(source).parent == final.parent
-            assert sorted(p.name for p in Path(source).iterdir()) == [
+    def rename(source, destination):
+        if source.getName() == "staging":
+            assert sorted(p.name for p in fs.local(source).iterdir()) == [
                 "part-0.csv", "part-1.csv", "part-2.csv",
             ]
-            publications.append(destination)
-        real_replace(source, destination)
+            publications.append(fs.local(destination))
+        return real_rename(source, destination)
 
-    monkeypatch.setattr(spark_utils.os, "replace", replace)
+    monkeypatch.setattr(fs, "rename", rename)
     spark_utils.atomic_write_with_staging(
-        SimpleNamespace(write=ThreePartWriter()), str(final), str(staging),
+        dataframe(fs, ThreePartWriter()), str(final), str(staging),
     )
     assert publications == [final]
     for index in range(3):
@@ -207,6 +208,4 @@ def test_staging_publishes_all_parts_together(tmp_path, monkeypatch, existing):
     assert not staging.exists()
     assert not list(tmp_path.glob(".final_staging_*"))
     backups = list(tmp_path.glob("final_backup_*"))
-    assert len(backups) == (1 if existing == "nonempty" else 0)
-    if backups:
-        assert (backups[0] / "old.csv").read_bytes() == b"old complete data"
+    assert backups == []
