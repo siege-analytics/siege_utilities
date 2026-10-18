@@ -501,13 +501,14 @@ jobs:
           --ignore-vuln PYSEC-2026-1835 --format json --output pip-audit-report.json \
           || { pip-audit -r security-requirements.txt --no-deps --disable-pip --progress-spinner off --ignore-vuln PYSEC-2026-1835; exit 1; }
 
-    - name: Fail on new high-severity bandit findings
+    - name: Fail on high-severity bandit findings
       if: ${{ !cancelled() }}
-      # Findings that exist today are in .bandit-baseline.json and tracked in
-      # #1754; anything new at high severity and confidence fails.
+      # The findings known today carry line-level `# nosec` and are tracked in
+      # #1754. A baseline file would match by file and test, not line, and let
+      # a new finding in the same file through, so none is used.
       run: |
         bandit -r siege_utilities/ -f json -o bandit-report.json || true
-        bandit -q -r siege_utilities/ -lll -iii -b .bandit-baseline.json
+        bandit -q -r siege_utilities/ -lll -iii
 
     - name: Upload security reports
       if: ${{ !cancelled() }}
@@ -676,7 +677,13 @@ jobs:
       run: pip install "griffe>=1.0.0"
 
     - name: Fetch base branch
-      run: git fetch origin ${{ github.base_ref || github.event.merge_group.base_ref || 'develop' }}
+      env:
+        # A merge-queue run has no base_ref; its base is refs/heads/<branch>.
+        BASE_REF: ${{ github.base_ref || github.event.merge_group.base_ref || 'develop' }}
+      run: |
+        BASE="${BASE_REF#refs/heads/}"
+        echo "GRIFFE_BASE=${BASE}" >> "$GITHUB_ENV"
+        git fetch origin "${BASE}"
 
     - name: Run griffe check
       continue-on-error: true  # advisory; ratchet to blocking after 1 release cycle
@@ -685,7 +692,7 @@ jobs:
         # commit. Non-zero exit means a breaking change was detected;
         # reviewer decides whether the CHANGELOG needs a BREAKING entry.
         griffe check siege_utilities \
-          --against origin/${{ github.base_ref || github.event.merge_group.base_ref || 'develop' }} \
+          --against "origin/${GRIFFE_BASE}" \
           || echo "::warning::griffe found API changes vs base branch — review whether BREAKING changelog entry is needed (writing-releases:1)"
 
   battle-test:

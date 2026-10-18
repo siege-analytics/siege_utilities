@@ -262,7 +262,8 @@ class BaseReportTemplate:
         with caching for URLs. Returns the path to the image data.
         """
         if image_source.startswith(('http://', 'https://')):
-            image_hash = md5(image_source.encode('utf-8')).hexdigest()
+            # Known bandit B324 finding, suppressed here and tracked in #1754.
+            image_hash = md5(image_source.encode('utf-8')).hexdigest()  # nosec B324
             
             # Determine file extension based on content type
             ext = '.png'  # Default
