@@ -450,7 +450,23 @@ class BaseReportTemplate:
         """
         try:
             self.doc.pageTemplates = self._get_page_templates()
-            self.doc.build(story)
+            if any(flowable.isIndexing() for flowable in story):
+                previous_after_flowable = self.doc.afterFlowable
+
+                def record_toc_entry(flowable):
+                    previous_after_flowable(flowable)
+                    entry = getattr(flowable, '_toc_entry', None)
+                    if entry is not None:
+                        level, title = entry
+                        self.doc.notify('TOCEntry', (level, title, self.doc.page))
+
+                self.doc.afterFlowable = record_toc_entry
+                try:
+                    self.doc.multiBuild(story)
+                finally:
+                    self.doc.afterFlowable = previous_after_flowable
+            else:
+                self.doc.build(story)
             log.info(f"Document '{self.output_filename}' built successfully.")
         except Exception as e:
             log.error(f"Error building document '{self.output_filename}': {e}", exc_info=True)
@@ -467,7 +483,7 @@ class BaseReportTemplate:
         # #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.
         raise NotImplementedError("Subclasses must implement generate_report method")
 
-    def add_title_page(self, title: str, subtitle: str = "", author: str = "", date: str = ""):
+    def add_title_page(self, title: str, subtitle: str = "", author: str = "", date: str = "", client: str = ""):
         """
         Add a title page to the report.
         
@@ -476,6 +492,7 @@ class BaseReportTemplate:
             subtitle: Subtitle or description
             author: Author of the report
             date: Date of the report
+            client: Client for whom the report was prepared
         """
         story = []
         
@@ -493,6 +510,11 @@ class BaseReportTemplate:
             story.append(Paragraph(f"Prepared by: {_escape_paragraph(author)}", self.styles['BodyText']))
             story.append(Spacer(1, 0.1 * inch))
         
+        # Client
+        if client:
+            story.append(Paragraph(f"Prepared for: {_escape_paragraph(client)}", self.styles['BodyText']))
+            story.append(Spacer(1, 0.1 * inch))
+
         # Date
         if date:
             story.append(Paragraph(f"Date: {_escape_paragraph(date)}", self.styles['BodyText']))

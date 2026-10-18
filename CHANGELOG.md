@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Render analytics and comprehensive PDF report sections, including chart lists,
+  insight and recommendation bullets, title-page details, a table of contents
+  with page numbers, and appendix dividers. Normalize table record dictionaries
+  into column-aligned values. Reject unsupported section shapes
+  and warn about empty content or missing chart images. Continue content-page
+  paragraphs and tables across page breaks, repeating table headers and raising
+  when a fragment cannot fit, instead of silently discarding content (#1485).
+
 - `is_sensitive_path` again blocks `_`/`-` prefixed private-key names outside
   `.ssh` (`deploy_id_rsa`, `github-id_ecdsa`) and now covers `id_ed25519`;
   `paid_rsa` and `*.pub` stay allowed (#1702).
