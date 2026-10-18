@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Label the Spark notebook's Sedona SQL as schematic and document the required
+  donor and precinct views, geometry inputs, and runtime prerequisites. Clarify
+  that notebook execution checks imports, with cluster-free CI regression
+  coverage for the documented contract and import smoke test (#1664).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
