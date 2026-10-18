@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Label `analytics/02_ga_end_to_end.ipynb` and its chart, PDF and sharing
+  example as an offline fixed-date demo. The April 2026 fixture and fixed
+  prior-week comparison no longer appear to be queried GA results. Document
+  a separate credentialed two-week query that raises on failed or malformed
+  results, and test the offline output and documented recipe (#1662).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
