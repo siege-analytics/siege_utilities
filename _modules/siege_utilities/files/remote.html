@@ -8671,6 +8671,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_safe_path"><code class="docutils literal notranslate"><span class="pre">validate_safe_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_file_path"><code class="docutils literal notranslate"><span class="pre">validate_file_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_directory_path"><code class="docutils literal notranslate"><span class="pre">validate_directory_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.reject_unsafe_new_directory_names"><code class="docutils literal notranslate"><span class="pre">reject_unsafe_new_directory_names()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.safe_join_paths"><code class="docutils literal notranslate"><span class="pre">safe_join_paths()</span></code></a></li>
 </ul>
 </li>
@@ -8992,6 +8993,8 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Union</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.operations</span><span class="w"> </span><span class="kn">import</span> <span class="n">_create_parent_directory</span>
+
 <span class="k">try</span><span class="p">:</span>
     <span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
     <span class="n">REQUESTS_AVAILABLE</span> <span class="o">=</span> <span class="kc">True</span>
@@ -9121,7 +9124,7 @@
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
         <span class="n">local_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">local_filename</span><span class="p">)</span>
 
-    <span class="n">local_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">_create_parent_directory</span><span class="p">(</span><span class="n">local_path</span><span class="p">)</span>
 
     <span class="n">ssl_verify</span> <span class="o">=</span> <span class="n">_get_ssl_verify_path</span><span class="p">()</span> <span class="k">if</span> <span class="n">verify_ssl</span> <span class="k">else</span> <span class="kc">False</span>
     <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'User-Agent'</span><span class="p">:</span> <span class="s1">'siege_utilities/1.0 (Census/GIS data client)'</span><span class="p">}</span>

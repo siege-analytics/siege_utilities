@@ -8674,6 +8674,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.files.validation.validate_safe_path"><code class="docutils literal notranslate"><span class="pre">validate_safe_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.files.validation.validate_file_path"><code class="docutils literal notranslate"><span class="pre">validate_file_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.files.validation.validate_directory_path"><code class="docutils literal notranslate"><span class="pre">validate_directory_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#siege_utilities.files.validation.reject_unsafe_new_directory_names"><code class="docutils literal notranslate"><span class="pre">reject_unsafe_new_directory_names()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#siege_utilities.files.validation.safe_join_paths"><code class="docutils literal notranslate"><span class="pre">safe_join_paths()</span></code></a></li>
 </ul>
 </li>
@@ -11861,6 +11862,10 @@ data to disk in the requested format.  Enum types <code class="docutils literal 
 <dt class="sig sig-object py" id="siege_utilities.files.validation.validate_directory_path">
 <span class="sig-prename descclassname"><span class="pre">siege_utilities.files.validation.</span></span><span class="sig-name descname"><span class="pre">validate_directory_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dir_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">must_exist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_directory</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/files/validation.html#validate_directory_path"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.files.validation.validate_directory_path" title="Link to this definition"></a></dt>
 <dd><p>Validate a directory path.</p>
+<p>When must_exist is False the directory may be about to be created, so any
+component that does not exist yet must be free of control characters (C0,
+DEL, C1). Existing directories with such names still validate, provided
+they can be stat’ed; one under an unreadable parent counts as new.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -11874,7 +11879,8 @@ data to disk in the requested format.  Enum types <code class="docutils literal 
 </dd>
 <dt class="field-odd">Raises<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><a class="reference internal" href="#siege_utilities.files.validation.PathSecurityError" title="siege_utilities.files.validation.PathSecurityError"><strong>PathSecurityError</strong></a> – If path fails security validation</p></li>
+<li><p><a class="reference internal" href="#siege_utilities.files.validation.PathSecurityError" title="siege_utilities.files.validation.PathSecurityError"><strong>PathSecurityError</strong></a> – If path fails security validation, or a component
+    that would be created contains a control character</p></li>
 <li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#FileNotFoundError" title="(in Python v3.15)"><strong>FileNotFoundError</strong></a> – If must_exist=True and directory doesn’t exist</p></li>
 <li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.15)"><strong>ValueError</strong></a> – If path is invalid or not a directory</p></li>
 </ul>
@@ -11888,6 +11894,33 @@ data to disk in the requested format.  Enum types <code class="docutils literal 
 <span class="gp">&gt;&gt;&gt; </span><span class="n">path</span> <span class="o">=</span> <span class="n">validate_directory_path</span><span class="p">(</span><span class="s2">"logs"</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="siege_utilities.files.validation.reject_unsafe_new_directory_names">
+<span class="sig-prename descclassname"><span class="pre">siege_utilities.files.validation.</span></span><span class="sig-name descname"><span class="pre">reject_unsafe_new_directory_names</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">directory</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/siege_utilities/files/validation.html#reject_unsafe_new_directory_names"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#siege_utilities.files.validation.reject_unsafe_new_directory_names" title="Link to this definition"></a></dt>
+<dd><p>Refuse a directory path whose not-yet-existing components would be unsafe names.</p>
+<p>Call this immediately before <code class="docutils literal notranslate"><span class="pre">Path(directory).mkdir(parents=True)</span></code>, for
+example on a file’s parent. The path is checked as written, not resolved,
+because that is what <code class="docutils literal notranslate"><span class="pre">mkdir</span></code> creates: in <code class="docutils literal notranslate"><span class="pre">a/&lt;new&gt;/../b</span></code> it creates
+<code class="docutils literal notranslate"><span class="pre">&lt;new&gt;</span></code> on the way, so <code class="docutils literal notranslate"><span class="pre">&lt;new&gt;</span></code> is checked even though <code class="docutils literal notranslate"><span class="pre">..</span></code> cancels
+it. Components that already exist (including symlinks) are accepted
+whatever their name; a new one containing a C0, DEL or C1 control, or a
+lone surrogate (undecodable bytes), raises. Nothing is created.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">directory</span></code> as a Path, unchanged.</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#siege_utilities.files.validation.PathSecurityError" title="siege_utilities.files.validation.PathSecurityError"><strong>PathSecurityError</strong></a> – If a component to be created has an unsafe name.</p>
+</dd>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>directory</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><em>str</em></a><em> | </em><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="conf.html#siege_utilities.conf.Path" title="pathlib.Path"><em>Path</em></a></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">

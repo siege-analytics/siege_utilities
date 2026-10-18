@@ -8671,6 +8671,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_safe_path"><code class="docutils literal notranslate"><span class="pre">validate_safe_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_file_path"><code class="docutils literal notranslate"><span class="pre">validate_file_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_directory_path"><code class="docutils literal notranslate"><span class="pre">validate_directory_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.reject_unsafe_new_directory_names"><code class="docutils literal notranslate"><span class="pre">reject_unsafe_new_directory_names()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.safe_join_paths"><code class="docutils literal notranslate"><span class="pre">safe_join_paths()</span></code></a></li>
 </ul>
 </li>
@@ -9249,8 +9250,8 @@
 <span class="sd">    """</span>
     <span class="c1"># Validate config directory path</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
-        <span class="n">config_dir</span> <span class="o">=</span> <span class="n">validate_directory_path</span><span class="p">(</span><span class="n">config_directory</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
+        <span class="n">config_dir</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">config_directory</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
         <span class="n">config_dir</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">config_directory</span><span class="p">)</span>
 
@@ -9354,8 +9355,8 @@
 <span class="sd">    """</span>
     <span class="c1"># Validate directory path</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
-        <span class="n">dir_path</span> <span class="o">=</span> <span class="n">validate_directory_path</span><span class="p">(</span><span class="n">directory_path</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
+        <span class="n">dir_path</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">directory_path</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
         <span class="n">dir_path</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">directory_path</span><span class="p">)</span>
 
@@ -9502,8 +9503,8 @@
 <span class="sd">    """</span>
     <span class="c1"># Validate config directory path</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_directory_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
-        <span class="n">config_dir</span> <span class="o">=</span> <span class="n">validate_directory_path</span><span class="p">(</span><span class="n">config_directory</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span><span class="p">,</span> <span class="n">PathSecurityError</span>  <span class="c1"># noqa: F401, F811</span>
+        <span class="n">config_dir</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">config_directory</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
         <span class="n">config_dir</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">config_directory</span><span class="p">)</span>
 

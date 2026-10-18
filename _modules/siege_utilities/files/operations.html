@@ -8671,6 +8671,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_safe_path"><code class="docutils literal notranslate"><span class="pre">validate_safe_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_file_path"><code class="docutils literal notranslate"><span class="pre">validate_file_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_directory_path"><code class="docutils literal notranslate"><span class="pre">validate_directory_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.reject_unsafe_new_directory_names"><code class="docutils literal notranslate"><span class="pre">reject_unsafe_new_directory_names()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.safe_join_paths"><code class="docutils literal notranslate"><span class="pre">safe_join_paths()</span></code></a></li>
 </ul>
 </li>
@@ -9044,6 +9045,12 @@
 
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_create_parent_directory</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Create ``path``'s parent, refusing unsafe names for the parts that are new (#1716)."""</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">reject_unsafe_new_directory_names</span>
+    <span class="n">reject_unsafe_new_directory_names</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">parent</span><span class="p">)</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
 <div class="viewcode-block" id="atomic_write_path">
 <a class="viewcode-back" href="../../../packages/files.html#siege_utilities.files.operations.atomic_write_path">[docs]</a>
 <span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
@@ -9061,7 +9068,7 @@
 <span class="sd">    is left unchanged.</span>
 <span class="sd">    """</span>
     <span class="n">target</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
-    <span class="n">target</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">_create_parent_directory</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
     <span class="n">fd</span><span class="p">,</span> <span class="n">tmp_path</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkstemp</span><span class="p">(</span>
         <span class="nb">dir</span><span class="o">=</span><span class="n">target</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span>
         <span class="n">prefix</span><span class="o">=</span><span class="s2">"atomic_"</span><span class="p">,</span>
@@ -9087,7 +9094,7 @@
 <span class="sd">    to a temp stem then renames all produced files to the final stem.</span>
 <span class="sd">    """</span>
     <span class="n">target</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
-    <span class="n">target</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">_create_parent_directory</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
     <span class="n">tmp_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="n">target</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s2">"atomic_shp_"</span><span class="p">))</span>
     <span class="n">tmp_shp</span> <span class="o">=</span> <span class="n">tmp_dir</span> <span class="o">/</span> <span class="n">target</span><span class="o">.</span><span class="n">name</span>
     <span class="k">try</span><span class="p">:</span>
@@ -9221,7 +9228,7 @@
         <span class="n">path_obj</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">create_parents</span><span class="p">:</span>
-        <span class="n">path_obj</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">_create_parent_directory</span><span class="p">(</span><span class="n">path_obj</span><span class="p">)</span>
 
     <span class="n">path_obj</span><span class="o">.</span><span class="n">touch</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Created/updated file: </span><span class="si">{</span><span class="n">path_obj</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
@@ -9309,7 +9316,7 @@
     <span class="k">if</span> <span class="ow">not</span> <span class="n">source_obj</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
         <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Source is not a file: </span><span class="si">{</span><span class="n">source_obj</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
-    <span class="n">dest_obj</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">_create_parent_directory</span><span class="p">(</span><span class="n">dest_obj</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">dest_obj</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">FileExistsError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Destination file exists and overwrite=False: </span><span class="si">{</span><span class="n">dest_obj</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
@@ -9355,7 +9362,7 @@
     <span class="k">if</span> <span class="ow">not</span> <span class="n">source_obj</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
         <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Source is not a file: </span><span class="si">{</span><span class="n">source_obj</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
-    <span class="n">dest_obj</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">_create_parent_directory</span><span class="p">(</span><span class="n">dest_obj</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">dest_obj</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">FileExistsError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Destination file exists and overwrite=False: </span><span class="si">{</span><span class="n">dest_obj</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
@@ -9662,7 +9669,7 @@
 
         <span class="c1"># Create parent directories if needed</span>
         <span class="k">if</span> <span class="n">create_parents</span><span class="p">:</span>
-            <span class="n">path_obj</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">_create_parent_directory</span><span class="p">(</span><span class="n">path_obj</span><span class="p">)</span>
 
         <span class="c1"># Remove existing file if it exists</span>
         <span class="k">if</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
@@ -9695,8 +9702,8 @@
 <span class="sd">        PathSecurityError: If path fails security validation.</span>
 <span class="sd">    """</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_safe_path</span>
-        <span class="n">dir_path</span> <span class="o">=</span> <span class="n">validate_safe_path</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_directory_path</span>
+        <span class="n">dir_path</span> <span class="o">=</span> <span class="n">validate_directory_path</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
         <span class="n">dir_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">directory</span><span class="p">)</span>
     <span class="n">dir_path</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -9734,7 +9741,7 @@
         <span class="n">validated</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">create_dirs</span><span class="p">:</span>
-            <span class="n">validated</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">_create_parent_directory</span><span class="p">(</span><span class="n">validated</span><span class="p">)</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">validated</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="n">encoding</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
             <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">True</span>
@@ -9811,7 +9818,7 @@
         <span class="n">validated</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">create_dirs</span><span class="p">:</span>
-            <span class="n">validated</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">_create_parent_directory</span><span class="p">(</span><span class="n">validated</span><span class="p">)</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">validated</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
             <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="n">indent</span><span class="p">,</span> <span class="n">ensure_ascii</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">True</span>

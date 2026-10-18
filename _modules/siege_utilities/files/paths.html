@@ -8671,6 +8671,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_safe_path"><code class="docutils literal notranslate"><span class="pre">validate_safe_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_file_path"><code class="docutils literal notranslate"><span class="pre">validate_file_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_directory_path"><code class="docutils literal notranslate"><span class="pre">validate_directory_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.reject_unsafe_new_directory_names"><code class="docutils literal notranslate"><span class="pre">reject_unsafe_new_directory_names()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.safe_join_paths"><code class="docutils literal notranslate"><span class="pre">safe_join_paths()</span></code></a></li>
 </ul>
 </li>
@@ -9095,13 +9096,18 @@
     <span class="k">if</span> <span class="n">create_subdirectory</span><span class="p">:</span>
         <span class="n">subdir_name</span> <span class="o">=</span> <span class="n">zip_path</span><span class="o">.</span><span class="n">stem</span>
         <span class="n">target_dir</span> <span class="o">=</span> <span class="n">extract_dir</span> <span class="o">/</span> <span class="n">subdir_name</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># The subdirectory is named after the zip, so it is validated too (#1692).</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_directory_path</span>  <span class="c1"># noqa: F811</span>
+            <span class="n">target_dir</span> <span class="o">=</span> <span class="n">validate_directory_path</span><span class="p">(</span><span class="n">target_dir</span><span class="p">,</span> <span class="n">must_exist</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+            <span class="k">pass</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">target_dir</span> <span class="o">=</span> <span class="n">extract_dir</span>
 
-    <span class="n">target_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
     <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">zip_path</span><span class="p">,</span> <span class="s1">'r'</span><span class="p">)</span> <span class="k">as</span> <span class="n">zip_ref</span><span class="p">:</span>
         <span class="n">target_resolved</span> <span class="o">=</span> <span class="n">target_dir</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+        <span class="n">members</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">zip_ref</span><span class="o">.</span><span class="n">namelist</span><span class="p">():</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="p">(</span><span class="n">target_dir</span> <span class="o">/</span> <span class="n">member</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">target_resolved</span><span class="p">)</span>
@@ -9110,6 +9116,15 @@
                     <span class="s2">"Zip slip attempt detected, skipping member: </span><span class="si">%r</span><span class="s2">"</span><span class="p">,</span> <span class="n">member</span><span class="p">,</span>
                 <span class="p">)</span>
                 <span class="k">continue</span>
+            <span class="n">members</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">member</span><span class="p">)</span>
+        <span class="c1"># Refuse the whole archive, before creating anything, if extraction</span>
+        <span class="c1"># would create a directory with an unsafe name (#1716).</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.validation</span><span class="w"> </span><span class="kn">import</span> <span class="n">reject_unsafe_new_directory_names</span>
+        <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">members</span><span class="p">:</span>
+            <span class="n">destination</span> <span class="o">=</span> <span class="n">target_dir</span> <span class="o">/</span> <span class="n">member</span>
+            <span class="n">reject_unsafe_new_directory_names</span><span class="p">(</span><span class="n">destination</span> <span class="k">if</span> <span class="n">member</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">'/'</span><span class="p">)</span> <span class="k">else</span> <span class="n">destination</span><span class="o">.</span><span class="n">parent</span><span class="p">)</span>
+        <span class="n">target_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">members</span><span class="p">:</span>
             <span class="n">zip_ref</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="n">target_dir</span><span class="p">)</span>
 
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Extracted </span><span class="si">{</span><span class="n">zip_path</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">target_dir</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>

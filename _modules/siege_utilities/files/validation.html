@@ -8671,6 +8671,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_safe_path"><code class="docutils literal notranslate"><span class="pre">validate_safe_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_file_path"><code class="docutils literal notranslate"><span class="pre">validate_file_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_directory_path"><code class="docutils literal notranslate"><span class="pre">validate_directory_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.reject_unsafe_new_directory_names"><code class="docutils literal notranslate"><span class="pre">reject_unsafe_new_directory_names()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.safe_join_paths"><code class="docutils literal notranslate"><span class="pre">safe_join_paths()</span></code></a></li>
 </ul>
 </li>
@@ -9057,6 +9058,18 @@
     <span class="s1">'~</span><span class="se">\\</span><span class="s1">'</span><span class="p">,</span>     <span class="c1"># Windows home directory</span>
 <span class="p">]</span>
 
+<span class="c1"># C0 controls, DEL and C1 controls. Names containing them break line-oriented</span>
+<span class="c1"># tools and can replay terminal escapes when listed (#1692).</span>
+<span class="n">_CONTROL_CHARACTERS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span>
+    <span class="p">[</span><span class="nb">chr</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mh">0x20</span><span class="p">)]</span> <span class="o">+</span> <span class="p">[</span><span class="s1">'</span><span class="se">\x7f</span><span class="s1">'</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="nb">chr</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mh">0x80</span><span class="p">,</span> <span class="mh">0xA0</span><span class="p">)]</span>
+<span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_is_unsafe_name_character</span><span class="p">(</span><span class="n">ch</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="c1"># Lone surrogates are how undecodable (non-UTF-8) bytes reach Python via</span>
+    <span class="c1"># surrogateescape; a directory created from one has a non-UTF-8 name (#1716).</span>
+    <span class="k">return</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">_CONTROL_CHARACTERS</span> <span class="ow">or</span> <span class="s1">'</span><span class="se">\ud800</span><span class="s1">'</span> <span class="o">&lt;=</span> <span class="n">ch</span> <span class="o">&lt;=</span> <span class="s1">'</span><span class="se">\udfff</span><span class="s1">'</span>
+
 
 <div class="viewcode-block" id="is_path_traversal_attempt">
 <a class="viewcode-back" href="../../../packages/files.html#siege_utilities.files.validation.is_path_traversal_attempt">[docs]</a>
@@ -9187,12 +9200,12 @@
 
     <span class="c1"># Check for null bytes</span>
     <span class="k">if</span> <span class="s1">'</span><span class="se">\x00</span><span class="s1">'</span> <span class="ow">in</span> <span class="n">path_str</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">PathSecurityError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Null byte detected in path: </span><span class="si">{</span><span class="n">path_str</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">PathSecurityError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Null byte detected in path: </span><span class="si">{</span><span class="n">path_str</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
 
     <span class="c1"># Check for path traversal</span>
     <span class="k">if</span> <span class="n">is_path_traversal_attempt</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
         <span class="k">raise</span> <span class="n">PathSecurityError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">"Path traversal attempt blocked: </span><span class="si">{</span><span class="n">path_str</span><span class="si">}</span><span class="s2">"</span>
+            <span class="sa">f</span><span class="s2">"Path traversal attempt blocked: </span><span class="si">{</span><span class="n">path_str</span><span class="si">!r}</span><span class="s2">"</span>
         <span class="p">)</span>
 
     <span class="k">try</span><span class="p">:</span>
@@ -9202,7 +9215,7 @@
         <span class="c1"># Check if absolute when not allowed</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">allow_absolute</span> <span class="ow">and</span> <span class="n">path_obj</span><span class="o">.</span><span class="n">is_absolute</span><span class="p">():</span>
             <span class="k">raise</span> <span class="n">PathSecurityError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">"Absolute paths not allowed: </span><span class="si">{</span><span class="n">path_str</span><span class="si">}</span><span class="s2">"</span>
+                <span class="sa">f</span><span class="s2">"Absolute paths not allowed: </span><span class="si">{</span><span class="n">path_str</span><span class="si">!r}</span><span class="s2">"</span>
             <span class="p">)</span>
 
         <span class="c1"># Resolve to absolute path (follows symlinks)</span>
@@ -9211,7 +9224,7 @@
         <span class="c1"># Check if resolved path is sensitive</span>
         <span class="k">if</span> <span class="n">is_sensitive_path</span><span class="p">(</span><span class="n">resolved_path</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">PathSecurityError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">"Access to sensitive path blocked: </span><span class="si">{</span><span class="n">resolved_path</span><span class="si">}</span><span class="s2">"</span>
+                <span class="sa">f</span><span class="s2">"Access to sensitive path blocked: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">resolved_path</span><span class="p">)</span><span class="si">!r}</span><span class="s2">"</span>
             <span class="p">)</span>
 
         <span class="c1"># If base directory specified, ensure path is within it</span>
@@ -9223,10 +9236,10 @@
                 <span class="n">resolved_path</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">base_path</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">PathSecurityError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">"Path </span><span class="si">{</span><span class="n">resolved_path</span><span class="si">}</span><span class="s2"> is outside base directory </span><span class="si">{</span><span class="n">base_path</span><span class="si">}</span><span class="s2">"</span>
+                    <span class="sa">f</span><span class="s2">"Path </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">resolved_path</span><span class="p">)</span><span class="si">!r}</span><span class="s2"> is outside base directory </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">base_path</span><span class="p">)</span><span class="si">!r}</span><span class="s2">"</span>
                 <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
 
-        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Path validation passed: </span><span class="si">{</span><span class="n">path_str</span><span class="si">}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="n">resolved_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Path validation passed: </span><span class="si">{</span><span class="n">path_str</span><span class="si">!r}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">resolved_path</span><span class="p">)</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">resolved_path</span>
 
     <span class="k">except</span> <span class="n">PathSecurityError</span><span class="p">:</span>
@@ -9234,7 +9247,7 @@
         <span class="k">raise</span>
     <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="c1"># Other errors during validation</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Invalid path: </span><span class="si">{</span><span class="n">path_str</span><span class="si">}</span><span class="s2"> - </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span></div>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Invalid path: </span><span class="si">{</span><span class="n">path_str</span><span class="si">!r}</span><span class="s2"> - </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span></div>
 
 
 
@@ -9277,6 +9290,57 @@
 
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_reject_control_characters_in_new_components</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Raise if a not-yet-existing component of a resolved path has a control</span>
+<span class="sd">    character or a lone surrogate."""</span>
+    <span class="n">current</span> <span class="o">=</span> <span class="n">path</span>
+    <span class="c1"># os.path.exists, unlike Path.exists on 3.11, returns False on any OSError</span>
+    <span class="c1"># (e.g. ENAMETOOLONG), leaving that failure to the caller's mkdir.</span>
+    <span class="k">while</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">current</span><span class="p">)</span> <span class="ow">and</span> <span class="n">current</span> <span class="o">!=</span> <span class="n">current</span><span class="o">.</span><span class="n">parent</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">_is_unsafe_name_character</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">current</span><span class="o">.</span><span class="n">name</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">PathSecurityError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Control character or undecodable byte in new directory name "</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">current</span><span class="o">.</span><span class="n">name</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="si">!r}</span><span class="s2">"</span>
+            <span class="p">)</span>
+        <span class="n">current</span> <span class="o">=</span> <span class="n">current</span><span class="o">.</span><span class="n">parent</span>
+
+
+<div class="viewcode-block" id="reject_unsafe_new_directory_names">
+<a class="viewcode-back" href="../../../packages/files.html#siege_utilities.files.validation.reject_unsafe_new_directory_names">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">reject_unsafe_new_directory_names</span><span class="p">(</span><span class="n">directory</span><span class="p">:</span> <span class="n">FilePath</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Refuse a directory path whose not-yet-existing components would be unsafe names.</span>
+
+<span class="sd">    Call this immediately before ``Path(directory).mkdir(parents=True)``, for</span>
+<span class="sd">    example on a file's parent. The path is checked as written, not resolved,</span>
+<span class="sd">    because that is what ``mkdir`` creates: in ``a/&lt;new&gt;/../b`` it creates</span>
+<span class="sd">    ``&lt;new&gt;`` on the way, so ``&lt;new&gt;`` is checked even though ``..`` cancels</span>
+<span class="sd">    it. Components that already exist (including symlinks) are accepted</span>
+<span class="sd">    whatever their name; a new one containing a C0, DEL or C1 control, or a</span>
+<span class="sd">    lone surrogate (undecodable bytes), raises. Nothing is created.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ``directory`` as a Path, unchanged.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        PathSecurityError: If a component to be created has an unsafe name.</span>
+<span class="sd">    """</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">directory</span><span class="p">)</span>
+    <span class="n">prefix</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">anchor</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">path</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="mi">1</span> <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">anchor</span> <span class="k">else</span> <span class="mi">0</span><span class="p">:]:</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="n">prefix</span> <span class="o">/</span> <span class="n">part</span>
+        <span class="k">if</span> <span class="n">part</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">'.'</span><span class="p">,</span> <span class="s1">'..'</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="c1"># lexists returns False on errors such as an unencodable name, so</span>
+        <span class="c1"># such a component is treated as new and checked.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">lexists</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">_is_unsafe_name_character</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">part</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">PathSecurityError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Control character or undecodable byte in new directory name "</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">part</span><span class="si">!r}</span><span class="s2">: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="si">!r}</span><span class="s2">"</span>
+            <span class="p">)</span>
+    <span class="k">return</span> <span class="n">path</span></div>
+
+
+
 <div class="viewcode-block" id="validate_directory_path">
 <a class="viewcode-back" href="../../../packages/files.html#siege_utilities.files.validation.validate_directory_path">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">validate_directory_path</span><span class="p">(</span><span class="n">dir_path</span><span class="p">:</span> <span class="n">FilePath</span><span class="p">,</span>
@@ -9284,6 +9348,11 @@
                            <span class="n">base_directory</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">FilePath</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Validate a directory path.</span>
+
+<span class="sd">    When must_exist is False the directory may be about to be created, so any</span>
+<span class="sd">    component that does not exist yet must be free of control characters (C0,</span>
+<span class="sd">    DEL, C1). Existing directories with such names still validate, provided</span>
+<span class="sd">    they can be stat'ed; one under an unreadable parent counts as new.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        dir_path: Path to validate</span>
@@ -9294,7 +9363,8 @@
 <span class="sd">        Validated Path object</span>
 
 <span class="sd">    Raises:</span>
-<span class="sd">        PathSecurityError: If path fails security validation</span>
+<span class="sd">        PathSecurityError: If path fails security validation, or a component</span>
+<span class="sd">            that would be created contains a control character</span>
 <span class="sd">        FileNotFoundError: If must_exist=True and directory doesn't exist</span>
 <span class="sd">        ValueError: If path is invalid or not a directory</span>
 
@@ -9307,6 +9377,9 @@
         <span class="n">allow_absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">base_directory</span><span class="o">=</span><span class="n">base_directory</span>
     <span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">must_exist</span><span class="p">:</span>
+        <span class="n">_reject_control_characters_in_new_components</span><span class="p">(</span><span class="n">validated_path</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">must_exist</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">validated_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
@@ -9372,6 +9445,7 @@
     <span class="s1">'validate_safe_path'</span><span class="p">,</span>
     <span class="s1">'validate_file_path'</span><span class="p">,</span>
     <span class="s1">'validate_directory_path'</span><span class="p">,</span>
+    <span class="s1">'reject_unsafe_new_directory_names'</span><span class="p">,</span>
     <span class="s1">'safe_join_paths'</span><span class="p">,</span>
 <span class="p">]</span>
 </pre></div>

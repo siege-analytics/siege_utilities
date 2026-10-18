@@ -8671,6 +8671,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_safe_path"><code class="docutils literal notranslate"><span class="pre">validate_safe_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_file_path"><code class="docutils literal notranslate"><span class="pre">validate_file_path()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.validate_directory_path"><code class="docutils literal notranslate"><span class="pre">validate_directory_path()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.reject_unsafe_new_directory_names"><code class="docutils literal notranslate"><span class="pre">reject_unsafe_new_directory_names()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../packages/files.html#siege_utilities.files.validation.safe_join_paths"><code class="docutils literal notranslate"><span class="pre">safe_join_paths()</span></code></a></li>
 </ul>
 </li>
@@ -9071,9 +9072,10 @@
 <span class="sd">    Path to the written file.</span>
 <span class="sd">    """</span>
     <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-    <span class="n">path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.operations</span><span class="w"> </span><span class="kn">import</span> <span class="n">atomic_write_path</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.operations</span><span class="w"> </span><span class="kn">import</span> <span class="n">_create_parent_directory</span><span class="p">,</span> <span class="n">atomic_write_path</span>
+
+    <span class="n">_create_parent_directory</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">fmt</span> <span class="ow">is</span> <span class="n">SpatialFormat</span><span class="o">.</span><span class="n">GEOPARQUET</span><span class="p">:</span>
         <span class="k">with</span> <span class="n">atomic_write_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">as</span> <span class="n">tmp</span><span class="p">:</span>
@@ -9156,9 +9158,10 @@
 <span class="sd">    Path to the written file.</span>
 <span class="sd">    """</span>
     <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-    <span class="n">path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.operations</span><span class="w"> </span><span class="kn">import</span> <span class="n">atomic_write_path</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">siege_utilities.files.operations</span><span class="w"> </span><span class="kn">import</span> <span class="n">_create_parent_directory</span><span class="p">,</span> <span class="n">atomic_write_path</span>
+
+    <span class="n">_create_parent_directory</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">fmt</span> <span class="ow">is</span> <span class="n">TabularFormat</span><span class="o">.</span><span class="n">PARQUET</span><span class="p">:</span>
         <span class="k">with</span> <span class="n">atomic_write_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">as</span> <span class="n">tmp</span><span class="p">:</span>
