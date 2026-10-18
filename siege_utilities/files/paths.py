@@ -129,11 +129,10 @@ def unzip_file_to_directory(zip_file_path: FilePath,
                 continue
             members.append(member)
         # Refuse the whole archive, before creating anything, if extraction
-        # would create a directory with an unsafe name (#1716).
-        from siege_utilities.files.validation import reject_unsafe_new_directory_names
+        # would create a directory or file with an unsafe name (#1716, #1737).
+        from siege_utilities.files.validation import reject_unsafe_new_file_path
         for member in members:
-            destination = target_dir / member
-            reject_unsafe_new_directory_names(destination if member.endswith('/') else destination.parent)
+            reject_unsafe_new_file_path(target_dir / member)
         target_dir.mkdir(parents=True, exist_ok=True)
         for member in members:
             zip_ref.extract(member, target_dir)
