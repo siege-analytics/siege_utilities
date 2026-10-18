@@ -341,6 +341,29 @@ def test_existing_file_with_unsafe_name_can_be_overwritten(creator: str, tmp_pat
     assert target.exists()
 
 
+def test_shapefile_sidecars_of_an_existing_odd_target_are_checked(tmp_path: Path) -> None:
+    """An existing odd-named .shp may be rewritten only if no new sidecar would
+    be created under its name (review of #1737)."""
+    geopandas = pytest.importorskip("geopandas")
+    shapely = pytest.importorskip("shapely.geometry")
+    gdf = geopandas.GeoDataFrame({"a": [1]}, geometry=[shapely.Point(0, 0)], crs="EPSG:4326")
+    target = tmp_path / "o\x1bdd.shp"
+    target.write_bytes(b"")
+    before = sorted(os.listdir(tmp_path))
+    with pytest.raises(PathSecurityError):
+        operations.atomic_write_shapefile(gdf, target)
+    assert sorted(os.listdir(tmp_path)) == before
+
+
+def test_temporary_names_do_not_inherit_an_unsafe_suffix(tmp_path: Path) -> None:
+    target = tmp_path / "x.t\x1b"
+    target.write_text("old")
+    with operations.atomic_write_path(target) as tmp:
+        assert tmp.suffix == ".tmp"
+        tmp.write_text("new")
+    assert target.read_text() == "new"
+
+
 def test_archive_member_file_names_are_checked(tmp_path: Path) -> None:
     import zipfile
 
