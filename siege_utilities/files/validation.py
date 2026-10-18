@@ -184,8 +184,11 @@ def is_sensitive_path(path: FilePath, base_directory: Optional[FilePath] = None)
         if '.ssh' in path_obj.parts:
             return True
 
-        # Check for private keys
-        if path_obj.name in {'id_rsa', 'id_dsa', 'id_ecdsa'}:
+        # Check for private keys: exact default names, or a '_'/'-' separated
+        # prefix (deploy_id_rsa, github-id_ed25519), but not paid_rsa (#1702)
+        name = path_obj.name
+        if any(name == k or name.endswith(("_" + k, "-" + k))
+               for k in ("id_rsa", "id_dsa", "id_ecdsa", "id_ed25519")):
             return True
 
         return False
