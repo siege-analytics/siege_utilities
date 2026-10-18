@@ -36,6 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Real GA4 reports now convert bounce-rate ratios to percentages at API reads,
+  fixing a client-facing metric displayed about 100 times too small, and weight
+  period bounce rates by sessions. Empty-prior comparisons are no longer
+  fabricated: reports and exports show unavailable changes as N/A. Unique views
+  and exit rates are no longer invented, and prior queries cover the same
+  inclusive number of days as the current period (#1579).
 - `get_directory_info`, `load_directory_config`, `list_directory_configs`,
   `load_project_config` and `list_projects` create nothing, so they are back to
   their behaviour before #1692: a missing name containing a control character
