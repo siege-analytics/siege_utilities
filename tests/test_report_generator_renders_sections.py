@@ -187,3 +187,18 @@ def test_table_record_rows_render_values(generator, tmp_path, headers):
     text = "\n".join(page.extract_text() for page in PdfReader(output).pages)
     for expected in ("Metric", "Value", "Signups", "1820", "RSVPs", "640"):
         assert expected in text
+
+
+def test_bullet_list_overflow_preserves_every_item(tmp_path):
+    """A bullet list longer than one page paginates through _add_flowable and
+    keeps every item, instead of the old canvas loop that broke on overflow."""
+    output = tmp_path / "bullets.pdf"
+    canvas = Canvas(str(output))
+    template = ContentPageTemplate(canvas)
+    template.start_page("Bullets", 1, "Regression section")
+    items = [f"bul{i:04d}" for i in range(120)]
+    template.add_bullet_list(items)
+    template.finish_page()
+    canvas.save()
+    text = "\n".join(page.extract_text() for page in PdfReader(output).pages)
+    assert re.findall(r"bul\d{4}", text) == items

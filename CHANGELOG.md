@@ -21,6 +21,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now validated, a zip whose stem is `..` (e.g. `...zip`) raises instead of
   extracting into the parent of `extract_to` (#1692).
 
+- `generate_pdf_report` now raises `ValueError` for a section `type` outside
+  the supported set (`executive_summary`, `methodology`, `data_summary`,
+  `text`, `insights`, `recommendations`, `charts`, `title_page`,
+  `table_of_contents`, `table`, `appendix`), and for non-string content in the
+  `text`/`executive_summary`/`methodology`/`data_summary`/`appendix` sections.
+  Callers that relied on a custom `add_section` type, a DataFrame
+  `add_appendix`, or `None` text must change: put custom prose in a `text`
+  section and tabular appendices in a `table` section through
+  `add_table_section`. A report with a top-level `title` and no `title_page`
+  section now gets a title page (#1485).
+
 ### Fixed
 
 - Render analytics and comprehensive PDF report sections, including chart lists,
@@ -28,8 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with page numbers, and appendix dividers. Normalize table record dictionaries
   into column-aligned values. Reject unsupported section shapes
   and warn about empty content or missing chart images. Continue content-page
-  paragraphs and tables across page breaks, repeating table headers and raising
-  when a fragment cannot fit, instead of silently discarding content (#1485).
+  paragraphs, tables and bullet lists across page breaks, repeating table
+  headers and raising when a fragment cannot fit, instead of silently
+  discarding content. `ContentPageTemplate.add_bullet_list` now renders each
+  item as a wrapped, paginating flowable rather than a fixed-height canvas line
+  that dropped items past the page bottom (#1485).
 
 - `is_sensitive_path` again blocks `_`/`-` prefixed private-key names outside
   `.ssh` (`deploy_id_rsa`, `github-id_ecdsa`) and now covers `id_ed25519`;

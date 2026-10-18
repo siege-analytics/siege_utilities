@@ -273,26 +273,25 @@ class ContentPageTemplate:
         self._add_flowable(table, spacing=20)
 
     def add_bullet_list(self, items: List[str], bullet_char: str = "•") -> None:
-        """Add a bullet list to the page"""
-        self.canvas.setFillColor(self.colors['text'])
-        self.canvas.setFont('Helvetica', 11)
-        
-        line_height = 16
-        indent = 20
-        
+        """Add a bullet list, continuing onto subsequent pages when necessary.
+
+        Each item is rendered as its own bullet-styled flowable through
+        ``_add_flowable``, so a list longer than one page paginates (and long
+        items wrap) instead of silently dropping the items that did not fit.
+        """
+        if not items:
+            return
+
+        style = ParagraphStyle(
+            'ContentBullet', fontName='Helvetica', fontSize=11, leading=16,
+            leftIndent=20, bulletIndent=4, textColor=self.colors['text'],
+        )
         for item in items:
-            if self.current_y < (self.margin_bottom + self.footer_height + line_height):
-                log_warning("Not enough space for bullet item, consider new page")
-                break
-            
-            # Draw bullet
-            self.canvas.drawString(self.margin_left, self.current_y, bullet_char)
-            
-            # Draw text (simple, no wrapping for now)
-            self.canvas.drawString(self.margin_left + indent, self.current_y, item)
-            
-            self.current_y -= line_height
-        
+            self._add_flowable(
+                Paragraph(_escape_paragraph(str(item)), style, bulletText=bullet_char),
+                spacing=4,
+            )
+
         # Add spacing after list
         self.current_y -= 10
     
