@@ -51,35 +51,37 @@ def create_feature_branch(
     for an unsafe base branch name.
     """
 
-    # Validate branch name
-    if branch_name.startswith('-') or not re.match(r'^[a-zA-Z0-9/_-]+$', branch_name):
-        raise ValueError(f"Invalid branch name: {branch_name}")
-    base_branch = validate_branch_name(base_branch)
+    # Preserve the public ValueError contract for an invalid new branch.
+    try:
+        branch_name = validate_branch_name(branch_name, repo_path=repo_path)
+    except (GitSecurityError, ValueError) as exc:
+        raise ValueError(f"Invalid branch name: {branch_name}") from exc
+    base_branch = validate_branch_name(base_branch, repo_path=repo_path)
 
     # Check if we're on the base branch
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
     if current_branch != base_branch:
         # Switch to base branch first
-        run_git_command("checkout", base_branch, repo_path=repo_path)
+        run_git_command("switch", "--", base_branch, repo_path=repo_path)
         log_info(f"Switched to base branch: {base_branch}")
 
     # Pull latest changes if remote exists
     remotes = run_git_command("remote", repo_path=repo_path, check=False)
     if remotes and "origin" in remotes:
         try:
-            run_git_command("pull", "origin", base_branch, repo_path=repo_path, check=False)
+            run_git_command("pull", "--", "origin", f"refs/heads/{base_branch}", repo_path=repo_path, check=False)
             log_info(f"Pulled latest changes from {base_branch}")
         except (GitError, RuntimeError) as exc:
             log_warning(f"Could not pull latest from {base_branch} (continuing anyway): {exc}")
 
     # Create and switch to new branch
-    run_git_command("checkout", "-b", branch_name, repo_path=repo_path)
+    run_git_command("switch", "-c", branch_name, "--", repo_path=repo_path)
     log_info(f"Created and switched to feature branch: {branch_name}")
 
     # Push to remote if switch_to_branch is True and remote exists
     if switch_to_branch and remotes and "origin" in remotes:
         try:
-            run_git_command("push", "-u", "origin", branch_name, repo_path=repo_path, check=False)
+            run_git_command("push", "-u", "--", "origin", f"refs/heads/{branch_name}", repo_path=repo_path, check=False)
             log_info(f"Pushed branch to remote: origin/{branch_name}")
         except (GitError, RuntimeError) as exc:
             log_warning(f"Could not push to remote (continuing anyway): {exc}")
@@ -108,21 +110,26 @@ def switch_branch(branch_name: str, repo_path: str = ".") -> Dict[str, str]:
         GitSecurityError: If branch name fails validation
     """
     # Validate inputs
-    branch_name = validate_branch_name(branch_name)
+    branch_name = validate_branch_name(branch_name, repo_path=repo_path)
     repo_path = str(validate_repo_path(repo_path))
 
-    # Check if branch exists
-    branches = run_git_command("branch", "--list", repo_path=repo_path)
-    if branch_name not in branches:
-        # Check remote branches
-        remote_branches = run_git_command("branch", "-r", repo_path=repo_path)
-        if f"origin/{branch_name}" in remote_branches:
-            # Create local tracking branch
-            run_git_command("checkout", "-b", branch_name, f"origin/{branch_name}", repo_path=repo_path)
-        else:
-            raise ValueError(f"Branch {branch_name} does not exist locally or remotely")
+    # Resolve exact refs; a substring match must never authorize a switch.
+    local_ref = f"refs/heads/{branch_name}"
+    local_branch = run_git_command(
+        "rev-parse", "--verify", local_ref, repo_path=repo_path, check=False,
+    )
+    if local_branch:
+        run_git_command("switch", "--no-guess", "--", branch_name, repo_path=repo_path)
     else:
-        run_git_command("checkout", branch_name, repo_path=repo_path)
+        remote_ref = f"refs/remotes/origin/{branch_name}"
+        remote_branch = run_git_command(
+            "rev-parse", "--verify", remote_ref, repo_path=repo_path, check=False,
+        )
+        if not remote_branch:
+            raise ValueError(f"Branch {branch_name} does not exist locally or remotely")
+        run_git_command(
+            "switch", "--track", "-c", branch_name, "--", remote_ref, repo_path=repo_path,
+        )
 
     # Get current status
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
@@ -159,18 +166,18 @@ def merge_branch(
         GitSecurityError: If branch names fail validation
     """
     # Validate inputs
-    source_branch = validate_branch_name(source_branch)
-    target_branch = validate_branch_name(target_branch)
+    source_branch = validate_branch_name(source_branch, repo_path=repo_path)
+    target_branch = validate_branch_name(target_branch, repo_path=repo_path)
     repo_path = str(validate_repo_path(repo_path))
 
     # Switch to target branch
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
     if current_branch != target_branch:
-        run_git_command("checkout", target_branch, repo_path=repo_path)
+        run_git_command("switch", "--", target_branch, repo_path=repo_path)
         log_info(f"Switched to target branch: {target_branch}")
 
     # Pull latest changes
-    run_git_command("pull", "origin", target_branch, repo_path=repo_path)
+    run_git_command("pull", "--", "origin", f"refs/heads/{target_branch}", repo_path=repo_path)
 
     # Prepare merge command
     merge_args = ["merge"]
@@ -179,7 +186,7 @@ def merge_branch(
     if squash:
         merge_args.append("--squash")
 
-    merge_args.append(source_branch)
+    merge_args.extend(["--", f"refs/heads/{source_branch}"])
 
     # Execute merge
     try:
@@ -221,14 +228,14 @@ def rebase_branch(
         GitSecurityError: If branch names fail validation
     """
     # Validate inputs
-    source_branch = validate_branch_name(source_branch)
-    base_branch = validate_branch_name(base_branch)
+    source_branch = validate_branch_name(source_branch, repo_path=repo_path)
+    base_branch = validate_branch_name(base_branch, repo_path=repo_path)
     repo_path = str(validate_repo_path(repo_path))
 
     # Switch to source branch
     current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
     if current_branch != source_branch:
-        run_git_command("checkout", source_branch, repo_path=repo_path)
+        run_git_command("switch", "--", source_branch, repo_path=repo_path)
         log_info(f"Switched to source branch: {source_branch}")
 
     # Prepare rebase command
@@ -236,7 +243,7 @@ def rebase_branch(
     if interactive:
         rebase_args.append("-i")
 
-    rebase_args.append(base_branch)
+    rebase_args.extend(["--", f"refs/heads/{base_branch}"])
 
     # Execute rebase
     try:
@@ -334,7 +341,7 @@ def apply_stash(
         raise GitSecurityError(f"Dangerous characters in stash ref: {stash_ref}")
     repo_path = str(validate_repo_path(repo_path))
 
-    stash_args = ["stash", "pop" if pop else "apply", stash_ref]
+    stash_args = ["stash", "pop" if pop else "apply", "--", stash_ref]
 
     try:
         run_git_command(*stash_args, repo_path=repo_path)
@@ -439,7 +446,7 @@ def reset_to_commit(
     if reset_type not in valid_reset_types:
         raise ValueError(f"Invalid reset type. Must be one of: {valid_reset_types}")
 
-    reset_args = ["reset", f"--{reset_type}", commit_hash]
+    reset_args = ["reset", f"--{reset_type}", commit_hash, "--"]
 
     try:
         run_git_command(*reset_args, repo_path=repo_path)
@@ -484,7 +491,7 @@ def cherry_pick_commit(
     if continue_on_conflict:
         cherry_pick_args.append("--continue")
     else:
-        cherry_pick_args.append(commit_hash)
+        cherry_pick_args.extend(["--", commit_hash])
 
     try:
         run_git_command(*cherry_pick_args, repo_path=repo_path)
@@ -550,7 +557,7 @@ def create_tag(
     if message:
         tag_args.extend(["-m", message])
 
-    tag_args.append(tag_name)
+    tag_args.extend(["--", tag_name])
 
     if commit_hash:
         tag_args.append(commit_hash)
@@ -561,7 +568,7 @@ def create_tag(
         log_info(f"Tag {tag_name} created successfully")
 
         if push:
-            run_git_command("push", "origin", tag_name, repo_path=repo_path)
+            run_git_command("push", "--", "origin", f"refs/tags/{tag_name}", repo_path=repo_path)
             log_info(f"Tag {tag_name} pushed to remote")
             tag_status = "pushed"
     except (RuntimeError, GitError) as e:
@@ -599,19 +606,19 @@ def push_branch(
         GitSecurityError: If branch or remote name fails validation
     """
     # Validate inputs
-    if branch_name:
-        branch_name = validate_branch_name(branch_name)
-    remote = validate_remote_name(remote)
+    if branch_name is not None:
+        branch_name = validate_branch_name(branch_name, repo_path=repo_path)
+    remote = validate_remote_name(remote, repo_path=repo_path)
     repo_path = str(validate_repo_path(repo_path))
 
     push_args = ["push"]
     if force:
         push_args.append("--force-with-lease")  # Safer than --force
 
-    push_args.append(remote)
+    push_args.extend(["--", remote])
 
-    if branch_name:
-        push_args.append(branch_name)
+    if branch_name is not None:
+        push_args.append(f"refs/heads/{branch_name}")
 
     try:
         run_git_command(*push_args, repo_path=repo_path)
@@ -652,19 +659,19 @@ def pull_branch(
         GitSecurityError: If branch or remote name fails validation
     """
     # Validate inputs
-    if branch_name:
-        branch_name = validate_branch_name(branch_name)
-    remote = validate_remote_name(remote)
+    if branch_name is not None:
+        branch_name = validate_branch_name(branch_name, repo_path=repo_path)
+    remote = validate_remote_name(remote, repo_path=repo_path)
     repo_path = str(validate_repo_path(repo_path))
 
     pull_args = ["pull"]
     if rebase:
         pull_args.append("--rebase")
 
-    pull_args.append(remote)
+    pull_args.extend(["--", remote])
 
-    if branch_name:
-        pull_args.append(branch_name)
+    if branch_name is not None:
+        pull_args.append(f"refs/heads/{branch_name}")
 
     try:
         run_git_command(*pull_args, repo_path=repo_path)

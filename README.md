@@ -101,6 +101,22 @@ See [`docs/FAILURE_MODES.md`](docs/FAILURE_MODES.md) for the catalog of
 silent-swallow patterns this library has eliminated and the migration
 guidance for callers that relied on the old return-value behavior.
 
+## Git helper requirements
+
+Branch operations and workflows require Git 2.23 or newer and use `git switch`.
+Branch and remote validators reject leading hyphens, `HEAD`, `@`, bare names
+containing dots (such as `README.md`), and bare names matching files or directories
+in `repo_path`. Standalone validators accept an optional `repo_path`, defaulting
+to the current directory. Use names such as `main`, `hotfix-3`, `feature/x`, or
+`release/1.2`; slash-namespaced branches remain valid even when a worktree path
+has the same spelling.
+
+All branch arguments, including workflow base and target branches, are validated
+before any git command runs. `switch_branch` requires an exact local ref or an
+exact `origin` remote-tracking ref and raises `ValueError` when neither exists.
+It never falls back to restoring a path. Unsafe names raise `GitSecurityError`,
+except that `create_feature_branch` retains `ValueError` for an invalid new name.
+
 ## Import Philosophy
 
 This project intentionally favors convenience access patterns, including broad function availability from the package surface. That is a design choice, not an accident.

@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Git branch operations and workflows reject option-like refs/remotes, reserved
+  revision aliases, bare filenames and bare worktree path collisions before
+  running git. Validate every base, target and generated branch name; use
+  `git switch` (requires Git 2.23+) and explicit option/path boundaries for ref
+  arguments. `switch_branch` resolves exact local and remote-tracking refs
+  instead of substring matching, preventing accidental path restoration (#1543).
+
 - Demographic population queries now keep equal GEOIDs in different boundary
   types and datasets separate. Boundary lookups use GEOIDs instead of integer
   PKs; plan assignments accept BigAutoField-sized boundary PKs. The migration
