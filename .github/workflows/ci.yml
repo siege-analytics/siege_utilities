@@ -14,6 +14,12 @@ on:
   release:
     types: [ published ]
 
+# A new push to a PR cancels that PR's older run; pushes to branches and
+# releases are never cancelled (#1729).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test-file-hygiene:
     runs-on: ubuntu-latest
@@ -31,18 +37,39 @@ jobs:
       run: |
         python scripts/check_test_file_hygiene.py
 
-  no-stub-docstrings:
+  static-guards:
     runs-on: ubuntu-latest
-    name: "no stub docstrings"
+    name: "static guards"
+    # One job for the single-script guards, so a run holds 10 fewer runners
+    # on the org's 20-job cap (#1729). Steps after the first run even when an
+    # earlier guard fails, so every failure is reported; any failure fails the job.
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    - name: Reject placeholder docstrings ("Description needed", etc.)
-      run: |
-        python scripts/check_no_stub_docstrings.py
-
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 'no stub docstrings: Reject placeholder docstrings ("Description needed", etc.)'
+        run: python scripts/check_no_stub_docstrings.py
+      - name: 'blocking I/O timeout check (writing-code:15): Run writing-code:15 scanner'
+        if: ${{ !cancelled() }}
+        run: |
+          python scripts/check_unbounded_io.py . --exclude-tests
+          python scripts/check_unbounded_io.py tests
+      - name: 'extras coherence: Run extras coherence check'
+        if: ${{ !cancelled() }}
+        run: python scripts/validate_extras_coherence.py
+      - name: 'error-path test coverage (SU-4b): Check error-path test coverage'
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: python scripts/check_error_path_coverage.py --report
+      - name: 'lazy import integrity: Install package (no extras)'
+        if: ${{ !cancelled() }}
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+      - name: 'lazy import integrity: Verify every _LAZY_IMPORTS entry resolves'
+        if: ${{ !cancelled() }}
+        run: python scripts/check_lazy_imports.py
 
   notebook-governance:
     runs-on: ubuntu-latest
@@ -102,22 +129,6 @@ jobs:
         name: notebook-failure-artifacts-${{ matrix.python-version }}
         path: ${{ runner.temp }}/notebook-artifacts
         if-no-files-found: ignore
-
-  lazy-import-integrity:
-    runs-on: ubuntu-latest
-    name: "lazy import integrity"
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    - name: Install package (no extras)
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install -e .
-    - name: Verify every _LAZY_IMPORTS entry resolves
-      run: |
-        python scripts/check_lazy_imports.py
 
   lint-ratchet-phase1:
     runs-on: ubuntu-latest
@@ -189,34 +200,6 @@ jobs:
     - name: Enforce phase 4 (full-repo ratchet baseline gate)
       run: |
         python scripts/check_lint_ratchet.py --phase phase4
-
-  unbounded-io-check:
-    runs-on: ubuntu-latest
-    name: "blocking I/O timeout check (writing-code:15)"
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    - name: Run writing-code:15 scanner
-      run: |
-        python scripts/check_unbounded_io.py . --exclude-tests
-        python scripts/check_unbounded_io.py tests
-
-  error-path-coverage:
-    runs-on: ubuntu-latest
-    name: "error-path test coverage (SU-4b)"
-    continue-on-error: true
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    - name: Check error-path test coverage
-      run: |
-        python scripts/check_error_path_coverage.py --report
 
   test:
     runs-on: ubuntu-latest
@@ -498,27 +481,6 @@ jobs:
         # command exit non-zero if there ARE pending changes. Any
         # Meta.indexes / model field drift surfaces here.
         uv run python -m django makemigrations siege_geo --check --dry-run
-
-  extras-coherence:
-    runs-on: ubuntu-latest
-    name: "extras coherence"
-    # Verify that every pyproject.toml extra has at least one library
-    # consumer and that cross-extra version specs are consistent. Catches
-    # future recurrences of the #1179 / #1180 shape (extras that advertise
-    # capability the library doesn't deliver). Fast: no deps installed;
-    # just grep over the tree.
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-
-    - name: Run extras coherence check
-      run: |
-        python scripts/validate_extras_coherence.py
 
   griffe-api-diff:
     runs-on: ubuntu-latest
