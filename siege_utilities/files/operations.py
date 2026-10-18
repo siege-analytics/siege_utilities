@@ -60,6 +60,12 @@ def sanitize_filename(name: str) -> str:
     return cleaned or "_"
 
 
+def _safe_suffix(suffix: str) -> bool:
+    """Whether a file suffix can be reused for a temporary name (#1737)."""
+    from siege_utilities.files.validation import _is_unsafe_name_character
+    return not any(_is_unsafe_name_character(ch) for ch in suffix)
+
+
 def _reject_unsafe_new_file(path: Path) -> None:
     """Refuse ``path`` if its file name or any new parent would be an unsafe name (#1716, #1737)."""
     from siege_utilities.files.validation import reject_unsafe_new_file_path
@@ -91,7 +97,8 @@ def atomic_write_path(target: FilePath) -> Generator[Path, None, None]:
     """
     target = Path(target)
     _create_parent_directory(target)
-    tmp = target.parent / f"atomic_{uuid.uuid4().hex}{target.suffix or '.tmp'}"
+    suffix = target.suffix if target.suffix and _safe_suffix(target.suffix) else '.tmp'
+    tmp = target.parent / f"atomic_{uuid.uuid4().hex}{suffix}"
     # O_EXCL reserves a random sibling without following a pre-existing link.
     # Let the kernel apply umask: reading it via os.umask would temporarily
     # change process-wide permissions for concurrent threads.
@@ -133,11 +140,17 @@ def atomic_write_shapefile(gdf, target: FilePath, **kwargs) -> None:
     target = Path(target)
     _create_parent_directory(target)
     tmp_dir = Path(tempfile.mkdtemp(dir=target.parent, prefix="atomic_shp_"))
-    tmp_shp = tmp_dir / target.name
+    # A fixed temporary stem: an existing target with an odd name must not
+    # lend that name to temporary files (#1737).
+    tmp_shp = tmp_dir / f"atomic{target.suffix if _safe_suffix(target.suffix) else '.shp'}"
     try:
         gdf.to_file(str(tmp_shp), driver="ESRI Shapefile", **kwargs)
-        for f in tmp_dir.iterdir():
-            dest = target.parent / (target.stem + f.suffix)
+        produced = [(f, target.parent / (target.stem + f.suffix)) for f in tmp_dir.iterdir()]
+        # Check every sidecar before publishing any: a sidecar the existing
+        # target lacked would be a new file under its name (#1737).
+        for _, dest in produced:
+            _reject_unsafe_new_file(dest)
+        for f, dest in produced:
             os.replace(f, dest)
         tmp_dir.rmdir()
     except BaseException:
