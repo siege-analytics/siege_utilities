@@ -13,6 +13,10 @@ reviews:
   auto_review:
     enabled: true
     drafts: false
+    # Without this, only PRs into the default branch (main) are reviewed, so
+    # develop PRs were always skipped (#1729).
+    base_branches:
+      - "develop"
   path_instructions:
     - path: "siege_utilities/**/*.py"
       instructions: |
