@@ -63,6 +63,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Django migrations while retaining `distributed`, `redistricting`, and `builds`
   paths. Templates omit CI-rejected stub markers and skip generated doctest
   examples. Inline suites are left unchanged with a warning (#1589).
+- RDH fetch and load no longer return the wrong data silently (#1571).
+  `fetch_cvap` and `fetch_pl94171` match the requested geography against the
+  level named in the dataset title, tokenised on spaces and underscores with
+  "block group" tried before "block", or against the dataset's `geography`
+  metadata when present. `geography="block"` no longer returns block groups,
+  and `"block_group"` matches titles spelled "Block Group". A cached ZIP
+  returns the extracted directory, as the first download does, instead of
+  the archive. `load_csv` and `load_shapefile` sort the members of an
+  extracted directory and raise when there is not exactly one CSV or `.shp`.
+  A listing response of `RDH_MAX_RESULTS` entries logs a truncation warning.
+  `RDHLoaderService.load_cvap_for_plan` and the CSV path of
+  `load_demographics_for_plan` report numeric GEOID columns and unmatched
+  districts instead of skipping them silently.
 - `get_directory_info`, `load_directory_config`, `list_directory_configs`,
   `load_project_config` and `list_projects` create nothing, so they are back to
   their behaviour before #1692: a missing name containing a control character
@@ -338,6 +351,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (including Windows forms). Joins that previously escaped this boundary now
   raise `PathSecurityError`. Pass a trusted `base_directory` to override the
   containment boundary; it is not prepended to path components. (#1528)
+
+- RDH (#1571). Callers of these functions need to be checked, including
+  electinfo `spark_jobs/geo/spatial_fetch_rdh.py`:
+  - `fetch_cvap` and `fetch_pl94171` raise `FileNotFoundError`, listing the
+    available titles, when no dataset is at the requested geography. Before,
+    they loaded `datasets[0]`, and with a single dataset they skipped the
+    filter. Pass the level you want, or `geography=None` to take the first
+    listed dataset unfiltered.
+  - `RDHClient.load_csv` reads `GEOID*`, `*FP`, `*CE` and `*NS` columns as
+    `str` unless you pass `dtype`. Code that compared or joined these columns
+    as integers needs string keys, or `dtype={...}` to opt out.
+  - `load_csv` and `load_shapefile` raise `ValueError` for a directory with
+    more than one CSV or `.shp`. Load the member you want by path.
+  - `download_dataset` returns the extracted directory on a cache hit for a
+    ZIP, where it used to return the `.zip` path. `gpd.read_file` and
+    `load_*` accept the directory.
+  - `RDHLoaderService.load_cvap_for_plan` takes `geography` (default
+    `"tract"`), which is passed to `fetch_cvap`. If no district matches,
+    the result now has an error and `success` is False; before, it returned
+    success with 0 updated. Unmatched districts are counted in
+    `records_skipped`, and a partial match adds a warning. Pass the CVAP
+    level whose GEOIDs equal your plan's district GEOIDs.
 
 ### Security
 
