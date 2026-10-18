@@ -79,14 +79,16 @@ class TestComputeDemographicSignature:
         assert sig.pct_white == pytest.approx(0.9)
         assert sig.pct_black == pytest.approx(0.1)
 
-    def test_skips_zero_population(self):
+    def test_zero_population_only_excluded_from_population_rates(self):
         counts = {"B1": 10, "B2": 5}
         demos = {
             "B1": _bd(block="B1", pop=1000, white=500),
             "B2": _bd(block="B2", pop=0),
         }
         sig = compute_demographic_signature(counts, demos)
-        assert sig.weighted_blocks == 1
+        assert sig.weighted_blocks == 2
+        assert sig.pct_white == pytest.approx(0.5)
+        assert sig.total_block_population == 1000
 
     def test_skips_missing_demographics(self):
         counts = {"B1": 10, "B2": 5}
@@ -139,15 +141,17 @@ class TestComputeDemographicSignatureErrorPaths:
         assert sig.pct_white == pytest.approx(0.6)
 
     def test_zero_total_addresses_all_zero_pop(self):
-        """All blocks have zero population — total_addresses stays 0."""
+        """All blocks have zero population but still contribute housing."""
         counts = {"B1": 10, "B2": 5}
         demos = {
             "B1": _bd(block="B1", pop=0),
             "B2": _bd(block="B2", pop=0),
         }
         sig = compute_demographic_signature(counts, demos)
-        assert sig.weighted_blocks == 0
+        assert sig.weighted_blocks == 2
         assert sig.pct_white == 0.0
+        assert sig.pct_housing_occupied == pytest.approx(0.9)
+        assert sig.pct_housing_vacant == pytest.approx(0.1)
 
     def test_zero_housing_total_skips_housing_pcts(self):
         """Blocks with housing_total=0 should not contribute housing pcts."""
@@ -201,3 +205,65 @@ class TestBlockDemographicsNegativeValues:
         )}
         sig = compute_demographic_signature(counts, demos)
         assert sig.pct_white == pytest.approx(-0.5)
+
+
+class TestDemographicMetricsRegression1492:
+    @pytest.mark.parametrize("occupied", [40, 30])
+    def test_group_quarters_excluded_from_housing_denominators(self, occupied):
+        counts = {"A": 1, "B": 1}
+        demos = {
+            "A": BlockDemographics(
+                block_geoid="A", total_population=100, white=100,
+                voting_age_population=60, housing_total=40,
+                housing_occupied=occupied, housing_vacant=40 - occupied,
+            ),
+            "B": BlockDemographics(
+                block_geoid="B", total_population=500, black=500,
+                voting_age_population=500, housing_total=0,
+            ),
+        }
+
+        sig = compute_demographic_signature(counts, demos)
+
+        assert sig.pct_housing_occupied == pytest.approx(occupied / 40)
+        assert sig.pct_housing_vacant == pytest.approx((40 - occupied) / 40)
+        assert sig.pct_white == pytest.approx(0.5)
+        assert sig.pct_black == pytest.approx(0.5)
+        assert sig.pct_voting_age == pytest.approx(0.8)
+        assert sig.total_block_population == 600
+        assert sig.weighted_blocks == 2
+
+    @pytest.mark.parametrize("include_populated_block", [True, False])
+    def test_zero_population_block_contributes_housing(self, include_populated_block):
+        counts = {"N": 9}
+        demos = {
+            "N": BlockDemographics(
+                block_geoid="N", total_population=0, housing_total=50,
+                housing_occupied=0, housing_vacant=50,
+            ),
+        }
+        if include_populated_block:
+            counts["A"] = 1
+            demos["A"] = BlockDemographics(
+                block_geoid="A", total_population=100,
+                white=40, black=20, hispanic=15, asian=10, other_race=15,
+                voting_age_population=60, housing_total=40,
+                housing_occupied=30, housing_vacant=10,
+            )
+
+        sig = compute_demographic_signature(counts, demos)
+
+        assert sig.pct_housing_vacant == pytest.approx(
+            0.925 if include_populated_block else 1.0
+        )
+        assert sig.pct_housing_occupied == pytest.approx(
+            0.075 if include_populated_block else 0.0
+        )
+        assert sig.weighted_blocks == (2 if include_populated_block else 1)
+        assert sig.total_block_population == (100 if include_populated_block else 0)
+        assert sig.pct_white == pytest.approx(0.4 if include_populated_block else 0.0)
+        assert sig.pct_black == pytest.approx(0.2 if include_populated_block else 0.0)
+        assert sig.pct_hispanic == pytest.approx(0.15 if include_populated_block else 0.0)
+        assert sig.pct_asian == pytest.approx(0.1 if include_populated_block else 0.0)
+        assert sig.pct_other == pytest.approx(0.15 if include_populated_block else 0.0)
+        assert sig.pct_voting_age == pytest.approx(0.6 if include_populated_block else 0.0)

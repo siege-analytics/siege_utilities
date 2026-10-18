@@ -59,6 +59,8 @@ class DemographicSignature:
     """Address-weighted demographic signature for a codified area.
 
     All percentages are weighted by address count per block.
+    Population rates exclude zero-population blocks. Housing rates include
+    zero-population blocks with housing and exclude blocks with no housing.
 
     Attributes:
         total_block_population: Sum of block populations (unweighted).
@@ -123,6 +125,9 @@ def compute_demographic_signature(
 ) -> DemographicSignature:
     """Compute address-weighted demographic signature.
 
+    Population and housing rates use separate address denominators: nonzero
+    population for the former, positive housing totals for the latter.
+
     Args:
         block_address_counts: Dict of block_geoid → address count.
         demographics: Dict of block_geoid → BlockDemographics.
@@ -131,6 +136,7 @@ def compute_demographic_signature(
         DemographicSignature with address-weighted percentages.
     """
     total_addresses = 0
+    housing_addresses = 0
     weighted_pct_white = 0.0
     weighted_pct_black = 0.0
     weighted_pct_hispanic = 0.0
@@ -144,39 +150,44 @@ def compute_demographic_signature(
 
     for geoid, addr_count in block_address_counts.items():
         demo = demographics.get(geoid)
-        if demo is None or demo.total_population == 0:
+        if demo is None:
             continue
 
         matched_blocks += 1
-        total_addresses += addr_count
         total_pop += demo.total_population
 
         pop = demo.total_population
-        weighted_pct_white += addr_count * (demo.white / pop)
-        weighted_pct_black += addr_count * (demo.black / pop)
-        weighted_pct_hispanic += addr_count * (demo.hispanic / pop)
-        weighted_pct_asian += addr_count * (demo.asian / pop)
-        weighted_pct_other += addr_count * (demo.other_race / pop)
+        # Keep the existing population denominator while retaining vacant blocks
+        # for the independent housing aggregation below.
+        if pop != 0:
+            total_addresses += addr_count
+            weighted_pct_white += addr_count * (demo.white / pop)
+            weighted_pct_black += addr_count * (demo.black / pop)
+            weighted_pct_hispanic += addr_count * (demo.hispanic / pop)
+            weighted_pct_asian += addr_count * (demo.asian / pop)
+            weighted_pct_other += addr_count * (demo.other_race / pop)
 
         if pop > 0:
             weighted_pct_vap += addr_count * (demo.voting_age_population / pop)
 
         if demo.housing_total > 0:
+            # Group-quarters blocks with no housing must not dilute housing rates.
+            housing_addresses += addr_count
             weighted_pct_occupied += addr_count * (demo.housing_occupied / demo.housing_total)
             weighted_pct_vacant += addr_count * (demo.housing_vacant / demo.housing_total)
 
-    if total_addresses == 0:
+    if total_addresses == 0 and housing_addresses == 0:
         return DemographicSignature()
 
     return DemographicSignature(
         total_block_population=total_pop,
         weighted_blocks=matched_blocks,
-        pct_white=weighted_pct_white / total_addresses,
-        pct_black=weighted_pct_black / total_addresses,
-        pct_hispanic=weighted_pct_hispanic / total_addresses,
-        pct_asian=weighted_pct_asian / total_addresses,
-        pct_other=weighted_pct_other / total_addresses,
-        pct_voting_age=weighted_pct_vap / total_addresses,
-        pct_housing_occupied=weighted_pct_occupied / total_addresses,
-        pct_housing_vacant=weighted_pct_vacant / total_addresses,
+        pct_white=weighted_pct_white / total_addresses if total_addresses else 0.0,
+        pct_black=weighted_pct_black / total_addresses if total_addresses else 0.0,
+        pct_hispanic=weighted_pct_hispanic / total_addresses if total_addresses else 0.0,
+        pct_asian=weighted_pct_asian / total_addresses if total_addresses else 0.0,
+        pct_other=weighted_pct_other / total_addresses if total_addresses else 0.0,
+        pct_voting_age=weighted_pct_vap / total_addresses if total_addresses else 0.0,
+        pct_housing_occupied=weighted_pct_occupied / housing_addresses if housing_addresses else 0.0,
+        pct_housing_vacant=weighted_pct_vacant / housing_addresses if housing_addresses else 0.0,
     )
