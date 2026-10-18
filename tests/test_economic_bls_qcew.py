@@ -3,6 +3,8 @@
 import zipfile
 from unittest.mock import patch, MagicMock
 
+import pytest
+
 from siege_utilities.economic.bls.qcew import QCEWFiles, QCEW_FILE_URL
 
 
@@ -16,44 +18,166 @@ def _make_zip(tmp_path, year, csv_content):
     return zip_path.read_bytes()
 
 
+@pytest.fixture
+def singlefile_probe(tmp_path):
+    """Issue #1507's probe plus ownership, size-class and industry decoys."""
+    csv = tmp_path / "probe.csv"
+    csv.write_text(
+        "area_fips,own_code,industry_code,agglvl_code,qtr,year,disclosure_code,month3_emplvl\n"
+        "06000,0,10,50,1,2024,,1000\n"
+        "06000,5,10,51,1,2024,,800\n"
+        "06000,5,31-33,54,1,2024,,120\n"
+        "06000,5,44-45,54,1,2024,,150\n"
+        "06000,5,48-49,54,1,2024,,60\n"
+        "06000,5,62,54,1,2024,,170\n"
+        "06001,5,62,74,1,2024,N,0\n"
+        "06000,1,62,54,1,2024,,20\n"
+        "06000,2,62,54,1,2024,,30\n"
+        "06000,3,62,54,1,2024,,40\n"
+        "06001,3,62,74,1,2024,,10\n"
+        "06000,5,1011,53,1,2024,,200\n"
+        "06000,5,1021,53,1,2024,,300\n"
+        "06000,5,62,64,1,2024,,50\n"
+        "06000,5,311,55,1,2024,,100\n"
+        "06000,5,3111,56,1,2024,,90\n"
+        "06000,5,31111,57,1,2024,,80\n"
+        "06000,5,311111,58,1,2024,,70\n"
+        "48000,5,62,54,1,2024,,180\n"
+        "US000,5,62,14,1,2024,,900\n"
+        "C3108,5,62,44,1,2024,,190\n"
+    )
+    return csv
+
+
 class TestParse:
 
     def test_parse_filters_by_quarter(self, tmp_path):
         csv = tmp_path / "data.csv"
         csv.write_text(
-            "area_fips,own_code,industry_code,qtr,year,qtrly_estabs,month3_emplvl,total_qtrly_wages,avg_wkly_wage\n"
-            "06037,5,10,1,2024,1,1000,100000,1500\n"
-            "06037,5,10,3,2024,1,1100,110000,1550\n"
-            "06037,5,10,4,2024,1,1200,120000,1600\n"
+            "area_fips,own_code,industry_code,agglvl_code,qtr,year,disclosure_code,month3_emplvl\n"
+            "06000,5,62,54,1,2024,,1000\n"
+            "06000,5,62,54,3,2024,,1100\n"
+            "06000,5,62,54,4,2024,,1200\n"
+            "06000,5,62,54,3,2023,,1300\n"
         )
         files = QCEWFiles(cache_dir=tmp_path)
         df = files.parse(csv, year=2024, quarter=3)
         assert len(df) == 1
         assert df.iloc[0]["qtr"] == 3
+        assert df.iloc[0]["year"] == 2024
 
     def test_parse_filters_by_state(self, tmp_path):
         csv = tmp_path / "data.csv"
         csv.write_text(
-            "area_fips,own_code,industry_code,qtr,year,qtrly_estabs,month3_emplvl,total_qtrly_wages,avg_wkly_wage\n"
-            "06037,5,10,3,2024,1,1000,100000,1500\n"
-            "48201,5,10,3,2024,1,2000,200000,1600\n"
+            "area_fips,own_code,industry_code,agglvl_code,qtr,year,disclosure_code,month3_emplvl\n"
+            "06000,5,62,54,3,2024,,1000\n"
+            "48000,5,62,54,3,2024,,2000\n"
         )
         files = QCEWFiles(cache_dir=tmp_path)
         df = files.parse(csv, year=2024, quarter=3, state_fips="06")
         assert len(df) == 1
-        assert df.iloc[0]["area_fips"] == "06037"
+        assert df.iloc[0]["area_fips"] == "06000"
 
-    def test_parse_filters_by_naics_depth(self, tmp_path):
-        csv = tmp_path / "data.csv"
-        csv.write_text(
-            "area_fips,own_code,industry_code,qtr,year,qtrly_estabs,month3_emplvl,total_qtrly_wages,avg_wkly_wage\n"
-            "06037,5,10,3,2024,1,1000,100000,1500\n"
-            "06037,5,238,3,2024,1,500,50000,1400\n"
-        )
+    def test_parse_filters_by_naics_depth(self, tmp_path, singlefile_probe):
         files = QCEWFiles(cache_dir=tmp_path)
-        df = files.parse(csv, year=2024, quarter=3, naics_depth=2)
-        assert len(df) == 1
-        assert df.iloc[0]["industry_code"] == "10"
+        df = files.parse(singlefile_probe, year=2024, quarter=1, state_fips="06", naics_depth=2)
+        assert set(df["industry_code"]) == {"31-33", "44-45", "48-49", "62"}
+        assert df["month3_emplvl"].sum() == 500
+
+    def test_parse_defaults_select_one_ownership_and_aggregation(self, tmp_path, singlefile_probe):
+        files = QCEWFiles(cache_dir=tmp_path)
+        df = files.parse(singlefile_probe, year=2024, quarter=1, state_fips="06")
+        assert set(df["own_code"]) == {5}
+        assert set(df["agglvl_code"]) == {54}
+        assert set(df["area_fips"]) == {"06000"}
+        assert not df["industry_code"].duplicated().any()
+
+    def test_parse_flags_suppressed_values(self, tmp_path):
+        csv = tmp_path / "suppressed.csv"
+        csv.write_text(
+            "area_fips,own_code,industry_code,agglvl_code,qtr,year,disclosure_code,"
+            "month3_emplvl,total_qtrly_wages,source_note\n"
+            "06000,5,62,54,1,2024,N,0,0,suppressed\n"
+            "48000,5,62,54,1,2024,,0,0,published zero\n"
+        )
+        df = QCEWFiles(cache_dir=tmp_path).parse(csv, year=2024, quarter=1)
+        assert "is_suppressed" in df.columns
+        assert df["is_suppressed"].dtype == bool
+        assert df["is_suppressed"].tolist() == [True, False]
+        # Preserve all source columns, including extensions and raw sentinels.
+        assert df["source_note"].tolist() == ["suppressed", "published zero"]
+        assert df["month3_emplvl"].tolist() == [0, 0]
+        assert df["total_qtrly_wages"].tolist() == [0, 0]
+
+    def test_parse_county_suppression_from_probe(self, tmp_path, singlefile_probe):
+        df = QCEWFiles(cache_dir=tmp_path).parse(
+            singlefile_probe, year=2024, quarter=1, state_fips="06", area_level="county",
+        )
+        assert df["area_fips"].tolist() == ["06001"]
+        assert df["own_code"].tolist() == [5]
+        assert df["agglvl_code"].tolist() == [74]
+        assert df["is_suppressed"].tolist() == [True]
+
+    @pytest.mark.parametrize("own_code", [1, 2, 3])
+    def test_parse_selects_government_ownership(self, tmp_path, singlefile_probe, own_code):
+        df = QCEWFiles(cache_dir=tmp_path).parse(
+            singlefile_probe, year=2024, quarter=1, state_fips="06", own_code=own_code,
+        )
+        assert df["own_code"].tolist() == [own_code]
+        assert df["agglvl_code"].tolist() == [54]
+        assert df["industry_code"].tolist() == ["62"]
+
+    @pytest.mark.parametrize("area_level, agglvl_code", [("national", 14), ("msa", 44)])
+    def test_parse_selects_other_area_levels(self, tmp_path, singlefile_probe, area_level, agglvl_code):
+        df = QCEWFiles(cache_dir=tmp_path).parse(
+            singlefile_probe, year=2024, quarter=1, area_level=area_level,
+        )
+        assert df["agglvl_code"].tolist() == [agglvl_code]
+        assert df["industry_code"].tolist() == ["62"]
+
+    @pytest.mark.parametrize("depth, industry", [(3, "311"), (4, "3111"), (5, "31111"), (6, "311111")])
+    def test_parse_detailed_industries_exclude_supersectors_and_ranges(
+        self, tmp_path, singlefile_probe, depth, industry,
+    ):
+        df = QCEWFiles(cache_dir=tmp_path).parse(
+            singlefile_probe, year=2024, quarter=1, state_fips="06", naics_depth=depth,
+        )
+        assert df["industry_code"].tolist() == [industry]
+        assert df["agglvl_code"].tolist() == [52 + depth]
+
+    def test_parse_keeps_all_twenty_sectors(self, tmp_path):
+        sectors = [
+            "11", "21", "22", "23", "31-33", "42", "44-45", "48-49", "51", "52",
+            "53", "54", "55", "56", "61", "62", "71", "72", "81", "92",
+        ]
+        csv = tmp_path / "sectors.csv"
+        csv.write_text(
+            "area_fips,own_code,industry_code,agglvl_code,qtr,year,disclosure_code\n"
+            + "".join(f"06000,5,{code},54,1,2024,\n" for code in sectors + ["99"])
+        )
+        df = QCEWFiles(cache_dir=tmp_path).parse(csv, year=2024, quarter=1)
+        assert df["industry_code"].tolist() == sectors
+
+    @pytest.mark.parametrize("kwargs, message", [
+        ({"naics_depth": 1}, "naics_depth"),
+        ({"naics_depth": 7}, "naics_depth"),
+        ({"area_level": "all"}, "area_level"),
+        ({"area_level": "national", "state_fips": "06"}, "state_fips"),
+        ({"area_level": "msa", "state_fips": "06"}, "state_fips"),
+        ({"state_fips": "6"}, "state_fips"),
+    ])
+    def test_parse_rejects_invalid_selection(self, tmp_path, singlefile_probe, kwargs, message):
+        with pytest.raises(ValueError, match=message):
+            QCEWFiles(cache_dir=tmp_path).parse(singlefile_probe, year=2024, quarter=1, **kwargs)
+
+
+def test_load_forwards_selection(tmp_path, singlefile_probe):
+    files = QCEWFiles(cache_dir=tmp_path)
+    with patch.object(files, "download", return_value=singlefile_probe):
+        df = files.load(year=2024, quarter=1, state_fips="06", area_level="county", own_code=3)
+    assert df["area_fips"].tolist() == ["06001"]
+    assert df["own_code"].tolist() == [3]
+    assert df["agglvl_code"].tolist() == [74]
 
 
 class TestDownloadCache:
