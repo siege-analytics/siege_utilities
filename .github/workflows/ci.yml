@@ -11,24 +11,75 @@ on:
       - 'hotfix/**'
   pull_request:
     branches: [ main, develop ]
-  release:
-    types: [ published ]
+  # publish-tag.yml calls this workflow on a v* tag and publishes only if it
+  # passes. Publishing a GitHub release no longer triggers CI or an upload
+  # (#1419).
+  workflow_call:
+
+# A new push to a PR cancels that PR's older run. Push and release runs each
+# get a group of their own (run_id): sharing a group would cancel a *pending*
+# run whenever a newer one queued, skipping CI for that commit (#1729).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  exception-contracts:
+  static-guards:
     runs-on: ubuntu-latest
-    name: "exception contracts (zero unlisted)"
+    name: "static guards"
+    # One job for the single-script guards, so a run holds 10 fewer runners
+    # on the org's 20-job cap (#1729). Steps after the first run even when an
+    # earlier guard fails, so every failure is reported; any failure fails the job.
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    - name: Reject unlisted swallowed failures
-      run: python scripts/check_exception_contracts.py --list
-    - name: Verify guard detection and exemptions
-      run: |
-        python -m pip install pytest
-        python -m pytest -c /dev/null -p no:cacheprovider --confcutdir=tests/guard tests/guard/test_exception_contract_guard.py -q
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 'credential literal guard: Reject hard-coded credential literals and defaults'
+        run: python scripts/check_secret_literals.py
+      - name: 'exception contracts (zero unlisted): Reject unlisted swallowed failures'
+        if: ${{ !cancelled() }}
+        run: python scripts/check_exception_contracts.py --list
+      - name: 'exception contracts (zero unlisted): Verify guard detection and exemptions'
+        if: ${{ !cancelled() }}
+        run: |
+          python -m pip install pytest
+          python -m pytest -c /dev/null -p no:cacheprovider --confcutdir=tests/guard tests/guard/test_exception_contract_guard.py -q
+      - name: 'no stub docstrings: Reject placeholder docstrings ("Description needed", etc.)'
+        if: ${{ !cancelled() }}
+        run: python scripts/check_no_stub_docstrings.py
+      - name: 'blocking I/O timeout check (writing-code:15): Run writing-code:15 scanner'
+        if: ${{ !cancelled() }}
+        run: |
+          python scripts/check_unbounded_io.py . --exclude-tests
+          python scripts/check_unbounded_io.py tests
+      - name: 'subprocess command safety: Reject shell execution in the library'
+        if: ${{ !cancelled() }}
+        run: python scripts/check_subprocess_safety.py
+      - name: 'atomic cache/output write guard: Reject unlisted writes to final paths'
+        if: ${{ !cancelled() }}
+        run: python scripts/check_atomic_writes.py
+      - name: 'secure credential write guard: Reject unsafe credential writes and predictable temporary paths'
+        if: ${{ !cancelled() }}
+        run: python scripts/check_secure_writes.py
+      - name: 'secret repr class guard: Reject secret-named plain string fields exposed by repr'
+        if: ${{ !cancelled() }}
+        run: python scripts/check_secret_repr.py
+      - name: 'extras coherence: Run extras coherence check'
+        if: ${{ !cancelled() }}
+        run: python scripts/validate_extras_coherence.py
+      - name: 'error-path test coverage (SU-4b): Check error-path test coverage'
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: python scripts/check_error_path_coverage.py --report
+      - name: 'lazy import integrity: Install package (no extras)'
+        if: ${{ !cancelled() }}
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+      - name: 'lazy import integrity: Verify every _LAZY_IMPORTS entry resolves'
+        if: ${{ !cancelled() }}
+        run: python scripts/check_lazy_imports.py
 
   test-file-hygiene:
     runs-on: ubuntu-latest
@@ -45,31 +96,6 @@ jobs:
     - name: Validate test filename/location conventions
       run: |
         python scripts/check_test_file_hygiene.py
-
-  no-stub-docstrings:
-    runs-on: ubuntu-latest
-    name: "no stub docstrings"
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    - name: Reject placeholder docstrings ("Description needed", etc.)
-      run: |
-        python scripts/check_no_stub_docstrings.py
-
-
-  secret-literal-guard:
-    runs-on: ubuntu-latest
-    name: "credential literal guard"
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    - name: Reject hard-coded credential literals and defaults
-      run: |
-        python scripts/check_secret_literals.py
 
   notebook-governance:
     runs-on: ubuntu-latest
@@ -129,22 +155,6 @@ jobs:
         name: notebook-failure-artifacts-${{ matrix.python-version }}
         path: ${{ runner.temp }}/notebook-artifacts
         if-no-files-found: ignore
-
-  lazy-import-integrity:
-    runs-on: ubuntu-latest
-    name: "lazy import integrity"
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    - name: Install package (no extras)
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install -e .
-    - name: Verify every _LAZY_IMPORTS entry resolves
-      run: |
-        python scripts/check_lazy_imports.py
 
   lint-ratchet-phase1:
     runs-on: ubuntu-latest
@@ -216,80 +226,6 @@ jobs:
     - name: Enforce phase 4 (full-repo ratchet baseline gate)
       run: |
         python scripts/check_lint_ratchet.py --phase phase4
-
-  unbounded-io-check:
-    runs-on: ubuntu-latest
-    name: "blocking I/O timeout check (writing-code:15)"
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    - name: Run writing-code:15 scanner
-      run: |
-        python scripts/check_unbounded_io.py . --exclude-tests
-        python scripts/check_unbounded_io.py tests
-
-  subprocess-safety:
-    runs-on: ubuntu-latest
-    name: "subprocess command safety"
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    - name: Reject shell execution in the library
-      run: |
-        python scripts/check_subprocess_safety.py
-
-  atomic-write-guard:
-    runs-on: ubuntu-latest
-    name: "atomic cache/output write guard"
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    - name: Reject unlisted writes to final paths
-      run: python scripts/check_atomic_writes.py
-
-  secure-write-guard:
-    runs-on: ubuntu-latest
-    name: "secure credential write guard"
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    - name: Reject unsafe credential writes and predictable temporary paths
-      run: python scripts/check_secure_writes.py
-
-  secret-repr-guard:
-    runs-on: ubuntu-latest
-    name: "secret repr class guard"
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    - name: Reject secret-named plain string fields exposed by repr
-      run: python scripts/check_secret_repr.py
-
-  error-path-coverage:
-    runs-on: ubuntu-latest
-    name: "error-path test coverage (SU-4b)"
-    continue-on-error: true
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-    - name: Check error-path test coverage
-      run: |
-        python scripts/check_error_path_coverage.py --report
 
   test:
     runs-on: ubuntu-latest
@@ -686,27 +622,6 @@ jobs:
         # Meta.indexes / model field drift surfaces here.
         uv run python -m django makemigrations siege_geo --check --dry-run
 
-  extras-coherence:
-    runs-on: ubuntu-latest
-    name: "extras coherence"
-    # Verify that every pyproject.toml extra has at least one library
-    # consumer and that cross-extra version specs are consistent. Catches
-    # future recurrences of the #1179 / #1180 shape (extras that advertise
-    # capability the library doesn't deliver). Fast: no deps installed;
-    # just grep over the tree.
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-
-    - name: Run extras coherence check
-      run: |
-        python scripts/validate_extras_coherence.py
-
   griffe-api-diff:
     runs-on: ubuntu-latest
     name: "griffe api-diff (writing-releases:1)"
@@ -876,55 +791,19 @@ jobs:
     - name: Check package
       run: |
         twine check dist/*
-    
+
+    - name: Check wheel contents (#1420)
+      # Only siege_utilities at the wheel root, every data file the code
+      # loads via Path(__file__)/importlib.resources present, no member
+      # names with whitespace (Finder " 2.py" copies), no bytecode.
+      run: |
+        python scripts/check_wheel_contents.py dist/*.whl
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: dist
         path: dist/
-
-  release:
-    runs-on: ubuntu-latest
-    needs: [build]
-    if: github.event_name == 'release'
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-
-    - name: Verify version consistency
-      run: |
-        python scripts/release_manager.py --check
-
-    - name: Verify release tag matches package version
-      run: |
-        TAG_VERSION="${GITHUB_REF_NAME#v}"
-        PKG_VERSION=$(python -c "import re; print(re.search(r'version\s*=\s*\"([^\"]+)\"', open('pyproject.toml').read()).group(1))")
-        if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-          echo "ERROR: Release tag v${TAG_VERSION} does not match package version ${PKG_VERSION}"
-          exit 1
-        fi
-        echo "Tag v${TAG_VERSION} matches package version ${PKG_VERSION}"
-
-    - name: Install twine
-      run: pip install twine
-
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: dist
-        path: dist/
-
-    - name: Publish to PyPI
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-      run: |
-        twine upload dist/*
 
   security:
     runs-on: ubuntu-latest

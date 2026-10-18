@@ -133,27 +133,50 @@ class BoundaryQuerySet(gis_models.QuerySet):
         order = "area_land" if ascending else "-area_land"
         return self.order_by(order)
 
-    def by_population(self, year: int = None, ascending: bool = False):
+    def snapshots(self, *, dataset: str | None = None, year: int | None = None):
+        """Return snapshots for this boundary selection, scoped by content type.
+
+        Snapshots refer to GEOIDs across boundary vintages. For one boundary,
+        use County.objects.filter(pk=county.pk).snapshots().
+        """
+        from ..models.demographics import DemographicSnapshot
+
+        snapshots = DemographicSnapshot.objects.using(self.db).filter(
+            content_type__app_label=self.model._meta.app_label,
+            content_type__model=self.model._meta.model_name,
+            object_id__in=self.order_by().values("geoid"),
+        )
+        if dataset is not None:
+            snapshots = snapshots.filter(dataset=dataset)
+        if year is not None:
+            snapshots = snapshots.filter(year=year)
+        return snapshots.order_by("-year", "-pk")
+
+    def by_population(self, year: int = None, ascending: bool = False, dataset: str = "acs5"):
         """
         Order boundaries by population.
 
         Requires DemographicSnapshot records to be joined.
 
         Args:
-            year: Census year for population data
+            year: Census year for population data (latest available if omitted)
             ascending: True for smallest first, False for largest first
+            dataset: Census dataset to select (default acs5)
 
         Returns:
-            Ordered QuerySet (may be empty if no demographics loaded)
+            Ordered QuerySet (population is NULL where no matching data exists)
         """
         # This requires a subquery to DemographicSnapshot
         from django.db.models import OuterRef, Subquery
         from ..models.demographics import DemographicSnapshot
 
         subquery = DemographicSnapshot.objects.filter(
+            content_type__app_label=self.model._meta.app_label,
+            content_type__model=self.model._meta.model_name,
             object_id=OuterRef("geoid"),
-            **({"year": year} if year else {}),
-        ).values("total_population")[:1]
+            dataset=dataset,
+            **({"year": year} if year is not None else {}),
+        ).order_by("-year", "-pk").values("total_population")[:1]
 
         qs = self.annotate(population=Subquery(subquery))
 
@@ -204,6 +227,14 @@ class BoundaryManager(gis_models.Manager):
 
     def get_queryset(self):
         return BoundaryQuerySet(self.model, using=self._db)
+
+    def snapshots(self, *, dataset: str | None = None, year: int | None = None):
+        """Return GEOID snapshots for this boundary type."""
+        return self.get_queryset().snapshots(dataset=dataset, year=year)
+
+    def by_population(self, year: int = None, ascending: bool = False, dataset: str = "acs5"):
+        """Order by the selected dataset's population (latest year by default)."""
+        return self.get_queryset().by_population(year, ascending, dataset)
 
     def for_year(self, year: int):
         """Filter boundaries by vintage year."""
