@@ -179,6 +179,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sources instead of silently degrading; custom place population lookups use
   the full 7-digit GEOID to prevent cross-state PLACEFP collisions. (#1441)
 
+- `CensusDataSource.fetch_geographic_boundaries` no longer reports success
+  for a scope or vintage it did not serve. `context['served_year']` is always
+  set, and the `census_year` column holds the served vintage (it was always
+  null). `county_fips` now filters on `countyfp`. `aitsce`, `ttract` and
+  `tbg` are filtered by state like the other national-only layers, and a
+  state request against a national layer with no `statefp` column fails with
+  `STATE_FILTER_UNAVAILABLE` and `context['state_filter_applied']=False`
+  instead of returning the national file. The module-level
+  `fetch_geographic_boundaries` forwards `county_fips` and
+  `allow_nearest_year`; the module-level `get_geographic_boundaries` no longer
+  passes `state_identifier` into the `county_fips` slot (#1482).
+- TIGER URL construction: `anrc` always resolves to the Alaska file
+  `tl_{year}_02_anrc.zip`; `concity` requires `state_fips`; `cd{n}` resolves
+  to the `CD/` directory for the congress that vintage publishes
+  (`YEAR_TO_CONGRESS[year]`, so `cd119` for 2024 works; other pairings stay
+  "not available" instead of building a 404); `rails` is national
+  (`tl_{year}_us_rails.zip`, flat `TIGER2010/RAILS/` in 2010); `submcd` uses
+  the published `subbarrio` filename from 2013; the 403/429 fallback directory
+  list names `COUSUB` and `ADDRFEAT` and drops the non-existent `COUNTYSUB`,
+  `SDELM`, `SDSEC` and `SDUNI`. An opt-in `-m integration` test HEADs one
+  built URL per catalog type for 2010, 2019 and 2023 (#1464).
+
+### BREAKING
+
+- `CensusDataSource.fetch_geographic_boundaries` (and the module-level
+  wrapper) no longer substitutes the nearest published TIGER vintage. A
+  request for an unpublished year now returns `success=False`,
+  `error_code="VINTAGE_NOT_PUBLISHED"`, `error_stage="discovery"`, with
+  `context['served_year']` naming the vintage that would have been used.
+  The legacy `get_geographic_boundaries` therefore returns `None` for such a
+  year. **Migration:** callers that pass a year Census has not published
+  (for example electinfo's `_fetch_gdf` and TIGER backfill asking for 2025
+  while 2023 is the latest) must handle the new code. Treat
+  `VINTAGE_NOT_PUBLISHED` as "not published yet" and skip or retry later, or
+  pass `allow_nearest_year=True` and key the rows by
+  `result.context['served_year']` (or the frame's `census_year` column),
+  never by the requested year. Do not write 2023 data under a 2025 vintage
+  (#1482).
+- A `state_fips` request for a national-only layer that has no state FIPS
+  column (`cbsa`, `csa`, `metdiv`, `micro`, `necta`, `nectadiv`, `cnecta`,
+  `aiannh` and similar) now fails with `STATE_FILTER_UNAVAILABLE`
+  (`error_stage="configuration"`) instead of returning the whole national
+  file. **Migration:** request these layers without `state_fips` and
+  intersect spatially if a state subset is needed. This includes
+  `populate_boundaries --type cbsa --state ...`. `county_fips` now filters
+  and must be a 3-digit code with `state_fips`; a layer without a `countyfp`
+  column fails with `COUNTY_FILTER_UNAVAILABLE` (#1482).
+- `address_features`, `linear_water`, `area_water`, `roads` and `edges` are
+  removed from `BOUNDARY_TYPE_CATALOG`, and `construct_download_url` raises
+  `BoundaryConfigurationError` for them. Census publishes these only per
+  county, so every URL the builder produced for them 404'd. **Migration:**
+  download the per-county files directly
+  (`tl_{year}_{state}{county}_linearwater.zip`, `areawater`, `roads`,
+  `edges`, `addrfeat`) until county-level support lands. `anrc` with a
+  `state_fips` other than `02`, and `concity` without `state_fips`, now raise
+  `BoundaryConfigurationError`. `rails` with `state_fips` now fails with
+  `STATE_FILTER_UNAVAILABLE` (the national file has no state column) instead
+  of building a per-state URL that 404'd (#1464).
 - `populate_demographics --variables all` stores every variable group. A
   group whose snapshot already exists is merged into it instead of being
   skipped, so income, education, housing and the other groups are no longer

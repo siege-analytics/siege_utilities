@@ -199,11 +199,15 @@ class TestKnownTigerDirectories:
         for layer in [
             "PUMA", "AIANNH", "ANRC", "CSA", "METDIV", "NECTA",
             "PRIMARYROADS", "PRISECROADS", "ROADS", "RAILS",
-            "ELSD", "SCSD", "SDELM", "SDSEC", "SDUNI", "UNSD",
+            "ELSD", "SCSD", "UNSD",
             "EDGES", "FACES", "POINTLM", "LINEARWATER", "AREAWATER",
-            "TBG", "TTRACT", "COUNTYSUB",
+            "TBG", "TTRACT", "COUSUB", "ADDRFEAT",
         ]:
             assert layer in dirs, f"{layer} missing from 2022 fallback list"
+        # Not TIGER directory names (#1464): the county-subdivision directory
+        # is COUSUB, and SDELM/SDSEC/SDUNI do not exist.
+        for bogus in ["COUNTYSUB", "SDELM", "SDSEC", "SDUNI"]:
+            assert bogus not in dirs, f"{bogus} is not a TIGER directory"
         # Sanity floor: at least 30 layers in the modern era.
         assert len(dirs) >= 30, f"only {len(dirs)} layers in 2022 fallback"
 
