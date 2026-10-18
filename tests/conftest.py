@@ -88,11 +88,41 @@ def _restore_home():
     _SAVED_HOME_ENV.clear()
 
 
+# Test-run controls (database targets, credentials file, the real home). CI
+# sets these and the library never reads them.
+_SIEGE_TEST_CONTROL_PREFIXES = ('SIEGE_TEST_', 'SIEGE_UTILITIES_TEST_PG_DSN')
+_SAVED_SIEGE_ENV = {}
+
+
+def _drop_inherited_siege_env():
+    """Unset every inherited SIEGE_* variable except the test-run controls.
+
+    The library reads SIEGE_<NAME> for every setting (conf/__init__.py) and
+    honours SIEGE_USER_CONFIG_DIR, SIEGE_SETTINGS_FILE and other directory
+    overrides, so anything inherited from the developer's shell would point
+    the suite at their real config (#1717). pytest_configure sets the
+    variables the suite needs afterwards.
+    """
+    for var in [v for v in os.environ if v.startswith('SIEGE_')]:
+        if var.startswith(_SIEGE_TEST_CONTROL_PREFIXES):
+            continue
+        _SAVED_SIEGE_ENV[var] = os.environ.pop(var)
+
+
+def _restore_siege_env():
+    for var in [v for v in os.environ if v.startswith('SIEGE_')]:
+        if not var.startswith(_SIEGE_TEST_CONTROL_PREFIXES):
+            os.environ.pop(var)
+    os.environ.update(_SAVED_SIEGE_ENV)
+    _SAVED_SIEGE_ENV.clear()
+
+
 @pytest.hookimpl(tryfirst=True)
 def pytest_configure(config):
     """Set up temp directories and disable auto-init BEFORE siege_utilities imports."""
     global _TEMP_BASE
     _TEMP_BASE = tempfile.mkdtemp(prefix='siege_test_')
+    _drop_inherited_siege_env()
     _isolate_home(_TEMP_BASE)
 
     # Prevent paths.py from auto-creating real directories
@@ -128,6 +158,7 @@ def pytest_unconfigure(config):
     """Clean up the temp directory tree and reset singletons after the session."""
     global _TEMP_BASE
     _restore_home()
+    _restore_siege_env()
     if _TEMP_BASE and os.path.isdir(_TEMP_BASE):
         # Unlink the HOME passthrough symlinks first so cleanup can never
         # reach into the real home they point at.
