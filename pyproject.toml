@@ -336,30 +336,37 @@ Homepage = "https://github.com/siege-analytics/siege_utilities"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["*"]
-exclude = [
-    # Repo-tooling directories that contain .py files but are NOT runtime
-    # packages. Without an exclude here, setuptools find_packages picked
-    # them up and shipped them at site-packages root, polluting every
-    # downstream venv (any user could then `from scripts import
-    # release_manager` and collide with their own top-level `scripts/`
-    # package). See issue #496.
-    "scripts*",
-    "tests*",
-    "docs*",
-]
+# Allow-list, not deny-list: only the library ships. The earlier
+# include=["*"] + exclude of scripts/tests/docs (#496) still shipped any new
+# top-level directory with .py files; 4.0.0 installed a top-level `spikes`
+# package at site-packages root (#1420). scripts/check_wheel_contents.py
+# fails the build if anything but siege_utilities is at the wheel root.
+include = ["siege_utilities*"]
 
 [tool.setuptools.exclude-package-data]
 "*" = [
     # macOS Finder "copy" duplicates (e.g. "file 2.py", "file 3.py").
     # These are gitignored but can contaminate wheels built from dirty
-    # working trees. See issues #1040, #1049.
+    # working trees. See issues #1040, #1049. This only filters package
+    # *data*: setuptools still collects "file 2.py" as a module, which is how
+    # 3.22.0 shipped two of them. scripts/check_wheel_contents.py rejects any
+    # wheel member whose name contains whitespace (#1420).
     "* [0-9].py",
     "* [0-9][0-9].py",
 ]
 
 [tool.setuptools.package-data]
-siege_utilities = ["py.typed"]
+# Non-.py files the library loads at runtime through Path(__file__). Keep in
+# step with FILE_RELATIVE_REFERENCES in scripts/check_wheel_contents.py,
+# which CI runs against the built wheel (#1420).
+siege_utilities = [
+    "py.typed",
+    # political.schema_migrations_dir()
+    "political/migrations/*.sql",
+    # Hydra config dir (config/hydra_manager.py, enhanced_config.py, migration.py)
+    "configs/*/*.yaml",
+    "configs/*/*/*.yaml",
+]
 
 [tool.pytest.ini_options]
 markers = [

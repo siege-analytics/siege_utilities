@@ -85,6 +85,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sources instead of silently degrading; custom place population lookups use
   the full 7-digit GEOID to prevent cross-state PLACEFP collisions. (#1441)
 
+- **Packaging:** the wheel ships only `siege_utilities`. 4.0.0 also installed
+  a top-level `spikes` package at the site-packages root; package discovery is
+  now `include = ["siege_utilities*"]`. The wheel now carries the files the
+  library loads at runtime, which no published wheel had:
+  `political/migrations/V*.sql` (so `political.schema_migrations_dir()`
+  exists in an installed package) and `configs/**/*.yaml` (the default Hydra
+  config dir, which `HydraConfigManager` raises on when absent). The CI
+  `build` job runs `scripts/check_wheel_contents.py` on the built wheel and
+  fails on any other top-level entry, a missing referenced data file, a member
+  name containing whitespace (3.22.0 shipped two Finder `" 2.py"` copies) or
+  bytecode. (#1420)
+
 ### BREAKING
 
 - `ConfigurationMigrator.migrate_user_profile` and `migrate_client_profile`

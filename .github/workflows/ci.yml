@@ -876,7 +876,14 @@ jobs:
     - name: Check package
       run: |
         twine check dist/*
-    
+
+    - name: Check wheel contents (#1420)
+      # Only siege_utilities at the wheel root, every data file the code
+      # loads via Path(__file__)/importlib.resources present, no member
+      # names with whitespace (Finder " 2.py" copies), no bytecode.
+      run: |
+        python scripts/check_wheel_contents.py dist/*.whl
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
