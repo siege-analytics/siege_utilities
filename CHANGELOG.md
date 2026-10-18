@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Release process:** PyPI releases go only through `publish-tag.yml`, on a
+  `v*` tag push. It checks that the tag equals `v` + the pyproject version and
+  that the tagged commit is on `main`, then runs the whole of `ci.yml` on the
+  tag. Only after that passes does it build, check wheel contents and publish
+  with `pypa/gh-action-pypi-publish` (using the existing `PYPI_API_TOKEN`
+  secret; trusted publishing with attestations once configured, RELEASING.md). The token-based `release` job
+  in `ci.yml` and its `release: published` trigger are removed.
+  `scripts/release_manager.py --release` no longer uploads or needs
+  `PYPI_API_TOKEN`. It pushes only the new tag, not `--tags`, and stops if
+  tagging fails. `--build --pypi` defaults to TestPyPI and refuses
+  `--repository pypi`. Manual uploads are prohibited; see `RELEASING.md`,
+  which also records the `v3.19.0`, `v3.21.0` and `v4.0.0` dispositions.
+  CHANGELOG entries for 3.18.0-3.23.0 have been added from the tags and git
+  log (#1419).
+
 - `validate_directory_path(..., must_exist=False)` now raises
   `PathSecurityError` when a path component that does not exist yet contains a
   C0 control character, DEL or a C1 control character. This covers callers that
@@ -163,6 +178,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `from_census_year` now raises with the required population and principal-city
   sources instead of silently degrading; custom place population lookups use
   the full 7-digit GEOID to prevent cross-state PLACEFP collisions. (#1441)
+
+- `[etter]` caps `pandas<3.0` like the other pandas-pulling extras; etter
+  requires `geopandas>=1.1`, so an etter-only install could resolve pandas 3
+  and hit #1365. The pyproject comments on the removed `streamlit`/`export`
+  extras now say 3.24.0 (#1186), not v3.19, and the `all` comment lists the
+  extras it leaves out (#1419).
+- **Packaging:** the wheel ships only `siege_utilities`. 4.0.0 also installed
+  a top-level `spikes` package at the site-packages root; package discovery is
+  now `include = ["siege_utilities*"]`. The wheel now carries the files the
+  library loads at runtime, which no published wheel had:
+  `political/migrations/V*.sql` (so `political.schema_migrations_dir()`
+  exists in an installed package) and `configs/**/*.yaml` (the default Hydra
+  config dir, which `HydraConfigManager` raises on when absent). The CI
+  `build` job runs `scripts/check_wheel_contents.py` on the built wheel and
+  fails on any other top-level entry, a missing referenced data file, a member
+  name containing whitespace (3.22.0 shipped two Finder `" 2.py"` copies) or
+  bytecode. (#1420)
 
 ### BREAKING
 
@@ -455,8 +487,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Major release. The public surface changes incompatibly (the data.world
 connector and its exports are removed, and several packaging extras changed),
-so this supersedes the never-published 3.24.0 in-repo version and bumps the
-major per Semantic Versioning.
+so this supersedes the 3.24.0 in-repo version and bumps the major per Semantic
+Versioning. 3.24.0 was never tagged or uploaded to PyPI, but a 3.24.0 wheel is
+on Nexus (#1401).
 
 ### BREAKING
 
@@ -632,6 +665,101 @@ implied by this changelog/version bump PR.
   guards), so a real misconfig surfaces loudly (writing-code:7).
 - **`siege_geo` migration 0006 no longer re-adds `RedistrictingPlan.state`, which broke a fresh `migrate` with `DuplicateColumn`.**
   Migration 0005 already adds `redistrictingplan.state` (identical `ForeignKey` definition); 0006 added it a second time. On an already-migrated database the second `AddField` was a no-op, but on a fresh database (CI, new deploys) it ran `ALTER TABLE siege_geo_redistrictingplan ADD COLUMN state_id` on a column 0005 had just created, aborting the whole migration graph. `state` is now owned solely by 0005; 0006 keeps its four genuinely-new fields (`effective_from`, `effective_to`, `superseded_by`, `court_case`). Model state is unchanged. A new static guard `tests/test_geo_migration_graph.py` fails if any `(model, field)` is `AddField`-ed twice without an intervening removal, so this bug class cannot recur.
+
+## [3.23.0] - 2026-06-19
+
+Tag `v3.23.0` (`09bd9cac`, on `main`). Uploaded to PyPI 2026-06-20. The
+Nexus wheel with this version number is not this tag (#1401).
+
+- Fixes from a hostile review: the lazy loader distinguishes a missing
+  dependency from an internal import bug (#1041); dead `shell=True`
+  subprocess helper removed (#1042); the GA connector raises on missing
+  credentials (#1043); `RDHProvider` raises `BoundaryFetchError` instead of
+  returning `None` (#1044); overlay registry constructor errors propagate
+  (#1045); reporting raises on missing ReportLab (#1046); `quote_ident`
+  docstring corrected (#1047); config fallbacks log warnings (#1048).
+- Packaging: `exclude-package-data` for Finder `" 2.py"` copies (#1049). It
+  filters data files only, not modules; see #1420.
+- CI: the `build` and `release` jobs no longer depend on the test jobs.
+  Since #1419, publishing waits for the full CI run on the tag.
+
+## [3.22.1] - 2026-06-04
+
+Tag `v3.22.1` (`4ce78f52`, on `main`). Uploaded to PyPI 2026-06-20.
+
+- `dir(siege_utilities)` no longer raises `NameError`, and the `connectors`
+  package is registered in the lazy-import table (#1038).
+
+## [3.22.0] - 2026-06-03
+
+Tag `v3.22.0` (`a53f5cf1`, on `main`). Uploaded to PyPI 2026-06-04. The
+wheel contains two Finder duplicates,
+`examples/enhanced_features_demo 2.py` and
+`geo/django/migrations/0010_seat_state_constraint 2.py` (#1420).
+
+- New `connectors/` package (`ConnectorProtocol`, `UpsertResult`,
+  `UpsertError`) (#1011); HubSpot, Zoho and Dynamics OAuth providers (#1014).
+- Geo: GST geocoding helpers (#515), IRS SOI files (#539), DuckDB and Shapely
+  areal-interpolation backends (#986), pure-numpy choropleth classification
+  (#987), `from_geodataframe()` and `engine=` on boundary providers (#988).
+- Fixes: HTTP session lifecycle (#979), CRS agreement before spatial joins
+  (#976), equal-area compactness (#975), atomic file writes (#978).
+
+## [3.21.0] - 2026-06-01
+
+Tag `v3.21.0` (`7764b35d`, on `main`). **Not published to PyPI** and has no
+GitHub release; a wheel exists on Nexus only (#1419). See RELEASING.md.
+
+- Architectural principles codified and the developer docs aligned (#953,
+  #955).
+- SU-1/SU-2 sweep: return-empty-on-error removed in config, distributed,
+  files, survey, geo providers and examples (#959-#961); `__all__` added
+  across the package; star imports converted to lazy loading (#962);
+  credential files written `0o600` (#950); large HTTP downloads streamed with
+  a size cap (#910).
+
+## [3.20.0] - 2026-05-30
+
+Tag `v3.20.0` (`bd187ce4`, on `main`). Uploaded to PyPI 2026-06-20.
+
+- **BREAKING:** functions in analytics, config, data/statistics, distributed,
+  files, geo and reporting that returned empty results on failure now raise
+  (SU-1). Callers that tested for an empty DataFrame, `{}`, `None` or `False`
+  need exception handling instead.
+- `__all__` completeness and annotation fixes (SU-2); `examples/` held to
+  library standards (SU-3); `raise ... from e` throughout.
+
+## [3.19.0] - 2026-05-28
+
+Tag `v3.19.0` points at `75c8125f`, a version-string-only commit made on
+2026-06-19 on top of `main`@`13a2653f` (2026-05-28); `75c8125f` is not on
+`main`. Uploaded to PyPI 2026-06-20 from that commit. See RELEASING.md.
+
+- Census table catalog with caching and search; `VARIABLE_GROUPS`
+  deprecated in favour of `CensusCatalog` (SU#601-606).
+- Place history with seats, demographics, urbanicity and events overlays
+  (SU#607-612); NCES urbanicity batch classification (SU#615-616); NLRB
+  clients and models (SU#617-621).
+- Batch geocoding with Census, Nominatim and TAMU backends and fallback
+  chaining (SU#622-626); codification pipeline (SU#627-632); Redistricting
+  Data Hub catalog, plan lifecycle and precinct-to-VTD reconciliation
+  (SU#633-636).
+- Hostile-review fixes: SQL-injection and credential-exposure surfaces
+  closed, silent `except: pass` sites narrowed (SU#558-761).
+
+## [3.18.0] - 2026-05-26
+
+Tag `v3.18.0` (`6eec45d9`, on `main`). Uploaded to PyPI 2026-06-20.
+
+- Identifiers, schema `MigrationRunner`, the `political` namespace and its
+  SQL migrations (#381). No wheel shipped those SQL files until #1420.
+- Geo boundary models: TribalArea, CountySubdivision, PUMA and special
+  districts (SU#535, SU#551); `RedistrictingPlan.plan_status` (SU#552);
+  migrations 0006-0009.
+- `detect_crs` and axis-order-aware `reproject_geom` (SU#546), format
+  detection (SU#545), `.swmz` reader (SU#547); QCEW and NCES file lifts
+  (SU#533, SU#534); Trino federation and OSS Unity Catalog external tables
+  (#521).
 
 ## [3.17.2] - 2026-05-14
 

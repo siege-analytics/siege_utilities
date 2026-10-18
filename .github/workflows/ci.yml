@@ -11,8 +11,10 @@ on:
       - 'hotfix/**'
   pull_request:
     branches: [ main, develop ]
-  release:
-    types: [ published ]
+  # publish-tag.yml calls this workflow on a v* tag and publishes only if it
+  # passes. Publishing a GitHub release no longer triggers CI or an upload
+  # (#1419).
+  workflow_call:
 
 # A new push to a PR cancels that PR's older run. Push and release runs each
 # get a group of their own (run_id): sharing a group would cancel a *pending*
@@ -789,55 +791,19 @@ jobs:
     - name: Check package
       run: |
         twine check dist/*
-    
+
+    - name: Check wheel contents (#1420)
+      # Only siege_utilities at the wheel root, every data file the code
+      # loads via Path(__file__)/importlib.resources present, no member
+      # names with whitespace (Finder " 2.py" copies), no bytecode.
+      run: |
+        python scripts/check_wheel_contents.py dist/*.whl
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: dist
         path: dist/
-
-  release:
-    runs-on: ubuntu-latest
-    needs: [build]
-    if: github.event_name == 'release'
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-
-    - name: Verify version consistency
-      run: |
-        python scripts/release_manager.py --check
-
-    - name: Verify release tag matches package version
-      run: |
-        TAG_VERSION="${GITHUB_REF_NAME#v}"
-        PKG_VERSION=$(python -c "import re; print(re.search(r'version\s*=\s*\"([^\"]+)\"', open('pyproject.toml').read()).group(1))")
-        if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-          echo "ERROR: Release tag v${TAG_VERSION} does not match package version ${PKG_VERSION}"
-          exit 1
-        fi
-        echo "Tag v${TAG_VERSION} matches package version ${PKG_VERSION}"
-
-    - name: Install twine
-      run: pip install twine
-
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: dist
-        path: dist/
-
-    - name: Publish to PyPI
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-      run: |
-        twine upload dist/*
 
   security:
     runs-on: ubuntu-latest
