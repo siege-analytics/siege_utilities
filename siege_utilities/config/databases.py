@@ -3,6 +3,7 @@ Simple database configuration management for siege_utilities.
 Handles database connection settings for Spark and other uses.
 """
 
+import ipaddress
 import json
 import os
 import pathlib
@@ -59,7 +60,6 @@ def _is_env_ref(value: str) -> bool:
 
 
 _HOSTNAME_RE = re.compile(r'^[A-Za-z0-9._-]+$')
-_IPV6_CHARS_RE = re.compile(r'^[0-9A-Fa-f:.%]+$')
 
 
 def _validate_host(host: Any) -> str:
@@ -71,24 +71,38 @@ def _validate_host(host: Any) -> str:
     example a ``?socketFactory=...`` that overrides this config's TLS). Accept a
     hostname/IPv4 (``[A-Za-z0-9._-]``), a bracketed IPv6 literal (returned
     verbatim), or a bare IPv6 literal (returned bracketed); raise ``ValueError``
-    for anything else.
+    for anything else. IPv6 zone IDs are not supported.
     """
     h = str(host)
-    if h.startswith('[') and h.endswith(']'):
-        if _IPV6_CHARS_RE.match(h[1:-1]):
-            return h
-        raise ValueError("Invalid IPv6 host literal")
-    if _HOSTNAME_RE.match(h):
+    if _HOSTNAME_RE.fullmatch(h):
         return h
-    if ':' in h and _IPV6_CHARS_RE.match(h):
-        return f'[{h}]'
+    literal = h[1:-1] if h.startswith('[') and h.endswith(']') else h
+    if ':' in literal and '%' not in literal:
+        try:
+            ipaddress.IPv6Address(literal)
+        except ipaddress.AddressValueError:
+            raise ValueError("Invalid IPv6 host literal") from None
+        return f'[{literal}]'
     raise ValueError(
         "Invalid database host: expected a hostname, IPv4 address, or "
         "(optionally bracketed) IPv6 literal with no URL-structural characters"
     )
 
 
-def create_database_config(name: str, connection_type: str, host: str, port: int,
+def _validate_port(port: Any) -> int:
+    """Return a JDBC-safe integer port in the range 1-65535."""
+    error = "Invalid database port: expected an integer or 1 to 5 digits in range 1-65535"
+    if isinstance(port, bool) or not isinstance(port, (int, str)):
+        raise ValueError(error)
+    if isinstance(port, str) and re.fullmatch(r'[0-9]{1,5}', port) is None:
+        raise ValueError(error)
+    validated = int(port)
+    if not 1 <= validated <= 65535:
+        raise ValueError(error)
+    return validated
+
+
+def create_database_config(name: str, connection_type: str, host: str, port: int | str,
                            database: str, username: str, password: str, **kwargs) -> Dict[str, Any]:
     """
     Create a database connection configuration.
@@ -97,7 +111,7 @@ def create_database_config(name: str, connection_type: str, host: str, port: int
         name: Friendly name for the connection
         connection_type: Database type (postgres, mysql, oracle, etc.)
         host: Database host
-        port: Database port
+        port: Database port, an integer or 1 to 5 digit string in range 1-65535
         database: Database name
         username: Username
         password: Password
@@ -123,13 +137,14 @@ def create_database_config(name: str, connection_type: str, host: str, port: int
     # IPv6 literal stays usable and URL-structural characters cannot inject
     # extra JDBC URL components. Only the database path segment is encoded.
     safe_host = _validate_host(host)
+    safe_port = _validate_port(port)
     safe_db = quote(str(database), safe='')
 
     jdbc_urls = {
-        'postgres': f"jdbc:postgresql://{safe_host}:{port}/{safe_db}",
-        'mysql': f"jdbc:mysql://{safe_host}:{port}/{safe_db}",
-        'oracle': f"jdbc:oracle:thin:@{safe_host}:{port}:{safe_db}",
-        'sqlserver': f"jdbc:sqlserver://{safe_host}:{port};databaseName={safe_db}"
+        'postgres': f"jdbc:postgresql://{safe_host}:{safe_port}/{safe_db}",
+        'mysql': f"jdbc:mysql://{safe_host}:{safe_port}/{safe_db}",
+        'oracle': f"jdbc:oracle:thin:@{safe_host}:{safe_port}:{safe_db}",
+        'sqlserver': f"jdbc:sqlserver://{safe_host}:{safe_port};databaseName={safe_db}"
     }
 
     jdbc_drivers = {
@@ -147,7 +162,7 @@ def create_database_config(name: str, connection_type: str, host: str, port: int
         'database': database,
         'username': username,
         'password': password,  # Note: In production, this should be encrypted
-        'jdbc_url': jdbc_urls.get(connection_type.lower(), f"jdbc:{connection_type}://{safe_host}:{port}/{safe_db}"),
+        'jdbc_url': jdbc_urls.get(connection_type.lower(), f"jdbc:{connection_type}://{safe_host}:{safe_port}/{safe_db}"),
         'jdbc_driver': jdbc_drivers.get(connection_type.lower(), f"com.{connection_type}.jdbc.Driver"),
         'connection_params': {
             'ssl_mode': kwargs.get('ssl_mode'),
@@ -269,6 +284,7 @@ def get_spark_database_options(db_name: str, config_directory: str = "config") -
 
     Non-None connection parameters are forwarded as string-valued JDBC options.
     For PostgreSQL, ``ssl_mode`` is mapped to the driver's ``sslmode`` property.
+    Conflicting ``ssl_mode`` and ``sslmode`` connection parameters raise.
     Connection parameters take precedence over duplicate ``spark_options``.
 
     Args:
@@ -281,6 +297,7 @@ def get_spark_database_options(db_name: str, config_directory: str = "config") -
     Raises:
         FileNotFoundError: If the database config does not exist.
         KeyError: If the config is missing required keys.
+        ValueError: If TLS parameters conflict or ssl_mode is unsupported.
 
     Example:
         >>> spark_options = siege_utilities.get_spark_database_options("analytics_db")  # doctest: +SKIP
@@ -300,7 +317,12 @@ def get_spark_database_options(db_name: str, config_directory: str = "config") -
     spark_options.update(config.get('spark_options', {}))
 
     is_postgres = config.get('connection_type', '').lower() == 'postgres'
-    for key, value in config.get('connection_params', {}).items():
+    connection_params = config.get('connection_params', {})
+    if (connection_params.get('ssl_mode') is not None
+            and connection_params.get('sslmode') is not None
+            and connection_params['ssl_mode'] != connection_params['sslmode']):
+        raise ValueError("Conflicting ssl_mode and sslmode connection parameters")
+    for key, value in connection_params.items():
         if value is None:
             continue
         if key == 'ssl_mode':
