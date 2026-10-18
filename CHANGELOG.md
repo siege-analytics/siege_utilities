@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Label the Databricks bridge notebook's EPSG:4326 buffer as schematic and
+  angular, with a real-use recipe that projects to a metric CRS, buffers with
+  a radius in meters, and transforms back if needed. Document caller-side
+  filtering and row bounds before collection to driver memory (#1665).
+
 ## [4.1.0] - 2026-10-18
 
 ### Changed
