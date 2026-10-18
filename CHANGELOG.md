@@ -26,6 +26,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `is_sensitive_path` again blocks `_`/`-` prefixed private-key names outside
   `.ssh` (`deploy_id_rsa`, `github-id_ecdsa`) and now covers `id_ed25519`;
   `paid_rsa` and `*.pub` stay allowed (#1702).
+- Demographic population queries now keep equal GEOIDs in different boundary
+  types and datasets separate. Boundary lookups use GEOIDs instead of integer
+  PKs; plan assignments accept BigAutoField-sized boundary PKs. The migration
+  keeps existing GEOID matches unchanged, including those with coincident
+  boundary PKs. GEOID-shaped orphans also stay unchanged: a leading zero on a
+  multi-character key or a length present in that content type's loaded GEOIDs
+  prevents PK conversion, even when the boundary is not loaded. Only canonical
+  positive integers without leading zeros or a GEOID length can convert from a
+  matching boundary PK; other unmatched keys are unresolved.
+  Any unresolved or duplicate rows abort the migration atomically with counts
+  per model and reason. After reviewing those counts, operators can explicitly
+  set `SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE=1` for the migration command to
+  archive and remove those rows. Duplicates retain the newest `updated_at`, then
+  highest PK. Recovery copies support reversal unless migrated rows were edited.
+  Both migration directions allow 30 minutes per statement for large index and
+  constraint builds, with a five-second lock timeout.
+  Before running `migrate siege_geo`, back up `siege_geo_demographicsnapshot`
+  and `siege_geo_demographictimeseries`, for example with
+  `pg_dump -t siege_geo_demographicsnapshot -t siege_geo_demographictimeseries`.
+  The opt-in `SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE=1` archives removed rows
+  into `siege_geo_demographickeyarchive`; this archive table is dropped when
+  the migration is reversed.
+  (#1560)
+
 - Failed legacy profile migrations no longer create defaults or report
   `migrated=True`; missing files are not migrations. Missing snapshot years
   fail the requested time-series interval and report every missing year.
@@ -89,6 +113,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the full 7-digit GEOID to prevent cross-state PLACEFP collisions. (#1441)
 
 ### BREAKING
+
+- `DemographicSnapshot` and `DemographicTimeSeries` now use GEOID-native keys.
+  The indexed `object_id` CharField is retained as the ORM/storage name and
+  repurposed as GEOID-only; `geoid` is a read/write instance alias (also accepted
+  by `create`). `content_type` is a plain FK. `content_object`, including
+  `create(content_object=boundary)`, is deprecated for one release and will be
+  removed in v4.2.0; it warns and now stores/resolves the boundary's GEOID, never
+  its PK. Use `create(content_type=..., object_id=boundary.geoid)` and
+  `get_boundary(vintage_year=...)`; omitted vintage selects the newest available
+  boundary. Reverse access is `County.objects.filter(pk=...).snapshots()`.
+  `by_population(..., dataset="acs5")` now scopes by content type and dataset and
+  selects the newest data year when no year is specified. GFK-specific relation
+  introspection/prefetch APIs no longer apply. (#1560)
 
 - `ConfigurationMigrator.migrate_user_profile` and `migrate_client_profile`
   in both `config.enhanced_config` and `config.migration` now propagate file,
