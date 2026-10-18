@@ -15,7 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   different emails remain distinct. Identifier-aware IDs change from the
   previous name-only IDs; callers persisting merge tables should regenerate
   them. Name-only matching retains its previous IDs with confidence `0.5`
-  instead of `1.0`; full confidence requires identifier evidence (#1416).
+  for full names and `0.25` when any configured name part is missing, including
+  surname-only rows; full confidence requires identifier evidence. Textual
+  null identifiers (`nan`, `none`, `null`, `<na>`, `nat`) are ignored after
+  stripping and casefolding, matching whole tokens only (#1416).
 
 ## [4.1.0] - 2026-10-18
 

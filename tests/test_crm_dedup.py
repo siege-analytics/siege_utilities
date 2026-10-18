@@ -112,7 +112,7 @@ def test_missing_name_part_is_not_converted_to_text(missing_name):
     result = crm_dedup_pipeline([frame])
 
     assert result["normalized_name"].tolist() == ["garcia"]
-    assert result["match_confidence"].tolist() == [0.5]
+    assert result["match_confidence"].tolist() == [0.25]
 
 
 @pytest.mark.parametrize("missing_identifier", [None, "", " \t", float("nan"), pd.NA])
@@ -202,3 +202,77 @@ def test_all_invalid_frames_return_empty_schema():
 
     assert result.empty
     assert list(result.columns) == OUTPUT_COLUMNS
+
+
+@pytest.mark.parametrize("identifier, confidence", [
+    (" NaN ", 0.5),
+    ("\tNoNe\t", 0.5),
+    (" NULL ", 0.5),
+    (" <nA> ", 0.5),
+    (" nAt ", 0.5),
+    ("member-nan-1", 1.0),
+    ("member-none-1", 1.0),
+    ("member-null-1", 1.0),
+    ("member-<na>-1", 1.0),
+    ("member-nat-1", 1.0),
+])
+def test_textual_null_filter_matches_only_whole_normalized_tokens(identifier, confidence):
+    frame = pd.DataFrame([
+        _contact("a", member_id=identifier),
+        _contact("b", source_system="crm_b", member_id=identifier),
+    ])
+
+    result = crm_dedup_pipeline([frame], identifier_columns=["member_id"])
+
+    assert result["match_confidence"].eq(confidence).all()
+    assert result["canonical_id"].nunique() == 1
+    if confidence == 0.5:
+        assert result["canonical_id"].eq(str(uuid5_from_seed(CRM_NAMESPACE, "maria garcia"))).all()
+
+
+def test_textual_null_does_not_change_a_valid_identifier_match():
+    frame = pd.DataFrame([
+        _contact("a", email=" None ", member_id="123"),
+        _contact("b", source_system="crm_b", member_id="123"),
+    ])
+
+    result = crm_dedup_pipeline([frame], identifier_columns=["email", "member_id"])
+
+    assert result["canonical_id"].nunique() == 1
+    assert result["match_confidence"].eq(1.0).all()
+
+
+@pytest.mark.parametrize("name_columns, confidence", [
+    (["first_name", "last_name"], 0.25),
+    (["first_name", "absent"], 0.25),
+    (["first_name"], 0.5),
+])
+def test_name_only_confidence_uses_configured_name_parts(name_columns, confidence):
+    frame = pd.DataFrame([_contact("a", last_name=" \t")])
+
+    result = crm_dedup_pipeline([frame], name_columns=name_columns)
+
+    assert result["normalized_name"].tolist() == ["maria"]
+    assert result["match_confidence"].tolist() == [confidence]
+
+
+@pytest.mark.parametrize("sentinel", ["nan", "NaN", "None", "null", "<NA>", "NaT"])
+def test_textual_null_identifier_is_not_corroborating_evidence(sentinel):
+    frame = pd.DataFrame([
+        _contact("a", email=sentinel),
+        _contact("b", source_system="crm_b", email=sentinel),
+    ])
+    result = crm_dedup_pipeline([frame])
+    assert result["match_confidence"].lt(1.0).all()
+
+
+def test_surname_only_rows_are_weaker_than_full_name_candidates():
+    frame = pd.DataFrame([
+        _contact("a", first_name=None),
+        _contact("b", source_system="crm_b", first_name=float("nan")),
+        _contact("c"),
+        _contact("d", source_system="crm_b"),
+    ])
+    r = crm_dedup_pipeline([frame]).set_index("source_id")
+    grouped = r.loc["a", "canonical_id"] == r.loc["b", "canonical_id"]
+    assert (not grouped) or r.loc["a", "match_confidence"] < r.loc["c", "match_confidence"]

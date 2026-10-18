@@ -26,6 +26,7 @@ from siege_utilities.identifiers.uuid_generation import uuid5_from_seed
 log = logging.getLogger(__name__)
 
 CRM_NAMESPACE = UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+_NULL_IDENTIFIER_TOKENS = {"nan", "none", "null", "<na>", "nat"}
 
 __all__ = ["crm_dedup_pipeline"]
 
@@ -55,10 +56,12 @@ def crm_dedup_pipeline(
             to ``["first_name", "last_name"]``.
         identifier_columns: Strong identifier columns to include in the
             seed alongside the normalized name. Defaults to ``["email"]``.
-            Non-null, non-blank values are stripped and lowercased. All
-            available column/value pairs must match; column order does not
-            matter. Missing columns and values are ignored. Pass ``[]``
-            to use name-only matching explicitly.
+            Non-null, non-blank values are stripped and lowercased. Whole
+            tokens ``nan``, ``none``, ``null``, ``<na>`` and ``nat`` are
+            ignored after stripping and casefolding. All available
+            column/value pairs must match; column order does not matter.
+            Missing columns and values are ignored. Pass ``[]`` to use
+            name-only matching explicitly.
         source_system_column: Column identifying the CRM source.
         source_id_column: Column with the record ID in the source CRM.
         normalizer: Name normalization function. Defaults to
@@ -70,9 +73,12 @@ def crm_dedup_pipeline(
         ``source_system``, ``source_id``, ``match_confidence``.
 
         ``match_confidence`` is 1.0 when the seed includes a strong
-        identifier, otherwise 0.5 (an uncorroborated name-only candidate,
-        not a calibrated probability). Name-only seeds retain their v1
-        canonical IDs; identifier-aware seeds produce different IDs.
+        identifier, otherwise 0.5 when all configured name parts are present
+        and 0.25 when any name part is missing. Partial names without an
+        identifier (such as surname-only rows) still group by name but are
+        weaker candidates than full names. These values are not calibrated
+        probabilities. Name-only seeds retain their v1 canonical IDs;
+        identifier-aware seeds produce different IDs.
         Frames missing either required source column and rows with no
         non-empty normalized name are skipped. Null name parts are ignored.
     """
@@ -117,17 +123,20 @@ def crm_dedup_pipeline(
             for col in identifier_cols:
                 val = row.get(col)
                 if pd.notna(val):
-                    identifier = str(val).strip().lower()
-                    if identifier:
-                        identifiers[col] = identifier
+                    identifier = str(val).strip()
+                    if identifier and identifier.casefold() not in _NULL_IDENTIFIER_TOKENS:
+                        identifiers[col] = identifier.lower()
 
             # Structured seeds distinguish identifier types and prevent
             # delimiter collisions; sort keys for stable column ordering.
             seed = json.dumps([normalized, identifiers], sort_keys=True) if identifiers else normalized
             canonical_id = str(uuid5_from_seed(namespace, seed))
-            # A name alone is only a candidate: 0.5 flags it for review.
+            # Partial names are weaker evidence than complete names.
             # Reserve 1.0 for matches corroborated by a strong identifier.
-            match_confidence = 1.0 if identifiers else 0.5
+            if identifiers:
+                match_confidence = 1.0
+            else:
+                match_confidence = 0.5 if len(parts) == len(name_cols) else 0.25
 
             all_rows.append({
                 "canonical_id": canonical_id,
