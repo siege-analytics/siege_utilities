@@ -86,7 +86,11 @@ def test_fetchxml_follows_encoded_cookie():
     cookie = '<cookie page="1"><contactid last="abc" first="abc" /></cookie>'
     wrapper = f'<cookie pagenumber="2" pagingcookie="{quote(quote(cookie, safe=""), safe="")}" istracking="False" />'
     c.request = Mock(side_effect=[
-        {"value": [{"contactid": "a"}], "@Microsoft.Dynamics.CRM.morerecords": True, "@Microsoft.Dynamics.CRM.fetchxmlpagingcookie": wrapper},
+        {
+            "value": [{"contactid": "a"}],
+            "@Microsoft.Dynamics.CRM.morerecords": True,
+            "@Microsoft.Dynamics.CRM.fetchxmlpagingcookie": wrapper,
+        },
         {"value": [{"contactid": "b"}], "@Microsoft.Dynamics.CRM.morerecords": False},
     ])
     df = c.fetch_xml("contacts", '<fetch count="1"><entity name="contact" /></fetch>')
@@ -128,7 +132,11 @@ def test_fetchxml_requests_paging_annotations_over_http(monkeypatch):
 ])
 def test_fetchxml_invalid_cookie_raises(cookie):
     c = connector("dynamics")
-    c.request = Mock(return_value={"value": [{"id": "1"}], "@Microsoft.Dynamics.CRM.morerecords": True, "@Microsoft.Dynamics.CRM.fetchxmlpagingcookie": cookie})
+    c.request = Mock(return_value={
+        "value": [{"id": "1"}],
+        "@Microsoft.Dynamics.CRM.morerecords": True,
+        "@Microsoft.Dynamics.CRM.fetchxmlpagingcookie": cookie,
+    })
     with pytest.raises(ConnectorError, match="[Cc]ookie"):
         c.fetch_xml("contacts", '<fetch><entity name="contact" /></fetch>')
     c.request.assert_called_once()
@@ -136,7 +144,11 @@ def test_fetchxml_invalid_cookie_raises(cookie):
 
 def test_fetchxml_repeated_cookie_raises():
     c = connector("dynamics")
-    c.request = Mock(return_value={"value": [{"id": "1"}], "@Microsoft.Dynamics.CRM.morerecords": True, "@Microsoft.Dynamics.CRM.fetchxmlpagingcookie": '<cookie page="1"><id last="1" /></cookie>'})
+    c.request = Mock(return_value={
+        "value": [{"id": "1"}],
+        "@Microsoft.Dynamics.CRM.morerecords": True,
+        "@Microsoft.Dynamics.CRM.fetchxmlpagingcookie": '<cookie page="1"><id last="1" /></cookie>',
+    })
     with pytest.raises(ConnectorError, match="[Cc]ookie"):
         c.fetch_xml("contacts", '<fetch><entity name="contact" /></fetch>')
     assert c.request.call_count == 2

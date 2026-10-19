@@ -59,7 +59,10 @@ def sleep(monkeypatch):
 @pytest.mark.parametrize("failure", ["timeout", "server_error"])
 def test_non_idempotent_requests_are_sent_once(provider, method, failure):
     c = connector(provider)
-    send = Mock(side_effect=requests.Timeout("committed, response lost")) if failure == "timeout" else Mock(return_value=response(503))
+    send = (
+        Mock(side_effect=requests.Timeout("committed, response lost"))
+        if failure == "timeout" else Mock(return_value=response(503))
+    )
     c._session.request = send
     with pytest.raises(ConnectorError):
         c.request(method, "/records", json_body={"name": "Acme"})
@@ -85,7 +88,9 @@ def test_rate_limit_backs_off_before_safe_retry(provider, sleep):
 
 
 @pytest.mark.parametrize("provider", ["hubspot", "zoho"])
-@pytest.mark.parametrize("status,error", [(401, ConnectorAuthError), (403, ConnectorAuthError), (429, ConnectorRateLimitError)])
+@pytest.mark.parametrize("status,error", [
+    (401, ConnectorAuthError), (403, ConnectorAuthError), (429, ConnectorRateLimitError),
+])
 def test_batch_stops_on_auth_or_rate_limit(provider, status, error, sleep):
     c = connector(provider)
     c._session.request = Mock(return_value=response(status, headers={"Retry-After": "7"}))

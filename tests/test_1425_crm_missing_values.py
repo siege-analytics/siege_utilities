@@ -25,7 +25,9 @@ VENDOR_FIELDS = {
     },
     "hubspot": {
         "accounts": ("id", "name", "industry", "website", "annualrevenue", "numberofemployees", "address"),
-        "opportunities": ("id", "dealname", "dealstage", "amount", "hs_deal_stage_probability", "closedate", "hubspot_owner_id"),
+        "opportunities": (
+            "id", "dealname", "dealstage", "amount", "hs_deal_stage_probability", "closedate", "hubspot_owner_id",
+        ),
         "contacts": ("id", "firstname", "lastname", "email", "phone", "jobtitle", "address"),
     },
     "zoho": {
@@ -35,7 +37,9 @@ VENDOR_FIELDS = {
     },
     "dynamics": {
         "accounts": ("accountid", "name", "industrycode", "websiteurl", "revenue", "numberofemployees", "address1_line1"),
-        "opportunities": ("opportunityid", "name", "stepname", "estimatedvalue", "closeprobability", "estimatedclosedate", "_ownerid_value"),
+        "opportunities": (
+            "opportunityid", "name", "stepname", "estimatedvalue", "closeprobability", "estimatedclosedate", "_ownerid_value",
+        ),
         "contacts": ("contactid", "firstname", "lastname", "emailaddress1", "telephone1", "jobtitle", "address1_line1"),
     },
 }

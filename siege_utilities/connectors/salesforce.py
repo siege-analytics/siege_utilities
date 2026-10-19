@@ -40,7 +40,6 @@ from siege_utilities.connectors._protocol import (
     ConnectorAuthError,
     ConnectorError,
     ConnectorNotFoundError,
-    ConnectorRateLimitError,
     UpsertResult,
     sanitize_record,
 )
