@@ -1,12 +1,11 @@
 """Offline ACS Summary File contracts using observed Census table slices."""
 
-from io import BytesIO
 from pathlib import Path
 from unittest.mock import Mock, call
 
+import httpx
 import pandas as pd
 import pytest
-import requests
 from pandas.testing import assert_frame_equal
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 
@@ -25,6 +24,7 @@ from siege_utilities.geo.census_api_client import CensusAPIError, CensusRateLimi
 
 
 FIXTURES = Path(__file__).parent / "data" / "summary_file"
+_HTTPX_CLIENT = httpx.AsyncClient
 BASE = "https://www2.census.gov/programs-surveys/acs/summary_file"
 POPULATION_URL = f"{BASE}/2022/table-based-SF/data/1YRData/acsdt1y2022-b01003.dat"
 INCOME_URL = f"{BASE}/2022/table-based-SF/data/1YRData/acsdt1y2022-b19013.dat"
@@ -41,13 +41,21 @@ def no_network(monkeypatch):
         Mock(side_effect=AssertionError("Live network is forbidden")),
     )
 
+    async def forbidden(*args, **kwargs):
+        raise AssertionError("Live network is forbidden")
+
+    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", forbidden)
+
 
 def response_for(body: bytes, url: str = POPULATION_URL, status: int = 200):
-    response = requests.Response()
-    response.status_code = status
-    response.url = url
-    response.raw = BytesIO(body)
-    return response
+    return httpx.Response(status, content=body, request=httpx.Request("GET", url))
+
+
+def set_download(monkeypatch, mocked):
+    transport = httpx.MockTransport(lambda request: mocked(str(request.url)))
+    monkeypatch.setattr(
+        httpx, "AsyncClient", lambda **kw: _HTTPX_CLIENT(transport=transport, **kw),
+    )
 
 
 @pytest.fixture
@@ -56,7 +64,7 @@ def download(monkeypatch):
         return response_for((FIXTURES / url.rsplit("/", 1)[1]).read_bytes(), url)
 
     mocked = Mock(side_effect=get)
-    monkeypatch.setattr("requests.get", mocked)
+    set_download(monkeypatch, mocked)
     return mocked
 
 
@@ -108,7 +116,7 @@ def test_real_geography_filtering(source, download, geography, state, county, ge
     assert frame["B01003_001E"].dtype == "int64"
     assert frame["NAME"].isna().all()
     assert provenance == Provenance("bulk", POPULATION_URL, 1, False)
-    download.assert_called_once_with(POPULATION_URL, stream=True, timeout=15)
+    download.assert_called_once_with(POPULATION_URL)
 
 
 def test_real_sentinel_and_include_moe(source, download):
@@ -135,7 +143,7 @@ def test_synthetic_subcounty_geographies(source, monkeypatch, geography, geoid):
         b"1500000US060730001001|8|2", b"1600000US0644000|30|3",
         b"1600000US0144000|40|4", b"1400000US06037|999|9",
     ])
-    monkeypatch.setattr("requests.get", Mock(return_value=response_for(body)))
+    set_download(monkeypatch, Mock(return_value=response_for(body)))
     frame, _ = source.fetch(**{
         **REQUEST, "geography": geography,
         "county_fips": None if geography == "place" else "037",
@@ -150,7 +158,7 @@ def test_synthetic_sentinels_preserve_valid_negative_values(source, monkeypatch,
     body = (f"GEO_ID|B19013_E001|B19013_M001\n"
             f"0500000US06037|{sentinel}|{sentinel}\n"
             "0500000US06073|-42|0\n").encode()
-    monkeypatch.setattr("requests.get", Mock(return_value=response_for(body)))
+    set_download(monkeypatch, Mock(return_value=response_for(body)))
     frame, _ = source.fetch(**{**REQUEST, "variables": "B19013_001E", "include_moe": True})
     assert frame.loc[0, ["B19013_001E", "B19013_001M"]].isna().all()
     assert frame.loc[1, "B19013_001E"] == -42
@@ -175,14 +183,14 @@ def test_alias_group_and_table_join_by_geoid(source, download):
     assert frame["B19013_001E"].tolist() == [122159, 82516, 98928]
     assert frame["B19013_001M"].tolist() == [3735, 744, 2263]
     assert download.call_args_list == [
-        call(POPULATION_URL, stream=True, timeout=15), call(INCOME_URL, stream=True, timeout=15),
+        call(POPULATION_URL), call(INCOME_URL),
     ]
 
 
 def test_default_registry_alias_uses_concrete_table(source, monkeypatch):
     body = b"GEO_ID|B01001_E001|B01001_M001\n0500000US06037|9721138|25\n"
     get = Mock(return_value=response_for(body))
-    monkeypatch.setattr("requests.get", get)
+    set_download(monkeypatch, get)
     frame, _ = source.fetch(**{**REQUEST, "variables": "total_population"})
     assert frame["B01001_001E"].tolist() == [9721138]
     assert get.call_args.args[0].endswith("/acsdt1y2022-b01001.dat")
@@ -193,7 +201,7 @@ def test_explicit_moe_and_duplicates_download_once(source, download):
         **REQUEST, "variables": ["B19013_001M", "B19013_001E", "B19013_001M"], "include_moe": True,
     })
     assert list(frame) == ["GEOID", "NAME", "B19013_001M", "B19013_001E"]
-    download.assert_called_once_with(INCOME_URL, stream=True, timeout=15)
+    download.assert_called_once_with(INCOME_URL)
 
 
 @pytest.mark.parametrize("include_moe", [False, True])
@@ -248,9 +256,9 @@ def test_cache_key_separates_year_period_and_table(source, download):
         source.fetch(**request)
         BulkFileSource(source.cache_dir).fetch(**request)
     assert download.call_args_list == [
-        call(POPULATION_URL, stream=True, timeout=15),
-        call(f"{BASE}/2022/table-based-SF/data/5YRData/acsdt5y2022-b01003.dat", stream=True, timeout=15),
-        call(f"{BASE}/2023/table-based-SF/data/5YRData/acsdt5y2023-b01003.dat", stream=True, timeout=15),
+        call(POPULATION_URL),
+        call(f"{BASE}/2022/table-based-SF/data/5YRData/acsdt5y2022-b01003.dat"),
+        call(f"{BASE}/2023/table-based-SF/data/5YRData/acsdt5y2023-b01003.dat"),
     ]
     assert len(list(source.cache_dir.glob("*.dat"))) == 3
 
@@ -298,7 +306,7 @@ def test_invalid_configuration_raises(kwargs, message):
 
 @pytest.mark.parametrize("status", [404, 500])
 def test_http_error_propagates_without_caching(source, monkeypatch, status):
-    monkeypatch.setattr("requests.get", Mock(return_value=response_for(b"error", status=status)))
+    set_download(monkeypatch, Mock(return_value=response_for(b"error", status=status)))
     with pytest.raises(HTTPError, match=str(status)):
         source.fetch(**REQUEST)
     assert not list(source.cache_dir.iterdir())
@@ -306,22 +314,23 @@ def test_http_error_propagates_without_caching(source, monkeypatch, status):
 
 @pytest.mark.parametrize("error_type", [Timeout, ConnectionError])
 def test_transport_error_propagates_without_caching(source, monkeypatch, error_type):
-    error = error_type("transport failed")
-    monkeypatch.setattr("requests.get", Mock(side_effect=error))
+    transport_error = httpx.ReadTimeout if error_type is Timeout else httpx.ConnectError
+    error = transport_error("transport failed")
+    set_download(monkeypatch, Mock(side_effect=error))
     with pytest.raises(error_type, match="transport failed") as raised:
         source.fetch(**REQUEST)
-    assert raised.value is error
+    assert str(raised.value) == str(error)
     assert not list(source.cache_dir.iterdir())
 
 
 def test_interrupted_download_is_removed_and_retried(source, download):
     response = response_for(b"")
 
-    def interrupted(chunk_size):
+    async def interrupted(chunk_size):
         yield b"GEO_ID|B01003_E001"
-        raise Timeout("stream interrupted")
+        raise httpx.ReadTimeout("stream interrupted")
 
-    response.iter_content = interrupted
+    response.aiter_bytes = interrupted
     download.side_effect = [response, response_for((FIXTURES / "acsdt1y2022-b01003.dat").read_bytes())]
     with pytest.raises(Timeout, match="stream interrupted"):
         source.fetch(**REQUEST)
@@ -337,7 +346,7 @@ def test_interrupted_download_is_removed_and_retried(source, download):
     (b"GEO_ID|B01003_E001\n0500000US06037|1\n0500000US06037|2\n", "Duplicate GEOIDs"),
 ])
 def test_malformed_or_duplicate_table_raises(source, monkeypatch, body, message):
-    monkeypatch.setattr("requests.get", Mock(return_value=response_for(body)))
+    set_download(monkeypatch, Mock(return_value=response_for(body)))
     with pytest.raises(ValueError, match=message):
         source.fetch(**REQUEST)
 
@@ -363,7 +372,7 @@ def test_cache_filesystem_error_propagates(tmp_path, download):
 def test_secondary_http_failure_is_not_a_valid_empty_result(source, monkeypatch):
     api = Mock(spec=CensusAPI)
     api.fetch_data.side_effect = Timeout("API timed out")
-    monkeypatch.setattr("requests.get", Mock(return_value=response_for(b"missing", status=404)))
+    set_download(monkeypatch, Mock(return_value=response_for(b"missing", status=404)))
     with pytest.raises(HTTPError, match="404"):
         DualSourceCensusClient(ApiSource(api), source).fetch(**REQUEST)
     assert api.fetch_data.call_count == 3
@@ -373,8 +382,8 @@ def test_secondary_http_failure_is_not_a_valid_empty_result(source, monkeypatch)
 
 def _serve(monkeypatch, body: bytes):
     """Serve a crafted .dat body for the population table (no live network)."""
-    monkeypatch.setattr(
-        "requests.get", Mock(side_effect=lambda url, **kwargs: response_for(body, url))
+    set_download(
+        monkeypatch, Mock(side_effect=lambda url, **kwargs: response_for(body, url))
     )
 
 

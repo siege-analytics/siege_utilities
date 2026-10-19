@@ -880,7 +880,7 @@ from siege_utilities.geo.census.dual_source import (
 
 client = DualSourceCensusClient(
     ApiSource(CensusAPI()),
-    BulkFileSource(cache_dir=".cache/acs-summary", timeout=15),
+    BulkFileSource(cache_dir=".cache/acs-summary", timeout=15, total_timeout=300),
 )
 frame, provenance = client.fetch(
     variables=["B01003_001E", "B19013_001E"],
@@ -894,14 +894,29 @@ timeouts, then calls the secondary once. Other primary errors propagate.
 The bulk source also works directly with the same request keywords. Every
 failure raises; a missing table, missing column, malformed table or absent
 requested geography is never returned as an empty success. Provenance records
-`source="bulk"`, the first requested table's URL, and one source-level attempt;
-the client adds prior attempts and sets `degraded=True` when fallback succeeds.
+`source`, every origin URL in `location` (API secrets are redacted), and one
+source-level attempt. `cache_hit=True` means at least one input was cached;
+`cache_paths` identifies cached tables, parquet files, or Django cache keys.
+For a mixed bulk request, `location` still lists all origin URLs while
+`cache_paths` lists only cached inputs. The v4.0.0 `url_or_path` field remains
+available and reports the first served URL or cache path. The client adds
+prior attempts and sets `degraded=True` when fallback succeeds.
+`CensusAPI.fetch_data` exposes the same per-return metadata in
+`frame.attrs["census_source"]`; it does not keep shared last-request state.
 
 Only ACS detailed-table estimates and margins are supported (`acs1` and
 `acs5`, API variables such as `B01003_001E` and `B01003_001M`). Variable aliases
 resolve through the same `VariableRegistry` as the API. Each table is downloaded
-once per year/period into the cache, with a bounded HTTP connect/read timeout;
-partial downloads are removed on failure. Files have no expiry: remove them
+once per year/period into the cache. As a documented behavior change from
+v4.0.0, `total_timeout` defaults to 300 seconds per table, covering connection,
+redirects, and streaming with cancellation even while a read is pending.
+`timeout` still bounds each HTTP operation. The synchronous source uses an
+HTTPX async transport in its own thread/event loop, so it also works from an
+existing event loop. HTTP failures retain the requests exception categories.
+Partial downloads are removed on failure. Every reuse verifies a SHA-256
+sidecar; missing or invalid sidecars cause a fresh download. Existing v4.0.0
+cache files therefore download once to acquire a checksum. This detects local
+corruption, not server-side revisions. Files still have no expiry: remove them
 to refresh. Without `cache_dir`, a temporary cache lasts for the source's lifetime.
 Parsing reads only `GEO_ID` and requested columns in chunks; tables align by GEOID,
 with missing table/geography combinations represented as NaN in the outer join.
@@ -917,6 +932,8 @@ GEOIDs, and places `GEOID`, `NAME` first. Supported geographies are nation,
 state, county, tract, block group and place. State/county FIPS filters operate
 on the FIPS tail. Whole states use `0400000US` and counties use `0500000US`;
 component rows such as `04000A0US06` are excluded. Nation's FIPS tail is empty.
+The API source now supports `geography="nation"` via `for=us:1`, matching the
+bulk result's empty GEOID. Both reject state/county filters for national data.
 County filters are supported only for counties, tracts and block groups.
 Tracts and block groups require a state, as they do in `CensusAPI`.
 

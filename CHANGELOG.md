@@ -112,6 +112,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Census dual-source retrieval now reports every origin URL in
+  `Provenance.location`, a `cache_hit` flag, and the cache paths used. National
+  requests use the API's `for=us:1` geography and match the bulk source's empty
+  FIPS tail. Concurrent deletion during parquet expiry is a cache miss, and
+  real API timeout retries reach bulk fallback with a safe timeout cause.
+  **Behavior change from v4.0.0:** bulk downloads have a 300-second total
+  deadline (configurable with `total_timeout`) as well as the existing HTTP
+  timeout. Cached tables are SHA-256 checked before reuse; missing or invalid
+  sidecars cause a download, including caches created by v4.0.0. The legacy
+  `url_or_path` field reports the first served URL or cache path. For mixed
+  cached/live table requests, `cache_hit=True` means at least one table was
+  cached; `cache_paths` identifies which ones. Independent API/bulk fixtures
+  and a real retry stack with a fake clock cover these paths (#1406).
+
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
@@ -733,8 +747,9 @@ on Nexus (#1401).
   year; a `_TIMESERIES_PATHS` alias registry maps names like `eits/resconst`.
   `CensusCatalogDataset.year` becomes `int` or `None` and gains
   `timeseries_variables` and `timeseries_groups`, retained through the disk-cache
-  round trip. Year-based discovery is unchanged and builds byte-identical URLs.
-  (#1374.)
+  round trip. Year-based discovery retains the corrected `/data/{year}/...`
+  URLs introduced by #1373 in v4.0.0; v3.23.0 built the incorrect
+  `/data/data/{year}/...` URLs. (#1374, #1406.)
 - Python 3.13 is now a blocking CI gate (previously allowed to fail). The full
   Linux suite passes on 3.13. Python 3.14 is tested as a non-blocking CI gate
   while its recently released native stack stabilizes. (#1365.)

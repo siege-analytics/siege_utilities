@@ -219,7 +219,7 @@ def test_real_api_timeout_retry_stack_reaches_bulk_with_fake_clock(sources, wire
     assert provenance.attempts == 3 and provenance.degraded
 
 
-@pytest.mark.parametrize("corruption", ["truncated", "same_size", "missing_checksum"])
+@pytest.mark.parametrize("corruption", ["truncated", "same_size", "missing_checksum", "invalid_checksum"])
 def test_bulk_cache_integrity_failure_redownloads(sources, wire, corruption):
     _, bulk = sources
     first, _ = bulk.fetch(**REQUEST)
@@ -228,6 +228,8 @@ def test_bulk_cache_integrity_failure_redownloads(sources, wire, corruption):
         path.write_bytes(path.read_bytes().splitlines(keepends=True)[0])
     elif corruption == "same_size":
         path.write_bytes(path.read_bytes().replace(b"9721138", b"9999999"))
+    elif corruption == "invalid_checksum":
+        path.with_suffix(".dat.sha256").write_bytes(b"\xff")
     else:
         for checksum in bulk.cache_dir.glob("*.sha256"):
             checksum.unlink()
@@ -237,20 +239,35 @@ def test_bulk_cache_integrity_failure_redownloads(sources, wire, corruption):
     assert provenance.location == URLS
 
 
-def test_bulk_total_deadline_cancels_stalled_stream(tmp_path, monkeypatch):
+@pytest.mark.parametrize("stall", ["body", "headers", "slow_drip"])
+def test_bulk_total_deadline_cancels_stalled_stream(tmp_path, monkeypatch, stall):
     closed = []
 
     class StalledStream(httpx.AsyncByteStream):
         async def __aiter__(self):
             yield b"GEO_ID|B01003_E001\n"
-            await asyncio.sleep(10)
-            yield b"0500000US06037|9721138\n"
+            if stall == "slow_drip":
+                for byte in b"0500000US06037|9721138\n":
+                    await asyncio.sleep(0.02)
+                    yield bytes([byte])
+            else:
+                await asyncio.sleep(10)
+                yield b"0500000US06037|9721138\n"
 
         async def aclose(self):
             closed.append(True)
 
     client_class = httpx.AsyncClient
-    transport = httpx.MockTransport(lambda req: httpx.Response(200, stream=StalledStream()))
+
+    async def handler(request):
+        if stall == "headers":
+            try:
+                await asyncio.sleep(10)
+            finally:
+                closed.append(True)
+        return httpx.Response(200, stream=StalledStream())
+
+    transport = httpx.MockTransport(handler)
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: client_class(transport=transport, **kw))
     # Current develop consumes this complete response and never checks a deadline.
     response = requests.Response()
@@ -265,3 +282,50 @@ def test_bulk_total_deadline_cancels_stalled_stream(tmp_path, monkeypatch):
     assert time.monotonic() - started < 2
     assert closed
     assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("value", [0, -1, float("inf"), float("nan")])
+def test_bulk_total_timeout_requires_finite_positive_value(value):
+    with pytest.raises(ValueError, match="total_timeout must be finite and positive"):
+        BulkFileSource(total_timeout=value)
+
+
+def test_content_length_mismatch_never_publishes_cache(tmp_path, monkeypatch):
+    body = b"GEO_ID|B01003_E001\n0500000US06037|1\n"
+    client_class = httpx.AsyncClient
+    transport = httpx.MockTransport(lambda req: httpx.Response(
+        200, content=body, headers={"content-length": str(len(body) + 10)},
+    ))
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: client_class(transport=transport, **kw))
+    with pytest.raises(OSError, match="Incomplete Summary File"):
+        BulkFileSource(tmp_path).fetch(**{**REQUEST, "variables": ["B01003_001E"]})
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_sync_bulk_fetch_works_inside_running_event_loop(sources, wire):
+    async def caller():
+        return sources[1].fetch(**REQUEST)
+
+    frame, provenance = asyncio.run(caller())
+    assert frame.shape == (3, 4)
+    assert provenance.location == URLS
+
+
+def test_django_cache_provenance_is_per_return(tmp_path, wire):
+    from django.core.cache import cache
+
+    api = CensusAPI(api_key="test-secret", cache_backend="django")
+    key = api._generate_cache_key(REQUEST["variables"], 2022, "acs1", "county", "06", None)
+    cache.delete(f"census_api:{key}")
+    try:
+        source = ApiSource(api)
+        live_frame, live = source.fetch(**REQUEST)
+        _, cached = source.fetch(**REQUEST)
+        assert live.cache_hit is False
+        assert live_frame.attrs["census_source"]["cache_hit"] is False
+        assert cached.cache_hit is True
+        assert cached.cache_paths == (f"django:census_api:{key}",)
+        assert live.location == cached.location
+        assert wire[0].call_count == 1
+    finally:
+        cache.delete(f"census_api:{key}")
