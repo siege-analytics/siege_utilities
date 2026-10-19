@@ -592,6 +592,12 @@ def create_report_from_arguments(
 ) -> str:
     """Create a complete presentation from a list of Arguments.
 
+    Removes any existing content slides from the new presentation or theme
+    copy before adding one slide per argument. Theme masters and layouts are
+    preserved; the source template is unchanged. An empty argument list
+    produces a presentation with no content slides. Failure to read or delete
+    the initial slides propagates before report slides are added.
+
     Public exposure of figures:
         The Slides API can only insert an image from a URL that is reachable
         without authentication. With ``publish_figures=True`` (the default),
@@ -611,7 +617,8 @@ def create_report_from_arguments(
         folder_id: Optional Drive folder to place the presentation, and the
             temporary figure files, in.
         theme_presentation_id: If given, copies this presentation first
-            (preserves master slides / theme).
+            (preserves masters, layouts, and theme; removes sample slides
+            from the copy).
         publish_figures: If False, figures are not uploaded or published and
             are omitted from the slides.
 
@@ -624,6 +631,15 @@ def create_report_from_arguments(
             client.move_to_folder(pres_id, folder_id)
     else:
         pres_id = create_presentation(client, title, folder_id=folder_id)
+
+    presentation = get_presentation(client, pres_id)
+    delete_requests = [
+        {"deleteObject": {"objectId": slide["objectId"]}}
+        for slide in presentation.get("slides", [])
+    ]
+    if delete_requests:
+        batch_update(client, pres_id, delete_requests)
+        log.debug("Deleted %d initial slides from report %s", len(delete_requests), pres_id)
 
     failures = []
     for i, argument in enumerate(arguments):

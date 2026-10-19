@@ -80,6 +80,9 @@ class FakeSlides:
             def create(self, body=None):
                 return _Call(lambda: {"presentationId": "PRES"})
 
+            def get(self, presentationId=None):
+                return _Call(lambda: {"presentationId": presentationId, "slides": []})
+
             def batchUpdate(self, presentationId=None, body=None):
                 def run():
                     for r in (body or {}).get("requests", []):

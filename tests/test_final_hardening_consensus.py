@@ -14,6 +14,7 @@ def test_slides_report_raises_when_a_figure_upload_fails(monkeypatch):
     from siege_utilities.analytics import google_slides as gs
 
     monkeypatch.setattr(gs, "create_presentation", lambda client, title, folder_id=None: "pres-1")
+    monkeypatch.setattr(gs, "get_presentation", lambda client, presentation_id: {"slides": []})
     monkeypatch.setattr(gs, "add_blank_slide", lambda *a, **k: "slide-1")
     monkeypatch.setattr(gs, "create_textbox", lambda *a, **k: None)
     monkeypatch.setattr(gs, "insert_image", lambda *a, **k: None)

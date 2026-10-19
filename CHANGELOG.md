@@ -112,6 +112,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Documented behavior change from v4.0.0:** Google Slides reports remove
+  existing content slides from the new presentation or template copy before
+  adding exactly one slide per argument; template masters and layouts remain.
+  Google Docs text and heading style ranges now count UTF-16 code units, so
+  non-BMP characters no longer leave the range short. `read_document_text`
+  requests all tabs, visits child tabs and nested tables/tables of contents,
+  and includes headers, footers, and footnotes. It reads each tab's body then
+  those segments in API response order, preserving text-run whitespace.
+  Callers relying on retained template sample slides or body-only extraction
+  should account for the corrected output (#1495).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting

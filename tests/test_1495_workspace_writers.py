@@ -80,6 +80,7 @@ def test_report_contains_only_argument_slides(workspace, argument_count, theme_i
 
     assert result == "report"
     assert len(report["slides"]) == argument_count
+    presentations.get.assert_called_once_with(presentationId="report")
     assert [slide["objectId"] for slide in report["slides"]] == [
         request["createSlide"]["objectId"] for request in requests if "createSlide" in request
     ]
@@ -93,6 +94,32 @@ def test_report_contains_only_argument_slides(workspace, argument_count, theme_i
     else:
         presentations.create.assert_called_once_with(body={"title": "Report"})
         files.copy.assert_not_called()
+
+
+@pytest.mark.parametrize("failure_stage", ["get", "delete"])
+def test_report_stops_when_initial_slides_cannot_be_removed(workspace, failure_stage):
+    client, services = workspace
+    presentations = services["slides"].presentations.return_value
+    presentations.create.return_value.execute.return_value = {"presentationId": "report"}
+    presentations.get.return_value.execute.return_value = {
+        "slides": [{"objectId": "default_title"}],
+    }
+    if failure_stage == "get":
+        presentations.get.return_value.execute.side_effect = RuntimeError("read failed")
+    else:
+        presentations.batchUpdate.return_value.execute.side_effect = RuntimeError("delete failed")
+
+    argument = Argument("Headline", "Text", None, TableType.SINGLE_RESPONSE)
+    with pytest.raises(RuntimeError, match="failed"):
+        google_slides.create_report_from_arguments(client, "Report", [argument])
+
+    if failure_stage == "get":
+        presentations.batchUpdate.assert_not_called()
+    else:
+        presentations.batchUpdate.assert_called_once_with(
+            presentationId="report",
+            body={"requests": [{"deleteObject": {"objectId": "default_title"}}]},
+        )
 
 
 @pytest.mark.parametrize("index", [1, 7])
