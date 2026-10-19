@@ -112,6 +112,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Resolve configuration paths on first access so imports survive an unset
+  `HOME` and a uid without a passwd entry. Use a temporary per-uid home
+  substitute when lookup fails, and check environment overrides before
+  resolving defaults. Guard default downloads and defer Census catalog,
+  inventory, and PL cache paths too. `SIEGE_AUTO_INIT_DIRS=true` now creates
+  directories on first path access rather than import (#1448).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
