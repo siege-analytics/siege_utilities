@@ -69,12 +69,9 @@ def test_json_containers_are_preserved_and_nested_dates_use_iso8601():
     json.dumps(result, allow_nan=False)
 
 
-@pytest.mark.parametrize("missing", [
-    None, float("nan"), pd.NaT, pd.NA, np.float32("nan"), np.datetime64("NaT"),
-])
-def test_nested_missing_values_preserve_dict_keys_and_list_positions(missing):
-    child = {"missing": missing, "zero": np.int64(0), "false": np.bool_(False)}
-    row = {"nested": [missing, {"child": child}, [missing, "last"]]}
+def test_nested_none_preserves_dict_keys_and_list_positions():
+    child = {"missing": None, "zero": np.int64(0), "false": np.bool_(False)}
+    row = {"nested": [None, {"child": child}, [None, "last"]]}
 
     result = sanitize_record(row)
 
@@ -85,9 +82,42 @@ def test_nested_missing_values_preserve_dict_keys_and_list_positions(missing):
     assert result["nested"][1]["child"]["missing"] is None
     assert type(result["nested"][1]["child"]["zero"]) is int
     assert result["nested"][1]["child"]["false"] is False
-    assert child["missing"] is missing
-    assert row["nested"][0] is missing
+    assert child["missing"] is None
+    assert row["nested"][0] is None
     json.dumps(result, allow_nan=False)
+
+
+@pytest.mark.parametrize("missing", [
+    None, float("nan"), np.nan, pd.NaT, pd.NA, np.float32("nan"), np.datetime64("NaT"),
+])
+def test_missing_list_items_become_null_without_shifting_positions(missing):
+    row = {"nested": ["first", missing, {"items": [missing, "last"]}]}
+
+    result = sanitize_record(row)
+
+    assert result == {"nested": ["first", None, {"items": [None, "last"]}]}
+    assert row["nested"][1] is missing
+    assert row["nested"][2]["items"][0] is missing
+    json.dumps(result, allow_nan=False)
+
+
+@pytest.mark.parametrize("missing", [
+    float("nan"), np.nan, pd.NaT, pd.NA, np.float32("nan"), np.datetime64("NaT"),
+])
+@pytest.mark.parametrize("depth", [0, 3])
+def test_nested_dict_sentinels_raise_with_full_key_path(missing, depth):
+    child = {"missing": missing}
+    nested = child
+    for _ in range(depth):
+        nested = [{"child": nested}]
+    row = {"nested": nested}
+    path = "$['nested']" + "[0]['child']" * depth + "['missing']"
+
+    with pytest.raises(ConnectorError) as exc_info:
+        sanitize_record(row)
+
+    assert path in str(exc_info.value)
+    assert child["missing"] is missing
 
 
 def test_nested_scalar_fallback_and_shared_containers():
@@ -120,9 +150,10 @@ def test_circular_containers_raise_a_clear_error(container):
 
 
 @pytest.mark.parametrize("key", [("invalid",), float("nan"), float("inf")])
-def test_unsupported_dict_keys_raise_a_clear_error(key):
+@pytest.mark.parametrize("value", ["value", None, pd.NA])
+def test_unsupported_dict_keys_raise_a_clear_error(key, value):
     with pytest.raises(ConnectorError, match="JSON object key.*nested"):
-        sanitize_record({"nested": {key: "value"}})
+        sanitize_record({"nested": {key: value}})
 
 
 def test_deeply_nested_values_preserve_structure_and_leaf_types():
