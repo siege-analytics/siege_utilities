@@ -3,8 +3,9 @@ Pure-numpy choropleth classification schemes.
 
 Provides map classification (quantiles, equal interval, natural breaks, etc.)
 without geopandas or mapclassify. When mapclassify is available it is used
-as the primary backend; when it is not, equivalent numpy implementations
-provide the same bin edges and assignments.
+as the primary backend; when it is not, numpy implementations use the same
+upper-inclusive bin convention: a value on an interior edge belongs to the
+lower bin. Natural-break edges are class maxima in both backends.
 
 Backend dispatch (in priority order):
 1. **mapclassify** — PySAL's mapclassify library (when installed)
@@ -50,8 +51,12 @@ class ClassificationResult:
     """Result of a classification operation.
 
     Attributes:
-        bins: Bin assignment per value (0 .. k-1). NaN inputs get -1.
-        breaks: k+1 break points (bin edges, including min and max).
+        bins: Bin assignment per value (0 .. k-1). Non-finite inputs get -1.
+        breaks: k+1 edges. Bin 0 includes both bounds; subsequent bins are
+            (lower, upper]. For natural breaks, breaks[1:] are class maxima.
+            If the first natural-break class contains only the minimum, its
+            lower edge is the next float below that minimum to keep the edges
+            distinct. Constant data retains equal lower and upper bounds.
         k: Number of classes actually produced (may be < requested if data
             has fewer unique values).
         scheme: Scheme name used.
@@ -82,20 +87,31 @@ def _classify_equal_interval(values: np.ndarray, k: int) -> tuple[np.ndarray, in
     return breaks, k
 
 
+def _natural_break_edges(minimum: float, upper_bounds: np.ndarray) -> np.ndarray:
+    """Prepend a lower edge without merging a class containing only the minimum."""
+    lower = np.nextafter(minimum, -np.inf) if minimum == upper_bounds[0] else minimum
+    return np.concatenate([[lower], upper_bounds])
+
+
 def _classify_natural_breaks(values: np.ndarray, k: int) -> tuple[np.ndarray, int]:
-    """Fisher-Jenks optimal breaks via dynamic programming."""
+    """Fisher-Jenks minimum-SSE contiguous partition in O(n**2 * k) time."""
     sorted_vals = np.sort(values)
     n = len(sorted_vals)
+    unique_vals = np.unique(sorted_vals)
+    k = min(k, len(unique_vals))
 
-    if n <= k:
-        breaks = np.unique(sorted_vals)
-        return np.concatenate([[sorted_vals[0]], breaks]), len(breaks)
+    if k == len(unique_vals):
+        return _natural_break_edges(sorted_vals[0], unique_vals), k
 
-    ssm = np.zeros((n, k), dtype=np.float64)
+    # ssm[i, j] is the minimum SSE for values[:i+1] in j+1 nonempty
+    # classes. Impossible states remain infinite, including splits of ties.
+    ssm = np.full((n, k), np.inf, dtype=np.float64)
     bp = np.zeros((n, k), dtype=np.int64)
 
-    cumsum = np.cumsum(sorted_vals)
-    cumsum2 = np.cumsum(sorted_vals ** 2)
+    # Translation preserves SSE and avoids cancellation from a large offset.
+    centered = sorted_vals - sorted_vals[0]
+    cumsum = np.cumsum(centered)
+    cumsum2 = np.cumsum(centered ** 2)
 
     def _ss(i: int, j: int) -> float:
         if i == 0:
@@ -106,7 +122,7 @@ def _classify_natural_breaks(values: np.ndarray, k: int) -> tuple[np.ndarray, in
             s = cumsum[j] - cumsum[i - 1]
             s2 = cumsum2[j] - cumsum2[i - 1]
             cnt = j - i + 1
-        return s2 - (s * s) / cnt
+        return max(0.0, s2 - (s * s) / cnt)
 
     for i in range(n):
         ssm[i, 0] = _ss(0, i)
@@ -117,6 +133,8 @@ def _classify_natural_breaks(values: np.ndarray, k: int) -> tuple[np.ndarray, in
             best_cost = np.inf
             best_bp = j
             for m in range(j - 1, i):
+                if sorted_vals[m] == sorted_vals[m + 1]:
+                    continue
                 cost = ssm[m, j - 1] + _ss(m + 1, i)
                 if cost < best_cost:
                     best_cost = cost
@@ -131,15 +149,9 @@ def _classify_natural_breaks(values: np.ndarray, k: int) -> tuple[np.ndarray, in
         kk -= 1
     breaks_idx.reverse()
 
-    break_values = [sorted_vals[0]]
-    for idx in breaks_idx[:-1]:
-        if idx + 1 < n:
-            break_values.append(sorted_vals[idx + 1])
-    break_values.append(sorted_vals[-1])
-
-    breaks = np.unique(break_values)
-    actual_k = len(breaks) - 1
-    return breaks, actual_k
+    # Backtracking gives each class's last value, including a singleton max.
+    # Deduplicating first values would merge that top class with its neighbour.
+    return _natural_break_edges(sorted_vals[0], sorted_vals[breaks_idx]), k
 
 
 def _classify_percentiles(values: np.ndarray, k: int) -> tuple[np.ndarray, int]:
@@ -263,8 +275,10 @@ def _classify_with_mapclassify(
     else:
         classifier = cls(values, k=k)
 
-    breaks = np.concatenate([[values.min()], classifier.bins])
-    breaks = np.unique(breaks)
+    if scheme in ("natural_breaks", "fisher_jenks"):
+        breaks = _natural_break_edges(values.min(), classifier.bins)
+    else:
+        breaks = np.unique(np.concatenate([[values.min()], classifier.bins]))
     actual_k = len(breaks) - 1
 
     # mapclassify bins are upper-inclusive (a value <= an edge belongs to that
@@ -292,36 +306,41 @@ def classify_series(
     """Classify numeric values into k bins using the named scheme.
 
     Backend dispatch: mapclassify (when installed) → pure numpy.
+    Bins are upper-inclusive: a value equal to an interior break belongs to
+    the lower bin. NaN and positive/negative infinity are missing (bin -1)
+    and do not contribute to break calculations.
 
     Args:
         values: Numeric array, Series, or list.
         scheme: Classification scheme name (see AVAILABLE_SCHEMES).
-        k: Number of classes. Some schemes (percentiles, boxplot) ignore k.
+        k: Number of classes. Natural breaks produces min(k, n_unique)
+            nonempty classes. Some schemes (percentiles, boxplot) ignore k.
 
     Returns:
         ClassificationResult with bin assignments, break points, and metadata.
 
     Raises:
-        ValueError: If scheme is unknown or values are empty.
+        ValueError: If scheme is unknown or no finite values are supplied.
         RuntimeError: If the selected mapclassify backend fails.
     """
     arr = np.asarray(values, dtype=np.float64).ravel()
 
-    nan_mask = np.isnan(arr)
-    clean = arr[~nan_mask]
+    missing_mask = ~np.isfinite(arr)
+    clean = arr[~missing_mask]
 
     if len(clean) == 0:
-        raise ValueError("Cannot classify empty or all-NaN values.")
+        raise ValueError("Cannot classify empty or all-non-finite values.")
 
     if k < 1:
         raise ValueError(f"k must be >= 1, got {k}")
 
-    if len(np.unique(clean)) == 1:
+    n_unique = len(np.unique(clean))
+    if n_unique == 1:
         log.warning("All values are identical; producing single-bin classification.")
         bins_clean = np.zeros(len(clean), dtype=np.intp)
         breaks = np.array([clean[0], clean[0]])
         result_bins = np.full(len(arr), -1, dtype=np.intp)
-        result_bins[~nan_mask] = bins_clean
+        result_bins[~missing_mask] = bins_clean
         return ClassificationResult(
             bins=result_bins, breaks=breaks, k=1, scheme=scheme, backend="numpy",
         )
@@ -333,11 +352,14 @@ def classify_series(
         )
         k = len(clean)
 
+    if scheme in ("natural_breaks", "fisher_jenks"):
+        k = min(k, n_unique)
+
     if _MAPCLASSIFY_AVAILABLE and scheme in _MC_SCHEME_MAP:
         try:
             result = _classify_with_mapclassify(clean, scheme, k)
             full_bins = np.full(len(arr), -1, dtype=np.intp)
-            full_bins[~nan_mask] = result.bins
+            full_bins[~missing_mask] = result.bins
             result.bins = full_bins
             log.info(
                 "Classified %d values into %d bins (scheme=%s, backend=mapclassify)",
@@ -357,10 +379,10 @@ def classify_series(
 
     breaks, actual_k = _NUMPY_SCHEMES[scheme](clean, k)
 
-    bins_clean = np.searchsorted(breaks[1:-1], clean, side="right").astype(np.intp)
+    bins_clean = np.searchsorted(breaks[1:-1], clean, side="left").astype(np.intp)
 
     full_bins = np.full(len(arr), -1, dtype=np.intp)
-    full_bins[~nan_mask] = bins_clean
+    full_bins[~missing_mask] = bins_clean
 
     log.info(
         "Classified %d values into %d bins (scheme=%s, backend=numpy)",
@@ -399,7 +421,7 @@ def classify_choropleth(
 
     Returns:
         Copy of df with added columns:
-            _bin: int bin assignment (0..k-1, or -1 for NaN)
+            _bin: int bin assignment (0..k-1, or -1 for non-finite values)
             _break_low: lower bound of the bin
             _break_high: upper bound of the bin
             _color: hex color string (if matplotlib available)

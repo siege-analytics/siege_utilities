@@ -112,6 +112,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Numpy Fisher-Jenks classification preserves the optimal partition with
+  `min(k, n_unique)` nonempty classes, including singleton outliers. Both
+  classification backends use upper-inclusive bins and class maxima for
+  natural-break edges. NaN and positive/negative infinity receive bin `-1`
+  and are excluded from break calculations (#1455).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
