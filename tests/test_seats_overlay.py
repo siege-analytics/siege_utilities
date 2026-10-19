@@ -224,10 +224,12 @@ class TestSeatsOverlay:
         result = overlay.fetch("A", 2020, 2025)
         assert isinstance(result, SeatsOverlayResult)
 
-    def test_partial_containment(self):
+    @pytest.mark.parametrize("to_year", [2030, None], ids=["finite", "ongoing"])
+    def test_partial_containment(self, to_year):
         p = DictSeatsProvider()
-        p.add(_sa(containment_pct=0.7, district_label="7", from_year=2020, to_year=2030))
-        p.add(_sa(containment_pct=0.3, district_label="4", from_year=2020, to_year=2030))
+        # Both districts are current in the same period under either candidate rule.
+        p.add(_sa(containment_pct=0.7, district_label="7", from_year=2020, to_year=to_year))
+        p.add(_sa(containment_pct=0.3, district_label="4", from_year=2020, to_year=to_year))
         o = SeatsOverlay(provider=p)
 
         result = o.fetch("A", 2020, 2025)

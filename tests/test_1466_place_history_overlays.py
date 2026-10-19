@@ -22,6 +22,7 @@ from siege_utilities.geo.overlays.seats import (
     SeatAssignment,
     SeatsOverlay,
     SeatsOverlayResult,
+    _current_districts_at,
 )
 from siege_utilities.geo.place_history import DictCrosswalkProvider, place_history
 
@@ -158,7 +159,7 @@ def test_current_districts_selects_newest_applicable_period(
     assert result.current_districts == [new]
 
 
-def test_current_districts_preserves_current_rows_with_different_end_bounds() -> None:
+def test_current_districts_prefers_ongoing_rows_with_different_end_bounds() -> None:
     finite = SeatAssignment(
         office="US_HOUSE", district_label="4", from_year=2022, to_year=2030,
         containment_pct=0.3,
@@ -167,7 +168,69 @@ def test_current_districts_preserves_current_rows_with_different_end_bounds() ->
     assignments = [finite, ongoing]
     result = SeatsOverlayResult("48201", assignments)
 
-    assert result.current_districts == assignments
+    assert result.current_districts == [ongoing]
+
+
+def test_current_districts_preserves_ongoing_seat_over_later_finite_period() -> None:
+    ongoing = SeatAssignment(
+        office="STATE_UPPER", district_label="15", from_year=2022, to_year=None,
+    )
+    ended = replace(ongoing, district_label="16", from_year=2023, to_year=2024)
+
+    assert SeatsOverlayResult("48201", [ongoing, ended]).current_districts == [ongoing]
+
+
+@pytest.mark.parametrize("reverse", [False, True], ids=["forward", "reverse"])
+@pytest.mark.parametrize(
+    ("reference_year", "periods", "expected_districts"),
+    [
+        pytest.param(
+            2024, [("15", 2022, None, 1.0), ("16", 2023, 2024, 1.0)], ["15"],
+            id="ongoing-at-finite-end",
+        ),
+        pytest.param(
+            2026, [("15", 2022, None, 1.0), ("16", 2023, 2024, 1.0)], ["15"],
+            id="ongoing-after-finite-end",
+        ),
+        pytest.param(
+            2015, [("15", 2022, None, 1.0), ("9", 2012, 2016, 1.0)], ["9"],
+            id="past-reference-excludes-future-ongoing",
+        ),
+        pytest.param(
+            2025, [("4", 2022, None, 0.3), ("7", 2022, None, 0.7)], ["4", "7"],
+            id="ongoing-split",
+        ),
+        pytest.param(
+            2025, [("4", 2022, 2030, 0.3), ("7", 2022, 2030, 0.7)], ["4", "7"],
+            id="finite-split",
+        ),
+        pytest.param(
+            2022, [("5", 2012, 2021, 1.0), ("7", 2022, None, 1.0)], ["7"],
+            id="history",
+        ),
+    ],
+)
+def test_current_districts_at_reference(
+    reference_year: int,
+    periods: list[tuple[str, int, int | None, float]],
+    expected_districts: list[str],
+    reverse: bool,
+) -> None:
+    assignments = [
+        SeatAssignment(
+            office="STATE_UPPER", district_label=district,
+            from_year=start, to_year=end, containment_pct=containment,
+        )
+        for district, start, end, containment in periods
+    ]
+    if reverse:
+        assignments.reverse()
+        expected_districts = list(reversed(expected_districts))
+
+    current = _current_districts_at(assignments, reference_year)
+
+    assert [a.district_label for a in current] == expected_districts
+    assert sum(a.containment_pct for a in current) == pytest.approx(1.0)
 
 
 def test_empty_redistricting_span_never_applies() -> None:

@@ -59,6 +59,18 @@ class SeatAssignment:
     containment_pct: float = 1.0
 
 
+def _current_districts_at(
+    assignments: list[SeatAssignment], reference_year: int,
+) -> list[SeatAssignment]:
+    """Select an office's newest current period at the given reference year."""
+    current = [
+        a for a in assignments
+        if a.to_year is None or (a.from_year or 0) <= reference_year <= a.to_year
+    ]
+    latest_start = max(a.from_year or 0 for a in current)
+    return [a for a in current if (a.from_year or 0) == latest_start]
+
+
 @dataclass
 class SeatsOverlayResult:
     """Result of the seats overlay query.
@@ -91,12 +103,7 @@ class SeatsOverlayResult:
                 a.to_year if a.to_year is not None else (a.from_year or 0)
                 for a in assignments
             )
-            current = [
-                a for a in assignments
-                if a.to_year is None or (a.from_year or 0) <= reference_year <= a.to_year
-            ]
-            latest_start = max(a.from_year or 0 for a in current)
-            result.extend(a for a in current if (a.from_year or 0) == latest_start)
+            result.extend(_current_districts_at(assignments, reference_year))
         return result
 
     @property
