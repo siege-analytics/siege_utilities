@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `place_history` and longitudinal boundary normalization now raise `ValueError`
+  when CT county-equivalent, tract, block-group, or block GEOIDs cross the 2022
+  planning-region recode, including normalization to a target across 2022.
+  The error names the required CT 2020->2022 crosswalk. Previously these queries
+  could report unchanged lineage or merge incompatible GEOIDs silently (#1437).
+
 - New *file* names now get the same check as new directory names. The
   `siege_utilities.files` helpers that create a file refuse a name containing
   a C0, DEL or C1 control character, or a lone surrogate: they raise
