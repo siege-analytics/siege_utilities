@@ -123,6 +123,7 @@ def test_degenerate_axes_report_clear_errors(values, count, render_artifact):
     ct = create_bivariate_crosstab(gdf, 'a', 'b', n_classes=3)
     assert ct.shape == (3, count)
 
+    figs_before = set(plt.get_fignums())
     with pytest.raises(ValueError, match='Cannot render bivariate quantiles'):
         if render_artifact == 'map':
             create_bivariate_choropleth(gdf, 'a', 'b', n_classes=3)
@@ -130,7 +131,10 @@ def test_degenerate_axes_report_clear_errors(values, count, render_artifact):
             create_bivariate_crosstab(gdf, 'a', 'b', n_classes=3, render=True)
         else:
             create_bivariate_analysis(gdf, 'a', 'b', n_classes=3)
-    assert not plt.get_fignums()
+    # The render path must not leak a figure it created before raising. Compare
+    # against figures already open so a shared pytest session (where earlier
+    # tests leave figures open) does not make this fail spuriously.
+    assert set(plt.get_fignums()) <= figs_before
 
 
 def test_verification_reports_unpopulated_bins():
