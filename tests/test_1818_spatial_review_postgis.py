@@ -170,3 +170,21 @@ def test_r2_1_read_tokens_do_not_commit_pending_id_99(postgis_pair, query):
     with observer.cursor() as cursor:
         cursor.execute(f"SELECT id FROM {table}")
         assert cursor.fetchall() == []
+
+
+def test_r2_1_failed_write_preserves_caller_pending_rows(postgis_pair):
+    connector, observer, table = postgis_pair
+    with connector.connection.cursor() as cursor:
+        cursor.execute(f"INSERT INTO {table} VALUES (99, ST_SetSRID(ST_Point(0,0),4326))")
+    with pytest.raises(SpatialQueryError):
+        connector.execute_spatial_query(
+            f"WITH written AS (INSERT INTO {table} VALUES (8, ST_SetSRID(ST_Point(1,2),4326)) "
+            "RETURNING *) SELECT * FROM written", crs="invalid:crs",
+        )
+    with connector.connection.cursor() as cursor:
+        cursor.execute(f"SELECT id FROM {table}")
+        assert cursor.fetchall() == [(99,)]
+    connector.connection.commit()
+    with observer.cursor() as cursor:
+        cursor.execute(f"SELECT id FROM {table}")
+        assert cursor.fetchall() == [(99,)]

@@ -79,3 +79,42 @@ def test_upload_metadata_does_not_require_module_global_driver(places, monkeypat
     result = connector.download_spatial_data("other_places")
     assert result.id.tolist() == [7]
     assert result.crs == frame.crs
+
+
+@pytest.mark.parametrize("view", [False, True])
+def test_r2_2_unserializable_scan_retains_catalog_geometry_metadata(places, view):
+    import pandas as pd
+
+    connector, frame = places
+    connector.connection.register("frame_labels", pd.DataFrame({"id": [7], "label": ["seven"]}))
+    query = "SELECT p.*, l.label FROM places p JOIN frame_labels l USING(id)"
+    if view:
+        connector.connection.execute("CREATE VIEW frame_view AS " + query)
+        query = "SELECT * FROM frame_view"
+    result = connector.execute_spatial_query(query)
+    assert result.id.tolist() == [7]
+    assert result.label.tolist() == ["seven"]
+    assert result.geometry.iloc[0].equals_exact(frame.geometry.iloc[0], 0)
+    assert result.crs == frame.crs
+
+
+def test_r2_2_attached_catalog_and_quoted_view_resolve_geometry_source(places):
+    connector, frame = places
+    connector.connection.execute("ATTACH ':memory:' AS other")
+    connector.connection.execute("CREATE SCHEMA other.retained")
+    connector.connection.execute("USE other.retained")
+    connector.upload_spatial_data(frame, "places")
+    connector.connection.execute('CREATE VIEW "place.view" AS SELECT * FROM places')
+    connector.connection.execute("USE memory.main")
+    result = connector.execute_spatial_query('SELECT p.* FROM other.retained."place.view" p')
+    assert result.id.tolist() == [7]
+    assert result.crs == frame.crs
+
+
+def test_r2_2_prepared_read_keeps_rows_columns_and_crs(places):
+    connector, frame = places
+    connector.connection.execute("PREPARE read_places AS SELECT p.* FROM place_view p")
+    result = connector.execute_spatial_query("EXECUTE read_places")
+    assert result.id.tolist() == [7]
+    assert result.columns.tolist() == frame.columns.tolist()
+    assert result.crs == frame.crs

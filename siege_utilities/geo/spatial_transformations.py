@@ -40,6 +40,61 @@ class SpatialQueryError(RuntimeError):
     inspect the underlying database exception.
     """
 
+
+_SQL_TOKEN = re.compile(
+    r"(?P<space>\s+|--[^\n]*(?:\n|$))|(?P<comment>/\*)|"
+    r"(?P<string>[eE]'(?:[^'\\]|\\.|'')*'|'(?:[^']|'')*')|"
+    r'(?P<identifier>"(?:[^"]|"")*")|'
+    r"(?P<dollar>\$(?:[A-Za-z_][A-Za-z_0-9]*)?\$)|"
+    r"(?P<word>[A-Za-z_\u0080-\uffff][A-Za-z_0-9$\u0080-\uffff]*)|(?P<symbol>.)",
+    re.DOTALL,
+)
+
+
+def _sql_tokens(query):
+    """Yield actual lexemes, excluding whitespace and nested SQL comments."""
+    offset = 0
+    while offset < len(query):
+        match = _SQL_TOKEN.match(query, offset)
+        kind, value = match.lastgroup, match.group()
+        offset = match.end()
+        if kind == 'comment':
+            depth = 1
+            while depth and offset < len(query):
+                delimiter = re.search(r'/\*|\*/', query[offset:])
+                if delimiter is None:
+                    offset = len(query)
+                    break
+                depth += 1 if delimiter.group() == '/*' else -1
+                offset += delimiter.end()
+        elif kind == 'dollar':
+            end = query.find(value, offset)
+            offset = len(query) if end < 0 else end + len(value)
+            yield 'string', query[match.start():offset]
+        elif kind != 'space':
+            yield kind, value
+
+
+def _postgis_has_dml(query):
+    """Recognize DML command words, including CTE bodies, outside literals."""
+    tokens = list(_sql_tokens(query))
+    for index, (kind, value) in enumerate(tokens):
+        if kind != 'word':
+            continue
+        following = tokens[index + 1][1].upper() if index + 1 < len(tokens) else ''
+        word = value.upper()
+        if index and tokens[index - 1][1] not in {'(', ')', ';'}:
+            continue
+        if (word in {'INSERT', 'MERGE'} and following == 'INTO'
+                or word == 'DELETE' and following == 'FROM'):
+            return True
+        # UPDATE may also appear in FOR UPDATE; only a command at the start
+        # of a statement or CTE body (or after its WITH clause) writes rows.
+        if (word == 'UPDATE' and index + 1 < len(tokens)
+                and tokens[index + 1][0] in {'word', 'identifier'}):
+            return True
+    return False
+
 # Try to import DuckDB (optional)
 try:
     import duckdb
@@ -402,9 +457,9 @@ class PostGISConnector:
         Other statements return an affected-row count, or -1 if unavailable.
 
         Read commands leave the connection transaction open. Mutating commands,
-        including DML with RETURNING, own finalization of the connection's
-        transaction: they commit after decoding succeeds and roll back on
-        failure. Use the driver directly to compose caller-managed writes.
+        including data-modifying CTEs, commit after decoding succeeds when the
+        connection was idle. An existing caller transaction stays open; a
+        savepoint isolates failures without committing or discarding its writes.
 
         Args:
             query: SQL query string
@@ -425,14 +480,22 @@ class PostGISConnector:
         if not self.connection:
             raise SpatialQueryError("No PostGIS connection available")
 
+        from psycopg2.extensions import TRANSACTION_STATUS_INTRANS
+
         cursor = None
+        caller_transaction = self.connection.get_transaction_status() == TRANSACTION_STATUS_INTRANS
+        savepoint = False
         try:
             cursor = self.connection.cursor()
+            if caller_transaction:
+                cursor.execute("SAVEPOINT siege_spatial_query")
+                savepoint = True
             cursor.execute(query)
             # PostgreSQL's command tag is independent of the result shape.
             # Capture it before the separate spatial_ref_sys lookup.
             command = cursor.statusmessage.split(' ', 1)[0]
-            mutates = command not in {'SELECT', 'SHOW', 'EXPLAIN', 'FETCH'}
+            mutates = (command not in {'SELECT', 'SHOW', 'EXPLAIN', 'FETCH'}
+                       or command == 'SELECT' and _postgis_has_dml(query))
             if cursor.description is not None:
                 result = gpd.GeoDataFrame(
                     cursor.fetchall(), columns=[column[0] for column in cursor.description],
@@ -462,7 +525,10 @@ class PostGISConnector:
                     result = reproject_if_needed(result, crs)
             else:
                 result = cursor.rowcount
-            if mutates:
+            if savepoint:
+                cursor.execute("RELEASE SAVEPOINT siege_spatial_query")
+                savepoint = False
+            elif mutates:
                 self.connection.commit()
             log.info("Successfully executed PostGIS query")
             return result
@@ -470,7 +536,11 @@ class PostGISConnector:
             log.error(f"Failed to execute PostGIS query: {e}")
             if self.connection:
                 try:
-                    self.connection.rollback()
+                    if savepoint:
+                        cursor.execute("ROLLBACK TO SAVEPOINT siege_spatial_query")
+                        cursor.execute("RELEASE SAVEPOINT siege_spatial_query")
+                    elif not caller_transaction:
+                        self.connection.rollback()
                 except (_Psycopg2Error, OSError) as rb_exc:
                     log.warning("Failed to rollback PostGIS transaction: %s", rb_exc)
             raise SpatialQueryError(f"PostGIS query failed: {e}") from e
@@ -534,16 +604,14 @@ _DUCKDB_CRS_COMMENT = '\nsiege_utilities.crs.v1='
 
 def _duckdb_table_metadata(connection, table_name):
     """Read table comments without using any caller column names."""
-    # DuckDB supplies quoted qualified names for query dependencies. Tokenize
-    # those names so dots inside quoted identifiers remain part of the name.
-    raw = table_name.encode('utf-8')
-    tokens = duckdb.tokenize(table_name)
+    # Uploads can be exercised with a supplied connection and no installed
+    # optional driver. Identifier parsing must not use a module-global driver.
     parts = []
-    for offset, kind in tokens:
-        if kind in {duckdb.token_type.identifier, duckdb.token_type.keyword}:
-            match = re.match(rb'"(?:[^"]|"")*"|[A-Za-z_\x80-\xff][A-Za-z_0-9$\x80-\xff]*', raw[offset:])
-            value = match.group().decode('utf-8')
-            parts.append(value[1:-1].replace('""', '"') if value.startswith('"') else value)
+    for kind, value in _sql_tokens(table_name):
+        if kind in {'identifier', 'word'}:
+            parts.append(value[1:-1].replace('""', '"') if kind == 'identifier' else value)
+        elif value != '.':
+            break
     table = parts[-1]
     schema = parts[-2] if len(parts) > 1 else None
     database = parts[-3] if len(parts) > 2 else None
@@ -561,14 +629,117 @@ def _duckdb_table_metadata(connection, table_name):
     return comment, None
 
 
+def _duckdb_select_metadata(connection, query):
+    """Read resolved scan identities from the unoptimized bound logical plan.
+
+    Unlike get_table_names, this binds the real tables and expands views, so
+    aliases, search paths, CTEs and USING joins retain their catalog identities.
+    Disabling optimization keeps geometry provenance even for empty results.
+    """
+    plan = json.loads(connection.execute(
+        "SELECT json_serialize_plan(?, optimize := false)", [query],
+    ).fetchone()[0])
+    if plan.get('error'):
+        # Python UDFs and some external scans cannot be serialized. Parse
+        # dependencies instead so an auxiliary discovery failure cannot reject
+        # an executable SELECT or discard metadata on its catalog tables.
+        return _duckdb_parsed_metadata(connection, query)
+    metadata = []
+    tables = set()
+
+    def visit(node):
+        if isinstance(node, dict):
+            if node.get('type') == 'LOGICAL_GET' and {'geometry', 'geometry_wkt'}.intersection(node.get('names', [])):
+                source = node.get('function_data', {})
+                if all(key in source for key in ('catalog', 'schema', 'table')):
+                    tables.add(tuple(source[key] for key in ('catalog', 'schema', 'table')))
+            for child in node.values():
+                visit(child)
+        elif isinstance(node, list):
+            for child in node:
+                visit(child)
+
+    visit(plan)
+    for parts in sorted(tables):
+        name = '.'.join('"' + part.replace('"', '""') + '"' for part in parts)
+        _, stored = _duckdb_table_metadata(connection, name)
+        metadata.extend(stored if stored is not None else [None])
+    return metadata
+
+
+def _duckdb_parsed_metadata(connection, query, *, seen=frozenset(), defaults=(None, None)):
+    """Resolve parser dependencies when bound-plan serialization is unavailable."""
+    parsed = json.loads(connection.execute("SELECT json_serialize_sql(?)", [query]).fetchone()[0])
+    metadata = []
+
+    def visit(node, ctes=frozenset()):
+        if isinstance(node, list):
+            for child in node:
+                visit(child, ctes)
+        elif isinstance(node, dict):
+            ctes = ctes | {entry['key'].lower() for entry in node.get('cte_map', {}).get('map', [])}
+            if node.get('type') == 'BASE_TABLE':
+                table = node['table_name']
+                schema, catalog = node.get('schema_name'), node.get('catalog_name')
+                if not schema and not catalog and table.lower() in ctes:
+                    return
+                row = connection.execute(
+                    "SELECT database_name, schema_name, table_name, sql, is_view FROM ("
+                    "SELECT database_name, schema_name, table_name, sql, false AS is_view, temporary "
+                    "FROM duckdb_tables() UNION ALL "
+                    "SELECT database_name, schema_name, view_name, sql, true, temporary FROM duckdb_views()) "
+                    "WHERE lower(table_name)=lower(?) "
+                    "AND (lower(database_name)=lower(coalesce(?, current_database())) "
+                    "OR (? IS NULL AND temporary)) "
+                    "AND ((? IS NULL AND list_contains(current_schemas(true), schema_name)) "
+                    "OR lower(schema_name)=lower(?)) "
+                    "ORDER BY temporary DESC, list_position(current_schemas(true), schema_name) LIMIT 1",
+                    [table, catalog or defaults[0], catalog or defaults[0],
+                     schema or defaults[1], schema or defaults[1]],
+                ).fetchone()
+                if row is None or tuple(row[:3]) in seen:
+                    return
+                database, schema, table, sql, is_view = row
+                if is_view:
+                    # Catalog view SQL is normalized by DuckDB. Token boundaries
+                    # keep quoted names (including "AS") out of this delimiter.
+                    tokens = list(_sql_tokens(sql))
+                    start = next((i + 1 for i, token in enumerate(tokens)
+                                  if token[0] == 'word' and token[1].upper() == 'AS'), None)
+                    if start is None:
+                        # Registered external relations have no SQL view body
+                        # or stored table CRS; their joined catalog peers do.
+                        return
+                    body = ' '.join(value for _, value in tokens[start:])
+                    metadata.extend(_duckdb_parsed_metadata(
+                        connection, body, seen=seen | {tuple(row[:3])}, defaults=(database, schema),
+                    ))
+                else:
+                    columns = connection.execute(
+                        "SELECT column_name FROM duckdb_columns() "
+                        "WHERE database_name=? AND schema_name=? AND table_name=?",
+                        [database, schema, table],
+                    ).fetchall()
+                    if any(name in {'geometry', 'geometry_wkt'} for name, in columns):
+                        qualified = '.'.join('"' + part.replace('"', '""') + '"' for part in row[:3])
+                        _, stored = _duckdb_table_metadata(connection, qualified)
+                        metadata.extend(stored if stored is not None else [None])
+            else:
+                for child in node.values():
+                    visit(child, ctes)
+
+    visit(parsed)
+    return metadata
+
+
 def _duckdb_query_metadata(connection, statement):
     """Resolve source table metadata without executing the user statement."""
+    import duckdb
+
+    tokens = list(_sql_tokens(statement.query))
     if statement.type == duckdb.StatementType.EXECUTE:
-        raw = statement.query.encode('utf-8')
-        tokens = duckdb.tokenize(statement.query)
-        match = re.match(rb'"(?:[^"]|"")*"|[A-Za-z_\x80-\xff][A-Za-z_0-9$\x80-\xff]*', raw[tokens[1][0]:])
-        name = match.group().decode('utf-8')
-        name = name[1:-1].replace('""', '"') if name.startswith('"') else name
+        kind, name = tokens[1]
+        name = name[1:-1].replace('""', '"') if kind == 'identifier' else name
         ascii_fold = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
         for stored_name, sql in connection.execute(
             "SELECT name, statement FROM duckdb_prepared_statements()"
@@ -577,43 +748,29 @@ def _duckdb_query_metadata(connection, statement):
                 return _duckdb_query_metadata(connection, connection.extract_statements(sql)[0])
         return []
     if statement.type == duckdb.StatementType.SELECT:
-        tables = connection.get_table_names(statement.query, qualified=True)
-    elif statement.type in {duckdb.StatementType.INSERT, duckdb.StatementType.UPDATE,
-                            duckdb.StatementType.DELETE}:
-        # get_table_names omits INSERT targets and cannot bind UPDATE/DELETE.
-        # Use the engine tokenizer to read their top-level target identifier.
-        raw = statement.query.encode('utf-8')
-        tokens = duckdb.tokenize(statement.query)
-        target_keyword = {duckdb.StatementType.INSERT: b'INTO',
-                          duckdb.StatementType.UPDATE: b'UPDATE',
-                          duckdb.StatementType.DELETE: b'FROM'}[statement.type]
+        return _duckdb_select_metadata(connection, statement.query)
+    tables = set()
+    if statement.type in {duckdb.StatementType.INSERT, duckdb.StatementType.UPDATE,
+                          duckdb.StatementType.DELETE}:
+        target_keyword = {duckdb.StatementType.INSERT: 'INTO',
+                          duckdb.StatementType.UPDATE: 'UPDATE',
+                          duckdb.StatementType.DELETE: 'FROM'}[statement.type]
         depth = 0
-        tables = set()
-        for index, (offset, kind) in enumerate(tokens):
-            end = tokens[index + 1][0] if index + 1 < len(tokens) else len(raw)
-            value = raw[offset:end].strip()
-            if kind == duckdb.token_type.keyword:
-                value = re.match(rb'[A-Za-z_]+', value).group()
-            if value == b'(':
+        for index, (kind, value) in enumerate(tokens):
+            if kind == 'symbol' and value == '(':
                 depth += 1
-            elif value == b')':
+            elif kind == 'symbol' and value == ')':
                 depth -= 1
-            elif depth == 0 and kind == duckdb.token_type.keyword and value.upper() == target_keyword:
-                begin = tokens[index + 1][0]
-                part_index = index + 1
-                while True:
-                    offset = tokens[part_index][0]
-                    match = re.match(rb'"(?:[^"]|"")*"|[A-Za-z_\x80-\xff][A-Za-z_0-9$\x80-\xff]*', raw[offset:])
-                    stop = offset + len(match.group())
-                    if part_index + 1 >= len(tokens) or raw[tokens[part_index + 1][0]:][:1] != b'.':
-                        break
-                    part_index += 2
-                tables.add(raw[begin:stop].decode('utf-8').strip())
+            elif depth == 0 and kind == 'word' and value.upper() == target_keyword:
+                # Join actual identifier lexemes; comments and whitespace never
+                # become part of a parenthesis, dot or quoted target name.
+                parts = [tokens[index + 1][1]]
+                index += 2
+                while index < len(tokens) and tokens[index] == ('symbol', '.'):
+                    parts.extend(['.', tokens[index + 1][1]])
+                    index += 2
+                tables.add(''.join(parts))
                 break
-    else:
-        # Expressions without resolvable provenance can supply source_crs.
-        # Never infer a CRS from a caller attribute.
-        tables = set()
     metadata = []
     for table in tables:
         _, stored = _duckdb_table_metadata(connection, table)
@@ -862,6 +1019,7 @@ class DuckDBConnector:
 
         transaction_started = False
         try:
+            import duckdb
             from siege_utilities.engines.dataframe_engine import DuckDBEngine
 
             # Result shape and transaction ownership are separate decisions.
