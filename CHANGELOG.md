@@ -112,6 +112,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Census dual-source retrieval falls back to bulk Summary Files on HTTP 5xx,
+  connection/DNS failures and timeouts via `CensusServerError`, while other 4xx
+  errors still propagate. `CensusAPI` owns retries for `ApiSource`; retries no
+  longer multiply, and no delay follows the final attempt. Sustained 429s now
+  accumulate at most 240 seconds of retry sleeps before bulk fallback with
+  `degraded=True`, down from 900 seconds (#1404).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
