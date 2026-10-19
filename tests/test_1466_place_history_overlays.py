@@ -336,3 +336,12 @@ def test_current_districts_omits_office_not_covering_shared_reference(reverse: b
 
     assert current == [ongoing]
     assert all(assignment.office != ended.office for assignment in current)
+
+
+@pytest.mark.parametrize("ref", [2012, 2016], ids=["at-from-year", "at-to-year"])
+def test_covers_ref_is_inclusive_at_year_boundaries(ref: int) -> None:
+    d9 = SeatAssignment(
+        office="US_HOUSE", district_label="9", from_year=2012, to_year=2016,
+    )
+
+    assert _current_districts_at([d9], ref) == [d9]
