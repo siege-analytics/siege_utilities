@@ -285,6 +285,9 @@ def _soql_literal(value: Any) -> str:
 class SalesforceConnector:
     """Salesforce CRM connector implementing ConnectorProtocol.
 
+    ``bulk_timeout`` sets the polling deadline in seconds (default 600).
+    The connector requests job abortion when that deadline expires.
+
     Usage (Username-Password Flow)::
 
         from siege_utilities.connectors.salesforce import SalesforceConnector
@@ -321,6 +324,7 @@ class SalesforceConnector:
         login_url: str | None = None,
         sandbox: bool = False,
         timeout: float = DEFAULT_TIMEOUT,
+        bulk_timeout: float = BULK_TIMEOUT,
         retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
         retry_backoff: float = DEFAULT_RETRY_BACKOFF,
     ) -> None:
@@ -331,6 +335,8 @@ class SalesforceConnector:
             )
         if not client_id or not client_secret:
             raise ValueError("client_id and client_secret are required.")
+        if not math.isfinite(bulk_timeout) or bulk_timeout <= 0:
+            raise ValueError("bulk_timeout must be a positive finite number of seconds")
 
         self._client_id = client_id
         self._client_secret = client_secret
@@ -339,6 +345,7 @@ class SalesforceConnector:
         self._security_token = security_token or ""
         self._login_url = login_url or (SANDBOX_LOGIN_URL if sandbox else PRODUCTION_LOGIN_URL)
         self._timeout = timeout
+        self._bulk_timeout = bulk_timeout
         self._retry_attempts = max(1, retry_attempts)
         self._retry_backoff = retry_backoff
 
@@ -693,6 +700,12 @@ class SalesforceConnector:
 
         Returns:
             :class:`UpsertResult` with per-record outcome.
+
+        Raises:
+            ConnectorError: A batch or result retrieval failed. For a later
+                composite batch failure, ``exc.partial_result`` contains the
+                earlier batches' outcomes; the failed batch may have committed
+                writes whose responses were lost. Unsent batches are excluded.
         """
         if records.empty:
             log.warning("upsert_records(%s): empty DataFrame, nothing to upsert", object_type)
@@ -742,10 +755,20 @@ class SalesforceConnector:
                 "upsert_records(%s): batch %d/%d (%d records)",
                 object_type, batch_idx + 1, len(batches), len(batch),
             )
-            result = self._composite_upsert(
-                object_type, batch, match_field,
-                base_index=batch_idx * self.COMPOSITE_BATCH_SIZE,
-            )
+            try:
+                result = self._composite_upsert(
+                    object_type, batch, match_field,
+                    base_index=batch_idx * self.COMPOSITE_BATCH_SIZE,
+                )
+            except ConnectorError as exc:
+                exc.partial_result = UpsertResult(
+                    success_count=total_success,
+                    failure_count=total_failure,
+                    created_ids=all_created,
+                    updated_ids=all_updated,
+                    errors=all_errors,
+                )
+                raise
             total_success += result.success_count
             total_failure += result.failure_count
             all_created.extend(result.created_ids)
@@ -783,7 +806,11 @@ class SalesforceConnector:
 
         Creates a Bulk API v2 ingest job, uploads CSV data, and polls
         for completion. Returns :class:`UpsertResult` with success/failure
-        counts and failed record details.
+        counts and failed record details using input DataFrame index labels.
+        The connector's ``bulk_timeout`` controls polling (default 600 seconds).
+        A timeout requests job abortion before raising; already committed
+        records are not rolled back. Result retrieval or correlation failures
+        raise ConnectorError with observed outcomes in ``partial_result``.
         """
         return self._bulk_job(
             object_type, records,
@@ -837,7 +864,10 @@ class SalesforceConnector:
             progress_callback("processing", 0, total)
 
         job_info = self._bulk_poll_job(job_id, total, progress_callback)
-        result = self._bulk_collect_results(job_id, job_info)
+        result = self._bulk_collect_results(
+            job_id, job_info, input_csv=csv_data,
+            record_indices=records.index.tolist(), external_id_field=external_id_field,
+        )
 
         log.info(
             "Bulk API job %s complete: %d succeeded, %d failed",
@@ -901,10 +931,13 @@ class SalesforceConnector:
 
         while True:
             elapsed = time.monotonic() - start
-            if elapsed > BULK_TIMEOUT:
-                raise ConnectorError(
-                    f"Bulk API job {job_id} timed out after {BULK_TIMEOUT}s"
-                )
+            if elapsed >= self._bulk_timeout:
+                message = f"Bulk API job {job_id} timed out after {self._bulk_timeout}s"
+                try:
+                    self.request("PATCH", path, json_body={"state": "Aborted"})
+                except ConnectorError as exc:
+                    raise ConnectorError(f"{message}; abort failed: {exc}") from exc
+                raise ConnectorError(f"{message}; abort requested")
 
             job_info = self.request("GET", path)
             state = job_info.get("state", "Unknown")
@@ -922,10 +955,12 @@ class SalesforceConnector:
             if state in terminal_states:
                 return job_info
 
-            time.sleep(BULK_POLL_INTERVAL)
+            remaining = self._bulk_timeout - (time.monotonic() - start)
+            time.sleep(max(0, min(BULK_POLL_INTERVAL, remaining)))
 
     def _bulk_collect_results(
-        self, job_id: str, job_info: dict[str, Any]
+        self, job_id: str, job_info: dict[str, Any], *,
+        input_csv: str, record_indices: list[Any], external_id_field: str | None,
     ) -> UpsertResult:
         """Collect success and failure results from a completed Bulk job."""
         from siege_utilities.connectors._protocol import UpsertError
@@ -943,35 +978,68 @@ class SalesforceConnector:
         created_ids: list[str] = []
         updated_ids: list[str] = []
 
-        if succeeded > 0:
-            try:
+        try:
+            if succeeded > 0:
                 success_path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}/successfulResults"
                 success_data = self._bulk_get_csv_results(success_path)
                 for row in success_data:
                     rec_id = row.get("sf__Id", "")
-                    if row.get("sf__Created", "").lower() == "true":
+                    created = (row.get("sf__Created") or "").lower()
+                    if not rec_id or created not in ("true", "false"):
+                        raise ConnectorError(f"Bulk API job {job_id}: invalid successfulResults row")
+                    if created == "true":
                         created_ids.append(rec_id)
                     else:
                         updated_ids.append(rec_id)
-            except ConnectorError as exc:
-                log.warning("Could not retrieve success results: %s", exc)
+                if len(success_data) != succeeded:
+                    raise ConnectorError(f"Bulk API job {job_id}: incomplete successfulResults")
 
-        if failed > 0:
-            try:
+            if failed > 0:
                 fail_path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}/failedResults"
                 fail_data = self._bulk_get_csv_results(fail_path)
-                for i, row in enumerate(fail_data):
+                # Results can be reordered. Match the serialized upload values,
+                # falling back to a unique external ID or Salesforce ID when
+                # the response omits other fields. Never guess for duplicates.
+                reader = csv.DictReader(io.StringIO(input_csv))
+                fields = reader.fieldnames or []
+                key_field = external_id_field or ("Id" if "Id" in fields else None)
+                rows_by_values: dict[tuple, list[int]] = {}
+                rows_by_id: dict[str, list[int]] = {}
+                for position, row in enumerate(reader):
+                    values = tuple(row[field] for field in fields)
+                    rows_by_values.setdefault(values, []).append(position)
+                    if key_field and row.get(key_field):
+                        rows_by_id.setdefault(row[key_field], []).append(position)
+                matched: set[int] = set()
+                for row in fail_data:
+                    values = tuple(row.get(field) for field in fields)
+                    positions = rows_by_values.get(values, [])
+                    if len(positions) != 1 and key_field:
+                        key_value = row.get(key_field)
+                        if not key_value and key_field == "Id":
+                            key_value = row.get("sf__Id")
+                        positions = rows_by_id.get(key_value, [])
+                    if len(positions) != 1 or positions[0] in matched:
+                        raise ConnectorError(
+                            f"Bulk API job {job_id}: cannot map failed result to a unique input row"
+                        )
+                    position = positions[0]
+                    matched.add(position)
+                    message = row.get("sf__Error") or "Unknown error"
+                    code, separator, _ = message.partition(":")
                     errors.append(UpsertError(
-                        record_index=i,
-                        message=row.get("sf__Error", "Unknown error"),
-                        code=row.get("sf__Error", None),
+                        record_index=record_indices[position],
+                        message=message,
+                        code=code.strip() if separator else None,
                     ))
-            except ConnectorError as exc:
-                log.warning("Could not retrieve failure results: %s", exc)
-                errors.append(UpsertError(
-                    record_index=0,
-                    message=f"Failed to retrieve error details: {exc}",
-                ))
+                if len(fail_data) != failed:
+                    raise ConnectorError(f"Bulk API job {job_id}: incomplete failedResults")
+        except ConnectorError as exc:
+            exc.partial_result = UpsertResult(
+                success_count=succeeded, failure_count=failed,
+                created_ids=created_ids, updated_ids=updated_ids, errors=errors,
+            )
+            raise
 
         return UpsertResult(
             success_count=succeeded,
@@ -984,20 +1052,29 @@ class SalesforceConnector:
     def _bulk_get_csv_results(self, path: str) -> list[dict[str, str]]:
         """Retrieve CSV results from a Bulk API v2 job endpoint."""
         url = f"{self._instance_url}{path}"
-        resp = self._session.get(
-            url,
-            headers={
-                "Accept": "text/csv",
-                "Authorization": f"Bearer {self._access_token}",
-            },
-            timeout=self._timeout * 2,
-        )
+        try:
+            resp = self._session.get(
+                url,
+                headers={
+                    "Accept": "text/csv",
+                    "Authorization": f"Bearer {self._access_token}",
+                },
+                timeout=self._timeout * 2,
+            )
+        except requests.RequestException as exc:
+            raise ConnectorError(f"Bulk API results retrieval failed: {exc}") from exc
         if resp.status_code != 200:
             raise ConnectorError(
                 f"Bulk API results retrieval failed ({resp.status_code}): {resp.text[:200]}"
             )
-        reader = csv.DictReader(io.StringIO(resp.text))
-        return list(reader)
+        try:
+            reader = csv.DictReader(io.StringIO(resp.text), strict=True)
+            rows = list(reader)
+        except csv.Error as exc:
+            raise ConnectorError(f"Bulk API results CSV is invalid: {exc}") from exc
+        if any(None in row or None in row.values() for row in rows):
+            raise ConnectorError("Bulk API results CSV has inconsistent column counts")
+        return rows
 
     @staticmethod
     def _dataframe_to_csv(df: pd.DataFrame) -> str:

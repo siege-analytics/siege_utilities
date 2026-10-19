@@ -112,6 +112,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Documented behavior change from v4.0.0:** HubSpot batch errors use
+  response context to identify input DataFrame index labels. Salesforce Bulk
+  failures match the uploaded rows and report error codes separately from
+  messages. Missing result downloads or ambiguous row matches raise
+  `ConnectorError`; observed outcomes are attached as `partial_result`.
+  Composite errors retain earlier batches' committed IDs on the original
+  exception's `partial_result`. Salesforce accepts a positive finite
+  `bulk_timeout` in seconds (default 600) and requests `state=Aborted` before
+  raising on timeout; abort failures are surfaced and committed rows are not
+  rolled back (#1438). v3.23.0 had no connector implementations.
+
 - **Documented behavior change from v4.0.0:** Salesforce SOQL builders
   render timezone-aware datetimes as unquoted UTC ISO 8601 literals with `Z`
   and dates as unquoted `YYYY-MM-DD`, including list filters. Naive datetimes

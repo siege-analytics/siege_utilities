@@ -435,7 +435,12 @@ class HubSpotConnector:
         records: pd.DataFrame,
         match_field: str,
     ) -> UpsertResult:
-        """Batch upsert via HubSpot Batch API (100 records per request)."""
+        """Batch upsert via HubSpot Batch API (100 records per request).
+
+        Error context IDs or write trace IDs map to input DataFrame index
+        labels. Unidentifiable error rows raise ConnectorError with observed
+        outcomes in ``partial_result`` instead of assigning an arbitrary row.
+        """
         from siege_utilities.connectors._protocol import UpsertError
 
         if records.empty:
@@ -443,6 +448,7 @@ class HubSpotConnector:
             return UpsertResult(success_count=0, failure_count=0)
 
         record_dicts = [sanitize_record(row) for row in records.to_dict(orient="records")]
+        record_indices = records.index.tolist()
         batches = [
             record_dicts[i:i + BATCH_SIZE]
             for i in range(0, len(record_dicts), BATCH_SIZE)
@@ -460,9 +466,13 @@ class HubSpotConnector:
                 object_type, batch_idx + 1, len(batches), len(batch),
             )
             inputs = []
-            for rec in batch:
+            base_index = batch_idx * BATCH_SIZE
+            for i, rec in enumerate(batch):
                 match_val = rec.get(match_field)
-                entry: dict[str, Any] = {"properties": rec, "idProperty": match_field}
+                entry: dict[str, Any] = {
+                    "properties": rec, "idProperty": match_field,
+                    "objectWriteTraceId": str(base_index + i),
+                }
                 if match_val is not None:
                     entry["id"] = str(match_val)
                 inputs.append(entry)
@@ -475,7 +485,7 @@ class HubSpotConnector:
             except ConnectorError as exc:
                 for i, _ in enumerate(batch):
                     all_errors.append(UpsertError(
-                        record_index=batch_idx * BATCH_SIZE + i,
+                        record_index=record_indices[base_index + i],
                         message=str(exc),
                     ))
                 total_failure += len(batch)
@@ -491,13 +501,25 @@ class HubSpotConnector:
                     all_updated.append(rec_id)
 
             errors_resp = resp.get("errors", [])
+            failed_positions: set[int] = set()
             for err in errors_resp:
-                total_failure += 1
-                all_errors.append(UpsertError(
-                    record_index=batch_idx * BATCH_SIZE,
-                    message=err.get("message", "Unknown error"),
-                    code=err.get("category"),
-                ))
+                try:
+                    positions = self._upsert_error_positions(err, inputs)
+                except ConnectorError as exc:
+                    exc.partial_result = UpsertResult(
+                        success_count=total_success,
+                        failure_count=total_failure + len(failed_positions),
+                        created_ids=all_created, updated_ids=all_updated, errors=all_errors,
+                    )
+                    raise
+                failed_positions.update(positions)
+                for i in sorted(positions):
+                    all_errors.append(UpsertError(
+                        record_index=record_indices[base_index + i],
+                        message=err.get("message", "Unknown error"),
+                        code=err.get("category"),
+                    ))
+            total_failure += len(failed_positions)
 
         log.info(
             "upsert_records(%s): %d succeeded, %d failed",
@@ -510,6 +532,33 @@ class HubSpotConnector:
             updated_ids=all_updated,
             errors=all_errors,
         )
+
+    @staticmethod
+    def _upsert_error_positions(
+        error: dict[str, Any], inputs: list[dict[str, Any]],
+    ) -> set[int]:
+        """Resolve a batch error's context without relying on response order."""
+        contexts = [error.get("context", {})] + [
+            detail.get("context", {}) for detail in error.get("errors", [])
+        ]
+        positions: set[int] = set()
+        for context in contexts:
+            if not isinstance(context, dict):
+                continue
+            # Trace IDs distinguish rows even when match values are duplicated.
+            traces = context.get("objectWriteTraceId")
+            values = traces or context.get("ids", [])
+            if not isinstance(values, list):
+                values = [values]
+            key = "objectWriteTraceId" if traces else "id"
+            for value in values:
+                matches = {i for i, entry in enumerate(inputs) if entry.get(key) == str(value)}
+                if len(matches) != 1:
+                    raise ConnectorError("HubSpot error context does not match a unique input row")
+                positions.update(matches)
+        if not positions:
+            raise ConnectorError("HubSpot batch error has no input row identifiers in context")
+        return positions
 
     # ------------------------------------------------------------------
     # Association management

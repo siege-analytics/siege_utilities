@@ -120,7 +120,14 @@ def _sanitize_value(value: Any, *, path: str, ancestors: set[int], top_level: bo
 
 
 class ConnectorError(Exception):
-    """Base for all connector errors."""
+    """Base for all connector errors.
+
+    ``partial_result``, when present, describes observed outcomes before a
+    batch or result-retrieval error. It does not imply that the entire
+    operation completed, even if those observed outcomes have ``ok=True``.
+    """
+
+    partial_result: UpsertResult | None = None
 
 
 class ConnectorAuthError(ConnectorError):
@@ -146,9 +153,13 @@ class ConnectorNotFoundError(ConnectorError):
 
 @dataclass
 class UpsertError:
-    """One failed record in a bulk upsert."""
+    """One failed record in a bulk upsert.
 
-    record_index: int
+    HubSpot and Salesforce Bulk use the input DataFrame's index label.
+    Other paths use a zero-based input row position.
+    """
+
+    record_index: Any
     message: str
     field: str | None = None
     code: str | None = None
