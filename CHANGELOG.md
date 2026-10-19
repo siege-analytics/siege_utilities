@@ -606,6 +606,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- `create_spark_session_with_databases` upgrades pgjdbc to 42.7.14, MySQL
+  Connector/J to 26.7.0, and Oracle ojdbc8 to 23.26.3.0.0 (#1483). MySQL's
+  Maven coordinate moves from `mysql:mysql-connector-java` to
+  `com.mysql:mysql-connector-j`. Defaults now live in one coordinate map;
+  callers can replace the package list through `conf.settings.SPARK_JDBC_PACKAGES`
+  (a list or comma-separated string). Without an override, empty/None
+  `database_names` adds no JDBC driver. Callers relying on the former implicit
+  PostgreSQL driver must supply database names or a package override. The new
+  MySQL default requires MySQL Server 8.4+; Oracle 23.x supports Database 19c+.
+  Older server deployments must choose compatible patched overrides.
+
 - Credential files are written with mode 0600 before writing their payload,
   including existing files, with no write-then-chmod race. Missing parent
   directories are created with mode 0700. Profile defaults use per-user paths;
