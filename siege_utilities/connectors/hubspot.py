@@ -288,11 +288,11 @@ class HubSpotConnector:
     # ------------------------------------------------------------------
 
     def to_crm_contacts(self, df: pd.DataFrame) -> list:
-        from siege_utilities.connectors._models import CRMAddress, CRMContact
+        from siege_utilities.connectors._models import CRMAddress, CRMContact, _normalize_crm_record
 
         results: list[CRMContact] = []
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             props = r.get("properties", r)
             address = CRMAddress(
                 street=props.get("address"),
@@ -322,12 +322,13 @@ class HubSpotConnector:
         return results
 
     def to_crm_accounts(self, df: pd.DataFrame) -> list:
-        from siege_utilities.connectors._models import CRMAccount, CRMAddress
+        """Map to :class:`CRMAccount`; missing names use an empty string."""
+        from siege_utilities.connectors._models import CRMAccount, CRMAddress, _normalize_crm_record
         from decimal import Decimal
 
         results: list[CRMAccount] = []
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             props = r.get("properties", r)
             address = CRMAddress(
                 street=props.get("address"),
@@ -344,7 +345,7 @@ class HubSpotConnector:
             }
             results.append(CRMAccount(
                 id=str(r.get("id", props.get("hs_object_id", ""))),
-                name=props.get("name", ""),
+                name=props.get("name") or "",
                 industry=props.get("industry"),
                 website=props.get("website"),
                 revenue=Decimal(str(revenue)) if revenue is not None else None,
@@ -357,13 +358,14 @@ class HubSpotConnector:
         return results
 
     def to_crm_opportunities(self, df: pd.DataFrame) -> list:
-        from siege_utilities.connectors._models import CRMOpportunity
+        """Map to :class:`CRMOpportunity`; missing names use an empty string."""
+        from siege_utilities.connectors._models import CRMOpportunity, _normalize_crm_record
         from datetime import date as date_type
         from decimal import Decimal
 
         results: list[CRMOpportunity] = []
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             props = r.get("properties", r)
             amount = props.get("amount")
             close_date_raw = props.get("closedate")
@@ -381,7 +383,7 @@ class HubSpotConnector:
             }
             results.append(CRMOpportunity(
                 id=str(r.get("id", props.get("hs_object_id", ""))),
-                name=props.get("dealname", ""),
+                name=props.get("dealname") or "",
                 account_id=None,
                 stage=props.get("dealstage"),
                 amount=Decimal(str(amount)) if amount is not None else None,

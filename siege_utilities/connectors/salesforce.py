@@ -509,11 +509,11 @@ class SalesforceConnector:
 
     def to_crm_contacts(self, df: pd.DataFrame) -> list:
         """Map a Contact DataFrame to a list of :class:`CRMContact`."""
-        from siege_utilities.connectors._models import CRMAddress, CRMContact
+        from siege_utilities.connectors._models import CRMAddress, CRMContact, _normalize_crm_record
 
         results: list[CRMContact] = []
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             address = CRMAddress(
                 street=r.get("MailingStreet"),
                 city=r.get("MailingCity"),
@@ -542,13 +542,13 @@ class SalesforceConnector:
         return results
 
     def to_crm_accounts(self, df: pd.DataFrame) -> list:
-        """Map an Account DataFrame to a list of :class:`CRMAccount`."""
-        from siege_utilities.connectors._models import CRMAccount, CRMAddress
+        """Map to :class:`CRMAccount`; missing names use an empty string."""
+        from siege_utilities.connectors._models import CRMAccount, CRMAddress, _normalize_crm_record
         from decimal import Decimal
 
         results: list[CRMAccount] = []
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             address = CRMAddress(
                 street=r.get("BillingStreet"),
                 city=r.get("BillingCity"),
@@ -564,7 +564,7 @@ class SalesforceConnector:
             }
             results.append(CRMAccount(
                 id=r["Id"],
-                name=r["Name"],
+                name=r.get("Name") or "",
                 industry=r.get("Industry"),
                 website=r.get("Website"),
                 revenue=Decimal(str(revenue)) if revenue is not None else None,
@@ -577,14 +577,14 @@ class SalesforceConnector:
         return results
 
     def to_crm_opportunities(self, df: pd.DataFrame) -> list:
-        """Map an Opportunity DataFrame to a list of :class:`CRMOpportunity`."""
-        from siege_utilities.connectors._models import CRMOpportunity
+        """Map to :class:`CRMOpportunity`; missing names use an empty string."""
+        from siege_utilities.connectors._models import CRMOpportunity, _normalize_crm_record
         from datetime import date as date_type
         from decimal import Decimal
 
         results: list[CRMOpportunity] = []
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             amount = r.get("Amount")
             close_date_raw = r.get("CloseDate")
             close_date = None
@@ -600,7 +600,7 @@ class SalesforceConnector:
             }
             results.append(CRMOpportunity(
                 id=r["Id"],
-                name=r["Name"],
+                name=r.get("Name") or "",
                 account_id=r.get("AccountId"),
                 stage=r.get("StageName"),
                 amount=Decimal(str(amount)) if amount is not None else None,
