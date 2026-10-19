@@ -401,14 +401,37 @@ class DynamicsConnector:
     def create_record(
         self, object_type: str, data: dict[str, Any]
     ) -> str:
+        """Create a record from *data* in the *object_type* entity set.
+
+        Return its ID from OData-EntityId, an edit link, or a body attribute.
+        Raise ConnectorError if the response does not identify the new record.
+        """
         entity_set = STANDARD_ENTITIES.get(object_type, object_type)
         path = f"/api/data/v9.2/{entity_set}"
         resp = self.request("POST", path, json_body=data)
-        record_id = resp.get(f"{object_type.rstrip('s')}id", "")
+        record_id = ""
+        for link_key in ("OData-EntityId", "@odata.editLink"):
+            odata_id = resp.get(link_key) or ""
+            _, separator, key = odata_id.rpartition("(")
+            if separator and key.endswith(")"):
+                record_id = key[:-1]
+                if record_id:
+                    break
         if not record_id:
-            odata_id = resp.get("@odata.editLink", "")
-            if "(" in odata_id:
-                record_id = odata_id.split("(")[-1].rstrip(")")
+            id_attribute = {
+                "contacts": "contactid",
+                "accounts": "accountid",
+                "opportunities": "opportunityid",
+                "leads": "leadid",
+                "tasks": "activityid",
+                "appointments": "activityid",
+                "incidents": "incidentid",
+            }.get(object_type, f"{object_type.removesuffix('s')}id")
+            record_id = resp.get(id_attribute, "")
+        if not record_id:
+            raise ConnectorError(
+                f"Dynamics create {entity_set} succeeded but returned no record id."
+            )
         log.info("Created %s record: %s", entity_set, record_id)
         return record_id
 
@@ -716,6 +739,9 @@ class DynamicsConnector:
                 continue
 
             if resp.status_code == 204:
+                entity_id = resp.headers.get("OData-EntityId")
+                if entity_id is not None:
+                    return {"OData-EntityId": entity_id}
                 return {}
 
             if not (200 <= resp.status_code < 300):
