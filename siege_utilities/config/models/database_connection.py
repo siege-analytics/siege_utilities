@@ -1,30 +1,25 @@
-"""
-Database connection model with comprehensive validation.
-"""
+"""Database connection configuration with validation by connection type."""
 
+from ipaddress import IPv6Address
+import re
+from typing import Self
 from urllib.parse import quote_plus
 
-from pydantic import SecretStr, BaseModel, Field, field_validator, ConfigDict
-import re
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 
 __all__ = ["DatabaseConnection"]
 
 
 class DatabaseConnection(BaseModel):
-    """
-    Database connection configuration with comprehensive validation.
-    
-    Provides type-safe, validated database connection settings with
-    detailed field constraints and security validation.
-    """
-    
+    """Validated settings for existing server and file database connections."""
+
     model_config = ConfigDict(
         hide_input_in_errors=True,
         json_schema_serialization_mode="json",
         validate_assignment=True,
         extra="forbid"
     )
-    
+
     name: str = Field(
         min_length=1,
         max_length=50,
@@ -36,31 +31,29 @@ class DatabaseConnection(BaseModel):
         description="Database type"
     )
     host: str = Field(
-        min_length=1,
+        default="",
         max_length=255,
-        description="Database host"
+        description="Database host (required for server connections)"
     )
     port: int = Field(
-        ge=1,
+        default=0,
+        ge=0,
         le=65535,
-        description="Database port (1-65535)"
+        description="Database port (1-65535 for servers, 0 allowed for files)"
     )
     database: str = Field(
         min_length=1,
-        max_length=50,
-        pattern=r'^[a-zA-Z0-9_-]+$',
-        description="Database name"
+        description="Database name or filesystem path for sqlite and duckdb"
     )
     username: str = Field(
-        min_length=1,
+        default="",
         max_length=50,
-        description="Database username"
+        description="Database username (required for server connections)"
     )
     password: SecretStr = Field(
+        default_factory=lambda: SecretStr(""),
         json_schema_extra={"sensitive": True},
-        min_length=8,
-        max_length=100,
-        description="Database password (minimum 8 characters)"
+        description="Stored database password (required for server connections)"
     )
     ssl_enabled: bool = Field(
         default=True,
@@ -79,106 +72,65 @@ class DatabaseConnection(BaseModel):
         le=100,
         description="Maximum number of connections"
     )
-    
+
     @field_validator('host')
     @classmethod
-    def validate_host(cls, v):
-        """Validate host format."""
-        if not re.match(r'^[a-zA-Z0-9.-]+$', v):
-            raise ValueError('Invalid host format - only alphanumeric characters, dots, and hyphens allowed')
-        
-        # Check for localhost variations
-        if v.lower() in ['localhost', '127.0.0.1', '::1']:
+    def validate_host(cls, v: str) -> str:
+        """Allow empty file hosts, hostnames, and bare or bracketed IPv6."""
+        if not v or v.lower() in ('localhost', '127.0.0.1', '::1'):
             return v.lower()
-        
-        # Basic domain validation
-        if '.' in v and len(v.split('.')) >= 2:
+        if ':' in v or '[' in v or ']' in v:
+            address = v[1:-1] if v.startswith('[') and v.endswith(']') else v
+            try:
+                IPv6Address(address)
+            except ValueError:
+                raise ValueError('Invalid IPv6 host format') from None
             return v
-        
-        # IP address validation (basic)
-        if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', v):
-            return v
-        
-        return v
-    
-    @field_validator('password', mode='before')
-    @classmethod
-    def validate_password_length(cls, v):
-        """Keep minimum-length errors value-free before secret conversion."""
-        value = v.get_secret_value() if isinstance(v, SecretStr) else v
-        if isinstance(value, (str, bytes, bytearray)) and len(value) < 8:
-            raise ValueError('String should have at least 8 characters')
+        if not re.fullmatch(r'[a-zA-Z0-9.-]+', v):
+            raise ValueError(
+                'Invalid host format - expected a hostname or IP address'
+            )
         return v
 
-    @field_validator('password')
-    @classmethod
-    def validate_password(cls, v):
-        """Validate password strength."""
-        password = v.get_secret_value()
-        if len(password) < 8:
-            raise ValueError('String should have at least 8 characters')
-        
-        # Check for common weak patterns
-        if password.lower() in ['password', '12345678', 'qwerty123']:
-            raise ValueError('Password is too common - please use a stronger password')
-        
-        # Require at least one uppercase letter
-        if not re.search(r'[A-Z]', password):
-            raise ValueError('Password must contain at least one uppercase letter')
-        
-        # Require at least one lowercase letter
-        if not re.search(r'[a-z]', password):
-            raise ValueError('Password must contain at least one lowercase letter')
-        
-        # Require at least one number
-        if not re.search(r'[0-9]', password):
-            raise ValueError('Password must contain at least one number')
-        
-        return v
-    
-    @field_validator('port')
-    @classmethod
-    def validate_port(cls, v):
-        """Validate port number."""
-        if v < 1 or v > 65535:
-            raise ValueError('Port must be between 1 and 65535')
-        
-        # Warn about common non-standard ports
-        if v in [22, 80, 443, 8080, 8443]:
-            # These are common but might be intentional
-            pass
-        
-        return v
-    
-    @field_validator('database')
-    @classmethod
-    def validate_database_name(cls, v):
-        """Validate database name."""
-        if not re.match(r'^[a-zA-Z][a-zA-Z0-9_-]*$', v):
-            raise ValueError('Database name must start with a letter and contain only alphanumeric characters, underscores, and hyphens')
-        
-        return v
-    
+    @model_validator(mode='after')
+    def validate_connection_requirements(self) -> Self:
+        """Require server settings without imposing a stored-password policy."""
+        if self.connection_type in ('sqlite', 'duckdb'):
+            return self
+
+        if not self.host:
+            raise ValueError('Server host must not be empty')
+        if self.port < 1:
+            raise ValueError('Server port must be greater than or equal to 1')
+        if not self.username:
+            raise ValueError('String should have at least 1 character for server username')
+        if not self.password.get_secret_value():
+            raise ValueError('Server password must not be empty')
+        if len(self.database) > 50:
+            raise ValueError('Server database name must have at most 50 characters')
+        if not re.fullmatch(r'[a-zA-Z][a-zA-Z0-9_-]*', self.database):
+            raise ValueError(
+                'Database name must start with a letter and contain only '
+                'alphanumeric characters, underscores, and hyphens'
+            )
+        return self
+
     def get_connection_string(self) -> str:
         """Generate connection string for the database."""
         user = quote_plus(self.username)
         pw = quote_plus(self.password.get_secret_value())
+        host = self.host
+        if ':' in host and not host.startswith('['):
+            host = f'[{host}]'
         if self.connection_type == 'postgresql':
             ssl_mode = '?sslmode=require' if self.ssl_enabled else ''
-            return f"postgresql://{user}:{pw}@{self.host}:{self.port}/{self.database}{ssl_mode}"
+            return f"postgresql://{user}:{pw}@{host}:{self.port}/{self.database}{ssl_mode}"
         elif self.connection_type == 'mysql':
             ssl_mode = '?ssl=true' if self.ssl_enabled else ''
-            return f"mysql://{user}:{pw}@{self.host}:{self.port}/{self.database}{ssl_mode}"
+            return f"mysql://{user}:{pw}@{host}:{self.port}/{self.database}{ssl_mode}"
         elif self.connection_type == 'sqlite':
             return f"sqlite:///{self.database}"
         elif self.connection_type == 'duckdb':
             return f"duckdb:///{self.database}"
         else:
             raise ValueError(f"Unsupported connection type: {self.connection_type}")
-    
-
-
-
-
-
-

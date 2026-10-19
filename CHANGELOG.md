@@ -112,6 +112,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `DatabaseConnection` validates settings by database type so the shipped
+  PostgreSQL and DuckDB defaults load through Hydra. Accept IPv6 hosts and
+  file database paths, allow file connections without server credentials,
+  and load stored passwords without a strength or length policy (#1490).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
