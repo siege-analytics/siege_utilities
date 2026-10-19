@@ -112,6 +112,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `spark_to_geopandas` rejects mixed null/non-null CRS metadata and reprojects
+  from a known stored CRS when `crs=` requests another CRS (#1413).
+  **Documented behavior change from v4.0.0:** unknown-CRS rows no longer inherit
+  another row's CRS, and a conflicting `crs=` no longer relabels coordinates.
+  Resolve missing metadata or split CRS groups before conversion. When the
+  metadata column is absent or all-null, `crs=` declares the input CRS without
+  transforming coordinates; omitting it keeps the CRS unknown.
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting

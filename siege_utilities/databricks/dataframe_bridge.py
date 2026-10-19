@@ -100,8 +100,18 @@ def spark_to_geopandas(
 
     The CRS that ``geopandas_to_spark`` preserves in ``crs_column`` (default
     ``"geometry_crs"``) is restored automatically, so the round-trip keeps its
-    spatial reference. An explicit ``crs`` argument overrides the preserved
-    value, and the ``crs_column`` metadata column is dropped from the result.
+    spatial reference. When ``crs`` is supplied, geometries with a known stored
+    CRS are reprojected to it; equivalent CRS leave coordinates unchanged.
+    If the CRS column is missing or entirely null (including an empty frame),
+    ``crs`` declares the input coordinates' CRS without transforming them.
+    Omitting ``crs`` in that case leaves the CRS unknown.
+
+    A mix of null and non-null CRS values, or multiple distinct non-null CRS
+    values, raises ``ValueError`` even when ``crs`` is supplied. Resolve missing
+    CRS metadata and reproject to a common CRS upstream, or convert each CRS
+    group separately. Invalid CRS definitions raise
+    ``pyproj.exceptions.CRSError``. The ``crs_column`` metadata column is dropped
+    from the result.
     """
     try:
         import geopandas as gpd
@@ -126,14 +136,19 @@ def spark_to_geopandas(
             lambda value: None if value is None else wkb.loads(bytes.fromhex(value))
         )
 
-    # Restore the CRS preserved by geopandas_to_spark. An explicit crs argument
-    # wins. The column is metadata, not data, so drop it. SU-1: geometries
-    # serialized under different CRS cannot be combined into one GeoDataFrame
-    # under a single crs without reprojection; taking the first value silently
-    # mislocates the rest. Reject a mixed crs_column loudly instead.
-    effective_crs = crs
+    # Establish a common source CRS before applying a requested target CRS.
+    # Unknown rows cannot inherit the known rows' CRS, even with a target crs.
+    source_crs = None
     if crs_column in pdf.columns:
         distinct = list(pdf[crs_column].dropna().unique())
+        if distinct and pdf[crs_column].isna().any():
+            raise ValueError(
+                f"spark_to_geopandas: {crs_column!r} holds both null and "
+                f"non-null CRS values. Rows with unknown CRS cannot inherit "
+                f"another row's CRS. "
+                f"Supply verified CRS metadata for every row, or split the frame "
+                f"by {crs_column!r} and convert each group separately."
+            )
         if len(distinct) > 1:
             raise ValueError(
                 f"spark_to_geopandas: {crs_column!r} holds multiple distinct CRS "
@@ -142,8 +157,15 @@ def spark_to_geopandas(
                 f"reprojection. Reproject to a common CRS upstream, or split the "
                 f"frame by {crs_column!r} and convert each group separately."
             )
-        if effective_crs is None and len(distinct) == 1:
-            effective_crs = distinct[0]
+        if len(distinct) == 1:
+            source_crs = distinct[0]
         pdf = pdf.drop(columns=[crs_column])
 
-    return gpd.GeoDataFrame(pdf, geometry=geometry_column, crs=effective_crs)
+    result = gpd.GeoDataFrame(
+        pdf,
+        geometry=geometry_column,
+        crs=source_crs if source_crs is not None else crs,
+    )
+    if source_crs is not None and crs is not None:
+        result = result.to_crs(crs)
+    return result
