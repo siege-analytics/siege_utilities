@@ -35,30 +35,72 @@ __all__ = [
 def sanitize_record(row: dict[str, Any]) -> dict[str, Any]:
     """Return JSON-safe upsert fields without mutating the input row.
 
-    Omit missing values (None, NaN, NaT, pd.NA): an omitted field leaves
-    an existing CRM value untouched, whereas sending null would clear it.
-    Dates use ISO 8601, numpy scalars become native Python scalars, and
-    other values that cannot be encoded as strict JSON fall back to strings.
+    Recurse through dicts and lists, omitting missing dict children (None,
+    NaN, NaT, pd.NA) at every level, including top-level fields. Missing list
+    items become null, preserving their positions. Tuples become JSON lists.
+    Dates use ISO 8601 and numpy scalars become native Python scalars.
+    Scalar leaves that strict JSON cannot encode (such as Decimal or infinity)
+    keep their string representation; containers are never stringified.
+
+    Raises:
+        ConnectorError: an unsupported container, invalid JSON object key,
+            circular reference, or excessive nesting cannot be represented as JSON.
     """
-    sanitized: dict[str, Any] = {}
-    for key, value in row.items():
-        # Check only scalars: pd.isna on lists/arrays returns an array of flags.
-        if pd.api.types.is_scalar(value) and pd.isna(value):
-            continue
-        if isinstance(value, (datetime, date)):
-            value = value.isoformat()
-        elif isinstance(value, np.bool_):
-            value = bool(value)
-        elif isinstance(value, np.integer):
-            value = int(value)
-        elif isinstance(value, np.floating):
-            value = float(value)
+    try:
+        return _sanitize_value(row, path="$", ancestors=set())
+    except RecursionError as exc:
+        raise ConnectorError("Record nesting exceeds the JSON recursion limit") from exc
+
+
+def _sanitize_value(value: Any, *, path: str, ancestors: set[int]) -> Any:
+    if isinstance(value, (dict, list, tuple)):
+        container_id = id(value)
+        if container_id in ancestors:
+            raise ConnectorError(f"Circular container reference at {path}")
+        ancestors.add(container_id)
         try:
-            json.dumps(value, allow_nan=False)
-        except (TypeError, ValueError):
-            value = str(value)
-        sanitized[key] = value
-    return sanitized
+            if isinstance(value, dict):
+                sanitized = {}
+                for key, child in value.items():
+                    # pd.isna on containers returns arrays, not a scalar flag.
+                    if pd.api.types.is_scalar(child) and pd.isna(child):
+                        continue
+                    try:
+                        json.dumps({key: None}, allow_nan=False)
+                    except (TypeError, ValueError) as exc:
+                        raise ConnectorError(
+                            f"Invalid JSON object key at {path}: {key!r}"
+                        ) from exc
+                    sanitized[key] = _sanitize_value(
+                        child, path=f"{path}[{key!r}]", ancestors=ancestors,
+                    )
+                return sanitized
+            return [
+                _sanitize_value(child, path=f"{path}[{index}]", ancestors=ancestors)
+                for index, child in enumerate(value)
+            ]
+        finally:
+            ancestors.remove(container_id)
+
+    if not pd.api.types.is_scalar(value):
+        raise ConnectorError(
+            f"Unsupported value or container type {type(value).__name__} at {path}"
+        )
+    if pd.isna(value):
+        return None
+    if isinstance(value, (datetime, date)):
+        value = value.isoformat()
+    elif isinstance(value, np.bool_):
+        value = bool(value)
+    elif isinstance(value, np.integer):
+        value = int(value)
+    elif isinstance(value, np.floating):
+        value = float(value)
+    try:
+        json.dumps(value, allow_nan=False)
+    except (TypeError, ValueError):
+        value = str(value)
+    return value
 
 
 # ---------------------------------------------------------------------------
