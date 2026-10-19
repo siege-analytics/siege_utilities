@@ -248,6 +248,8 @@ class DataFrameEngine(ABC):
         """Convert *df* to a GeoPandas ``GeoDataFrame``.
 
         Always returns a ``geopandas.GeoDataFrame`` regardless of engine.
+        An existing GeoDataFrame retains its CRS unless ``crs`` is supplied.
+        Text geometry without CRS metadata uses the configured default CRS.
         """
 
     def from_geodataframe(
@@ -373,14 +375,17 @@ class DataFrameEngine(ABC):
         df: Any,
         by: Union[str, List[str]],
         geometry_col: str = "geometry",
+        *,
+        crs: Optional[str] = None,
         **agg_kwargs: Any,
     ) -> Any:
         """Dissolve/merge geometries grouped by *by* columns.
 
         Default converts to GeoDataFrame and uses ``gdf.dissolve()``.
         Engines may override for native performance.
+        Preserve the input CRS unless a target ``crs`` is supplied.
         """
-        gdf = self.to_geodataframe(df, geometry_col=geometry_col)
+        gdf = self.to_geodataframe(df, geometry_col=geometry_col, crs=crs)
         return gdf.dissolve(by=by, **agg_kwargs).reset_index()
 
     # -- Spatial geometry loading (concrete defaults) ----------------------
@@ -590,6 +595,7 @@ class DataFrameEngine(ABC):
         *,
         source_geom: str = "geometry",
         target_geom: str = "geometry",
+        crs: Optional[str] = None,
     ) -> Any:
         """Apportion a value from source polygons to target polygons by overlap.
 
@@ -600,11 +606,16 @@ class DataFrameEngine(ABC):
         Default: intersect, compute area ratios via GeoPandas, aggregate.
         Engines may override for native area computation (Sedona ST_Area,
         PostGIS ST_Area, etc.).
+        Areas use the input's projected CRS. For geographic inputs, supply
+        a projected ``crs`` (preferably equal-area) to reproject both inputs.
+        Without a target CRS, inputs must have the same projected CRS.
+        The result is a table of target attributes and apportioned values.
         """
         import geopandas as gpd
 
-        src = self.to_geodataframe(source_polys, source_geom)
-        tgt = self.to_geodataframe(target_polys, target_geom)
+        src = self.to_geodataframe(source_polys, source_geom, crs=crs)
+        tgt = self.to_geodataframe(target_polys, target_geom, crs=crs)
+        self._require_projected_crs(src, tgt, "apportion")
 
         # Detect zero-area sources BEFORE gpd.overlay. A degenerate source
         # polygon that produces no intersection rows would otherwise
@@ -644,12 +655,17 @@ class DataFrameEngine(ABC):
         max_distance: Optional[float] = None,
         point_geom: str = "geometry",
         target_geom: str = "geometry",
+        crs: Optional[str] = None,
     ) -> Any:
         """Find the k nearest targets for each point.
 
         Default: brute-force via GeoPandas sjoin_nearest (supports k=1 only).
         Engines should override for native spatial indexing (Sedona KNN,
         PostGIS ST_DWithin + ORDER BY distance, DuckDB spatial) and k>1.
+        Distances and ``max_distance`` use the input's projected CRS units.
+        Preserve that CRS unless a target ``crs`` is supplied to reproject
+        both inputs. Geographic or unknown CRS inputs require a projected CRS;
+        different input CRSes require a shared target CRS.
 
         Raises
         ------
@@ -664,8 +680,9 @@ class DataFrameEngine(ABC):
             )
         import geopandas as gpd
 
-        pts = self.to_geodataframe(points, point_geom)
-        tgts = self.to_geodataframe(targets, target_geom)
+        pts = self.to_geodataframe(points, point_geom, crs=crs)
+        tgts = self.to_geodataframe(targets, target_geom, crs=crs)
+        self._require_projected_crs(pts, tgts, "nearest")
 
         return gpd.sjoin_nearest(
             pts, tgts,
@@ -673,6 +690,13 @@ class DataFrameEngine(ABC):
             max_distance=max_distance,
             distance_col="distance",
         )
+
+    @staticmethod
+    def _require_projected_crs(left, right, operation):
+        if left.crs != right.crs:
+            raise ValueError(f"CRS mismatch in {operation}: {left.crs} and {right.crs}; supply a shared crs")
+        if left.crs is None or not left.crs.is_projected:
+            raise ValueError(f"{operation} requires a projected CRS for area/distance math; supply crs")
 
     def multi_assign(
         self,
@@ -852,9 +876,11 @@ class PandasEngine(DataFrameEngine):
 
     def to_geodataframe(self, df, geometry_col="geometry", *, crs=None):
         import geopandas as gpd
-        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+        from siege_utilities.geo.crs import get_default_crs
         if isinstance(df, gpd.GeoDataFrame):
-            return reproject_if_needed(df, crs or get_default_crs())
+            if crs is None:
+                return df
+            return df.to_crs(crs) if df.crs is not None else df.set_crs(crs)
         if geometry_col in df.columns:
             from shapely import wkt
             target_crs = crs or get_default_crs()
@@ -1351,10 +1377,12 @@ class DuckDBEngine(DataFrameEngine):
         """
         import geopandas as gpd
         import pandas as pd
-        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+        from siege_utilities.geo.crs import get_default_crs
         df = self.to_pandas(df)
         if isinstance(df, gpd.GeoDataFrame):
-            return reproject_if_needed(df, crs or get_default_crs())
+            if crs is None:
+                return df
+            return df.to_crs(crs) if df.crs is not None else df.set_crs(crs)
         if isinstance(df, pd.DataFrame) and geometry_col in df.columns:
             from shapely import wkb as shapely_wkb
             from shapely.geometry.base import BaseGeometry
@@ -2185,9 +2213,11 @@ class PostGISEngine(DataFrameEngine):
 
     def to_geodataframe(self, df, geometry_col="geometry", *, crs=None):
         import geopandas as gpd
-        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+        from siege_utilities.geo.crs import get_default_crs
         if isinstance(df, gpd.GeoDataFrame):
-            return reproject_if_needed(df, crs or get_default_crs())
+            if crs is None:
+                return df
+            return df.to_crs(crs) if df.crs is not None else df.set_crs(crs)
         import pandas as pd
         if isinstance(df, pd.DataFrame) and geometry_col in df.columns:
             from shapely import wkt
