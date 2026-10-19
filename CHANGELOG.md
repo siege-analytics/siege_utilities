@@ -112,6 +112,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- GEOID utilities accept uppercase alphanumeric SLD and congressional district
+  codes, including undefined districts and Alaska senate letters. Numeric
+  levels reject non-digit input; normalization converts integral floats and
+  checks state FIPS prefixes, preventing extra zero-padding from creating
+  state `00`. Float columns with missing values now retain valid join keys.
+  `can_normalize_geoid` uses normalization for matching acceptance, including
+  the existing VTD padding behavior; VTD normalization and validation are
+  unchanged (#1486).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting

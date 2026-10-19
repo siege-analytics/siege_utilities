@@ -30,13 +30,16 @@ Example usage:
 """
 
 import logging
+import math
 import re
+from numbers import Integral, Real
 from typing import Dict, Optional, Union
 
 import pandas as pd
 
 from siege_utilities.config.census_constants import (
     CANONICAL_GEOGRAPHIC_LEVELS,
+    FIPS_TO_STATE,
     resolve_geographic_level,
 )
 
@@ -54,6 +57,27 @@ GEOID_LENGTHS = {
     for name, info in CANONICAL_GEOGRAPHIC_LEVELS.items()
     if info.get('geoid_length') is not None
 }
+
+_DISTRICT_GEOID_PATTERNS = {
+    level: re.compile(rf"[0-9]{{2}}[0-9A-Z]{{{GEOID_LENGTHS[level] - 2}}}")
+    for level in ("sldu", "sldl", "cd")
+}
+
+_STATE_PREFIXED_LEVELS = frozenset({
+    "state", "county", "cousub", "place", "cd", "sldu", "sldl",
+    "tract", "block_group", "block", "tabblock20", "tabblock10", "puma",
+})
+
+
+def _has_valid_geoid_characters(geoid: str, geography_level: str) -> bool:
+    """Check the numeric alphabet or a district's numeric state and ASCII tail."""
+    if geography_level == "vtd20":
+        return geoid.isdigit()
+    pattern = _DISTRICT_GEOID_PATTERNS.get(geography_level)
+    if pattern is not None:
+        return pattern.fullmatch(geoid) is not None
+    return geoid.isascii() and geoid.isdigit()
+
 
 __all__ = [
     "GEOID_LENGTHS",
@@ -96,8 +120,10 @@ class GEOIDValidator:
 
     Validates the length and alphabet for the given geography level.
     VTD GEOIDs have a five-digit FIPS prefix and six VTDST characters:
-    ASCII digits, letters, periods, slashes, or hyphens. Other levels
-    require digits only.
+    ASCII digits, letters, periods, slashes, or hyphens. SLD and CD GEOIDs
+    have a two-digit state prefix and an uppercase alphanumeric district
+    code. Numeric levels require ASCII digits; VTD20 retains its existing
+    digits-only validation.
 
     Usage in Django models:
         geoid = CharField(validators=[GEOIDValidator('tract')])
@@ -120,7 +146,13 @@ class GEOIDValidator:
                     "VTD GEOID must contain 5 digits followed by 6 ASCII "
                     f"letters, digits, periods, slashes, or hyphens, got '{value}'"
                 )
-        elif not value.isdigit():
+        elif not _has_valid_geoid_characters(value, self.geography_level):
+            if self.geography_level in _DISTRICT_GEOID_PATTERNS:
+                raise ValidationError(
+                    f"GEOID for {self.geography_level} must contain 2 state digits "
+                    f"followed by {self.expected_length - 2} uppercase ASCII "
+                    f"letters or digits, got '{value}'"
+                )
             raise ValidationError(
                 f"GEOID must contain only digits, got '{value}'"
             )
@@ -155,14 +187,20 @@ class GEOIDValidator:
 # =============================================================================
 
 def normalize_geoid(
-    geoid: Union[str, int],
+    geoid: Union[str, int, float],
     geography_level: str
 ) -> str:
     """
     Normalize a GEOID to the standard format with proper zero-padding.
 
+    Integral floats are converted to integers before padding. State-prefixed
+    GEOIDs must yield a recognized state FIPS code, so at most one missing
+    leading zero can be restored. SLD/CD district codes allow uppercase ASCII
+    letters and digits; numeric levels allow ASCII digits only. VTD levels
+    retain their existing string conversion and padding behavior.
+
     Args:
-        geoid: GEOID value (can be string or int)
+        geoid: GEOID value (string, integer, or integral float)
         geography_level: Geographic level ('state', 'county', 'tract', etc.)
 
     Returns:
@@ -179,9 +217,6 @@ def normalize_geoid(
         >>> normalize_geoid("6037101100", "tract")
         '06037101100'
     """
-    # Convert to string
-    geoid_str = str(geoid).strip()
-
     # Resolve to canonical name and get expected length
     geography_lower = resolve_geographic_level(geography_level)
     expected_length = GEOID_LENGTHS.get(geography_lower)
@@ -192,6 +227,14 @@ def normalize_geoid(
             f"Valid levels: {list(GEOID_LENGTHS.keys())}"
         )
 
+    # VTD normalization is outside #1486; preserve its existing conversion.
+    is_vtd = geography_lower in {"vtd", "vtd20"}
+    if not is_vtd and isinstance(geoid, Real) and not isinstance(geoid, Integral):
+        if not math.isfinite(geoid) or geoid != int(geoid):
+            raise ValueError(f"GEOID '{geoid}' must be a finite integral number")
+        geoid = int(geoid)
+    geoid_str = str(geoid).strip()
+
     # Zero-pad to expected length
     normalized = geoid_str.zfill(expected_length)
 
@@ -200,6 +243,21 @@ def normalize_geoid(
             f"GEOID '{geoid}' is longer than expected for {geography_level} "
             f"(expected {expected_length} digits, got {len(geoid_str)}). "
             f"Check that the geography_level is correct."
+        )
+
+    if is_vtd:
+        return normalized
+
+    if not geoid_str or not _has_valid_geoid_characters(normalized, geography_lower):
+        raise ValueError(
+            f"GEOID '{geoid}' has invalid characters for {geography_level}"
+        )
+
+    if geography_lower in _STATE_PREFIXED_LEVELS and normalized[:2] not in FIPS_TO_STATE:
+        raise ValueError(
+            f"GEOID '{geoid}' has invalid state FIPS '{normalized[:2]}'; "
+            "a state-prefixed GEOID can lose at most one leading zero. "
+            "Check that the geography_level is correct."
         )
 
     return normalized
@@ -213,6 +271,9 @@ def normalize_geoid_column(
 ) -> pd.DataFrame:
     """
     Normalize a GEOID column in a DataFrame.
+
+    Integral floats are supported for non-VTD levels, and missing values
+    remain missing. Invalid non-missing values raise ValueError.
 
     Args:
         df: DataFrame containing GEOID column
@@ -480,7 +541,9 @@ def validate_geoid(
 
     VTD GEOIDs allow ASCII digits, letters, periods, slashes, and hyphens
     in the six-character VTDST tail after the five-digit FIPS prefix.
-    Every other geography level requires digits only.
+    SLD/CD GEOIDs allow uppercase ASCII letters and digits in the district
+    part after a two-digit state prefix. Numeric levels require ASCII digits;
+    VTD20 retains its existing digits-only validation.
 
     Args:
         geoid: GEOID string to validate
@@ -522,33 +585,33 @@ def validate_geoid(
         candidate = geoid if strict else geoid.zfill(expected_length)
         return _VTD_GEOID_RE.fullmatch(candidate) is not None
 
-    if not geoid.isdigit():
-        return False
+    if geography_lower == "vtd20":
+        valid_length = len(geoid) == expected_length if strict else len(geoid) <= expected_length
+        return geoid.isdigit() and valid_length
 
     if strict:
-        return len(geoid) == expected_length
-    else:
-        # Non-strict: allow shorter (can be zero-padded)
-        return len(geoid) <= expected_length
+        return len(geoid) == expected_length and _has_valid_geoid_characters(geoid, geography_lower)
+    return can_normalize_geoid(geoid, geography_lower)
 
 
 def can_normalize_geoid(
-    geoid: Union[str, int],
+    geoid: Union[str, int, float],
     geography_level: str
 ) -> bool:
     """
-    Check whether a value can be normalized to a valid GEOID.
+    Check whether normalize_geoid() succeeds for a value.
 
     Unlike validate_geoid(), this accepts values that are shorter than the
     expected length (e.g., '6037' for county) because they can be zero-padded
-    to a valid GEOID via normalize_geoid().
+    via normalize_geoid(). This shares its alphabet, float, and state-prefix
+    checks, including the legacy padding behavior for VTD levels.
 
     Args:
-        geoid: Value to check (string or integer)
+        geoid: Value to check (string, integer, or integral float)
         geography_level: Expected geography level
 
     Returns:
-        True if value can be normalized to a valid GEOID
+        True if normalize_geoid() accepts the value
 
     Example:
         >>> can_normalize_geoid("6037", "county")
@@ -560,21 +623,11 @@ def can_normalize_geoid(
         >>> can_normalize_geoid("123456", "county")
         False
     """
-    geoid_str = str(geoid).strip()
-
-    if not geoid_str or not geoid_str.isdigit():
-        return False
-
     try:
-        geography_lower = resolve_geographic_level(geography_level)
-    except ValueError:
+        normalize_geoid(geoid, geography_level)
+    except (ValueError, TypeError):
         return False
-    expected_length = GEOID_LENGTHS.get(geography_lower)
-
-    if expected_length is None:
-        return False
-
-    return len(geoid_str) <= expected_length
+    return True
 
 
 def validate_geoid_column(
@@ -617,6 +670,9 @@ def prepare_geoid_for_join(
     1. Normalizes GEOIDs to standard format
     2. Validates GEOIDs
     3. Optionally creates a new column for the normalized GEOID
+
+    Integral floats are supported for non-VTD levels, and missing values
+    remain missing. Invalid non-missing values raise ValueError.
 
     Args:
         df: DataFrame with GEOID column
