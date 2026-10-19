@@ -1127,14 +1127,34 @@ class SalesforceConnector:
         return all_records
 
     @staticmethod
+    def _resolve_field(record: dict[str, Any], field: str) -> Any:
+        """Resolve a dotted path, preferring exact keys before case-insensitive matches.
+
+        Missing fields and null or non-dict intermediate values return ``None``.
+        """
+        value: Any = record
+        for segment in field.split("."):
+            if not isinstance(value, dict):
+                return None
+            if segment in value:
+                value = value[segment]
+            else:
+                folded_segment = segment.casefold()
+                value = next(
+                    (item for key, item in value.items() if key.casefold() == folded_segment),
+                    None,
+                )
+        return value
+
+    @staticmethod
     def _clean_records(
         records: list[dict[str, Any]],
         fields: list[str],
     ) -> list[dict[str, Any]]:
-        """Strip Salesforce metadata (``attributes``) and normalize columns."""
+        """Resolve requested fields while preserving the caller's column labels."""
         cleaned: list[dict[str, Any]] = []
         for rec in records:
-            row = {f: rec.get(f) for f in fields}
+            row = {field: SalesforceConnector._resolve_field(rec, field) for field in fields}
             cleaned.append(row)
         return cleaned
 
