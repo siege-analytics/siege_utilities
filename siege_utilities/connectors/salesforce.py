@@ -23,7 +23,7 @@ import csv
 import io
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Mapping
 
 import pandas as pd
@@ -54,6 +54,7 @@ API_VERSION = "v60.0"
 DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_BACKOFF = 2.0
+TOKEN_REFRESH_MARGIN = timedelta(seconds=60)
 BULK_THRESHOLD = 2000
 BULK_POLL_INTERVAL = 5.0
 BULK_TIMEOUT = 600.0
@@ -420,7 +421,10 @@ class SalesforceConnector:
         """Whether the connector has an active, authenticated session."""
         if not self._authenticated or not self._access_token:
             return False
-        if self._token_expires_at and datetime.now() >= self._token_expires_at:
+        if (
+            self._token_expires_at is not None
+            and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
+        ):
             return False
         return True
 
@@ -1174,9 +1178,12 @@ class SalesforceConnector:
     def _ensure_connected(self) -> None:
         if not self._authenticated:
             raise ConnectorAuthError("Not authenticated. Call authenticate() first.")
-        if self._token_expires_at and datetime.now() >= self._token_expires_at:
+        if (
+            self._token_expires_at is not None
+            and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
+        ):
             if self._refresh_token:
-                log.info("Token expired, refreshing...")
+                log.info("Token expires soon or has expired, refreshing...")
                 self.refresh_access_token()
             else:
                 raise ConnectorAuthError("Access token expired. Re-authenticate.")
@@ -1226,15 +1233,9 @@ class SalesforceConnector:
         self._session.headers["Authorization"] = f"Bearer {self._access_token}"
         self._authenticated = True
 
-        issued_at = data.get("issued_at")
-        if issued_at:
-            try:
-                issued = datetime.fromtimestamp(int(issued_at) / 1000)
-                self._token_expires_at = issued + timedelta(hours=2)
-            except (ValueError, OSError):
-                self._token_expires_at = datetime.now() + timedelta(hours=2)
-        else:
-            self._token_expires_at = datetime.now() + timedelta(hours=2)
+        # Salesforce does not supply an access-token lifetime. issued_at is
+        # not an expiry; keep it unknown and renew when the API returns 401.
+        self._token_expires_at = None
 
     def request(
         self,
@@ -1260,15 +1261,24 @@ class SalesforceConnector:
         url = f"{self._instance_url}{path}"
         last_exc: BaseException | None = None
 
+        auth_refreshed = False
         attempts = retry_attempts(method, self._retry_attempts)
         for attempt in range(1, attempts + 1):
             try:
-                resp = self._session.request(
-                    method, url,
-                    params=dict(params) if params else None,
-                    json=json_body,
-                    timeout=self._timeout,
-                )
+                while True:
+                    resp = self._session.request(
+                        method, url,
+                        params=dict(params) if params else None,
+                        json=json_body,
+                        timeout=self._timeout,
+                    )
+                    if resp.status_code != 401 or auth_refreshed or not self._refresh_token:
+                        break
+                    # A rejected token permits one replay, including writes.
+                    # Keep this separate from transport and server-error retries.
+                    auth_refreshed = True
+                    self.refresh_access_token()
+                    url = f"{self._instance_url}{path}"
             except requests.exceptions.InvalidJSONError as exc:
                 raise ConnectorError(
                     f"Salesforce JSON encoding failed for {method} {path}: {exc}"

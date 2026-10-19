@@ -12,7 +12,7 @@ dict, non-JSON 2xx → ConnectorError, transport errors exhausting all
 retries → ConnectorError.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 import requests
@@ -155,7 +155,7 @@ def test_ensure_connected_raises_when_access_token_expired() -> None:
     c = _connector()
     c._authenticated = True
     c._access_token = "expired"
-    c._token_expires_at = datetime.now() - timedelta(seconds=1)
+    c._token_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
     c._refresh_token = None
     with pytest.raises(ConnectorAuthError) as exc_info:
         c._ensure_connected()

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
 
 import pandas as pd
@@ -65,6 +65,7 @@ API_VERSION = "v6"
 DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_BACKOFF = 2.0
+TOKEN_REFRESH_MARGIN = timedelta(seconds=60)
 BATCH_SIZE = 100
 
 STANDARD_MODULES = [
@@ -266,7 +267,10 @@ class ZohoConnector:
     def is_connected(self) -> bool:
         if not self._authenticated or not self._access_token:
             return False
-        if self._token_expires_at and datetime.now() >= self._token_expires_at:
+        if (
+            self._token_expires_at is not None
+            and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
+        ):
             return False
         return True
 
@@ -679,9 +683,12 @@ class ZohoConnector:
     def _ensure_connected(self) -> None:
         if not self._authenticated:
             raise ConnectorAuthError("Not authenticated. Call authenticate() first.")
-        if self._token_expires_at and datetime.now() >= self._token_expires_at:
+        if (
+            self._token_expires_at is not None
+            and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
+        ):
             if self._refresh_token:
-                log.info("Token expired, refreshing...")
+                log.info("Token expires soon or has expired, refreshing...")
                 self._refresh_access()
             else:
                 raise ConnectorAuthError("Access token expired. Re-authenticate.")
@@ -732,7 +739,7 @@ class ZohoConnector:
         self._authenticated = True
 
         expires_in = data.get("expires_in", 3600)
-        self._token_expires_at = datetime.now() + timedelta(seconds=int(expires_in))
+        self._token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
 
     def request(
         self,
@@ -747,15 +754,23 @@ class ZohoConnector:
         url = f"{self._dc['api_url']}{path}"
         last_exc: BaseException | None = None
 
+        auth_refreshed = False
         attempts = retry_attempts(method, self._retry_attempts)
         for attempt in range(1, attempts + 1):
             try:
-                resp = self._session.request(
-                    method, url,
-                    params=dict(params) if params else None,
-                    json=json_body,
-                    timeout=self._timeout,
-                )
+                while True:
+                    resp = self._session.request(
+                        method, url,
+                        params=dict(params) if params else None,
+                        json=json_body,
+                        timeout=self._timeout,
+                    )
+                    if resp.status_code != 401 or auth_refreshed or not self._refresh_token:
+                        break
+                    # A rejected token permits one replay, including writes.
+                    # Keep this separate from transport and server-error retries.
+                    auth_refreshed = True
+                    self.refresh_access_token()
             except requests.exceptions.InvalidJSONError as exc:
                 raise ConnectorError(
                     f"Zoho JSON encoding failed for {method} {path}: {exc}"

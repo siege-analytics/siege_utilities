@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
 from urllib.parse import quote
 
@@ -50,6 +50,7 @@ log = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_BACKOFF = 2.0
+TOKEN_REFRESH_MARGIN = timedelta(seconds=60)
 BATCH_SIZE = 1000
 FORMATTED_VALUE_ANNOTATION = "OData.Community.Display.V1.FormattedValue"
 
@@ -223,11 +224,18 @@ class DynamicsConnector:
     def is_connected(self) -> bool:
         if not self._authenticated or not self._access_token:
             return False
-        if self._token_expires_at and datetime.now() >= self._token_expires_at:
+        if (
+            self._token_expires_at is not None
+            and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
+        ):
             return False
         return True
 
     def refresh_access_token(self) -> None:
+        # acquire_token_for_client may reuse a cached token rejected by the
+        # API. Evict it so renewal obtains a fresh token from the authority.
+        if self._client_secret:
+            self._msal_app.remove_tokens_for_client()
         self.authenticate()
 
     # ------------------------------------------------------------------
@@ -811,7 +819,7 @@ class DynamicsConnector:
         self._session.headers["Authorization"] = f"Bearer {self._access_token}"
         self._authenticated = True
         expires_in = result.get("expires_in", 3600)
-        self._token_expires_at = datetime.now() + timedelta(seconds=int(expires_in))
+        self._token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
 
     # ------------------------------------------------------------------
     # HTTP plumbing
@@ -820,9 +828,12 @@ class DynamicsConnector:
     def _ensure_connected(self) -> None:
         if not self._authenticated:
             raise ConnectorAuthError("Not authenticated. Call authenticate() first.")
-        if self._token_expires_at and datetime.now() >= self._token_expires_at:
-            log.info("Token expired, re-authenticating...")
-            self.authenticate()
+        if (
+            self._token_expires_at is not None
+            and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
+        ):
+            log.info("Token expires soon or has expired, re-authenticating...")
+            self.refresh_access_token()
 
     def request(
         self,
@@ -838,16 +849,28 @@ class DynamicsConnector:
         url = f"{self._environment_url}{path}" if not path.startswith("http") else path
         last_exc: BaseException | None = None
 
+        auth_refreshed = False
         attempts = retry_attempts(method, self._retry_attempts)
         for attempt in range(1, attempts + 1):
             try:
-                resp = self._session.request(
-                    method, url,
-                    params=dict(params) if params else None,
-                    json=json_body,
-                    timeout=self._timeout,
-                    **({"headers": dict(headers)} if headers is not None else {}),
-                )
+                while True:
+                    resp = self._session.request(
+                        method, url,
+                        params=dict(params) if params else None,
+                        json=json_body,
+                        timeout=self._timeout,
+                        **({"headers": dict(headers)} if headers is not None else {}),
+                    )
+                    if (
+                        resp.status_code != 401
+                        or auth_refreshed
+                        or not (self._client_secret or (self._username and self._password))
+                    ):
+                        break
+                    # A rejected token permits one replay, including writes.
+                    # Keep this separate from transport and server-error retries.
+                    auth_refreshed = True
+                    self.refresh_access_token()
             except requests.exceptions.InvalidJSONError as exc:
                 raise ConnectorError(
                     f"Dynamics JSON encoding failed for {method} {path}: {exc}"

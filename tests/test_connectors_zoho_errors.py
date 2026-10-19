@@ -10,7 +10,7 @@ create_record/update_record API-error-status paths, and upsert_records
 empty-DataFrame and batch-ConnectorError handling.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pandas as pd
 import pytest
@@ -96,7 +96,7 @@ def test_ensure_connected_raises_when_not_authenticated():
 def test_ensure_connected_raises_when_token_expired_no_refresh():
     c = ZohoConnector(client_id="id", client_secret="secret")
     c._authenticated = True
-    c._token_expires_at = datetime(2000, 1, 1)  # expired; no refresh_token
+    c._token_expires_at = datetime(2000, 1, 1, tzinfo=timezone.utc)  # expired; no refresh_token
     with pytest.raises(ConnectorAuthError) as exc_info:
         c._ensure_connected()
     assert "expired" in str(exc_info.value).lower()
@@ -105,7 +105,7 @@ def test_ensure_connected_raises_when_token_expired_no_refresh():
 def test_ensure_connected_refreshes_when_token_expired_with_refresh_token(monkeypatch):
     c = ZohoConnector(client_id="id", client_secret="secret", refresh_token="tok")
     c._authenticated = True
-    c._token_expires_at = datetime(2000, 1, 1)  # expired
+    c._token_expires_at = datetime(2000, 1, 1, tzinfo=timezone.utc)  # expired
 
     refreshed = []
 

@@ -112,6 +112,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Documented behavior change from v4.0.0:** Salesforce, HubSpot, Zoho,
+  and Dynamics renew credentials once after HTTP 401 and replay the rejected
+  request once when renewal is available. Transport and server-error retry
+  limits remain in place. Known token lifetimes use timezone-aware UTC with
+  a 60-second refresh margin; Salesforce expiry remains unknown instead of
+  assuming two hours. Dynamics renewal clears cached client-credential tokens
+  before acquiring a replacement (#1436). v3.23.0 had no connector implementations.
+
 - **Documented behavior change from v4.0.0:** HubSpot, Zoho, and Dynamics
   return zero rows without a data request for `limit=0`; `None` remains
   unlimited. Zoho COQL stops at the requested count, and record listing uses
