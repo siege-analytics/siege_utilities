@@ -113,9 +113,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Instagram and X retry rate limits within the configured attempt budget,
-  honor `Retry-After`, and retain collected posts with a warning when a later
-  page remains throttled. Instagram recognizes Graph throttle codes and usage
-  headers before classifying authentication failures. Missing account metrics
+  honor `Retry-After` up to `max_retry_wait` (900 seconds by default), and retain
+  collected posts with a warning when a later page remains throttled. Larger
+  hints raise `SocialMediaRateLimitError` without sleeping and retain the hint
+  in `retry_after`; configured backoff uses the same cap. This covers HTTP dates
+  and X reset epochs. Instagram classifies Graph error codes before using
+  usage telemetry, so code 190 remains an authentication error and subcode 463
+  records expiry on first pages, later pages and exchanges of the current token.
+  Missing account metrics
   remain null instead of becoming zero. Post frames retain existing columns
   and add a metrics dictionary with UTC-aware publication times, including a
   stable schema for empty results. Instagram detects supplied token expiry
@@ -126,8 +131,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tweets per page while honoring smaller result limits, and combines public,
   non-public and organic insights with that precedence. A zero post limit
   returns an empty frame without requests. Request path identifiers are
-  percent-encoded, and non-public/organic insight fields require the
+  validated before percent-encoding: user/post IDs accept 1 to 19 ASCII digits
+  and usernames accept 1 to 15 ASCII letters, digits or underscores. Invalid
+  values raise `ValueError` before requests. Non-public/organic insight fields require the
   `user_context=True` opt-in for OAuth user tokens (#1465).
+- Social reports render missing platform metrics as `unavailable`. Totals sum
+  known values and remain unknown when none are available. Comparisons, post
+  rankings and chart data handle null values without replacing them with zero.
+  The X connector-to-report fixture covers an empty `public_metrics` object
+  (#1812).
 - Graph insight defaults use supported metrics: daily Instagram account
   insights use `reach` and `follower_count`; media use `views` and
   `total_interactions`; stories use `navigation` and accept caller overrides.
@@ -630,6 +642,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     level whose GEOIDs equal your plan's district GEOIDs.
 
 ### Security
+
+- Instagram token exchange errors omit response bodies and transport exception
+  text. Malformed responses use fixed diagnostics; transport retries report
+  the exception class and attempt number. Dummy sentinel coverage checks error
+  strings, repr and logged tracebacks. The credential URL guard now states that
+  exchanges carry `client_secret` and `fb_exchange_token` in query parameters
+  even though the bearer header is removed (#1812).
 
 - Credential files are written with mode 0600 before writing their payload,
   including existing files, with no write-then-chmod race. Missing parent

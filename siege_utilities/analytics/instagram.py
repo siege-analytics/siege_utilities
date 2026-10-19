@@ -49,6 +49,7 @@ BASE_URL = f"https://graph.facebook.com/{API_VERSION}"
 DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_BACKOFF = 1.5
+DEFAULT_MAX_RETRY_WAIT = 900.0
 
 DEFAULT_ACCOUNT_FIELDS = (
     "username,name,followers_count,follows_count,media_count,"
@@ -98,6 +99,9 @@ class InstagramConnector:
     pass the fresh token to ``refresh_access_token(access_token=...)`` and
     call ``authenticate()``. There is no automatic renewal of expired tokens.
 
+    Retry hints above ``max_retry_wait`` (900 seconds by default) raise
+    SocialMediaRateLimitError without sleeping. Backoff waits use the same cap.
+
     Usage::
 
         from siege_utilities.analytics.instagram import InstagramConnector
@@ -119,6 +123,7 @@ class InstagramConnector:
         timeout: float = DEFAULT_TIMEOUT,
         retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
         retry_backoff: float = DEFAULT_RETRY_BACKOFF,
+        max_retry_wait: float = DEFAULT_MAX_RETRY_WAIT,
     ) -> None:
         if not REQUESTS_AVAILABLE:  # pragma: no cover
             raise ImportError(
@@ -129,6 +134,10 @@ class InstagramConnector:
             raise ValueError("access_token is required.")
         if token_expires_at is not None and token_expires_at.utcoffset() is None:
             raise ValueError("token_expires_at must be a timezone-aware datetime.")
+        if not isfinite(max_retry_wait) or max_retry_wait < 0:
+            raise ValueError("max_retry_wait must be finite and nonnegative.")
+        if not isfinite(retry_backoff) or retry_backoff < 0:
+            raise ValueError("retry_backoff must be finite and nonnegative.")
 
         self._access_token = access_token
         self._token_expires_at = token_expires_at
@@ -138,6 +147,7 @@ class InstagramConnector:
         self._timeout = timeout
         self._retry_attempts = max(1, retry_attempts)
         self._retry_backoff = retry_backoff
+        self._max_retry_wait = max_retry_wait
         self._authenticated = False
         self._session = requests.Session()
         self._session.headers.update({
@@ -484,29 +494,19 @@ class InstagramConnector:
                     **({"headers": {"Authorization": None}} if _token_exchange else {}),
                 )
             except requests.exceptions.RequestException as exc:
-                last_exc = SocialMediaError(redact_url_secrets(str(exc)))
-                log.warning(
-                    "Instagram %s %s attempt %d/%d failed: %s",
-                    method, safe_url, attempt, self._retry_attempts, str(last_exc),
-                )
+                if _token_exchange:
+                    last_exc = SocialMediaError(
+                        f"Instagram token exchange {type(exc).__name__} on attempt {attempt}."
+                    )
+                    log.warning("%s", last_exc)
+                else:
+                    last_exc = SocialMediaError(redact_url_secrets(str(exc)))
+                    log.warning(
+                        "Instagram %s %s attempt %d/%d failed: %s",
+                        method, safe_url, attempt, self._retry_attempts, str(last_exc),
+                    )
                 if attempt < self._retry_attempts:
-                    time.sleep(self._retry_backoff ** attempt)
-                continue
-
-            if self._is_rate_limited(resp):
-                retry_after = self._parse_retry_after(resp)
-                error = SocialMediaRateLimitError(
-                    f"Instagram API rate limit hit on {method} {safe_url}.",
-                    retry_after=retry_after,
-                )
-                if attempt == self._retry_attempts:
-                    raise error
-                delay = retry_after if retry_after is not None else self._retry_backoff ** attempt
-                log.warning(
-                    "Instagram rate limit on %s %s attempt %d/%d; retrying in %s seconds",
-                    method, safe_url, attempt, self._retry_attempts, delay,
-                )
-                time.sleep(delay)
+                    time.sleep(self._backoff_delay(attempt))
                 continue
 
             try:
@@ -516,7 +516,8 @@ class InstagramConnector:
             graph_error = body.get("error", {}) if isinstance(body, dict) else {}
             graph_error = graph_error if isinstance(graph_error, dict) else {}
             if graph_error.get("code") == 190:
-                if not _token_exchange:
+                # A rejected replacement token says nothing about the stored token.
+                if not _token_exchange or req_params.get("fb_exchange_token") == self._access_token:
                     self._authenticated = False
                     if graph_error.get("error_subcode") == 463:
                         self._token_expires_at = datetime.now(timezone.utc)
@@ -526,6 +527,24 @@ class InstagramConnector:
                     "Instagram access token is invalid or revoked. "
                     "Obtain a fresh token through Facebook Login."
                 )
+
+            if self._is_rate_limited(resp):
+                retry_after = self._parse_retry_after(resp)
+                error = SocialMediaRateLimitError(
+                    f"Instagram API rate limit hit on {method} {safe_url}.",
+                    retry_after=retry_after,
+                )
+                if attempt == self._retry_attempts or (
+                    retry_after is not None and retry_after > self._max_retry_wait
+                ):
+                    raise error
+                delay = retry_after if retry_after is not None else self._backoff_delay(attempt)
+                log.warning(
+                    "Instagram rate limit on %s %s attempt %d/%d; retrying in %s seconds",
+                    method, safe_url, attempt, self._retry_attempts, delay,
+                )
+                time.sleep(delay)
+                continue
 
             if _token_exchange and 400 <= resp.status_code < 500:
                 raise SocialMediaAuthError(
@@ -548,10 +567,14 @@ class InstagramConnector:
                     method, safe_url, resp.status_code, attempt, self._retry_attempts,
                 )
                 if attempt < self._retry_attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                    time.sleep(self._backoff_delay(attempt))
                 continue
 
             if not (200 <= resp.status_code < 300):
+                if _token_exchange:
+                    raise SocialMediaError(
+                        f"Instagram token exchange failed (HTTP {resp.status_code})."
+                    )
                 error_msg = self._extract_error_message(resp)
                 raise SocialMediaError(
                     f"Instagram API {resp.status_code}: {error_msg}"
@@ -560,26 +583,38 @@ class InstagramConnector:
             try:
                 return resp.json()
             except ValueError:
-                error = SocialMediaError(
-                    f"Instagram API returned non-JSON response on {method} {safe_url}: "
-                    f"{redact_url_secrets(resp.text)[:200]!r}"
-                )
+                if _token_exchange:
+                    error = SocialMediaError(
+                        f"Instagram token exchange returned an unparseable response (HTTP {resp.status_code})."
+                    )
+                else:
+                    error = SocialMediaError(
+                        f"Instagram API returned non-JSON response on {method} {safe_url} (HTTP {resp.status_code})."
+                    )
             raise error from None
 
+        if _token_exchange:
+            raise last_exc from None
         raise SocialMediaError(
             f"Instagram API {method} {safe_url} failed after {self._retry_attempts} "
             f"attempts: {last_exc}"
         )
+
+    def _backoff_delay(self, attempt: int) -> float:
+        try:
+            return min(self._retry_backoff ** attempt, self._max_retry_wait)
+        except OverflowError:
+            return self._max_retry_wait
 
     @staticmethod
     def _extract_error_message(resp: requests.Response) -> str:
         try:
             body = resp.json()
             return redact_url_secrets(str(body.get("error", {}).get(
-                "message", redact_url_secrets(resp.text)[:200],
+                "message", "No error message provided",
             )))
         except ValueError:
-            return redact_url_secrets(resp.text)[:200]
+            return "Unparseable error response"
 
     @staticmethod
     def _usage_exhausted(resp: requests.Response) -> bool:
@@ -598,17 +633,19 @@ class InstagramConnector:
 
     @classmethod
     def _is_rate_limited(cls, resp: requests.Response) -> bool:
-        if resp.status_code == 429:
-            return True
-        if 200 <= resp.status_code < 300:
-            return False  # Keep successful data even when its usage header reaches 100%.
         try:
             body = resp.json()
         except ValueError:
             body = {}
         error = body.get("error", {}) if isinstance(body, dict) else {}
         code = error.get("code") if isinstance(error, dict) else None
-        return code in (4, 17, 32, 613, *range(80001, 80015)) or cls._usage_exhausted(resp)
+        if code is not None:
+            return code in (4, 17, 32, 613, *range(80001, 80015))
+        if resp.status_code == 429:
+            return True
+        if 200 <= resp.status_code < 300:
+            return False  # Keep successful data even when its usage header reaches 100%.
+        return cls._usage_exhausted(resp)
 
     @staticmethod
     def _parse_retry_after(resp: requests.Response) -> float | None:

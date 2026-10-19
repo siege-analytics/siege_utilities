@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import logging
 import pathlib
+import re
 import time
 from datetime import date, datetime
 from email.utils import parsedate_to_datetime
@@ -49,6 +50,7 @@ BASE_URL = "https://api.x.com/2"
 DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_BACKOFF = 2.0
+DEFAULT_MAX_RETRY_WAIT = 900.0
 COST_PER_READ = 0.005
 _POST_COLUMNS = [
     "id", "platform", "post_type", "text", "media_url", "published_at", "permalink",
@@ -70,6 +72,11 @@ class XTwitterConnector:
     Set ``user_context=True`` only with an OAuth user token to request
     non-public and organic post insights. App-only tokens request public
     metrics by default.
+
+    User/post IDs accept 1 to 19 ASCII digits; usernames accept 1 to 15
+    ASCII letters, digits or underscores. Invalid identifiers raise ValueError.
+    Retry hints above ``max_retry_wait`` (900 seconds by default) raise
+    SocialMediaRateLimitError without sleeping. Backoff waits use the same cap.
 
     Usage::
 
@@ -97,6 +104,7 @@ class XTwitterConnector:
         timeout: float = DEFAULT_TIMEOUT,
         retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
         retry_backoff: float = DEFAULT_RETRY_BACKOFF,
+        max_retry_wait: float = DEFAULT_MAX_RETRY_WAIT,
     ) -> None:
         if not REQUESTS_AVAILABLE:  # pragma: no cover
             raise ImportError(
@@ -105,6 +113,10 @@ class XTwitterConnector:
             )
         if not bearer_token:
             raise ValueError("bearer_token is required.")
+        if not isfinite(max_retry_wait) or max_retry_wait < 0:
+            raise ValueError("max_retry_wait must be finite and nonnegative.")
+        if not isfinite(retry_backoff) or retry_backoff < 0:
+            raise ValueError("retry_backoff must be finite and nonnegative.")
 
         self._bearer_token = bearer_token
         self._username = username
@@ -115,6 +127,7 @@ class XTwitterConnector:
         self._timeout = timeout
         self._retry_attempts = max(1, retry_attempts)
         self._retry_backoff = retry_backoff
+        self._max_retry_wait = max_retry_wait
         self._authenticated = False
         self._session = requests.Session()
         self._session.headers.update({
@@ -153,8 +166,9 @@ class XTwitterConnector:
 
     def authenticate(self) -> None:
         """Validate bearer token and resolve user ID."""
-        if self._user_id:
-            data = self._request("GET", f"/users/{quote(str(self._user_id), safe='')}", params={
+        if self._user_id is not None:
+            user_id = self._validate_identifier(self._user_id)
+            data = self._request("GET", f"/users/{quote(user_id, safe='')}", params={
                 "user.fields": "username,id",
             })
             user = data.get("data", {})
@@ -167,8 +181,9 @@ class XTwitterConnector:
             log.info("Authenticated as @%s (id=%s)", self._username, self._user_id)
             return
 
-        if self._username:
-            data = self._request("GET", f"/users/by/username/{quote(str(self._username), safe='')}", params={
+        if self._username is not None:
+            username = self._validate_identifier(self._username, username=True)
+            data = self._request("GET", f"/users/by/username/{quote(username, safe='')}", params={
                 "user.fields": "id,username",
             })
             user = data.get("data", {})
@@ -201,7 +216,8 @@ class XTwitterConnector:
     def get_account_info(self) -> dict[str, Any]:
         """Account metadata: username, followers, tweet count, verified status."""
         self._ensure_connected()
-        data = self._request("GET", f"/users/{quote(str(self._user_id), safe='')}", params={
+        user_id = self._validate_identifier(self._user_id)
+        data = self._request("GET", f"/users/{quote(user_id, safe='')}", params={
             "user.fields": (
                 "username,name,description,profile_image_url,"
                 "public_metrics,verified,created_at,location,url"
@@ -263,6 +279,7 @@ class XTwitterConnector:
         if limit == 0:
             return self._tweets_to_dataframe([])
         self._ensure_connected()
+        user_id = self._validate_identifier(self._user_id)
         all_tweets: list[dict[str, Any]] = []
         max_results = max(5, min(limit or 100, 100))
 
@@ -283,7 +300,7 @@ class XTwitterConnector:
                 params["pagination_token"] = next_token
 
             try:
-                data = self._request("GET", f"/users/{quote(str(self._user_id), safe='')}/tweets", params=params)
+                data = self._request("GET", f"/users/{quote(user_id, safe='')}/tweets", params=params)
             except SocialMediaRateLimitError:
                 if not all_tweets:
                     raise
@@ -319,10 +336,11 @@ class XTwitterConnector:
         ``user_context=True`` on the connector.
         """
         self._ensure_connected()
+        post_id = self._validate_identifier(post_id)
         fields = "public_metrics,created_at"
         if self._user_context:
             fields += ",non_public_metrics,organic_metrics"
-        data = self._request("GET", f"/tweets/{quote(str(post_id), safe='')}", params={
+        data = self._request("GET", f"/tweets/{quote(post_id, safe='')}", params={
             "tweet.fields": fields,
         })
         tweet = data.get("data", {})
@@ -346,6 +364,21 @@ class XTwitterConnector:
     # ------------------------------------------------------------------
     # HTTP plumbing
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _validate_identifier(value: Any, *, username: bool = False) -> str:
+        pattern = r"[A-Za-z0-9_]{1,15}" if username else r"[0-9]{1,19}"
+        text = str(value)
+        if not re.fullmatch(pattern, text):
+            kind = "username" if username else "user/post ID"
+            raise ValueError(f"Invalid X {kind} format.")
+        return text
+
+    def _backoff_delay(self, attempt: int) -> float:
+        try:
+            return min(self._retry_backoff ** attempt, self._max_retry_wait)
+        except OverflowError:
+            return self._max_retry_wait
 
     def _ensure_connected(self) -> None:
         if not self._authenticated:
@@ -388,7 +421,7 @@ class XTwitterConnector:
                     method, url, attempt, self._retry_attempts, exc,
                 )
                 if attempt < self._retry_attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                    time.sleep(self._backoff_delay(attempt))
                 continue
 
             self._estimated_cost += COST_PER_READ
@@ -405,9 +438,11 @@ class XTwitterConnector:
                     f"X API rate limit hit on {method} {path}.",
                     retry_after=retry_after,
                 )
-                if attempt == self._retry_attempts:
+                if attempt == self._retry_attempts or (
+                    retry_after is not None and retry_after > self._max_retry_wait
+                ):
                     raise error
-                delay = retry_after if retry_after is not None else self._retry_backoff ** attempt
+                delay = retry_after if retry_after is not None else self._backoff_delay(attempt)
                 log.warning(
                     "X rate limit on %s %s attempt %d/%d; retrying in %s seconds",
                     method, path, attempt, self._retry_attempts, delay,
@@ -424,7 +459,7 @@ class XTwitterConnector:
                     method, url, resp.status_code, attempt, self._retry_attempts,
                 )
                 if attempt < self._retry_attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                    time.sleep(self._backoff_delay(attempt))
                 continue
 
             if not (200 <= resp.status_code < 300):
@@ -493,6 +528,8 @@ class XTwitterConnector:
                 reset_ts = int(reset)
                 wait = reset_ts - int(time.time())
                 return max(1.0, float(wait))
+            except OverflowError:
+                return float("inf")
             except ValueError:
                 pass
         return None

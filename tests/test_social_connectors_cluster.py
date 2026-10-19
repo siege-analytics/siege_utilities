@@ -124,41 +124,32 @@ def test_deferred_x_zero_limit_never_requests_or_paginates(monkeypatch, authenti
 
 
 @pytest.mark.parametrize("operation", ["authenticate_id", "authenticate_username", "account", "posts", "insights"])
-@pytest.mark.parametrize("identifier,escaped", [
-    ("../users/123", "..%2Fusers%2F123"),
-    ("name?key=value#frag%/é", "name%3Fkey%3Dvalue%23frag%25%2F%C3%A9"),
-])
-def test_deferred_x_path_segments(monkeypatch, operation, identifier, escaped):
+@pytest.mark.parametrize("identifier", ["../users/123", "name?key=value#frag%/é"])
+def test_deferred_x_path_segments(monkeypatch, operation, identifier):
     data = [] if operation == "posts" else {"id": "123", "username": "test"}
     client, request = connector("x", monkeypatch, [response(body={"data": data})])
     client._user_id = identifier
-    if operation == "authenticate_username":
-        client._user_id = None
-        client._username = identifier
-        client.authenticate()
-        expected_path = f"/users/by/username/{escaped}"
-    elif operation == "authenticate_id":
-        client.authenticate()
-        expected_path = f"/users/{escaped}"
-    elif operation == "account":
-        client.get_account_info()
-        expected_path = f"/users/{escaped}"
-    elif operation == "posts":
-        client.get_posts(START, END)
-        expected_path = f"/users/{escaped}/tweets"
-    else:
-        client.get_post_insights(identifier)
-        expected_path = f"/tweets/{escaped}"
-    url = request.call_args.args[1]
-    assert url == x_twitter.BASE_URL + expected_path
-    assert requests.Request("GET", url).prepare().url == url
+    with pytest.raises(ValueError):
+        if operation == "authenticate_username":
+            client._user_id = None
+            client._username = identifier
+            client.authenticate()
+        elif operation == "authenticate_id":
+            client.authenticate()
+        elif operation == "account":
+            client.get_account_info()
+        elif operation == "posts":
+            client.get_posts(START, END)
+        else:
+            client.get_post_insights(identifier)
+    request.assert_not_called()
 
 
 @pytest.mark.parametrize("user_context", [False, True])
 def test_deferred_x_insight_fields_match_token_context(monkeypatch, user_context):
     kwargs = {"user_context": True} if user_context else {}
     client, request = connector("x", monkeypatch, [response(body={"data": {}})], **kwargs)
-    client.get_post_insights("post-1")
+    client.get_post_insights("123")
     fields = set(request.call_args.kwargs["params"]["tweet.fields"].split(","))
     expected = {"public_metrics", "created_at"}
     if user_context:
@@ -336,7 +327,7 @@ def test_x_insights_merge_all_metric_groups_with_public_precedence(monkeypatch, 
         "non_public_metrics": {"url_link_clicks": 7, "like_count": 3},
         "organic_metrics": {"user_profile_clicks": 9, "url_link_clicks": 2, "like_count": 1},
     }})])
-    result = client.get_post_insights("tweet-1", metrics=metrics).set_index("metric")["value"].to_dict()
+    result = client.get_post_insights("123", metrics=metrics).set_index("metric")["value"].to_dict()
     assert result == {"like_count": 5, "url_link_clicks": 7, "user_profile_clicks": 9}
 
 
