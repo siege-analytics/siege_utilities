@@ -112,6 +112,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- CRM pipeline reports retain missing stages in a `(none)` bucket and
+  preserve stages absent from `stage_order`. Ordered stages without deals
+  now appear with zero count, total, and average, even for empty input;
+  other stages follow in first-seen order. Time-series reports normalize
+  timestamps to UTC before resampling and return UTC dates. Compared with
+  v4.0.0, pipeline totals no longer lose stage-less amounts, and mixed DST
+  offsets no longer break time-series grouping (#1445).
+
 - CRM regional endpoints now support Zoho Canada, Saudi Arabia, and China,
   and prefer the token response `api_domain` for API requests. Dynamics
   environments ending in `.us` or `.cn` use the matching sovereign MSAL

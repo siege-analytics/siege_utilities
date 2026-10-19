@@ -30,29 +30,38 @@ def pipeline_adapter(
 
     Groups by *stage_column*, sums *value_column*, and orders stages
     by *stage_order* (or by descending value if not specified).
+    Missing stages share a ``(none)`` bucket. Ordered stages with no deals
+    have zero count, total, and average, including for empty input. Other
+    stages follow in first-seen order, keeping their labels. Repeated
+    entries in *stage_order* are emitted once.
 
     Returns:
         DataFrame with columns: ``stage``, ``count``, ``total_value``,
         ``avg_value``.
     """
+    columns = ["stage", "count", "total_value", "avg_value"]
+    ordered_stages = list(dict.fromkeys(stage_order or []))
     if df.empty:
-        return pd.DataFrame(columns=["stage", "count", "total_value", "avg_value"])
+        return pd.DataFrame(
+            [(stage, 0, 0, 0) for stage in ordered_stages], columns=columns,
+        )
 
-    grouped = df.groupby(stage_column).agg(
+    work = df.copy()
+    work[stage_column] = work[stage_column].astype(object).fillna("(none)")
+    grouped = work.groupby(stage_column, sort=False, observed=True).agg(
         count=(stage_column, "size"),
         total_value=(value_column, "sum"),
         avg_value=(value_column, "mean"),
-    ).reset_index()
-    grouped.columns = ["stage", "count", "total_value", "avg_value"]
+    )
+    grouped.index.name = "stage"
 
-    if stage_order:
-        cat_type = pd.CategoricalDtype(categories=stage_order, ordered=True)
-        grouped["stage"] = grouped["stage"].astype(cat_type)
-        grouped = grouped.sort_values("stage").reset_index(drop=True)
+    if ordered_stages:
+        remaining = [stage for stage in grouped.index if stage not in ordered_stages]
+        grouped = grouped.reindex(ordered_stages + remaining, fill_value=0)
     else:
-        grouped = grouped.sort_values("total_value", ascending=False).reset_index(drop=True)
+        grouped = grouped.sort_values("total_value", ascending=False)
 
-    return grouped
+    return grouped.reset_index()
 
 
 def timeseries_adapter(
@@ -65,7 +74,9 @@ def timeseries_adapter(
 ) -> pd.DataFrame:
     """Reshape activity data into time-series chart input.
 
-    Groups records by *freq* (daily, weekly, monthly) and aggregates.
+    Converts timestamps to UTC, then groups records by *freq* (daily,
+    weekly, monthly) and aggregates. Returned dates are UTC tz-aware;
+    naive input timestamps are treated as UTC. Invalid timestamps are dropped.
     If *value_column* is None and *agg* is "count", counts records per
     period.
 
@@ -76,7 +87,7 @@ def timeseries_adapter(
         return pd.DataFrame(columns=["date", "value"])
 
     work = df.copy()
-    work[timestamp_column] = pd.to_datetime(work[timestamp_column], errors="coerce")
+    work[timestamp_column] = pd.to_datetime(work[timestamp_column], errors="coerce", utc=True)
     work = work.dropna(subset=[timestamp_column])
 
     if work.empty:
