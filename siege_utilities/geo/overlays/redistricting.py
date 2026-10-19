@@ -55,6 +55,15 @@ class DistrictAssignment:
     containment_pct: float = 1.0
 
 
+def _has_nonempty_span(assignment: DistrictAssignment) -> bool:
+    """Skip empty half-open spans and reject inverted bounds when queried."""
+    if assignment.from_date is None or assignment.to_date is None:
+        return True
+    if assignment.from_date > assignment.to_date:
+        raise ValueError("DistrictAssignment.from_date must not be after to_date")
+    return assignment.from_date < assignment.to_date
+
+
 @dataclass
 class RedistrictingOverlayResult:
     """Result of the redistricting overlay query.
@@ -85,9 +94,14 @@ class RedistrictingOverlayResult:
         return [a for a in self.assignments if a.plan_type == plan_type]
 
     def active_at(self, when: date) -> list[DistrictAssignment]:
-        """Return assignments active in [from_date, to_date); None is unbounded."""
+        """Return assignments active in [from_date, to_date); None is unbounded.
+
+        Empty spans never apply. Inverted bounds raise ValueError.
+        """
         result = []
         for a in self.assignments:
+            if not _has_nonempty_span(a):
+                continue
             if a.from_date and a.from_date > when:
                 continue
             if a.to_date and a.to_date <= when:
@@ -129,6 +143,7 @@ class DictRedistrictingDataProvider(RedistrictingDataProvider):
         """Return assignments overlapping the inclusive years, in either order.
 
         Assignments use [from_date, to_date), with None for an unbounded end.
+        Empty spans never apply. Inverted bounds raise ValueError.
         The state filter accepts FIPS codes or abbreviations.
         """
         from_date = date(min(from_year, to_year), 1, 1)
@@ -136,6 +151,8 @@ class DictRedistrictingDataProvider(RedistrictingDataProvider):
         state = FIPS_TO_STATE.get(state_fips, state_fips.upper()) if state_fips else None
         results = []
         for a in self._assignments:
+            if not _has_nonempty_span(a):
+                continue
             if state and a.state.upper() != state:
                 continue
             if a.to_date and a.to_date <= from_date:

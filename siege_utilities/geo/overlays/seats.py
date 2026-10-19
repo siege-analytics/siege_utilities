@@ -66,7 +66,7 @@ class SeatsOverlayResult:
     Attributes:
         geoid: Queried GEOID.
         assignments: Seat assignments ordered by time.
-        current_districts: Latest assignment per office, preferring ongoing seats.
+        current_districts: All current district memberships in each office's latest period.
     """
 
     geoid: str = ""
@@ -74,19 +74,30 @@ class SeatsOverlayResult:
 
     @property
     def current_districts(self) -> list[SeatAssignment]:
-        """Select one assignment per office, in first-seen office order.
+        """Select the latest current period per office, preserving split districts.
 
-        Ongoing assignments outrank ended assignments. Otherwise prefer the
-        latest end year. Break ties with the latest start year, keeping the
-        first assignment when both dates tie.
+        Each office's latest known end year (or start year for an ongoing row)
+        is its reference point. Rows are current if ongoing or covering that
+        point. Keep all such rows with the newest start year, treating an
+        unknown start as earlier than a known start. Preserve first-seen office
+        order and row order within each office.
         """
         assignments_by_office: dict[str, list[SeatAssignment]] = {}
         for assignment in self.assignments:
             assignments_by_office.setdefault(assignment.office, []).append(assignment)
-        return [
-            max(assignments, key=lambda a: (a.to_year is None, a.to_year or 0, a.from_year or 0))
-            for assignments in assignments_by_office.values()
-        ]
+        result = []
+        for assignments in assignments_by_office.values():
+            reference_year = max(
+                a.to_year if a.to_year is not None else (a.from_year or 0)
+                for a in assignments
+            )
+            current = [
+                a for a in assignments
+                if a.to_year is None or (a.from_year or 0) <= reference_year <= a.to_year
+            ]
+            latest_start = max(a.from_year or 0 for a in current)
+            result.extend(a for a in current if (a.from_year or 0) == latest_start)
+        return result
 
     @property
     def offices(self) -> list[str]:
