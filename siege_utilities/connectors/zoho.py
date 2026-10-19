@@ -2,7 +2,9 @@
 Zoho CRM connector — OAuth, connection management, and CRUD.
 
 Supports OAuth 2.0 self-client (server-to-server) and web-based flows
-for the Zoho CRM v6 API. Multi-DC support for all five Zoho data centers.
+for the Zoho CRM v6 API. Supports US, EU, India, Australia, Japan, Canada,
+Saudi Arabia, and China data centers. Token responses select the API domain
+when supplied by Zoho.
 
 Rate limits vary by Zoho edition; the connector handles 429s with
 exponential backoff. Refresh tokens in Zoho have a limited use count
@@ -59,6 +61,18 @@ ZOHO_DATA_CENTERS: dict[str, dict[str, str]] = {
     "jp": {
         "accounts_url": "https://accounts.zoho.jp",
         "api_url": "https://www.zohoapis.jp",
+    },
+    "ca": {
+        "accounts_url": "https://accounts.zohocloud.ca",
+        "api_url": "https://www.zohoapis.ca",
+    },
+    "sa": {
+        "accounts_url": "https://accounts.zoho.sa",
+        "api_url": "https://www.zohoapis.sa",
+    },
+    "cn": {
+        "accounts_url": "https://accounts.zoho.com.cn",
+        "api_url": "https://www.zohoapis.com.cn",
     },
 }
 
@@ -182,7 +196,7 @@ class ZohoConnector:
         self._client_id = client_id
         self._client_secret = client_secret
         self._refresh_token = refresh_token
-        self._dc = ZOHO_DATA_CENTERS[data_center]
+        self._dc = ZOHO_DATA_CENTERS[data_center].copy()
         self._data_center = data_center
         self._timeout = timeout
         self._retry_attempts = max(1, retry_attempts)
@@ -734,6 +748,8 @@ class ZohoConnector:
             raise ConnectorAuthError(f"Zoho auth error: {data['error']}")
 
         self._access_token = data["access_token"]
+        if data.get("api_domain"):
+            self._dc["api_url"] = data["api_domain"].rstrip("/")
         if "refresh_token" in data:
             self._refresh_token = data["refresh_token"]
         self._session.headers["Authorization"] = f"Zoho-oauthtoken {self._access_token}"

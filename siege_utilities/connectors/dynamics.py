@@ -16,7 +16,7 @@ import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 import pandas as pd
 
@@ -106,6 +106,11 @@ def _odata_string_literal(value: Any) -> str:
 class DynamicsConnector:
     """Microsoft Dynamics 365 connector implementing ConnectorProtocol.
 
+    Environment hostnames ending in ``.us`` use the US Government MSAL
+    authority; ``.cn`` uses the China authority. Other hosts use the public
+    cloud authority. Both app-only and delegated authentication follow this
+    selection.
+
     Usage (App-Only / Client Credentials)::
 
         d365 = DynamicsConnector(
@@ -166,7 +171,14 @@ class DynamicsConnector:
         self._token_expires_at: datetime | None = None
         self._authenticated = False
 
-        authority = f"https://login.microsoftonline.com/{tenant_id}"
+        hostname = urlparse(self._environment_url).hostname or ""
+        if hostname.endswith(".us"):
+            authority_host = "login.microsoftonline.us"
+        elif hostname.endswith(".cn"):
+            authority_host = "login.chinacloudapi.cn"
+        else:
+            authority_host = "login.microsoftonline.com"
+        authority = f"https://{authority_host}/{tenant_id}"
         if client_secret:
             self._msal_app = msal.ConfidentialClientApplication(
                 client_id,

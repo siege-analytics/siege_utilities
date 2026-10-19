@@ -112,6 +112,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- CRM regional endpoints now support Zoho Canada, Saudi Arabia, and China,
+  and prefer the token response `api_domain` for API requests. Dynamics
+  environments ending in `.us` or `.cn` use the matching sovereign MSAL
+  authority for app-only and delegated authentication. Compared with v4.0.0,
+  these regions no longer fail construction or use the public cloud
+  authentication endpoint (#1440).
+
 - **Documented behavior change from v4.0.0:** HubSpot batch errors use
   response context to identify input DataFrame index labels. Salesforce Bulk
   failures match the uploaded rows and report error codes separately from
