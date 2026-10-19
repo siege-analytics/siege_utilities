@@ -112,6 +112,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- RDH downloads write to a temporary file beside the cache destination and
+  validate Content-Length when present before an atomic replacement. Failed
+  downloads remove partial temporary files and preserve any existing cache
+  entry, so an interrupted download cannot become a cache hit (#1415).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting

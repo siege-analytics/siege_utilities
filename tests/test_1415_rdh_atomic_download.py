@@ -19,7 +19,7 @@ def client(tmp_path, monkeypatch):
         yield client
 
 
-def response_for(client, chunks, content_length):
+def _response_for(client, chunks, content_length):
     response = Mock(spec=requests.Response)
     response.headers = (
         {} if content_length is None else {"Content-Length": str(content_length)}
@@ -35,7 +35,7 @@ def test_interrupted_download_leaves_no_cache_or_temp_file(client, error_type):
         yield CONTENT[:8]
         raise error_type("stream interrupted")
 
-    response_for(client, interrupted_chunks(), len(CONTENT))
+    response = _response_for(client, interrupted_chunks(), len(CONTENT))
     dest = client.cache_dir / "precincts.csv"
 
     with pytest.raises(error_type, match="stream interrupted"):
@@ -43,11 +43,12 @@ def test_interrupted_download_leaves_no_cache_or_temp_file(client, error_type):
 
     assert not dest.exists()
     assert list(client.cache_dir.iterdir()) == []
+    response.close.assert_called_once()
 
 
 @pytest.mark.parametrize("content_length", [len(CONTENT) + 1, len(CONTENT) - 1])
 def test_size_mismatch_leaves_no_cache_or_temp_file(client, content_length):
-    response_for(client, [CONTENT], content_length)
+    response = _response_for(client, [CONTENT], content_length)
     dest = client.cache_dir / "precincts.csv"
 
     with pytest.raises(requests.RequestException, match="Content-Length"):
@@ -55,6 +56,7 @@ def test_size_mismatch_leaves_no_cache_or_temp_file(client, content_length):
 
     assert not dest.exists()
     assert list(client.cache_dir.iterdir()) == []
+    response.close.assert_called_once()
 
 
 @pytest.mark.parametrize("content_length", [len(CONTENT), None])
@@ -68,7 +70,7 @@ def test_complete_download_is_published_then_reused(client, content_length):
         yield CONTENT[8:]
         assert not dest.exists()
 
-    response_for(client, complete_chunks(), content_length)
+    response = _response_for(client, complete_chunks(), content_length)
 
     assert client.download_dataset(URL, use_cache=True) == dest
     assert dest.read_bytes() == CONTENT
@@ -76,15 +78,39 @@ def test_complete_download_is_published_then_reused(client, content_length):
     assert client.download_dataset(URL, use_cache=True) == dest
     assert dest.read_bytes() == CONTENT
     client._session.get.assert_called_once()
+    response.close.assert_called_once()
 
 
 def test_failed_refresh_preserves_complete_cached_file(client):
     dest = client.cache_dir / "precincts.csv"
     dest.write_bytes(CONTENT)
-    response_for(client, [CONTENT[:8]], len(CONTENT))
+    _response_for(client, [CONTENT[:8]], len(CONTENT))
 
     with pytest.raises(requests.RequestException, match="Content-Length"):
         client.download_dataset(URL, use_cache=False)
 
     assert dest.read_bytes() == CONTENT
     assert list(client.cache_dir.iterdir()) == [dest]
+
+
+def test_response_close_failure_leaves_no_cache_or_temp_file(client):
+    response = _response_for(client, [CONTENT], len(CONTENT))
+    response.close.side_effect = OSError("response close failed")
+
+    with pytest.raises(OSError, match="response close failed"):
+        client.download_dataset(URL, use_cache=True)
+
+    assert list(client.cache_dir.iterdir()) == []
+
+
+def test_replace_failure_cleans_temp_file(client, monkeypatch):
+    _response_for(client, [CONTENT], len(CONTENT))
+    monkeypatch.setattr(
+        "siege_utilities.geo.providers.redistricting_data_hub.os.replace",
+        Mock(side_effect=OSError("replace failed")),
+    )
+
+    with pytest.raises(OSError, match="replace failed"):
+        client.download_dataset(URL, use_cache=True)
+
+    assert list(client.cache_dir.iterdir()) == []
