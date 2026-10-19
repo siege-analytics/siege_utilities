@@ -52,9 +52,13 @@ ALLOWLIST = {
         "excludes unrelated hosts; download diagnostics are redacted and raise fresh exceptions "
         "without credential-bearing request/response/context; sentinel tests cover it.",
     ("analytics/instagram.py", "InstagramConnector._request_url",
-     "self._session.request(method, url, params=req_params, timeout=self._timeout)"):
+     "self._session.request(method, url, params=req_params, timeout=self._timeout, "
+     "**{'headers': {'Authorization': None}} if _token_exchange else {})"):
         "Instagram strips access_token from params and paging URLs and authenticates "
-        "with a header. Fresh redacted exceptions and logs are covered by sentinel tests.",
+        "with a header. On the token-exchange path the bearer Authorization header is "
+        "explicitly removed (set to None) so the long-lived-token refresh call carries no "
+        "credential; otherwise the session's header auth is used. Fresh redacted exceptions "
+        "and logs are covered by sentinel tests.",
     ("analytics/vista_social.py", "VistaSocialConnector._request",
      "self._session.request(method, url, params=dict(params) if params else None, "
      "json=dict(json_body) if json_body is not None else None, timeout=self._timeout)"):
