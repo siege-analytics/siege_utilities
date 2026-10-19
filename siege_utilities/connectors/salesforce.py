@@ -798,6 +798,7 @@ class SalesforceConnector:
         progress_callback: Callable[[str, int, int], None] | None = None,
     ) -> UpsertResult:
         """Execute a complete Bulk API v2 ingest job lifecycle."""
+        csv_data = self._dataframe_to_csv(records)
         self._ensure_connected()
         total = len(records)
 
@@ -807,7 +808,6 @@ class SalesforceConnector:
         if progress_callback:
             progress_callback("uploading", 0, total)
 
-        csv_data = self._dataframe_to_csv(records)
         self._bulk_upload_data(job_id, csv_data)
         log.info("Bulk API job %s: CSV data uploaded (%d bytes)", job_id, len(csv_data))
 

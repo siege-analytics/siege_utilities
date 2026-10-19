@@ -264,9 +264,7 @@ def test_zoho_upsert_preserves_subform_null_id(monkeypatch):
     assert child["Proficiency"] == "Professional"
 
 
-@pytest.mark.parametrize("missing", [float("nan"), np.nan, pd.NaT, pd.NA],
-                         ids=["float_nan", "numpy_nan", "nat", "na"])
-def test_zoho_upsert_preserves_subform_missing_values_as_null(missing, monkeypatch):
+def test_zoho_upsert_preserves_subform_nullable_leaf_none(monkeypatch):
     connector = _connector("zoho")
     send = _mock_http(monkeypatch, [_response({"data": [{
         "status": "success", "action": "update", "details": {"id": "test"},
@@ -274,7 +272,7 @@ def test_zoho_upsert_preserves_subform_missing_values_as_null(missing, monkeypat
     frame = pd.DataFrame([{
         "Email": "lead@example.test",
         "Last_Name": "Test",
-        "Languages": [{"id": "554023000000480721", "Proficiency": missing}],
+        "Languages": [{"id": "554023000000480721", "Proficiency": None}],
     }], dtype=object)
 
     connector.upsert_records("Contacts", frame, "Email")
@@ -284,6 +282,47 @@ def test_zoho_upsert_preserves_subform_missing_values_as_null(missing, monkeypat
     assert child["id"] == "554023000000480721"
     assert "Proficiency" in child
     assert child["Proficiency"] is None
+
+
+@pytest.mark.parametrize("missing", [
+    float("nan"), np.nan, pd.NaT, np.datetime64("NaT"), pd.NA, np.float32("nan"),
+], ids=["float_nan", "numpy_nan", "nat", "numpy_nat", "na", "numpy_float32_nan"])
+@pytest.mark.parametrize("field", ["_delete", "id", "Proficiency"])
+def test_zoho_upsert_rejects_subform_sentinels_before_send(field, missing, monkeypatch):
+    connector = _connector("zoho")
+    send = _mock_http(monkeypatch, [_response({"data": [{
+        "status": "success", "action": "update", "details": {"id": "test"},
+    }]})])
+    child = {"id": "554023000000480721", field: missing}
+    frame = pd.DataFrame([{
+        "Email": "lead@example.test", "Last_Name": "Test", "Languages": [child],
+    }], dtype=object)
+
+    with pytest.raises(ConnectorError) as exc_info:
+        connector.upsert_records("Contacts", frame, "Email")
+
+    assert f"$['Languages'][0][{field!r}]" in str(exc_info.value)
+    send.assert_not_called()
+    assert child[field] is missing
+
+
+@pytest.mark.parametrize("provider", ["salesforce", "hubspot", "zoho", "dynamics"])
+@pytest.mark.parametrize("missing", [
+    float("nan"), np.nan, pd.NaT, np.datetime64("NaT"), pd.NA, np.float32("nan"),
+], ids=["float_nan", "numpy_nan", "nat", "numpy_nat", "na", "numpy_float32_nan"])
+def test_nested_upsert_sentinels_reject_all_rows_before_send(provider, missing, monkeypatch):
+    connector = _connector(provider)
+    send = _mock_http(monkeypatch, [_response({})])
+    frame = pd.DataFrame([
+        {"external_id": "valid", "nested": {"items": [{"child": {"value": "valid"}}]}},
+        {"external_id": "invalid", "nested": {"items": [{"child": {"value": missing}}]}},
+    ], dtype=object)
+
+    with pytest.raises(ConnectorError) as exc_info:
+        connector.upsert_records("contacts", frame, "external_id")
+
+    assert "$['nested']['items'][0]['child']['value']" in str(exc_info.value)
+    send.assert_not_called()
 
 
 @pytest.mark.parametrize("provider", ["salesforce", "hubspot", "zoho", "dynamics"])
@@ -305,10 +344,10 @@ def test_nested_upsert_values_preserve_http_types(provider, monkeypatch):
         "nested": {
             "id": np.int64(7), "amount": Decimal("12.50"),
             "ratio": np.float32(1.5), "active": np.bool_(True),
-            "nan": np.nan, "nat": pd.NaT, "na": pd.NA, "none": None,
-            "items": [None, np.nan, pd.NaT, pd.NA, {
+            "none": None,
+            "items": [None, np.nan, pd.NaT, pd.NA, np.datetime64("NaT"), np.float32("nan"), {
                 "date": pd.Timestamp("2026-01-02T12:34:56Z"),
-                "quantity": np.int64(2), "missing": pd.NA,
+                "quantity": np.int64(2), "nullable": None,
                 "more": [{"flag": np.bool_(False)}, [np.int64(3), np.nan]],
             }],
         },
@@ -337,10 +376,10 @@ def test_nested_upsert_values_preserve_http_types(provider, monkeypatch):
     assert isinstance(nested, dict)
     assert nested == {
         "id": 7, "amount": "12.50", "ratio": 1.5, "active": True,
-        "nan": None, "nat": None, "na": None, "none": None,
-        "items": [None, None, None, None, {
+        "none": None,
+        "items": [None, None, None, None, None, None, {
             "date": "2026-01-02T12:34:56+00:00", "quantity": 2,
-            "missing": None,
+            "nullable": None,
             "more": [{"flag": False}, [3, None]],
         }],
     }
@@ -349,9 +388,34 @@ def test_nested_upsert_values_preserve_http_types(provider, monkeypatch):
     assert type(nested["ratio"]) is float
     assert nested["active"] is True
     assert isinstance(nested["items"], list)
-    assert isinstance(nested["items"][4], dict)
-    assert type(nested["items"][4]["quantity"]) is int
-    assert nested["items"][4]["more"][0]["flag"] is False
+    assert isinstance(nested["items"][6], dict)
+    assert type(nested["items"][6]["quantity"]) is int
+    assert nested["items"][6]["more"][0]["flag"] is False
+
+
+@pytest.mark.parametrize("missing", [
+    float("nan"), np.nan, pd.NaT, np.datetime64("NaT"), pd.NA, np.float32("nan"),
+], ids=["float_nan", "numpy_nan", "nat", "numpy_nat", "na", "numpy_float32_nan"])
+def test_salesforce_bulk_rejects_nested_sentinels_before_job_creation(missing, monkeypatch):
+    connector = _connector("salesforce")
+    send = _mock_http(monkeypatch, [
+        _response({"id": "job-1"}),
+        _response("", content_type="text/csv", status=201),
+        _response({"state": "UploadComplete"}),
+        _response({
+            "state": "JobComplete", "numberRecordsProcessed": 1, "numberRecordsFailed": 0,
+        }),
+        _response("sf__Id,sf__Created\ntest,false\n", content_type="text/csv"),
+    ])
+    frame = pd.DataFrame([{
+        "external_id": "test", "nested": {"value": missing},
+    }], dtype=object)
+
+    with pytest.raises(ConnectorError) as exc_info:
+        connector.upsert_records("Contact", frame, "external_id", force_bulk=True)
+
+    assert "$['nested']['value']" in str(exc_info.value)
+    send.assert_not_called()
 
 
 def test_salesforce_bulk_upsert_sends_sanitized_csv(upsert_rows, monkeypatch):

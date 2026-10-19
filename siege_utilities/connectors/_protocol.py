@@ -36,15 +36,18 @@ def sanitize_record(row: dict[str, Any]) -> dict[str, Any]:
     """Return JSON-safe upsert fields without mutating the input row.
 
     Omit top-level missing fields (None, NaN, NaT, pd.NA). Recurse through
-    dicts and lists, keeping nested missing values as JSON null in place,
-    preserving dict keys and list positions. Tuples become JSON lists.
+    dicts and lists, keeping explicit nested None as JSON null. Missing
+    pandas/numpy sentinels in nested dict values raise ConnectorError with
+    the key path. Missing list items become null, preserving their positions.
+    Tuples become JSON lists.
     Dates use ISO 8601 and numpy scalars become native Python scalars.
     Scalar leaves that strict JSON cannot encode (such as Decimal or infinity)
     keep their string representation; containers are never stringified.
 
     Raises:
-        ConnectorError: an unsupported container, invalid JSON object key,
-            circular reference, or excessive nesting cannot be represented as JSON.
+        ConnectorError: a nested dict contains a missing pandas/numpy sentinel,
+            or an unsupported container, invalid JSON object key, circular
+            reference, or excessive nesting cannot be represented as JSON.
     """
     try:
         return _sanitize_value(row, path="$", ancestors=set(), top_level=True)
@@ -62,17 +65,23 @@ def _sanitize_value(value: Any, *, path: str, ancestors: set[int], top_level: bo
             if isinstance(value, dict):
                 sanitized = {}
                 for key, child in value.items():
-                    # pd.isna on containers returns arrays, not a scalar flag.
-                    if top_level and pd.api.types.is_scalar(child) and pd.isna(child):
-                        continue
                     try:
                         json.dumps({key: None}, allow_nan=False)
                     except (TypeError, ValueError) as exc:
                         raise ConnectorError(
                             f"Invalid JSON object key at {path}: {key!r}"
                         ) from exc
+                    child_path = f"{path}[{key!r}]"
+                    # pd.isna on containers returns arrays, not a scalar flag.
+                    if pd.api.types.is_scalar(child) and pd.isna(child):
+                        if top_level:
+                            continue
+                        if child is not None:
+                            raise ConnectorError(
+                                f"Missing pandas/numpy sentinel at {child_path}"
+                            )
                     sanitized[key] = _sanitize_value(
-                        child, path=f"{path}[{key!r}]", ancestors=ancestors, top_level=False,
+                        child, path=child_path, ancestors=ancestors, top_level=False,
                     )
                 return sanitized
             return [
