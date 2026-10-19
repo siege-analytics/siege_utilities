@@ -105,4 +105,3 @@ def test_b3_returning_commits_only_after_crs_validation(postgis_pair):
     with observer.cursor() as cursor:
         cursor.execute(f"SELECT id FROM {table}")
         assert cursor.fetchall() == [(2,)]
-
