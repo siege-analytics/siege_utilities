@@ -112,6 +112,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `Collaborator.access_expires`, `Collaboration.end_date`,
+  `Credential.expires_at`, and `OAuthIntegration.expires_at` accept past
+  datetimes, so persisted models can reload after expiry. Existing expiry
+  and active-state checks retain their behavior (#1496).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting

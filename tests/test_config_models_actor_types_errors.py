@@ -1,12 +1,10 @@
 """Error-path coverage (SU-4b) for siege_utilities.config.models.actor_types.
 
-Forces the custom pydantic field_validator ValueError guards on User, Client,
-and Collaborator. Each invalid construction surfaces as pydantic ValidationError
-wrapping the validator's ValueError. Only validators reachable past the Field
-constraints are exercised (e.g. the role/cross-field/uniqueness checks).
+Covers custom pydantic field_validator guards on User, Client, and Collaborator,
+plus datetime field parsing. Invalid constructions surface as pydantic
+ValidationError. Custom validators reachable past the Field constraints are
+exercised (e.g. the role/cross-field/uniqueness checks).
 """
-
-import datetime
 
 import pytest
 from pydantic import ValidationError
@@ -73,8 +71,7 @@ def test_collaborator_rejects_empty_external_organization():
     assert "cannot be empty" in str(exc_info.value)
 
 
-def test_collaborator_rejects_past_access_expiry():
-    past = datetime.datetime(2000, 1, 1)
+def test_collaborator_rejects_invalid_access_expiry():
     with pytest.raises(ValidationError) as exc_info:
-        Collaborator(external_organization="Org", access_expires=past, **_PERSON)
-    assert "future" in str(exc_info.value)
+        Collaborator(external_organization="Org", access_expires="not-a-datetime", **_PERSON)
+    assert exc_info.value.errors()[0]["loc"] == ("access_expires",)
