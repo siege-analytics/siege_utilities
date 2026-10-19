@@ -2,7 +2,9 @@
 
 import json
 import logging
+import time
 from datetime import date
+from types import SimpleNamespace
 from unittest.mock import Mock, call
 
 import pytest
@@ -31,11 +33,18 @@ def response(status=200, body=None, *, text=None, headers=None):
 def offline(monkeypatch, caplog):
     monkeypatch.setattr(requests.Session, "request", Mock(side_effect=AssertionError("Unexpected HTTP")))
     sleep = Mock()
-    monkeypatch.setattr(instagram.time, "sleep", sleep)
+    # Keep unrelated threads' sleeps out of connector retry assertions.
+    clock = SimpleNamespace(sleep=sleep, time=time.time)
     for module in (instagram, x_twitter):
+        monkeypatch.setattr(module, "time", clock)
         monkeypatch.setattr(module.log, "disabled", False)
         caplog.set_level(logging.WARNING, logger=module.__name__)
     yield sleep
+
+
+def test_offline_sleep_ignores_unrelated_callers(offline):
+    time.sleep(0)
+    offline.assert_not_called()
 
 
 @pytest.fixture

@@ -24,7 +24,9 @@ START, END = date(2026, 1, 1), date(2026, 1, 31)
 
 def old_module(module):
     path = Path(module.__file__).relative_to(ROOT).as_posix()
-    source = subprocess.check_output(["git", "show", f"{BASELINE}:{path}"], cwd=ROOT, text=True)
+    source = subprocess.check_output(
+        ["git", "show", f"{BASELINE}:{path}"], cwd=ROOT, text=True, timeout=30,
+    )
     old = ModuleType("baseline_" + module.__name__.rsplit(".", 1)[-1])
     exec(compile(source, f"{BASELINE}:{path}", "exec"), old.__dict__)
     return old
