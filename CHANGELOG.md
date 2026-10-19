@@ -112,17 +112,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Documented behavior change from v4.0.0:** batch geocoding joins responses
-  using library-assigned unique IDs through the composite and Census providers.
-  Caller IDs, including duplicates and blanks, remain output metadata.
-  Reordered or missing responses cannot shift coordinates to another address.
-  Census chunk failures preserve successful chunks and report failed rows as
-  `MatchQuality.ERROR` (`"error"`), with diagnostics in `errors`, rather than
-  `NO_MATCH`. Composite fallback retains backend errors even when a later
-  backend succeeds. Custom backends must echo the submitted `input_id`.
-  Low-level Census batches mark missing rows with `match_type="Error"` and
-  reject unknown or duplicate response IDs. v3.23.0 had no connector
-  implementations; this change corrects the v4.0.0 behavior (#1410).
+- Sanitize CRM upsert payloads for Salesforce, HubSpot, Zoho, and Dynamics:
+  omit top-level missing fields to preserve existing values, serialize dates and
+  timestamps as ISO 8601 strings, and convert numpy scalars to native types.
+  Salesforce bulk CSV uploads use empty cells for missing values; Dynamics emits
+  strict JSON (#1424).
+  JSON encoding failures raise once without retrying or backoff; transport failures
+  retain their existing retries and backoff.
+  **Documented behavior change from v4.0.0:** all four JSON upsert paths now
+  omit top-level `None`, NaN, NaT and `pd.NA`. In v4.0.0, explicit `None` was
+  sent as JSON `null`; NaN failed JSON encoding in Salesforce, HubSpot and Zoho,
+  while Dynamics sent literal non-standard `NaN`. This is not pre-4.0
+  compatibility: v3.23.0 had no implementations of these four connectors.
+  **Migration:** to send a top-level null, use
+  `update_record(object_type, record_id, {"Field": None})`; whether this clears
+  the field depends on the provider and field. Pandas dtype coercion can turn a
+  caller's `None` into NaN before the sanitizer sees it, losing that distinction.
+  Salesforce Bulk CSV keeps headers and writes blank cells for missing values.
+  Nested dicts preserve explicit `None` as JSON null, including `_delete: None`
+  and `id: None`. Nested dict values that are pandas/numpy missing sentinels
+  raise `ConnectorError` with the key path before sending any upsert request.
+  Missing list items (`None` or sentinels) remain null in place at every depth.
+  Scalar leaves retain their documented conversions, including Decimal and
+  infinity as strings. Unsupported containers, invalid JSON keys, circular
+  references and excessive depth raise `ConnectorError`; JSON encoding failures
+  keep that same error contract without retries (#1424).
+  Keeping `id: None` is serialization fidelity only and does not solve the B3b
+  identity concern. Provider/field identity and control validation is a separate
+  follow-up. Refs #1816.
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
