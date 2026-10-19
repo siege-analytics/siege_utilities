@@ -112,6 +112,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- RDH compactness scores now use the true minimum bounding circle for Reock
+  and a per-district local AEQD projection for Polsby-Popper, Reock and
+  Schwartzberg. **Behavior change:** these scores correct the previous
+  rectangle-based Reock estimate and Mollweide shape distortion.
+  `compare_plans` uses the same scoring as `compute_compactness` and adds
+  mean Reock and Schwartzberg fields (#1467).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting

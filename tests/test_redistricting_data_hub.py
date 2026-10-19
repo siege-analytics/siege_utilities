@@ -588,16 +588,12 @@ class TestReock:
 
     def test_circle_near_one(self, circle_geometry):
         score = reock(circle_geometry)
-        # Implementation uses MRR diagonal as diameter estimate, which
-        # overestimates the bounding circle. For a circle (radius=1):
-        # MRR is a square with side~2, diagonal=2*sqrt(2), so
-        # circle_area = pi*(sqrt(2))^2 = 2*pi, actual area = pi → score ≈ 0.5
-        assert abs(score - 1 / 2) < 0.01
+        assert score == pytest.approx(1.0, abs=1e-3)
 
     def test_square_moderate(self, square_geometry):
         import math
         score = reock(square_geometry)
-        # Unit square: area=1, MRR diagonal=sqrt(2), diameter=sqrt(2),
+        # Unit square: area=1, minimum bounding circle diameter=sqrt(2),
         # radius=sqrt(2)/2, circle_area=pi/2 → score = 1/(pi/2) = 2/pi ≈ 0.6366
         assert abs(score - 2 / math.pi) < 0.02
 
