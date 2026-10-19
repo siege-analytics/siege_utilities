@@ -188,3 +188,46 @@ def test_r2_1_failed_write_preserves_caller_pending_rows(postgis_pair):
     with observer.cursor() as cursor:
         cursor.execute(f"SELECT id FROM {table}")
         assert cursor.fetchall() == [(99,)]
+
+
+@pytest.mark.parametrize("keyword", [
+    "INSERT", "UPDATE", "DELETE", "MERGE", "CREATE", "DROP", "ALTER",
+    "TRUNCATE", "COPY", "CALL", "DO", "GRANT", "REVOKE",
+])
+@pytest.mark.parametrize("template", ["SELECT {word}", "SELECT ({word})", "SELECT (({word}))"])
+def test_r2_1_every_write_keyword_marks_outer_select_non_read_only(keyword, template):
+    """Exercise commit classification independently of PostgreSQL grammar."""
+    from unittest.mock import MagicMock
+
+    connector = PostGISConnector.__new__(PostGISConnector)
+    connector.connection = MagicMock()
+    connector.connection.get_transaction_status.return_value = 0
+    cursor = connector.connection.cursor.return_value
+    cursor.statusmessage = "SELECT 1"
+    cursor.description = [("id",)]
+    cursor.fetchall.return_value = [(7,)]
+    result = connector.execute_spatial_query(template.format(word=keyword.lower()))
+    assert result.id.tolist() == [7]
+    connector.connection.commit.assert_called_once()
+
+
+@pytest.mark.parametrize("query", [
+    "SELECT delete_flag, updated_at, merge_id FROM selection",
+    'SELECT "INSERT", "UPDATE", "DELETE" FROM "select"',
+    "SELECT 'INSERT UPDATE DELETE MERGE CREATE DROP ALTER TRUNCATE COPY CALL DO GRANT REVOKE'",
+    "SELECT $$INSERT UPDATE DELETE MERGE CREATE DROP ALTER TRUNCATE COPY CALL DO GRANT REVOKE$$",
+    "SELECT $tag$INSERT DROP UPDATE$tag$ /* CREATE /* DELETE */ ALTER */ -- CALL DO\n",
+    "SELECT E'escaped\\\' UPDATE', 'doubled'' DELETE', update$flag, deleteé",
+])
+def test_r2_1_literals_comments_and_identifier_substrings_do_not_commit(query):
+    from unittest.mock import MagicMock
+
+    connector = PostGISConnector.__new__(PostGISConnector)
+    connector.connection = MagicMock()
+    connector.connection.get_transaction_status.return_value = 0
+    cursor = connector.connection.cursor.return_value
+    cursor.statusmessage = "SELECT 1"
+    cursor.description = [("id",)]
+    cursor.fetchall.return_value = [(7,)]
+    assert connector.execute_spatial_query(query).id.tolist() == [7]
+    connector.connection.commit.assert_not_called()

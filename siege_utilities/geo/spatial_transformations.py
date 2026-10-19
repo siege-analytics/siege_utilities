@@ -76,24 +76,11 @@ def _sql_tokens(query):
 
 
 def _postgis_has_dml(query):
-    """Recognize DML command words, including CTE bodies, outside literals."""
-    tokens = list(_sql_tokens(query))
-    for index, (kind, value) in enumerate(tokens):
-        if kind != 'word':
-            continue
-        following = tokens[index + 1][1].upper() if index + 1 < len(tokens) else ''
-        word = value.upper()
-        if index and tokens[index - 1][1] not in {'(', ')', ';'}:
-            continue
-        if (word in {'INSERT', 'MERGE'} and following == 'INTO'
-                or word == 'DELETE' and following == 'FROM'):
-            return True
-        # UPDATE may also appear in FOR UPDATE; only a command at the start
-        # of a statement or CTE body (or after its WITH clause) writes rows.
-        if (word == 'UPDATE' and index + 1 < len(tokens)
-                and tokens[index + 1][0] in {'word', 'identifier'}):
-            return True
-    return False
+    """Flag write keywords at any depth outside literals."""
+    keywords = {'INSERT', 'UPDATE', 'DELETE', 'MERGE', 'CREATE', 'DROP', 'ALTER',
+                'TRUNCATE', 'COPY', 'CALL', 'DO', 'GRANT', 'REVOKE'}
+    return any(kind == 'word' and value.upper() in keywords
+               for kind, value in _sql_tokens(query))
 
 # Try to import DuckDB (optional)
 try:
@@ -495,7 +482,7 @@ class PostGISConnector:
             # Capture it before the separate spatial_ref_sys lookup.
             command = cursor.statusmessage.split(' ', 1)[0]
             mutates = (command not in {'SELECT', 'SHOW', 'EXPLAIN', 'FETCH'}
-                       or command == 'SELECT' and _postgis_has_dml(query))
+                       or _postgis_has_dml(query))
             if cursor.description is not None:
                 result = gpd.GeoDataFrame(
                     cursor.fetchall(), columns=[column[0] for column in cursor.description],
@@ -653,6 +640,8 @@ def _duckdb_select_metadata(connection, query):
                 source = node.get('function_data', {})
                 if all(key in source for key in ('catalog', 'schema', 'table')):
                     tables.add(tuple(source[key] for key in ('catalog', 'schema', 'table')))
+                else:
+                    metadata.append(None)
             for child in node.values():
                 visit(child)
         elif isinstance(node, list):
@@ -670,6 +659,8 @@ def _duckdb_select_metadata(connection, query):
 def _duckdb_parsed_metadata(connection, query, *, seen=frozenset(), defaults=(None, None)):
     """Resolve parser dependencies when bound-plan serialization is unavailable."""
     parsed = json.loads(connection.execute("SELECT json_serialize_sql(?)", [query]).fetchone()[0])
+    if parsed.get('error'):
+        raise ValueError(parsed.get('error_message', 'SQL dependency discovery failed'))
     metadata = []
 
     def visit(node, ctes=frozenset()):
@@ -708,7 +699,15 @@ def _duckdb_parsed_metadata(connection, query, *, seen=frozenset(), defaults=(No
                                   if token[0] == 'word' and token[1].upper() == 'AS'), None)
                     if start is None:
                         # Registered external relations have no SQL view body
-                        # or stored table CRS; their joined catalog peers do.
+                        # or stored table CRS. Geometry from one makes a joined
+                        # known CRS insufficient to describe the whole result.
+                        columns = connection.execute(
+                            "SELECT column_name FROM duckdb_columns() "
+                            "WHERE database_name=? AND schema_name=? AND table_name=?",
+                            [database, schema, table],
+                        ).fetchall()
+                        if any(name in {'geometry', 'geometry_wkt'} for name, in columns):
+                            metadata.append(None)
                         return
                     body = ' '.join(value for _, value in tokens[start:])
                     metadata.extend(_duckdb_parsed_metadata(
@@ -733,6 +732,30 @@ def _duckdb_parsed_metadata(connection, query, *, seen=frozenset(), defaults=(No
 
 
 def _duckdb_query_metadata(connection, statement):
+    """Keep optional discovery failures and ambiguity out of query execution."""
+    from pyproj import CRS
+
+    try:
+        stored = _duckdb_resolve_query_metadata(connection, statement)
+        known = {CRS.from_user_input(value) for value in stored if value is not None}
+        if len(known) > 1:
+            reason = "conflicting source CRSs"
+        elif known and None in stored:
+            reason = "mixed known and unknown CRSs"
+        elif not known:
+            reason = "no known CRS metadata for the geometry sources"
+        else:
+            return stored
+    except Exception as error:
+        # Discovery is auxiliary. Preserve the user's rows even for driver,
+        # parser, catalog, metadata decoding, or CRS validation failures.
+        log.warning("DuckDB CRS discovery failed (%s): %s", type(error).__name__, error)
+        return []
+    log.warning("DuckDB result CRS is unknown: %s", reason)
+    return []
+
+
+def _duckdb_resolve_query_metadata(connection, statement):
     """Resolve source table metadata without executing the user statement."""
     import duckdb
 
@@ -745,7 +768,7 @@ def _duckdb_query_metadata(connection, statement):
             "SELECT name, statement FROM duckdb_prepared_statements()"
         ).fetchall():
             if stored_name.translate(ascii_fold) == name.translate(ascii_fold):
-                return _duckdb_query_metadata(connection, connection.extract_statements(sql)[0])
+                return _duckdb_resolve_query_metadata(connection, connection.extract_statements(sql)[0])
         return []
     if statement.type == duckdb.StatementType.SELECT:
         return _duckdb_select_metadata(connection, statement.query)
@@ -778,7 +801,7 @@ def _duckdb_query_metadata(connection, statement):
     return metadata
 
 
-def _duckdb_result_frame(df, *, source_crs=None, crs=None, stored_crs=()):
+def _duckdb_result_frame(df, *, source_crs=None, crs=None, stored_crs=(), allow_unknown_crs=False):
     """Decode stored WKT and table CRS without consuming caller attributes."""
     from pyproj import CRS
 
@@ -797,6 +820,12 @@ def _duckdb_result_frame(df, *, source_crs=None, crs=None, stored_crs=()):
     gdf = gpd.GeoDataFrame(df, geometry='geometry', crs=source)
     if crs is not None:
         if source is None:
+            if allow_unknown_crs:
+                # A valid query still returns its rows when optional metadata
+                # cannot support reprojection. Invalid caller input still fails.
+                CRS.from_user_input(crs)
+                log.warning("DuckDB reprojection to %s skipped: source CRS is unknown", crs)
+                return gdf
             raise ValueError("Source CRS is unknown; provide source_crs before reprojecting")
         return gdf.to_crs(crs)
     return gdf
@@ -999,6 +1028,8 @@ class DuckDBConnector:
         Mutating calls own a transaction through result validation. They require
         a connection without an active transaction; nested transactions are
         unsupported by DuckDB. SELECT calls do not finalize transactions.
+        Unknown or ambiguous source metadata leaves CRS unset and logs the
+        reason. Requested reprojection is skipped when source CRS is unknown.
 
         Args:
             query: SQL query string
@@ -1044,6 +1075,7 @@ class DuckDBConnector:
             if returns_rows:
                 result = _duckdb_result_frame(
                     result.df(), source_crs=kwargs.get('source_crs'), crs=crs, stored_crs=stored,
+                    allow_unknown_crs=True,
                 )
             else:
                 try:

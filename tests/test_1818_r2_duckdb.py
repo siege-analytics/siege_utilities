@@ -118,3 +118,92 @@ def test_r2_2_prepared_read_keeps_rows_columns_and_crs(places):
     assert result.id.tolist() == [7]
     assert result.columns.tolist() == frame.columns.tolist()
     assert result.crs == frame.crs
+
+
+@pytest.mark.parametrize("helper", ["_duckdb_table_metadata", "_duckdb_select_metadata", "_duckdb_parsed_metadata"])
+@pytest.mark.parametrize("error", [RuntimeError, KeyError])
+@pytest.mark.parametrize("crs", [None, "EPSG:4326"])
+def test_r2_2_discovery_errors_keep_driver_rows_and_warn(places, monkeypatch, caplog, helper, error, crs):
+    import pandas as pd
+    import siege_utilities.geo.spatial_transformations as module
+
+    connector, _ = places
+    connector.connection.register("frame_labels", pd.DataFrame({"id": [7], "label": ["seven"]}))
+    query = "SELECT p.*, l.label FROM places p JOIN frame_labels l USING(id)"
+    driver = connector.connection.execute(query).df()
+
+    def fail(*args, **kwargs):
+        raise error("discovery probe failure")
+
+    monkeypatch.setattr(module, helper, fail, raising=False)
+    with caplog.at_level("WARNING", logger=module.__name__):
+        result = connector.execute_spatial_query(query, crs=crs)
+    assert result.id.tolist() == driver.id.tolist()
+    assert result.label.tolist() == driver.label.tolist()
+    assert result._siege_crs.tolist() == driver._siege_crs.tolist()
+    assert result.geometry.to_wkt().tolist() == driver.geometry_wkt.tolist()
+    assert result.crs is None
+    assert "discovery probe failure" in caplog.text
+    assert any(record.levelname == "WARNING" for record in caplog.records)
+
+
+@pytest.mark.parametrize("metadata, reason", [
+    ('["EPSG:3857", "EPSG:4326"]', "conflicting source CRSs"),
+    ('["EPSG:3857", null]', "known and unknown CRSs"),
+    ('[null]', "unknown"),
+    ('["invalid:crs"]', "Invalid"),
+    ('not json', "Expecting value"),
+])
+def test_r2_2_unusable_metadata_keeps_rows_with_reason(places, caplog, metadata, reason):
+    connector, _ = places
+    connector.connection.execute("COMMENT ON TABLE places IS '\nsiege_utilities.crs.v1=" + metadata + "'")
+    driver = connector.connection.execute("SELECT * FROM places").df()
+    with caplog.at_level("WARNING"):
+        result = connector.execute_spatial_query("SELECT * FROM places")
+    assert result.id.tolist() == driver.id.tolist()
+    assert result._siege_crs.tolist() == driver._siege_crs.tolist()
+    assert result.geometry.to_wkt().tolist() == driver.geometry_wkt.tolist()
+    assert result.crs is None
+    assert reason in caplog.text
+
+
+@pytest.mark.parametrize("other", ["same", "conflicting", "unknown", "external"])
+def test_r2_2_all_geometry_sources_determine_crs(places, caplog, other):
+    connector, frame = places
+    if other == "external":
+        connector.connection.register("other_places", frame.to_wkt().rename(columns={"geometry": "geometry_wkt"}))
+    elif other == "unknown":
+        connector.connection.execute("CREATE TABLE other_places AS SELECT * FROM places")
+    else:
+        connector.upload_spatial_data(frame if other == "same" else frame.to_crs(4326), "other_places")
+    query = "SELECT * FROM places UNION ALL SELECT * FROM other_places"
+    driver = connector.connection.execute(query).df()
+    with caplog.at_level("WARNING"):
+        result = connector.execute_spatial_query(query)
+    assert result.id.tolist() == driver.id.tolist()
+    assert result._siege_crs.tolist() == driver._siege_crs.tolist()
+    assert result.geometry.to_wkt(rounding_precision=-1).tolist() == driver.geometry_wkt.tolist()
+    if other == "same":
+        assert result.crs == frame.crs
+        assert not caplog.records
+    else:
+        assert result.crs is None
+        assert ("conflicting" if other == "conflicting" else "unknown") in caplog.text
+
+
+def test_r2_2_discovery_failure_keeps_returning_rows_and_write(places, monkeypatch, caplog):
+    import siege_utilities.geo.spatial_transformations as module
+
+    connector, frame = places
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("target metadata unavailable")
+
+    monkeypatch.setattr(module, "_duckdb_table_metadata", fail)
+    with caplog.at_level("WARNING"):
+        result = connector.execute_spatial_query("INSERT INTO places SELECT * FROM places RETURNING *")
+    assert result.id.tolist() == frame.id.tolist()
+    assert result.geometry.to_wkt().tolist() == frame.geometry.to_wkt().tolist()
+    assert result.crs is None
+    assert connector.connection.execute("SELECT id FROM places").fetchall() == [(7,), (7,)]
+    assert "target metadata unavailable" in caplog.text
