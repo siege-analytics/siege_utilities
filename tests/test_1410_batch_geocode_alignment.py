@@ -2,6 +2,7 @@
 
 import csv
 from copy import deepcopy
+from dataclasses import replace
 
 import pytest
 
@@ -178,3 +179,94 @@ def test_one_internal_id_is_threaded_from_composite_to_census_csv(monkeypatch):
     assert "caller" not in backend.ids
     assert [row.input_id for row in result.results] == ["caller", "caller"]
     assert repeated_input.input_id == "caller"
+
+
+def test_fallback_retries_only_failed_rows_with_the_same_internal_ids(monkeypatch):
+    api = CensusAPIStub(failing_call=2)
+    monkeypatch.setattr(census_geocoder, "_get_geocoder", lambda vintage: api)
+    fallback = ReorderingBackend()
+    result = CompositeBatchGeocoder([
+        CensusBatchGeocoder(chunk_size=2), fallback,
+    ]).geocode(addresses(["same"] * 6))
+
+    assert [row.lat for row in result.results] == [1., 2., 3., 4., 5., 6.]
+    assert [addr.street for addr in fallback.submitted] == ["3", "4"]
+    assert [addr.input_id for addr in fallback.submitted] == [row[0] for row in api.calls[1]]
+    assert [row.input_id for row in result.results] == ["same"] * 6
+    assert any("chunk timed out" in error for error in result.errors)
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_fallback_no_match_does_not_hide_an_earlier_error(nested):
+    class NoMatchBackend(ReorderingBackend):
+        def geocode(self, inputs):
+            return BatchGeocodingResult(results=[
+                GeocodingResult(input_id=addr.input_id) for addr in inputs
+            ])
+
+    failing = ReorderingBackend(drop="1")
+    first = CompositeBatchGeocoder([failing]) if nested else failing
+    result = CompositeBatchGeocoder([first, NoMatchBackend()]).geocode(addresses(["a"]))
+
+    assert result.results[0].input_id == "a"
+    assert result.results[0].match_quality == "error"
+    assert not result.results[0].matched
+    assert result.errors
+
+
+@pytest.mark.parametrize("entrypoint", ["census", "composite"])
+def test_dropped_census_row_is_an_error_without_shifting_coordinates(monkeypatch, entrypoint):
+    api = CensusAPIStub(drop="2")
+    monkeypatch.setattr(census_geocoder, "_get_geocoder", lambda vintage: api)
+    inputs = addresses(["a", "b", "c"])
+    if entrypoint == "census":
+        rows = census_geocoder.geocode_batch(inputs)
+        assert rows[1].match_type == "Error"
+    else:
+        result = CompositeBatchGeocoder([CensusBatchGeocoder()]).geocode(inputs)
+        rows = result.results
+        assert rows[1].match_quality == "error"
+        assert result.errors
+    assert [row.lat for row in rows] == [1., None, 3.]
+    assert not rows[1].matched
+
+
+@pytest.mark.parametrize("corruption", ["duplicate", "unknown"])
+def test_composite_rejects_ambiguous_response_ids(corruption):
+    class InvalidBackend(ReorderingBackend):
+        def geocode(self, inputs):
+            result = super().geocode(inputs)
+            if corruption == "duplicate":
+                result.results.append(replace(result.results[0], lat=99.))
+            else:
+                result.results[0].input_id = "caller"
+            return result
+
+    result = CompositeBatchGeocoder([InvalidBackend()]).geocode(addresses(["caller"]))
+    assert result.results[0].match_quality == "error"
+    assert result.results[0].lat is None
+    assert result.errors
+
+
+@pytest.mark.parametrize("corruption", ["duplicate", "unknown"])
+def test_census_rejects_ambiguous_response_ids(monkeypatch, corruption):
+    class InvalidAPI(CensusAPIStub):
+        def addressbatch(self, path, returntype):
+            rows = super().addressbatch(path, returntype)
+            if corruption == "duplicate":
+                rows.append(dict(rows[0], lat=99.))
+            else:
+                rows[0]["id"] = "caller"
+            return rows
+
+    monkeypatch.setattr(census_geocoder, "_get_geocoder", lambda vintage: InvalidAPI())
+    with pytest.raises(census_geocoder.CensusGeocodeError, match="unknown or duplicate"):
+        census_geocoder.geocode_batch(addresses(["caller"]))
+
+
+@pytest.mark.parametrize("chunk_size", [0, -1])
+def test_invalid_chunk_size_is_rejected(chunk_size):
+    with pytest.raises(ValueError, match="chunk_size"):
+        CensusBatchGeocoder(chunk_size=chunk_size)
+    with pytest.raises(ValueError, match="chunk_size"):
+        census_geocoder.geocode_batch_chunked([], chunk_size=chunk_size)

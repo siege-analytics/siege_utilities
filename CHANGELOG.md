@@ -112,6 +112,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Documented behavior change from v4.0.0:** batch geocoding joins responses
+  using library-assigned unique IDs through the composite and Census providers.
+  Caller IDs, including duplicates and blanks, remain output metadata.
+  Reordered or missing responses cannot shift coordinates to another address.
+  Census chunk failures preserve successful chunks and report failed rows as
+  `MatchQuality.ERROR` (`"error"`), with diagnostics in `errors`, rather than
+  `NO_MATCH`. Composite fallback retains backend errors even when a later
+  backend succeeds. Custom backends must echo the submitted `input_id`.
+  Low-level Census batches mark missing rows with `match_type="Error"` and
+  reject unknown or duplicate response IDs. v3.23.0 had no connector
+  implementations; this change corrects the v4.0.0 behavior (#1410).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
