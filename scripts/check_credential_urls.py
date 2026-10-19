@@ -47,9 +47,10 @@ ALLOWLIST = {
         "copied into params before adding filters. Listing diagnostics are redacted "
         "and raise a fresh ConnectionError outside the handler; sentinel tests cover it.",
     ("geo/providers/redistricting_data_hub.py", "RDHClient.download_dataset",
-     "self._session.get(url, params=self._auth_params(url), timeout=300, stream=True)"):
+     "self._session.get(url, params=self._auth_params(url), timeout=300, stream=True, headers={'Accept-Encoding': 'identity'})"):
         "RDH requires query authentication on its host and subdomains. _auth_params "
-        "excludes unrelated hosts; download diagnostics are redacted and raise fresh exceptions "
+        "excludes unrelated hosts; the identity Accept-Encoding header carries no credentials. "
+        "Download diagnostics are redacted and raise fresh exceptions "
         "without credential-bearing request/response/context; sentinel tests cover it.",
     ("analytics/instagram.py", "InstagramConnector._request_url",
      "self._session.request(method, url, params=req_params, timeout=self._timeout)"):
