@@ -112,6 +112,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Packaging behavior change from v4.0.0:** `pip install siege-utilities[crm]`
+  now installs `msal>=1.24.0` and pandas for the CRM connectors; `[all]` also
+  includes MSAL. v4.0.0 declared no MSAL dependency, so every extra left
+  Dynamics authentication unavailable without a separate install. Dynamics
+  dependency errors now recommend `[crm]`, and CI installs it so the Dynamics
+  tests execute instead of skipping (#1449).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting

@@ -139,11 +139,11 @@ class DynamicsConnector:
         retry_backoff: float = DEFAULT_RETRY_BACKOFF,
     ) -> None:
         if not REQUESTS_AVAILABLE:  # pragma: no cover
-            raise ImportError("DynamicsConnector requires `requests`.")
+            raise ImportError("DynamicsConnector requires `requests`. Install via `pip install siege-utilities[crm]`.")
         if not MSAL_AVAILABLE:
             raise ImportError(
                 "DynamicsConnector requires `msal`. "
-                "Install via `pip install msal`."
+                "Install via `pip install siege-utilities[crm]`."
             )
         if not environment_url or not tenant_id or not client_id:
             raise ValueError("environment_url, tenant_id, and client_id are required.")
