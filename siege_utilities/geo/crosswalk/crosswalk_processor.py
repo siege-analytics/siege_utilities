@@ -22,6 +22,7 @@ Example usage:
 """
 
 import logging
+import re
 from typing import Callable, List, Optional, Union
 
 import pandas as pd
@@ -44,6 +45,21 @@ __all__ = [
 ]
 
 log = logging.getLogger(__name__)
+
+
+def _acs_moe_columns(df: pd.DataFrame) -> List[str]:
+    """Find ACS API MOE codes with a matching estimate present in the frame.
+
+    Match numbered table/cell codes (including subject-table column codes),
+    rather than arbitrary names ending in M. Unpaired and non-ACS columns keep
+    their existing aggregation behavior.
+    """
+    return [
+        col for col in df.columns
+        if isinstance(col, str)
+        and re.fullmatch(r'[A-Z]+\d+[A-Z]?(?:_[A-Z]\d+)?_\d+P?M', col)
+        and col[:-1] + 'E' in df.columns
+    ]
 
 
 # =============================================================================
@@ -190,7 +206,18 @@ class CrosswalkProcessor:
                 medians, densities, per-capita values). These are area-weighted
                 averaged rather than disaggregated by weight, so a split
                 preserves the value instead of scaling it down. Columns not
-                listed here are treated as extensive (disaggregated).
+                listed here are treated as extensive, except paired ACS MOEs.
+
+        Notes:
+            ACS ...M columns paired with ...E estimates in df use
+            sqrt(sum((w * MOE)**2)) when aggregation_func='sum'. This assumes
+            independent source estimates and fixed allocation shares. Scaling
+            a split MOE by w is an approximation: it does not model allocation
+            uncertainty or covariance between the resulting pieces. A missing
+            contributing MOE makes the target MOE unknown, not zero.
+            For other aggregations, or if either member of the pair is marked
+            intensive, the MOE is excluded with a warning because this sum
+            formula does not describe those estimates' uncertainty.
 
         Returns:
             DataFrame with data in target boundary vintage
@@ -230,6 +257,20 @@ class CrosswalkProcessor:
         log.info(f"Transforming {len(df)} rows with {len(value_columns)} value columns")
 
         intensive_set = set(intensive_variables or [])
+        paired_moes = set(_acs_moe_columns(df)).intersection(value_columns)
+        excluded_moes = {
+            col for col in paired_moes
+            if aggregation_func != 'sum'
+            or col in intensive_set or col[:-1] + 'E' in intensive_set
+        }
+        if excluded_moes:
+            log.warning(
+                "Excluding ACS MOE columns %s: uncertainty propagation is only "
+                "supported for sums of extensive estimates, not aggregation %r "
+                "or intensive variables. Estimate aggregation is unchanged.",
+                sorted(excluded_moes), aggregation_func,
+            )
+        moe_cols = [col for col in value_columns if col in paired_moes - excluded_moes]
 
         # All internal columns use a reserved prefix so they can never collide
         # with user input columns. A caller's data may legitimately contain a
@@ -296,15 +337,25 @@ class CrosswalkProcessor:
         # math, so handle them on separate paths rather than dividing an
         # already-aggregated extensive result.
         extensive_cols = [
-            c for c in value_columns if c in merged.columns and c not in intensive_set
+            c for c in value_columns
+            if c in merged.columns and c not in intensive_set and c not in paired_moes
         ]
         intensive_cols = [
-            c for c in value_columns if c in merged.columns and c in intensive_set
+            c for c in value_columns
+            if c in merged.columns and c in intensive_set and c not in paired_moes
         ]
 
         # Apply weights to extensive value columns (for splits/merges).
         for col in extensive_cols:
             merged[f'{R}weighted_{col}'] = merged[col] * merged[c_weight]
+
+        # Weight before squaring: a split contributes w * MOE, and a merge
+        # combines those contributions by RSS. Float conversion avoids integer
+        # overflow. Zero shares contribute nothing even if their MOE is missing.
+        for col in moe_cols:
+            vals = pd.to_numeric(merged[col], errors='coerce').astype(float)
+            squared = (vals * merged[c_weight]) ** 2
+            merged[f'{R}squared_{col}'] = squared.where(merged[c_weight].ne(0), 0.0)
 
         # Build the area-weighted numerator/denominator for intensive columns.
         # The area-weighted mean is Sum(value_i * overlap_i) / Sum(overlap_i),
@@ -396,6 +447,10 @@ class CrosswalkProcessor:
         for col in intensive_cols:
             agg_dict[f'{R}inum_{col}'] = (f'{R}inum_{col}', 'sum')
             agg_dict[f'{R}iden_{col}'] = (f'{R}iden_{col}', 'sum')
+        for col in moe_cols:
+            agg_dict[col] = (
+                f'{R}squared_{col}', lambda values: np.sqrt(values.sum(skipna=False)),
+            )
 
         # Also aggregate weights for weighted_mean calculation.
         agg_dict[c_total_weight] = (c_weight, 'sum')
@@ -513,6 +568,9 @@ def apply_crosswalk(
 
     This is the main function for transforming data between Census years.
     It handles all relationship types (unchanged, splits, merges) automatically.
+    Paired ACS MOEs use root-sum-of-squares of weighted contributions for sums,
+    with split MOEs approximated as w * MOE. Unsupported MOE aggregations are
+    excluded with a warning; see CrosswalkProcessor.transform for assumptions.
 
     Args:
         df: DataFrame with data in source boundary vintage

@@ -112,6 +112,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Documented behavior change from v4.0.0:** temporal time series now read
+  ACS MOEs from their API `...M` keys when building `...E` estimate series.
+  Crosswalk and longitudinal boundary normalization combine paired ACS MOEs
+  as `sqrt(sum((w * MOE)**2))` instead of summing them as counts. Split MOEs
+  use the `w * MOE` approximation with fixed shares and independent source
+  estimates; allocation uncertainty and covariance between split pieces are
+  not modeled. Missing contributing MOEs remain unknown. Unsupported
+  aggregations, intensive pairs, and the longitudinal areal fallback exclude
+  paired MOEs with a warning. Estimate and non-ACS aggregation are unchanged
+  (#1477).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting

@@ -20,7 +20,7 @@ def snapshots_df():
             "boundary_id": "06037101100",
             "year": year,
             "values": {"B01001_001E": pop, "B19013_001E": 50000 + year * 10},
-            "moe_values": {"B01001_001E": 100 + year - 2015},
+            "moe_values": {"B01001_001M": 100 + year - 2015},
         })
     return pd.DataFrame(rows)
 
@@ -106,7 +106,7 @@ class TestTemporalTimeseriesBuilder:
             snapshots_df=snapshots_df,
         )
         ts = results[0].series[0]
-        assert len(ts.moe_values) > 0
+        assert ts.moe_values == [100, 101, 102, 103, 104, 105]
 
     def test_cagr_uses_elapsed_years_not_point_count(self):
         """Sparse series (e.g., 2015 and 2020 only) should use 5 elapsed years."""
@@ -131,13 +131,13 @@ class TestTemporalTimeseriesBuilder:
         df = pd.DataFrame([
             {"boundary_id": "T001", "year": 2018,
              "values": {"B01001_001E": 100},
-             "moe_values": {"B01001_001E": 10}},
+             "moe_values": {"B01001_001M": 10}},
             {"boundary_id": "T001", "year": 2019,
              "values": {"B01001_001E": 110},
              "moe_values": {}},
             {"boundary_id": "T001", "year": 2020,
              "values": {"B01001_001E": 120},
-             "moe_values": {"B01001_001E": 12}},
+             "moe_values": {"B01001_001M": 12}},
         ])
         builder = TemporalTimeseriesBuilder(dataset="acs5")
         results = builder.build(

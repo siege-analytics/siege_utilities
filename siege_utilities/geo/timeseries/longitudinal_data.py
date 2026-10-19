@@ -97,7 +97,11 @@ def get_longitudinal_data(
         target_year: Year to normalize boundaries to (default: 2020)
         normalize_boundaries: If True, apply crosswalks to normalize all years
             to target_year boundaries. Required for accurate comparisons.
-        include_moe: Include margin of error columns
+        include_moe: Include margin of error columns. Boundary normalization
+            combines paired ACS MOEs as sqrt(sum((w * MOE)**2)), assuming
+            independent source estimates and fixed allocation shares. The split
+            approximation w * MOE does not include allocation uncertainty or
+            covariance between split pieces.
         include_geometry: If True, include geometry from target year
         dataset: Census dataset ('acs5', 'acs1')
         strict_years: If True (default), raise ValueError when any requested year
@@ -729,9 +733,13 @@ class LongitudinalAligner:
         method = "crosswalk"
 
         if intensive_columns is None:
+            from ..crosswalk.crosswalk_processor import _acs_moe_columns
+
+            moe_columns = set(_acs_moe_columns(df))
             numeric = [
                 c for c in df.columns
-                if c != geoid_column and df[c].dtype.kind in ("i", "f")
+                if c != geoid_column and c not in moe_columns
+                and df[c].dtype.kind in ("i", "f")
             ]
             if numeric:
                 log.warning(
@@ -863,9 +871,9 @@ class LongitudinalAligner:
         """Apply a single crosswalk step using CrosswalkProcessor.
 
         Intensive columns (rates, ratios, medians, densities) are area-weighted
-        averaged rather than disaggregated by weight; any numeric column not
-        listed is treated as extensive. Without this, a crosswalk split halves
-        a rate the same way the areal fallback did.
+        averaged rather than disaggregated by weight. Paired ACS MOEs follow
+        CrosswalkProcessor's RSS/exclusion rules; other numeric columns not
+        listed are treated as extensive.
         """
         from ..crosswalk.crosswalk_processor import apply_crosswalk
 
@@ -899,7 +907,11 @@ class LongitudinalAligner:
         they are routed correctly; any numeric column not listed is treated as
         extensive. When ``intensive_columns`` is None the method warns, because
         treating a rate as extensive halves it when a polygon splits.
+        Paired ACS MOEs are excluded with a warning: the interpolation backend
+        does not propagate their uncertainty and must not sum them as counts.
         """
+        from ..crosswalk.crosswalk_processor import _acs_moe_columns
+
         try:
             from ..interpolation.areal import interpolate_areal
             from ..spatial_data import get_census_boundaries
@@ -938,9 +950,17 @@ class LongitudinalAligner:
                 dropped, len(df), geoid_column, source_year,
             )
 
+        moe_columns = set(_acs_moe_columns(df))
+        if moe_columns:
+            log.warning(
+                "Excluding ACS MOE columns %s from areal interpolation: the "
+                "backend does not support uncertainty propagation.",
+                sorted(moe_columns),
+            )
         numeric_cols = [
             c for c in df.columns
-            if c != geoid_column and df[c].dtype.kind in ("i", "f")
+            if c != geoid_column and c not in moe_columns
+            and df[c].dtype.kind in ("i", "f")
         ]
         intensive_set = set(intensive_columns or ())
         extensive_vars = [c for c in numeric_cols if c not in intensive_set]

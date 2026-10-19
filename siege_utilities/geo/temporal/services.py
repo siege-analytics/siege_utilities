@@ -88,6 +88,8 @@ class TemporalTimeseriesBuilder:
             geography_type: Geography level name
             snapshots_df: Pre-loaded snapshots DataFrame with columns:
                 boundary_id, year, values (dict column), moe_values (dict column).
+                Snapshot dictionaries retain Census API names: estimates use
+                ...E keys and their MOEs use ...M keys.
                 If None, loads from self.store.
 
         Returns:
@@ -129,6 +131,8 @@ class TemporalTimeseriesBuilder:
 
         results = []
         for variable in variables:
+            # Snapshots keep API names, so an estimate's MOE has an M suffix.
+            moe_variable = variable[:-1] + "M" if variable.endswith("E") else variable
             result = TimeseriesBuildResult(
                 variable_code=variable,
                 geography_type=geography_type,
@@ -155,8 +159,8 @@ class TemporalTimeseriesBuilder:
                         if val is not None:
                             values_by_year[yr] = val
                             moe_vals = row.get("moe_values", {})
-                            if isinstance(moe_vals, dict) and variable in moe_vals:
-                                moe_by_year[yr] = moe_vals[variable]
+                            if isinstance(moe_vals, dict) and moe_variable in moe_vals:
+                                moe_by_year[yr] = moe_vals[moe_variable]
 
                 if len(values_by_year) < 2:
                     result.records_skipped += 1
@@ -274,7 +278,8 @@ class TemporalDemographicService:
                 uses all columns except geoid_column and 'NAME'.
 
         Returns:
-            List of DemographicSnapshotSchema instances
+            List of DemographicSnapshotSchema instances. Both values and
+            moe_values retain the API column names (...E and ...M respectively).
         """
         if variable_columns is None:
             exclude = {geoid_column, "NAME", "name", "state", "county", "tract"}

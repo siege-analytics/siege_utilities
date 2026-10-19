@@ -1,5 +1,6 @@
 """Regression probes for #1477: preserve ACS MOEs through time and boundaries."""
 
+import logging
 import math
 from types import SimpleNamespace
 
@@ -15,6 +16,19 @@ from siege_utilities.geo.timeseries.longitudinal_data import (
     LongitudinalAligner,
     get_longitudinal_data,
 )
+
+
+@pytest.fixture(autouse=True)
+def enable_moe_warnings(monkeypatch, caplog):
+    # Django test settings disable existing loggers during collection.
+    for name in (
+        "siege_utilities.geo.crosswalk.crosswalk_processor",
+        "siege_utilities.geo.timeseries.longitudinal_data",
+    ):
+        logger = logging.getLogger(name)
+        monkeypatch.setattr(logger, "disabled", False)
+        monkeypatch.setattr(logger, "propagate", True)
+        caplog.set_level(logging.WARNING, logger=name)
 
 
 def test_builder_probe_preserves_api_moe_keys():
