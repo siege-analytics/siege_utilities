@@ -20,7 +20,7 @@ from .credential import Credential, OnePasswordCredential
 from .google_account import GoogleAccount
 from .oauth_integration import OAuthIntegration
 from .database_connection import DatabaseConnection
-from ._sensitivity import SECRET_FIELD_NAME
+from ._sensitivity import SECRET_FIELD_NAME, field_has_sensitive_name
 
 __all__ = ["Person"]
 
@@ -635,11 +635,16 @@ _URL_PASSWORD = re.compile(r'([a-zA-Z][a-zA-Z0-9+.-]*://[^\s/:?#@]*:)[^\s/?#]*(@
 
 
 def _sensitive_name(name: Any) -> bool:
-    """Conservatively classify unmarked fields and free-form metadata keys."""
-    return (
-        isinstance(name, str)
-        and SECRET_FIELD_NAME.search(name) is not None
-    )
+    """Classify metadata keys without changing their output representation."""
+    if isinstance(name, (bytes, bytearray)):
+        try:
+            name = name.decode('utf-8')
+        except UnicodeDecodeError:
+            return True
+    if isinstance(name, str):
+        return SECRET_FIELD_NAME.search(name) is not None
+    # Numeric/null keys cannot name credentials; unknown key types fail closed.
+    return not isinstance(name, (int, float, bool, type(None)))
 
 
 def _strip_sensitive_fields(data: Any) -> Any:
@@ -647,7 +652,8 @@ def _strip_sensitive_fields(data: Any) -> Any:
 
     A field's ``json_schema_extra['sensitive']`` declares its policy. True
     redacts the entire value; False explicitly permits a non-secret field.
-    Unmarked secret-like names fail closed, including in free-form metadata.
+    Unmarked secret-like names and aliases fail closed. Metadata keys also
+    fail closed for unknown types or bytes that cannot be decoded as UTF-8.
     Secrets with innocuous names (e.g. ``pin`` or ``material``) are covered
     only by an explicit ``sensitive`` marker, not by the name floor.
     Empty values remain empty, and public containers are still traversed.
@@ -664,7 +670,7 @@ def _strip_sensitive_fields(data: Any) -> Any:
             value = getattr(data, name)
             extra = field.json_schema_extra
             policy = extra.get('sensitive') if isinstance(extra, dict) else None
-            sensitive = policy is True or (policy is not False and _sensitive_name(name))
+            sensitive = policy is True or (policy is not False and field_has_sensitive_name(name, field))
             result[name] = (
                 _REDACTED if value else value
             ) if sensitive else _strip_sensitive_fields(value)

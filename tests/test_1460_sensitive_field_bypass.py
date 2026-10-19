@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import AliasChoices, AliasPath, Field, create_model
+from pydantic import AliasChoices, AliasPath, ConfigDict, Field, create_model
 import pytest
 import yaml
 
@@ -104,10 +104,13 @@ def _user(value, placement="nested"):
 
 
 def _payload_model(field_kwargs, name="payload"):
-    model = create_model("MetadataPayload", **{name: (str, Field(**field_kwargs))})
+    model = create_model(
+        "MetadataPayload", __config__=ConfigDict(populate_by_name=True),
+        **{name: (str, Field(**field_kwargs))},
+    )
     # Supply the internal value through validation, independently of which
     # alias form the test asks the export classifier to recognize.
-    return model.model_validate({name: SENTINEL}, by_name=True)
+    return model.model_validate({name: SENTINEL})
 
 
 def _export(user, surface, exclude_sensitive):
