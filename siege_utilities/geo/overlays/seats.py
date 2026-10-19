@@ -105,6 +105,7 @@ class SeatsOverlayResult:
         in that group, finite or ongoing. Omit offices with no covering row,
         treating an unknown start as earlier than a known start.
         Preserve first-seen office order and row order within each office.
+        An ongoing assignment is not displaced by a later-starting finite one; close stale ongoing records at the data source.
         """
         if not self.assignments:
             return []

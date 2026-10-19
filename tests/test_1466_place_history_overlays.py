@@ -388,3 +388,17 @@ def test_current_districts_at_2020_omits_office_without_candidates(reverse: bool
     assert current == [ongoing]
     assert _current_districts_at(result.for_office("X"), 2020) == []
     assert result.current_districts == [ongoing]
+
+
+@pytest.mark.parametrize("reverse", [False, True], ids=["forward", "reverse"])
+def test_older_ongoing_not_displaced_by_newer_finite(reverse: bool) -> None:
+    d3 = SeatAssignment(
+        office="US_HOUSE", district_label="3", from_year=2012, to_year=None,
+    )
+    d8 = replace(d3, district_label="8", from_year=2022, to_year=2030)
+    assignments = [d3, d8]
+    if reverse:
+        assignments.reverse()
+
+    assert _current_districts_at(assignments, 2025) == [d3]
+    assert SeatsOverlayResult("48201", assignments).current_districts == [d3]
