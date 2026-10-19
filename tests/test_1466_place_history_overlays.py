@@ -17,7 +17,12 @@ from siege_utilities.geo.overlays.redistricting import (
     RedistrictingOverlay,
     RedistrictingOverlayResult,
 )
-from siege_utilities.geo.overlays.seats import SeatAssignment, SeatsOverlayResult
+from siege_utilities.geo.overlays.seats import (
+    DictSeatsProvider,
+    SeatAssignment,
+    SeatsOverlay,
+    SeatsOverlayResult,
+)
 from siege_utilities.geo.place_history import DictCrosswalkProvider, place_history
 
 
@@ -111,31 +116,86 @@ def test_active_at_handover_date_selects_only_new_plan() -> None:
     assert result.active_at(date(2030, 1, 3)) == [new_plan]
 
 
-@pytest.mark.parametrize(
-    ("spans", "expected_index"),
-    [
-        ([(2025, 2026), (2022, None)], 1),
-        ([(2022, None), (2025, None)], 1),
-        ([(2013, 2024), (2025, 2026)], 1),
-        ([(2013, 2024), (2020, 2024)], 1),
-        ([(None, None), (2022, None)], 1),
-        ([(2022, None), (2022, None)], 0),
-    ],
-    ids=["ongoing", "latest-ongoing", "latest-ended", "latest-start", "unknown-start", "tied"],
-)
-def test_current_districts_selects_one_assignment_within_office(
-    spans: list[tuple[int | None, int | None]], expected_index: int,
+@pytest.mark.parametrize("to_year", [2030, None], ids=["finite", "ongoing"])
+@pytest.mark.parametrize("reverse", [False, True], ids=["forward", "reverse"])
+def test_current_districts_preserves_split_districts(
+    to_year: int | None, reverse: bool,
 ) -> None:
     assignments = [
         SeatAssignment(
-            office="STATE_UPPER", seat_label=f"TX SD-{index}",
-            from_year=start, to_year=end,
+            seat_label="US House IL-7", office="US_HOUSE", district_label=district,
+            state_fips="17", plan_name="2020 Plan", plan_year=2022,
+            from_year=2020, to_year=to_year, containment_pct=containment,
         )
-        for index, (start, end) in enumerate(spans)
+        for district, containment in [("7", 0.7), ("4", 0.3)]
     ]
+    if reverse:
+        assignments.reverse()
+    provider = DictSeatsProvider()
+    for assignment in assignments:
+        provider.add(assignment)
+
+    result = SeatsOverlay(provider).fetch("A", 2020, 2025)
+
+    assert result.current_districts == assignments
+    assert sum(a.containment_pct for a in result.current_districts) == pytest.approx(1.0)
+
+
+@pytest.mark.parametrize(
+    ("old_start", "old_end", "new_end"),
+    [(2012, 2021, None), (2012, None, None), (2012, 2030, 2030), (None, None, None)],
+    ids=["competing-history", "ongoing-periods", "overlapping-periods", "unknown-start"],
+)
+def test_current_districts_selects_newest_applicable_period(
+    old_start: int | None, old_end: int | None, new_end: int | None,
+) -> None:
+    old = SeatAssignment(
+        office="US_HOUSE", district_label="5", from_year=old_start, to_year=old_end,
+    )
+    new = replace(old, district_label="7", from_year=2022, to_year=new_end)
+    result = SeatsOverlayResult("48201", [old, new])
+
+    assert result.current_districts == [new]
+
+
+def test_current_districts_preserves_current_rows_with_different_end_bounds() -> None:
+    finite = SeatAssignment(
+        office="US_HOUSE", district_label="4", from_year=2022, to_year=2030,
+        containment_pct=0.3,
+    )
+    ongoing = replace(finite, district_label="7", to_year=None, containment_pct=0.7)
+    assignments = [finite, ongoing]
     result = SeatsOverlayResult("48201", assignments)
 
-    assert result.current_districts == [assignments[expected_index]]
+    assert result.current_districts == assignments
+
+
+def test_empty_redistricting_span_never_applies() -> None:
+    when = date(2023, 6, 1)
+    assignment = DistrictAssignment(plan_id="empty", from_date=when, to_date=when)
+    provider = DictRedistrictingDataProvider()
+    provider.add(assignment)
+    result = RedistrictingOverlayResult("48201", [assignment])
+
+    assert result.active_at(when) == []
+    assert provider.get_district_assignments("48201", 2023, 2023) == []
+    assert RedistrictingOverlay(provider).fetch("48201", 2023, 2023).plan_count == 0
+
+
+@pytest.mark.parametrize("query", ["provider", "active_at"])
+def test_inverted_redistricting_span_raises(query: str) -> None:
+    assignment = DistrictAssignment(
+        plan_id="inverted", from_date=date(2023, 6, 2), to_date=date(2023, 6, 1),
+    )
+    provider = DictRedistrictingDataProvider()
+    provider.add(assignment)
+    result = RedistrictingOverlayResult("48201", [assignment])
+
+    with pytest.raises(ValueError, match="from_date.*to_date"):
+        if query == "provider":
+            provider.get_district_assignments("48201", 2023, 2023)
+        else:
+            result.active_at(date(2023, 6, 1))
 
 
 @pytest.mark.parametrize(

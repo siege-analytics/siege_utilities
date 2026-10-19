@@ -233,3 +233,5 @@ class TestSeatsOverlay:
         result = o.fetch("A", 2020, 2025)
         assert len(result.assignments) == 2
         assert sum(a.containment_pct for a in result.assignments) == pytest.approx(1.0)
+        assert result.current_districts == result.assignments
+        assert sum(a.containment_pct for a in result.current_districts) == pytest.approx(1.0)
