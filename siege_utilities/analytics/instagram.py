@@ -279,6 +279,8 @@ class InstagramConnector:
 
         Return collected posts with a warning if a later page exhausts rate
         limit retries. First-page failures and other errors propagate.
+        Paging URLs must use the HTTPS graph.facebook.com origin; other
+        origins raise SocialMediaError before sending a request.
         """
         self._ensure_connected()
         all_posts: list[dict[str, Any]] = []
@@ -467,16 +469,33 @@ class InstagramConnector:
         params: Mapping[str, Any] | None = None,
         _token_exchange: bool = False,
     ) -> dict[str, Any]:
-        """Send an authenticated request to an absolute URL."""
+        """Send a request only to the HTTPS graph.facebook.com origin."""
         if not _token_exchange and self.is_token_expired():
             self._authenticated = False
             raise SocialMediaAuthError(_EXPIRED_TOKEN_MESSAGE)
+        # Validate every absolute URL before the session can attach credentials.
+        try:
+            parts = urlsplit(url)
+            trusted_origin = (
+                parts.scheme == "https"
+                and parts.hostname == "graph.facebook.com"
+                and parts.port in (None, 443)
+                and parts.username is None
+                and parts.password is None
+            )
+        except ValueError:
+            trusted_origin = False
+        if not trusted_origin:
+            # Paging URLs can contain tokens, including malformed authorities.
+            raise SocialMediaError(
+                "Instagram request URL must use the HTTPS graph.facebook.com "
+                "origin (port 443) without user information."
+            ) from None
         req_params = {
             key: value for key, value in (params or {}).items()
             if key.lower() != "access_token"
         }
         # Graph paging links can repeat the token; authenticate via the header.
-        parts = urlsplit(url)
         query = [
             (key, value) for key, value in parse_qsl(parts.query, keep_blank_values=True)
             if key.lower() != "access_token"

@@ -1,0 +1,46 @@
+Instagram paging origin fix for #1833
+
+Investigation of record: siege-analytics/siege_utilities#1833 and #1812
+review follow-up 1. This file records implementation validation.
+Baseline: 453ef74d36e307599d9dfb9c7eadb305fa0fcd49.
+Branch: fix/1833-instagram-paging-origin, stacked on unmerged #1812.
+Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11).
+
+Before production changes, the new regression module ran on the baseline:
+
+~/.pyenv/versions/default_31111/bin/python -m pytest tests/test_1833_instagram_paging_origin.py --no-cov -q --tb=no --junitxml=/tmp/su-1833-red.xml
+
+Result: 30 failed, 3 passed. The HTTP and foreign-host paging cases failed
+because an off-origin prepared request reached the stubbed Session.send.
+The three valid Graph paging controls passed on the baseline.
+
+The shared _request_url entry point now rejects URLs unless their scheme is
+HTTPS, hostname is exactly graph.facebook.com, and port is absent or 443.
+User information and malformed authorities are rejected. The fixed error
+message omits the URL and its embedded credentials. get_posts paging and
+direct absolute requests both pass through this guard before session calls.
+The existing base URL has no additional host or subdomain allow-list.
+
+The 33 regression cases inspect real prepared requests through a stub of
+requests.Session.send. Invalid targets send zero additional requests; direct
+calls send none. Cases cover HTTP, foreign hosts, deceptive host prefixes and
+suffixes, subdomains, user information, alternate and malformed ports, relative
+URLs, malformed hosts and other schemes. Valid Graph paging preserves the
+Bearer header and cursor while removing access_token from the URL. Default
+HTTPS, port 443 and uppercase Graph hostnames all remain valid. Every fixture
+uses dummy credentials and mocked transport; no live requests are made.
+
+~/.pyenv/versions/default_31111/bin/python -m pytest tests/test_1833_instagram_paging_origin.py tests/test_analytics_instagram_errors.py tests/test_credential_url_leak.py -x --no-cov
+
+Result: 281 passed in 2.19 seconds.
+
+~/.pyenv/versions/default_31111/bin/python -m pytest tests/test_social_connectors_cluster.py tests/test_social_review_blockers.py -x --no-cov -q
+
+Result: 226 passed in 1.22 seconds. These retain the #1812 connector and blocker
+coverage while the shared Instagram request entry point changes.
+The installed Requests dependency warning remains; dependencies are unchanged.
+
+Touched Python files pass flake8 with max-line-length=127. Phase 1 lint,
+lint ratchet phases 2 through 4, test file hygiene and git diff --check pass.
+The credential URL guard passes with zero unreviewed credential URL sites.
+The behavior change from v4.0.0 is documented under 4.1.0, Fixed (Security).

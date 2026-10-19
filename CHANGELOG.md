@@ -112,6 +112,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- (Security) Instagram validates every absolute request URL, including
+  `paging.next`, before sending credentials. URLs must use HTTPS and the exact
+  `graph.facebook.com` host on port 443 (or the default port), without user
+  information. **Behavior change from v4.0.0:** non-HTTPS, foreign-origin and
+  malformed paging URLs now raise `SocialMediaError` before a request is sent.
+  Rejected URLs are omitted from the error to protect embedded tokens. Valid
+  Graph paging links continue to work (#1833).
 - Instagram and X retry rate limits within the configured attempt budget,
   honor `Retry-After` up to `max_retry_wait` (900 seconds by default), and retain
   collected posts with a warning when a later page remains throttled. Larger
