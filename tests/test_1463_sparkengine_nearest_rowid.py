@@ -3,6 +3,7 @@
 Run real Spark SQL with Shapely stand-ins for the two Sedona functions.
 """
 
+import gc
 import math
 
 import pytest
@@ -41,6 +42,97 @@ def frames(nearest_engine):
         session.createDataFrame(POINTS, "point_id long, geometry string"),
         session.createDataFrame(TARGETS, "target_id long, geometry string"),
     )
+
+
+def test_repeated_calls_do_not_retain_session_state(nearest_engine, frames):
+    session = nearest_engine._session
+
+    def retained_state():
+        return (
+            session.sparkContext._jsc.sc().getPersistentRDDs().size(),
+            sum(table.isTemporary and table.name.startswith("_nn_")
+                for table in session.catalog.listTables()),
+        )
+
+    baseline = retained_state()
+    for _ in range(5):
+        result = nearest_engine.nearest(*frames, max_distance=5)
+        rows = {row.point_id: row for row in result.collect()}
+        assert set(rows) == {1, 2, 3}
+        assert rows[1].target_id == rows[2].target_id == 10
+        assert rows[3].target_id is rows[3].index_right is rows[3].distance is None
+        del result
+        gc.collect()
+        assert retained_state() == baseline
+
+
+@pytest.mark.parametrize("side", ["points", "targets", "both"])
+def test_input_distance_is_replaced(nearest_engine, frames, side):
+    from pyspark.sql import functions as F
+
+    points, targets = frames
+    if side in ("points", "both"):
+        points = points.withColumn("distance", F.lit(42.0))
+    if side in ("targets", "both"):
+        targets = targets.withColumn("distance", F.lit(84.0))
+    result = nearest_engine.nearest(points, targets)
+    assert result.columns.count("distance") == 1
+    assert "distance_left" not in result.columns
+    assert "distance_right" not in result.columns
+    rows = result.select("point_id", "distance").collect()
+    assert {row.point_id: row.distance for row in rows} == pytest.approx(
+        {1: 1.0, 2: 1.0, 3: math.hypot(98, 100)}
+    )
+
+
+@pytest.mark.parametrize("side", ["points", "targets"])
+def test_input_index_right_is_rejected(nearest_engine, frames, side):
+    from pyspark.sql import functions as F
+
+    points, targets = frames
+    if side == "points":
+        points = points.withColumn("index_right", F.lit(42))
+    else:
+        targets = targets.withColumn("index_right", F.lit(42))
+    with pytest.raises(
+        ValueError, match="'index_right' cannot be a column name in the frames being joined",
+    ):
+        nearest_engine.nearest(points, targets)
+
+
+@pytest.mark.parametrize("side, collision", [
+    ("points", "id_left"), ("targets", "id_right"), ("points", "id_right"),
+])
+def test_output_name_collisions_are_rejected(nearest_engine, frames, side, collision):
+    from pyspark.sql import functions as F
+
+    points, targets = frames
+    points = points.withColumnRenamed("point_id", "id")
+    targets = targets.withColumnRenamed("target_id", "id")
+    if side == "points":
+        points = points.withColumn(collision, F.lit("point attribute"))
+    else:
+        targets = targets.withColumn(collision, F.lit("target attribute"))
+    with pytest.raises(ValueError, match=f"duplicate output column.*{collision}"):
+        nearest_engine.nearest(points, targets)
+
+
+def test_chained_nearest_replaces_the_previous_distance(nearest_engine, frames):
+    points, targets = frames
+    first = nearest_engine.nearest(points, targets)
+    # Like GeoPandas, a new join requires removing the previous right index.
+    second_targets = nearest_engine._session.createDataFrame(
+        [(20, "POINT (3 4)")], "next_target_id long, geometry string",
+    )
+    result = nearest_engine.nearest(first.drop("index_right"), second_targets)
+    assert len(result.columns) == len(set(result.columns))
+    assert result.columns.count("distance") == 1
+    rows = result.select("point_id", "target_id", "next_target_id", "distance").collect()
+    assert {row.point_id: row.distance for row in rows} == pytest.approx(
+        {1: 5.0, 2: 5.0, 3: math.hypot(97, 96)}
+    )
+    assert {row.point_id: row.target_id for row in rows} == {1: 10, 2: 10, 3: 11}
+    assert all(row.next_target_id == 20 for row in rows)
 
 
 def test_colocated_points_each_receive_a_nearest_target(nearest_engine, frames):
