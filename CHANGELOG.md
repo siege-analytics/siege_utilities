@@ -118,6 +118,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   account and opportunity names use an empty string, keeping unnamed records
   in the result instead of aborting the list. Valid values and zeros are
   preserved (#1425). v3.23.0 had no implementations of these connectors.
+- **Documented behavior change from v4.0.0:** Zoho canonical contacts and
+  opportunities use lookup ID columns or raw lookup IDs for account and owner
+  relationships, instead of display names or missing IDs. `CRMOpportunity`
+  probability uses a documented 0-100 percentage scale: HubSpot's 0-1 fraction
+  is multiplied by 100; Salesforce, Zoho, and Dynamics retain their percentage
+  values. Dynamics requests formatted-value annotations on every page and uses
+  the industry label when present; without a label, industry remains the
+  option-set code as a string (#1426). v3.23.0 had no implementations of these
+  connectors.
 - `DynamicsConnector.create_record()` returns the new record ID from the
   `OData-EntityId` header on a 204 response. Representation responses retain
   edit-link and primary-key fallbacks, with the correct keys for all standard

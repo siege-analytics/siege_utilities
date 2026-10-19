@@ -116,6 +116,14 @@ DEFAULT_FIELDS: dict[str, list[str]] = {
 __all__ = ["ZohoConnector"]
 
 
+def _lookup_id(record: dict[str, Any], field: str) -> str | None:
+    """Read a flattened lookup's companion ID or a raw lookup dictionary."""
+    value = record.get(f"{field}_id")
+    if value is None and isinstance(record.get(field), dict):
+        value = record[field].get("id")
+    return str(value) if value is not None else None
+
+
 class ZohoConnector:
     """Zoho CRM connector implementing ConnectorProtocol.
 
@@ -304,6 +312,7 @@ class ZohoConnector:
     # ------------------------------------------------------------------
 
     def to_crm_contacts(self, df: pd.DataFrame) -> list:
+        """Map contacts using account lookup IDs from flattened or raw records."""
         from siege_utilities.connectors._models import CRMAddress, CRMContact, _normalize_crm_record
 
         results: list[CRMContact] = []
@@ -318,13 +327,9 @@ class ZohoConnector:
             )
             extra_keys = set(r.keys()) - {
                 "id", "First_Name", "Last_Name", "Email", "Phone",
-                "Title", "Account_Name", "Mailing_Street", "Mailing_City",
+                "Title", "Account_Name", "Account_Name_id", "Mailing_Street", "Mailing_City",
                 "Mailing_State", "Mailing_Zip", "Mailing_Country",
             }
-            account_name = r.get("Account_Name")
-            account_id = None
-            if isinstance(account_name, dict):
-                account_id = account_name.get("id")
             results.append(CRMContact(
                 id=str(r["id"]),
                 first_name=r.get("First_Name"),
@@ -332,7 +337,7 @@ class ZohoConnector:
                 email=r.get("Email"),
                 phone=r.get("Phone"),
                 title=r.get("Title"),
-                account_id=account_id,
+                account_id=_lookup_id(r, "Account_Name"),
                 address=address,
                 source_system="zoho",
                 source_id=str(r["id"]),
@@ -377,7 +382,11 @@ class ZohoConnector:
         return results
 
     def to_crm_opportunities(self, df: pd.DataFrame) -> list:
-        """Map to :class:`CRMOpportunity`; missing names use an empty string."""
+        """Map deals with lookup IDs and Zoho's 0-100 probability scale.
+
+        Lookups use companion ID columns or raw dictionaries, never display
+        names. Missing names use an empty string.
+        """
         from siege_utilities.connectors._models import CRMOpportunity, _normalize_crm_record
         from datetime import date as date_type
         from decimal import Decimal
@@ -395,24 +404,20 @@ class ZohoConnector:
                     close_date = close_raw
 
             probability = r.get("Probability")
-            owner = r.get("Owner")
-            owner_id = owner.get("id") if isinstance(owner, dict) else str(owner) if owner else None
-            account = r.get("Account_Name")
-            account_id = account.get("id") if isinstance(account, dict) else None
-
             extra_keys = set(r.keys()) - {
                 "id", "Deal_Name", "Stage", "Amount",
                 "Closing_Date", "Probability", "Owner", "Account_Name",
+                "Owner_id", "Account_Name_id",
             }
             results.append(CRMOpportunity(
                 id=str(r["id"]),
                 name=r.get("Deal_Name") or "",
-                account_id=account_id,
+                account_id=_lookup_id(r, "Account_Name"),
                 stage=r.get("Stage"),
                 amount=Decimal(str(amount)) if amount is not None else None,
                 close_date=close_date,
                 probability=float(probability) if probability is not None else None,
-                owner_id=owner_id,
+                owner_id=_lookup_id(r, "Owner"),
                 source_system="zoho",
                 source_id=str(r["id"]),
                 metadata={k: r[k] for k in extra_keys if r.get(k) is not None},

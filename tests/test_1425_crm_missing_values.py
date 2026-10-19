@@ -59,6 +59,11 @@ def _frame(variant, kind, rows):
     provider = variant.removesuffix("_nested")
     fields = dict(zip(CANONICAL_FIELDS[kind], VENDOR_FIELDS[provider][kind]))
     records = [{fields.get(key, key): value for key, value in row.items()} for row in rows]
+    if provider == "zoho":
+        # Raw Zoho owners are lookup dictionaries; scalar strings are labels.
+        for row in records:
+            if isinstance(row.get("Owner"), str):
+                row["Owner"] = {"id": row["Owner"], "name": "Owner Display Name"}
     if variant == "hubspot_nested":
         records = [{"id": row.pop("id"), "properties": row} for row in records]
     return pd.DataFrame(records)

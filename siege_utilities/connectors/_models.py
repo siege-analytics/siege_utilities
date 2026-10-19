@@ -129,7 +129,7 @@ class CRMAccount(BaseModel):
 
 
 class CRMOpportunity(BaseModel):
-    """A deal / opportunity record from any CRM system."""
+    """A deal / opportunity record with probability on a 0-100 percentage scale."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -139,7 +139,10 @@ class CRMOpportunity(BaseModel):
     stage: str | None = None
     amount: Decimal | None = None
     close_date: date | None = None
-    probability: float | None = None
+    probability: float | None = Field(
+        default=None,
+        description="Probability on a 0-100 percentage scale; 80 means 80%.",
+    )
     owner_id: str | None = None
     source_system: str = Field(description="CRM vendor identifier")
     source_id: str = Field(description="Record ID in the source CRM")

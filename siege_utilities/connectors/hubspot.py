@@ -358,7 +358,10 @@ class HubSpotConnector:
         return results
 
     def to_crm_opportunities(self, df: pd.DataFrame) -> list:
-        """Map to :class:`CRMOpportunity`; missing names use an empty string."""
+        """Map deals, converting HubSpot's 0-1 probability fraction to 0-100.
+
+        Missing names use an empty string.
+        """
         from siege_utilities.connectors._models import CRMOpportunity, _normalize_crm_record
         from datetime import date as date_type
         from decimal import Decimal
@@ -388,7 +391,7 @@ class HubSpotConnector:
                 stage=props.get("dealstage"),
                 amount=Decimal(str(amount)) if amount is not None else None,
                 close_date=close_date,
-                probability=float(probability) if probability is not None else None,
+                probability=float(probability) * 100 if probability is not None else None,
                 owner_id=props.get("hubspot_owner_id"),
                 source_system="hubspot",
                 source_id=str(r.get("id", props.get("hs_object_id", ""))),

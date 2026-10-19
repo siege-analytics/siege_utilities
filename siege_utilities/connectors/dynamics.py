@@ -50,6 +50,7 @@ DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_BACKOFF = 2.0
 BATCH_SIZE = 1000
+FORMATTED_VALUE_ANNOTATION = "OData.Community.Display.V1.FormattedValue"
 
 STANDARD_ENTITIES: dict[str, str] = {
     "contacts": "contacts",
@@ -184,6 +185,7 @@ class DynamicsConnector:
             "Content-Type": "application/json",
             "OData-MaxVersion": "4.0",
             "OData-Version": "4.0",
+            "Prefer": f'odata.include-annotations="{FORMATTED_VALUE_ANNOTATION}"',
             "User-Agent": "siege_utilities/DynamicsConnector",
         })
         log.info("DynamicsConnector initialised (env: %s)", self._environment_url)
@@ -248,6 +250,9 @@ class DynamicsConnector:
         limit: int | None = None,
     ) -> pd.DataFrame:
         """Fetch records via OData query.
+
+        Requests formatted values and retains their annotation columns,
+        including industry labels, on every page.
 
         Args:
             object_type: Dataverse entity set name (``"contacts"``, etc.).
@@ -321,11 +326,16 @@ class DynamicsConnector:
         return results
 
     def to_crm_accounts(self, df: pd.DataFrame) -> list:
-        """Map to :class:`CRMAccount`; missing names use an empty string."""
+        """Map accounts using the formatted industry label when available.
+
+        Without a label, industry is the option-set code as a string, not a
+        label. Missing names use an empty string.
+        """
         from siege_utilities.connectors._models import CRMAccount, CRMAddress, _normalize_crm_record
         from decimal import Decimal
 
         results: list[CRMAccount] = []
+        industry_label_field = f"industrycode@{FORMATTED_VALUE_ANNOTATION}"
         for _, row in df.iterrows():
             r = _normalize_crm_record(row.to_dict())
             address = CRMAddress(
@@ -337,8 +347,12 @@ class DynamicsConnector:
             )
             revenue = r.get("revenue")
             employees = r.get("numberofemployees")
+            industry = r.get(industry_label_field)
+            if not industry and r.get("industrycode") is not None:
+                industry = str(r["industrycode"])
             extra_keys = set(r.keys()) - {
                 "accountid", "name", "industrycode", "websiteurl",
+                industry_label_field,
                 "revenue", "numberofemployees", "address1_line1",
                 "address1_city", "address1_stateorprovince",
                 "address1_postalcode", "address1_country",
@@ -346,7 +360,7 @@ class DynamicsConnector:
             results.append(CRMAccount(
                 id=str(r.get("accountid", "")),
                 name=r.get("name") or "",
-                industry=str(r.get("industrycode")) if r.get("industrycode") is not None else None,
+                industry=industry,
                 website=r.get("websiteurl"),
                 revenue=Decimal(str(revenue)) if revenue is not None else None,
                 employee_count=int(employees) if employees is not None else None,
@@ -358,7 +372,10 @@ class DynamicsConnector:
         return results
 
     def to_crm_opportunities(self, df: pd.DataFrame) -> list:
-        """Map to :class:`CRMOpportunity`; missing names use an empty string."""
+        """Map opportunities, retaining Dataverse's 0-100 probability scale.
+
+        Missing names use an empty string.
+        """
         from siege_utilities.connectors._models import CRMOpportunity, _normalize_crm_record
         from datetime import date as date_type
         from decimal import Decimal

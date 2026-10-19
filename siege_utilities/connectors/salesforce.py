@@ -577,7 +577,10 @@ class SalesforceConnector:
         return results
 
     def to_crm_opportunities(self, df: pd.DataFrame) -> list:
-        """Map to :class:`CRMOpportunity`; missing names use an empty string."""
+        """Map opportunities, retaining Salesforce's 0-100 probability scale.
+
+        Missing names use an empty string.
+        """
         from siege_utilities.connectors._models import CRMOpportunity, _normalize_crm_record
         from datetime import date as date_type
         from decimal import Decimal
