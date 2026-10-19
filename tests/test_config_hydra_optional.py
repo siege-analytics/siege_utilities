@@ -13,6 +13,8 @@ import sys
 
 import pytest
 
+import siege_utilities
+
 
 def _reload_siege_config_with_hydra_blocked(monkeypatch, caplog_or_handler):
     """Force a fresh import of siege_utilities.config with hydra unimportable.
@@ -29,6 +31,11 @@ def _reload_siege_config_with_hydra_blocked(monkeypatch, caplog_or_handler):
 
     blocker = _BlockHydra()
     monkeypatch.setattr(sys, "meta_path", [blocker, *sys.meta_path])
+
+    # Reimporting a child also replaces its attribute on the parent package.
+    # Restore that binding on teardown as well as the sys.modules entries;
+    # otherwise dotted lookups reach a temporary config without its models.
+    monkeypatch.setattr(siege_utilities, "config", None, raising=False)
 
     # Purge any cached siege_utilities.config / hydra_manager modules so the
     # re-import re-runs the try/except. Use monkeypatch.delitem so the ORIGINAL
@@ -104,3 +111,24 @@ def test_hydra_missing_HydraConfigManager_is_dependency_wrapper(monkeypatch):
     assert "hydra-core" in msg or "hydra" in msg, (
         f"Dependency error must name the missing package (hydra), got: {exc_info.value!r}"
     )
+
+
+@pytest.mark.parametrize("resolve_manager", [False, True])
+def test_hydra_probe_restores_config_module_identity(resolve_manager):
+    """A missing-extra probe must preserve both Python module lookup paths."""
+    original_config = importlib.import_module("siege_utilities.config")
+    original_models = importlib.import_module("siege_utilities.config.models")
+    original_export = importlib.import_module("siege_utilities.config.models.export")
+
+    with pytest.MonkeyPatch.context() as patch:
+        temporary_config = _reload_siege_config_with_hydra_blocked(patch, None)
+        assert temporary_config is not original_config
+        assert siege_utilities.config is temporary_config
+        if resolve_manager:
+            _ = temporary_config.HydraConfigManager
+
+    assert sys.modules["siege_utilities.config"] is original_config
+    assert siege_utilities.config is original_config
+    assert siege_utilities.config.models is original_models
+    assert siege_utilities.config.models.export is original_export
+    assert importlib.import_module("siege_utilities.config.models.export") is original_export

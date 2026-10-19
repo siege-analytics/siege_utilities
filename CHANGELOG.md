@@ -112,15 +112,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- (Security) **Documented behavior change from v4.0.0:** config exports with
-  `exclude_sensitive=True` redact fields whose internal name or any Pydantic
-  alias names a credential, including validation/serialization aliases,
-  `AliasChoices`, and string components of `AliasPath`. The field-marker CI
-  guard uses the same classification. Credential names in UTF-8 bytes or
-  bytearray dictionary keys are now recognized; undecodable bytes and other
-  non-string keys fail closed, except for numeric and `None` keys. Key
-  representations, field-marker policies, and non-redacted exports are
-  unchanged (#1460).
 - Sanitize CRM upsert payloads for Salesforce, HubSpot, Zoho, and Dynamics:
   omit top-level missing fields to preserve existing values, serialize dates and
   timestamps as ISO 8601 strings, and convert numpy scalars to native types.
