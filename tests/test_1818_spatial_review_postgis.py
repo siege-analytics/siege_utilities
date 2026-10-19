@@ -105,3 +105,68 @@ def test_b3_returning_commits_only_after_crs_validation(postgis_pair):
     with observer.cursor() as cursor:
         cursor.execute(f"SELECT id FROM {table}")
         assert cursor.fetchall() == [(2,)]
+
+
+@pytest.mark.parametrize("operation", ["INSERT", "DELETE", "UPDATE", "MERGE"])
+def test_r2_1_mutating_cte_rows_match_durable_state_after_close(postgis_pair, operation):
+    connector, observer, table = postgis_pair
+    with observer.cursor() as cursor:
+        cursor.execute(f"INSERT INTO {table} VALUES (7, ST_SetSRID(ST_Point(1,2),4326))")
+    bodies = {
+        "INSERT": f"INSERT INTO {table} VALUES (8, ST_SetSRID(ST_Point(3,4),4326)) RETURNING *",
+        "DELETE": f"DELETE FROM {table} WHERE id=7 RETURNING *",
+        "UPDATE": f"UPDATE {table} SET id=8 WHERE id=7 RETURNING *",
+        "MERGE": f"MERGE INTO {table} p USING (VALUES (7)) src(id) ON p.id=src.id "
+                 "WHEN MATCHED THEN UPDATE SET id=8 RETURNING p.*",
+    }
+    expected = [] if operation == "DELETE" else [(7,), (8,)] if operation == "INSERT" else [(8,)]
+    with connector:
+        result = connector.execute_spatial_query(f"WITH written AS ({bodies[operation]}) SELECT * FROM written")
+        assert result.id.tolist() == [7 if operation == "DELETE" else 8]
+        assert result.crs.to_epsg() == 4326
+        with observer.cursor() as cursor:
+            cursor.execute(f"SELECT id FROM {table} ORDER BY id")
+            after_success = cursor.fetchall()
+    with observer.cursor() as cursor:
+        cursor.execute(f"SELECT id FROM {table} ORDER BY id")
+        after_close = cursor.fetchall()
+    assert after_success == after_close == expected
+
+
+@pytest.mark.parametrize("cte", [False, True])
+def test_r2_1_caller_write_transaction_remains_caller_managed(postgis_pair, cte):
+    connector, observer, table = postgis_pair
+    with connector.connection.cursor() as cursor:
+        cursor.execute(f"INSERT INTO {table} VALUES (99, ST_SetSRID(ST_Point(0,0),4326))")
+    query = f"INSERT INTO {table} VALUES (8, ST_SetSRID(ST_Point(3,4),4326)) RETURNING *"
+    if cte:
+        query = f"WITH written AS ({query}) SELECT * FROM written"
+    assert connector.execute_spatial_query(query).id.tolist() == [8]
+    with observer.cursor() as cursor:
+        cursor.execute(f"SELECT id FROM {table}")
+        assert cursor.fetchall() == []
+    connector.connection.rollback()
+    with observer.cursor() as cursor:
+        cursor.execute(f"SELECT id FROM {table}")
+        assert cursor.fetchall() == []
+
+
+@pytest.mark.parametrize("query", [
+    "SELECT 'INSERT INTO places' AS note",
+    'SELECT 1 AS "UPDATE" /* DELETE FROM places */',
+    "WITH src AS (SELECT $tag$MERGE INTO places$tag$ AS note) SELECT * FROM src",
+    "SELECT 1 AS merge -- INSERT INTO places\n",
+    "SELECT (1) /* outer /* INSERT */ UPDATE */ AS value",
+])
+def test_r2_1_read_tokens_do_not_commit_pending_id_99(postgis_pair, query):
+    connector, observer, table = postgis_pair
+    with connector.connection.cursor() as cursor:
+        cursor.execute(f"INSERT INTO {table} VALUES (99, ST_SetSRID(ST_Point(0,0),4326))")
+    connector.execute_spatial_query(query)
+    with observer.cursor() as cursor:
+        cursor.execute(f"SELECT id FROM {table}")
+        assert cursor.fetchall() == []
+    connector.connection.rollback()
+    with observer.cursor() as cursor:
+        cursor.execute(f"SELECT id FROM {table}")
+        assert cursor.fetchall() == []
