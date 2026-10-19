@@ -733,7 +733,7 @@ class DynamicsConnector:
             error = payload.get("error", {}) if isinstance(payload, dict) else {}
             if isinstance(error, dict) and error.get("message"):
                 return str(error["message"]), error.get("code")
-        except ValueError:
+        except json.JSONDecodeError:
             pass
         return f"HTTP {status}: {body[:200]}", str(status)
 

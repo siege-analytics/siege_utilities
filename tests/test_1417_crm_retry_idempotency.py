@@ -166,6 +166,19 @@ def test_batch_successes_are_matched_by_content_id():
     assert result.updated_ids == ["b"]
 
 
+def test_non_json_batch_failure_preserves_error_details():
+    c = connector("dynamics")
+    resp = batch_response([(1, 500, {})])
+    resp._content = resp.content.replace(b"{}", b"Upstream service unavailable")
+    c._session.post = Mock(return_value=resp)
+    result = c._batch_upsert("contacts", [{"key": "a"}, {"key": "b"}], "key")
+    assert result.success_count == 0
+    assert result.failure_count == 2
+    assert {error.record_index for error in result.errors} == {0, 1}
+    assert all("HTTP 500: Upstream service unavailable" in error.message for error in result.errors)
+    assert all(error.code == "500" for error in result.errors)
+
+
 def test_successful_part_in_failed_atomic_changeset_is_rolled_back():
     c = connector("dynamics")
     c._session.post = Mock(return_value=batch_response([
