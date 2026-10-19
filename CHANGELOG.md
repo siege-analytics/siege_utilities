@@ -127,6 +127,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   entities, including `opportunityid` and activity `activityid`. A response
   without a record ID raises `ConnectorError` instead of returning an empty
   string (#1427).
+- `SalesforceConnector.get_objects()` resolves dotted relationship fields and
+  matches each field segment case-insensitively, so requests such as
+  `Account.Name` and `name` return values instead of all-null columns. Output
+  labels retain the caller's spelling; absent fields and relationships remain
+  null, and empty results retain the requested columns (#1428).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
