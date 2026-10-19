@@ -35,9 +35,9 @@ __all__ = [
 def sanitize_record(row: dict[str, Any]) -> dict[str, Any]:
     """Return JSON-safe upsert fields without mutating the input row.
 
-    Recurse through dicts and lists, omitting missing dict children (None,
-    NaN, NaT, pd.NA) at every level, including top-level fields. Missing list
-    items become null, preserving their positions. Tuples become JSON lists.
+    Omit top-level missing fields (None, NaN, NaT, pd.NA). Recurse through
+    dicts and lists, keeping nested missing values as JSON null in place,
+    preserving dict keys and list positions. Tuples become JSON lists.
     Dates use ISO 8601 and numpy scalars become native Python scalars.
     Scalar leaves that strict JSON cannot encode (such as Decimal or infinity)
     keep their string representation; containers are never stringified.
@@ -47,12 +47,12 @@ def sanitize_record(row: dict[str, Any]) -> dict[str, Any]:
             circular reference, or excessive nesting cannot be represented as JSON.
     """
     try:
-        return _sanitize_value(row, path="$", ancestors=set())
+        return _sanitize_value(row, path="$", ancestors=set(), top_level=True)
     except RecursionError as exc:
         raise ConnectorError("Record nesting exceeds the JSON recursion limit") from exc
 
 
-def _sanitize_value(value: Any, *, path: str, ancestors: set[int]) -> Any:
+def _sanitize_value(value: Any, *, path: str, ancestors: set[int], top_level: bool) -> Any:
     if isinstance(value, (dict, list, tuple)):
         container_id = id(value)
         if container_id in ancestors:
@@ -63,7 +63,7 @@ def _sanitize_value(value: Any, *, path: str, ancestors: set[int]) -> Any:
                 sanitized = {}
                 for key, child in value.items():
                     # pd.isna on containers returns arrays, not a scalar flag.
-                    if pd.api.types.is_scalar(child) and pd.isna(child):
+                    if top_level and pd.api.types.is_scalar(child) and pd.isna(child):
                         continue
                     try:
                         json.dumps({key: None}, allow_nan=False)
@@ -72,11 +72,13 @@ def _sanitize_value(value: Any, *, path: str, ancestors: set[int]) -> Any:
                             f"Invalid JSON object key at {path}: {key!r}"
                         ) from exc
                     sanitized[key] = _sanitize_value(
-                        child, path=f"{path}[{key!r}]", ancestors=ancestors,
+                        child, path=f"{path}[{key!r}]", ancestors=ancestors, top_level=False,
                     )
                 return sanitized
             return [
-                _sanitize_value(child, path=f"{path}[{index}]", ancestors=ancestors)
+                _sanitize_value(
+                    child, path=f"{path}[{index}]", ancestors=ancestors, top_level=False,
+                )
                 for index, child in enumerate(value)
             ]
         finally:

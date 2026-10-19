@@ -72,13 +72,17 @@ def test_json_containers_are_preserved_and_nested_dates_use_iso8601():
 @pytest.mark.parametrize("missing", [
     None, float("nan"), pd.NaT, pd.NA, np.float32("nan"), np.datetime64("NaT"),
 ])
-def test_nested_missing_values_omit_dict_children_and_preserve_list_positions(missing):
+def test_nested_missing_values_preserve_dict_keys_and_list_positions(missing):
     child = {"missing": missing, "zero": np.int64(0), "false": np.bool_(False)}
     row = {"nested": [missing, {"child": child}, [missing, "last"]]}
 
     result = sanitize_record(row)
 
-    assert result == {"nested": [None, {"child": {"zero": 0, "false": False}}, [None, "last"]]}
+    assert result == {
+        "nested": [None, {"child": {"missing": None, "zero": 0, "false": False}}, [None, "last"]],
+    }
+    assert "missing" in result["nested"][1]["child"]
+    assert result["nested"][1]["child"]["missing"] is None
     assert type(result["nested"][1]["child"]["zero"]) is int
     assert result["nested"][1]["child"]["false"] is False
     assert child["missing"] is missing
