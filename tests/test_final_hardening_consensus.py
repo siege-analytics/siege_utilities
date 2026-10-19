@@ -351,12 +351,11 @@ def test_duckdb_geometry_roundtrip(tmp_path):
     assert back3.geometry.isna().iloc[1]
 
 
-# --- F: Snowflake write_pandas uses unquoted identifiers to match CREATE ---
+# --- F: Snowflake preserves names that require quoting across reads/writes ---
 
 def test_snowflake_create_table_quotes_identifiers(monkeypatch):
-    # CREATE must quote identifiers to match write_pandas (quoted by default),
-    # so the created columns line up with what write_pandas targets. Forcing
-    # write_pandas unquoted instead would regress existing case-sensitive tables.
+    # Mixed-case names must stay quoted in CREATE and write_pandas. Plain
+    # lowercase names fold to uppercase; see the #1421 regression tests.
     pytest.importorskip("snowflake.connector")
     import siege_utilities.analytics.snowflake_connector as sc
     import pandas as pd
@@ -372,19 +371,17 @@ def test_snowflake_create_table_quotes_identifiers(monkeypatch):
     conn = sc.SnowflakeConnector(account="a", user="u")
     conn.connection = object()
     conn.cursor = type("Cur", (), {"execute": lambda self, sql, *a, **k: executed.append(sql)})()
-    conn.upload_dataframe(pd.DataFrame({"amount": [1]}), "events", auto_create_table=True)
+    conn.upload_dataframe(pd.DataFrame({"eventAmount": [1]}), "myEvents", auto_create_table=True)
 
     create = [s for s in executed if "CREATE TABLE" in s]
     assert create, f"no CREATE TABLE executed: {executed}"
-    assert '"amount"' in create[0] and '"events"' in create[0], create[0]
+    assert '"eventAmount"' in create[0] and '"myEvents"' in create[0], create[0]
     # write_pandas must not be forced to unquoted identifiers (regression guard).
     assert wp["kwargs"].get("quote_identifiers") is not False
 
 
 def test_snowflake_get_table_info_quotes_identifier(monkeypatch):
-    # Finding #5: get_table_info must quote the table identifier so a
-    # quoted-created (case-sensitive) table is addressable. DESCRIBE/SELECT
-    # must use "table", not bare table (which Snowflake uppercases).
+    # Finding #5: mixed-case table names stay quoted in DESCRIBE/SELECT.
     pytest.importorskip("snowflake.connector")
     import siege_utilities.analytics.snowflake_connector as sc
 
@@ -402,12 +399,12 @@ def test_snowflake_get_table_info_quotes_identifier(monkeypatch):
     conn = sc.SnowflakeConnector(account="a", user="u")
     conn.connection = object()
     conn.cursor = _Cur()
-    conn.get_table_info("events")
+    conn.get_table_info("myEvents")
 
     describe = [s for s in executed if s.startswith("DESCRIBE TABLE")]
     count = [s for s in executed if s.startswith("SELECT COUNT(*)")]
-    assert describe and '"events"' in describe[0], executed
-    assert count and '"events"' in count[0], executed
+    assert describe and '"myEvents"' in describe[0], executed
+    assert count and '"myEvents"' in count[0], executed
 
 
 # --- G: census catalog populator does not double the /data path segment ---

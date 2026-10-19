@@ -112,6 +112,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Snowflake restores case-insensitive resolution for plain identifiers by
+  emitting uppercase, unquoted names (`analytics.public.events` resolves to
+  `ANALYTICS.PUBLIC.EVENTS`). **Behavior change from v4.0.0:** removes that
+  release's always-quote regression. Mixed-case, special-character and reserved
+  names retain quotes and case; uploads normalize plain column names without
+  changing the caller's DataFrame. To keep addressing a lowercase object
+  created with quotes in v4.0.0, pass its quoted spelling, such as `'"events"'`
+  (also supported for column labels). v3.23.0 had no connector implementations;
+  this fixes v4.0.0 behavior rather than restoring a pre-4.0 connector contract
+  (#1421).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting

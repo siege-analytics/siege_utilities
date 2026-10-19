@@ -9,6 +9,7 @@ from typing import Optional, Dict, List, Any, Union
 from pathlib import Path
 import json
 import os
+import re
 
 try:
     import snowflake.connector
@@ -39,8 +40,57 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 
+_UNQUOTED_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_$]*")
+# Reserved and limited keywords also need quoting in table/column contexts.
+# https://docs.snowflake.com/en/sql-reference/reserved-keywords
+_RESERVED_IDENTIFIERS = frozenset("""
+    ACCOUNT ALL ALTER AND ANY AS BETWEEN BY CASE CAST CHECK COLUMN CONNECT
+    CONNECTION CONSTRAINT CREATE CROSS CURRENT CURRENT_DATE CURRENT_TIME
+    CURRENT_TIMESTAMP CURRENT_USER DATABASE DELETE DISTINCT DROP ELSE EXISTS
+    FALSE FOLLOWING FOR FROM FULL GRANT GROUP GSCLUSTER HAVING ILIKE IN INCREMENT
+    INNER INSERT INTERSECT INTO IS ISSUE JOIN LATERAL LEFT LIKE LOCALTIME
+    LOCALTIMESTAMP MINUS NATURAL NOT NULL OF ON OR ORDER ORGANIZATION QUALIFY
+    REGEXP REVOKE RIGHT RLIKE ROW ROWS SAMPLE SCHEMA SELECT SET SOME START TABLE
+    TABLESAMPLE THEN TO TRIGGER TRUE TRY_CAST UNION UNIQUE UPDATE USING VALUES
+    VIEW WHEN WHENEVER WHERE WINDOW WITH
+""".split())
+
+
+def _format_identifier(name: str, *, label: str = "identifier", for_sql: bool = True) -> str:
+    """Resolve one name, returning SQL or its stored spelling for SDK/metadata.
+
+    Plain lower/upper case names fold to uppercase; mixed case, punctuation,
+    reserved words and already quoted names retain case. Dots inside a name
+    are literal, so callers compose qualified references from separate names.
+    Quote escaping keeps special names inside a single SQL identifier. Reject
+    empty names, controls and statement/comment delimiters before execution.
+    """
+    if not isinstance(name, str) or not name:
+        raise ValueError(f"SQL {label} must be a non-empty string")
+    quoted = re.fullmatch(r'"(?:[^"]|"")+"', name) is not None
+    if quoted:
+        name = name[1:-1].replace('""', '"')
+    if (not name or len(name) > 255 or any(ord(char) < 32 or 127 <= ord(char) <= 159 for char in name)
+            or any(token in name for token in (";", "--", "/*", "*/"))):
+        raise ValueError(f"Invalid SQL {label}: empty, too long, or contains SQL delimiters/control characters")
+    if (not quoted and _UNQUOTED_IDENTIFIER.fullmatch(name)
+            and (name == name.lower() or name == name.upper())
+            and name.upper() not in _RESERVED_IDENTIFIERS):
+        return name.upper()
+    if for_sql:
+        return '"' + name.replace('"', '""') + '"'
+    return name
+
+
 class SnowflakeConnector:
-    """Snowflake data warehouse connector with advanced features."""
+    """Snowflake connector with case-insensitive plain identifier resolution.
+
+    Generated SQL folds plain lower/upper case identifiers to uppercase.
+    Mixed case and special names stay quoted. To address a lowercase object
+    created with quotes in v4.0.0, include the delimiters, e.g. '"events"'.
+    This also applies to DataFrame columns; uploads do not rename the input.
+    Raw SQL passed to execute_query/execute_ddl/download_dataframe is unchanged.
+    """
 
     def __init__(self,
                  account: Optional[str] = None,
@@ -127,11 +177,11 @@ class SnowflakeConnector:
         connection_params = {
             'account': self.account,
             'user': self.user,
-            'warehouse': self.warehouse,
-            'database': self.database,
-            'schema': self.schema,
-            'role': self.role
         }
+        for key in ('warehouse', 'database', 'schema', 'role'):
+            value = getattr(self, key)
+            if value is not None:
+                connection_params[key] = _format_identifier(value, label=key)
 
         if self.password:
             connection_params['password'] = self.password
@@ -237,30 +287,35 @@ class SnowflakeConnector:
         if not self.connection:
             self.connect()
 
-        from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
-        validate_identifier(table_name, label="table name")
+        table_sql = _format_identifier(table_name, label="table name")
+        column_sql = [_format_identifier(str(col), label="column name") for col in df.columns]
+        column_names = [_format_identifier(str(col), label="column name", for_sql=False) for col in df.columns]
+        if len(set(column_names)) != len(column_names):
+            raise ValueError("DataFrame columns resolve to duplicate Snowflake identifiers")
+        upload_df = df.copy(deep=False)
+        upload_df.columns = column_names
         try:
             if database:
-                validate_identifier(database, label="database name")
-                self.cursor.execute(f'USE DATABASE "{database}"')
+                self.cursor.execute(f'USE DATABASE {_format_identifier(database, label="database name")}')
             if schema:
-                validate_identifier(schema, label="schema name")
-                self.cursor.execute(f'USE SCHEMA "{schema}"')
+                self.cursor.execute(f'USE SCHEMA {_format_identifier(schema, label="schema name")}')
 
             if auto_create_table:
                 self._create_table_from_dataframe(df, table_name, overwrite)
 
-            # write_pandas quotes identifiers by default (case-sensitive, exact
-            # DataFrame column case). _create_table_from_dataframe quotes to
-            # match, so the created columns line up with what write_pandas
-            # targets -- and an existing case-sensitive table (auto_create off)
-            # is still addressed correctly.
+            # The SDK has one quoting switch for the whole upload. Normalize
+            # plain names first so even a mixed-name upload targets the same
+            # objects as our DDL. All-plain uploads use unquoted identifiers.
+            # The SDK escapes column quotes itself, but not table-name quotes.
+            quote_identifiers = any(name.startswith('"') for name in [table_sql, *column_sql])
+            upload_table = table_sql[1:-1] if table_sql.startswith('"') else table_sql
             success, nchunks, nrows, _ = write_pandas(
                 self.connection,
-                df,
-                table_name,
+                upload_df,
+                upload_table,
                 auto_create_table=False,
                 overwrite=overwrite,
+                quote_identifiers=quote_identifiers,
             )
 
             if not success:
@@ -313,22 +368,17 @@ class SnowflakeConnector:
 
     def _create_table_from_dataframe(self, df: 'pd.DataFrame', table_name: str, overwrite: bool) -> None:
         """Create Snowflake table based on DataFrame structure."""
-        from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
-        validate_identifier(table_name, label="table name")
-        # Quote identifiers so CREATE matches write_pandas (which quotes by
-        # default, preserving the DataFrame's exact column case). Unquoted
-        # identifiers are uppercased by Snowflake and would not match the
-        # quoted columns write_pandas writes, breaking read-back.
-        if overwrite:
-            self.cursor.execute(f'DROP TABLE IF EXISTS "{table_name}"')
-
+        table_sql = _format_identifier(table_name, label="table name")
         columns = []
         for col_name, dtype in df.dtypes.items():
-            validate_identifier(str(col_name), label="column name", allow_dotted=False)
+            column_sql = _format_identifier(str(col_name), label="column name")
             snowflake_type = self._map_pandas_to_snowflake_type(dtype)
-            columns.append(f'"{col_name}" {snowflake_type}')
+            columns.append(f'{column_sql} {snowflake_type}')
 
-        create_statement = f'CREATE TABLE IF NOT EXISTS "{table_name}" ({", ".join(columns)})'
+        if overwrite:
+            self.cursor.execute(f'DROP TABLE IF EXISTS {table_sql}')
+
+        create_statement = f'CREATE TABLE IF NOT EXISTS {table_sql} ({", ".join(columns)})'
         self.cursor.execute(create_statement)
         log.info(f"Created table {table_name} with {len(columns)} columns")
 
@@ -368,24 +418,24 @@ class SnowflakeConnector:
         if not self.connection:
             self.connect()
 
-        from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
-        validate_identifier(table_name, label="table name")
+        table_sql = _format_identifier(table_name, label="table name")
+        database = database if database is not None else self.database
+        schema = schema if schema is not None else self.schema
         try:
             if database:
-                validate_identifier(database, label="database name")
-                self.cursor.execute(f'USE DATABASE "{database}"')
+                database_sql = _format_identifier(database, label="database name")
+                self.cursor.execute(f'USE DATABASE {database_sql}')
             if schema:
-                validate_identifier(schema, label="schema name")
-                self.cursor.execute(f'USE SCHEMA "{schema}"')
+                schema_sql = _format_identifier(schema, label="schema name")
+                self.cursor.execute(f'USE SCHEMA {schema_sql}')
+                table_sql = f'{schema_sql}.{table_sql}'
+                if database:
+                    table_sql = f'{database_sql}.{table_sql}'
 
-            # Quote the identifier so a table CREATEd with quotes (case-sensitive,
-            # the write_pandas / _create_table_from_dataframe convention) is
-            # addressable here. Unquoted DESCRIBE/SELECT would uppercase the name
-            # and miss a mixed-case table.
-            self.cursor.execute(f'DESCRIBE TABLE "{table_name}"')
+            self.cursor.execute(f'DESCRIBE TABLE {table_sql}')
             columns = self.cursor.fetchall()
 
-            self.cursor.execute(f'SELECT COUNT(*) FROM "{table_name}"')
+            self.cursor.execute(f'SELECT COUNT(*) FROM {table_sql}')
             row_count = self.cursor.fetchone()[0]
 
             self.cursor.execute(
@@ -396,7 +446,7 @@ class SnowflakeConnector:
                   AND TABLE_SCHEMA = CURRENT_SCHEMA()
                   AND TABLE_CATALOG = CURRENT_DATABASE()
                 """,
-                (table_name,),
+                (_format_identifier(table_name, label="table name", for_sql=False),),
             )
             size_info = self.cursor.fetchone()
 
@@ -431,14 +481,11 @@ class SnowflakeConnector:
         if not self.connection:
             self.connect()
 
-        from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
         try:
             if database:
-                validate_identifier(database, label="database name")
-                self.cursor.execute(f'USE DATABASE "{database}"')
+                self.cursor.execute(f'USE DATABASE {_format_identifier(database, label="database name")}')
             if schema:
-                validate_identifier(schema, label="schema name")
-                self.cursor.execute(f'USE SCHEMA "{schema}"')
+                self.cursor.execute(f'USE SCHEMA {_format_identifier(schema, label="schema name")}')
 
             self.cursor.execute("SHOW TABLES")
             tables = [row[1] for row in self.cursor.fetchall()]
