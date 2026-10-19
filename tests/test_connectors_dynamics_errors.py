@@ -32,6 +32,11 @@ from siege_utilities.connectors._protocol import (  # noqa: E402
 from siege_utilities.connectors.dynamics import DynamicsConnector  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def no_retry_sleep(monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda _: None)
+
+
 class _FakeResp:
     def __init__(
         self, status_code, *, json_body=None, text="", headers=None, json_raises=False

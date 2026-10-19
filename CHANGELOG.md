@@ -112,6 +112,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Documented behavior change from v4.0.0:** CRM transport and server-error
+  retries are limited to GET, PUT, and DELETE. POST and PATCH requests are
+  sent once, avoiding duplicate creates after a lost response. HTTP 429
+  responses wait for Retry-After (seconds or HTTP date), falling back to the
+  configured backoff; only idempotent methods retry. Auth and rate-limit
+  errors stop batch upserts, and failed HubSpot token validation leaves the
+  connector disconnected. Dynamics batch upserts inspect inner responses,
+  report missing responses as failures, and mark every record in a rolled-back
+  changeset as failed (#1417). v3.23.0 had no connector implementations.
+
 - **Documented behavior change from v4.0.0:** Salesforce, HubSpot, Zoho,
   and Dynamics `to_crm_*` helpers map missing numeric, date, and string values
   (`None`, NaN, NaT, and `pd.NA`) to `None` before conversion. Missing required

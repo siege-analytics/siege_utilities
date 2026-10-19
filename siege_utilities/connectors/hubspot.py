@@ -31,6 +31,7 @@ try:
 except ImportError:  # pragma: no cover
     REQUESTS_AVAILABLE = False
 
+from siege_utilities.connectors._retry import rate_limit_error, retry_attempts
 from siege_utilities.connectors._protocol import (
     ConnectorAuthError,
     ConnectorError,
@@ -463,6 +464,8 @@ class HubSpotConnector:
             path = f"/crm/v3/objects/{object_type}/batch/upsert"
             try:
                 resp = self.request("POST", path, json_body={"inputs": inputs})
+            except (ConnectorAuthError, ConnectorRateLimitError):
+                raise
             except ConnectorError as exc:
                 for i, _ in enumerate(batch):
                     all_errors.append(UpsertError(
@@ -689,11 +692,9 @@ class HubSpotConnector:
         self._authenticated = True
         try:
             self.request("GET", "/crm/v3/objects/contacts", params={"limit": 1})
-        except ConnectorAuthError:
+        except Exception:
             self._authenticated = False
             raise
-        except ConnectorError:
-            pass
         log.info("Private app token validated")
 
     def _exchange_token(self, token_url: str, payload: dict[str, str]) -> None:
@@ -742,7 +743,8 @@ class HubSpotConnector:
         url = f"{HUBSPOT_API_BASE}{path}"
         last_exc: BaseException | None = None
 
-        for attempt in range(1, self._retry_attempts + 1):
+        attempts = retry_attempts(method, self._retry_attempts)
+        for attempt in range(1, attempts + 1):
             try:
                 resp = self._session.request(
                     method, url,
@@ -758,9 +760,9 @@ class HubSpotConnector:
                 last_exc = exc
                 log.warning(
                     "HubSpot %s %s attempt %d/%d failed: %s",
-                    method, path, attempt, self._retry_attempts, exc,
+                    method, path, attempt, attempts, exc,
                 )
-                if attempt < self._retry_attempts:
+                if attempt < attempts:
                     time.sleep(self._retry_backoff ** attempt)
                 continue
 
@@ -769,11 +771,13 @@ class HubSpotConnector:
                 raise ConnectorAuthError(f"HubSpot {resp.status_code}: {error_msg}")
 
             if resp.status_code == 429:
-                retry_after = resp.headers.get("Retry-After")
-                raise ConnectorRateLimitError(
-                    f"HubSpot rate limit hit on {method} {path}.",
-                    retry_after=float(retry_after) if retry_after else None,
+                error = rate_limit_error(
+                    resp.headers, f"HubSpot rate limit hit on {method} {path}.",
+                    self._retry_backoff ** attempt,
                 )
+                if attempt < attempts:
+                    continue
+                raise error
 
             if resp.status_code == 404:
                 raise ConnectorNotFoundError(f"HubSpot resource not found: {path}")
@@ -784,9 +788,9 @@ class HubSpotConnector:
                 )
                 log.warning(
                     "HubSpot %s %s 5xx %d attempt %d/%d",
-                    method, path, resp.status_code, attempt, self._retry_attempts,
+                    method, path, resp.status_code, attempt, attempts,
                 )
-                if attempt < self._retry_attempts:
+                if attempt < attempts:
                     time.sleep(self._retry_backoff ** attempt)
                 continue
 
@@ -806,7 +810,7 @@ class HubSpotConnector:
                 ) from exc
 
         raise ConnectorError(
-            f"HubSpot {method} {path} failed after {self._retry_attempts} "
+            f"HubSpot {method} {path} failed after {attempts} "
             f"attempts: {last_exc}"
         )
 

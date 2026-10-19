@@ -43,6 +43,7 @@ from siege_utilities.connectors._protocol import (
     UpsertResult,
     sanitize_record,
 )
+from siege_utilities.connectors._retry import rate_limit_error, retry_attempts
 from siege_utilities.connectors._query_utils import _validate_identifier
 
 log = logging.getLogger(__name__)
@@ -1259,7 +1260,8 @@ class SalesforceConnector:
         url = f"{self._instance_url}{path}"
         last_exc: BaseException | None = None
 
-        for attempt in range(1, self._retry_attempts + 1):
+        attempts = retry_attempts(method, self._retry_attempts)
+        for attempt in range(1, attempts + 1):
             try:
                 resp = self._session.request(
                     method, url,
@@ -1275,9 +1277,9 @@ class SalesforceConnector:
                 last_exc = exc
                 log.warning(
                     "Salesforce %s %s attempt %d/%d failed: %s",
-                    method, path, attempt, self._retry_attempts, exc,
+                    method, path, attempt, attempts, exc,
                 )
-                if attempt < self._retry_attempts:
+                if attempt < attempts:
                     time.sleep(self._retry_backoff ** attempt)
                 continue
 
@@ -1288,11 +1290,13 @@ class SalesforceConnector:
                 )
 
             if resp.status_code == 429:
-                retry_after = resp.headers.get("Retry-After")
-                raise ConnectorRateLimitError(
-                    f"Salesforce rate limit hit on {method} {path}.",
-                    retry_after=float(retry_after) if retry_after else None,
+                error = rate_limit_error(
+                    resp.headers, f"Salesforce rate limit hit on {method} {path}.",
+                    self._retry_backoff ** attempt,
                 )
+                if attempt < attempts:
+                    continue
+                raise error
 
             if resp.status_code == 404:
                 raise ConnectorNotFoundError(
@@ -1305,9 +1309,9 @@ class SalesforceConnector:
                 )
                 log.warning(
                     "Salesforce %s %s 5xx %d attempt %d/%d",
-                    method, path, resp.status_code, attempt, self._retry_attempts,
+                    method, path, resp.status_code, attempt, attempts,
                 )
-                if attempt < self._retry_attempts:
+                if attempt < attempts:
                     time.sleep(self._retry_backoff ** attempt)
                 continue
 
@@ -1329,7 +1333,7 @@ class SalesforceConnector:
                 ) from exc
 
         raise ConnectorError(
-            f"Salesforce {method} {path} failed after {self._retry_attempts} "
+            f"Salesforce {method} {path} failed after {attempts} "
             f"attempts: {last_exc}"
         )
 

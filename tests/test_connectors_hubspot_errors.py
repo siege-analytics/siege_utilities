@@ -27,6 +27,11 @@ from siege_utilities.connectors._protocol import (
 from siege_utilities.connectors.hubspot import HubSpotConnector
 
 
+@pytest.fixture(autouse=True)
+def no_retry_sleep(monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda _: None)
+
+
 class _FakeResp:
     def __init__(self, status_code, *, json_body=None, text="", headers=None, json_raises=False):
         self.status_code = status_code

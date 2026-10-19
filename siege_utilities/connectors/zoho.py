@@ -25,6 +25,7 @@ try:
 except ImportError:  # pragma: no cover
     REQUESTS_AVAILABLE = False
 
+from siege_utilities.connectors._retry import rate_limit_error, retry_attempts
 from siege_utilities.connectors._protocol import (
     ConnectorAuthError,
     ConnectorError,
@@ -492,6 +493,8 @@ class ZohoConnector:
                     "data": batch,
                     "duplicate_check_fields": [match_field],
                 })
+            except (ConnectorAuthError, ConnectorRateLimitError):
+                raise
             except ConnectorError as exc:
                 for i in range(len(batch)):
                     all_errors.append(UpsertError(
@@ -731,7 +734,8 @@ class ZohoConnector:
         url = f"{self._dc['api_url']}{path}"
         last_exc: BaseException | None = None
 
-        for attempt in range(1, self._retry_attempts + 1):
+        attempts = retry_attempts(method, self._retry_attempts)
+        for attempt in range(1, attempts + 1):
             try:
                 resp = self._session.request(
                     method, url,
@@ -747,9 +751,9 @@ class ZohoConnector:
                 last_exc = exc
                 log.warning(
                     "Zoho %s %s attempt %d/%d failed: %s",
-                    method, path, attempt, self._retry_attempts, exc,
+                    method, path, attempt, attempts, exc,
                 )
-                if attempt < self._retry_attempts:
+                if attempt < attempts:
                     time.sleep(self._retry_backoff ** attempt)
                 continue
 
@@ -758,11 +762,13 @@ class ZohoConnector:
                 raise ConnectorAuthError(f"Zoho {resp.status_code}: {error_msg}")
 
             if resp.status_code == 429:
-                retry_after = resp.headers.get("Retry-After")
-                raise ConnectorRateLimitError(
-                    f"Zoho rate limit hit on {method} {path}.",
-                    retry_after=float(retry_after) if retry_after else None,
+                error = rate_limit_error(
+                    resp.headers, f"Zoho rate limit hit on {method} {path}.",
+                    self._retry_backoff ** attempt,
                 )
+                if attempt < attempts:
+                    continue
+                raise error
 
             if resp.status_code == 404:
                 raise ConnectorNotFoundError(f"Zoho resource not found: {path}")
@@ -771,9 +777,9 @@ class ZohoConnector:
                 last_exc = ConnectorError(f"Zoho {resp.status_code} on {method} {path}.")
                 log.warning(
                     "Zoho %s %s 5xx %d attempt %d/%d",
-                    method, path, resp.status_code, attempt, self._retry_attempts,
+                    method, path, resp.status_code, attempt, attempts,
                 )
-                if attempt < self._retry_attempts:
+                if attempt < attempts:
                     time.sleep(self._retry_backoff ** attempt)
                 continue
 
@@ -793,7 +799,7 @@ class ZohoConnector:
                 ) from exc
 
         raise ConnectorError(
-            f"Zoho {method} {path} failed after {self._retry_attempts} "
+            f"Zoho {method} {path} failed after {attempts} "
             f"attempts: {last_exc}"
         )
 

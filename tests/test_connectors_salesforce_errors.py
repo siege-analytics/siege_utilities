@@ -29,6 +29,11 @@ from siege_utilities.connectors.salesforce import (
 )
 
 
+@pytest.fixture(autouse=True)
+def no_retry_sleep(monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda _: None)
+
+
 class _FakeResp:
     def __init__(
         self,

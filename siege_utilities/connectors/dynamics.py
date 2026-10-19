@@ -34,6 +34,7 @@ try:
 except ImportError:
     MSAL_AVAILABLE = False
 
+from siege_utilities.connectors._retry import rate_limit_error, retry_attempts
 from siege_utilities.connectors._protocol import (
     ConnectorAuthError,
     ConnectorError,
@@ -584,17 +585,54 @@ class DynamicsConnector:
         success_count = 0
         failure_count = 0
 
-        if resp.status_code in (200, 202):
-            for i, rec in enumerate(records):
-                success_count += 1
-                updated.append(rec.get(match_field, f"record-{base_index + i}"))
-        else:
+        self._raise_batch_control_error(resp.status_code, resp.headers, resp.text)
+        if resp.status_code not in (200, 202):
             for i, rec in enumerate(records):
                 failure_count += 1
                 errors.append(UpsertError(
                     record_index=base_index + i,
                     message=f"Batch failed with status {resp.status_code}: {resp.text[:200]}",
                 ))
+        else:
+            parts = self._parse_batch_response(resp)
+            by_id = {}
+            invalid = False
+            for position, (content_id, status, headers, body) in enumerate(parts, 1):
+                self._raise_batch_control_error(status, headers, body)
+                try:
+                    index = int(content_id) if content_id is not None else position
+                except ValueError:
+                    invalid = True
+                    continue
+                if index in by_id or not 1 <= index <= len(records):
+                    invalid = True
+                by_id[index] = (status, body)
+
+            # All submitted operations share one atomic changeset. A failed
+            # operation rolls back the other records, even if parts are absent
+            # or a response includes earlier successful operation statuses.
+            failed = next(((status, body) for _, status, _, body in parts
+                           if not 200 <= status < 300), None)
+            for i, rec in enumerate(records):
+                result = by_id.get(i + 1)
+                if failed is not None:
+                    status, body = result if result and not 200 <= result[0] < 300 else failed
+                    message, code = self._batch_error_detail(status, body)
+                    errors.append(UpsertError(
+                        record_index=base_index + i,
+                        message=f"Changeset failed or rolled back: {message}",
+                        code=code,
+                    ))
+                elif invalid or result is None:
+                    errors.append(UpsertError(
+                        record_index=base_index + i,
+                        message="Missing or invalid Dynamics batch response part",
+                    ))
+                else:
+                    success_count += 1
+                    target = created if result[0] == 201 else updated
+                    target.append(rec.get(match_field, f"record-{base_index + i}"))
+            failure_count = len(errors)
 
         return UpsertResult(
             success_count=success_count,
@@ -603,6 +641,52 @@ class DynamicsConnector:
             updated_ids=updated,
             errors=errors,
         )
+
+    def _raise_batch_control_error(self, status: int, headers: Mapping[str, str], body: str) -> None:
+        if status in (401, 403):
+            raise ConnectorAuthError(f"Dynamics {status}: {body[:200]}")
+        if status == 429:
+            raise rate_limit_error(
+                headers, "Dynamics rate limit hit on POST $batch.", self._retry_backoff,
+            )
+
+    @staticmethod
+    def _parse_batch_response(resp: requests.Response) -> list[tuple[str | None, int, Any, str]]:
+        """Read nested MIME changesets and the embedded HTTP responses."""
+        from email.parser import Parser
+
+        content_type = resp.headers.get("Content-Type", "")
+        message = Parser().parsestr(f"Content-Type: {content_type}\n\n{resp.text}")
+        parts = []
+        for part in message.walk():
+            if part.get_content_type() != "application/http":
+                continue
+            payload = part.get_payload()
+            if not isinstance(payload, str):
+                continue
+            status_line, _, rest = payload.lstrip().partition("\n")
+            tokens = status_line.split()
+            if len(tokens) < 2 or not tokens[0].startswith("HTTP/") or not tokens[1].isdigit():
+                continue
+            http = Parser().parsestr(rest)
+            parts.append((
+                part.get("Content-ID", http.get("Content-ID")),
+                int(tokens[1]), http, http.get_payload(),
+            ))
+        return parts
+
+    @staticmethod
+    def _batch_error_detail(status: int, body: str) -> tuple[str, str | None]:
+        import json
+
+        try:
+            payload = json.loads(body)
+            error = payload.get("error", {}) if isinstance(payload, dict) else {}
+            if isinstance(error, dict) and error.get("message"):
+                return str(error["message"]), error.get("code")
+        except ValueError:
+            pass
+        return f"HTTP {status}: {body[:200]}", str(status)
 
     # ------------------------------------------------------------------
     # OData query helpers
@@ -712,7 +796,8 @@ class DynamicsConnector:
         url = f"{self._environment_url}{path}" if not path.startswith("http") else path
         last_exc: BaseException | None = None
 
-        for attempt in range(1, self._retry_attempts + 1):
+        attempts = retry_attempts(method, self._retry_attempts)
+        for attempt in range(1, attempts + 1):
             try:
                 resp = self._session.request(
                     method, url,
@@ -728,9 +813,9 @@ class DynamicsConnector:
                 last_exc = exc
                 log.warning(
                     "Dynamics %s %s attempt %d/%d failed: %s",
-                    method, path, attempt, self._retry_attempts, exc,
+                    method, path, attempt, attempts, exc,
                 )
-                if attempt < self._retry_attempts:
+                if attempt < attempts:
                     time.sleep(self._retry_backoff ** attempt)
                 continue
 
@@ -739,11 +824,13 @@ class DynamicsConnector:
                 raise ConnectorAuthError(f"Dynamics {resp.status_code}: {error_msg}")
 
             if resp.status_code == 429:
-                retry_after = resp.headers.get("Retry-After")
-                raise ConnectorRateLimitError(
-                    f"Dynamics rate limit hit on {method} {path}.",
-                    retry_after=float(retry_after) if retry_after else None,
+                error = rate_limit_error(
+                    resp.headers, f"Dynamics rate limit hit on {method} {path}.",
+                    self._retry_backoff ** attempt,
                 )
+                if attempt < attempts:
+                    continue
+                raise error
 
             if resp.status_code == 404:
                 raise ConnectorNotFoundError(f"Dynamics resource not found: {path}")
@@ -752,9 +839,9 @@ class DynamicsConnector:
                 last_exc = ConnectorError(f"Dynamics {resp.status_code} on {method} {path}.")
                 log.warning(
                     "Dynamics %s %s 5xx %d attempt %d/%d",
-                    method, path, resp.status_code, attempt, self._retry_attempts,
+                    method, path, resp.status_code, attempt, attempts,
                 )
-                if attempt < self._retry_attempts:
+                if attempt < attempts:
                     time.sleep(self._retry_backoff ** attempt)
                 continue
 
@@ -777,7 +864,7 @@ class DynamicsConnector:
                 ) from exc
 
         raise ConnectorError(
-            f"Dynamics {method} {path} failed after {self._retry_attempts} "
+            f"Dynamics {method} {path} failed after {attempts} "
             f"attempts: {last_exc}"
         )
 
