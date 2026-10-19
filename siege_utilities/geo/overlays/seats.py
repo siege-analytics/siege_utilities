@@ -44,7 +44,7 @@ class SeatAssignment:
         plan_name: Name of the redistricting plan.
         plan_year: Year the plan took effect.
         from_year: Start year of this assignment.
-        to_year: End year of this assignment.
+        to_year: End year of this assignment (None = ongoing).
         containment_pct: Fraction of the queried geography in this district.
     """
 
@@ -66,7 +66,7 @@ class SeatsOverlayResult:
     Attributes:
         geoid: Queried GEOID.
         assignments: Seat assignments ordered by time.
-        current_districts: Districts containing the GEOID now.
+        current_districts: Latest assignment per office, preferring ongoing seats.
     """
 
     geoid: str = ""
@@ -74,14 +74,18 @@ class SeatsOverlayResult:
 
     @property
     def current_districts(self) -> list[SeatAssignment]:
-        if not self.assignments:
-            return []
-        max_year = max(
-            (a.to_year or a.from_year or 0) for a in self.assignments
-        )
+        """Select one assignment per office, in first-seen office order.
+
+        Ongoing assignments outrank ended assignments. Otherwise prefer the
+        latest end year. Break ties with the latest start year, keeping the
+        first assignment when both dates tie.
+        """
+        assignments_by_office: dict[str, list[SeatAssignment]] = {}
+        for assignment in self.assignments:
+            assignments_by_office.setdefault(assignment.office, []).append(assignment)
         return [
-            a for a in self.assignments
-            if (a.to_year or a.from_year or 0) == max_year
+            max(assignments, key=lambda a: (a.to_year is None, a.to_year or 0, a.from_year or 0))
+            for assignments in assignments_by_office.values()
         ]
 
     @property

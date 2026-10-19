@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Optional
 
+from siege_utilities.config.census_registry import FIPS_TO_STATE
 from siege_utilities.geo.overlay_registry import PlaceHistoryOverlay
 
 log = logging.getLogger(__name__)
@@ -35,8 +36,8 @@ class DistrictAssignment:
         plan_type: Congressional, state senate, or state house.
         district_id: District identifier (e.g., "TX-28").
         state: State abbreviation.
-        from_date: When this assignment began.
-        to_date: When this assignment ended (None = still active).
+        from_date: Inclusive start date (None = no lower bound).
+        to_date: Exclusive end date (None = still active).
         enacted_by: Who enacted the plan.
         court_case: Court case if court-ordered.
         containment_pct: Fraction of queried geography in this district.
@@ -84,11 +85,12 @@ class RedistrictingOverlayResult:
         return [a for a in self.assignments if a.plan_type == plan_type]
 
     def active_at(self, when: date) -> list[DistrictAssignment]:
+        """Return assignments active in [from_date, to_date); None is unbounded."""
         result = []
         for a in self.assignments:
             if a.from_date and a.from_date > when:
                 continue
-            if a.to_date and a.to_date < when:
+            if a.to_date and a.to_date <= when:
                 continue
             result.append(a)
         return result
@@ -124,13 +126,19 @@ class DictRedistrictingDataProvider(RedistrictingDataProvider):
         to_year: int,
         state_fips: Optional[str] = None,
     ) -> list[DistrictAssignment]:
-        from_date = date(from_year, 1, 1)
-        to_date = date(to_year, 12, 31)
+        """Return assignments overlapping the inclusive years, in either order.
+
+        Assignments use [from_date, to_date), with None for an unbounded end.
+        The state filter accepts FIPS codes or abbreviations.
+        """
+        from_date = date(min(from_year, to_year), 1, 1)
+        to_date = date(max(from_year, to_year), 12, 31)
+        state = FIPS_TO_STATE.get(state_fips, state_fips.upper()) if state_fips else None
         results = []
         for a in self._assignments:
-            if state_fips and a.state.upper() != state_fips.upper():
+            if state and a.state.upper() != state:
                 continue
-            if a.to_date and a.to_date < from_date:
+            if a.to_date and a.to_date <= from_date:
                 continue
             if a.from_date and a.from_date > to_date:
                 continue

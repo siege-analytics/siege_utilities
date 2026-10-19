@@ -112,6 +112,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Place-history election and redistricting providers match state FIPS filters
+  to state abbreviations and accept reversed year ranges. Current seats are
+  selected per office, with ongoing assignments taking precedence.
+  Redistricting assignments use inclusive start dates and exclusive end dates,
+  so a shared handover date selects only the new plan (#1466).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
