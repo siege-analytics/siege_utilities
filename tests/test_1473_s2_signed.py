@@ -100,7 +100,7 @@ def test_signed_sql_between_matches_unsigned_membership(s2, cell_ids):
         cid for cid in candidates
         if any(lo <= cid <= hi for lo, hi in unsigned_ranges)
     }
-    connection = sqlite3.connect(":memory:")
+    connection = sqlite3.connect(":memory:", timeout=5.0)
     try:
         connection.execute("CREATE TABLE points (cell_id BIGINT)")
         connection.executemany(
