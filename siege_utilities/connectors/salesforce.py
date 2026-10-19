@@ -22,8 +22,9 @@ from __future__ import annotations
 import csv
 import io
 import logging
+import math
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable, Mapping
 from urllib.parse import urlencode
 
@@ -178,6 +179,8 @@ class SOQLQuery:
 
         Supports equality, comparison, IN, NOT IN, LIKE, and null checks.
         Multiple calls are joined with AND.
+        Datetimes must be timezone-aware and are converted to UTC.
+        Dates are unquoted ISO literals; non-finite floats raise ValueError.
         """
         _validate_identifier(field, allow_dotted=True)
         if eq is not _UNSET:
@@ -260,11 +263,19 @@ class SOQLQuery:
 
 
 def _soql_literal(value: Any) -> str:
-    """Convert a Python value to a SOQL literal."""
+    """Render SOQL literals, requiring aware datetimes and finite floats."""
     if value is None:
         return "null"
     if isinstance(value, bool):
         return "true" if value else "false"
+    if isinstance(value, datetime):
+        if value.utcoffset() is None:
+            raise ValueError("SOQL datetime values must be timezone-aware")
+        return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError("SOQL float values must be finite")
     if isinstance(value, (int, float)):
         return str(value)
     escaped = str(value).replace("\\", "\\\\").replace("'", "\\'")
@@ -1096,22 +1107,14 @@ class SalesforceConnector:
 
     @staticmethod
     def _soql_condition(field: str, value: Any) -> str:
-        """Translate a single key-value filter into a SOQL condition."""
+        """Build a filter using the same typed literals as SOQLQuery.where."""
         _validate_identifier(field, allow_dotted=True)
-        if value is None:
-            return f"{field} = null"
-        if isinstance(value, bool):
-            return f"{field} = {'true' if value else 'false'}"
-        if isinstance(value, (int, float)):
-            return f"{field} = {value}"
         if isinstance(value, list):
             if not value:
                 return f"{field} = null"
-            escaped = [SalesforceConnector._soql_escape(str(v)) for v in value]
-            in_clause = ", ".join(f"'{e}'" for e in escaped)
+            in_clause = ", ".join(_soql_literal(v) for v in value)
             return f"{field} IN ({in_clause})"
-        escaped_str = SalesforceConnector._soql_escape(str(value))
-        return f"{field} = '{escaped_str}'"
+        return f"{field} = {_soql_literal(value)}"
 
     @staticmethod
     def _soql_escape(value: str) -> str:
