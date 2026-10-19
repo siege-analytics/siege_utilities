@@ -116,10 +116,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   preserving co-located points and points with no target within `max_distance`.
   Results keep one point geometry and expose `distance` and `index_right`
   without backend ranking columns. The lazy join no longer retains a checkpoint
-  or temporary views per call. Input `distance` columns are replaced by the
-  computed distance; input `index_right` and duplicate output names, including
-  suffix collisions, raise `ValueError`. Drop or rename a previous result's
-  `index_right` before another nearest join (#1463).
+  or temporary views per call. Shared input `distance` columns are preserved as
+  `distance_left` and `distance_right`; single-sided input `distance` is still
+  replaced by the computed distance. Input `index_right` and duplicate output
+  names, including suffix collisions, raise `ValueError`. Drop or rename a
+  previous result's `index_right` before another nearest join (#1463).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting

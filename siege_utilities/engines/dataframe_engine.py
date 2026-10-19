@@ -1853,9 +1853,11 @@ class SparkEngine(DataFrameEngine):
         Spark has no index, so index_right is a generated target row identifier
         (unique, not necessarily contiguous). The lazy plan assigns point
         identities once, without checkpoints or session temporary views.
-        Input distance columns are replaced by the computed distance. An input
-        index_right or duplicate output names raise ValueError. Drop or rename
-        index_right before passing a previous nearest result into another join.
+        A single-sided input distance is replaced by the computed distance.
+        Shared input distance columns are preserved as distance_left and
+        distance_right. An input index_right or duplicate output names raise
+        ValueError. Drop or rename index_right before passing a previous nearest
+        result into another join.
         """
         from collections import Counter
         from pyspark.sql import Window, functions as F
@@ -1867,8 +1869,11 @@ class SparkEngine(DataFrameEngine):
         k_lit = int(k)
         max_distance_lit = float(max_distance) if max_distance is not None else None
 
-        point_columns = [c for c in points.columns if c != "distance"]
-        target_columns = [c for c in targets.columns if c not in (target_geom, "distance")]
+        shared_distance = "distance" in points.columns and "distance" in targets.columns
+        point_columns = [c for c in points.columns if c != "distance" or shared_distance]
+        target_columns = [
+            c for c in targets.columns if c != target_geom and (c != "distance" or shared_distance)
+        ]
         shared = set(point_columns) & set(target_columns)
         point_output = [(c, c + "_left" if c in shared and c != point_geom else c) for c in point_columns]
         target_output = [(c, c + "_right" if c in shared else c) for c in target_columns]

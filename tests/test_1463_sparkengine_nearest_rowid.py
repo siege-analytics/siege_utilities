@@ -67,7 +67,7 @@ def test_repeated_calls_do_not_retain_session_state(nearest_engine, frames):
 
 
 @pytest.mark.parametrize("side", ["points", "targets", "both"])
-def test_input_distance_is_replaced(nearest_engine, frames, side):
+def test_input_distance_columns(nearest_engine, frames, side):
     from pyspark.sql import functions as F
 
     points, targets = frames
@@ -77,12 +77,56 @@ def test_input_distance_is_replaced(nearest_engine, frames, side):
         targets = targets.withColumn("distance", F.lit(84.0))
     result = nearest_engine.nearest(points, targets)
     assert result.columns.count("distance") == 1
-    assert "distance_left" not in result.columns
-    assert "distance_right" not in result.columns
-    rows = result.select("point_id", "distance").collect()
+    if side == "both":
+        assert result.columns == [
+            "point_id", "geometry", "distance_left", "index_right", "target_id",
+            "distance_right", "distance",
+        ]
+    else:
+        assert "distance_left" not in result.columns
+        assert "distance_right" not in result.columns
+    rows = result.collect()
     assert {row.point_id: row.distance for row in rows} == pytest.approx(
         {1: 1.0, 2: 1.0, 3: math.hypot(98, 100)}
     )
+    if side == "both":
+        assert all(row.distance_left == 42.0 and row.distance_right == 84.0 for row in rows)
+
+
+def test_shared_distance_attributes_match_pandas_engine(nearest_engine):
+    gpd = pytest.importorskip("geopandas")
+    from shapely import wkt
+
+    from siege_utilities.engines.dataframe_engine import PandasEngine
+
+    session = nearest_engine._session
+    points = session.createDataFrame(
+        [(1, "POINT (0 0)", 42.0)], "point_id long, geometry string, distance double",
+    )
+    targets = session.createDataFrame(
+        [(10, "POINT (1 0)", 84.0)], "target_id long, geometry string, distance double",
+    )
+    pandas_points = gpd.GeoDataFrame(
+        {"point_id": [1], "distance": [42.0]},
+        geometry=[wkt.loads("POINT (0 0)")], crs="EPSG:3857",
+    )
+    pandas_targets = gpd.GeoDataFrame(
+        {"target_id": [10], "distance": [84.0]},
+        geometry=[wkt.loads("POINT (1 0)")], crs="EPSG:3857",
+    )
+    expected = PandasEngine().nearest(pandas_points, pandas_targets)
+    result = nearest_engine.nearest(points, targets)
+    assert set(result.columns) == set(expected.columns) == {
+        "point_id", "geometry", "distance_left", "index_right", "target_id",
+        "distance_right", "distance",
+    }
+    attributes = ["point_id", "target_id", "distance_left", "distance_right"]
+    assert sorted(tuple(row) for row in result.select(*attributes).collect()) == sorted(
+        expected[attributes].itertuples(index=False, name=None)
+    ) == [(1, 10, 42.0, 84.0)]
+    assert result.select("distance").first().distance == pytest.approx(1.0)
+    # PandasEngine converts CRS, so only check that its computed distance exists.
+    assert all(math.isfinite(value) and value > 0 for value in expected["distance"])
 
 
 @pytest.mark.parametrize("side", ["points", "targets"])
