@@ -112,6 +112,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Added 82 offline CRM coverage cases for pagination, limits, null mapping,
+  composite and batch upserts, Salesforce Bulk v2, SOQL rendering, adapters,
+  canonical models, and cross-CRM deduplication. These lock in the behavior
+  corrected since v4.0.0: retained pipeline amounts, UTC time-series dates,
+  bounded COQL paging, normalized missing values, and accurate write outcomes.
+  The same tests produce 36 failures on v4.0.0 and all pass on this branch;
+  `docs/crm_1453_coverage_baseline.md` records each result (#1453).
+
 - CRM pipeline reports retain missing stages in a `(none)` bucket and
   preserve stages absent from `stage_order`. Ordered stages without deals
   now appear with zero count, total, and average, even for empty input;
