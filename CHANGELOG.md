@@ -113,10 +113,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Snowflake table creation maps nullable pandas integers, floats, and booleans
-  to numeric/boolean columns and timezone-aware datetimes to `TIMESTAMP_TZ`.
-  DataFrame uploads, table inspection, and table listings restore the prior
-  database/schema after temporary overrides, including on failure. Overrides
-  require an existing session database and schema so they can be restored (#1484).
+  to numeric/boolean columns and timezone-aware datetimes to `TIMESTAMP_TZ`
+  rather than falling through to `VARCHAR` or `TIMESTAMP_NTZ` (#1484).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
