@@ -8,6 +8,7 @@ accuracy trend analysis.
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -15,10 +16,14 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class ForecastAccuracy:
-    """Result of a forecast accuracy calculation."""
+    """Accuracy, or None metrics and an insufficient-data label for missing data.
 
-    mape: float
-    bias: float
+    n_observations counts all input pairs. n_excluded counts pairs with a
+    zero actual or a missing/non-finite value.
+    """
+
+    mape: float | None
+    bias: float | None
     bias_direction: str
     grade: str
     n_observations: int
@@ -52,7 +57,9 @@ class ForecastReport:
     trend_direction: str | None
 
 
-def _grade_mape(mape: float) -> str:
+def _grade_mape(mape: float | None) -> str:
+    if mape is None or not math.isfinite(mape):
+        return "Insufficient data"
     if mape < 10:
         return "Excellent"
     if mape < 15:
@@ -63,13 +70,16 @@ def _grade_mape(mape: float) -> str:
 
 
 def _compute_accuracy(
-    actuals: list[float],
-    forecasts: list[float],
+    actuals: list[float | None],
+    forecasts: list[float | None],
 ) -> ForecastAccuracy:
     """Compute MAPE and bias from parallel lists.
 
     Observations where actual == 0 are excluded from MAPE
-    (division by zero) but counted in n_excluded.
+    (division by zero) but counted in n_excluded. If either series contains
+    None or a non-finite value, the entire group's result is insufficient
+    data: MAPE and bias are None, grade is "Insufficient data", and
+    bias_direction is "insufficient-data". Partial data is not graded.
     """
     if len(actuals) != len(forecasts):
         raise ValueError(
@@ -82,14 +92,32 @@ def _compute_accuracy(
     errors = []
     biases = []
     excluded = 0
+    incomplete = False
 
     for actual, forecast in zip(actuals, forecasts):
+        if (
+            actual is None or forecast is None
+            or not math.isfinite(actual) or not math.isfinite(forecast)
+        ):
+            incomplete = True
+            excluded += 1
+            continue
         if actual == 0:
             excluded += 1
             continue
         pct_error = abs(actual - forecast) / abs(actual)
         errors.append(pct_error)
         biases.append((forecast - actual) / abs(actual))
+
+    if incomplete:
+        return ForecastAccuracy(
+            mape=None,
+            bias=None,
+            bias_direction="insufficient-data",
+            grade="Insufficient data",
+            n_observations=len(actuals),
+            n_excluded=excluded,
+        )
 
     if not errors:
         raise ValueError(
@@ -121,14 +149,21 @@ class ForecastAnalyzer:
 
     Parameters
     ----------
-    actuals : list[float]
-        Actual observed values.
-    forecasts : list[float]
-        Forecasted values (same length as actuals).
+    actuals : list[float | None]
+        Actual observed values. Missing or non-finite values produce an
+        insufficient-data result for the overall series and affected groups.
+    forecasts : list[float | None]
+        Forecasted values (same length as actuals), with the same missing-data
+        policy as actuals.
     categories : list[str] | None
         Optional category labels for per-category breakdown.
     periods : list[str] | None
-        Optional time period labels for trend analysis.
+        Optional sortable time period labels (e.g. ISO dates or YYYY-Qn).
+        Labels are sorted lexicographically and valid periods are treated as
+        equally spaced. Direction uses an OLS fit of all period MAPEs:
+        a fitted change below -1 percentage point is improving, above +1
+        is degrading, otherwise stable. Zero-only and insufficient-data
+        periods are omitted; fewer than two valid periods gives no direction.
 
     Raises
     ------
@@ -138,8 +173,8 @@ class ForecastAnalyzer:
 
     def __init__(
         self,
-        actuals: list[float],
-        forecasts: list[float],
+        actuals: list[float | None],
+        forecasts: list[float | None],
         categories: list[str] | None = None,
         periods: list[str] | None = None,
     ) -> None:
@@ -191,7 +226,7 @@ class ForecastAnalyzer:
         )
 
         logger.info(
-            "Forecast analysis: MAPE=%.1f%% (%s), bias=%.1f%% (%s)",
+            "Forecast analysis: MAPE=%s (%s), bias=%s (%s)",
             overall.mape,
             overall.grade,
             overall.bias,
@@ -204,7 +239,7 @@ class ForecastAnalyzer:
         if self._categories is None:
             return []
 
-        groups: dict[str, tuple[list[float], list[float]]] = {}
+        groups: dict[str, tuple[list[float | None], list[float | None]]] = {}
         for actual, forecast, cat in zip(
             self._actuals, self._forecasts, self._categories
         ):
@@ -230,22 +265,23 @@ class ForecastAnalyzer:
         if self._periods is None:
             return [], None
 
-        groups: dict[str, tuple[list[float], list[float]]] = {}
-        period_order: list[str] = []
+        groups: dict[str, tuple[list[float | None], list[float | None]]] = {}
         for actual, forecast, period in zip(
             self._actuals, self._forecasts, self._periods
         ):
             if period not in groups:
                 groups[period] = ([], [])
-                period_order.append(period)
             groups[period][0].append(actual)
             groups[period][1].append(forecast)
 
         points = []
-        for period in period_order:
+        for period in sorted(groups):
             p_actuals, p_forecasts = groups[period]
             try:
                 acc = _compute_accuracy(p_actuals, p_forecasts)
+                if acc.mape is None or acc.bias is None:
+                    logger.warning("Period %r skipped: insufficient data", period)
+                    continue
                 points.append(TrendPoint(
                     period=period,
                     mape=acc.mape,
@@ -259,11 +295,17 @@ class ForecastAnalyzer:
         if len(points) < 2:
             return points, None
 
-        first_mape = points[0].mape
-        last_mape = points[-1].mape
-        if last_mape < first_mape - 1.0:
+        # OLS slope across every valid period, using equally spaced indices.
+        mean_x = (len(points) - 1) / 2
+        mean_y = sum(point.mape for point in points) / len(points)
+        slope = sum(
+            (i - mean_x) * (point.mape - mean_y)
+            for i, point in enumerate(points)
+        ) / sum((i - mean_x) ** 2 for i in range(len(points)))
+        fitted_change = slope * (len(points) - 1)
+        if fitted_change < -1.0:
             direction = "improving"
-        elif last_mape > first_mape + 1.0:
+        elif fitted_change > 1.0:
             direction = "degrading"
         else:
             direction = "stable"

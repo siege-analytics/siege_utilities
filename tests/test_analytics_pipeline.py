@@ -47,9 +47,10 @@ class TestPipelineAnalyzer:
         with pytest.raises(ValueError, match="must be unique"):
             PipelineAnalyzer(stages=["a", "b", "a"])
 
-    def test_invalid_aging_threshold_raises(self):
+    @pytest.mark.parametrize("threshold", [0, -1, float("nan"), float("inf")])
+    def test_invalid_aging_threshold_raises(self, threshold):
         with pytest.raises(ValueError, match="aging_threshold must be positive"):
-            PipelineAnalyzer(stages=["a"], aging_threshold=0)
+            PipelineAnalyzer(stages=["a"], aging_threshold=threshold)
 
     def test_invalid_concentration_threshold_raises(self):
         with pytest.raises(ValueError, match="concentration_threshold must be"):
@@ -80,17 +81,18 @@ class TestPipelineAnalyzer:
         assert report.stage_metrics[0].stage == "prospect"
         assert report.stage_metrics[0].count == 2
 
-    def test_conversions(self, simple_analyzer):
+    def test_stage_ratios(self, simple_analyzer):
         items = [
             PipelineItem(item_id="i1", stage="prospect", value=100),
             PipelineItem(item_id="i2", stage="prospect", value=100),
             PipelineItem(item_id="i3", stage="qualified", value=100),
         ]
         report = simple_analyzer.analyze(items)
-        assert len(report.conversions) == 2
-        assert report.conversions[0].from_stage == "prospect"
-        assert report.conversions[0].to_stage == "qualified"
-        assert report.conversions[0].rate == 0.5
+        assert len(report.stage_ratios) == 2
+        assert report.stage_ratios[0].from_stage == "prospect"
+        assert report.stage_ratios[0].to_stage == "qualified"
+        assert report.stage_ratios[0].ratio == 0.5
+        assert report.stage_ratios[1].ratio == 0.0
 
     def test_coverage_ratio(self, simple_analyzer):
         items = [
@@ -130,7 +132,7 @@ class TestPipelineAnalyzer:
             ),
             PipelineItem(
                 item_id="i3", stage="prospect", value=100,
-                entered_stage=now - timedelta(days=30),
+                entered_stage=now - timedelta(days=31),
             ),
         ]
         report = simple_analyzer.analyze(items, as_of=now)
