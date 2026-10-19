@@ -112,6 +112,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Documented behavior change from v4.0.0: Spark spatial joins and boundary
+  assignments keep one left geometry and suffix shared attributes with
+  `_left`/`_right`, matching the join invariant and nearest contract. Multi-layer
+  assignment prefixes polygon attributes before joining, preserves point names,
+  drops the generated right index, and keeps Spark frames native between layers
+  without collecting to the driver (#1479).
 - `SparkEngine.nearest` ranks candidates by a per-point row identity,
   preserving co-located points and points with no target within `max_distance`.
   Results keep one point geometry and expose `distance` and `index_right`

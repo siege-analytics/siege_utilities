@@ -702,37 +702,32 @@ class DataFrameEngine(ABC):
         DataFrame
             Points enriched with ``{layer_name}_*`` columns for every
             polygon-side column from each boundary layer. Bare polygon
-            column names never appear in the output.
+            column names never appear in the output. The join's generated
+            right index is dropped. Point-side column names are preserved;
+            a prefixed layer name colliding with a point column raises ValueError.
         """
-        # Snapshot point-side schema before the first join so we know
-        # exactly which columns belong to the points and which were
-        # added by assign_boundaries. Use to_pandas() rather than a
-        # native columns probe because the abstract default cannot
-        # assume an engine-native columns accessor exists across all
-        # implementations -- subclasses may override for efficiency.
-        point_cols = set(self.to_pandas(points).columns)
+        import geopandas as gpd
 
         result = points
         for layer_name, polygons in boundary_layers.items():
-            assigned = self.assign_boundaries(
-                result, polygons,
+            if not isinstance(polygons, gpd.GeoDataFrame):
+                polygons = self.to_geodataframe(polygons)
+            names = self._boundary_column_names(polygons.columns, layer_name, result.columns)
+            result = self.assign_boundaries(
+                result, polygons.rename(columns=names).reset_index(drop=True),
                 point_geom=point_geom, polygon_geom="geometry",
                 how="left",
-            )
-            assigned_pdf = self.to_pandas(assigned)
-            new_cols = {}
-            for col in assigned_pdf.columns:
-                if col in point_cols or col == point_geom:
-                    continue
-                new_cols[col] = f"{layer_name}_{col}"
-            if new_cols:
-                assigned_pdf = assigned_pdf.rename(columns=new_cols)
-            # Update point_cols for the next iteration so the just-added
-            # layer's prefixed columns are preserved (not re-prefixed).
-            point_cols = set(assigned_pdf.columns)
-            result = assigned_pdf
-
+            ).drop(columns=["index_right"], errors="ignore")
         return result
+
+    @staticmethod
+    def _boundary_column_names(columns, layer_name, point_columns):
+        """Prefix attributes before joining so point names cannot be suffixed."""
+        names = {c: f"{layer_name}_{c}" for c in columns if c != "geometry"}
+        collisions = set(names.values()) & set(point_columns)
+        if collisions:
+            raise ValueError(f"multi_assign: layer columns collide with point columns: {sorted(collisions)}")
+        return names
 
 
 # ---------------------------------------------------------------------------
@@ -1646,12 +1641,34 @@ class SparkEngine(DataFrameEngine):
         left.createOrReplaceTempView(lv)
         right.createOrReplaceTempView(rv)
         st_func = f"ST_{predicate.capitalize()}"
+        projection = self._spatial_join_projection(left, right, left_geom, right_geom, "l", "r")
         sql = (
-            f"SELECT l.*, r.* "
+            f"SELECT {projection} "
             f"FROM {lv} l {how.upper()} JOIN {rv} r "
             f"ON {st_func}(ST_GeomFromText(l.{left_geom}), ST_GeomFromText(r.{right_geom}))"
         )
         return self._session.sql(sql)
+
+    def _spatial_join_projection(self, left, right, left_geom, right_geom, left_alias, right_alias):
+        """Keep the left geometry and apply the invariant's attribute suffixes."""
+        from collections import Counter
+
+        right_columns = [c for c in right.columns if c != right_geom]
+        shared = set(left.columns) & set(right_columns)
+        output = [
+            (left_alias, c, c + "_left" if c in shared and c != left_geom else c)
+            for c in left.columns
+        ] + [(right_alias, c, c + "_right" if c in shared else c) for c in right_columns]
+        case_sensitive = self._session.conf.get("spark.sql.caseSensitive", "false").lower() == "true"
+        counts = Counter(name if case_sensitive else name.lower() for _, _, name in output)
+        duplicates = sorted(name for name, count in counts.items() if count > 1)
+        if duplicates:
+            raise ValueError(f"SparkEngine spatial join: duplicate output column names: {duplicates}")
+
+        def quote(name):
+            return "`" + name.replace("`", "``") + "`"
+
+        return ", ".join(f"{alias}.{quote(column)} AS {quote(name)}" for alias, column, name in output)
 
     def buffer(self, df, distance, geometry_col="geometry", *, crs=None):
         self._ensure_sedona()
@@ -1838,12 +1855,27 @@ class SparkEngine(DataFrameEngine):
         poly_v = f"_assign_poly_{tag}"
         points.createOrReplaceTempView(pv)
         broadcast(polygons).createOrReplaceTempView(poly_v)
+        projection = self._spatial_join_projection(points, polygons, point_geom, polygon_geom, "p", "poly")
         return self._session.sql(
-            f"SELECT p.*, poly.* "
+            f"SELECT {projection} "
             f"FROM {pv} p {how.upper()} JOIN {poly_v} poly "
             f"ON ST_Contains(ST_GeomFromText(poly.{polygon_geom}), "
             f"ST_GeomFromText(p.{point_geom}))"
         )
+
+    def multi_assign(self, points, boundary_layers, *, point_geom="geometry"):
+        """Assign all layers lazily without collecting a Spark frame."""
+        from pyspark.sql import functions as F
+
+        result = points
+        for layer_name, polygons in boundary_layers.items():
+            names = self._boundary_column_names(polygons.columns, layer_name, result.columns)
+            prefixed = polygons.select(*[
+                F.col("`" + c.replace("`", "``") + "`").alias(names.get(c, c))
+                for c in polygons.columns
+            ])
+            result = self.assign_boundaries(result, prefixed, point_geom=point_geom)
+        return result
 
     def nearest(self, points, targets, *, k=1, max_distance=None,
                 point_geom="geometry", target_geom="geometry"):
