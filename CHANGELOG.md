@@ -112,10 +112,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `SparkEngine.nearest` ranks candidates by a materialized point row identity,
+- `SparkEngine.nearest` ranks candidates by a per-point row identity,
   preserving co-located points and points with no target within `max_distance`.
   Results keep one point geometry and expose `distance` and `index_right`
-  without backend ranking columns (#1463).
+  without backend ranking columns. The lazy join no longer retains a checkpoint
+  or temporary views per call. Input `distance` columns are replaced by the
+  computed distance; input `index_right` and duplicate output names, including
+  suffix collisions, raise `ValueError`. Drop or rename a previous result's
+  `index_right` before another nearest join (#1463).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
