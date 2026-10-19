@@ -112,6 +112,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Documented behavior change from v4.0.0:** NCES locale classification
+  reprojects GeoDataFrame inputs to EPSG:4269 before reading coordinates;
+  H3/S2 polygon indexing and spatial joins use EPSG:4326. Caller frames are
+  not mutated, and bulk locale results retain the original CRS and geometry.
+  Inputs without a CRS now raise `ValueError` naming the function and the
+  out-of-range longitude/latitude value instead of treating projected metres
+  as degrees. Set the source CRS on projected data before calling these APIs;
+  bare polygons and GeoJSON must contain geographic coordinates (#1451).
+
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting

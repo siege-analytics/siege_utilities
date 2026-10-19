@@ -25,11 +25,12 @@ def classifier():
     return NCESLocaleClassifier(areas, None, cities, {"2400100": 300_000})
 
 
-def test_classify_points_projected_matches_geographic(classifier):
+@pytest.mark.parametrize("crs", [3857, 5070])
+def test_classify_points_projected_matches_geographic(classifier, crs):
     points = gpd.GeoDataFrame(
         {"name": ["city"]}, geometry=[Point(-77, 39)], crs=4269, index=[7],
     )
-    projected = points.to_crs(3857)
+    projected = points.to_crs(crs)
     original = projected.copy(deep=True)
     expected = classifier.classify_points(points)
     actual = classifier.classify_points(projected)
@@ -61,6 +62,35 @@ def test_classify_polygon_projected_frame(classifier):
     )
     expected = classifier.classify_polygon(polygons.geometry.iloc[0])
     assert classifier.classify_polygon(polygons.to_crs(3857)) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("method", ["classify_points", "classify_polygons"])
+def test_locale_selected_geometry_column_uses_its_crs(classifier, method):
+    geometry = Point(-77, 39) if method == "classify_points" else box(-77.2, 38.8, -76.8, 39.2)
+    frame = gpd.GeoDataFrame(geometry=[geometry], crs=4269)
+    # The selected column has a different CRS from the active geometry.
+    frame["projected"] = frame.geometry.to_crs(3857)
+    original = frame.copy(deep=True)
+    classify = getattr(classifier, method)
+    expected = classify(frame)
+    actual = classify(frame, geometry_col="projected")
+    assert actual.locale_code.tolist() == expected.locale_code.tolist()
+    assert_geodataframe_equal(frame, original)
+
+
+@pytest.mark.parametrize("method", ["classify_points", "classify_polygons", "classify_polygon"])
+def test_locale_missing_crs_accepts_geographic_values(classifier, method):
+    geometry = Point(-77, 39) if method == "classify_points" else box(-77.2, 38.8, -76.8, 39.2)
+    frame = gpd.GeoDataFrame(geometry=[geometry])
+    classify = getattr(classifier, method)
+    actual = classify(frame)
+    expected = classify(frame.set_crs(4269))
+    if method == "classify_polygon":
+        assert actual == pytest.approx(expected)
+    else:
+        assert actual.locale_code.tolist() == expected.locale_code.tolist()
+        assert actual.crs is None
+    assert frame.crs is None
 
 
 @pytest.mark.parametrize("method", ["classify_points", "classify_polygons", "classify_polygon"])
@@ -183,3 +213,24 @@ def test_grid_join_passes_geographic_polygon(grid, polygons, monkeypatch):
     received = cell_call.call_args.args[0]
     assert received.equals_exact(polygons.geometry.iloc[0], tolerance=1e-8)
     assert result.region.tolist() == ["city"]
+
+
+def test_grid_missing_crs_accepts_geographic_values(grid, polygons):
+    pytest.importorskip(grid.package)
+    unlabelled = gpd.GeoDataFrame({"region": ["city"]}, geometry=list(polygons.geometry))
+    assert grid.index(unlabelled, grid.resolution) == grid.index(polygons, grid.resolution)
+    points = pd.DataFrame({"lat": [39.0], "lon": [-77.0]})
+    pd.testing.assert_frame_equal(
+        grid.join(points, unlabelled, "lat", "lon", grid.resolution),
+        grid.join(points, polygons, "lat", "lon", grid.resolution),
+    )
+    assert unlabelled.crs is None
+
+
+def test_grid_projected_series_with_multiple_polygons(grid, polygons):
+    pytest.importorskip(grid.package)
+    geometries = gpd.GeoSeries(
+        [polygons.geometry.iloc[0], box(-77.4, 38.9, -77.2, 39.1)], crs=4326,
+    )
+    expected = set().union(*(grid.index(geom, grid.resolution) for geom in geometries))
+    assert grid.index(geometries.to_crs(5070), grid.resolution) == expected
