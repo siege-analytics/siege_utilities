@@ -225,6 +225,67 @@ def test_zoho_nested_numpy_boolean_preserves_object(monkeypatch):
     assert row["$append_values"]["Foreign_Languages"] is True
 
 
+def test_zoho_upsert_preserves_subform_delete_null(monkeypatch):
+    connector = _connector("zoho")
+    send = _mock_http(monkeypatch, [_response({"data": [{
+        "status": "success", "action": "update", "details": {"id": "test"},
+    }]})])
+    frame = pd.DataFrame([{
+        "Email": "lead@example.test",
+        "Last_Name": "Test",
+        "Languages": [{"id": "554023000000480721", "_delete": None}],
+    }], dtype=object)
+
+    connector.upsert_records("Contacts", frame, "Email")
+
+    send.assert_called_once()
+    child = json.loads(send.call_args.args[0].body)["data"][0]["Languages"][0]
+    assert "_delete" in child  # FAILS at 6ae6dc00; present at 4983299e
+    assert child["_delete"] is None
+
+
+def test_zoho_upsert_preserves_subform_null_id(monkeypatch):
+    connector = _connector("zoho")
+    send = _mock_http(monkeypatch, [_response({"data": [{
+        "status": "success", "action": "update", "details": {"id": "test"},
+    }]})])
+    frame = pd.DataFrame([{
+        "Email": "lead@example.test",
+        "Last_Name": "Test",
+        "Languages": [{"id": None, "Proficiency": "Professional"}],
+    }], dtype=object)
+
+    connector.upsert_records("Contacts", frame, "Email")
+
+    send.assert_called_once()
+    child = json.loads(send.call_args.args[0].body)["data"][0]["Languages"][0]
+    assert "id" in child
+    assert child["id"] is None
+    assert child["Proficiency"] == "Professional"
+
+
+@pytest.mark.parametrize("missing", [float("nan"), np.nan, pd.NaT, pd.NA],
+                         ids=["float_nan", "numpy_nan", "nat", "na"])
+def test_zoho_upsert_preserves_subform_missing_values_as_null(missing, monkeypatch):
+    connector = _connector("zoho")
+    send = _mock_http(monkeypatch, [_response({"data": [{
+        "status": "success", "action": "update", "details": {"id": "test"},
+    }]})])
+    frame = pd.DataFrame([{
+        "Email": "lead@example.test",
+        "Last_Name": "Test",
+        "Languages": [{"id": "554023000000480721", "Proficiency": missing}],
+    }], dtype=object)
+
+    connector.upsert_records("Contacts", frame, "Email")
+
+    send.assert_called_once()
+    child = json.loads(send.call_args.args[0].body)["data"][0]["Languages"][0]
+    assert child["id"] == "554023000000480721"
+    assert "Proficiency" in child
+    assert child["Proficiency"] is None
+
+
 @pytest.mark.parametrize("provider", ["salesforce", "hubspot", "zoho", "dynamics"])
 def test_nested_upsert_values_preserve_http_types(provider, monkeypatch):
     connector = _connector(provider)
@@ -276,8 +337,10 @@ def test_nested_upsert_values_preserve_http_types(provider, monkeypatch):
     assert isinstance(nested, dict)
     assert nested == {
         "id": 7, "amount": "12.50", "ratio": 1.5, "active": True,
+        "nan": None, "nat": None, "na": None, "none": None,
         "items": [None, None, None, None, {
             "date": "2026-01-02T12:34:56+00:00", "quantity": 2,
+            "missing": None,
             "more": [{"flag": False}, [3, None]],
         }],
     }
