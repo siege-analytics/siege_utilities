@@ -112,6 +112,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Instagram and X retry rate limits within the configured attempt budget,
+  honor `Retry-After`, and retain collected posts with a warning when a later
+  page remains throttled. Instagram recognizes Graph throttle codes and usage
+  headers before classifying authentication failures. Missing account metrics
+  remain null instead of becoming zero (#1458).
+- X validates user ID lookups during authentication, requests at least five
+  tweets per page while honoring smaller result limits, and combines public,
+  non-public and organic insights with that precedence (#1465).
+- Graph insight defaults use supported metrics: daily Instagram account
+  insights use `reach` and `follower_count`; media use `views` and
+  `total_interactions`; stories use `navigation` and accept caller overrides.
+  Media insights read `total_value` and retain missing values. Facebook Page
+  Insights pass metrics through the SDK's `metric` parameter and use
+  `page_media_view`, `page_follows` and `page_post_engagements` in place of
+  retired impression, fan and engaged-user defaults. These replacements count
+  views, followers and interactions, respectively (#1474).
+
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting

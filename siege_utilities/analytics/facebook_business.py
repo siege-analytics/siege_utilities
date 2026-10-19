@@ -195,15 +195,19 @@ class FacebookBusinessConnector:
         """
         try:
             if not metrics:
+                # Current Page Insights names supported by Graph v22.0+,
+                # reviewed 2026-10-18; the installed Business SDK selects the
+                # API version. Follows count followers, and post engagements
+                # count interactions rather than unique engaged users.
                 metrics = [
-                    'page_impressions', 'page_engaged_users', 'page_post_engagements',
-                    'page_fans', 'page_views_total', 'page_actions_post_reactions_total'
+                    'page_media_view', 'page_post_engagements', 'page_follows',
+                    'page_views_total', 'page_actions_post_reactions_total'
                 ]
 
             page = Page(page_id)
             insights = page.get_insights(
-                fields=metrics,
                 params={
+                    'metric': metrics,
                     'period': 'day',
                     'since': start_date,
                     'until': end_date

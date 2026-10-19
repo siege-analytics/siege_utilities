@@ -21,6 +21,8 @@ import logging
 import pathlib
 import time
 from datetime import date, datetime
+from email.utils import parsedate_to_datetime
+from math import isfinite
 from typing import Any, Mapping
 
 import pandas as pd
@@ -144,6 +146,10 @@ class XTwitterConnector:
                 "user.fields": "username,id",
             })
             user = data.get("data", {})
+            if not user:
+                raise SocialMediaAuthError(
+                    f"User {self._user_id} not found or token lacks access."
+                )
             self._username = user.get("username", self._username)
             self._authenticated = True
             log.info("Authenticated as @%s (id=%s)", self._username, self._user_id)
@@ -192,11 +198,11 @@ class XTwitterConnector:
         user = data.get("data", {})
         metrics = user.pop("public_metrics", {})
         user.update({
-            "followers_count": metrics.get("followers_count", 0),
-            "following_count": metrics.get("following_count", 0),
-            "tweet_count": metrics.get("tweet_count", 0),
-            "listed_count": metrics.get("listed_count", 0),
-            "like_count": metrics.get("like_count", 0),
+            "followers_count": metrics.get("followers_count"),
+            "following_count": metrics.get("following_count"),
+            "tweet_count": metrics.get("tweet_count"),
+            "listed_count": metrics.get("listed_count"),
+            "like_count": metrics.get("like_count"),
         })
         return user
 
@@ -212,6 +218,7 @@ class XTwitterConnector:
         metrics. This returns a single-row DataFrame with the current
         public_metrics as a point-in-time snapshot. For trend analysis,
         call periodically and store results externally.
+        Unavailable metrics are null, including requested keys absent from X.
         """
         self._ensure_connected()
         info = self.get_account_info()
@@ -221,7 +228,7 @@ class XTwitterConnector:
         ]
         row = {"date": str(date.today())}
         for k in metric_keys:
-            row[k] = info.get(k, 0)
+            row[k] = info.get(k)
         return pd.DataFrame([row])
 
     def get_posts(
@@ -231,10 +238,14 @@ class XTwitterConnector:
         *,
         limit: int | None = None,
     ) -> pd.DataFrame:
-        """Tweets published in the given date range."""
+        """Tweets published in the given date range.
+
+        Return collected tweets with a warning if a later page exhausts rate
+        limit retries. First-page failures and other errors propagate.
+        """
         self._ensure_connected()
         all_tweets: list[dict[str, Any]] = []
-        max_results = min(limit or 100, 100)
+        max_results = max(5, min(limit or 100, 100))
 
         params: dict[str, Any] = {
             "tweet.fields": "created_at,public_metrics,text,entities",
@@ -252,7 +263,16 @@ class XTwitterConnector:
             if next_token:
                 params["pagination_token"] = next_token
 
-            data = self._request("GET", f"/users/{self._user_id}/tweets", params=params)
+            try:
+                data = self._request("GET", f"/users/{self._user_id}/tweets", params=params)
+            except SocialMediaRateLimitError:
+                if not all_tweets:
+                    raise
+                log.warning(
+                    "X rate limit exhausted; returning partial results (%d tweets)",
+                    len(all_tweets),
+                )
+                break
             tweets = data.get("data", [])
             if not tweets:
                 break
@@ -274,21 +294,27 @@ class XTwitterConnector:
         post_id: str,
         metrics: list[str] | None = None,
     ) -> pd.DataFrame:
-        """Engagement metrics for a single tweet."""
+        """Tweet metrics with public, then non-public, then organic precedence.
+
+        Non-public and organic metrics require a user-context token.
+        """
         self._ensure_connected()
         data = self._request("GET", f"/tweets/{post_id}", params={
             "tweet.fields": "public_metrics,non_public_metrics,organic_metrics,created_at",
         })
         tweet = data.get("data", {})
-        public = tweet.get("public_metrics", {})
+        combined: dict[str, Any] = {}
+        for group in ("public_metrics", "non_public_metrics", "organic_metrics"):
+            for key, value in (tweet.get(group) or {}).items():
+                combined.setdefault(key, value)
 
         rows: list[dict[str, Any]] = []
-        metric_keys = metrics or list(public.keys())
+        metric_keys = metrics or list(combined.keys())
         for key in metric_keys:
-            if key in public:
+            if key in combined:
                 rows.append({
                     "metric": key,
-                    "value": public[key],
+                    "value": combined[key],
                     "period": "lifetime",
                 })
 
@@ -352,10 +378,19 @@ class XTwitterConnector:
 
             if resp.status_code == 429:
                 retry_after = self._parse_retry_after(resp)
-                raise SocialMediaRateLimitError(
+                error = SocialMediaRateLimitError(
                     f"X API rate limit hit on {method} {path}.",
                     retry_after=retry_after,
                 )
+                if attempt == self._retry_attempts:
+                    raise error
+                delay = retry_after if retry_after is not None else self._retry_backoff ** attempt
+                log.warning(
+                    "X rate limit on %s %s attempt %d/%d; retrying in %s seconds",
+                    method, path, attempt, self._retry_attempts, delay,
+                )
+                time.sleep(delay)
+                continue
 
             if 500 <= resp.status_code < 600:
                 last_exc = SocialMediaError(
@@ -418,6 +453,17 @@ class XTwitterConnector:
 
     @staticmethod
     def _parse_retry_after(resp: requests.Response) -> float | None:
+        header = resp.headers.get("Retry-After")
+        if header:
+            try:
+                delay = float(header)
+            except ValueError:
+                try:
+                    delay = parsedate_to_datetime(header).timestamp() - time.time()
+                except (ValueError, TypeError, OverflowError):
+                    delay = None
+            if delay is not None and isfinite(delay):
+                return max(0.0, delay)
         reset = resp.headers.get("x-rate-limit-reset")
         if reset:
             try:

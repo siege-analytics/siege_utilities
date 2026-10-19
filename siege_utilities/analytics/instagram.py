@@ -19,6 +19,8 @@ import logging
 import pathlib
 import time
 from datetime import date, datetime
+from email.utils import parsedate_to_datetime
+from math import isfinite
 from typing import Any, Mapping
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -56,8 +58,12 @@ DEFAULT_MEDIA_FIELDS = (
     "id,caption,media_type,media_url,permalink,timestamp,"
     "like_count,comments_count"
 )
-DEFAULT_ACCOUNT_METRICS = "impressions,reach,profile_views,follower_count"
-DEFAULT_POST_METRICS = "impressions,reach,engagement,saved,shares"
+# Graph v22.0 defaults, reviewed against Meta's insights references 2026-10-18.
+# Keep account defaults compatible with daily time_series; views/profile_views
+# require total_value and cannot be mixed into this daily request.
+DEFAULT_ACCOUNT_METRICS = "reach,follower_count"
+DEFAULT_POST_METRICS = "views,reach,total_interactions,saved,shares"
+_DEFAULT_STORY_METRICS = "views,reach,replies,navigation"
 
 __all__ = [
     "InstagramConnector",
@@ -181,7 +187,11 @@ class InstagramConnector:
         end_date: date,
         metrics: list[str] | None = None,
     ) -> pd.DataFrame:
-        """Time-series account-level metrics (daily granularity)."""
+        """Daily account metrics, defaulting to reach and follower_count.
+
+        Overrides must support daily time-series values. Missing values stay
+        null; account views/profile_views require a total_value query instead.
+        """
         self._ensure_connected()
         metric_str = ",".join(metrics) if metrics else DEFAULT_ACCOUNT_METRICS
         since_ts = int(datetime.combine(start_date, datetime.min.time()).timestamp())
@@ -202,11 +212,11 @@ class InstagramConnector:
                 dt = end_time[:10] if end_time else ""
                 existing = next((r for r in rows if r["date"] == dt), None)
                 if existing:
-                    existing[metric_name] = value_entry.get("value", 0)
+                    existing[metric_name] = value_entry.get("value")
                 else:
                     rows.append({
                         "date": dt,
-                        metric_name: value_entry.get("value", 0),
+                        metric_name: value_entry.get("value"),
                     })
 
         df = pd.DataFrame(rows)
@@ -222,7 +232,11 @@ class InstagramConnector:
         *,
         limit: int | None = None,
     ) -> pd.DataFrame:
-        """Posts published in the given date range."""
+        """Posts published in the given date range.
+
+        Return collected posts with a warning if a later page exhausts rate
+        limit retries. First-page failures and other errors propagate.
+        """
         self._ensure_connected()
         all_posts: list[dict[str, Any]] = []
         params: dict[str, Any] = {
@@ -233,9 +247,18 @@ class InstagramConnector:
         start_dt = datetime.combine(start_date, datetime.min.time())
         end_dt = datetime.combine(end_date, datetime.max.time())
 
-        url_path = f"/{self._ig_user_id}/media"
+        url = f"{BASE_URL}/{self._ig_user_id}/media"
         while True:
-            data = self._request("GET", url_path, params=params)
+            try:
+                data = self._request_url("GET", url, params=params)
+            except SocialMediaRateLimitError:
+                if not all_posts:
+                    raise
+                log.warning(
+                    "Instagram rate limit exhausted; returning partial results (%d posts)",
+                    len(all_posts),
+                )
+                break
             for post in data.get("data", []):
                 ts_str = post.get("timestamp", "")
                 if ts_str:
@@ -259,12 +282,7 @@ class InstagramConnector:
             if not next_url:
                 break
             params = {}
-            url_path = next_url.replace(f"{BASE_URL}", "")
-            if url_path == next_url:
-                data = self._request_url("GET", next_url)
-                for post in data.get("data", []):
-                    all_posts.append(post)
-                break
+            url = next_url
 
         return self._posts_to_dataframe(all_posts)
 
@@ -284,7 +302,7 @@ class InstagramConnector:
         for metric_block in data.get("data", []):
             row: dict[str, Any] = {
                 "metric": metric_block["name"],
-                "value": metric_block.get("values", [{}])[0].get("value", 0),
+                "value": self._insight_value(metric_block),
             }
             if metric_block.get("period"):
                 row["period"] = metric_block["period"]
@@ -296,9 +314,13 @@ class InstagramConnector:
     # Extra methods (beyond protocol)
     # ------------------------------------------------------------------
 
-    def get_stories_insights(self) -> pd.DataFrame:
-        """Current active stories with per-story engagement metrics."""
+    def get_stories_insights(self, metrics: list[str] | None = None) -> pd.DataFrame:
+        """Active stories with overridable metrics, including total navigation.
+
+        Navigation aggregates forward, back, exit and next-story actions.
+        """
         self._ensure_connected()
+        metric_str = ",".join(metrics) if metrics else _DEFAULT_STORY_METRICS
         stories_data = self._request("GET", f"/{self._ig_user_id}/stories", params={
             "fields": "id,media_type,media_url,permalink,timestamp",
         })
@@ -308,11 +330,10 @@ class InstagramConnector:
             row = dict(story)
             try:
                 insights = self._request("GET", f"/{story['id']}/insights", params={
-                    "metric": "impressions,reach,replies,taps_forward,taps_back,exits",
+                    "metric": metric_str,
                 })
                 for m in insights.get("data", []):
-                    vals = m.get("values", [{}])
-                    row[m["name"]] = vals[0].get("value", 0) if vals else 0
+                    row[m["name"]] = self._insight_value(m)
             except SocialMediaError:
                 log.warning("Could not retrieve insights for story %s", story["id"])
             rows.append(row)
@@ -379,17 +400,26 @@ class InstagramConnector:
                     time.sleep(self._retry_backoff ** attempt)
                 continue
 
+            if self._is_rate_limited(resp):
+                retry_after = self._parse_retry_after(resp)
+                error = SocialMediaRateLimitError(
+                    f"Instagram API rate limit hit on {method} {safe_url}.",
+                    retry_after=retry_after,
+                )
+                if attempt == self._retry_attempts:
+                    raise error
+                delay = retry_after if retry_after is not None else self._retry_backoff ** attempt
+                log.warning(
+                    "Instagram rate limit on %s %s attempt %d/%d; retrying in %s seconds",
+                    method, safe_url, attempt, self._retry_attempts, delay,
+                )
+                time.sleep(delay)
+                continue
+
             if resp.status_code in (401, 403):
                 error_msg = self._extract_error_message(resp)
                 raise SocialMediaAuthError(
                     f"Instagram API {resp.status_code}: {error_msg}"
-                )
-
-            if resp.status_code == 429:
-                retry_after = self._parse_retry_after(resp)
-                raise SocialMediaRateLimitError(
-                    f"Instagram API rate limit hit on {method} {safe_url}.",
-                    retry_after=retry_after,
                 )
 
             if 500 <= resp.status_code < 600:
@@ -435,26 +465,62 @@ class InstagramConnector:
             return redact_url_secrets(resp.text)[:200]
 
     @staticmethod
+    def _usage_exhausted(resp: requests.Response) -> bool:
+        for header in ("x-app-usage", "x-page-usage"):
+            try:
+                usage = json.loads(resp.headers.get(header, "{}"))
+            except ValueError:
+                # Usage telemetry is optional; HTTP status and error codes remain authoritative.
+                usage = {}
+            if isinstance(usage, dict) and any(
+                isinstance(usage.get(key), (int, float)) and usage[key] >= 100
+                for key in ("call_count", "total_cputime", "total_time")
+            ):
+                return True
+        return False
+
+    @classmethod
+    def _is_rate_limited(cls, resp: requests.Response) -> bool:
+        if resp.status_code == 429:
+            return True
+        if 200 <= resp.status_code < 300:
+            return False  # Keep successful data even when its usage header reaches 100%.
+        try:
+            body = resp.json()
+        except ValueError:
+            body = {}
+        error = body.get("error", {}) if isinstance(body, dict) else {}
+        code = error.get("code") if isinstance(error, dict) else None
+        return code in (4, 17, 32, 613, *range(80001, 80015)) or cls._usage_exhausted(resp)
+
+    @staticmethod
     def _parse_retry_after(resp: requests.Response) -> float | None:
         header = resp.headers.get("Retry-After")
         if header:
             try:
-                return float(header)
+                delay = float(header)
             except ValueError:
-                pass
-        usage = resp.headers.get("x-app-usage")
-        if usage:
-            try:
-                usage_data = json.loads(usage)
-                if usage_data.get("call_count", 0) >= 100:
-                    return 600.0
-            except (ValueError, KeyError):
-                pass
+                try:
+                    delay = parsedate_to_datetime(header).timestamp() - time.time()
+                except (ValueError, TypeError, OverflowError):
+                    delay = None
+            if delay is not None and isfinite(delay):
+                return max(0.0, delay)
+        if InstagramConnector._usage_exhausted(resp):
+            return 600.0
         return None
 
     # ------------------------------------------------------------------
     # DataFrame helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _insight_value(metric: Mapping[str, Any]) -> Any:
+        """Read Graph media values without inventing zeros for unavailable data."""
+        if "total_value" in metric:
+            return metric["total_value"].get("value")
+        values = metric.get("values", [])
+        return values[0].get("value") if values else None
 
     @staticmethod
     def _posts_to_dataframe(posts: list[dict[str, Any]]) -> pd.DataFrame:
