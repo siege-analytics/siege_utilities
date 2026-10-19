@@ -1,7 +1,7 @@
 """
 Census catalog caching — disk persistence with TTL for CensusCatalog instances.
 
-Stores serialized catalogs as JSON in ``~/.siege_utilities/cache/census_catalog/``.
+Stores catalogs as JSON in ``~/.siege_utilities/cache/census_catalog/``.
 Follows the same cache-dir convention as :class:`CensusAPI` and
 :class:`PLFileDownloader`.
 
@@ -15,6 +15,7 @@ import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote as _quote
 
 from .catalog import (
     CensusCatalog,
@@ -35,7 +36,9 @@ __all__ = [
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_CACHE_DIR = Path.home() / ".siege_utilities" / "cache" / "census_catalog"
+_DEFAULT_CACHE_DIR = (
+    Path.home() / ".siege_utilities" / "cache" / "census_catalog"
+)
 _DEFAULT_TTL_DAYS = 30
 
 
@@ -176,7 +179,13 @@ def _catalog_from_dict(data: dict) -> CensusCatalog:
 
 
 class CatalogCache:
-    """Disk-backed JSON cache with TTL for CensusCatalog instances."""
+    """Disk-backed JSON cache with TTL for CensusCatalog instances.
+
+    Dataset ids are percent-encoded into a single filename component, with
+    the year (or ``none`` for yearless datasets) appended to keep keys
+    distinct.
+    Legacy nested entries are ignored and refreshed on the next cache miss.
+    """
 
     def __init__(
         self,
@@ -186,30 +195,36 @@ class CatalogCache:
         self.cache_dir = Path(cache_dir) if cache_dir else _DEFAULT_CACHE_DIR
         self.ttl_days = ttl_days
 
-    def _cache_path(self, dataset: str, year: int) -> Path:
-        return self.cache_dir / f"{dataset}_{year}.json"
+    def _cache_path(self, dataset: str, year: Optional[int]) -> Path:
+        dataset_key = _quote(dataset, safe="")
+        year_key = "none" if year is None else str(year)
+        return self.cache_dir / f"{dataset_key}_{year_key}.json"
 
-    def get(self, dataset: str, year: int) -> Optional[CensusCatalog]:
+    def get(
+        self, dataset: str, year: Optional[int],
+    ) -> Optional[CensusCatalog]:
         path = self._cache_path(dataset, year)
         if not path.exists():
             return None
 
         mtime = datetime.fromtimestamp(path.stat().st_mtime)
         if datetime.now() - mtime > timedelta(days=self.ttl_days):
-            log.debug("Cache expired for %s/%d", dataset, year)
+            log.debug("Cache expired for %s/%s", dataset, year)
             path.unlink()
             return None
 
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             catalog = _catalog_from_dict(data)
-            log.debug("Cache hit for %s/%d", dataset, year)
+            log.debug("Cache hit for %s/%s", dataset, year)
             return catalog
         except (OSError, ValueError, UnicodeDecodeError) as e:
-            log.warning("Failed to read cache for %s/%d: %s", dataset, year, e)
+            log.warning("Failed to read cache for %s/%s: %s", dataset, year, e)
             return None
 
-    def put(self, dataset: str, year: int, catalog: CensusCatalog) -> None:
+    def put(
+        self, dataset: str, year: Optional[int], catalog: CensusCatalog,
+    ) -> None:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         path = self._cache_path(dataset, year)
         try:
@@ -219,9 +234,11 @@ class CatalogCache:
                     json.dumps(data, indent=2, ensure_ascii=False),
                     encoding="utf-8",
                 )
-            log.debug("Cached catalog for %s/%d to %s", dataset, year, path)
+            log.debug("Cached catalog for %s/%s to %s", dataset, year, path)
         except (OSError, ValueError, TypeError) as e:
-            log.warning("Failed to cache catalog for %s/%d: %s", dataset, year, e)
+            log.warning(
+                "Failed to cache catalog for %s/%s: %s", dataset, year, e,
+            )
 
     def clear(self, dataset: str = "", year: int = 0) -> int:
         if not self.cache_dir.exists():
@@ -261,7 +278,7 @@ class CatalogLoader:
     def load(
         self,
         dataset: str,
-        year: int,
+        year: Optional[int],
         survey_type: str = "",
         force_refresh: bool = False,
     ) -> CensusCatalog:
