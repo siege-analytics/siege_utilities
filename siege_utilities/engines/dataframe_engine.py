@@ -1847,8 +1847,15 @@ class SparkEngine(DataFrameEngine):
 
     def nearest(self, points, targets, *, k=1, max_distance=None,
                 point_geom="geometry", target_geom="geometry"):
-        """K-nearest -- Sedona ST_Distance with window function."""
+        """Find up to k targets per point, retaining unmatched points with nulls.
+
+        Keep the point geometry and suffix shared attributes with _left/_right.
+        Spark has no index, so index_right is a generated target row identifier
+        (unique, not necessarily contiguous). Point identities are materialized
+        in an eager local checkpoint before ranking and joining them back.
+        """
         self._ensure_sedona()
+        from pyspark.sql.functions import monotonically_increasing_id
         from siege_utilities.core.sql_safety import validate_sql_identifier_in as validate_identifier_in
         validate_identifier_in(point_geom, points.columns, label="point geometry column")
         validate_identifier_in(target_geom, targets.columns, label="target geometry column")
@@ -1859,30 +1866,56 @@ class SparkEngine(DataFrameEngine):
         tag = _uuid.uuid4().hex[:8]
         pv = f"_nn_pts_{tag}"
         tv = f"_nn_tgt_{tag}"
-        points.createOrReplaceTempView(pv)
-        targets.createOrReplaceTempView(tv)
-        # WHERE on a SELECT-list alias is invalid in Spark SQL; re-expand
-        # the ST_Distance expression in the predicate.
+        point_id = f"_nn_point_id_{tag}"
+        target_id = f"_nn_target_id_{tag}"
+        distance = f"_nn_distance_{tag}"
+        rank = f"_nn_rank_{tag}"
+        # Both query branches must read the same identities even after shuffles.
+        points.withColumn(point_id, monotonically_increasing_id()).localCheckpoint(
+            eager=True,
+        ).createOrReplaceTempView(pv)
+        targets.withColumn(target_id, monotonically_increasing_id()).createOrReplaceTempView(tv)
+
+        def quote(column):
+            return "`" + column.replace("`", "``") + "`"
+
+        target_columns = [c for c in targets.columns if c != target_geom]
+        shared = set(points.columns) & set(target_columns)
+        output = [
+            f"p.{quote(c)} AS {quote(c + '_left' if c in shared and c != point_geom else c)}"
+            for c in points.columns
+        ]
+        output.append(f"t.{target_id} AS index_right")
+        output.extend(
+            f"t.{quote(c)} AS {quote(c + '_right' if c in shared else c)}"
+            for c in target_columns
+        )
+        output.append(f"t.{distance} AS distance")
+        candidate_columns = ", ".join(
+            [f"p.{point_id}", f"t.{target_id}"]
+            + [f"t.{quote(c)}" for c in target_columns]
+        )
+        # Filter candidates before the left join so out-of-range (or empty)
+        # target sets cannot remove points. Null geometries are not candidates.
+        dist_filter = f"{distance} IS NOT NULL"
         if max_distance_lit is not None:
-            dist_filter = (
-                f"WHERE ST_Distance(ST_GeomFromText(p.{point_geom}), "
-                f"ST_GeomFromText(t.{target_geom})) <= {max_distance_lit}"
-            )
-        else:
-            dist_filter = ""
+            dist_filter += f" AND {distance} <= {max_distance_lit}"
         return self._session.sql(f"""
-            SELECT * FROM (
-                SELECT p.*, t.*,
+            WITH candidates AS (
+                SELECT {candidate_columns},
                     ST_Distance(ST_GeomFromText(p.{point_geom}),
-                                ST_GeomFromText(t.{target_geom})) AS d,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY p.{point_geom}
-                        ORDER BY ST_Distance(ST_GeomFromText(p.{point_geom}),
-                                             ST_GeomFromText(t.{target_geom}))
-                    ) AS rn
-                FROM {pv} p, {tv} t
-                {dist_filter}
-            ) WHERE rn <= {k_lit}
+                                ST_GeomFromText(t.{target_geom})) AS {distance}
+                FROM {pv} p CROSS JOIN {tv} t
+            ), ranked AS (
+                SELECT *, ROW_NUMBER() OVER (
+                    PARTITION BY {point_id}
+                    ORDER BY {distance}, {target_id}
+                ) AS {rank}
+                FROM candidates WHERE {dist_filter}
+            )
+            SELECT {', '.join(output)}
+            FROM {pv} p LEFT JOIN ranked t
+                ON p.{point_id} = t.{point_id} AND t.{rank} <= {k_lit}
         """)
 
 
