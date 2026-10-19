@@ -9,14 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `demographic_profile` assigns Census units by their representative interior
-  points, so units straddling district boundaries are counted once rather than
-  dropped. Units whose interior points fall outside the plan are excluded (#1562).
+- `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
+  `48-49` and excludes the `10` all-industry total that caused double-counting,
+  along with supersector aggregates. **Behavior change:** `parse()` and
+  `load()` now default to `own_code=5` (private) and `area_level="state"`
+  (statewide, `agglvl_code=54` at the default `naics_depth=2`), instead of
+  mixing ownerships and statewide/county rows. Callers can select another
+  ownership and `county`, `national`, or `msa` area level; the aggregation
+  code follows the requested NAICS depth. Suppressed rows (`disclosure_code`
+  of `N`) carry a boolean `is_suppressed` flag, so their source employment
+  and wage zeros can be excluded from calculations. When their source
+  disclosure columns exist, boolean `is_lq_suppressed` and `is_oty_suppressed`
+  flags separately identify `lq_disclosure_code` and `oty_disclosure_code`
+  values of `N`; corresponding `lq_*`/`oty_*` zeros are sentinels, not measured
+  zeros. The parser docstring now describes all preserved source columns
+  plus these flags (#1507).
 
 ## [4.1.0] - 2026-10-18
 
 ### Changed
 
+- New *file* names now get the same check as new directory names. The
+  `siege_utilities.files` helpers that create a file refuse a name containing
+  a C0, DEL or C1 control character, or a lone surrogate: they raise
+  `PathSecurityError` and create nothing. The helpers are `touch_file`,
+  `copy_file`, `move_file` (into an existing directory, the source's name is
+  checked), `delete_existing_file_and_replace_it_with_an_empty_file`,
+  `safe_file_write`, `safe_json_write`, `atomic_write_path`,
+  `atomic_write_shapefile`, `download_file`, `save_spatial`, `save_tabular`,
+  `secure_write_text`, and `unzip_file_to_directory` for member files, checked
+  at the path `zipfile` actually writes (so `a/../f<ESC>.txt` is refused). The
+  check is public as `reject_unsafe_new_file_path` (#1737).
+  **Migration:** existing files with such names can still be read, moved and
+  overwritten, except as a shapefile: `atomic_write_shapefile` and
+  `save_spatial(..., fmt=SpatialFormat.SHAPEFILE)` refuse an unsafe target
+  name even when it exists (its sidecars are published under that name), so
+  rename such a shapefile first. Callers that build file names from external
+  input should pass them through
+  `siege_utilities.files.operations.sanitize_filename`. This check's message
+  now reads "...in new name" rather than "...in new directory name";
+  `validate_directory_path` (and so `ensure_path_exists`) keeps the old text.
+  Writers outside `siege_utilities.files` are not yet covered (#1763).
 - Docstring generation now defaults to a dry run. CLI callers must pass
   `--write` (or `--apply`), and Python callers must pass `dry_run=False` to
   `process_python_file` or `main` to modify files (#1589).
@@ -79,6 +112,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Sanitize CRM upsert payloads for Salesforce, HubSpot, Zoho, and Dynamics:
+  omit top-level missing fields to preserve existing values, serialize dates and
+  timestamps as ISO 8601 strings, and convert numpy scalars to native types.
+  Salesforce bulk CSV uploads use empty cells for missing values; Dynamics emits
+  strict JSON (#1424).
+  JSON encoding failures raise once without retrying or backoff; transport failures
+  retain their existing retries and backoff.
+  **Documented behavior change from v4.0.0:** all four JSON upsert paths now
+  omit top-level `None`, NaN, NaT and `pd.NA`. In v4.0.0, explicit `None` was
+  sent as JSON `null`; NaN failed JSON encoding in Salesforce, HubSpot and Zoho,
+  while Dynamics sent literal non-standard `NaN`. This is not pre-4.0
+  compatibility: v3.23.0 had no implementations of these four connectors.
+  **Migration:** to send a top-level null, use
+  `update_record(object_type, record_id, {"Field": None})`; whether this clears
+  the field depends on the provider and field. Pandas dtype coercion can turn a
+  caller's `None` into NaN before the sanitizer sees it, losing that distinction.
+  Salesforce Bulk CSV keeps headers and writes blank cells for missing values.
+  Nested dicts preserve explicit `None` as JSON null, including `_delete: None`
+  and `id: None`. Nested dict values that are pandas/numpy missing sentinels
+  raise `ConnectorError` with the key path before sending any upsert request.
+  Missing list items (`None` or sentinels) remain null in place at every depth.
+  Scalar leaves retain their documented conversions, including Decimal and
+  infinity as strings. Unsupported containers, invalid JSON keys, circular
+  references and excessive depth raise `ConnectorError`; JSON encoding failures
+  keep that same error contract without retries (#1424).
+  Keeping `id: None` is serialization fidelity only and does not solve the B3b
+  identity concern. Provider/field identity and control validation is a separate
+  follow-up. Refs #1816.
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
