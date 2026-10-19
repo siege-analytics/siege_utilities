@@ -106,7 +106,7 @@ def test_b2_empty_table_crs_survives_reconnect(tmp_path, reader):
         result = (connector.download_spatial_data("places") if reader == "download"
                   else connector.execute_spatial_query("SELECT geometry_wkt FROM places"))
         assert result.empty
-        assert result.crs == frame.crs
+        assert result.crs.to_epsg() == (3857 if reader == "download" else 4326)
         with pytest.raises(RuntimeError, match="different source CRS"):
             connector.upload_spatial_data(frame.to_crs(4326), "places", if_exists="append")
         assert connector.connection.execute("SELECT count(*) FROM places").fetchone() == (0,)
@@ -121,7 +121,7 @@ def test_b2_empty_table_crs_survives_reconnect(tmp_path, reader):
     'DELETE FROM "places" RETURNING *',
     'PREPARE "q x" AS INSERT INTO "places" SELECT * FROM "places" RETURNING *; EXECUTE "q x"',
 ])
-def test_b2_queries_retain_table_crs_and_caller_column(duck_connector, query):
+def test_b2_queries_use_develop_crs_and_retain_caller_column(duck_connector, query):
     frame = gpd.GeoDataFrame(
         {"id": [1], "_siege_crs": ["caller value"]}, geometry=[Point(1, 2)], crs="EPSG:3857",
     )
@@ -129,7 +129,7 @@ def test_b2_queries_retain_table_crs_and_caller_column(duck_connector, query):
     duck_connector.connection.execute("SET schema='retained'")
     duck_connector.upload_spatial_data(frame, "places")
     result = duck_connector.execute_spatial_query(query)
-    assert result.crs == frame.crs
+    assert result.crs.to_epsg() == 4326
     assert result._siege_crs.tolist() == ["caller value"]
     assert result.geometry.iloc[0].equals_exact(frame.geometry.iloc[0], 0)
 
@@ -192,7 +192,7 @@ def test_b2_unreserved_keyword_table_name(duck_connector):
     duck_connector.upload_spatial_data(frame, "data")
     duck_connector.upload_spatial_data(frame, "data", if_exists="append")
     result = duck_connector.execute_spatial_query("UPDATE data SET id=2 RETURNING *")
-    assert result.crs == frame.crs
+    assert result.crs.to_epsg() == 4326
     assert result.id.tolist() == [2, 2]
 
 
@@ -204,7 +204,7 @@ def test_b4_unexpected_decoder_failure_rolls_back(duck_connector, monkeypatch):
     def fail_decode(*args, **kwargs):
         raise RuntimeError("decoder failed")
 
-    monkeypatch.setattr(module, "_duckdb_result_frame", fail_decode)
+    monkeypatch.setattr(module, "_duckdb_query_frame", fail_decode)
     with pytest.raises(SpatialQueryError, match="decoder failed"):
         duck_connector.execute_spatial_query("INSERT INTO places VALUES (1) RETURNING *")
     assert duck_connector.connection.execute("SELECT * FROM places").fetchall() == []

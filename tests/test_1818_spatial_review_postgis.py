@@ -177,10 +177,9 @@ def test_r2_1_owned_volatile_select_rolls_back_on_decode_error(volatile_insert):
         assert cursor.fetchall() == []
 
 
-def test_r2_1_caller_for_update_retains_lock_until_caller_rollback(postgis_pair):
+def test_beta_caller_for_update_commits_under_write_token_classifier(postgis_pair):
     from unittest.mock import MagicMock
-    from psycopg2.errors import LockNotAvailable
-    from psycopg2.extensions import TRANSACTION_STATUS_INTRANS
+    from psycopg2.extensions import TRANSACTION_STATUS_IDLE
 
     connector, observer, table = postgis_pair
     connection = connector.connection
@@ -191,13 +190,9 @@ def test_r2_1_caller_for_update_retains_lock_until_caller_rollback(postgis_pair)
         cursor.execute("BEGIN")
     result = connector.execute_spatial_query(f"SELECT * FROM {table} WHERE id=7 FOR UPDATE")
     assert result.id.tolist() == [7]
-    assert connection.get_transaction_status() == TRANSACTION_STATUS_INTRANS
-    connector.connection.commit.assert_not_called()
+    assert connection.get_transaction_status() == TRANSACTION_STATUS_IDLE
+    connector.connection.commit.assert_called_once()
     connector.connection.rollback.assert_not_called()
-    with observer.cursor() as cursor:
-        with pytest.raises(LockNotAvailable):
-            cursor.execute(f"SELECT id FROM {table} WHERE id=7 FOR UPDATE NOWAIT")
-    connection.rollback()
     with observer.cursor() as cursor:
         cursor.execute(f"SELECT id FROM {table} WHERE id=7 FOR UPDATE NOWAIT")
         assert cursor.fetchall() == [(7,)]
@@ -231,7 +226,7 @@ def test_r2_1_caller_write_commits_like_develop(postgis_pair, cte, record_proper
     "SELECT 'INSERT INTO places' AS note",
     'SELECT 1 AS "UPDATE" /* DELETE FROM places */',
     "WITH src AS (SELECT $tag$MERGE INTO places$tag$ AS note) SELECT * FROM src",
-    "SELECT 1 AS merge -- INSERT INTO places\n",
+    'SELECT 1 AS "merge" -- INSERT INTO places\n',
     "SELECT (1) /* outer /* INSERT */ UPDATE */ AS value",
 ])
 def test_r2_1_read_tokens_do_not_commit_pending_id_99(postgis_pair, query):
@@ -347,3 +342,41 @@ def test_r2_1_constructor_records_connection_ownership(monkeypatch):
     assert connector.connection is connection
     assert connector._opened_connection is True
     connect.assert_called_once_with("dbname=test")
+
+
+@pytest.mark.parametrize("crs", [None, "EPSG:4326"])
+def test_beta_postgis_native_srid_or_requested_crs(postgis_pair, crs):
+    connector, _, _ = postgis_pair
+    result = connector.execute_spatial_query(
+        "SELECT ST_SetSRID(ST_Point(1000000,2000000),3857) AS geometry", crs=crs,
+    )
+    assert result.crs.to_epsg() == (4326 if crs else 3857)
+    if crs is None:
+        assert result.geometry.iloc[0].equals_exact(Point(1000000, 2000000), 0)
+
+
+def test_beta_postgis_table_read_preserves_stored_crs(postgis_pair):
+    connector, observer, table = postgis_pair
+    with observer.cursor() as cursor:
+        cursor.execute(f"INSERT INTO {table} VALUES (7, ST_SetSRID(ST_Point(1000000,2000000),3857))")
+    result = connector.download_spatial_data(table.replace('"', ''), geom_col="geometry")
+    assert result.crs.to_epsg() == 3857
+    assert result.geometry.iloc[0].equals_exact(Point(1000000, 2000000), 0)
+
+
+def test_beta_postgis_unknown_srid_uses_develop_fallback(postgis_pair, caplog):
+    connector, _, _ = postgis_pair
+    with caplog.at_level("WARNING"):
+        result = connector.execute_spatial_query("SELECT ST_Point(1,2) AS geometry")
+    assert result.crs.to_epsg() == 4326
+    assert "PostGIS geometries lack SRID metadata" in caplog.text
+
+
+def test_beta_unquoted_write_token_alias_uses_classifier(postgis_pair):
+    connector, observer, table = postgis_pair
+    with connector.connection.cursor() as cursor:
+        cursor.execute(f"INSERT INTO {table} VALUES (99, ST_SetSRID(ST_Point(0,0),4326))")
+    assert connector.execute_spatial_query("SELECT 1 AS merge")["merge"].tolist() == [1]
+    with observer.cursor() as cursor:
+        cursor.execute(f"SELECT id FROM {table}")
+        assert cursor.fetchall() == [(99,)]

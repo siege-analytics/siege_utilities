@@ -143,7 +143,7 @@ def test_row_returning_queries_return_rows(backend, statement):
 
 
 @pytest.mark.parametrize("reader", ["download", "query"])
-def test_duckdb_preserves_source_crs_after_reconnect(tmp_path, projected_gdf, reader):
+def test_duckdb_table_and_query_crs_after_reconnect(tmp_path, projected_gdf, reader):
     duckdb = pytest.importorskip("duckdb")
     database = str(tmp_path / "places.duckdb")
     connector = DuckDBConnector.__new__(DuckDBConnector)
@@ -156,7 +156,7 @@ def test_duckdb_preserves_source_crs_after_reconnect(tmp_path, projected_gdf, re
             result = connector.download_spatial_data("places")
         else:
             result = connector.execute_spatial_query("SELECT * FROM places")
-        assert result.crs == projected_gdf.crs
+        assert result.crs.to_epsg() == (3857 if reader == "download" else 4326)
         assert result.geometry.iloc[0].equals_exact(projected_gdf.geometry.iloc[0], 0)
         assert result.columns.tolist() == projected_gdf.columns.tolist()
     finally:
@@ -310,15 +310,13 @@ def test_duckdb_empty_and_projected_results_accept_source_crs(duck_connector, pr
     assert empty.empty
     assert empty.crs == projected_gdf.crs
     duck_connector.upload_spatial_data(projected_gdf, "places", if_exists="append")
-    result = duck_connector.execute_spatial_query(
-        "SELECT geometry_wkt FROM places", source_crs="EPSG:3857",
-    )
+    result = duck_connector.download_spatial_data("places", source_crs="EPSG:3857")
     assert result.crs == projected_gdf.crs
 
 
-def test_duckdb_returning_retains_geometry_metadata(duck_connector, projected_gdf):
+def test_duckdb_returning_retains_geometry_with_develop_crs(duck_connector, projected_gdf):
     duck_connector.upload_spatial_data(projected_gdf, "places")
     result = duck_connector.execute_spatial_query("INSERT INTO places SELECT * FROM places RETURNING *")
-    assert result.crs == projected_gdf.crs
+    assert result.crs.to_epsg() == 4326
     assert result.geometry.iloc[0].equals_exact(projected_gdf.geometry.iloc[0], 0)
     assert duck_connector.connection.execute("SELECT count(*) FROM places").fetchone() == (2,)

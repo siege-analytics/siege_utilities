@@ -398,8 +398,8 @@ class PostGISConnector:
 
         Args:
             table_name: Source table name
-            crs: Output CRS. Defaults to
-                :func:`~siege_utilities.geo.crs.get_default_crs`.
+            crs: Optional output CRS. Omit to preserve the native SRID when
+                available; otherwise use the configured default CRS.
             **kwargs: Additional parameters. Accepts ``geom_col``
                 (default ``'geom'``) to specify the geometry column name.
 
@@ -431,7 +431,7 @@ class PostGISConnector:
                 geom_col=geom_col,
             )
             log.info(f"Successfully downloaded from PostGIS: {table_name}")
-            return reproject_if_needed(gdf, crs)
+            return reproject_if_needed(gdf, crs) if crs is not None else gdf
 
         except (_Psycopg2Error, _CRSError, OSError, ValueError, TypeError, AttributeError, KeyError) as e:
             raise SpatialQueryError(f"PostGIS download failed for {table_name}: {e}") from e
@@ -447,14 +447,14 @@ class PostGISConnector:
         When this connector opened the connection and no caller transaction is
         active, every statement commits after decoding succeeds and rolls back
         on error. In a caller transaction, read-only statements never commit;
-        writes keep the existing behavior: SELECT leaves the transaction open,
-        other write statements commit. Savepoints isolate failures without
-        rolling back the caller's transaction.
+        statements containing write tokens commit, while volatile-function SELECT
+        calls without write tokens leave the transaction open. Savepoints isolate
+        failures without rolling back the caller's transaction.
 
         Args:
             query: SQL query string
-            crs: Output CRS. Defaults to
-                :func:`~siege_utilities.geo.crs.get_default_crs`.
+            crs: Optional output CRS. Omit to preserve the native SRID when
+                available; otherwise use the configured default CRS.
             **kwargs: Additional parameters
 
         Returns:
@@ -508,7 +508,13 @@ class PostGISConnector:
                         # Match read_postgis's EPSG fallback for an absent row.
                         source_crs = f"{authority[0]}:{authority[1]}" if authority else f"EPSG:{srid}"
                         result = result.set_crs(source_crs)
-                    result = reproject_if_needed(result, crs)
+                    elif crs is None:
+                        log.warning(
+                            "PostGIS geometries lack SRID metadata; assuming the default CRS. "
+                            "Pass crs= to specify a target CRS."
+                        )
+                    if crs is not None or not srid:
+                        result = reproject_if_needed(result, crs)
             else:
                 result = cursor.rowcount
             if savepoint:
@@ -517,7 +523,7 @@ class PostGISConnector:
             if owns_transaction:
                 # SELECT can invoke volatile functions that write data.
                 self.connection.commit()
-            elif _postgis_has_dml(query) and not query.strip().upper().startswith('SELECT'):
+            elif _postgis_has_dml(query):
                 # Preserve develop's commit behavior for caller-owned writes.
                 self.connection.commit()
             log.info("Successfully executed PostGIS query")
@@ -619,192 +625,7 @@ def _duckdb_table_metadata(connection, table_name):
     return comment, None
 
 
-def _duckdb_select_metadata(connection, query):
-    """Read resolved scan identities from the unoptimized bound logical plan.
-
-    Unlike get_table_names, this binds the real tables and expands views, so
-    aliases, search paths, CTEs and USING joins retain their catalog identities.
-    Disabling optimization keeps geometry provenance even for empty results.
-    """
-    plan = json.loads(connection.execute(
-        "SELECT json_serialize_plan(?, optimize := false)", [query],
-    ).fetchone()[0])
-    if plan.get('error'):
-        # Python UDFs and some external scans cannot be serialized. Parse
-        # dependencies instead so an auxiliary discovery failure cannot reject
-        # an executable SELECT or discard metadata on its catalog tables.
-        return _duckdb_parsed_metadata(connection, query)
-    metadata = []
-    tables = set()
-
-    def visit(node):
-        if isinstance(node, dict):
-            if node.get('type') == 'LOGICAL_GET' and {'geometry', 'geometry_wkt'}.intersection(node.get('names', [])):
-                source = node.get('function_data', {})
-                if all(key in source for key in ('catalog', 'schema', 'table')):
-                    tables.add(tuple(source[key] for key in ('catalog', 'schema', 'table')))
-                else:
-                    metadata.append(None)
-            for child in node.values():
-                visit(child)
-        elif isinstance(node, list):
-            for child in node:
-                visit(child)
-
-    visit(plan)
-    for parts in sorted(tables):
-        name = '.'.join('"' + part.replace('"', '""') + '"' for part in parts)
-        _, stored = _duckdb_table_metadata(connection, name)
-        metadata.extend(stored if stored is not None else [None])
-    return metadata
-
-
-def _duckdb_parsed_metadata(connection, query, *, seen=frozenset(), defaults=(None, None)):
-    """Resolve parser dependencies when bound-plan serialization is unavailable."""
-    parsed = json.loads(connection.execute("SELECT json_serialize_sql(?)", [query]).fetchone()[0])
-    if parsed.get('error'):
-        raise ValueError(parsed.get('error_message', 'SQL dependency discovery failed'))
-    metadata = []
-
-    def visit(node, ctes=frozenset()):
-        if isinstance(node, list):
-            for child in node:
-                visit(child, ctes)
-        elif isinstance(node, dict):
-            ctes = ctes | {entry['key'].lower() for entry in node.get('cte_map', {}).get('map', [])}
-            if node.get('type') == 'BASE_TABLE':
-                table = node['table_name']
-                schema, catalog = node.get('schema_name'), node.get('catalog_name')
-                if not schema and not catalog and table.lower() in ctes:
-                    return
-                row = connection.execute(
-                    "SELECT database_name, schema_name, table_name, sql, is_view FROM ("
-                    "SELECT database_name, schema_name, table_name, sql, false AS is_view, temporary "
-                    "FROM duckdb_tables() UNION ALL "
-                    "SELECT database_name, schema_name, view_name, sql, true, temporary FROM duckdb_views()) "
-                    "WHERE lower(table_name)=lower(?) "
-                    "AND (lower(database_name)=lower(coalesce(?, current_database())) "
-                    "OR (? IS NULL AND temporary)) "
-                    "AND ((? IS NULL AND list_contains(current_schemas(true), schema_name)) "
-                    "OR lower(schema_name)=lower(?)) "
-                    "ORDER BY temporary DESC, list_position(current_schemas(true), schema_name) LIMIT 1",
-                    [table, catalog or defaults[0], catalog or defaults[0],
-                     schema or defaults[1], schema or defaults[1]],
-                ).fetchone()
-                if row is None or tuple(row[:3]) in seen:
-                    return
-                database, schema, table, sql, is_view = row
-                if is_view:
-                    # Catalog view SQL is normalized by DuckDB. Token boundaries
-                    # keep quoted names (including "AS") out of this delimiter.
-                    tokens = list(_sql_tokens(sql))
-                    start = next((i + 1 for i, token in enumerate(tokens)
-                                  if token[0] == 'word' and token[1].upper() == 'AS'), None)
-                    if start is None:
-                        # Registered external relations have no SQL view body
-                        # or stored table CRS. Geometry from one makes a joined
-                        # known CRS insufficient to describe the whole result.
-                        columns = connection.execute(
-                            "SELECT column_name FROM duckdb_columns() "
-                            "WHERE database_name=? AND schema_name=? AND table_name=?",
-                            [database, schema, table],
-                        ).fetchall()
-                        if any(name in {'geometry', 'geometry_wkt'} for name, in columns):
-                            metadata.append(None)
-                        return
-                    body = ' '.join(value for _, value in tokens[start:])
-                    metadata.extend(_duckdb_parsed_metadata(
-                        connection, body, seen=seen | {tuple(row[:3])}, defaults=(database, schema),
-                    ))
-                else:
-                    columns = connection.execute(
-                        "SELECT column_name FROM duckdb_columns() "
-                        "WHERE database_name=? AND schema_name=? AND table_name=?",
-                        [database, schema, table],
-                    ).fetchall()
-                    if any(name in {'geometry', 'geometry_wkt'} for name, in columns):
-                        qualified = '.'.join('"' + part.replace('"', '""') + '"' for part in row[:3])
-                        _, stored = _duckdb_table_metadata(connection, qualified)
-                        metadata.extend(stored if stored is not None else [None])
-            else:
-                for child in node.values():
-                    visit(child, ctes)
-
-    visit(parsed)
-    return metadata
-
-
-def _duckdb_query_metadata(connection, statement):
-    """Keep optional discovery failures and ambiguity out of query execution."""
-    from pyproj import CRS
-
-    try:
-        stored = _duckdb_resolve_query_metadata(connection, statement)
-        known = {CRS.from_user_input(value) for value in stored if value is not None}
-        if len(known) > 1:
-            reason = "conflicting source CRSs"
-        elif known and None in stored:
-            reason = "mixed known and unknown CRSs"
-        elif not known:
-            reason = "no known CRS metadata for the geometry sources"
-        else:
-            return stored
-    except Exception as error:
-        # Discovery is auxiliary. Preserve the user's rows even for driver,
-        # parser, catalog, metadata decoding, or CRS validation failures.
-        log.warning("DuckDB CRS discovery failed (%s): %s", type(error).__name__, error)
-        return []
-    log.warning("DuckDB result CRS is unknown: %s", reason)
-    return []
-
-
-def _duckdb_resolve_query_metadata(connection, statement):
-    """Resolve source table metadata without executing the user statement."""
-    import duckdb
-
-    tokens = list(_sql_tokens(statement.query))
-    if statement.type == duckdb.StatementType.EXECUTE:
-        kind, name = tokens[1]
-        name = name[1:-1].replace('""', '"') if kind == 'identifier' else name
-        ascii_fold = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
-        for stored_name, sql in connection.execute(
-            "SELECT name, statement FROM duckdb_prepared_statements()"
-        ).fetchall():
-            if stored_name.translate(ascii_fold) == name.translate(ascii_fold):
-                return _duckdb_resolve_query_metadata(connection, connection.extract_statements(sql)[0])
-        return []
-    if statement.type == duckdb.StatementType.SELECT:
-        return _duckdb_select_metadata(connection, statement.query)
-    tables = set()
-    if statement.type in {duckdb.StatementType.INSERT, duckdb.StatementType.UPDATE,
-                          duckdb.StatementType.DELETE}:
-        target_keyword = {duckdb.StatementType.INSERT: 'INTO',
-                          duckdb.StatementType.UPDATE: 'UPDATE',
-                          duckdb.StatementType.DELETE: 'FROM'}[statement.type]
-        depth = 0
-        for index, (kind, value) in enumerate(tokens):
-            if kind == 'symbol' and value == '(':
-                depth += 1
-            elif kind == 'symbol' and value == ')':
-                depth -= 1
-            elif depth == 0 and kind == 'word' and value.upper() == target_keyword:
-                # Join actual identifier lexemes; comments and whitespace never
-                # become part of a parenthesis, dot or quoted target name.
-                parts = [tokens[index + 1][1]]
-                index += 2
-                while index < len(tokens) and tokens[index] == ('symbol', '.'):
-                    parts.extend(['.', tokens[index + 1][1]])
-                    index += 2
-                tables.add(''.join(parts))
-                break
-    metadata = []
-    for table in tables:
-        _, stored = _duckdb_table_metadata(connection, table)
-        metadata.extend(stored if stored is not None else [None])
-    return metadata
-
-
-def _duckdb_result_frame(df, *, source_crs=None, crs=None, stored_crs=(), allow_unknown_crs=False):
+def _duckdb_result_frame(df, *, source_crs=None, crs=None, stored_crs=()):
     """Decode stored WKT and table CRS without consuming caller attributes."""
     from pyproj import CRS
 
@@ -823,15 +644,26 @@ def _duckdb_result_frame(df, *, source_crs=None, crs=None, stored_crs=(), allow_
     gdf = gpd.GeoDataFrame(df, geometry='geometry', crs=source)
     if crs is not None:
         if source is None:
-            if allow_unknown_crs:
-                # A valid query still returns its rows when optional metadata
-                # cannot support reprojection. Invalid caller input still fails.
-                CRS.from_user_input(crs)
-                log.warning("DuckDB reprojection to %s skipped: source CRS is unknown", crs)
-                return gdf
             raise ValueError("Source CRS is unknown; provide source_crs before reprojecting")
         return gdf.to_crs(crs)
     return gdf
+
+
+def _duckdb_query_frame(df, crs=None):
+    """Decode arbitrary SQL results using develop's assumed WKT CRS."""
+    from siege_utilities.geo.crs import reproject_if_needed
+
+    if 'geometry_wkt' not in df.columns and 'geometry' not in df.columns:
+        return gpd.GeoDataFrame(df)
+    if 'geometry_wkt' in df.columns:
+        df['geometry'] = gpd.GeoSeries.from_wkt(df.pop('geometry_wkt'), index=df.index)
+    gdf = gpd.GeoDataFrame(df, geometry='geometry', crs="EPSG:4326")
+    if crs is None:
+        log.warning(
+            "DuckDB WKT geometries lack SRID metadata; assuming EPSG:4326. "
+            "Pass crs= to reproject to a target CRS."
+        )
+    return reproject_if_needed(gdf, crs)
 
 
 class DuckDBConnector:
@@ -980,11 +812,11 @@ class DuckDBConnector:
             table_name: Source table name
             crs: Optional output CRS. Omit to preserve the source CRS.
             **kwargs: Additional parameters. Reads accept source_crs for
-                legacy tables or queries without source table metadata.
+                legacy tables without source table metadata.
 
         Returns:
             GeoDataFrame retaining the stored source CRS. Legacy WKT tables
-            and queries without table metadata have unknown CRS unless
+            without table metadata have unknown CRS unless
             source_crs is supplied. Empty tables retain their CRS. Pass crs to
             reproject from the known source to a different target.
 
@@ -1031,14 +863,13 @@ class DuckDBConnector:
         Mutating calls own a transaction through result validation. They require
         a connection without an active transaction; nested transactions are
         unsupported by DuckDB. SELECT calls do not finalize transactions.
-        Unknown or ambiguous source metadata leaves CRS unset and logs the
-        reason. Requested reprojection is skipped when source CRS is unknown.
+        WKT results assume EPSG:4326, matching develop. Pass crs to reproject.
+        Use download_spatial_data to attach a named table's stored CRS.
 
         Args:
             query: SQL query string
-            crs: Optional output CRS. Omit to preserve the source CRS.
-            **kwargs: Additional parameters. Reads accept source_crs for
-                legacy tables or queries without source table metadata.
+            crs: Output CRS. WKT results start with an EPSG:4326 label.
+            **kwargs: Additional parameters.
 
         Returns:
             GeoDataFrame for row-returning queries, int rowcount for others.
@@ -1073,13 +904,9 @@ class DuckDBConnector:
                 self.connection.execute(statement)
             statement = statements[-1] if statements else None
             returns_rows = statement is not None and engine._statement_returns_rows(statement)
-            stored = _duckdb_query_metadata(self.connection, statement) if returns_rows else []
             result = self.connection.execute(statement if statement is not None else query)
             if returns_rows:
-                result = _duckdb_result_frame(
-                    result.df(), source_crs=kwargs.get('source_crs'), crs=crs, stored_crs=stored,
-                    allow_unknown_crs=True,
-                )
+                result = _duckdb_query_frame(result.df(), crs=crs)
             else:
                 try:
                     row = result.fetchone()
@@ -1256,9 +1083,9 @@ def execute_duckdb_query(query: str, db_path: Optional[str] = None, **kwargs) ->
             in-memory when omitted).
         **kwargs: Forwarded to
             :meth:`DuckDBConnector.execute_spatial_query`. Accepts
-            ``crs`` (output CRS, applies to row-returning queries) and
-            ``source_crs`` for missing metadata. Uploaded source CRS is read
-            from table comments. Omit ``crs`` to keep the source.
+            ``crs`` (output CRS, applies to row-returning queries). WKT
+            results assume EPSG:4326. Use download_from_duckdb for stored
+            table CRS metadata.
 
     Returns:
         GeoDataFrame for row-returning queries, int rowcount for others.

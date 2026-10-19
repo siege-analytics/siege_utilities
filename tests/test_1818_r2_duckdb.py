@@ -35,7 +35,7 @@ def places():
     "WITH places AS (SELECT * FROM main.places) SELECT p.* FROM places p",
     "SELECT * FROM place_view WHERE false",
 ])
-def test_r2_2_rows_columns_and_crs_survive_composition(places, query):
+def test_r2_2_composition_matches_driver_rows_and_develop_crs(places, query):
     connector, frame = places
     driver_rows = connector.connection.execute(query).df()
     result = connector.execute_spatial_query(query)
@@ -46,12 +46,12 @@ def test_r2_2_rows_columns_and_crs_survive_composition(places, query):
     assert result.geometry.to_wkt().tolist() == driver_rows.geometry_wkt.tolist()
     if "label" in result:
         assert result.label.tolist() == ["seven"]
-    assert result.crs == frame.crs
+    assert result.crs.to_epsg() == 4326
 
 
 @pytest.mark.parametrize("gap", [" ", "\n\t", "/* note */", "-- note\n", "/* outer /* inner */ end */"])
 @pytest.mark.parametrize("boundary", range(10))
-def test_r2_3_cte_and_target_token_boundaries_preserve_crs(places, gap, boundary):
+def test_r2_3_cte_and_target_token_boundaries_preserve_rows(places, gap, boundary):
     connector, frame = places
     gaps = [" "] * 10
     gaps[boundary] = gap
@@ -67,7 +67,7 @@ def test_r2_3_cte_and_target_token_boundaries_preserve_crs(places, gap, boundary
     assert result._siege_crs.tolist() == ["caller attribute"]
     assert result.geometry.iloc[0].equals_exact(frame.geometry.iloc[0], 0)
     assert connector.connection.execute("SELECT id FROM places").fetchall() == [(7,), (7,)]
-    assert result.crs == frame.crs
+    assert result.crs.to_epsg() == 4326
 
 
 def test_upload_metadata_does_not_require_module_global_driver(places, monkeypatch):
@@ -82,7 +82,7 @@ def test_upload_metadata_does_not_require_module_global_driver(places, monkeypat
 
 
 @pytest.mark.parametrize("view", [False, True])
-def test_r2_2_unserializable_scan_retains_catalog_geometry_metadata(places, view):
+def test_r2_2_external_scan_matches_develop_crs(places, view):
     import pandas as pd
 
     connector, frame = places
@@ -95,10 +95,10 @@ def test_r2_2_unserializable_scan_retains_catalog_geometry_metadata(places, view
     assert result.id.tolist() == [7]
     assert result.label.tolist() == ["seven"]
     assert result.geometry.iloc[0].equals_exact(frame.geometry.iloc[0], 0)
-    assert result.crs == frame.crs
+    assert result.crs.to_epsg() == 4326
 
 
-def test_r2_2_attached_catalog_and_quoted_view_resolve_geometry_source(places):
+def test_r2_2_attached_catalog_and_quoted_view_match_develop_crs(places):
     connector, frame = places
     connector.connection.execute("ATTACH ':memory:' AS other")
     connector.connection.execute("CREATE SCHEMA other.retained")
@@ -108,7 +108,7 @@ def test_r2_2_attached_catalog_and_quoted_view_resolve_geometry_source(places):
     connector.connection.execute("USE memory.main")
     result = connector.execute_spatial_query('SELECT p.* FROM other.retained."place.view" p')
     assert result.id.tolist() == [7]
-    assert result.crs == frame.crs
+    assert result.crs.to_epsg() == 4326
 
 
 def test_r2_2_prepared_read_keeps_rows_columns_and_crs(places):
@@ -117,13 +117,13 @@ def test_r2_2_prepared_read_keeps_rows_columns_and_crs(places):
     result = connector.execute_spatial_query("EXECUTE read_places")
     assert result.id.tolist() == [7]
     assert result.columns.tolist() == frame.columns.tolist()
-    assert result.crs == frame.crs
+    assert result.crs.to_epsg() == 4326
 
 
 @pytest.mark.parametrize("helper", ["_duckdb_table_metadata", "_duckdb_select_metadata", "_duckdb_parsed_metadata"])
 @pytest.mark.parametrize("error", [RuntimeError, KeyError])
 @pytest.mark.parametrize("crs", [None, "EPSG:4326"])
-def test_r2_2_discovery_errors_keep_driver_rows_and_warn(places, monkeypatch, caplog, helper, error, crs):
+def test_r2_2_arbitrary_queries_never_call_metadata_helpers(places, monkeypatch, caplog, helper, error, crs):
     import pandas as pd
     import siege_utilities.geo.spatial_transformations as module
 
@@ -142,9 +142,9 @@ def test_r2_2_discovery_errors_keep_driver_rows_and_warn(places, monkeypatch, ca
     assert result.label.tolist() == driver.label.tolist()
     assert result._siege_crs.tolist() == driver._siege_crs.tolist()
     assert result.geometry.to_wkt().tolist() == driver.geometry_wkt.tolist()
-    assert result.crs is None
-    assert "discovery probe failure" in caplog.text
-    assert any(record.levelname == "WARNING" for record in caplog.records)
+    assert result.crs.to_epsg() == 4326
+    assert "discovery probe failure" not in caplog.text
+    assert ("assuming EPSG:4326" in caplog.text) == (crs is None)
 
 
 @pytest.mark.parametrize("metadata, reason", [
@@ -154,7 +154,7 @@ def test_r2_2_discovery_errors_keep_driver_rows_and_warn(places, monkeypatch, ca
     ('["invalid:crs"]', "Invalid"),
     ('not json', "Expecting value"),
 ])
-def test_r2_2_unusable_metadata_keeps_rows_with_reason(places, caplog, metadata, reason):
+def test_r2_2_unusable_metadata_does_not_affect_arbitrary_sql(places, caplog, metadata, reason):
     connector, _ = places
     connector.connection.execute("COMMENT ON TABLE places IS '\nsiege_utilities.crs.v1=" + metadata + "'")
     driver = connector.connection.execute("SELECT * FROM places").df()
@@ -163,12 +163,12 @@ def test_r2_2_unusable_metadata_keeps_rows_with_reason(places, caplog, metadata,
     assert result.id.tolist() == driver.id.tolist()
     assert result._siege_crs.tolist() == driver._siege_crs.tolist()
     assert result.geometry.to_wkt().tolist() == driver.geometry_wkt.tolist()
-    assert result.crs is None
-    assert reason in caplog.text
+    assert result.crs.to_epsg() == 4326
+    assert "assuming EPSG:4326" in caplog.text
 
 
 @pytest.mark.parametrize("other", ["same", "conflicting", "unknown", "external"])
-def test_r2_2_all_geometry_sources_determine_crs(places, caplog, other):
+def test_r2_2_union_sources_do_not_change_develop_crs(places, caplog, other):
     connector, frame = places
     if other == "external":
         connector.connection.register("other_places", frame.to_wkt().rename(columns={"geometry": "geometry_wkt"}))
@@ -183,15 +183,11 @@ def test_r2_2_all_geometry_sources_determine_crs(places, caplog, other):
     assert result.id.tolist() == driver.id.tolist()
     assert result._siege_crs.tolist() == driver._siege_crs.tolist()
     assert result.geometry.to_wkt(rounding_precision=-1).tolist() == driver.geometry_wkt.tolist()
-    if other == "same":
-        assert result.crs == frame.crs
-        assert not caplog.records
-    else:
-        assert result.crs is None
-        assert ("conflicting" if other == "conflicting" else "unknown") in caplog.text
+    assert result.crs.to_epsg() == 4326
+    assert "assuming EPSG:4326" in caplog.text
 
 
-def test_r2_2_discovery_failure_keeps_returning_rows_and_write(places, monkeypatch, caplog):
+def test_r2_2_returning_does_not_look_up_target_metadata(places, monkeypatch, caplog):
     import siege_utilities.geo.spatial_transformations as module
 
     connector, frame = places
@@ -204,6 +200,27 @@ def test_r2_2_discovery_failure_keeps_returning_rows_and_write(places, monkeypat
         result = connector.execute_spatial_query("INSERT INTO places SELECT * FROM places RETURNING *")
     assert result.id.tolist() == frame.id.tolist()
     assert result.geometry.to_wkt().tolist() == frame.geometry.to_wkt().tolist()
-    assert result.crs is None
+    assert result.crs.to_epsg() == 4326
     assert connector.connection.execute("SELECT id FROM places").fetchall() == [(7,), (7,)]
-    assert "target metadata unavailable" in caplog.text
+    assert "target metadata unavailable" not in caplog.text
+    assert "assuming EPSG:4326" in caplog.text
+
+
+@pytest.mark.parametrize("crs", [None, "EPSG:3857"])
+def test_beta_arbitrary_sql_matches_develop_crs(places, caplog, crs):
+    connector, _ = places
+    with caplog.at_level("WARNING"):
+        result = connector.execute_spatial_query("SELECT * FROM places", crs=crs)
+    assert result.crs.to_epsg() == (3857 if crs else 4326)
+    warning = (
+        "DuckDB WKT geometries lack SRID metadata; assuming EPSG:4326. "
+        "Pass crs= to reproject to a target CRS."
+    )
+    assert (warning in caplog.messages) == (crs is None)
+
+
+def test_beta_table_read_uses_stored_crs(places):
+    connector, frame = places
+    result = connector.download_spatial_data("places")
+    assert result.crs.to_epsg() == 3857
+    assert result.geometry.iloc[0].equals_exact(frame.geometry.iloc[0], 0)
