@@ -3,12 +3,15 @@
 import csv
 import io
 import json
-from unittest.mock import Mock
+from decimal import Decimal
+from unittest.mock import Mock, call
 
+import numpy as np
 import pandas as pd
 import pytest
 import requests
 
+from siege_utilities.connectors._protocol import ConnectorError
 from siege_utilities.connectors.dynamics import DynamicsConnector
 from siege_utilities.connectors.hubspot import HubSpotConnector
 from siege_utilities.connectors.salesforce import SalesforceConnector
@@ -156,18 +159,136 @@ def test_upsert_records_sends_sanitized_json(provider, upsert_rows, monkeypatch)
 
 
 @pytest.mark.parametrize("provider,object_type", [
-    ("salesforce", "Account"), ("hubspot", "contacts"), ("zoho", "Contacts"),
+    ("salesforce", "Account"), ("hubspot", "contacts"),
+    ("zoho", "Contacts"), ("dynamics", "contacts"),
 ])
-def test_json_encoding_error_is_not_retried_as_transport(provider, object_type, monkeypatch):
-    connector = _connector(provider)      # as in the new test module
+def test_encoding_error_keeps_connector_error_contract(provider, object_type, monkeypatch):
+    connector = _connector(provider)
     connector._retry_attempts = 3
-    monkeypatch.setattr("time.sleep", lambda s: None)
-    monkeypatch.setattr(requests.Session, "send", Mock(side_effect=AssertionError("no HTTP expected")))
+    connector._retry_backoff = 2
+    send = Mock(side_effect=AssertionError("no HTTP expected"))
+    sleep = Mock(side_effect=AssertionError("no backoff expected"))
+    monkeypatch.setattr(requests.Session, "send", send)
+    monkeypatch.setattr("time.sleep", sleep)
     request = Mock(wraps=connector._session.request)
     monkeypatch.setattr(connector._session, "request", request)
-    with pytest.raises(Exception):
+
+    with pytest.raises(ConnectorError, match="JSON") as exc_info:
         connector.create_record(object_type, {"Name": "x", "AnnualRevenue": float("nan")})
+
+    assert isinstance(exc_info.value.__cause__, requests.exceptions.InvalidJSONError)
     assert request.call_count == 1
+    send.assert_not_called()
+    sleep.assert_not_called()
+
+
+@pytest.mark.parametrize("provider,object_type", [
+    ("salesforce", "Account"), ("hubspot", "contacts"),
+    ("zoho", "Contacts"), ("dynamics", "contacts"),
+])
+def test_transport_errors_keep_three_attempts_and_two_backoffs(provider, object_type, monkeypatch):
+    connector = _connector(provider)
+    connector._retry_attempts = 3
+    connector._retry_backoff = 2
+    send = Mock(side_effect=requests.exceptions.ConnectionError("connection failed"))
+    sleep = Mock()
+    monkeypatch.setattr(requests.Session, "send", send)
+    monkeypatch.setattr("time.sleep", sleep)
+    request = Mock(wraps=connector._session.request)
+    monkeypatch.setattr(connector._session, "request", request)
+
+    with pytest.raises(ConnectorError):
+        connector.create_record(object_type, {"name": "test"})
+
+    assert request.call_count == 3
+    assert send.call_count == 3
+    assert sleep.call_args_list == [call(2), call(4)]
+
+
+def test_zoho_nested_numpy_boolean_preserves_object(monkeypatch):
+    connector = _connector("zoho")
+    send = _mock_http(monkeypatch, [_response({"data": [{
+        "status": "success", "action": "update", "details": {"id": "test"},
+    }]})])
+    frame = pd.DataFrame([{
+        "Email": "lead@example.test",
+        "Last_Name": "Test",
+        "Foreign_Languages": ["Korean"],
+        "$append_values": {"Foreign_Languages": np.bool_(True)},
+    }], dtype=object)
+
+    connector.upsert_records("Leads", frame, "Email")
+
+    send.assert_called_once()
+    row = json.loads(send.call_args.args[0].body)["data"][0]
+    assert isinstance(row["$append_values"], dict)
+    assert row["$append_values"]["Foreign_Languages"] is True
+
+
+@pytest.mark.parametrize("provider", ["salesforce", "hubspot", "zoho", "dynamics"])
+def test_nested_upsert_values_preserve_http_types(provider, monkeypatch):
+    connector = _connector(provider)
+    if provider == "salesforce":
+        response = _response([{"success": True, "id": "test", "created": False}])
+    elif provider == "hubspot":
+        response = _response({"results": [{"id": "test"}]})
+    elif provider == "zoho":
+        response = _response({"data": [{
+            "status": "success", "action": "update", "details": {"id": "test"},
+        }]})
+    else:
+        response = _response("", content_type="multipart/mixed", status=202)
+    send = _mock_http(monkeypatch, [response])
+    frame = pd.DataFrame([{
+        "external_id": "test",
+        "nested": {
+            "id": np.int64(7), "amount": Decimal("12.50"),
+            "ratio": np.float32(1.5), "active": np.bool_(True),
+            "nan": np.nan, "nat": pd.NaT, "na": pd.NA, "none": None,
+            "items": [None, np.nan, pd.NaT, pd.NA, {
+                "date": pd.Timestamp("2026-01-02T12:34:56Z"),
+                "quantity": np.int64(2), "missing": pd.NA,
+                "more": [{"flag": np.bool_(False)}, [np.int64(3), np.nan]],
+            }],
+        },
+    }], dtype=object)
+
+    connector.upsert_records("contacts", frame, "external_id")
+
+    send.assert_called_once()
+    body = send.call_args.args[0].body
+    if isinstance(body, bytes):
+        body = body.decode("utf-8")
+    if provider == "dynamics":
+        rows = [json.loads(line, parse_constant=_reject_non_json_constant)
+                for line in body.split("\r\n") if line.startswith("{")]
+        assert len(rows) == 1
+        row = rows[0]
+    else:
+        payload = json.loads(body, parse_constant=_reject_non_json_constant)
+        if provider == "salesforce":
+            row = payload["records"][0]
+        elif provider == "hubspot":
+            row = payload["inputs"][0]["properties"]
+        else:
+            row = payload["data"][0]
+    nested = row["nested"]
+    assert isinstance(nested, dict)
+    assert nested == {
+        "id": 7, "amount": "12.50", "ratio": 1.5, "active": True,
+        "items": [None, None, None, None, {
+            "date": "2026-01-02T12:34:56+00:00", "quantity": 2,
+            "more": [{"flag": False}, [3, None]],
+        }],
+    }
+    assert type(nested["id"]) is int
+    assert type(nested["amount"]) is str
+    assert type(nested["ratio"]) is float
+    assert nested["active"] is True
+    assert isinstance(nested["items"], list)
+    assert isinstance(nested["items"][4], dict)
+    assert type(nested["items"][4]["quantity"]) is int
+    assert nested["items"][4]["more"][0]["flag"] is False
 
 
 def test_salesforce_bulk_upsert_sends_sanitized_csv(upsert_rows, monkeypatch):

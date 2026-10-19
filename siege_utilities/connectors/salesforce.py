@@ -1264,9 +1264,10 @@ class SalesforceConnector:
                     json=json_body,
                     timeout=self._timeout,
                 )
-            except requests.exceptions.InvalidJSONError:
-                # Retrying cannot fix a JSON encoding failure.
-                raise
+            except requests.exceptions.InvalidJSONError as exc:
+                raise ConnectorError(
+                    f"Salesforce JSON encoding failed for {method} {path}: {exc}"
+                ) from exc
             except requests.exceptions.RequestException as exc:
                 last_exc = exc
                 log.warning(

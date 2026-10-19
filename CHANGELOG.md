@@ -9,15 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Sanitize CRM upsert payloads for Salesforce, HubSpot, Zoho, and Dynamics:
-  omit missing fields to preserve existing values, serialize dates and timestamps
-  as ISO 8601 strings, and convert numpy scalars to native types. Salesforce bulk
-  CSV uploads use empty cells for missing values; Dynamics emits strict JSON (#1424).
-  JSON encoding failures raise once without retrying or backoff; transport failures
-  retain their existing retries and backoff.
-  **Migration:** an explicit `None` in an upsert frame is now omitted instead of
-  sent as JSON `null`, so it no longer clears the CRM field. To clear a field, use
-  `update_record(object_type, record_id, {"Field": None})`, which still sends `null`.
 - `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
   `48-49` and excludes the `10` all-industry total that caused double-counting,
   along with supersector aggregates. **Behavior change:** `parse()` and
@@ -132,6 +123,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Account.Name` and `name` return values instead of all-null columns. Output
   labels retain the caller's spelling; absent fields and relationships remain
   null, and empty results retain the requested columns (#1428).
+- Sanitize CRM upsert payloads for Salesforce, HubSpot, Zoho, and Dynamics:
+  omit missing fields to preserve existing values, serialize dates and timestamps
+  as ISO 8601 strings, and convert numpy scalars to native types. Salesforce bulk
+  CSV uploads use empty cells for missing values; Dynamics emits strict JSON (#1424).
+  JSON encoding failures raise once without retrying or backoff; transport failures
+  retain their existing retries and backoff.
+  **Migration:** an explicit `None` in an upsert frame is now omitted instead of
+  sent as JSON `null`, so it no longer clears the CRM field. To clear a field, use
+  `update_record(object_type, record_id, {"Field": None})`, which still sends `null`.
+  Nested dicts and lists preserve their structure: missing dict children are
+  omitted, missing list items become null without shifting positions, and scalar
+  leaves retain their documented conversions. Unsupported containers and circular
+  references raise `ConnectorError`; JSON encoding failures keep that same error
+  contract without retries (#1424).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
