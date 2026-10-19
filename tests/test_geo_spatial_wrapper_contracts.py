@@ -33,9 +33,9 @@ class FakeCensusSource:
         self.calls.append(("validate_download_url", url))
         return url.startswith("https://")
 
-    def get_geographic_boundaries(self, year, geographic_level, state_fips=None, state_identifier=None):
+    def get_geographic_boundaries(self, year, geographic_level, state_fips=None, county_fips=None):
         self.calls.append(
-            ("get_geographic_boundaries", year, geographic_level, state_fips, state_identifier)
+            ("get_geographic_boundaries", year, geographic_level, state_fips, county_fips)
         )
         return {"fake": "geodataframe"}
 
@@ -99,9 +99,9 @@ def test_get_geographic_boundaries_warns_and_reprojects(fake_census_source):
         )
 
     assert result == {"reprojected": {"fake": "geodataframe"}, "crs": "EPSG:3310"}
-    # state_identifier wins and is passed as the state. The source method's
+    # state_identifier wins and is normalized to FIPS. The source method's
     # fourth positional parameter is county_fips, so it must not be passed
     # there (#1482).
     assert fake_census_source.calls == [
-        ("get_geographic_boundaries", 2020, "tract", "CA", None)
+        ("get_geographic_boundaries", 2020, "tract", "06", None)
     ]

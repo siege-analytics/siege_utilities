@@ -112,6 +112,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Documented behavior change from v4.0.0:** the public
+  `spatial_data.download_dataset` wrapper now delegates to
+  `fetch_geographic_boundaries`, returning the requested boundaries in the
+  output CRS (or None with a logged diagnostic on retrieval failure) instead
+  of raising AttributeError for a missing Census source method.
+  `get_geographic_boundaries` normalizes `state_identifier` FIPS codes, state
+  abbreviations, and names using the existing helpers and forwards keywords,
+  so `CA` selects California tracts and `TX` selects Texas counties. Calls
+  using only `state_fips` retain their behavior. This corrects the v4.0.0
+  wrappers; v3.23.0 had no connector implementations (#1493).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting

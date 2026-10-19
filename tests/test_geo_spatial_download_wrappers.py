@@ -1,14 +1,17 @@
 from siege_utilities import download_dataset
 from siege_utilities import download_osm_data
+from siege_utilities.geo.boundary_result import BoundaryFetchResult
 
 
 class FakeCensusSource:
     def __init__(self):
         self.calls = []
 
-    def download_dataset(self, year, geographic_level, state_fips=None):
-        self.calls.append(("download_dataset", year, geographic_level, state_fips))
-        return {"fake": "census-geodataframe"}
+    def fetch_geographic_boundaries(self, **kwargs):
+        self.calls.append(kwargs)
+        return BoundaryFetchResult(
+            success=True, geodataframe={"fake": "census-geodataframe"},
+        )
 
 
 class FakeOpenStreetMapSource:
@@ -33,7 +36,10 @@ def test_download_dataset_delegates_and_reprojects(monkeypatch):
     result = download_dataset(2020, "tract", "06", crs="EPSG:3310")
 
     assert result == {"reprojected": {"fake": "census-geodataframe"}, "crs": "EPSG:3310"}
-    assert source.calls == [("download_dataset", 2020, "tract", "06")]
+    assert source.calls == [{
+        "year": 2020, "geographic_level": "tract", "state_fips": "06",
+        "county_fips": None, "congress_number": None, "allow_nearest_year": False,
+    }]
 
 
 def test_download_osm_data_delegates_bbox_and_reprojects(monkeypatch):

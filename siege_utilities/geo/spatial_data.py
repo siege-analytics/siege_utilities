@@ -2258,7 +2258,18 @@ def get_geographic_boundaries(
         ``get_geographic_boundaries`` will be removed in v3.17.0.
 
     Args:
+        year: Census year.
+        geographic_level: Geographic level (county, tract, etc.).
+        state_fips: State FIPS code for filtering.
+        state_identifier: State FIPS code, abbreviation, or name. A nonempty
+            value takes precedence over state_fips and is normalized to FIPS.
         crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
+
+    Returns:
+        GeoDataFrame with boundaries in *crs*, or None if retrieval failed.
+
+    Raises:
+        ValueError: Invalid state_identifier.
     """
     warnings.warn(
         "get_geographic_boundaries() is deprecated; will be removed in v3.17.0. "
@@ -2267,11 +2278,12 @@ def get_geographic_boundaries(
         DeprecationWarning,
         stacklevel=2,
     )
-    # state_identifier takes precedence, as in get_census_boundaries. It must
-    # not be passed positionally: the fourth parameter of the method is
-    # county_fips.
+    if state_identifier:
+        state_fips = normalize_state_identifier(normalize_state_input(state_identifier))
     gdf = _get_census_source().get_geographic_boundaries(
-        year, geographic_level, state_identifier or state_fips,
+        year=year,
+        geographic_level=geographic_level,
+        state_fips=state_fips,
     )
     return reproject_if_needed(gdf, crs)
 
@@ -2475,16 +2487,30 @@ def download_dataset(
     *,
     crs: str | None = None,
 ) -> Optional[GeoDataFrame]:
-    """Download Census dataset.
+    """Download Census boundaries via :func:`fetch_geographic_boundaries`.
+
+    This wrapper returns the boundary GeoDataFrame. Use
+    :func:`fetch_geographic_boundaries` directly for structured diagnostics.
 
     Args:
         year: Census year.
         geographic_level: Geographic level.
         state_fips: State FIPS code.
         crs: Output CRS. Defaults to :func:`~siege_utilities.geo.crs.get_default_crs`.
+
+    Returns:
+        GeoDataFrame with boundaries in *crs*, or None if retrieval failed.
     """
-    gdf = _get_census_source().download_dataset(year, geographic_level, state_fips)
-    return reproject_if_needed(gdf, crs)
+    result = fetch_geographic_boundaries(
+        year=year,
+        geographic_level=geographic_level,
+        state_fips=state_fips,
+        crs=crs,
+    )
+    if result.success:
+        return result.geodataframe
+    log.error(f"Boundary retrieval failed at stage '{result.error_stage}': {result.message}")
+    return None
 
 # Lazy singletons — avoid network I/O on module import.
 _census_source = None
