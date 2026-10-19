@@ -92,25 +92,27 @@ class SeatsOverlayResult:
 
     @property
     def current_districts(self) -> list[SeatAssignment]:
-        """Select the latest current period per office, preserving split districts.
+        """Select current districts per office at one shared reference year.
 
-        Each office's latest known end year (or start year for an ongoing row)
-        is its reference point, which can be in the past. Prefer ongoing rows
-        that start at or before that point. If there are none, use all rows
-        covering it, including finite rows at their end year. Keep every
-        district in the newest start-year group, treating an unknown start as
-        earlier than a known start. Preserve first-seen office order and row
-        order within each office.
+        The reference is the latest end year (or start year for an ongoing row)
+        across all assignments and can be in the past. Within each office,
+        prefer ongoing rows covering that year; otherwise use all rows covering
+        it, including finite rows at their end year. Omit offices with no row
+        covering the reference. Keep every district in the newest start-year
+        group, treating an unknown start as earlier than a known start.
+        Preserve first-seen office order and row order within each office.
         """
+        if not self.assignments:
+            return []
+        reference_year = max(
+            a.to_year if a.to_year is not None else (a.from_year or 0)
+            for a in self.assignments
+        )
         assignments_by_office: dict[str, list[SeatAssignment]] = {}
         for assignment in self.assignments:
             assignments_by_office.setdefault(assignment.office, []).append(assignment)
         result = []
         for assignments in assignments_by_office.values():
-            reference_year = max(
-                a.to_year if a.to_year is not None else (a.from_year or 0)
-                for a in assignments
-            )
             result.extend(_current_districts_at(assignments, reference_year))
         return result
 

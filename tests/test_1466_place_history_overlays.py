@@ -318,3 +318,21 @@ def test_place_history_combines_fips_filter_with_reversed_range() -> None:
     assert result.direction == "reverse"
     assert result.overlays["election_results"].returns == [election]
     assert result.overlays["redistricting"].assignments == [old_plan]
+
+
+@pytest.mark.parametrize("reverse", [False, True], ids=["forward", "reverse"])
+def test_current_districts_omits_office_not_covering_shared_reference(reverse: bool) -> None:
+    ended = SeatAssignment(
+        office="STATE_UPPER", district_label="3", from_year=2012, to_year=2016,
+    )
+    ongoing = SeatAssignment(
+        office="US_HOUSE", district_label="8", from_year=2018, to_year=None,
+    )
+    assignments = [ended, ongoing]
+    if reverse:
+        assignments.reverse()
+
+    current = SeatsOverlayResult("48201", assignments).current_districts
+
+    assert current == [ongoing]
+    assert all(assignment.office != ended.office for assignment in current)
