@@ -62,19 +62,22 @@ class SeatAssignment:
 def _current_districts_at(
     assignments: list[SeatAssignment], reference_year: int,
 ) -> list[SeatAssignment]:
-    """Prefer ongoing rows covering the reference, then the newest start group."""
-    current = [
+    """Choose a covering start-year group, preferring groups with ongoing rows."""
+    candidates = [
         a for a in assignments
-        if a.to_year is None and (a.from_year or 0) <= reference_year
+        if (a.from_year or 0) <= reference_year
+        and (a.to_year is None or reference_year <= a.to_year)
     ]
-    if not current:
-        current = [
-            a for a in assignments
-            if (a.from_year or 0) <= reference_year
-            and (a.to_year is None or reference_year <= a.to_year)
-        ]
-    latest_start = max((a.from_year or 0 for a in current), default=0)
-    return [a for a in current if (a.from_year or 0) == latest_start]
+    if not candidates:
+        return []
+    groups: dict[int, list[SeatAssignment]] = {}
+    for assignment in candidates:
+        groups.setdefault(assignment.from_year or 0, []).append(assignment)
+    ongoing_starts = [
+        start for start, group in groups.items()
+        if any(a.to_year is None for a in group)
+    ]
+    return groups[max(ongoing_starts or groups)]
 
 
 @dataclass
@@ -96,10 +99,11 @@ class SeatsOverlayResult:
 
         The reference is the latest end year (or start year for an ongoing row)
         across all assignments and can be in the past. Within each office,
-        prefer ongoing rows covering that year; otherwise use all rows covering
-        it, including finite rows at their end year. Omit offices with no row
-        covering the reference. Keep every district in the newest start-year
-        group, treating an unknown start as earlier than a known start.
+        group rows covering that year by start year, including finite rows at
+        their end year. Choose the newest group containing an ongoing row, or
+        the newest group if none contains an ongoing row. Keep every district
+        in that group, finite or ongoing. Omit offices with no covering row,
+        treating an unknown start as earlier than a known start.
         Preserve first-seen office order and row order within each office.
         """
         if not self.assignments:

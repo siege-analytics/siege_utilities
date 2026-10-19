@@ -159,7 +159,7 @@ def test_current_districts_selects_newest_applicable_period(
     assert result.current_districts == [new]
 
 
-def test_current_districts_prefers_ongoing_rows_with_different_end_bounds() -> None:
+def test_current_districts_keeps_finite_rows_in_ongoing_period() -> None:
     finite = SeatAssignment(
         office="US_HOUSE", district_label="4", from_year=2022, to_year=2030,
         containment_pct=0.3,
@@ -168,7 +168,8 @@ def test_current_districts_prefers_ongoing_rows_with_different_end_bounds() -> N
     assignments = [finite, ongoing]
     result = SeatsOverlayResult("48201", assignments)
 
-    assert result.current_districts == [ongoing]
+    assert result.current_districts == assignments
+    assert sum(a.containment_pct for a in result.current_districts) == pytest.approx(1.0)
 
 
 def test_current_districts_preserves_ongoing_seat_over_later_finite_period() -> None:
@@ -345,3 +346,45 @@ def test_covers_ref_is_inclusive_at_year_boundaries(ref: int) -> None:
     )
 
     assert _current_districts_at([d9], ref) == [d9]
+
+
+@pytest.mark.parametrize("reverse", [False, True], ids=["forward", "reverse"])
+def test_mixed_finite_and_ongoing_same_period_keeps_both(reverse: bool) -> None:
+    finite = SeatAssignment(
+        office="US_HOUSE", district_label="4", from_year=2020, to_year=2030,
+        containment_pct=0.3,
+    )
+    ongoing = replace(finite, district_label="7", to_year=None, containment_pct=0.7)
+    assignments = [finite, ongoing]
+    if reverse:
+        assignments.reverse()
+
+    current = _current_districts_at(assignments, 2025)
+
+    assert current == assignments
+    assert sum(a.containment_pct for a in current) == pytest.approx(1.0)
+    assert SeatsOverlayResult("48201", assignments).current_districts == assignments
+
+
+@pytest.mark.parametrize("reverse", [False, True], ids=["forward", "reverse"])
+def test_current_districts_at_2020_omits_office_without_candidates(reverse: bool) -> None:
+    ended = SeatAssignment(
+        office="X", district_label="3", from_year=2012, to_year=2016,
+    )
+    ongoing = SeatAssignment(
+        office="Y", district_label="8", from_year=2018, to_year=None,
+    )
+    assignments = [ended, ongoing]
+    if reverse:
+        assignments.reverse()
+    result = SeatsOverlayResult("48201", assignments)
+
+    current = [
+        assignment
+        for office in result.offices
+        for assignment in _current_districts_at(result.for_office(office), 2020)
+    ]
+
+    assert current == [ongoing]
+    assert _current_districts_at(result.for_office("X"), 2020) == []
+    assert result.current_districts == [ongoing]
