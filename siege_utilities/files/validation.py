@@ -389,10 +389,28 @@ def reject_unsafe_new_directory_names(directory: FilePath) -> Path:
         # such a component is treated as new and checked.
         if not os.path.lexists(prefix) and any(_is_unsafe_name_character(ch) for ch in part):
             raise PathSecurityError(
-                f"Control character or undecodable byte in new directory name "
+                f"Control character or undecodable byte in new name "
                 f"{part!r}: {str(path)!r}"
             )
     return path
+
+
+def reject_unsafe_new_file_path(file_path: FilePath) -> Path:
+    """Refuse a file path whose new components, the file name included, would be unsafe names.
+
+    Call this immediately before creating ``file_path``. It applies the same
+    as-written check as :func:`reject_unsafe_new_directory_names` to every
+    component, so a new file name containing a C0, DEL or C1 control, or a
+    lone surrogate, raises, as does any new parent directory. An existing
+    file may be overwritten whatever its name (#1737). Nothing is created.
+
+    Returns:
+        ``file_path`` as a Path, unchanged.
+
+    Raises:
+        PathSecurityError: If a component to be created has an unsafe name.
+    """
+    return reject_unsafe_new_directory_names(file_path)
 
 
 def validate_directory_path(dir_path: FilePath,
@@ -513,5 +531,6 @@ __all__ = [
     'validate_file_path',
     'validate_directory_path',
     'reject_unsafe_new_directory_names',
+    'reject_unsafe_new_file_path',
     'safe_join_paths',
 ]
