@@ -9,9 +9,11 @@ from pathlib import Path
 
 try:
     import geopandas as gpd
+    from shapely.errors import ShapelyError as _ShapelyError
     _GEOPANDAS_AVAILABLE = True
 except ImportError:
     gpd = None
+    _ShapelyError = ValueError
     _GEOPANDAS_AVAILABLE = False
 from typing import Optional, Union
 
@@ -289,8 +291,9 @@ class PostGISConnector:
             gdf: GeoDataFrame to upload (all columns including geometry).
             table_name: Target table name.
             **kwargs: Additional parameters:
-                if_exists: How to handle existing table -- ``'fail'``,
-                    ``'replace'`` (default), or ``'append'``.
+                if_exists: How to handle existing table -- ``'fail'``
+                    (default), ``'replace'``, or ``'append'``. Failed
+                    replacements roll back the original table.
                 schema: PostgreSQL schema name (default ``'public'``).
 
         Raises:
@@ -301,7 +304,7 @@ class PostGISConnector:
         if not self.connection_string:
             raise RuntimeError("No PostGIS connection_string available")
 
-        if_exists = kwargs.get('if_exists', 'replace')
+        if_exists = kwargs.get('if_exists', 'fail')
         schema = kwargs.get('schema', 'public')
 
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
@@ -320,12 +323,14 @@ class PostGISConnector:
             from sqlalchemy import create_engine
             engine = create_engine(self.connection_string)
             try:
-                gdf.to_postgis(
-                    name=table_name,
-                    con=engine,
-                    schema=schema,
-                    if_exists=if_exists,
-                )
+                # Keep DROP, CREATE and inserts in one transaction.
+                with engine.begin() as connection:
+                    gdf.to_postgis(
+                        name=table_name,
+                        con=connection,
+                        schema=schema,
+                        if_exists=if_exists,
+                    )
             finally:
                 engine.dispose()
             log.info(
@@ -388,10 +393,9 @@ class PostGISConnector:
         """
         Execute a spatial SQL query.
 
-        For SELECT queries the result is a :class:`GeoDataFrame`.
-        For non-SELECT queries (INSERT, UPDATE, DELETE, DDL) the result
-        is the ``cursor.rowcount`` integer (``-1`` when the row count
-        is not determinable, e.g. DDL).
+        Row-returning statements, including CTEs and DML with RETURNING,
+        produce a GeoDataFrame (without active geometry for tabular results).
+        Other statements return an affected-row count, or -1 if unavailable.
 
         Args:
             query: SQL query string
@@ -400,7 +404,7 @@ class PostGISConnector:
             **kwargs: Additional parameters
 
         Returns:
-            GeoDataFrame for SELECT queries, int rowcount for others.
+            GeoDataFrame for row-returning queries, int rowcount for others.
 
         Raises:
             SpatialQueryError: If the connection is unavailable or the
@@ -412,38 +416,35 @@ class PostGISConnector:
         if not self.connection:
             raise SpatialQueryError("No PostGIS connection available")
 
-        if query.strip().upper().startswith('SELECT'):
-            try:
-                geom_col = kwargs.get('geom_col', 'geometry')
-                # gpd.read_postgis decodes WKB and reads SRID from the
-                # geometry column. The previous manual-fetch path
-                # returned raw bytes in the geometry column, which
-                # silently produced a non-geo frame.
-                gdf = gpd.read_postgis(query, self.connection, geom_col=geom_col)
-                log.info("Successfully executed PostGIS query")
-                return reproject_if_needed(gdf, crs)
-            except (_Psycopg2Error, OSError, ValueError, TypeError, AttributeError) as e:
-                # read_postgis raises sqlalchemy / pandas / geopandas
-                # exceptions depending on the failure mode; catch broadly
-                # and roll back so the psycopg2 connection is not left in
-                # an aborted-transaction state for subsequent calls.
-                log.error(f"Failed to execute PostGIS query: {e}")
-                if self.connection:
-                    try:
-                        self.connection.rollback()
-                    except (_Psycopg2Error, OSError) as rb_exc:
-                        log.warning("Failed to rollback PostGIS transaction: %s", rb_exc)
-                raise SpatialQueryError(f"PostGIS query failed: {e}") from e
-
         cursor = None
         try:
             cursor = self.connection.cursor()
             cursor.execute(query)
+            if cursor.description is not None:
+                result = gpd.GeoDataFrame(
+                    cursor.fetchall(), columns=[column[0] for column in cursor.description],
+                )
+                geom_col = kwargs.get('geom_col', 'geometry')
+                if geom_col in result.columns:
+                    from shapely import get_srid
+
+                    # Decode fetched rows without replaying INSERT ... RETURNING.
+                    wkb = result[geom_col].map(
+                        lambda value: bytes(value) if isinstance(value, memoryview) else value
+                    )
+                    geometry = gpd.GeoSeries.from_wkb(wkb)
+                    non_null = geometry.dropna()
+                    srid = int(get_srid(non_null.iloc[0])) if len(non_null) else 0
+                    result = result.set_geometry(geometry.rename(geom_col))
+                    if srid:
+                        result = result.set_crs(epsg=srid)
+                    result = reproject_if_needed(result, crs)
+            else:
+                result = cursor.rowcount
             self.connection.commit()
-            rowcount = cursor.rowcount
             log.info("Successfully executed PostGIS query")
-            return rowcount
-        except (_Psycopg2Error, OSError, ValueError, TypeError, AttributeError) as e:
+            return result
+        except (_Psycopg2Error, _ShapelyError, OSError, ValueError, TypeError, AttributeError) as e:
             log.error(f"Failed to execute PostGIS query: {e}")
             if self.connection:
                 try:
@@ -506,6 +507,32 @@ class PostGISConnector:
             cursor.close()
 
 
+def _duckdb_result_frame(df, *, source_crs=None, crs=None):
+    """Decode stored WKT and CRS without guessing missing source metadata."""
+    from pyproj import CRS
+
+    source = CRS.from_user_input(source_crs) if source_crs is not None else None
+    if '_siege_crs' in df.columns:
+        metadata = df.pop('_siege_crs')
+        known = {CRS.from_user_input(value) for value in metadata.dropna().unique()}
+        if len(known) > 1 or (source is not None and any(value != source for value in known)):
+            raise ValueError("Result contains conflicting source CRSs")
+        if source is None and known:
+            if metadata.isna().any():
+                raise ValueError("Result mixes known and unknown CRSs; provide source_crs")
+            source = next(iter(known))
+    if 'geometry_wkt' in df.columns:
+        df['geometry'] = gpd.GeoSeries.from_wkt(df.pop('geometry_wkt'), index=df.index)
+    if 'geometry' not in df.columns:
+        return gpd.GeoDataFrame(df)
+    gdf = gpd.GeoDataFrame(df, geometry='geometry', crs=source)
+    if crs is not None:
+        if source is None:
+            raise ValueError("Source CRS is unknown; provide source_crs before reprojecting")
+        return gdf.to_crs(crs)
+    return gdf
+
+
 class DuckDBConnector:
     """Handles DuckDB database connections and operations (optional)."""
     
@@ -561,12 +588,15 @@ class DuckDBConnector:
 
     def upload_spatial_data(self, gdf: GeoDataFrame, table_name: str, **kwargs) -> None:
         """
-        Upload spatial data to DuckDB.
+        Upload spatial data to DuckDB in one transaction.
 
         Args:
-            gdf: GeoDataFrame to upload
+            gdf: GeoDataFrame to upload. Geometry is stored as geometry_wkt
+                with full CRS WKT in the reserved _siege_crs column.
             table_name: Target table name
-            **kwargs: Additional parameters
+            **kwargs: if_exists is 'fail' (default), 'replace', or 'append'.
+                Append matches columns by name and rejects conflicting CRSs.
+                Legacy rows retain unknown CRS when metadata is first added.
 
         Raises:
             RuntimeError: If connection or upload fails
@@ -578,54 +608,86 @@ class DuckDBConnector:
         validate_sql_identifier(table_name, "table name")
 
         try:
-            df = gdf.copy()
-            df['geometry_wkt'] = df.geometry.apply(lambda geom: geom.wkt)
-            df = df.drop(columns=['geometry'])
-
-            if_exists = kwargs.get('if_exists', 'replace')
-            if if_exists == 'replace':
-                self.connection.execute(f"DROP TABLE IF EXISTS {table_name}")
-
+            if_exists = kwargs.get('if_exists', 'fail')
+            if if_exists not in {'fail', 'replace', 'append'}:
+                raise ValueError("if_exists must be 'fail', 'replace', or 'append'")
+            if '_siege_crs' in gdf.columns or 'geometry_wkt' in gdf.columns:
+                raise ValueError("_siege_crs and geometry_wkt are reserved storage columns")
+            # WKT alone has no CRS. Keep full CRS WKT alongside each geometry
+            # so SELECT/CTE/RETURNING results retain it across connections.
+            df = gdf.to_wkt(rounding_precision=-1).rename(columns={gdf.geometry.name: 'geometry_wkt'})
+            df['geometry_wkt'] = df['geometry_wkt'].astype('string')
+            df['_siege_crs'] = gdf.crs.to_wkt() if gdf.crs is not None else None
+            df['_siege_crs'] = df['_siege_crs'].astype('string')
             self.connection.register("siege_upload_df", df)
             try:
-                self.connection.execute(
-                    f"CREATE TABLE {table_name} AS SELECT * FROM siege_upload_df"
-                )
+                self.connection.execute("BEGIN TRANSACTION")
+                try:
+                    if if_exists == 'replace':
+                        self.connection.execute(f"DROP TABLE IF EXISTS {table_name}")
+                    if if_exists == 'append':
+                        self.connection.execute(
+                            f"CREATE TABLE IF NOT EXISTS {table_name} AS "
+                            "SELECT * FROM siege_upload_df WHERE FALSE"
+                        )
+                        # Legacy tables lack metadata. Preserve their unknown
+                        # CRS instead of assigning the incoming data's CRS.
+                        self.connection.execute(
+                            f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS _siege_crs VARCHAR"
+                        )
+                        from pyproj import CRS
+
+                        stored = self.connection.execute(
+                            f"SELECT DISTINCT _siege_crs FROM {table_name} "
+                            "WHERE _siege_crs IS NOT NULL"
+                        ).fetchall()
+                        if any(CRS.from_user_input(value) != gdf.crs for (value,) in stored):
+                            raise ValueError("Cannot append data with a different source CRS")
+                        self.connection.execute(
+                            f"INSERT INTO {table_name} BY NAME SELECT * FROM siege_upload_df"
+                        )
+                    else:
+                        self.connection.execute(
+                            f"CREATE TABLE {table_name} AS SELECT * FROM siege_upload_df"
+                        )
+                    self.connection.execute("COMMIT")
+                except Exception:
+                    # Roll back every failure after BEGIN, including conversion
+                    # and schema errors. A rollback failure retains the upload
+                    # failure as its exception context.
+                    self.connection.execute("ROLLBACK")
+                    raise
             finally:
                 try:
                     self.connection.unregister("siege_upload_df")
                 except (_DuckDBError, RuntimeError) as cleanup_exc:
-                    log.warning(
-                        "Failed to unregister siege_upload_df: %s",
-                        cleanup_exc,
-                    )
+                    log.warning("Failed to unregister siege_upload_df: %s", cleanup_exc)
 
             log.info(f"Successfully uploaded to DuckDB: {table_name}")
 
         except (_DuckDBError, OSError, ValueError, TypeError, AttributeError) as e:
             raise RuntimeError(f"Failed to upload to DuckDB: {e}") from e
-    
+
     def download_spatial_data(self, table_name: str, *, crs: str | None = None, **kwargs) -> GeoDataFrame:
         """
         Download spatial data from DuckDB.
 
         Args:
             table_name: Source table name
-            crs: Output CRS. Defaults to
-                :func:`~siege_utilities.geo.crs.get_default_crs`.
-            **kwargs: Additional parameters
+            crs: Optional output CRS. Omit to preserve the source CRS.
+            **kwargs: Additional parameters. Reads accept source_crs for
+                legacy tables, empty results, or projections without _siege_crs.
 
         Returns:
-            GeoDataFrame with spatial data.  WKT geometries stored in
-            DuckDB lack SRID metadata; EPSG:4326 is assumed as the
-            source CRS.  Pass *crs* to reproject to a different target.
+            GeoDataFrame retaining the stored source CRS. Legacy WKT tables
+            and queries omitting _siege_crs have unknown CRS unless source_crs
+            is supplied. Empty results also require source_crs. Pass crs to
+            reproject from the known source to a different target.
 
         Raises:
             SpatialQueryError: If the connection is unavailable or the
                 query fails.
         """
-        from siege_utilities.geo.crs import reproject_if_needed
-
         if not self.connection:
             self.connect()
 
@@ -645,78 +707,58 @@ class DuckDBConnector:
             # Execute query
             df = self.connection.execute(query).df()
 
-            # Convert WKT back to geometries
-            if 'geometry_wkt' in df.columns:
-                from shapely import wkt
-                df['geometry'] = df['geometry_wkt'].apply(wkt.loads)
-                df = df.drop(columns=['geometry_wkt'])
-
-            # WKT does not carry SRID metadata.  Assume WGS84 as the
-            # storage CRS, then reproject to the caller's target CRS if
-            # one was specified.  If the data was actually stored in a
-            # different CRS the coordinates will be wrong — there is no
-            # way to recover the SRID from bare WKT.
-            gdf = gpd.GeoDataFrame(df, geometry='geometry', crs="EPSG:4326")
-            if crs is None:
-                log.warning(
-                    "DuckDB WKT geometries lack SRID metadata; assuming "
-                    "EPSG:4326.  Pass crs= to reproject to a target CRS."
-                )
-
+            gdf = _duckdb_result_frame(df, source_crs=kwargs.get('source_crs'), crs=crs)
             log.info(f"Successfully downloaded from DuckDB: {table_name}")
-            return reproject_if_needed(gdf, crs)
+            return gdf
 
-        except (_DuckDBError, OSError, ValueError, TypeError, AttributeError, ImportError) as e:
+        except (_DuckDBError, _ShapelyError, OSError, ValueError, TypeError, AttributeError, ImportError) as e:
             raise SpatialQueryError(f"DuckDB download failed for {table_name}: {e}") from e
     
     def execute_spatial_query(self, query: str, *, crs: str | None = None, **kwargs) -> Union[GeoDataFrame, int]:
         """
         Execute a spatial SQL query.
 
-        For SELECT queries the result is a :class:`GeoDataFrame`.
-        For non-SELECT queries (INSERT, UPDATE, DELETE, DDL) the result
-        is the ``cursor.rowcount`` integer (``-1`` when the row count
-        is not determinable, e.g. DDL).
+        Row-returning statements, including CTEs and DML with RETURNING,
+        produce a GeoDataFrame (without active geometry for tabular results).
+        Other statements return an affected-row count, or -1 if unavailable.
 
         Args:
             query: SQL query string
-            crs: Output CRS. Defaults to
-                :func:`~siege_utilities.geo.crs.get_default_crs`.
-            **kwargs: Additional parameters
+            crs: Optional output CRS. Omit to preserve the source CRS.
+            **kwargs: Additional parameters. Reads accept source_crs for
+                legacy tables, empty results, or projections without _siege_crs.
 
         Returns:
-            GeoDataFrame for SELECT queries, int rowcount for others.
+            GeoDataFrame for row-returning queries, int rowcount for others.
 
         Raises:
             SpatialQueryError: If the connection is unavailable or the
                 query fails. The original exception is chained as
                 ``__cause__``.
         """
-        from siege_utilities.geo.crs import reproject_if_needed
-
         if not self.connection:
             self.connect()
 
         try:
-            if query.strip().upper().startswith('SELECT'):
-                df = self.connection.execute(query).df()
+            from siege_utilities.engines.dataframe_engine import DuckDBEngine
 
-                if 'geometry_wkt' in df.columns:
-                    from shapely import wkt
-                    df['geometry'] = df['geometry_wkt'].apply(wkt.loads)
-                    df = df.drop(columns=['geometry_wkt'])
-
-                gdf = gpd.GeoDataFrame(df, geometry='geometry', crs="EPSG:4326")
-                if crs is None:
-                    log.warning(
-                        "DuckDB WKT geometries lack SRID metadata; assuming "
-                        "EPSG:4326.  Pass crs= to reproject to a target CRS."
-                    )
-
+            # DuckDB describes affected-row Counts as result columns too.
+            # Reuse its parser-based classifier to distinguish those from rows.
+            engine = DuckDBEngine()
+            engine._conn = self.connection
+            statements = self.connection.extract_statements(query)
+            for statement in statements[:-1]:
+                self.connection.execute(statement)
+            statement = statements[-1] if statements else None
+            returns_rows = statement is not None and engine._statement_returns_rows(statement)
+            result = self.connection.execute(statement if statement is not None else query)
+            if returns_rows:
+                gdf = _duckdb_result_frame(
+                    result.df(), source_crs=kwargs.get('source_crs'), crs=crs,
+                )
                 log.info("Successfully executed DuckDB query")
-                return reproject_if_needed(gdf, crs)
+                return gdf
 
-            result = self.connection.execute(query)
             try:
                 row = result.fetchone()
                 rowcount = row[0] if row is not None else -1
@@ -725,7 +767,7 @@ class DuckDBConnector:
             log.info("Successfully executed DuckDB query")
             return rowcount
 
-        except (_DuckDBError, OSError, ValueError, TypeError, AttributeError, ImportError) as e:
+        except (_DuckDBError, _ShapelyError, OSError, ValueError, TypeError, AttributeError, ImportError) as e:
             log.error(f"Failed to execute DuckDB query: {e}")
             raise SpatialQueryError(f"DuckDB query failed: {e}") from e
 
@@ -764,7 +806,7 @@ def upload_to_postgis(gdf: GeoDataFrame, table_name: str, connection_string: Opt
         **kwargs: Forwarded to
             :meth:`PostGISConnector.upload_spatial_data`. Accepts
             ``if_exists`` (``'fail'``, ``'replace'``, ``'append'``;
-            default ``'replace'``) and ``schema`` (default ``'public'``).
+            default ``'fail'``) and ``schema`` (default ``'public'``).
 
     Raises:
         RuntimeError: If no connection string is configured.
@@ -808,10 +850,10 @@ def execute_postgis_query(query: str, connection_string: Optional[str] = None, *
         **kwargs: Forwarded to
             :meth:`PostGISConnector.execute_spatial_query`. Accepts
             ``geom_col`` (default ``'geometry'``) and ``crs`` (output CRS,
-            applies to SELECT queries only).
+            applies to row-returning queries).
 
     Returns:
-        GeoDataFrame for SELECT queries, int rowcount for others.
+        GeoDataFrame for row-returning queries, int rowcount for others.
 
     Raises:
         SpatialQueryError: If the connection is unavailable or the
@@ -831,7 +873,7 @@ def upload_to_duckdb(gdf: GeoDataFrame, table_name: str, db_path: Optional[str] 
             in-memory when omitted).
         **kwargs: Forwarded to
             :meth:`DuckDBConnector.upload_spatial_data`. Accepts
-            ``if_exists`` (``'replace'`` by default).
+            ``if_exists`` (``'fail'`` by default; ``'replace'`` or ``'append'``).
 
     Raises:
         ImportError: If DuckDB is not installed.
@@ -854,7 +896,9 @@ def download_from_duckdb(table_name: str, db_path: Optional[str] = None, **kwarg
         **kwargs: Forwarded to
             :meth:`DuckDBConnector.download_spatial_data`. Accepts
             ``where_clause`` (optional SQL WHERE fragment) and ``crs``
-            (output CRS).
+            (output CRS). ``source_crs`` supplies missing source metadata
+            for legacy tables or empty results. Without ``crs``, the
+            source CRS is preserved.
 
     Returns:
         GeoDataFrame with spatial data.
@@ -880,10 +924,13 @@ def execute_duckdb_query(query: str, db_path: Optional[str] = None, **kwargs) ->
             in-memory when omitted).
         **kwargs: Forwarded to
             :meth:`DuckDBConnector.execute_spatial_query`. Accepts
-            ``crs`` (output CRS, applies to SELECT queries only).
+            ``crs`` (output CRS, applies to row-returning queries) and
+            ``source_crs`` for missing metadata. Include ``_siege_crs``
+            in spatial query projections to retain uploaded CRS metadata;
+            otherwise supply ``source_crs``. Omit ``crs`` to keep the source.
 
     Returns:
-        GeoDataFrame for SELECT queries, int rowcount for others.
+        GeoDataFrame for row-returning queries, int rowcount for others.
 
     Raises:
         SpatialQueryError: If the connection is unavailable or the

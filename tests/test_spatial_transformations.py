@@ -317,9 +317,9 @@ class TestPostGISConnector:
             mock_to_postgis.assert_called_once()
             kwargs = mock_to_postgis.call_args.kwargs
             assert kwargs["name"] == "test_table"
-            assert kwargs["con"] is mock_engine
+            assert kwargs["con"] is mock_engine.begin.return_value.__enter__.return_value
             assert kwargs["schema"] == "public"
-            assert kwargs["if_exists"] == "replace"
+            assert kwargs["if_exists"] == "fail"
             mock_engine.dispose.assert_called_once()
 
     def test_upload_geoalchemy2_missing_raises(self, sample_gdf):

@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- PostGIS and DuckDB spatial uploads now default to `if_exists='fail'`.
+  Callers that want to overwrite a table must pass `if_exists='replace'`;
+  use `if_exists='append'` to add rows. DuckDB reads preserve the stored
+  source CRS by default and reproject only when `crs` is supplied. Legacy
+  WKT tables without CRS metadata require `source_crs` for reprojection
+  (#1414).
 - New *file* names now get the same check as new directory names. The
   `siege_utilities.files` helpers that create a file refuse a name containing
   a C0, DEL or C1 control character, or a lone surrogate: they raise
@@ -112,6 +118,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Spatial uploads keep replacements inside a transaction so failed creates
+  or inserts restore the original table. DuckDB append now inserts into
+  existing tables by column name. PostGIS and DuckDB queries return rows
+  for CTEs and `RETURNING` statements without replaying mutations. DuckDB
+  uploads persist full source CRS metadata in `_siege_crs`, and reads no
+  longer label every geometry EPSG:4326 (#1414).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
