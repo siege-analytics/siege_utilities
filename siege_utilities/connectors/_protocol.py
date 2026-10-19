@@ -21,6 +21,8 @@ from typing import Any, Protocol, runtime_checkable
 import numpy as np
 import pandas as pd
 
+from siege_utilities.core._http import redact_secrets
+
 __all__ = [
     "ConnectorProtocol",
     "UpsertResult",
@@ -122,6 +124,9 @@ def _sanitize_value(value: Any, *, path: str, ancestors: set[int], top_level: bo
 class ConnectorError(Exception):
     """Base for all connector errors."""
 
+    def __init__(self, message: str) -> None:
+        super().__init__(redact_secrets(str(message)))
+
 
 class ConnectorAuthError(ConnectorError):
     """Authentication or authorization failure."""
@@ -144,7 +149,7 @@ class ConnectorNotFoundError(ConnectorError):
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(repr=False)
 class UpsertError:
     """One failed record in a bulk upsert."""
 
@@ -153,8 +158,21 @@ class UpsertError:
     field: str | None = None
     code: str | None = None
 
+    def __post_init__(self) -> None:
+        for name in ("message", "field", "code"):
+            value = getattr(self, name)
+            if value is not None:
+                setattr(self, name, redact_secrets(str(value)))
 
-@dataclass
+    def __repr__(self) -> str:
+        values = ", ".join(
+            f"{name}={redact_secrets(str(value))!r}" if value is not None else f"{name}=None"
+            for name, value in (("message", self.message), ("field", self.field), ("code", self.code))
+        )
+        return f"UpsertError(record_index={self.record_index}, {values})"
+
+
+@dataclass(repr=False)
 class UpsertResult:
     """Outcome of a bulk upsert operation.
 
@@ -167,6 +185,14 @@ class UpsertResult:
     created_ids: list[str] = field(default_factory=list)
     updated_ids: list[str] = field(default_factory=list)
     errors: list[UpsertError] = field(default_factory=list)
+
+    def __repr__(self) -> str:
+        created = [redact_secrets(str(value)) for value in self.created_ids]
+        updated = [redact_secrets(str(value)) for value in self.updated_ids]
+        return (
+            f"UpsertResult(success_count={self.success_count}, failure_count={self.failure_count}, "
+            f"created_ids={created!r}, updated_ids={updated!r}, errors={self.errors!r})"
+        )
 
     @property
     def total(self) -> int:

@@ -34,7 +34,11 @@ try:
 except ImportError:
     MSAL_AVAILABLE = False
 
-from siege_utilities.connectors._retry import rate_limit_error, retry_attempts
+from siege_utilities.connectors._retry import (
+    backoff_wait, rate_limit_error, retry_attempts, validate_wait_settings,
+)
+from siege_utilities.connectors._http import RedactingLogger, RefreshOn401, request_raw
+from siege_utilities.core._http import redact_secrets
 from siege_utilities.connectors._protocol import (
     ConnectorAuthError,
     ConnectorError,
@@ -44,7 +48,7 @@ from siege_utilities.connectors._protocol import (
 )
 from siege_utilities.connectors._query_utils import _validate_identifier
 
-log = logging.getLogger(__name__)
+log = RedactingLogger(logging.getLogger(__name__), {})
 
 DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
@@ -140,6 +144,7 @@ class DynamicsConnector:
         timeout: float = DEFAULT_TIMEOUT,
         retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
         retry_backoff: float = DEFAULT_RETRY_BACKOFF,
+        max_retry_wait: float = 900.0,
     ) -> None:
         if not REQUESTS_AVAILABLE:  # pragma: no cover
             raise ImportError("DynamicsConnector requires `requests`.")
@@ -159,7 +164,9 @@ class DynamicsConnector:
         self._password = password
         self._timeout = timeout
         self._retry_attempts = max(1, retry_attempts)
+        validate_wait_settings(retry_backoff, max_retry_wait)
         self._retry_backoff = retry_backoff
+        self._max_retry_wait = max_retry_wait
 
         self._access_token: str | None = None
         self._token_expires_at: datetime | None = None
@@ -614,17 +621,34 @@ class DynamicsConnector:
         body_parts.extend([f"--{changeset_boundary}--", f"--{boundary}--"])
         batch_body = "\r\n".join(body_parts)
 
-        url = f"{self._environment_url}/api/data/v9.2/$batch"
-        resp = self._session.post(
-            url,
-            data=batch_body,
-            headers={
-                "Content-Type": f"multipart/mixed;boundary={boundary}",
-                "Authorization": f"Bearer {self._access_token}",
-                "OData-MaxVersion": "4.0",
-                "OData-Version": "4.0",
-            },
-            timeout=self._timeout * 4,
+        def send():
+            return self._session.post(
+                f"{self._environment_url}/api/data/v9.2/$batch",
+                data=batch_body,
+                headers={
+                    "Content-Type": f"multipart/mixed;boundary={boundary}",
+                    "Authorization": f"Bearer {self._access_token}",
+                    "OData-MaxVersion": "4.0",
+                    "OData-Version": "4.0",
+                },
+                timeout=self._timeout * 4,
+            )
+
+        can_refresh = getattr(self, "_client_secret", None) or (
+            getattr(self, "_username", None) and getattr(self, "_password", None)
+        )
+
+        def unauthorized(response):
+            # A 401 part rolls back this atomic changeset. It permits the same
+            # single auth replay as a 401 on the outer multipart response.
+            return response.status_code == 401 or (
+                response.status_code in (200, 202)
+                and any(status == 401 for _, status, _, _ in self._parse_batch_response(response))
+            )
+
+        resp = request_raw(
+            self, "POST", send, self.refresh_access_token if can_refresh else None,
+            unauthorized=unauthorized,
         )
 
         created: list[str] = []
@@ -639,7 +663,7 @@ class DynamicsConnector:
                 failure_count += 1
                 errors.append(UpsertError(
                     record_index=base_index + i,
-                    message=f"Batch failed with status {resp.status_code}: {resp.text[:200]}",
+                    message=f"Batch failed with status {resp.status_code}: {redact_secrets(resp.text)[:200]}",
                 ))
         else:
             parts = self._parse_batch_response(resp)
@@ -692,10 +716,11 @@ class DynamicsConnector:
 
     def _raise_batch_control_error(self, status: int, headers: Mapping[str, str], body: str) -> None:
         if status in (401, 403):
-            raise ConnectorAuthError(f"Dynamics {status}: {body[:200]}")
+            raise ConnectorAuthError(f"Dynamics {status}: {redact_secrets(body)[:200]}")
         if status == 429:
             raise rate_limit_error(
                 headers, "Dynamics rate limit hit on POST $batch.", self._retry_backoff,
+                max_retry_wait=getattr(self, "_max_retry_wait", 900.0),
             )
 
     @staticmethod
@@ -731,10 +756,10 @@ class DynamicsConnector:
             payload = json.loads(body)
             error = payload.get("error", {}) if isinstance(payload, dict) else {}
             if isinstance(error, dict) and error.get("message"):
-                return str(error["message"]), error.get("code")
+                return redact_secrets(str(error["message"])), error.get("code")
         except json.JSONDecodeError:
             pass
-        return f"HTTP {status}: {body[:200]}", str(status)
+        return f"HTTP {status}: {redact_secrets(body)[:200]}", str(status)
 
     # ------------------------------------------------------------------
     # OData query helpers
@@ -793,23 +818,37 @@ class DynamicsConnector:
 
     def _auth_client_credentials(self) -> None:
         """App-only auth via client credentials."""
-        result = self._msal_app.acquire_token_for_client(scopes=self._scope)
+        try:
+            result = self._msal_app.acquire_token_for_client(scopes=self._scope)
+        except requests.exceptions.RequestException as exc:
+            failure = type(exc).__name__
+        else:
+            failure = None
+        if failure is not None:
+            raise ConnectorAuthError(f"Dynamics token request failed: {failure}")
         if "access_token" not in result:
             error = result.get("error_description", result.get("error", "Unknown error"))
-            raise ConnectorAuthError(f"Dynamics 365 client credentials auth failed: {error}")
+            raise ConnectorAuthError(f"Dynamics 365 client credentials auth failed: {redact_secrets(str(error))}")
         self._set_token(result)
         log.info("Authenticated via client credentials (env: %s)", self._environment_url)
 
     def _auth_username_password(self) -> None:
         """Delegated auth via username/password (ROPC)."""
-        result = self._msal_app.acquire_token_by_username_password(
-            username=self._username,
-            password=self._password,
-            scopes=self._scope,
-        )
+        try:
+            result = self._msal_app.acquire_token_by_username_password(
+                username=self._username,
+                password=self._password,
+                scopes=self._scope,
+            )
+        except requests.exceptions.RequestException as exc:
+            failure = type(exc).__name__
+        else:
+            failure = None
+        if failure is not None:
+            raise ConnectorAuthError(f"Dynamics token request failed: {failure}")
         if "access_token" not in result:
             error = result.get("error_description", result.get("error", "Unknown error"))
-            raise ConnectorAuthError(f"Dynamics 365 user auth failed: {error}")
+            raise ConnectorAuthError(f"Dynamics 365 user auth failed: {redact_secrets(str(error))}")
         self._set_token(result)
         log.info("Authenticated via username/password (env: %s)", self._environment_url)
 
@@ -846,11 +885,16 @@ class DynamicsConnector:
         """Send an authenticated request to the Dataverse Web API."""
         self._ensure_connected()
         url = f"{self._environment_url}{path}" if not path.startswith("http") else path
-        last_exc: BaseException | None = None
+        last_failure = "HTTP error"
 
-        auth_refreshed = False
+        can_refresh = getattr(self, "_client_secret", None) or (
+            getattr(self, "_username", None) and getattr(self, "_password", None)
+        )
+        auth = RefreshOn401(self.refresh_access_token if can_refresh else None)
         attempts = retry_attempts(method, self._retry_attempts)
+        max_retry_wait = getattr(self, "_max_retry_wait", 900.0)
         for attempt in range(1, attempts + 1):
+            transport_failed = False
             try:
                 while True:
                     resp = self._session.request(
@@ -860,38 +904,39 @@ class DynamicsConnector:
                         timeout=self._timeout,
                         **({"headers": dict(headers)} if headers is not None else {}),
                     )
-                    if (
-                        resp.status_code != 401
-                        or auth_refreshed
-                        or not (self._client_secret or (self._username and self._password))
-                    ):
+                    if not auth.retry(resp):
                         break
-                    # A rejected token permits one replay, including writes.
-                    # Keep this separate from transport and server-error retries.
-                    auth_refreshed = True
-                    self.refresh_access_token()
             except requests.exceptions.InvalidJSONError as exc:
-                raise ConnectorError(
-                    f"Dynamics JSON encoding failed for {method} {path}: {exc}"
-                ) from exc
+                encoding_failure = type(exc).__name__
             except requests.exceptions.RequestException as exc:
-                last_exc = exc
+                last_failure = type(exc).__name__
                 log.warning(
-                    "Dynamics %s %s attempt %d/%d failed: %s",
-                    method, path, attempt, attempts, exc,
+                    "Dynamics request attempt %d/%d failed: %s",
+                    attempt, attempts, last_failure,
                 )
+                transport_failed = True
+                encoding_failure = None
+            else:
+                encoding_failure = None
+
+            if transport_failed:
                 if attempt < attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                    time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
                 continue
+            if encoding_failure is not None:
+                raise ConnectorError(
+                    f"Dynamics JSON encoding failed: {encoding_failure}"
+                ) from requests.exceptions.InvalidJSONError(encoding_failure)
 
             if resp.status_code in (401, 403):
-                error_msg = self._extract_error(resp)
+                error_msg = redact_secrets(str(self._extract_error(resp)))
                 raise ConnectorAuthError(f"Dynamics {resp.status_code}: {error_msg}")
 
             if resp.status_code == 429:
                 error = rate_limit_error(
                     resp.headers, f"Dynamics rate limit hit on {method} {path}.",
-                    self._retry_backoff ** attempt,
+                    backoff_wait(self._retry_backoff, attempt, max_retry_wait),
+                    max_retry_wait=max_retry_wait,
                 )
                 if attempt < attempts:
                     continue
@@ -901,13 +946,13 @@ class DynamicsConnector:
                 raise ConnectorNotFoundError(f"Dynamics resource not found: {path}")
 
             if 500 <= resp.status_code < 600:
-                last_exc = ConnectorError(f"Dynamics {resp.status_code} on {method} {path}.")
+                last_failure = f"HTTP {resp.status_code}"
                 log.warning(
                     "Dynamics %s %s 5xx %d attempt %d/%d",
                     method, path, resp.status_code, attempt, attempts,
                 )
                 if attempt < attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                    time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
                 continue
 
             if resp.status_code == 204:
@@ -917,20 +962,18 @@ class DynamicsConnector:
                 return {}
 
             if not (200 <= resp.status_code < 300):
-                error_msg = self._extract_error(resp)
+                error_msg = redact_secrets(str(self._extract_error(resp)))
                 raise ConnectorError(f"Dynamics {resp.status_code}: {error_msg}")
 
             try:
                 return resp.json()
             except ValueError as exc:
-                raise ConnectorError(
-                    f"Dynamics returned non-JSON on {method} {path}: "
-                    f"{resp.text[:200]!r}"
-                ) from exc
+                decoding_failure = type(exc).__name__
+            raise ConnectorError(f"Dynamics returned non-JSON: {decoding_failure}")
 
         raise ConnectorError(
-            f"Dynamics {method} {path} failed after {attempts} "
-            f"attempts: {last_exc}"
+            f"Dynamics request failed after {attempts} "
+            f"attempts: {last_failure}"
         )
 
     @staticmethod
@@ -940,8 +983,8 @@ class DynamicsConnector:
             if isinstance(body, dict):
                 error = body.get("error", {})
                 if isinstance(error, dict):
-                    return error.get("message", resp.text[:200])
-                return str(error) or resp.text[:200]
-            return resp.text[:200]
+                    return error.get("message", redact_secrets(resp.text)[:200])
+                return str(error) or redact_secrets(resp.text)[:200]
+            return redact_secrets(resp.text)[:200]
         except ValueError:
-            return resp.text[:200]
+            return redact_secrets(resp.text)[:200]

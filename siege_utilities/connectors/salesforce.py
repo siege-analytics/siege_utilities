@@ -43,10 +43,14 @@ from siege_utilities.connectors._protocol import (
     UpsertResult,
     sanitize_record,
 )
-from siege_utilities.connectors._retry import rate_limit_error, retry_attempts
+from siege_utilities.connectors._retry import (
+    backoff_wait, rate_limit_error, retry_attempts, validate_wait_settings,
+)
+from siege_utilities.connectors._http import RedactingLogger, RefreshOn401, request_raw
+from siege_utilities.core._http import redact_secrets
 from siege_utilities.connectors._query_utils import _validate_identifier
 
-log = logging.getLogger(__name__)
+log = RedactingLogger(logging.getLogger(__name__), {})
 
 PRODUCTION_LOGIN_URL = "https://login.salesforce.com"
 SANDBOX_LOGIN_URL = "https://test.salesforce.com"
@@ -311,6 +315,7 @@ class SalesforceConnector:
         timeout: float = DEFAULT_TIMEOUT,
         retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
         retry_backoff: float = DEFAULT_RETRY_BACKOFF,
+        max_retry_wait: float = 900.0,
     ) -> None:
         if not REQUESTS_AVAILABLE:  # pragma: no cover
             raise ImportError(
@@ -328,7 +333,9 @@ class SalesforceConnector:
         self._login_url = login_url or (SANDBOX_LOGIN_URL if sandbox else PRODUCTION_LOGIN_URL)
         self._timeout = timeout
         self._retry_attempts = max(1, retry_attempts)
+        validate_wait_settings(retry_backoff, max_retry_wait)
         self._retry_backoff = retry_backoff
+        self._max_retry_wait = max_retry_wait
 
         self._access_token: str | None = None
         self._refresh_token: str | None = None
@@ -856,19 +863,23 @@ class SalesforceConnector:
     def _bulk_upload_data(self, job_id: str, csv_data: str) -> None:
         """Upload CSV data to an open Bulk API v2 job."""
         path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}/batches"
-        url = f"{self._instance_url}{path}"
-        resp = self._session.put(
-            url,
-            data=csv_data.encode("utf-8"),
-            headers={
-                "Content-Type": "text/csv",
-                "Authorization": f"Bearer {self._access_token}",
-            },
-            timeout=self._timeout * 4,
-        )
+        self._ensure_connected()
+
+        def send():
+            return self._session.put(
+                f"{self._instance_url}{path}",
+                data=csv_data.encode("utf-8"),
+                headers={
+                    "Content-Type": "text/csv",
+                    "Authorization": f"Bearer {self._access_token}",
+                },
+                timeout=self._timeout * 4,
+            )
+
+        resp = request_raw(self, "PUT", send, self.refresh_access_token if self._refresh_token else None)
         if resp.status_code not in (200, 201):
             raise ConnectorError(
-                f"Bulk API upload failed ({resp.status_code}): {resp.text[:200]}"
+                f"Bulk API upload failed ({resp.status_code}): {redact_secrets(resp.text)[:200]}"
             )
 
     def _bulk_close_job(self, job_id: str) -> None:
@@ -932,34 +943,28 @@ class SalesforceConnector:
         updated_ids: list[str] = []
 
         if succeeded > 0:
-            try:
-                success_path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}/successfulResults"
-                success_data = self._bulk_get_csv_results(success_path)
-                for row in success_data:
-                    rec_id = row.get("sf__Id", "")
-                    if row.get("sf__Created", "").lower() == "true":
-                        created_ids.append(rec_id)
-                    else:
-                        updated_ids.append(rec_id)
-            except ConnectorError as exc:
-                log.warning("Could not retrieve success results: %s", exc)
+            success_path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}/successfulResults"
+            success_data = self._bulk_get_csv_results(success_path)
+            for row in success_data:
+                rec_id = row.get("sf__Id", "")
+                if row.get("sf__Created", "").lower() == "true":
+                    created_ids.append(rec_id)
+                else:
+                    updated_ids.append(rec_id)
+            if len(success_data) != succeeded or not all(created_ids + updated_ids):
+                raise ConnectorError("Bulk API success results are missing record IDs")
 
         if failed > 0:
-            try:
-                fail_path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}/failedResults"
-                fail_data = self._bulk_get_csv_results(fail_path)
-                for i, row in enumerate(fail_data):
-                    errors.append(UpsertError(
-                        record_index=i,
-                        message=row.get("sf__Error", "Unknown error"),
-                        code=row.get("sf__Error", None),
-                    ))
-            except ConnectorError as exc:
-                log.warning("Could not retrieve failure results: %s", exc)
+            fail_path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}/failedResults"
+            fail_data = self._bulk_get_csv_results(fail_path)
+            for i, row in enumerate(fail_data):
                 errors.append(UpsertError(
-                    record_index=0,
-                    message=f"Failed to retrieve error details: {exc}",
+                    record_index=i,
+                    message=row.get("sf__Error", "Unknown error"),
+                    code=row.get("sf__Error", None),
                 ))
+            if len(fail_data) != failed:
+                raise ConnectorError("Bulk API failure results are missing records")
 
         return UpsertResult(
             success_count=succeeded,
@@ -971,18 +976,22 @@ class SalesforceConnector:
 
     def _bulk_get_csv_results(self, path: str) -> list[dict[str, str]]:
         """Retrieve CSV results from a Bulk API v2 job endpoint."""
-        url = f"{self._instance_url}{path}"
-        resp = self._session.get(
-            url,
-            headers={
-                "Accept": "text/csv",
-                "Authorization": f"Bearer {self._access_token}",
-            },
-            timeout=self._timeout * 2,
-        )
+        self._ensure_connected()
+
+        def send():
+            return self._session.get(
+                f"{self._instance_url}{path}",
+                headers={
+                    "Accept": "text/csv",
+                    "Authorization": f"Bearer {self._access_token}",
+                },
+                timeout=self._timeout * 2,
+            )
+
+        resp = request_raw(self, "GET", send, self.refresh_access_token if self._refresh_token else None)
         if resp.status_code != 200:
             raise ConnectorError(
-                f"Bulk API results retrieval failed ({resp.status_code}): {resp.text[:200]}"
+                f"Bulk API results retrieval failed ({resp.status_code}): {redact_secrets(resp.text)[:200]}"
             )
         reader = csv.DictReader(io.StringIO(resp.text))
         return list(reader)
@@ -1214,16 +1223,20 @@ class SalesforceConnector:
                 timeout=self._timeout,
             )
         except requests.exceptions.RequestException as exc:
-            raise ConnectorAuthError(f"Token request failed: {exc}") from exc
+            failure = type(exc).__name__
+        else:
+            failure = None
+        if failure is not None:
+            raise ConnectorAuthError(f"Token request failed: {failure}")
 
         if resp.status_code != 200:
             try:
                 body = resp.json()
-                error = body.get("error_description", body.get("error", resp.text[:200]))
+                error = body.get("error_description", body.get("error", redact_secrets(resp.text)[:200]))
             except ValueError:
-                error = resp.text[:200]
+                error = redact_secrets(resp.text)[:200]
             raise ConnectorAuthError(
-                f"Salesforce auth failed ({resp.status_code}): {error}"
+                f"Salesforce auth failed ({resp.status_code}): {redact_secrets(str(error))}"
             )
 
         data = resp.json()
@@ -1259,11 +1272,13 @@ class SalesforceConnector:
         """
         self._ensure_connected()
         url = f"{self._instance_url}{path}"
-        last_exc: BaseException | None = None
+        last_failure = "HTTP error"
 
-        auth_refreshed = False
+        auth = RefreshOn401(self.refresh_access_token if self._refresh_token else None)
         attempts = retry_attempts(method, self._retry_attempts)
+        max_retry_wait = getattr(self, "_max_retry_wait", 900.0)
         for attempt in range(1, attempts + 1):
+            transport_failed = False
             try:
                 while True:
                     resp = self._session.request(
@@ -1272,29 +1287,33 @@ class SalesforceConnector:
                         json=json_body,
                         timeout=self._timeout,
                     )
-                    if resp.status_code != 401 or auth_refreshed or not self._refresh_token:
+                    if not auth.retry(resp):
                         break
-                    # A rejected token permits one replay, including writes.
-                    # Keep this separate from transport and server-error retries.
-                    auth_refreshed = True
-                    self.refresh_access_token()
                     url = f"{self._instance_url}{path}"
             except requests.exceptions.InvalidJSONError as exc:
-                raise ConnectorError(
-                    f"Salesforce JSON encoding failed for {method} {path}: {exc}"
-                ) from exc
+                encoding_failure = type(exc).__name__
             except requests.exceptions.RequestException as exc:
-                last_exc = exc
+                last_failure = type(exc).__name__
                 log.warning(
-                    "Salesforce %s %s attempt %d/%d failed: %s",
-                    method, path, attempt, attempts, exc,
+                    "Salesforce request attempt %d/%d failed: %s",
+                    attempt, attempts, last_failure,
                 )
+                transport_failed = True
+                encoding_failure = None
+            else:
+                encoding_failure = None
+
+            if transport_failed:
                 if attempt < attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                    time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
                 continue
+            if encoding_failure is not None:
+                raise ConnectorError(
+                    f"Salesforce JSON encoding failed: {encoding_failure}"
+                ) from requests.exceptions.InvalidJSONError(encoding_failure)
 
             if resp.status_code in (401, 403):
-                error_msg = self._extract_error(resp)
+                error_msg = redact_secrets(str(self._extract_error(resp)))
                 raise ConnectorAuthError(
                     f"Salesforce {resp.status_code}: {error_msg}"
                 )
@@ -1302,7 +1321,8 @@ class SalesforceConnector:
             if resp.status_code == 429:
                 error = rate_limit_error(
                     resp.headers, f"Salesforce rate limit hit on {method} {path}.",
-                    self._retry_backoff ** attempt,
+                    backoff_wait(self._retry_backoff, attempt, max_retry_wait),
+                    max_retry_wait=max_retry_wait,
                 )
                 if attempt < attempts:
                     continue
@@ -1314,22 +1334,20 @@ class SalesforceConnector:
                 )
 
             if 500 <= resp.status_code < 600:
-                last_exc = ConnectorError(
-                    f"Salesforce {resp.status_code} on {method} {path}."
-                )
+                last_failure = f"HTTP {resp.status_code}"
                 log.warning(
                     "Salesforce %s %s 5xx %d attempt %d/%d",
                     method, path, resp.status_code, attempt, attempts,
                 )
                 if attempt < attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                    time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
                 continue
 
             if resp.status_code == 204:
                 return {}
 
             if not (200 <= resp.status_code < 300):
-                error_msg = self._extract_error(resp)
+                error_msg = redact_secrets(str(self._extract_error(resp)))
                 raise ConnectorError(
                     f"Salesforce {resp.status_code}: {error_msg}"
                 )
@@ -1337,14 +1355,12 @@ class SalesforceConnector:
             try:
                 return resp.json()
             except ValueError as exc:
-                raise ConnectorError(
-                    f"Salesforce returned non-JSON on {method} {path}: "
-                    f"{resp.text[:200]!r}"
-                ) from exc
+                decoding_failure = type(exc).__name__
+            raise ConnectorError(f"Salesforce returned non-JSON: {decoding_failure}")
 
         raise ConnectorError(
-            f"Salesforce {method} {path} failed after {attempts} "
-            f"attempts: {last_exc}"
+            f"Salesforce request failed after {attempts} "
+            f"attempts: {last_failure}"
         )
 
     @staticmethod
@@ -1354,7 +1370,7 @@ class SalesforceConnector:
             if isinstance(body, list) and body:
                 return body[0].get("message", str(body))
             if isinstance(body, dict):
-                return body.get("message", body.get("error", resp.text[:200]))
-            return resp.text[:200]
+                return body.get("message", body.get("error", redact_secrets(resp.text)[:200]))
+            return redact_secrets(resp.text)[:200]
         except ValueError:
-            return resp.text[:200]
+            return redact_secrets(resp.text)[:200]

@@ -32,7 +32,11 @@ try:
 except ImportError:  # pragma: no cover
     REQUESTS_AVAILABLE = False
 
-from siege_utilities.connectors._retry import rate_limit_error, retry_attempts
+from siege_utilities.connectors._retry import (
+    backoff_wait, rate_limit_error, retry_attempts, validate_wait_settings,
+)
+from siege_utilities.connectors._http import RedactingLogger, RefreshOn401
+from siege_utilities.core._http import redact_secrets
 from siege_utilities.connectors._protocol import (
     ConnectorAuthError,
     ConnectorError,
@@ -42,7 +46,7 @@ from siege_utilities.connectors._protocol import (
     sanitize_record,
 )
 
-log = logging.getLogger(__name__)
+log = RedactingLogger(logging.getLogger(__name__), {})
 
 HUBSPOT_API_BASE = "https://api.hubapi.com"
 HUBSPOT_AUTH_BASE = "https://app.hubspot.com"
@@ -122,6 +126,7 @@ class HubSpotConnector:
         timeout: float = DEFAULT_TIMEOUT,
         retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
         retry_backoff: float = DEFAULT_RETRY_BACKOFF,
+        max_retry_wait: float = 900.0,
     ) -> None:
         if not REQUESTS_AVAILABLE:  # pragma: no cover
             raise ImportError(
@@ -141,7 +146,9 @@ class HubSpotConnector:
         self._token_expires_at: datetime | None = None
         self._timeout = timeout
         self._retry_attempts = max(1, retry_attempts)
+        validate_wait_settings(retry_backoff, max_retry_wait)
         self._retry_backoff = retry_backoff
+        self._max_retry_wait = max_retry_wait
         self._authenticated = False
         self._is_private_app = access_token is not None
 
@@ -724,16 +731,20 @@ class HubSpotConnector:
                 timeout=self._timeout,
             )
         except requests.exceptions.RequestException as exc:
-            raise ConnectorAuthError(f"Token request failed: {exc}") from exc
+            failure = type(exc).__name__
+        else:
+            failure = None
+        if failure is not None:
+            raise ConnectorAuthError(f"Token request failed: {failure}")
 
         if resp.status_code != 200:
             try:
                 body = resp.json()
-                error = body.get("message", resp.text[:200])
+                error = body.get("message", redact_secrets(resp.text)[:200])
             except ValueError:
-                error = resp.text[:200]
+                error = redact_secrets(resp.text)[:200]
             raise ConnectorAuthError(
-                f"HubSpot auth failed ({resp.status_code}): {error}"
+                f"HubSpot auth failed ({resp.status_code}): {redact_secrets(str(error))}"
             )
 
         data = resp.json()
@@ -759,11 +770,13 @@ class HubSpotConnector:
         """Send an authenticated request to the HubSpot API."""
         self._ensure_connected()
         url = f"{HUBSPOT_API_BASE}{path}"
-        last_exc: BaseException | None = None
+        last_failure = "HTTP error"
 
-        auth_refreshed = False
+        auth = RefreshOn401(self.refresh_access_token if self._refresh_token else None)
         attempts = retry_attempts(method, self._retry_attempts)
+        max_retry_wait = getattr(self, "_max_retry_wait", 900.0)
         for attempt in range(1, attempts + 1):
+            transport_failed = False
             try:
                 while True:
                     resp = self._session.request(
@@ -772,34 +785,39 @@ class HubSpotConnector:
                         json=json_body,
                         timeout=self._timeout,
                     )
-                    if resp.status_code != 401 or auth_refreshed or not self._refresh_token:
+                    if not auth.retry(resp):
                         break
-                    # A rejected token permits one replay, including writes.
-                    # Keep this separate from transport and server-error retries.
-                    auth_refreshed = True
-                    self.refresh_access_token()
             except requests.exceptions.InvalidJSONError as exc:
-                raise ConnectorError(
-                    f"HubSpot JSON encoding failed for {method} {path}: {exc}"
-                ) from exc
+                encoding_failure = type(exc).__name__
             except requests.exceptions.RequestException as exc:
-                last_exc = exc
+                last_failure = type(exc).__name__
                 log.warning(
-                    "HubSpot %s %s attempt %d/%d failed: %s",
-                    method, path, attempt, attempts, exc,
+                    "HubSpot request attempt %d/%d failed: %s",
+                    attempt, attempts, last_failure,
                 )
+                transport_failed = True
+                encoding_failure = None
+            else:
+                encoding_failure = None
+
+            if transport_failed:
                 if attempt < attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                    time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
                 continue
+            if encoding_failure is not None:
+                raise ConnectorError(
+                    f"HubSpot JSON encoding failed: {encoding_failure}"
+                ) from requests.exceptions.InvalidJSONError(encoding_failure)
 
             if resp.status_code in (401, 403):
-                error_msg = self._extract_error(resp)
+                error_msg = redact_secrets(str(self._extract_error(resp)))
                 raise ConnectorAuthError(f"HubSpot {resp.status_code}: {error_msg}")
 
             if resp.status_code == 429:
                 error = rate_limit_error(
                     resp.headers, f"HubSpot rate limit hit on {method} {path}.",
-                    self._retry_backoff ** attempt,
+                    backoff_wait(self._retry_backoff, attempt, max_retry_wait),
+                    max_retry_wait=max_retry_wait,
                 )
                 if attempt < attempts:
                     continue
@@ -809,35 +827,31 @@ class HubSpotConnector:
                 raise ConnectorNotFoundError(f"HubSpot resource not found: {path}")
 
             if 500 <= resp.status_code < 600:
-                last_exc = ConnectorError(
-                    f"HubSpot {resp.status_code} on {method} {path}."
-                )
+                last_failure = f"HTTP {resp.status_code}"
                 log.warning(
                     "HubSpot %s %s 5xx %d attempt %d/%d",
                     method, path, resp.status_code, attempt, attempts,
                 )
                 if attempt < attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                    time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
                 continue
 
             if resp.status_code == 204:
                 return {}
 
             if not (200 <= resp.status_code < 300):
-                error_msg = self._extract_error(resp)
+                error_msg = redact_secrets(str(self._extract_error(resp)))
                 raise ConnectorError(f"HubSpot {resp.status_code}: {error_msg}")
 
             try:
                 return resp.json()
             except ValueError as exc:
-                raise ConnectorError(
-                    f"HubSpot returned non-JSON on {method} {path}: "
-                    f"{resp.text[:200]!r}"
-                ) from exc
+                decoding_failure = type(exc).__name__
+            raise ConnectorError(f"HubSpot returned non-JSON: {decoding_failure}")
 
         raise ConnectorError(
-            f"HubSpot {method} {path} failed after {attempts} "
-            f"attempts: {last_exc}"
+            f"HubSpot request failed after {attempts} "
+            f"attempts: {last_failure}"
         )
 
     @staticmethod
@@ -845,7 +859,7 @@ class HubSpotConnector:
         try:
             body = resp.json()
             if isinstance(body, dict):
-                return body.get("message", body.get("error", resp.text[:200]))
-            return resp.text[:200]
+                return body.get("message", body.get("error", redact_secrets(resp.text)[:200]))
+            return redact_secrets(resp.text)[:200]
         except ValueError:
-            return resp.text[:200]
+            return redact_secrets(resp.text)[:200]

@@ -26,7 +26,11 @@ try:
 except ImportError:  # pragma: no cover
     REQUESTS_AVAILABLE = False
 
-from siege_utilities.connectors._retry import rate_limit_error, retry_attempts
+from siege_utilities.connectors._retry import (
+    backoff_wait, rate_limit_error, retry_attempts, validate_wait_settings,
+)
+from siege_utilities.connectors._http import RedactingLogger, RefreshOn401
+from siege_utilities.core._http import redact_secrets
 from siege_utilities.connectors._protocol import (
     ConnectorAuthError,
     ConnectorError,
@@ -37,7 +41,7 @@ from siege_utilities.connectors._protocol import (
 )
 from siege_utilities.connectors._query_utils import _validate_identifier
 
-log = logging.getLogger(__name__)
+log = RedactingLogger(logging.getLogger(__name__), {})
 
 ZOHO_DATA_CENTERS: dict[str, dict[str, str]] = {
     "us": {
@@ -165,6 +169,7 @@ class ZohoConnector:
         timeout: float = DEFAULT_TIMEOUT,
         retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
         retry_backoff: float = DEFAULT_RETRY_BACKOFF,
+        max_retry_wait: float = 900.0,
     ) -> None:
         if not REQUESTS_AVAILABLE:  # pragma: no cover
             raise ImportError(
@@ -186,7 +191,9 @@ class ZohoConnector:
         self._data_center = data_center
         self._timeout = timeout
         self._retry_attempts = max(1, retry_attempts)
+        validate_wait_settings(retry_backoff, max_retry_wait)
         self._retry_backoff = retry_backoff
+        self._max_retry_wait = max_retry_wait
 
         self._access_token: str | None = None
         self._token_expires_at: datetime | None = None
@@ -717,16 +724,20 @@ class ZohoConnector:
                 timeout=self._timeout,
             )
         except requests.exceptions.RequestException as exc:
-            raise ConnectorAuthError(f"Token request failed: {exc}") from exc
+            failure = type(exc).__name__
+        else:
+            failure = None
+        if failure is not None:
+            raise ConnectorAuthError(f"Token request failed: {failure}")
 
         if resp.status_code != 200:
             try:
                 body = resp.json()
-                error = body.get("error", resp.text[:200])
+                error = body.get("error", redact_secrets(resp.text)[:200])
             except ValueError:
-                error = resp.text[:200]
+                error = redact_secrets(resp.text)[:200]
             raise ConnectorAuthError(
-                f"Zoho auth failed ({resp.status_code}): {error}"
+                f"Zoho auth failed ({resp.status_code}): {redact_secrets(str(error))}"
             )
 
         data = resp.json()
@@ -753,11 +764,13 @@ class ZohoConnector:
         """Send an authenticated request to the Zoho CRM API."""
         self._ensure_connected()
         url = f"{self._dc['api_url']}{path}"
-        last_exc: BaseException | None = None
+        last_failure = "HTTP error"
 
-        auth_refreshed = False
+        auth = RefreshOn401(self.refresh_access_token if self._refresh_token else None)
         attempts = retry_attempts(method, self._retry_attempts)
+        max_retry_wait = getattr(self, "_max_retry_wait", 900.0)
         for attempt in range(1, attempts + 1):
+            transport_failed = False
             try:
                 while True:
                     resp = self._session.request(
@@ -766,34 +779,39 @@ class ZohoConnector:
                         json=json_body,
                         timeout=self._timeout,
                     )
-                    if resp.status_code != 401 or auth_refreshed or not self._refresh_token:
+                    if not auth.retry(resp):
                         break
-                    # A rejected token permits one replay, including writes.
-                    # Keep this separate from transport and server-error retries.
-                    auth_refreshed = True
-                    self.refresh_access_token()
             except requests.exceptions.InvalidJSONError as exc:
-                raise ConnectorError(
-                    f"Zoho JSON encoding failed for {method} {path}: {exc}"
-                ) from exc
+                encoding_failure = type(exc).__name__
             except requests.exceptions.RequestException as exc:
-                last_exc = exc
+                last_failure = type(exc).__name__
                 log.warning(
-                    "Zoho %s %s attempt %d/%d failed: %s",
-                    method, path, attempt, attempts, exc,
+                    "Zoho request attempt %d/%d failed: %s",
+                    attempt, attempts, last_failure,
                 )
+                transport_failed = True
+                encoding_failure = None
+            else:
+                encoding_failure = None
+
+            if transport_failed:
                 if attempt < attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                    time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
                 continue
+            if encoding_failure is not None:
+                raise ConnectorError(
+                    f"Zoho JSON encoding failed: {encoding_failure}"
+                ) from requests.exceptions.InvalidJSONError(encoding_failure)
 
             if resp.status_code in (401, 403):
-                error_msg = self._extract_error(resp)
+                error_msg = redact_secrets(str(self._extract_error(resp)))
                 raise ConnectorAuthError(f"Zoho {resp.status_code}: {error_msg}")
 
             if resp.status_code == 429:
                 error = rate_limit_error(
                     resp.headers, f"Zoho rate limit hit on {method} {path}.",
-                    self._retry_backoff ** attempt,
+                    backoff_wait(self._retry_backoff, attempt, max_retry_wait),
+                    max_retry_wait=max_retry_wait,
                 )
                 if attempt < attempts:
                     continue
@@ -803,33 +821,31 @@ class ZohoConnector:
                 raise ConnectorNotFoundError(f"Zoho resource not found: {path}")
 
             if 500 <= resp.status_code < 600:
-                last_exc = ConnectorError(f"Zoho {resp.status_code} on {method} {path}.")
+                last_failure = f"HTTP {resp.status_code}"
                 log.warning(
                     "Zoho %s %s 5xx %d attempt %d/%d",
                     method, path, resp.status_code, attempt, attempts,
                 )
                 if attempt < attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                    time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
                 continue
 
             if resp.status_code == 204:
                 return {}
 
             if not (200 <= resp.status_code < 300):
-                error_msg = self._extract_error(resp)
+                error_msg = redact_secrets(str(self._extract_error(resp)))
                 raise ConnectorError(f"Zoho {resp.status_code}: {error_msg}")
 
             try:
                 return resp.json()
             except ValueError as exc:
-                raise ConnectorError(
-                    f"Zoho returned non-JSON on {method} {path}: "
-                    f"{resp.text[:200]!r}"
-                ) from exc
+                decoding_failure = type(exc).__name__
+            raise ConnectorError(f"Zoho returned non-JSON: {decoding_failure}")
 
         raise ConnectorError(
-            f"Zoho {method} {path} failed after {attempts} "
-            f"attempts: {last_exc}"
+            f"Zoho request failed after {attempts} "
+            f"attempts: {last_failure}"
         )
 
     @staticmethod
@@ -837,7 +853,7 @@ class ZohoConnector:
         try:
             body = resp.json()
             if isinstance(body, dict):
-                return body.get("message", body.get("error", resp.text[:200]))
-            return resp.text[:200]
+                return body.get("message", body.get("error", redact_secrets(resp.text)[:200]))
+            return redact_secrets(resp.text)[:200]
         except ValueError:
-            return resp.text[:200]
+            return redact_secrets(resp.text)[:200]

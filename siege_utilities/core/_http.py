@@ -95,3 +95,43 @@ def redact_url_secrets(text: str, *, replacement: str = "[REDACTED]") -> str:
         position = end
     parts.append(_redact_encoded_value(text[position:], replacement))
     return "".join(parts)
+
+
+_SECRET_HEADERS = (
+    "authorization|proxy-authorization|x-api-key|api-key|apikey|"
+    "x-auth-token|cookie|set-cookie"
+)
+_SECRET_FIELDS = (
+    "client_secret|refresh_token|access_token|token|password|assertion|"
+    "client_assertion|code|secret|private_key"
+)
+_QUOTED_SECRET = re.compile(
+    r"(?P<prefix>(?<![\w-])(?P<key_quote>[\"'])"
+    rf"(?:{_SECRET_HEADERS}|{_SECRET_FIELDS})(?P=key_quote)\s*:\s*)"
+    r"(?P<quote>[\"'])(?:\\.|(?!(?P=quote)).)*(?P=quote)",
+    re.IGNORECASE | re.DOTALL,
+)
+_HEADER_SECRET = re.compile(
+    rf"(?<![\w\"'-])((?:{_SECRET_HEADERS})\s*[:=]\s*)[^\r\n,}}]+",
+    re.IGNORECASE,
+)
+_FORM_SECRET = re.compile(
+    rf"(?<![\w-])((?:{_SECRET_FIELDS})\s*=\s*)[^&\s'\"<>]*",
+    re.IGNORECASE,
+)
+_BEARER_SECRET = re.compile(r"(\bBearer\s+)[^\s,'\"<>{}]+", re.IGNORECASE)
+
+
+def redact_secrets(text: str, *, replacement: str = "[REDACTED]") -> str:
+    """Redact URL, header, bearer, form and quoted JSON secret values.
+
+    Keep non-sensitive fields intact. Quoted pairs also cover Python mapping
+    diagnostics; escaped quotes in JSON values do not terminate the secret.
+    """
+    text = redact_url_secrets(text, replacement=replacement)
+    text = _QUOTED_SECRET.sub(
+        lambda m: m["prefix"] + m["quote"] + replacement + m["quote"], text,
+    )
+    for pattern in (_HEADER_SECRET, _FORM_SECRET, _BEARER_SECRET):
+        text = pattern.sub(lambda m: m[1] + replacement, text)
+    return text

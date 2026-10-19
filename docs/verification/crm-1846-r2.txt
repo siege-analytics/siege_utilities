@@ -1,0 +1,160 @@
+PR #1846 R2 validation
+
+Baseline: 268a9b5a4cbbe70332347999f15bc8796db5e653
+Develop comparison: f236eac7ffff9cd7077ddf0218e0b71781f399c9
+v4.0.0 comparison: 9c3463b1 (tag v4.0.0)
+Branch: fix/crm-cluster-1
+
+B1: capped retry waits
+
+The four constructors expose max_retry_wait=900.0. Wait settings must be finite
+and nonnegative. A numeric or HTTP-date Retry-After above the cap raises
+ConnectorRateLimitError without sleeping or retrying, with retry_after retained.
+Non-finite hints follow the same rule. Thirty seconds sleeps for 30 seconds and
+permits a safe-method retry. Exponential fallback waits are capped and cannot
+overflow. POST and PATCH transport/server failures remain single-attempt writes.
+
+B2: secret-safe diagnostics
+
+siege_utilities/core/_http.py adds this sibling:
+redact_secrets(text: str, *, replacement: str = "[REDACTED]") -> str
+
+It calls redact_url_secrets first. The existing URL redactor is unchanged.
+It covers sensitive header pairs, bare Bearer values, form pairs, and quoted
+JSON fields. Non-sensitive client_id and normal fields remain visible.
+ConnectorError, UpsertError, UpsertResult reprs, and all four connector loggers
+use the sibling. Transport diagnostics retain fixed text, exception class and
+attempt count. Raw transport exceptions and response decoding errors are not
+chained into connector tracebacks. InvalidJSONError has a fresh cause containing
+only its class name, preserving the existing typed-cause contract.
+Provider error details, including Dynamics inner-batch errors, are redacted
+before display or truncation.
+
+The main B2 matrix has 500 cases: four connectors, five payload choices (URL,
+header, form, JSON, and all four together), five diagnostic targets, and five
+failure paths (transport, encoding, decoding, HTTP rejection and server error).
+Every combined payload uses the same sentinel on all four surfaces. Requests
+carry query parameters, Authorization and X-Api-Key headers, a prepared form
+body, and a JSON body. Assertions cover str(exc), repr(exc), formatted chained
+tracebacks, LogRecord.getMessage plus formatted records, and UpsertResult repr.
+Transport and server cases assert that log records were emitted; logger capture
+is enabled even after Django setup. Twenty provider upsert response cases cover
+actual UpsertResult errors, including Dynamics inner batches. Eight token
+exchange cases cover transport failures and provider rejections. Twenty-seven
+helper cases cover the required sensitive keys and non-sensitive controls.
+
+B3: bulk authentication and result integrity
+
+RefreshOn401 is shared by the four JSON request wrappers and raw CSV/multipart
+transfers. Dynamics public upserts renew on an outer or inner changeset 401.
+Salesforce CSV upload and success/failure result downloads renew and replay once.
+The replay rebuilds authorization headers and Salesforce instance URLs while
+retaining request data. Persistent 401 raises ConnectorAuthError. Bulk 429 uses
+the B1 wait policy. Result retrieval errors propagate, and incomplete successful
+CSV results raise ConnectorError instead of reporting ok=True with empty IDs.
+
+Red-first and green results
+
+Same new tests, isolated baseline checkout, importlib import mode, and PYTHONPATH
+pointing at that checkout. No collection or setup errors occurred.
+
+Blocker   Baseline failed   Baseline passed   Head passed   Head failed
+B1                    53                 8            61             0
+B2                   495                60           555             0
+B3                    21                 0            21             0
+Total                569                68           637             0
+
+Modules:
+  tests/test_1846_connector_retry_cap.py
+  tests/test_1846_connector_secret_redaction.py
+  tests/test_1846_connector_bulk_auth.py
+
+The 384 original regressions were retained. The immutable baseline versions
+were rerun against current develop and v4.0.0: each produced 288 failed and
+96 passed, with no collection/setup errors. Current head passes all 384.
+Two existing non-finite-hint assertions now require no sleep under B1. No test
+case or prepared-request fixture was removed. OAuth edge cases still pass.
+
+Requested suite:
+~/.pyenv/versions/default_31111/bin/python -m pytest tests/ -k connector --no-cov
+  1089 passed, 6 skipped, 12626 deselected
+  Four skips require live service credentials; two are PostGIS collection skips.
+
+New tests plus the original eight regression modules and the credential URL
+leak/guard modules:
+  1376 passed = 637 new + 384 original + 355 URL leak/guard checks.
+
+Prepared-request comparison
+
+The same 308-fixture probe ran in separate processes against develop, baseline
+and head, with module-origin assertions, fixed clocks and fixed multipart UUIDs.
+All 24 controls (16 upsert and 8 SOQL) have byte-identical serialized request
+methods, URLs, headers and bodies in all three runs. Their SHA256 is:
+42dd1a92ed978d6c7ec2f50b7f3e534c1662aa08c711ccc36e65939dd722099b
+
+All 308 fixtures have identical requests between 268a9b5a and head. The 60
+request differences between develop and head already existed at 268a9b5a and
+remain attributable to #1417, #1426, #1429 and #1436. There are zero unexplained
+request changes and zero removed fixture keys. The original prepared-request
+test source and scripts/check_credential_urls.py are unchanged by R2.
+
+Done-when completion
+
+#1417 row 1: PASS. Safe-method retries and single-attempt POST/PATCH writes.
+  test_non_idempotent_requests_are_sent_once
+  test_idempotent_requests_still_retry
+#1417 row 2: PASS. Capped 429 backoff; auth/rate errors escape every batch path.
+  test_rate_limit_backs_off_before_safe_retry
+  test_batch_stops_on_auth_or_rate_limit
+  test_dynamics_batch_propagates_auth_and_rate_limit
+  test_connector_over_cap_raises_without_sleep
+  test_connector_salesforce_bulk_429_cap
+  test_connector_salesforce_results_cannot_report_success_without_ids
+#1417 row 3: PASS. Failed HubSpot validation leaves the connector disconnected.
+  test_failed_hubspot_validation_leaves_disconnected
+#1417 row 4: PASS. Dynamics parses parts, Content-ID, rollback and missing parts.
+  test_failed_changeset_marks_all_rolled_back_records_failed
+  test_batch_successes_are_matched_by_content_id
+  test_incomplete_batch_response_cannot_report_full_success
+#1417 row 5: PASS. POST timeout, Retry-After and failed-changeset cases are red on
+  v4.0.0 and green at head, in the preserved 384-case regression matrix.
+
+#1436 row 1: PASS. All four wrappers refresh once; raw upload/download and outer
+  and inner Dynamics batch paths now use the same bound.
+  test_401_refreshes_once_and_replays_with_new_token
+  test_repeated_401_stops_after_one_refresh
+  test_connector_dynamics_public_upsert_401
+  test_connector_dynamics_inner_401_refreshes
+  test_connector_salesforce_bulk_upload_401
+  test_connector_salesforce_result_download_401_never_silent
+#1436 row 2: PASS. Salesforce expiry remains unknown; renewal uses server 401.
+  tests/test_1436_crm_token_lifecycle.py Salesforce expiry cases
+#1436 row 3: PASS. UTC expiry and the 60-second safety margin are preserved.
+  tests/test_1436_crm_token_lifecycle.py expiry and margin cases
+#1436 row 4: PASS. Fake 401 then 200 is red on v4.0.0 and green at head.
+  test_401_refreshes_once_and_replays_with_new_token
+
+No row is deferred. Closes #1417 and Closes #1436 remain. No tracking issue is
+needed and no Closes-to-Refs change was made.
+
+Guards and changelog
+
+Credential URL guard: zero unreviewed sites; detection and exemptions unchanged.
+Exception contracts: zero unlisted handlers and zero stale entries. Five old
+exemptions were removed after replacing raw exception handling and eliminating
+Salesforce result-download swallowing; no new exemptions were added.
+Credential literals, secret repr, unbounded I/O (library and tests), no-stub
+docstrings, subprocess safety, atomic writes, secure writes and extras coherence
+checks pass. Touched connector/core/test files pass the checked flake8 rules.
+CHANGELOG.md equals origin/develop. Its nine-line change from 268a9b5a copies the
+new develop entry for #1463. This PR's release notes remain in the PR body's
+## CHANGELOG [4.1.0] block.
+
+The baseline CI run 39211368550 is SUCCESS at 268a9b5a. This is baseline evidence,
+not a claim about the follow-up commit's CI result.
+
+Local raw evidence: /tmp/crm-r2-1846/{red,green-all,connector-suite}.xml,
+original-{develop,v4}.xml, {develop,base,head}-output.json and the 24-request JSON
+files. Probe source: /tmp/crm-cluster-1-evidence/probe.py. Tests used the SZSH
+Python at ~/.pyenv/versions/default_31111/bin/python. No live CRM calls or real
+retry sleeps were made by the new tests.

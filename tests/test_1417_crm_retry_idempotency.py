@@ -120,8 +120,11 @@ def test_retry_after_values_remain_typed_rate_limit_errors(retry_after, sleep):
     with pytest.raises(ConnectorRateLimitError):
         c.request("POST", "/records")
     assert c._session.request.call_count == 1
-    assert sleep.call_count == 1
-    assert 0 <= sleep.call_args.args[0] <= 30
+    if retry_after in {"nan", "inf"}:
+        sleep.assert_not_called()
+    else:
+        assert sleep.call_count == 1
+        assert 0 <= sleep.call_args.args[0] <= 30
 
 
 def batch_response(parts, *, nested=True):
