@@ -18,7 +18,7 @@ import json
 import logging
 import pathlib
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from math import isfinite
 from typing import Any, Mapping
@@ -64,6 +64,15 @@ DEFAULT_MEDIA_FIELDS = (
 DEFAULT_ACCOUNT_METRICS = "reach,follower_count"
 DEFAULT_POST_METRICS = "views,reach,total_interactions,saved,shares"
 _DEFAULT_STORY_METRICS = "views,reach,replies,navigation"
+_POST_COLUMNS = [
+    "id", "platform", "post_type", "text", "media_url", "published_at", "permalink",
+    "like_count", "comments_count", "metrics",
+]
+_EXPIRED_TOKEN_MESSAGE = (
+    "Instagram access token has expired. Obtain a fresh token through Facebook "
+    "Login, then call refresh_access_token(access_token=...) with app_id and "
+    "app_secret configured, or create a connector with the new token and expiry."
+)
 
 __all__ = [
     "InstagramConnector",
@@ -75,6 +84,19 @@ __all__ = [
 
 class InstagramConnector:
     """Instagram Graph API connector implementing SocialMediaProtocol.
+
+    Long-lived Facebook user tokens expire after about 60 days. Supply the
+    timezone-aware ``token_expires_at`` from the login flow to detect expiry
+    before requests. If omitted, expiry is unknown until Graph reports it;
+    constructing a connector does not restart the token's lifetime.
+
+    Configure ``app_id`` and ``app_secret`` and call ``refresh_access_token()``
+    to exchange an eligible, unexpired user token at ``/oauth/access_token``
+    using ``fb_exchange_token``. The returned token and ``expires_in`` update
+    the session and ``token_expires_at``. Persist the returned token and expiry
+    in your credential store. Expired tokens require Facebook Login again;
+    pass the fresh token to ``refresh_access_token(access_token=...)`` and
+    call ``authenticate()``. There is no automatic renewal of expired tokens.
 
     Usage::
 
@@ -91,6 +113,9 @@ class InstagramConnector:
         access_token: str,
         *,
         ig_user_id: str | None = None,
+        token_expires_at: datetime | None = None,
+        app_id: str | None = None,
+        app_secret: str | None = None,
         timeout: float = DEFAULT_TIMEOUT,
         retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
         retry_backoff: float = DEFAULT_RETRY_BACKOFF,
@@ -102,8 +127,13 @@ class InstagramConnector:
             )
         if not access_token:
             raise ValueError("access_token is required.")
+        if token_expires_at is not None and token_expires_at.utcoffset() is None:
+            raise ValueError("token_expires_at must be a timezone-aware datetime.")
 
         self._access_token = access_token
+        self._token_expires_at = token_expires_at
+        self._app_id = app_id
+        self._app_secret = app_secret
         self._ig_user_id = ig_user_id
         self._timeout = timeout
         self._retry_attempts = max(1, retry_attempts)
@@ -234,6 +264,9 @@ class InstagramConnector:
     ) -> pd.DataFrame:
         """Posts published in the given date range.
 
+        ``published_at`` is UTC-aware (NaT if unavailable); ``metrics`` holds
+        available like/comment counts alongside the existing count columns.
+
         Return collected posts with a warning if a later page exhausts rate
         limit retries. First-page failures and other errors propagate.
         """
@@ -314,6 +347,61 @@ class InstagramConnector:
     # Extra methods (beyond protocol)
     # ------------------------------------------------------------------
 
+    @property
+    def token_expires_at(self) -> datetime | None:
+        """Known token expiry, or None when no expiry metadata was supplied."""
+        return self._token_expires_at
+
+    def is_token_expired(self) -> bool:
+        """Whether the known expiry has passed; unknown expiry returns False."""
+        return self._token_expires_at is not None and datetime.now(timezone.utc) >= self._token_expires_at
+
+    def refresh_access_token(self, *, access_token: str | None = None) -> str:
+        """Exchange a valid Facebook user token and return the new token.
+
+        Uses the current token unless ``access_token`` supplies a fresh login
+        token. Requires constructor ``app_id`` and ``app_secret``. Updates the
+        bearer header and expiry only after a valid exchange response. Raises
+        SocialMediaAuthError when credentials, token or expiry are invalid.
+        Transport and rate-limit errors follow the normal retry policy.
+        """
+        if not self._app_id or not self._app_secret:
+            raise SocialMediaAuthError(
+                "Instagram token exchange requires app_id and app_secret. "
+                "Configure both or obtain a fresh token through Facebook Login."
+            )
+        if access_token is None:
+            if self.is_token_expired():
+                self._authenticated = False
+                raise SocialMediaAuthError(_EXPIRED_TOKEN_MESSAGE)
+            access_token = self._access_token
+        if not access_token:
+            raise SocialMediaAuthError("Instagram token exchange requires a valid login token.")
+
+        data = self._request_url("GET", f"{BASE_URL}/oauth/access_token", params={
+            "grant_type": "fb_exchange_token",
+            "client_id": self._app_id,
+            "client_secret": self._app_secret,
+            "fb_exchange_token": access_token,
+        }, _token_exchange=True)
+        try:
+            token = data["access_token"]
+            expires_in = float(data["expires_in"])
+            if not isinstance(token, str) or not token or not isfinite(expires_in) or expires_in <= 0:
+                raise ValueError("Invalid token or expiry")
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+        except (KeyError, TypeError, ValueError, OverflowError):
+            raise SocialMediaAuthError(
+                "Instagram token exchange returned no valid access_token or expires_in; "
+                "obtain a fresh token through Facebook Login."
+            ) from None
+
+        self._access_token = token
+        self._token_expires_at = expires_at
+        self._session.headers["Authorization"] = f"Bearer {token}"
+        log.info("Instagram token exchanged; expires at %s", expires_at.isoformat())
+        return token
+
     def get_stories_insights(self, metrics: list[str] | None = None) -> pd.DataFrame:
         """Active stories with overridable metrics, including total navigation.
 
@@ -367,8 +455,12 @@ class InstagramConnector:
         url: str,
         *,
         params: Mapping[str, Any] | None = None,
+        _token_exchange: bool = False,
     ) -> dict[str, Any]:
         """Send an authenticated request to an absolute URL."""
+        if not _token_exchange and self.is_token_expired():
+            self._authenticated = False
+            raise SocialMediaAuthError(_EXPIRED_TOKEN_MESSAGE)
         req_params = {
             key: value for key, value in (params or {}).items()
             if key.lower() != "access_token"
@@ -389,6 +481,7 @@ class InstagramConnector:
                     method, url,
                     params=req_params,
                     timeout=self._timeout,
+                    **({"headers": {"Authorization": None}} if _token_exchange else {}),
                 )
             except requests.exceptions.RequestException as exc:
                 last_exc = SocialMediaError(redact_url_secrets(str(exc)))
@@ -415,6 +508,30 @@ class InstagramConnector:
                 )
                 time.sleep(delay)
                 continue
+
+            try:
+                body = resp.json()
+            except ValueError:
+                body = {}
+            graph_error = body.get("error", {}) if isinstance(body, dict) else {}
+            graph_error = graph_error if isinstance(graph_error, dict) else {}
+            if graph_error.get("code") == 190:
+                if not _token_exchange:
+                    self._authenticated = False
+                    if graph_error.get("error_subcode") == 463:
+                        self._token_expires_at = datetime.now(timezone.utc)
+                if graph_error.get("error_subcode") == 463:
+                    raise SocialMediaAuthError(_EXPIRED_TOKEN_MESSAGE)
+                raise SocialMediaAuthError(
+                    "Instagram access token is invalid or revoked. "
+                    "Obtain a fresh token through Facebook Login."
+                )
+
+            if _token_exchange and 400 <= resp.status_code < 500:
+                raise SocialMediaAuthError(
+                    "Instagram token exchange was rejected. Verify app_id and "
+                    "app_secret, or obtain a fresh token through Facebook Login."
+                )
 
             if resp.status_code in (401, 403):
                 error_msg = self._extract_error_message(resp)
@@ -536,8 +653,10 @@ class InstagramConnector:
                 "permalink": p.get("permalink"),
                 "like_count": p.get("like_count", 0),
                 "comments_count": p.get("comments_count", 0),
+                "metrics": {key: p[key] for key in ("like_count", "comments_count") if key in p},
             })
-        df = pd.DataFrame(rows)
+        df = pd.DataFrame(rows, columns=_POST_COLUMNS)
+        df["published_at"] = pd.to_datetime(df["published_at"], format="ISO8601", utc=True, errors="coerce")
         if not df.empty:
             log.info("Retrieved %d posts", len(df))
         return df

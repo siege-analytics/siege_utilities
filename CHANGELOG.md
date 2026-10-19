@@ -116,10 +116,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   honor `Retry-After`, and retain collected posts with a warning when a later
   page remains throttled. Instagram recognizes Graph throttle codes and usage
   headers before classifying authentication failures. Missing account metrics
-  remain null instead of becoming zero (#1458).
+  remain null instead of becoming zero. Post frames retain existing columns
+  and add a metrics dictionary with UTC-aware publication times, including a
+  stable schema for empty results. Instagram detects supplied token expiry
+  before requests and Graph code 190 authentication failures, documents the
+  roughly 60-day lifetime, and offers token exchange with stored expiry and
+  a fresh-login path for expired tokens (#1458).
 - X validates user ID lookups during authentication, requests at least five
   tweets per page while honoring smaller result limits, and combines public,
-  non-public and organic insights with that precedence (#1465).
+  non-public and organic insights with that precedence. A zero post limit
+  returns an empty frame without requests. Request path identifiers are
+  percent-encoded, and non-public/organic insight fields require the
+  `user_context=True` opt-in for OAuth user tokens (#1465).
 - Graph insight defaults use supported metrics: daily Instagram account
   insights use `reach` and `follower_count`; media use `views` and
   `total_interactions`; stories use `navigation` and accept caller overrides.

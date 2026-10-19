@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from unittest.mock import Mock
 
 import pandas as pd
@@ -58,15 +58,206 @@ def offline(monkeypatch, caplog):
     return sleep
 
 
-def connector(platform, monkeypatch, responses, *, attempts=1):
+def connector(platform, monkeypatch, responses, *, attempts=1, **kwargs):
     if platform == "instagram":
-        client = instagram.InstagramConnector("test-token", ig_user_id="123", retry_attempts=attempts)
+        client = instagram.InstagramConnector("test-token", ig_user_id="123", retry_attempts=attempts, **kwargs)
     else:
-        client = x_twitter.XTwitterConnector("test-token", user_id="123", retry_attempts=attempts)
+        client = x_twitter.XTwitterConnector("test-token", user_id="123", retry_attempts=attempts, **kwargs)
     client._authenticated = True
     request = Mock(side_effect=responses)
     monkeypatch.setattr(client._session, "request", request)
     return client, request
+
+
+POST_COLUMNS = [
+    "id", "platform", "post_type", "text", "media_url", "published_at", "permalink",
+]
+POST_METRIC_COLUMNS = {
+    "instagram": ["like_count", "comments_count"],
+    "x": ["retweet_count", "reply_count", "like_count", "quote_count", "bookmark_count", "impression_count"],
+}
+
+
+@pytest.mark.parametrize("platform", ["instagram", "x"])
+@pytest.mark.parametrize("field", ["published_at", "metrics"])
+def test_deferred_post_contract(monkeypatch, platform, field):
+    metrics = {key: index for index, key in enumerate(POST_METRIC_COLUMNS[platform])}
+    post = {"id": "post-1"}
+    if platform == "instagram":
+        post.update(timestamp="2026-01-02T00:00:00+0000", **metrics)
+    else:
+        post.update(created_at="2026-01-02T00:00:00.000Z", public_metrics=metrics)
+    client, _ = connector(platform, monkeypatch, [response(body={"data": [post]})])
+    result = client.get_posts(START, END)
+    value = result.loc[0, field]
+    if field == "published_at":
+        assert isinstance(value, datetime)
+        assert value.utcoffset() is not None
+        assert value == datetime(2026, 1, 2, tzinfo=timezone.utc)
+    else:
+        assert isinstance(value, dict)
+        assert value == metrics
+    assert set(POST_COLUMNS + POST_METRIC_COLUMNS[platform]).issubset(result.columns)
+
+
+@pytest.mark.parametrize("platform", ["instagram", "x"])
+def test_deferred_empty_post_schema(monkeypatch, platform):
+    client, _ = connector(platform, monkeypatch, [response(body={"data": []})])
+    result = client.get_posts(START, END)
+    assert result.empty
+    assert list(result.columns) == POST_COLUMNS + POST_METRIC_COLUMNS[platform] + ["metrics"]
+
+
+@pytest.mark.parametrize("authenticated", [False, True])
+def test_deferred_x_zero_limit_never_requests_or_paginates(monkeypatch, authenticated):
+    client, request = connector("x", monkeypatch, [
+        response(body={"data": [{"id": "first"}], "meta": {"next_token": "cursor"}}),
+        response(body={"data": [{"id": "second"}]}),
+    ])
+    # An empty request needs neither authentication nor a budget.
+    client._authenticated = authenticated
+    result = client.get_posts(START, END, limit=0)
+    assert result.empty
+    assert list(result.columns) == POST_COLUMNS + POST_METRIC_COLUMNS["x"] + ["metrics"]
+    request.assert_not_called()
+    assert client.estimated_cost == 0
+
+
+@pytest.mark.parametrize("operation", ["authenticate_id", "authenticate_username", "account", "posts", "insights"])
+@pytest.mark.parametrize("identifier,escaped", [
+    ("../users/123", "..%2Fusers%2F123"),
+    ("name?key=value#frag%/é", "name%3Fkey%3Dvalue%23frag%25%2F%C3%A9"),
+])
+def test_deferred_x_path_segments(monkeypatch, operation, identifier, escaped):
+    data = [] if operation == "posts" else {"id": "123", "username": "test"}
+    client, request = connector("x", monkeypatch, [response(body={"data": data})])
+    client._user_id = identifier
+    if operation == "authenticate_username":
+        client._user_id = None
+        client._username = identifier
+        client.authenticate()
+        expected_path = f"/users/by/username/{escaped}"
+    elif operation == "authenticate_id":
+        client.authenticate()
+        expected_path = f"/users/{escaped}"
+    elif operation == "account":
+        client.get_account_info()
+        expected_path = f"/users/{escaped}"
+    elif operation == "posts":
+        client.get_posts(START, END)
+        expected_path = f"/users/{escaped}/tweets"
+    else:
+        client.get_post_insights(identifier)
+        expected_path = f"/tweets/{escaped}"
+    url = request.call_args.args[1]
+    assert url == x_twitter.BASE_URL + expected_path
+    assert requests.Request("GET", url).prepare().url == url
+
+
+@pytest.mark.parametrize("user_context", [False, True])
+def test_deferred_x_insight_fields_match_token_context(monkeypatch, user_context):
+    kwargs = {"user_context": True} if user_context else {}
+    client, request = connector("x", monkeypatch, [response(body={"data": {}})], **kwargs)
+    client.get_post_insights("post-1")
+    fields = set(request.call_args.kwargs["params"]["tweet.fields"].split(","))
+    expected = {"public_metrics", "created_at"}
+    if user_context:
+        expected.update({"non_public_metrics", "organic_metrics"})
+    assert fields == expected
+
+
+@pytest.mark.parametrize("expired", [False, True])
+def test_deferred_instagram_expiry_check(monkeypatch, expired):
+    expires_at = datetime.now(timezone.utc) + timedelta(days=-1 if expired else 1)
+    client, _ = connector("instagram", monkeypatch, [], token_expires_at=expires_at)
+    assert client.is_token_expired() is expired
+    assert client.token_expires_at == expires_at
+
+
+def test_deferred_instagram_expired_token_blocks_requests(monkeypatch):
+    client, request = connector("instagram", monkeypatch, [],
+                                token_expires_at=datetime.now(timezone.utc) - timedelta(days=1))
+    with pytest.raises(SocialMediaAuthError, match="(?i)expired.*fresh.*login"):
+        client.get_account_info()
+    request.assert_not_called()
+    assert not client.is_connected()
+
+
+@pytest.mark.parametrize("replacement", [None, "fresh-login-token"])
+def test_deferred_instagram_token_exchange_updates_expiry(monkeypatch, replacement):
+    original_expiry = datetime.now(timezone.utc) + timedelta(days=-1 if replacement else 1)
+    client, request = connector("instagram", monkeypatch, [
+        response(body={"access_token": "renewed-token", "expires_in": 5184000}),
+        response(body={"id": "123"}),
+    ], app_id="app-id", app_secret="app-secret", token_expires_at=original_expiry)
+    before = datetime.now(timezone.utc)
+    assert client.refresh_access_token(access_token=replacement) == "renewed-token"
+    after = datetime.now(timezone.utc)
+    args, kwargs = request.call_args
+    assert args == ("GET", f"{instagram.BASE_URL}/oauth/access_token")
+    assert kwargs["params"] == {
+        "grant_type": "fb_exchange_token", "client_id": "app-id",
+        "client_secret": "app-secret", "fb_exchange_token": replacement or "test-token",
+    }
+    # A stale bearer header must not accompany the exchange of a fresh token.
+    assert kwargs["headers"]["Authorization"] is None
+    assert before + timedelta(seconds=5184000) <= client.token_expires_at <= after + timedelta(seconds=5184000)
+    assert not client.is_token_expired()
+    assert client._session.headers["Authorization"] == "Bearer renewed-token"
+    client.authenticate()
+    assert client.is_connected()
+
+
+def test_deferred_instagram_refresh_requires_app_credentials(monkeypatch):
+    client, request = connector("instagram", monkeypatch, [])
+    with pytest.raises(SocialMediaAuthError, match="app_id.*app_secret"):
+        client.refresh_access_token()
+    request.assert_not_called()
+
+
+@pytest.mark.parametrize("status", [400, 403])
+def test_deferred_instagram_rejected_exchange_gives_recovery_path(monkeypatch, status):
+    client, _ = connector("instagram", monkeypatch, [response(status, {
+        "error": {"code": 101, "message": "Invalid application credentials"},
+    })], app_id="app-id", app_secret="app-secret")
+    with pytest.raises(SocialMediaAuthError, match="token exchange.*app_id.*app_secret.*Login"):
+        client.refresh_access_token()
+    assert client._session.headers["Authorization"] == "Bearer test-token"
+    assert client.token_expires_at is None
+
+
+def test_deferred_instagram_cannot_exchange_expired_token(monkeypatch):
+    client, request = connector("instagram", monkeypatch, [], app_id="app-id", app_secret="app-secret",
+                                token_expires_at=datetime.now(timezone.utc) - timedelta(days=1))
+    with pytest.raises(SocialMediaAuthError, match="(?i)expired.*fresh.*login"):
+        client.refresh_access_token()
+    request.assert_not_called()
+
+
+@pytest.mark.parametrize("body", [
+    {}, {"access_token": "new-token"}, {"access_token": "new-token", "expires_in": -1},
+    {"access_token": "new-token", "expires_in": "nan"},
+])
+def test_deferred_instagram_invalid_exchange_keeps_token(monkeypatch, body):
+    expiry = datetime.now(timezone.utc) + timedelta(days=1)
+    client, _ = connector("instagram", monkeypatch, [response(body=body)],
+                          app_id="app-id", app_secret="app-secret", token_expires_at=expiry)
+    with pytest.raises(SocialMediaAuthError, match="token exchange"):
+        client.refresh_access_token()
+    assert client.token_expires_at == expiry
+    assert client._session.headers["Authorization"] == "Bearer test-token"
+
+
+def test_deferred_instagram_graph_expiry_without_metadata(monkeypatch):
+    client, request = connector("instagram", monkeypatch, [response(400, {
+        "error": {"code": 190, "error_subcode": 463, "message": "Session has expired"},
+    })])
+    with pytest.raises(SocialMediaAuthError, match="(?i)expired.*fresh.*login"):
+        client.get_account_info()
+    assert client.is_token_expired()
+    with pytest.raises(SocialMediaAuthError, match="expired"):
+        client.authenticate()
+    request.assert_called_once()
 
 
 @pytest.mark.parametrize("kind", ["account", "post", "story"])

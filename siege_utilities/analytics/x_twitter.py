@@ -24,6 +24,7 @@ from datetime import date, datetime
 from email.utils import parsedate_to_datetime
 from math import isfinite
 from typing import Any, Mapping
+from urllib.parse import quote
 
 import pandas as pd
 
@@ -49,6 +50,11 @@ DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_BACKOFF = 2.0
 COST_PER_READ = 0.005
+_POST_COLUMNS = [
+    "id", "platform", "post_type", "text", "media_url", "published_at", "permalink",
+    "retweet_count", "reply_count", "like_count", "quote_count", "bookmark_count",
+    "impression_count", "metrics",
+]
 
 __all__ = [
     "XTwitterConnector",
@@ -60,6 +66,10 @@ __all__ = [
 
 class XTwitterConnector:
     """X/Twitter API v2 connector implementing SocialMediaProtocol.
+
+    Set ``user_context=True`` only with an OAuth user token to request
+    non-public and organic post insights. App-only tokens request public
+    metrics by default.
 
     Usage::
 
@@ -82,6 +92,7 @@ class XTwitterConnector:
         *,
         username: str | None = None,
         user_id: str | None = None,
+        user_context: bool = False,
         budget_limit: float | None = None,
         timeout: float = DEFAULT_TIMEOUT,
         retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
@@ -98,6 +109,7 @@ class XTwitterConnector:
         self._bearer_token = bearer_token
         self._username = username
         self._user_id = user_id
+        self._user_context = user_context
         self._budget_limit = budget_limit
         self._estimated_cost = 0.0
         self._timeout = timeout
@@ -142,7 +154,7 @@ class XTwitterConnector:
     def authenticate(self) -> None:
         """Validate bearer token and resolve user ID."""
         if self._user_id:
-            data = self._request("GET", f"/users/{self._user_id}", params={
+            data = self._request("GET", f"/users/{quote(str(self._user_id), safe='')}", params={
                 "user.fields": "username,id",
             })
             user = data.get("data", {})
@@ -156,7 +168,7 @@ class XTwitterConnector:
             return
 
         if self._username:
-            data = self._request("GET", f"/users/by/username/{self._username}", params={
+            data = self._request("GET", f"/users/by/username/{quote(str(self._username), safe='')}", params={
                 "user.fields": "id,username",
             })
             user = data.get("data", {})
@@ -189,7 +201,7 @@ class XTwitterConnector:
     def get_account_info(self) -> dict[str, Any]:
         """Account metadata: username, followers, tweet count, verified status."""
         self._ensure_connected()
-        data = self._request("GET", f"/users/{self._user_id}", params={
+        data = self._request("GET", f"/users/{quote(str(self._user_id), safe='')}", params={
             "user.fields": (
                 "username,name,description,profile_image_url,"
                 "public_metrics,verified,created_at,location,url"
@@ -240,9 +252,16 @@ class XTwitterConnector:
     ) -> pd.DataFrame:
         """Tweets published in the given date range.
 
+        ``limit=0`` returns an empty frame with the post columns without
+        authentication or API requests. ``None`` retrieves all matching tweets.
+        ``published_at`` is UTC-aware (NaT if unavailable); ``metrics`` holds
+        the available public metrics alongside the existing count columns.
+
         Return collected tweets with a warning if a later page exhausts rate
         limit retries. First-page failures and other errors propagate.
         """
+        if limit == 0:
+            return self._tweets_to_dataframe([])
         self._ensure_connected()
         all_tweets: list[dict[str, Any]] = []
         max_results = max(5, min(limit or 100, 100))
@@ -264,7 +283,7 @@ class XTwitterConnector:
                 params["pagination_token"] = next_token
 
             try:
-                data = self._request("GET", f"/users/{self._user_id}/tweets", params=params)
+                data = self._request("GET", f"/users/{quote(str(self._user_id), safe='')}/tweets", params=params)
             except SocialMediaRateLimitError:
                 if not all_tweets:
                     raise
@@ -296,11 +315,15 @@ class XTwitterConnector:
     ) -> pd.DataFrame:
         """Tweet metrics with public, then non-public, then organic precedence.
 
-        Non-public and organic metrics require a user-context token.
+        Non-public and organic metrics require a user-context token and
+        ``user_context=True`` on the connector.
         """
         self._ensure_connected()
-        data = self._request("GET", f"/tweets/{post_id}", params={
-            "tweet.fields": "public_metrics,non_public_metrics,organic_metrics,created_at",
+        fields = "public_metrics,created_at"
+        if self._user_context:
+            fields += ",non_public_metrics,organic_metrics"
+        data = self._request("GET", f"/tweets/{quote(str(post_id), safe='')}", params={
+            "tweet.fields": fields,
         })
         tweet = data.get("data", {})
         combined: dict[str, Any] = {}
@@ -482,7 +505,7 @@ class XTwitterConnector:
     def _tweets_to_dataframe(tweets: list[dict[str, Any]]) -> pd.DataFrame:
         rows: list[dict[str, Any]] = []
         for t in tweets:
-            metrics = t.get("public_metrics", {})
+            metrics = dict(t.get("public_metrics") or {})
             rows.append({
                 "id": t.get("id"),
                 "platform": "x_twitter",
@@ -497,8 +520,10 @@ class XTwitterConnector:
                 "quote_count": metrics.get("quote_count", 0),
                 "bookmark_count": metrics.get("bookmark_count", 0),
                 "impression_count": metrics.get("impression_count", 0),
+                "metrics": metrics,
             })
-        df = pd.DataFrame(rows)
+        df = pd.DataFrame(rows, columns=_POST_COLUMNS)
+        df["published_at"] = pd.to_datetime(df["published_at"], format="ISO8601", utc=True, errors="coerce")
         if not df.empty:
             log.info("Retrieved %d tweets (est. cost: accumulated in connector)", len(df))
         return df
