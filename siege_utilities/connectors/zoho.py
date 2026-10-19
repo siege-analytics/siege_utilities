@@ -293,7 +293,7 @@ class ZohoConnector:
         filters: dict[str, Any] | None = None,
         limit: int | None = None,
     ) -> pd.DataFrame:
-        """Fetch records from a Zoho CRM module."""
+        """Fetch records from a Zoho CRM module; None is unlimited, zero returns no rows."""
         selected_fields = fields or DEFAULT_FIELDS.get(object_type, ["id"])
 
         if filters:
@@ -544,17 +544,23 @@ class ZohoConnector:
         limit: int | None,
     ) -> pd.DataFrame:
         """List records via the records API with pagination."""
+        if limit == 0:
+            return self._records_to_dataframe([], fields)
         all_records: list[dict[str, Any]] = []
         page = 1
-        per_page = min(limit or 200, 200)
+        page_token = None
+        per_page = min(limit, 200) if limit is not None else 200
 
         while True:
             path = f"/crm/{API_VERSION}/{module}"
             params: dict[str, Any] = {
                 "fields": ",".join(fields),
                 "per_page": per_page,
-                "page": page,
             }
+            if page_token:
+                params["page_token"] = page_token
+            else:
+                params["page"] = page
             data = self.request("GET", path, params=params)
             records = data.get("data", [])
             if not records:
@@ -564,13 +570,17 @@ class ZohoConnector:
             log.info("Listed %s: page %d, %d records (total: %d)",
                      module, page, len(records), len(all_records))
 
-            if limit and len(all_records) >= limit:
+            if limit is not None and len(all_records) >= limit:
                 all_records = all_records[:limit]
                 break
 
             info = data.get("info", {})
             if not info.get("more_records"):
                 break
+            next_token = info.get("next_page_token")
+            if page_token and (not next_token or next_token == page_token):
+                raise ConnectorError("Zoho pagination did not return a new page token.")
+            page_token = next_token
             page += 1
 
         return self._records_to_dataframe(all_records, fields)
@@ -583,6 +593,8 @@ class ZohoConnector:
         limit: int | None,
     ) -> pd.DataFrame:
         """Execute a COQL query for filtered access."""
+        if limit == 0:
+            return self._records_to_dataframe([], fields)
         _validate_identifier(module)
         field_clause = ", ".join(_validate_identifier(field, allow_dotted=True) for field in fields)
         where_parts: list[str] = []
@@ -603,17 +615,14 @@ class ZohoConnector:
         query = f"select {field_clause} from {module}"
         if where_parts:
             query += " where " + " and ".join(where_parts)
-        if limit:
-            query += f" limit {int(limit)}"
 
         path = f"/crm/{API_VERSION}/coql"
         all_records: list[dict[str, Any]] = []
         offset = 0
 
         while True:
-            paginated_query = query
-            if offset > 0:
-                paginated_query += f" offset {offset}"
+            page_size = min(200, limit - len(all_records)) if limit is not None else 200
+            paginated_query = f"{query} limit {offset}, {page_size}"
             data = self.request("POST", path, json_body={"select_query": paginated_query})
             records = data.get("data", [])
             if not records:
@@ -621,6 +630,10 @@ class ZohoConnector:
 
             all_records.extend(records)
             log.info("COQL query: %d records (total: %d)", len(records), len(all_records))
+
+            if limit is not None and len(all_records) >= limit:
+                all_records = all_records[:limit]
+                break
 
             if not data.get("info", {}).get("more_records"):
                 break

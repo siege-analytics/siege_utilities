@@ -112,6 +112,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Documented behavior change from v4.0.0:** HubSpot, Zoho, and Dynamics
+  return zero rows without a data request for `limit=0`; `None` remains
+  unlimited. Zoho COQL stops at the requested count, and record listing uses
+  continuation tokens past 2,000 rows. Dynamics FetchXML follows paging
+  cookies and raises on missing, invalid, or repeated cookies when more rows
+  remain. HubSpot search raises a clear error before paging beyond its
+  10,000-result cap; callers must narrow filters or use unfiltered listing
+  (#1429). v3.23.0 had no connector implementations.
+
 - **Documented behavior change from v4.0.0:** CRM transport and server-error
   retries are limited to GET, PUT, and DELETE. POST and PATCH requests are
   sent once, avoiding duplicate creates after a lost response. HTTP 429

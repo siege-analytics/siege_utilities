@@ -259,30 +259,71 @@ class DynamicsConnector:
             object_type: Dataverse entity set name (``"contacts"``, etc.).
             fields: Columns ($select). ``None`` for defaults.
             filters: Key-value pairs translated to OData $filter.
-            limit: Maximum records ($top).
+            limit: Maximum records ($top). ``None`` for all; zero returns no rows.
         """
         entity_set = STANDARD_ENTITIES.get(object_type, object_type)
         columns = fields or DEFAULT_COLUMNS.get(entity_set, [])
+        if limit == 0:
+            return pd.DataFrame(columns=columns)
 
         params: dict[str, Any] = {}
         if columns:
             params["$select"] = ",".join(columns)
         if filters:
             params["$filter"] = self._build_odata_filter(filters)
-        if limit:
+        if limit is not None:
             params["$top"] = limit
 
         return self._query_all_odata(entity_set, params, columns)
 
     def fetch_xml(self, entity: str, fetch_xml: str) -> pd.DataFrame:
-        """Execute a FetchXML query (power-user escape hatch)."""
+        """Execute FetchXML and follow paging cookies until all rows are read.
+
+        Raises ConnectorError if more rows are advertised without a usable
+        paging cookie, rather than returning a partial result.
+        """
         import urllib.parse
+        import xml.etree.ElementTree as ET
 
         self._ensure_connected()
-        encoded = urllib.parse.quote(fetch_xml)
-        path = f"/api/data/v9.2/{entity}?fetchXml={encoded}"
-        data = self.request("GET", path)
-        records = data.get("value", [])
+        root = ET.fromstring(fetch_xml)
+        page = int(root.get("page", "1"))
+        root.set("page", str(page))
+        records = []
+        seen_cookies = set()
+        annotations = ",".join([
+            FORMATTED_VALUE_ANNOTATION,
+            "Microsoft.Dynamics.CRM.fetchxmlpagingcookie",
+            "Microsoft.Dynamics.CRM.morerecords",
+        ])
+        while True:
+            encoded = urllib.parse.quote(ET.tostring(root, encoding="unicode"))
+            path = f"/api/data/v9.2/{entity}?fetchXml={encoded}"
+            data = self.request("GET", path, headers={
+                "Prefer": f'odata.include-annotations="{annotations}"',
+            })
+            records.extend(data.get("value", []))
+            cookie = data.get("@Microsoft.Dynamics.CRM.fetchxmlpagingcookie")
+            if not data.get("@Microsoft.Dynamics.CRM.morerecords", bool(cookie)):
+                break
+            if not cookie or cookie in seen_cookies:
+                raise ConnectorError("Dynamics FetchXML has more records but no new paging cookie.")
+            seen_cookies.add(cookie)
+            try:
+                wrapper = ET.fromstring(cookie)
+                next_page = int(wrapper.get("pagenumber", str(page + 1)))
+                encoded_cookie = wrapper.get("pagingcookie")
+                if encoded_cookie is not None:
+                    cookie = urllib.parse.unquote(urllib.parse.unquote(encoded_cookie))
+                elif wrapper.get("page") is None:
+                    raise ValueError("Missing paging cookie value")
+                if ET.fromstring(cookie).tag != "cookie" or next_page <= page:
+                    raise ValueError("Invalid cookie or page")
+            except (ET.ParseError, ValueError) as exc:
+                raise ConnectorError("Dynamics FetchXML returned an invalid paging cookie.") from exc
+            root.set("paging-cookie", cookie)
+            root.set("page", str(next_page))
+            page = next_page
         if not records:
             log.warning("FetchXML query returned 0 records")
             return pd.DataFrame()
@@ -790,6 +831,7 @@ class DynamicsConnector:
         *,
         params: Mapping[str, Any] | None = None,
         json_body: dict[str, Any] | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> dict[str, Any]:
         """Send an authenticated request to the Dataverse Web API."""
         self._ensure_connected()
@@ -804,6 +846,7 @@ class DynamicsConnector:
                     params=dict(params) if params else None,
                     json=json_body,
                     timeout=self._timeout,
+                    **({"headers": dict(headers)} if headers is not None else {}),
                 )
             except requests.exceptions.InvalidJSONError as exc:
                 raise ConnectorError(

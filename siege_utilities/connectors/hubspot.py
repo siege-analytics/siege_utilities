@@ -263,7 +263,8 @@ class HubSpotConnector:
             object_type: HubSpot object type (``"contacts"``, etc.).
             fields: Properties to return. ``None`` uses defaults.
             filters: Key-value criteria for the Search API.
-            limit: Maximum records. ``None`` for all.
+            limit: Maximum records. ``None`` for all; zero returns no rows.
+                Searches raise ConnectorError if paging would exceed 10,000.
         """
         properties = fields or DEFAULT_PROPERTIES.get(object_type, [])
 
@@ -560,9 +561,11 @@ class HubSpotConnector:
         limit: int | None,
     ) -> pd.DataFrame:
         """List objects via the CRM v3 list endpoint with cursor pagination."""
+        if limit == 0:
+            return self._records_to_dataframe([], properties)
         all_records: list[dict[str, Any]] = []
         after: str | None = None
-        page_limit = min(limit or 100, 100)
+        page_limit = min(limit, 100) if limit is not None else 100
 
         while True:
             params: dict[str, Any] = {"limit": page_limit}
@@ -579,7 +582,7 @@ class HubSpotConnector:
             log.info("Listed %s: %d records (total so far: %d)",
                      object_type, len(results), len(all_records))
 
-            if limit and len(all_records) >= limit:
+            if limit is not None and len(all_records) >= limit:
                 all_records = all_records[:limit]
                 break
 
@@ -598,7 +601,9 @@ class HubSpotConnector:
         filters: dict[str, Any],
         limit: int | None,
     ) -> pd.DataFrame:
-        """Search objects via the CRM v3 Search API."""
+        """Search objects, raising if pagination crosses the 10,000-result cap."""
+        if limit == 0:
+            return self._records_to_dataframe([], properties)
         filter_groups = []
         search_filters = []
         for key, value in filters.items():
@@ -623,13 +628,13 @@ class HubSpotConnector:
 
         all_records: list[dict[str, Any]] = []
         after: int = 0
-        page_limit = min(limit or 100, 100)
+        page_limit = min(limit, 100) if limit is not None else 100
 
         while True:
             body: dict[str, Any] = {
                 "filterGroups": filter_groups,
                 "properties": properties,
-                "limit": page_limit,
+                "limit": min(page_limit, 10000 - after),
                 "after": after,
             }
             path = f"/crm/v3/objects/{object_type}/search"
@@ -640,7 +645,7 @@ class HubSpotConnector:
             log.info("Searched %s: %d results (total so far: %d)",
                      object_type, len(results), len(all_records))
 
-            if limit and len(all_records) >= limit:
+            if limit is not None and len(all_records) >= limit:
                 all_records = all_records[:limit]
                 break
 
@@ -650,6 +655,11 @@ class HubSpotConnector:
             if not next_after:
                 break
             after = int(next_after)
+            if after >= 10000:
+                raise ConnectorError(
+                    "HubSpot search cannot page beyond the 10,000-result cap. "
+                    "Narrow the search filters or use the unfiltered list endpoint."
+                )
 
         return self._records_to_dataframe(all_records, properties)
 
