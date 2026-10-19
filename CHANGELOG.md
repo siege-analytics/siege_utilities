@@ -112,6 +112,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Documented behavior change from v4.0.0:** Salesforce, HubSpot, and Zoho
+  authorization URLs percent-encode OAuth parameters, preserving redirect
+  URI queries and state values containing reserved characters. HubSpot
+  scope separators use `%20` (#1431). v3.23.0 had no connector implementations.
+
 - **Documented behavior change from v4.0.0:** Salesforce, HubSpot, Zoho,
   and Dynamics renew credentials once after HTTP 401 and replay the rejected
   request once when renewal is available. Transport and server-error retry

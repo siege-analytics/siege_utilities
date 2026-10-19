@@ -15,6 +15,7 @@ import logging
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
+from urllib.parse import urlencode
 
 import pandas as pd
 
@@ -261,7 +262,7 @@ class ZohoConnector:
         }
         if state:
             params["state"] = state
-        query = "&".join(f"{k}={v}" for k, v in params.items())
+        query = urlencode(params)
         return f"{self._dc['accounts_url']}/oauth/v2/auth?{query}"
 
     def is_connected(self) -> bool:

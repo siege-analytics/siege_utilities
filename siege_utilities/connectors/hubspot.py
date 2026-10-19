@@ -21,6 +21,7 @@ import logging
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
+from urllib.parse import quote, urlencode
 
 import pandas as pd
 
@@ -217,7 +218,7 @@ class HubSpotConnector:
         }
         if state:
             params["state"] = state
-        query = "&".join(f"{k}={v}" for k, v in params.items())
+        query = urlencode(params, quote_via=quote)
         return f"{HUBSPOT_AUTH_BASE}/oauth/authorize?{query}"
 
     def is_connected(self) -> bool:

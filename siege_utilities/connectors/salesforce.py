@@ -25,6 +25,7 @@ import logging
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Mapping
+from urllib.parse import urlencode
 
 import pandas as pd
 
@@ -414,7 +415,7 @@ class SalesforceConnector:
         }
         if state:
             params["state"] = state
-        query = "&".join(f"{k}={v}" for k, v in params.items())
+        query = urlencode(params)
         return f"{self._login_url}/services/oauth2/authorize?{query}"
 
     def is_connected(self) -> bool:
