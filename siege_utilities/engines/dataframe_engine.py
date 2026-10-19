@@ -58,6 +58,9 @@ DUCKDB = Engine.DUCKDB.value
 SPARK = Engine.SPARK.value
 POSTGIS = Engine.POSTGIS.value
 
+# pandas attrs carry per-column CRS across eager DuckDB WKB materialization.
+_GEOMETRY_CRS_ATTR = "siege_geometry_crs"
+
 
 # Shared across all engines; see docs/engines/INVARIANTS.md groupby_agg.
 # "avg" is the Spark spelling; "mean" is the pandas spelling. Both are
@@ -970,7 +973,7 @@ class DuckDBEngine(DataFrameEngine):
 
     # -- SQL ----------------------------------------------------------------
 
-    def query(self, sql: str, **kwargs: Any) -> Any:
+    def query(self, sql: str, *, parameters: Any = None, **kwargs: Any) -> Any:
         """Execute *sql* against the DuckDB connection.
 
         If a ``table`` keyword is supplied together with a pandas DataFrame
@@ -987,24 +990,43 @@ class DuckDBEngine(DataFrameEngine):
         DML without RETURNING retains its affected-row Count; PREPARE returns
         its empty Success status without executing the prepared statement.
         Spatial is loaded only for geometry conversion or SQL requiring it.
+        ``parameters`` (or ``params``) binds a sequence or named mapping to a
+        single statement. Parameterized multi-statement SQL and unknown keywords
+        are rejected before execution. Geometry CRS is retained per column in
+        the returned frame's ``attrs['siege_geometry_crs']`` mapping.
         """
         table = kwargs.pop("table", None)
         df = kwargs.pop("df", None)
-        if table is not None and df is not None:
-            self._connection.register(table, df)
+        params = kwargs.pop("params", None)
+        if kwargs:
+            raise TypeError(f"DuckDBEngine.query: unexpected keyword argument(s): {sorted(kwargs)}")
+        if parameters is not None and params is not None:
+            raise TypeError("DuckDBEngine.query: pass only one of parameters or params")
+        if parameters is None:
+            parameters = params
+        if (table is None) != (df is None):
+            raise ValueError("DuckDBEngine.query: table and df must be supplied together")
         # Bind each statement separately: a spatial bind failure must not
         # replay preceding DML. Relations are strictly internal and always
         # materialized before returning to the caller.
         statements = self._connection.extract_statements(sql)
+        if parameters is not None and len(statements) != 1:
+            raise ValueError("DuckDBEngine.query: parameters require a single statement")
+        if table is not None:
+            self._connection.register(table, df)
         for statement in statements[:-1]:
             self._bind_spatial_if_needed(self._connection.execute, statement)
         if not statements:
             return self._connection.execute(sql).fetchdf()
         statement = statements[-1]
         if self._statement_returns_rows(statement):
-            relation = self._bind_spatial_if_needed(self._connection.sql, statement)
+            bindings = {"params": parameters} if parameters is not None else {}
+            relation = self._bind_spatial_if_needed(self._connection.sql, statement, **bindings)
             return self._materialize_geometry_wkb(relation)
-        return self._bind_spatial_if_needed(self._connection.execute, statement).fetchdf()
+        bindings = {"parameters": parameters} if parameters is not None else {}
+        return self._bind_spatial_if_needed(
+            self._connection.execute, statement, **bindings,
+        ).fetchdf()
 
     def _statement_returns_rows(self, statement: Any) -> bool:
         """Select the typed-result API without executing a mutation to probe it.
@@ -1076,17 +1098,17 @@ class DuckDBEngine(DataFrameEngine):
                     return True
         return False
 
-    def _bind_spatial_if_needed(self, operation, statement):
+    def _bind_spatial_if_needed(self, operation, statement, **kwargs):
         """Retry only a bind failure that explicitly requires spatial."""
         import duckdb
 
         try:
-            return operation(statement)
+            return operation(statement, **kwargs)
         except duckdb.CatalogException as exc:
             if self._spatial_loaded or "exists in the spatial extension" not in str(exc):
                 raise
             self._ensure_spatial()
-            return operation(statement)
+            return operation(statement, **kwargs)
 
     # -- Transforms ---------------------------------------------------------
 
@@ -1235,15 +1257,14 @@ class DuckDBEngine(DataFrameEngine):
             out.append(candidate)
         return out
 
-    def _spatial_meta_names(self, path: str) -> List[str]:
-        """Return ST_Read's real column names in column order: attribute
-        ``fields`` followed by ``geometry_fields``.
+    def _spatial_meta_layer(self, path: str) -> dict:
+        """Return the first layer's fields and geometry CRS from ST_Read_Meta.
 
         Metadata-read failures propagate: a scan failure and a metadata failure
         must behave consistently (both raise), never silently yield a different
         schema. An absent or empty layer is an error, not an empty schema.
         Driver-injected columns that ST_Read_Meta does not list (for example the
-        leading ``OGC_FID`` on DuckDB spatial 1.5.x) are NOT in this list; the
+        leading ``OGC_FID`` on DuckDB spatial 1.5.x) are NOT in these fields; the
         caller drops them so the output matches metadata and 1.4.x.
         """
         meta_rows = self._connection.sql(
@@ -1251,10 +1272,7 @@ class DuckDBEngine(DataFrameEngine):
         ).fetchall()
         if not meta_rows or not meta_rows[0][0]:
             raise ValueError(f"ST_Read_Meta returned no layer for {path!r}")
-        layer = meta_rows[0][0][0]
-        names = [f["name"] for f in (layer.get("fields", []) or [])]
-        names += [g["name"] for g in (layer.get("geometry_fields", []) or [])]
-        return names
+        return meta_rows[0][0][0]
 
     def _materialize_geometry_wkb(self, df: Any) -> Any:
         """Eagerly fetch a typed result with columns typed GEOMETRY in WKB.
@@ -1262,6 +1280,8 @@ class DuckDBEngine(DataFrameEngine):
         DuckDB's one-based positional references preserve distinct columns
         even when their aliases coincide. fetchdf then deduplicates the output
         names using DuckDB's usual rules (x, x_1, ...).
+        CRS is read from the geometry type before WKB drops it, including for
+        empty and all-null results. A bare GEOMETRY type has unknown CRS.
         """
         import duckdb
 
@@ -1271,12 +1291,23 @@ class DuckDBEngine(DataFrameEngine):
         if not positions:
             return df.fetchdf()
         self._ensure_spatial()
+        column_crs = {}
+        for i in positions:
+            dtype = str(df.types[i])
+            # Qualified GEOMETRY and ST_CRS arrived together in DuckDB 1.5.
+            # Inspect a typed NULL, never scan/re-execute the input relation.
+            column_crs[i] = (
+                self._connection.sql(f"SELECT ST_CRS(NULL::{dtype})").fetchone()[0]
+                if dtype.upper() != "GEOMETRY" else None
+            )
         projection = ", ".join(
             f'ST_AsWKB(#{i + 1}) AS {self._quote_ident(name)}'
             if i in positions else f'#{i + 1} AS {self._quote_ident(name)}'
             for i, name in enumerate(df.columns)
         )
-        return df.project(projection).fetchdf()
+        result = df.project(projection).fetchdf()
+        result.attrs[_GEOMETRY_CRS_ATTR] = {result.columns[i]: crs for i, crs in column_crs.items()}
+        return result
 
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
         """Read a spatial file via DuckDB's ``ST_Read``.
@@ -1292,14 +1323,19 @@ class DuckDBEngine(DataFrameEngine):
         across DuckDB versions. Names are then restored from metadata with
         pandas-style deduplication, so a clashing ``geom`` property stays
         addressable while the real geometry becomes ``geom_1``.
+        Preserve each geometry field's source CRS from file metadata; unknown
+        CRS stays None. A supplied target ``crs`` reprojects the active geometry
+        and requires a known source CRS.
 
         **kwargs: Forwarded for interface compatibility (unused in the current
         DuckDB path).
         """
         import geopandas as gpd
-        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
         self._ensure_spatial()
-        meta_names = self._spatial_meta_names(path)
+        layer = self._spatial_meta_layer(path)
+        geometry_fields = layer.get("geometry_fields", []) or []
+        meta_names = [f["name"] for f in (layer.get("fields", []) or [])]
+        meta_names += [g["name"] for g in geometry_fields]
         ncols_expected = len(meta_names)
         # Collision-proof aliases wide enough for the real columns plus a margin
         # for any driver-injected columns. The prefix cannot clash with a real
@@ -1335,11 +1371,23 @@ class DuckDBEngine(DataFrameEngine):
             return None
         # Parse every geometry column so a multi-geometry file keeps all of
         # them; the first becomes the active geometry.
-        for gc in geom_cols:
-            result[gc] = result[gc].apply(_parse_geom)
+        source_crses = {}
+        for gc, field in zip(geom_cols, geometry_fields):
+            metadata = field.get("crs") or {}
+            authority = metadata.get("auth_name")
+            code = metadata.get("auth_code")
+            source_crs = (
+                metadata.get("wkt") or metadata.get("projjson")
+                or (f"{authority}:{code}" if authority and code else None)
+                or metadata.get("proj4")
+            )
+            source_crses[gc] = source_crs
+            parsed = result[gc].apply(_parse_geom)
+            result[gc] = gpd.GeoSeries(parsed, index=result.index, crs=source_crs)
+        result.attrs[_GEOMETRY_CRS_ATTR] = source_crses
         active_geom = geom_cols[0]
-        gdf = gpd.GeoDataFrame(result, geometry=active_geom, crs=crs or get_default_crs())
-        return reproject_if_needed(gdf, crs or get_default_crs())
+        gdf = gpd.GeoDataFrame(result, geometry=active_geom)
+        return gdf.to_crs(crs) if crs is not None else gdf
 
     def spatial_join(self, left, right, how="inner", predicate="intersects",
                      *, left_geom="geometry", right_geom="geometry"):
@@ -1374,6 +1422,9 @@ class DuckDBEngine(DataFrameEngine):
 
         Also accepts typed DuckDB relations (materialized via :meth:`to_pandas`),
         frames containing hex WKB, WKT or Shapely geometry, and GeoDataFrames.
+        WKB uses the per-column CRS retained in pandas attrs; absent metadata
+        means unknown CRS, not the default. WKT text retains default-CRS
+        normalization. ``crs`` reprojects known CRS or assigns unknown CRS.
         """
         import geopandas as gpd
         import pandas as pd
@@ -1391,30 +1442,44 @@ class DuckDBEngine(DataFrameEngine):
             # IndexError on .iloc[0].
             non_null = df[geometry_col].dropna()
             sample = non_null.iloc[0] if not non_null.empty else None
+            metadata = df.attrs.get(_GEOMETRY_CRS_ATTR, {})
+            source_crs = metadata.get(geometry_col)
+            if geometry_col not in metadata:
+                source_crs = getattr(df[geometry_col], "crs", None)
+                # Hex WKB, unlike WKT text, must not acquire the text default.
+                if isinstance(sample, str):
+                    head = sample[:32].strip()
+                    is_hex = head and all(c in "0123456789abcdefABCDEF" for c in head)
+                    if not is_hex:
+                        source_crs = crs if crs is not None else get_default_crs()
+            geoms = df[geometry_col]
             if sample is not None and not isinstance(sample, BaseGeometry):
-                if isinstance(sample, (bytes, bytearray)):
+                if isinstance(sample, (bytes, bytearray, memoryview)):
                     # DuckDB returns pd.NA (not None) for null geometry; guard
                     # with pd.isna so a null row does not reach shapely_wkb.loads.
                     geoms = df[geometry_col].apply(
-                        lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g)
+                        lambda g: shapely_wkb.loads(bytes(g))
                         if (g is not None and not pd.isna(g)) else None
                     )
                 else:
                     geoms = df[geometry_col].apply(
                         lambda g: self._decode_geometry_text(g) if isinstance(g, str) else g
                     )
-                target_crs = crs or get_default_crs()
-                out = df.copy()
-                out[geometry_col] = gpd.GeoSeries(geoms.values, index=out.index, crs=target_crs)
-                return gpd.GeoDataFrame(out, geometry=geometry_col, crs=target_crs)
-            return gpd.GeoDataFrame(df, geometry=geometry_col, crs=crs or get_default_crs())
+            out = df.copy()
+            out[geometry_col] = gpd.GeoSeries(geoms.values, index=out.index, crs=source_crs)
+            result = gpd.GeoDataFrame(out, geometry=geometry_col, crs=source_crs)
+            if crs is not None:
+                return result.to_crs(crs) if result.crs is not None else result.set_crs(crs)
+            return result
         raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
 
     def from_geodataframe(self, gdf, geometry_col="geometry"):
-        """Convert GeoDataFrame to a pandas DataFrame with standard WKB geometry."""
+        """Convert to standard WKB with the geometry column's CRS in pandas attrs."""
         import pandas as pd
 
         self._ensure_spatial()
+        source_crs = getattr(gdf[geometry_col], "crs", None)
+        metadata = {geometry_col: str(source_crs) if source_crs is not None else None}
 
         attr_cols = [c for c in gdf.columns if c != geometry_col]
         df = pd.DataFrame({c: gdf[c].values for c in attr_cols})
@@ -1425,6 +1490,7 @@ class DuckDBEngine(DataFrameEngine):
 
         if df.empty:
             result = pd.DataFrame(columns=attr_cols + [geometry_col])
+            result.attrs[_GEOMETRY_CRS_ATTR] = metadata
             return result
 
         tbl_name = f"_boundary_{id(gdf) % 100000}"
@@ -1443,7 +1509,7 @@ class DuckDBEngine(DataFrameEngine):
         )
         result = self._connection.execute(sql).fetchdf()
         self._connection.unregister(tbl_name)
-
+        result.attrs[_GEOMETRY_CRS_ATTR] = metadata
         return result
 
 

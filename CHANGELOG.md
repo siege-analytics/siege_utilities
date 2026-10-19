@@ -112,6 +112,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Documented behavior change from v4.0.0: DuckDB `query` binds `parameters`
+  (or `params`) and rejects unknown keywords and parameterized multi-statement
+  SQL before execution. WKB materialization retains per-column CRS in pandas
+  attrs, including empty results; unknown CRS remains `None`. `read_spatial`
+  preserves file CRS and coordinates by default and reprojects only when a
+  target is requested, rejecting reprojection when the source CRS is unknown
+  (#1412).
 - Documented behavior change from v4.0.0: Pandas, DuckDB, and PostGIS
   `to_geodataframe` preserve an existing GeoDataFrame's CRS when no target is
   supplied. Base nearest, apportion, and dissolve retain projected inputs;
