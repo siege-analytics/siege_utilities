@@ -2,11 +2,14 @@
 Google Analytics Integration Module
 
 This module provides comprehensive Google Analytics integration capabilities:
-- Connect to GA accounts via OAuth2
-- Retrieve data from GA4 and Universal Analytics
+- Connect to GA accounts via OAuth2 loopback flow or service accounts
+- Retrieve data from GA4
 - Save data as Pandas or Spark dataframes
 - Associate GA accounts with client profiles
 - Batch data retrieval and processing
+
+Universal Analytics retrieval is unsupported after its sunset. The legacy
+account type 'both' retrieves GA4 only and logs a warning.
 """
 
 import json
@@ -14,6 +17,7 @@ import logging
 import pathlib
 import re
 import subprocess
+import warnings
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 import pandas as pd
@@ -29,12 +33,16 @@ logger = logging.getLogger(__name__)
 # locally so the failure happens at validation time, not deep in a batch
 # run.
 _GA_RELATIVE_DATE_RE = re.compile(r"^(today|yesterday|\d+daysAgo)$")
+_UA_SUNSET_MESSAGE = (
+    "Universal Analytics is unsupported after its sunset: standard data "
+    "collection ended in July 2023, and the API shut down in July 2024 "
+    "including Analytics 360. Use a GA4 property with account_type='ga4'."
+)
 
 try:
     from google.oauth2.credentials import Credentials
     from google_auth_oauthlib.flow import InstalledAppFlow
     from google.auth.transport.requests import Request
-    from googleapiclient.discovery import build
     from google.analytics.data_v1beta import BetaAnalyticsDataClient
     from google.analytics.data_v1beta.types import (
         RunReportRequest, DateRange, Metric, Dimension
@@ -86,29 +94,41 @@ class GoogleAnalyticsConnector:
     """Google Analytics connection and data retrieval manager."""
 
     def __init__(self, client_id: str = None, client_secret: str = None,
-                 redirect_uri: str = "urn:ietf:wg:oauth:2.0:oob",
+                 redirect_uri: Optional[str] = None,
                  auth_method: str = "oauth2",
-                 service_account_data: Dict[str, Any] = None):
+                 service_account_data: Dict[str, Any] = None) -> None:
         """
         Initialize Google Analytics connector.
 
         Args:
             client_id: OAuth2 client ID from Google Cloud Console (for OAuth2)
             client_secret: OAuth2 client secret from Google Cloud Console (for OAuth2)
-            redirect_uri: OAuth2 redirect URI (for OAuth2)
+            redirect_uri: Deprecated compatibility argument, ignored. OAuth2
+                uses a localhost loopback server on an available port.
+                The retired OOB URI raises ValueError.
             auth_method: Authentication method ("oauth2" or "service_account")
             service_account_data: Service account credentials dict (for service account auth)
         """
+        if redirect_uri is not None:
+            if redirect_uri.startswith("urn:ietf:wg:oauth:2.0:oob"):
+                raise ValueError("OAuth OOB redirect URIs are retired; use the loopback flow.")
+            warnings.warn(
+                "redirect_uri is deprecated and ignored; OAuth uses a localhost loopback server.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         if not GOOGLE_ANALYTICS_AVAILABLE:
-            raise ImportError("Google Analytics libraries not available. Install: pip install google-auth-oauthlib google-auth-httplib2 google-api-python-client google-analytics-data")
+            raise ImportError(
+                "Google Analytics libraries not available. Install: "
+                "pip install google-auth-oauthlib google-analytics-data"
+            )
 
         self.auth_method = auth_method
         self.client_id = client_id
         self.client_secret = client_secret
-        self.redirect_uri = redirect_uri
+        self.redirect_uri = "http://localhost"
         self.service_account_data = service_account_data
         self.credentials = None
-        self.analytics_service = None
         self.ga4_client = None
 
         # Auto-authenticate with service account if provided
@@ -136,7 +156,11 @@ class GoogleAnalyticsConnector:
 
     def authenticate(self, token_file: str = "ga_token.json") -> None:
         """
-        Authenticate with Google Analytics using OAuth2.
+        Authenticate with Google Analytics using an OAuth authorized-user token.
+
+        An existing token is loaded and refreshed when expired. If the token
+        file is absent, the desktop OAuth flow uses run_local_server(port=0)
+        to receive the callback on an available localhost loopback port.
 
         Args:
             token_file: Path to store/retrieve OAuth token
@@ -177,7 +201,6 @@ class GoogleAnalyticsConnector:
             self._save_credentials(token_path)
             log_info("Completed new Google Analytics authentication")
 
-        self.analytics_service = build('analytics', 'v3', credentials=self.credentials)
         self.ga4_client = BetaAnalyticsDataClient(credentials=self.credentials)
 
     def _save_credentials(self, token_path: pathlib.Path):
@@ -207,7 +230,6 @@ class GoogleAnalyticsConnector:
                 scopes=['https://www.googleapis.com/auth/analytics.readonly']
             )
 
-            self.analytics_service = build('analytics', 'v3', credentials=self.credentials)
             self.ga4_client = BetaAnalyticsDataClient(credentials=self.credentials)
 
             log_info(f"Service account authentication successful: {self.service_account_data['client_email']}")
@@ -308,55 +330,13 @@ class GoogleAnalyticsConnector:
                     metrics: List[str], dimensions: List[str] = None,
                     max_results: int = 100000) -> pd.DataFrame:
         """
-        Retrieve data from Universal Analytics.
-
-        Args:
-            view_id: UA view ID
-            start_date: Start date (YYYY-MM-DD)
-            end_date: End date (YYYY-MM-DD)
-            metrics: List of metrics to retrieve
-            dimensions: List of dimensions to retrieve
-            max_results: Maximum results to retrieve
-
-        Returns:
-            Pandas DataFrame with UA data
+        Reject retrieval from the retired Universal Analytics API.
 
         Raises:
-            ValueError: If ``start_date`` / ``end_date`` is not a valid
-                ``YYYY-MM-DD`` date or recognized GA relative keyword.
+            NotImplementedError: Always, because Universal Analytics has
+                sunset and its API shut down in July 2024, including 360.
         """
-        self._validate_ga_date(start_date, "start_date")
-        self._validate_ga_date(end_date, "end_date")
-        try:
-            if not self.analytics_service:
-                raise ValueError("Not authenticated. Call authenticate() first.")
-
-            # Build query
-            query = self.analytics_service.data().ga().get(
-                ids=f'ga:{view_id}',
-                start_date=start_date,
-                end_date=end_date,
-                metrics=','.join(metrics),
-                dimensions=','.join(dimensions) if dimensions else None,
-                max_results=max_results
-            )
-
-            # Execute query
-            response = query.execute()
-
-            # Convert to DataFrame
-            if 'rows' in response:
-                columns = [header['name'] for header in response['columnHeaders']]
-                df = pd.DataFrame(response['rows'], columns=columns)
-                log_info(f"Retrieved {len(df)} rows from UA view {view_id}")
-                return df
-            else:
-                log_warning(f"No data returned from UA view {view_id}")
-                return pd.DataFrame()
-
-        except Exception as e:
-            logger.error("Failed to retrieve UA data: %s", e, exc_info=True)
-            raise
+        raise NotImplementedError(_UA_SUNSET_MESSAGE)
 
     def save_as_pandas(self, df: pd.DataFrame, output_path: str,
                        format: str = 'parquet') -> None:
@@ -419,27 +399,49 @@ class GoogleAnalyticsConnector:
         log_info(f"Saved DataFrame as Spark DataFrame to {output_path}")
 
 
+def _validate_ga_account_type(account_type: str) -> None:
+    if account_type == 'ua':
+        raise NotImplementedError(_UA_SUNSET_MESSAGE)
+    if account_type not in ('ga4', 'both'):
+        raise ValueError(f"Unsupported GA account_type: {account_type!r}; use 'ga4'.")
+
+
 def create_ga_account_profile(client_id: str, ga_property_id: str,
                              account_type: str = 'ga4',
-                             credentials_file: str = None) -> Dict[str, Any]:
+                             credentials_file: str = None,
+                             credential_kind: str = 'oauth-token') -> Dict[str, Any]:
     """
     Create a Google Analytics account profile linked to a client.
 
     Args:
         client_id: Client ID from client management system
         ga_property_id: Google Analytics property ID
-        account_type: Type of GA account (ga4, ua, or both)
-        credentials_file: Path to OAuth credentials file
+        account_type: 'ga4', or 'both' as a GA4-only alias that logs a warning
+            during batch retrieval. 'ua' raises NotImplementedError.
+        credentials_file: Path to an OAuth authorized-user token JSON written
+            by authenticate(), or a service-account key JSON. This is not an
+            OAuth client configuration downloaded from Google Cloud Console.
+        credential_kind: 'oauth-token' (default) or 'service-account'; must
+            match credentials_file. Service-account profiles must set this
+            to 'service-account'.
 
     Returns:
         GA account profile dictionary
+
+    Raises:
+        NotImplementedError: If account_type is 'ua', due to the UA sunset.
+        ValueError: If account_type or credential_kind is unsupported.
     """
+    _validate_ga_account_type(account_type)
+    if credential_kind not in ('oauth-token', 'service-account'):
+        raise ValueError(f"Unsupported GA credential_kind: {credential_kind!r}")
     profile = {
         'ga_account_id': f"ga_{ga_property_id}",
         'client_id': client_id,
         'ga_property_id': ga_property_id,
         'account_type': account_type,
         'credentials_file': credentials_file,
+        'credential_kind': credential_kind,
         'created_date': datetime.now().isoformat(),
         'last_accessed': None,
         'status': 'active',
@@ -547,9 +549,17 @@ def list_ga_accounts_for_client(client_id: str,
 def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
                           metrics: List[str], dimensions: List[str] = None,
                           output_format: str = 'pandas',
-                          output_directory: str = "output/ga_data") -> Dict[str, Any]:
+                          output_directory: str = "output/ga_data",
+                          config_directory: str | None = None) -> Dict[str, Any]:
     """
-    Batch retrieve GA data for all accounts associated with a client.
+    Batch retrieve GA4 data for all accounts associated with a client.
+
+    Profiles select OAuth token or service-account authentication using
+    credential_kind. For v4.0.0 profiles without that field, a credential
+    JSON with type='service_account' selects service-account authentication;
+    otherwise an OAuth authorized-user token is expected. Existing profiles
+    are not rewritten. 'both' is a GA4-only alias with a warning. Saved 'ua'
+    profiles are recorded as per-account sunset errors without authenticating.
 
     Args:
         client_id: Client ID to retrieve data for
@@ -559,13 +569,18 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
         dimensions: List of dimensions to retrieve
         output_format: Output format (pandas, spark, or both)
         output_directory: Directory to save output files
+        config_directory: Config root containing google_analytics profiles;
+            defaults to ~/.siege_utilities, as in save_ga_account_profile.
 
     Returns:
-        Dictionary with retrieval results
+        Dictionary with retrieval results. Per-account authentication errors
+        (including GoogleAuthError and RefreshError) and retrieval errors
+        set success=False and are recorded in errors; successful accounts'
+        results are retained and remaining accounts are still processed.
     """
     try:
         # Get client's GA accounts
-        accounts = list_ga_accounts_for_client(client_id)
+        accounts = list_ga_accounts_for_client(client_id, config_directory=config_directory)
 
         if not accounts:
             return {
@@ -593,6 +608,12 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
         # Process each account
         for account in accounts:
             try:
+                _validate_ga_account_type(account['account_type'])
+                if account['account_type'] == 'both':
+                    logger.warning(
+                        "Account %s uses 'both': GA4-only retrieval after the Universal Analytics sunset.",
+                        account['ga_account_id'],
+                    )
                 # Load credentials and authenticate
                 if not account.get('credentials_file'):
                     results['errors'].append(f"No credentials for account: {account['ga_account_id']}")
@@ -603,20 +624,29 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
                     results['errors'].append(f"Credentials file not found: {creds_path}")
                     continue
                 with open(creds_path, 'r', encoding='utf-8') as creds_f:
-                    service_account_data = json.load(creds_f)
-                connector = GoogleAnalyticsConnector(
-                    auth_method="service_account",
-                    service_account_data=service_account_data,
-                )
-
-                if account['account_type'] in ['ga4', 'both']:
-                    df = connector.get_ga4_data(
-                        account['ga_property_id'], start_date, end_date, metrics, dimensions
+                    credential_data = json.load(creds_f)
+                if not isinstance(credential_data, dict):
+                    raise ValueError("GA credentials file must contain a JSON object")
+                credential_kind = account.get('credential_kind')
+                if credential_kind is None:
+                    credential_kind = (
+                        'service-account' if credential_data.get('type') == 'service_account'
+                        else 'oauth-token'
+                    )
+                if credential_kind == 'oauth-token':
+                    connector = GoogleAnalyticsConnector(auth_method="oauth2")
+                    connector.authenticate(token_file=str(creds_path))
+                elif credential_kind == 'service-account':
+                    connector = GoogleAnalyticsConnector(
+                        auth_method="service_account",
+                        service_account_data=credential_data,
                     )
                 else:
-                    df = connector.get_ua_data(
-                        account['ga_property_id'], start_date, end_date, metrics, dimensions
-                    )
+                    raise ValueError(f"Unsupported GA credential_kind: {credential_kind!r}")
+
+                df = connector.get_ga4_data(
+                    account['ga_property_id'], start_date, end_date, metrics, dimensions
+                )
 
                 if not df.empty:
                     # Save data
@@ -636,7 +666,7 @@ def batch_retrieve_ga_data(client_id: str, start_date: str, end_date: str,
 
                     log_info(f"Processed GA account: {account['ga_account_id']} - {len(df)} rows")
 
-            except (*_GA_API_ERRORS, OSError, json.JSONDecodeError) as e:
+            except (*_GA_AUTH_ERRORS, *_GA_API_ERRORS, OSError, json.JSONDecodeError, NotImplementedError) as e:
                 error_msg = f"Error processing account {account['ga_account_id']}: {e}"
                 results['errors'].append(error_msg)
                 logger.error("Error processing account %s", account['ga_account_id'], exc_info=True)
@@ -712,14 +742,16 @@ def create_ga_connector_from_1password(item_title: str = "Google Analytics Servi
 
 
 def create_ga_connector_with_oauth2(client_id: str, client_secret: str,
-                                   redirect_uri: str = "urn:ietf:wg:oauth:2.0:oob") -> GoogleAnalyticsConnector:
+                                   redirect_uri: Optional[str] = None) -> GoogleAnalyticsConnector:
     """
     Create a GoogleAnalyticsConnector using OAuth2 authentication.
 
     Args:
         client_id: OAuth2 client ID from Google Cloud Console
         client_secret: OAuth2 client secret from Google Cloud Console
-        redirect_uri: OAuth2 redirect URI
+        redirect_uri: Deprecated and ignored; retired OOB URIs raise ValueError.
+            authenticate() uses a localhost loopback server on an available
+            port (run_local_server(port=0)) for a new desktop OAuth token.
 
     Returns:
         GoogleAnalyticsConnector instance configured for OAuth2 auth

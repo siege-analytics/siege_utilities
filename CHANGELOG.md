@@ -112,6 +112,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Google Analytics batch retrieval now distinguishes OAuth authorized-user
+  tokens from service-account keys using the profile's `credential_kind`
+  (`oauth-token` by default; set `service-account` for key files). This is a
+  documented behavior change from v4.0.0 (#1472); v3.23.0 had no connector
+  implementations. Saved v4.0.0 profiles without this field use the key's
+  `type: service_account` to select service-account auth and otherwise load
+  an OAuth token. `both` is a GA4-only alias with a warning; `ua` profiles and
+  `get_ua_data` raise a sunset `NotImplementedError`, with saved UA profiles
+  recorded as batch errors. Authentication no longer builds the retired UA
+  API client. Per-account `GoogleAuthError` (including `RefreshError`) leaves
+  successful results intact and lets the remaining accounts run. Batch
+  retrieval now accepts `config_directory` and uses it to find profiles.
+  OAuth uses a localhost loopback callback on an available port; the
+  deprecated `redirect_uri` argument defaults to `None`, ignores non-OOB
+  values with a deprecation warning, and rejects retired OOB URIs. Callers
+  should omit `redirect_uri` and use GA4 properties.
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
