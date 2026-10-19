@@ -1960,9 +1960,11 @@ class PostGISEngine(DataFrameEngine):
         # #1206: abstract/extension-point placeholder; keep tracked until implemented or abstracted.
         raise NotImplementedError(
             "PostGISEngine.index_points: compute cell IDs at ingest time "
-            "(via PandasEngine or s2_index_points), store as BIGINT column, "
-            "and use s2_cells_to_ranges() for region queries. "
-            "See engine.index_points docstring for the pattern."
+            "(via PandasEngine or s2_index_points). Raw S2 IDs are uint64 "
+            "and can exceed signed BIGINT. For BIGINT storage, use "
+            "s2_index_points(..., as_token=False, as_signed=True) or "
+            "s2_cell_id_to_int64(), and use "
+            "s2_cells_to_ranges(..., as_signed=True) for region queries."
         )
 
     # -- I/O ----------------------------------------------------------------

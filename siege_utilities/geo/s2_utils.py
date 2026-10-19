@@ -16,7 +16,7 @@ Use case                          Reach for                    Why
 ================================  ===========================  ===========================
 Density choropleth, hex-bins      H3                           Uniform cell area
 K-nearest-neighbors via k-ring    H3                           Uniform neighbor distances
-Spatial primary key in DB         S2                           Sortable int64 IDs
+Spatial primary key in DB         S2                           Sortable uint64 IDs
 Bbox / range queries in SQL       S2                           Cell-id ranges = bboxes
 Hierarchical rollups              S2                           4 children per cell, clean
 Apple Photos / iOS data           S2                           Native to that ecosystem
@@ -32,6 +32,12 @@ For a heavily concave polygon (e.g. Idaho), the bbox cover is loose; the
 post-filter step (default on) trims cells whose centers fall outside.
 
 Requires: s2sphere>=0.2.5.
+
+Raw cell IDs are uint64 values. Faces 4 and 5 exceed signed ``BIGINT``.
+Use :func:`s2_cell_id_to_int64` (or ``as_signed=True`` on indexing and
+range helpers) for two's-complement storage, and
+:func:`s2_cell_id_to_uint64` to recover the original ID. Integer-only
+conversions do not require s2sphere.
 """
 
 from __future__ import annotations
@@ -39,7 +45,7 @@ from __future__ import annotations
 import logging
 import math
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, SupportsInt
 
 if TYPE_CHECKING:  # pragma: no cover
     # pandas is only needed for the DataFrame-batch helpers (e.g.
@@ -77,6 +83,7 @@ __all__ = [
     "s2_parent",
     "s2_children",
     "s2_cell_id_to_uint64",
+    "s2_cell_id_to_int64",
     "s2_uint64_to_cell_id",
     "s2_cell_id_to_token",
     "s2_token_to_cell_id",
@@ -186,6 +193,7 @@ def s2_index_points(
     level: int = 12,
     *,
     as_token: bool = True,
+    as_signed: bool = False,
 ) -> "pd.Series":
     """Compute the S2 cell ID for each point.
 
@@ -194,34 +202,49 @@ def s2_index_points(
         lat_col: Name of the latitude column.
         lon_col: Name of the longitude column.
         level: S2 level (0–30). Default 12 (~5.8 km² per cell).
-        as_token: If True (default), return the cell as a 16-char hex
+        as_token: If True (default), return the cell as a compact hex
             *token* string (compact, human-readable, JSON-safe). If
-            False, return the int64 cell ID (sortable, ideal for
-            database keys). Both round-trip via the
+            False, return the uint64 cell ID. Raw IDs can exceed signed
+            BIGINT. Both round-trip via the
             :func:`s2_cell_id_to_token` / :func:`s2_token_to_cell_id`
             helpers.
+        as_signed: Return two's-complement int64 IDs for BIGINT storage.
+            Requires ``as_token=False``. Use the same option on
+            :func:`s2_cells_to_ranges` for queries against these IDs.
 
     Returns:
         ``pd.Series`` indexed like the input. Name: ``"s2_index"``.
 
     Raises:
         ImportError: If s2sphere is not installed.
-        ValueError: If level is out of range or columns are missing.
+        ValueError: If level is out of range, columns are missing, or
+            both as_token and as_signed are True.
     """
     _require_s2()
     _validate_level(level)
+    if as_token and as_signed:
+        raise ValueError("as_signed=True requires as_token=False")
     for col in (lat_col, lon_col):
         if col not in df.columns:
             raise ValueError(f"Column '{col}' not found in DataFrame")
 
-    def _one(row) -> object:
-        ll = _s2.LatLng.from_degrees(row[lat_col], row[lon_col])
+    def _one(lat, lon) -> object:
+        ll = _s2.LatLng.from_degrees(lat, lon)
         cell = _s2.CellId.from_lat_lng(ll).parent(level)
-        return cell.to_token() if as_token else cell.id()
+        if as_token:
+            return cell.to_token()
+        return s2_cell_id_to_int64(cell.id()) if as_signed else cell.id()
 
-    out = df.apply(_one, axis=1)
-    out.name = "s2_index"
-    return out
+    import pandas as pd  # local import; only batch helpers need pandas
+
+    # Construct the integer dtype directly; float inference loses leaf-ID bits.
+    dtype = "object" if as_token else ("int64" if as_signed else "uint64")
+    return pd.Series(
+        (_one(lat, lon) for lat, lon in zip(df[lat_col], df[lon_col])),
+        index=df.index,
+        dtype=dtype,
+        name="s2_index",
+    )
 
 
 def s2_index_polygon(
@@ -229,6 +252,7 @@ def s2_index_polygon(
     level: int = 12,
     *,
     refine: bool = True,
+    as_signed: bool = False,
 ) -> set:
     """Return the set of S2 cells at *level* covering *geometry*.
 
@@ -248,9 +272,12 @@ def s2_index_polygon(
         level: S2 level (0–30). All returned cells are at this level.
         refine: Filter cells by checking whether the cell center lies
             inside the polygon (default True).
+        as_signed: Return two's-complement int64 IDs for signed BIGINT
+            storage instead of raw uint64 IDs.
 
     Returns:
-        ``set`` of int64 cell IDs.
+        ``set`` of uint64 cell IDs by default; raw IDs can exceed BIGINT.
+        With ``as_signed=True``, returns signed int64 IDs instead.
 
     Raises:
         ImportError: If s2sphere (or shapely, when refine=True) is missing.
@@ -283,7 +310,7 @@ def s2_index_polygon(
             cells.add(cell_id.id())
 
     if not refine:
-        return cells
+        return {s2_cell_id_to_int64(cid) for cid in cells} if as_signed else cells
 
     # shapely-based refine: keep only cells whose centers are inside.
     from shapely.geometry import Point
@@ -293,7 +320,7 @@ def s2_index_polygon(
         pt = Point(center_ll.lng().degrees, center_ll.lat().degrees)
         if poly.contains(pt) or poly.touches(pt):
             refined.add(cid)
-    return refined
+    return {s2_cell_id_to_int64(cid) for cid in refined} if as_signed else refined
 
 
 def s2_region_cover(
@@ -302,6 +329,7 @@ def s2_region_cover(
     min_level: int = 0,
     max_level: int = 30,
     max_cells: int = 100,
+    as_signed: bool = False,
 ) -> list[int]:
     """Cover *geometry*'s bounding box with at most *max_cells* S2 cells.
 
@@ -311,7 +339,8 @@ def s2_region_cover(
     want for a database-side spatial-index lookup.
 
     Use :func:`s2_cells_to_ranges` to turn the result into ``(min, max)``
-    int64 ranges suitable for a SQL ``BETWEEN`` clause.
+    uint64 ranges suitable for a SQL ``BETWEEN`` clause on unsigned IDs.
+    For signed BIGINT storage, use ``as_signed=True`` for both IDs and ranges.
 
     Args:
         geometry: shapely shape or GeoJSON dict.
@@ -319,10 +348,11 @@ def s2_region_cover(
         max_level: Maximum S2 level the coverer may use.
         max_cells: Cell-count budget. The coverer returns at most this
             many cells (often fewer).
+        as_signed: Return two's-complement int64 IDs for BIGINT storage.
 
     Returns:
-        A list of int64 cell IDs at varying levels, ordered as the
-        coverer produced them (sortable but not sorted).
+        A list of uint64 cell IDs at varying levels (signed int64 when
+        as_signed=True), in the order produced by the coverer.
     """
     _require_s2()
     _validate_level(min_level)
@@ -344,10 +374,15 @@ def s2_region_cover(
         _s2.LatLng.from_degrees(miny, minx),
         _s2.LatLng.from_degrees(maxy, maxx),
     )
-    return [c.id() for c in coverer.get_covering(rect)]
+    return [
+        s2_cell_id_to_int64(c.id()) if as_signed else c.id()
+        for c in coverer.get_covering(rect)
+    ]
 
 
-def s2_cells_to_ranges(cell_ids: Iterable[int]) -> list[tuple[int, int]]:
+def s2_cells_to_ranges(
+    cell_ids: Iterable[int], *, as_signed: bool = False,
+) -> list[tuple[int, int]]:
     """Convert cell IDs to ``(range_min, range_max)`` pairs for SQL.
 
     Each S2 cell, regardless of level, has a contiguous range of leaf
@@ -356,12 +391,33 @@ def s2_cells_to_ranges(cell_ids: Iterable[int]) -> list[tuple[int, int]]:
     inside this region" with a simple ``WHERE leaf_cell_id BETWEEN min
     AND max`` (one comparison per cell in the cover, no spatial library
     needed at query time).
+
+    Args:
+        cell_ids: Cell IDs in either raw uint64 or signed int64 form.
+        as_signed: Return two's-complement int64 bounds for signed BIGINT
+            columns. The stored leaf IDs must use the same signed form.
+
+    Returns:
+        Inclusive uint64 bounds by default; these can exceed signed BIGINT.
+        With as_signed=True, both bounds fit int64 and remain ordered.
+        Each valid S2 cell belongs to one face, so its range cannot cross
+        the sign boundary between faces 3 and 4. Across cells, signed
+        ordering differs from unsigned ordering; do not mix the two forms.
+
+    Raises:
+        ImportError: If s2sphere is not installed.
+        ValueError: If an input is not a valid S2 cell ID.
     """
     _require_s2()
     out = []
     for cid in cell_ids:
-        cell = _s2.CellId(cid)
-        out.append((cell.range_min().id(), cell.range_max().id()))
+        cell = _s2.CellId(s2_cell_id_to_uint64(cid))
+        if not cell.is_valid():
+            raise ValueError(f"Invalid S2 cell ID: {cid!r}")
+        lo, hi = cell.range_min().id(), cell.range_max().id()
+        if as_signed:
+            lo, hi = s2_cell_id_to_int64(lo), s2_cell_id_to_int64(hi)
+        out.append((lo, hi))
     return out
 
 
@@ -424,7 +480,7 @@ def s2_spatial_join(
 def s2_cell_to_boundary(cell_id) -> list[tuple[float, float]]:
     """Return the 4 vertex coordinates of a cell as ``(lat, lng)`` tuples.
 
-    Accepts an int64 cell ID or a hex token string.
+    Accepts a uint64 cell ID, its signed int64 form, or a hex token string.
     """
     _require_s2()
     cid = _coerce_cell_id(cell_id)
@@ -523,27 +579,52 @@ def s2_children(cell_id) -> list[int]:
 # ID format conversions
 # ---------------------------------------------------------------------------
 
-def s2_cell_id_to_uint64(cell_or_token) -> int:
-    """Return the int64 form of a cell, accepting either a token or an id.
+def s2_cell_id_to_uint64(cell_or_token: SupportsInt | str) -> int:
+    """Return the raw uint64 form of a token, unsigned ID, or signed ID.
 
-    Useful when receiving a token string (e.g. ``"88891b"``) and needing
-    the integer for a database column. Accepts any integer-like type
-    (Python int, numpy.int64, numpy.uint64) for round-trip convenience.
+    Raw IDs can exceed signed BIGINT. This is the inverse of
+    :func:`s2_cell_id_to_int64`: negative int64 values recover the exact
+    original uint64 ID. Accepts integer-like types (Python int,
+    numpy.int64, numpy.uint64); only token parsing requires s2sphere.
+
+    Raises:
+        TypeError: If the input cannot be converted to an integer.
+        ValueError: If the integer is outside the signed/unsigned 64-bit range.
+        ImportError: If parsing a token without s2sphere installed.
     """
-    _require_s2()
     if isinstance(cell_or_token, str):
+        _require_s2()
         return _s2.CellId.from_token(cell_or_token).id()
     try:
-        return int(cell_or_token)
+        value = int(cell_or_token)
     except (TypeError, ValueError) as exc:
         raise TypeError(
-            f"Expected int64 cell id or hex token string, got "
+            f"Expected uint64/signed int64 cell id or hex token string, got "
             f"{type(cell_or_token).__name__}"
         ) from exc
+    if not -(1 << 63) <= value < (1 << 64):
+        raise ValueError(f"Cell ID is outside the signed/unsigned 64-bit range: {value}")
+    return value + (1 << 64) if value < 0 else value
+
+
+def s2_cell_id_to_int64(cell_or_token: SupportsInt | str) -> int:
+    """Return a cell ID's signed two's-complement form for BIGINT storage.
+
+    Accepts a raw uint64 ID, a signed int64 ID, or a hex token. Values
+    at or above 2**63 map to negative integers by subtracting 2**64.
+    Recover the exact original ID with :func:`s2_cell_id_to_uint64`.
+    Integer inputs do not require s2sphere. Input errors are the same as
+    for :func:`s2_cell_id_to_uint64`.
+
+    Use ``s2_cells_to_ranges(..., as_signed=True)`` when querying signed
+    IDs with SQL BETWEEN; unsigned bounds do not match negative IDs.
+    """
+    value = s2_cell_id_to_uint64(cell_or_token)
+    return value - (1 << 64) if value >= (1 << 63) else value
 
 
 def s2_uint64_to_cell_id(n: int):
-    """Return an :class:`s2sphere.CellId` from an int64 value."""
+    """Return an :class:`s2sphere.CellId` from a raw uint64 value."""
     _require_s2()
     return _s2.CellId(int(n))
 
@@ -558,7 +639,7 @@ def s2_cell_id_to_token(cell_id) -> str:
 
 
 def s2_token_to_cell_id(token: str) -> int:
-    """Parse a hex token back to its int64 cell ID."""
+    """Parse a hex token back to its raw uint64 cell ID."""
     _require_s2()
     return _s2.CellId.from_token(token).id()
 
@@ -576,7 +657,7 @@ def s2_bbox_to_cells(
     """Cover an axis-aligned bounding box with at most *max_cells* cells.
 
     Convenience wrapper around :func:`s2_region_cover` for the common
-    case of a map-viewport query. Returns int64 cell IDs at varying
+    case of a map-viewport query. Returns uint64 cell IDs at varying
     levels.
     """
     _require_s2()
@@ -617,10 +698,10 @@ def _coerce_cell_id(value):
         return _s2.CellId.from_token(value)
     # Try integer-like (covers Python int, numpy.int64, numpy.uint64).
     try:
-        return _s2.CellId(int(value))
+        return _s2.CellId(s2_cell_id_to_uint64(value))
     except (TypeError, ValueError) as exc:
         raise TypeError(
-            f"Expected CellId, int64, or token string, got "
+            f"Expected CellId, uint64/signed int64, or token string, got "
             f"{type(value).__name__}"
         ) from exc
 
@@ -671,7 +752,7 @@ def _coerce_polygon(geometry):
 
 
 def _expand_to_level(cell_id, target_level: int) -> Iterable[int]:
-    """Walk children until reaching *target_level*; yields int64 IDs."""
+    """Walk children until reaching *target_level*; yields uint64 IDs."""
     if cell_id.level() == target_level:
         yield cell_id.id()
         return

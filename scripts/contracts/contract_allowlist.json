@@ -1,5 +1,6 @@
 {
   "added_symbols": [
+    "s2_cell_id_to_int64",
     "DEFAULT_ORS_BASE_URL",
     "DEFAULT_VALHALLA_BASE_URL",
     "build_isochrone_request",
@@ -16,6 +17,11 @@
     "search_datasets"
   ],
   "signature_changes": [
+    "s2_index_points",
+    "s2_index_polygon",
+    "s2_region_cover",
+    "s2_cells_to_ranges",
+    "s2_cell_id_to_uint64",
     "compare_census_datasets",
     "compare_datasets",
     "diagnose_environment",

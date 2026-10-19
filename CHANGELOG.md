@@ -112,6 +112,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- S2 cell IDs are documented as uint64 values that can exceed signed
+  BIGINT. Add `s2_cell_id_to_int64` with an exact inverse through
+  `s2_cell_id_to_uint64`, and `as_signed=True` on point indexing, polygon
+  indexing, region covers, and range generation so signed SQL `BETWEEN`
+  queries match the unsigned cell ranges. Correct the PostGIS storage
+  guidance (#1473).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
