@@ -62,12 +62,18 @@ class SeatAssignment:
 def _current_districts_at(
     assignments: list[SeatAssignment], reference_year: int,
 ) -> list[SeatAssignment]:
-    """Select an office's newest current period at the given reference year."""
+    """Prefer ongoing rows covering the reference, then the newest start group."""
     current = [
         a for a in assignments
-        if a.to_year is None or (a.from_year or 0) <= reference_year <= a.to_year
+        if a.to_year is None and (a.from_year or 0) <= reference_year
     ]
-    latest_start = max(a.from_year or 0 for a in current)
+    if not current:
+        current = [
+            a for a in assignments
+            if (a.from_year or 0) <= reference_year
+            and (a.to_year is None or reference_year <= a.to_year)
+        ]
+    latest_start = max((a.from_year or 0 for a in current), default=0)
     return [a for a in current if (a.from_year or 0) == latest_start]
 
 
@@ -89,10 +95,12 @@ class SeatsOverlayResult:
         """Select the latest current period per office, preserving split districts.
 
         Each office's latest known end year (or start year for an ongoing row)
-        is its reference point. Rows are current if ongoing or covering that
-        point. Keep all such rows with the newest start year, treating an
-        unknown start as earlier than a known start. Preserve first-seen office
-        order and row order within each office.
+        is its reference point, which can be in the past. Prefer ongoing rows
+        that start at or before that point. If there are none, use all rows
+        covering it, including finite rows at their end year. Keep every
+        district in the newest start-year group, treating an unknown start as
+        earlier than a known start. Preserve first-seen office order and row
+        order within each office.
         """
         assignments_by_office: dict[str, list[SeatAssignment]] = {}
         for assignment in self.assignments:
