@@ -4,16 +4,20 @@ Provides format conversion and transformation capabilities using the core geospa
 DuckDB support is included but optional for enhanced performance on large datasets.
 """
 
+import json
 import logging
+import re
 from pathlib import Path
 
 try:
     import geopandas as gpd
+    from pyproj.exceptions import CRSError as _CRSError
     from shapely.errors import ShapelyError as _ShapelyError
     _GEOPANDAS_AVAILABLE = True
 except ImportError:
     gpd = None
     _ShapelyError = ValueError
+    _CRSError = ValueError
     _GEOPANDAS_AVAILABLE = False
 from typing import Optional, Union
 
@@ -386,7 +390,7 @@ class PostGISConnector:
             log.info(f"Successfully downloaded from PostGIS: {table_name}")
             return reproject_if_needed(gdf, crs)
 
-        except (_Psycopg2Error, OSError, ValueError, TypeError, AttributeError, KeyError) as e:
+        except (_Psycopg2Error, _CRSError, OSError, ValueError, TypeError, AttributeError, KeyError) as e:
             raise SpatialQueryError(f"PostGIS download failed for {table_name}: {e}") from e
     
     def execute_spatial_query(self, query: str, *, crs: str | None = None, **kwargs) -> Union[GeoDataFrame, int]:
@@ -396,6 +400,11 @@ class PostGISConnector:
         Row-returning statements, including CTEs and DML with RETURNING,
         produce a GeoDataFrame (without active geometry for tabular results).
         Other statements return an affected-row count, or -1 if unavailable.
+
+        Read commands leave the connection transaction open. Mutating commands,
+        including DML with RETURNING, own finalization of the connection's
+        transaction: they commit after decoding succeeds and roll back on
+        failure. Use the driver directly to compose caller-managed writes.
 
         Args:
             query: SQL query string
@@ -420,6 +429,10 @@ class PostGISConnector:
         try:
             cursor = self.connection.cursor()
             cursor.execute(query)
+            # PostgreSQL's command tag is independent of the result shape.
+            # Capture it before the separate spatial_ref_sys lookup.
+            command = cursor.statusmessage.split(' ', 1)[0]
+            mutates = command not in {'SELECT', 'SHOW', 'EXPLAIN', 'FETCH'}
             if cursor.description is not None:
                 result = gpd.GeoDataFrame(
                     cursor.fetchall(), columns=[column[0] for column in cursor.description],
@@ -437,14 +450,23 @@ class PostGISConnector:
                     srid = int(get_srid(non_null.iloc[0])) if len(non_null) else 0
                     result = result.set_geometry(geometry.rename(geom_col))
                     if srid:
-                        result = result.set_crs(epsg=srid)
+                        with self.connection.cursor() as crs_cursor:
+                            crs_cursor.execute(
+                                "SELECT auth_name, auth_srid FROM spatial_ref_sys WHERE srid = %s",
+                                (srid,),
+                            )
+                            authority = crs_cursor.fetchone()
+                        # Match read_postgis's EPSG fallback for an absent row.
+                        source_crs = f"{authority[0]}:{authority[1]}" if authority else f"EPSG:{srid}"
+                        result = result.set_crs(source_crs)
                     result = reproject_if_needed(result, crs)
             else:
                 result = cursor.rowcount
-            self.connection.commit()
+            if mutates:
+                self.connection.commit()
             log.info("Successfully executed PostGIS query")
             return result
-        except (_Psycopg2Error, _ShapelyError, OSError, ValueError, TypeError, AttributeError) as e:
+        except (_Psycopg2Error, _ShapelyError, _CRSError, OSError, ValueError, TypeError, AttributeError) as e:
             log.error(f"Failed to execute PostGIS query: {e}")
             if self.connection:
                 try:
@@ -507,24 +529,114 @@ class PostGISConnector:
             cursor.close()
 
 
-def _duckdb_result_frame(df, *, source_crs=None, crs=None):
-    """Decode stored WKT and CRS without guessing missing source metadata."""
+_DUCKDB_CRS_COMMENT = '\nsiege_utilities.crs.v1='
+
+
+def _duckdb_table_metadata(connection, table_name):
+    """Read table comments without using any caller column names."""
+    # DuckDB supplies quoted qualified names for query dependencies. Tokenize
+    # those names so dots inside quoted identifiers remain part of the name.
+    raw = table_name.encode('utf-8')
+    tokens = duckdb.tokenize(table_name)
+    parts = []
+    for offset, kind in tokens:
+        if kind in {duckdb.token_type.identifier, duckdb.token_type.keyword}:
+            match = re.match(rb'"(?:[^"]|"")*"|[A-Za-z_\x80-\xff][A-Za-z_0-9$\x80-\xff]*', raw[offset:])
+            value = match.group().decode('utf-8')
+            parts.append(value[1:-1].replace('""', '"') if value.startswith('"') else value)
+    table = parts[-1]
+    schema = parts[-2] if len(parts) > 1 else None
+    database = parts[-3] if len(parts) > 2 else None
+    row = connection.execute(
+        "SELECT comment FROM duckdb_tables() "
+        "WHERE lower(table_name) = lower(?) "
+        "AND lower(schema_name) = lower(coalesce(?, current_schema())) "
+        "AND (lower(database_name) = lower(coalesce(?, current_database())) "
+        "OR (? IS NULL AND temporary)) ORDER BY temporary DESC LIMIT 1",
+        [table, schema, database, database],
+    ).fetchone()
+    comment = row[0] if row else None
+    if comment and _DUCKDB_CRS_COMMENT in comment:
+        return comment, json.loads(comment.rsplit(_DUCKDB_CRS_COMMENT, 1)[1])
+    return comment, None
+
+
+def _duckdb_query_metadata(connection, statement):
+    """Resolve source table metadata without executing the user statement."""
+    if statement.type == duckdb.StatementType.EXECUTE:
+        raw = statement.query.encode('utf-8')
+        tokens = duckdb.tokenize(statement.query)
+        match = re.match(rb'"(?:[^"]|"")*"|[A-Za-z_\x80-\xff][A-Za-z_0-9$\x80-\xff]*', raw[tokens[1][0]:])
+        name = match.group().decode('utf-8')
+        name = name[1:-1].replace('""', '"') if name.startswith('"') else name
+        ascii_fold = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
+        for stored_name, sql in connection.execute(
+            "SELECT name, statement FROM duckdb_prepared_statements()"
+        ).fetchall():
+            if stored_name.translate(ascii_fold) == name.translate(ascii_fold):
+                return _duckdb_query_metadata(connection, connection.extract_statements(sql)[0])
+        return []
+    if statement.type == duckdb.StatementType.SELECT:
+        tables = connection.get_table_names(statement.query, qualified=True)
+    elif statement.type in {duckdb.StatementType.INSERT, duckdb.StatementType.UPDATE,
+                            duckdb.StatementType.DELETE}:
+        # get_table_names omits INSERT targets and cannot bind UPDATE/DELETE.
+        # Use the engine tokenizer to read their top-level target identifier.
+        raw = statement.query.encode('utf-8')
+        tokens = duckdb.tokenize(statement.query)
+        target_keyword = {duckdb.StatementType.INSERT: b'INTO',
+                          duckdb.StatementType.UPDATE: b'UPDATE',
+                          duckdb.StatementType.DELETE: b'FROM'}[statement.type]
+        depth = 0
+        tables = set()
+        for index, (offset, kind) in enumerate(tokens):
+            end = tokens[index + 1][0] if index + 1 < len(tokens) else len(raw)
+            value = raw[offset:end].strip()
+            if kind == duckdb.token_type.keyword:
+                value = re.match(rb'[A-Za-z_]+', value).group()
+            if value == b'(':
+                depth += 1
+            elif value == b')':
+                depth -= 1
+            elif depth == 0 and kind == duckdb.token_type.keyword and value.upper() == target_keyword:
+                begin = tokens[index + 1][0]
+                part_index = index + 1
+                while True:
+                    offset = tokens[part_index][0]
+                    match = re.match(rb'"(?:[^"]|"")*"|[A-Za-z_\x80-\xff][A-Za-z_0-9$\x80-\xff]*', raw[offset:])
+                    stop = offset + len(match.group())
+                    if part_index + 1 >= len(tokens) or raw[tokens[part_index + 1][0]:][:1] != b'.':
+                        break
+                    part_index += 2
+                tables.add(raw[begin:stop].decode('utf-8').strip())
+                break
+    else:
+        # Expressions without resolvable provenance can supply source_crs.
+        # Never infer a CRS from a caller attribute.
+        tables = set()
+    metadata = []
+    for table in tables:
+        _, stored = _duckdb_table_metadata(connection, table)
+        metadata.extend(stored if stored is not None else [None])
+    return metadata
+
+
+def _duckdb_result_frame(df, *, source_crs=None, crs=None, stored_crs=()):
+    """Decode stored WKT and table CRS without consuming caller attributes."""
     from pyproj import CRS
 
+    if 'geometry_wkt' not in df.columns and 'geometry' not in df.columns:
+        return gpd.GeoDataFrame(df)
     source = CRS.from_user_input(source_crs) if source_crs is not None else None
-    if '_siege_crs' in df.columns:
-        metadata = df.pop('_siege_crs')
-        known = {CRS.from_user_input(value) for value in metadata.dropna().unique()}
-        if len(known) > 1 or (source is not None and any(value != source for value in known)):
-            raise ValueError("Result contains conflicting source CRSs")
-        if source is None and known:
-            if metadata.isna().any():
-                raise ValueError("Result mixes known and unknown CRSs; provide source_crs")
-            source = next(iter(known))
+    known = {CRS.from_user_input(value) for value in stored_crs if value is not None}
+    if len(known) > 1 or (source is not None and any(value != source for value in known)):
+        raise ValueError("Result contains conflicting source CRSs")
+    if source is None and known:
+        if None in stored_crs:
+            raise ValueError("Result mixes known and unknown CRSs; provide source_crs")
+        source = next(iter(known))
     if 'geometry_wkt' in df.columns:
         df['geometry'] = gpd.GeoSeries.from_wkt(df.pop('geometry_wkt'), index=df.index)
-    if 'geometry' not in df.columns:
-        return gpd.GeoDataFrame(df)
     gdf = gpd.GeoDataFrame(df, geometry='geometry', crs=source)
     if crs is not None:
         if source is None:
@@ -592,7 +704,7 @@ class DuckDBConnector:
 
         Args:
             gdf: GeoDataFrame to upload. Geometry is stored as geometry_wkt
-                with full CRS WKT in the reserved _siege_crs column.
+                with full CRS WKT in the table comment, including for empty tables.
             table_name: Target table name
             **kwargs: if_exists is 'fail' (default), 'replace', or 'append'.
                 Append matches columns by name and rejects conflicting CRSs.
@@ -611,38 +723,35 @@ class DuckDBConnector:
             if_exists = kwargs.get('if_exists', 'fail')
             if if_exists not in {'fail', 'replace', 'append'}:
                 raise ValueError("if_exists must be 'fail', 'replace', or 'append'")
-            if '_siege_crs' in gdf.columns or 'geometry_wkt' in gdf.columns:
-                raise ValueError("_siege_crs and geometry_wkt are reserved storage columns")
-            # WKT alone has no CRS. Keep full CRS WKT alongside each geometry
-            # so SELECT/CTE/RETURNING results retain it across connections.
+            if 'geometry_wkt' in gdf.columns:
+                raise ValueError("geometry_wkt is a reserved storage column")
             df = gdf.to_wkt(rounding_precision=-1).rename(columns={gdf.geometry.name: 'geometry_wkt'})
             df['geometry_wkt'] = df['geometry_wkt'].astype('string')
-            df['_siege_crs'] = gdf.crs.to_wkt() if gdf.crs is not None else None
-            df['_siege_crs'] = df['_siege_crs'].astype('string')
+            incoming_crs = gdf.crs.to_wkt() if gdf.crs is not None else None
             self.connection.register("siege_upload_df", df)
             try:
                 self.connection.execute("BEGIN TRANSACTION")
                 try:
                     if if_exists == 'replace':
                         self.connection.execute(f"DROP TABLE IF EXISTS {table_name}")
+                    comment, stored = _duckdb_table_metadata(self.connection, table_name)
+                    metadata = [incoming_crs]
                     if if_exists == 'append':
                         self.connection.execute(
                             f"CREATE TABLE IF NOT EXISTS {table_name} AS "
                             "SELECT * FROM siege_upload_df WHERE FALSE"
                         )
-                        # Legacy tables lack metadata. Preserve their unknown
-                        # CRS instead of assigning the incoming data's CRS.
-                        self.connection.execute(
-                            f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS _siege_crs VARCHAR"
-                        )
+                        if stored is None:
+                            has_rows = self.connection.execute(
+                                f"SELECT EXISTS (SELECT 1 FROM {table_name})"
+                            ).fetchone()[0]
+                            stored = [None] if has_rows else []
                         from pyproj import CRS
 
-                        stored = self.connection.execute(
-                            f"SELECT DISTINCT _siege_crs FROM {table_name} "
-                            "WHERE _siege_crs IS NOT NULL"
-                        ).fetchall()
-                        if any(CRS.from_user_input(value) != gdf.crs for (value,) in stored):
+                        if any(value is not None and CRS.from_user_input(value) != gdf.crs
+                               for value in (stored or [])):
                             raise ValueError("Cannot append data with a different source CRS")
+                        metadata = list(dict.fromkeys((stored or []) + [incoming_crs]))
                         self.connection.execute(
                             f"INSERT INTO {table_name} BY NAME SELECT * FROM siege_upload_df"
                         )
@@ -650,6 +759,12 @@ class DuckDBConnector:
                         self.connection.execute(
                             f"CREATE TABLE {table_name} AS SELECT * FROM siege_upload_df"
                         )
+                    from siege_utilities.core.sql_safety import escape_sql_string_literal
+
+                    prior_comment = (comment or '').split(_DUCKDB_CRS_COMMENT, 1)[0]
+                    comment = prior_comment + _DUCKDB_CRS_COMMENT + json.dumps(metadata)
+                    literal = escape_sql_string_literal(comment)
+                    self.connection.execute(f"COMMENT ON TABLE {table_name} IS '{literal}'")
                     self.connection.execute("COMMIT")
                 except Exception:
                     # Roll back every failure after BEGIN, including conversion
@@ -665,7 +780,7 @@ class DuckDBConnector:
 
             log.info(f"Successfully uploaded to DuckDB: {table_name}")
 
-        except (_DuckDBError, OSError, ValueError, TypeError, AttributeError) as e:
+        except (_DuckDBError, _CRSError, OSError, ValueError, TypeError, AttributeError) as e:
             raise RuntimeError(f"Failed to upload to DuckDB: {e}") from e
 
     def download_spatial_data(self, table_name: str, *, crs: str | None = None, **kwargs) -> GeoDataFrame:
@@ -676,12 +791,12 @@ class DuckDBConnector:
             table_name: Source table name
             crs: Optional output CRS. Omit to preserve the source CRS.
             **kwargs: Additional parameters. Reads accept source_crs for
-                legacy tables, empty results, or projections without _siege_crs.
+                legacy tables or queries without source table metadata.
 
         Returns:
             GeoDataFrame retaining the stored source CRS. Legacy WKT tables
-            and queries omitting _siege_crs have unknown CRS unless source_crs
-            is supplied. Empty results also require source_crs. Pass crs to
+            and queries without table metadata have unknown CRS unless
+            source_crs is supplied. Empty tables retain their CRS. Pass crs to
             reproject from the known source to a different target.
 
         Raises:
@@ -707,11 +822,14 @@ class DuckDBConnector:
             # Execute query
             df = self.connection.execute(query).df()
 
-            gdf = _duckdb_result_frame(df, source_crs=kwargs.get('source_crs'), crs=crs)
+            _, stored = _duckdb_table_metadata(self.connection, table_name)
+            gdf = _duckdb_result_frame(
+                df, source_crs=kwargs.get('source_crs'), crs=crs, stored_crs=stored or [],
+            )
             log.info(f"Successfully downloaded from DuckDB: {table_name}")
             return gdf
 
-        except (_DuckDBError, _ShapelyError, OSError, ValueError, TypeError, AttributeError, ImportError) as e:
+        except (_DuckDBError, _ShapelyError, _CRSError, OSError, ValueError, TypeError, AttributeError, ImportError) as e:
             raise SpatialQueryError(f"DuckDB download failed for {table_name}: {e}") from e
     
     def execute_spatial_query(self, query: str, *, crs: str | None = None, **kwargs) -> Union[GeoDataFrame, int]:
@@ -721,12 +839,15 @@ class DuckDBConnector:
         Row-returning statements, including CTEs and DML with RETURNING,
         produce a GeoDataFrame (without active geometry for tabular results).
         Other statements return an affected-row count, or -1 if unavailable.
+        Mutating calls own a transaction through result validation. They require
+        a connection without an active transaction; nested transactions are
+        unsupported by DuckDB. SELECT calls do not finalize transactions.
 
         Args:
             query: SQL query string
             crs: Optional output CRS. Omit to preserve the source CRS.
             **kwargs: Additional parameters. Reads accept source_crs for
-                legacy tables, empty results, or projections without _siege_crs.
+                legacy tables or queries without source table metadata.
 
         Returns:
             GeoDataFrame for row-returning queries, int rowcount for others.
@@ -739,35 +860,53 @@ class DuckDBConnector:
         if not self.connection:
             self.connect()
 
+        transaction_started = False
         try:
             from siege_utilities.engines.dataframe_engine import DuckDBEngine
 
-            # DuckDB describes affected-row Counts as result columns too.
-            # Reuse its parser-based classifier to distinguish those from rows.
+            # Result shape and transaction ownership are separate decisions.
             engine = DuckDBEngine()
             engine._conn = self.connection
             statements = self.connection.extract_statements(query)
+            if any(statement.type != duckdb.StatementType.SELECT for statement in statements):
+                # Two autocommit reads have distinct transaction IDs. Refuse
+                # caller-owned transactions before BEGIN can abort one.
+                first_id = self.connection.execute("SELECT current_transaction_id()").fetchone()[0]
+                second_id = self.connection.execute("SELECT current_transaction_id()").fetchone()[0]
+                if first_id == second_id:
+                    raise ValueError("Mutating queries require a connection without an active transaction")
+                self.connection.execute("BEGIN TRANSACTION")
+                transaction_started = True
             for statement in statements[:-1]:
                 self.connection.execute(statement)
             statement = statements[-1] if statements else None
             returns_rows = statement is not None and engine._statement_returns_rows(statement)
+            stored = _duckdb_query_metadata(self.connection, statement) if returns_rows else []
             result = self.connection.execute(statement if statement is not None else query)
             if returns_rows:
-                gdf = _duckdb_result_frame(
-                    result.df(), source_crs=kwargs.get('source_crs'), crs=crs,
+                result = _duckdb_result_frame(
+                    result.df(), source_crs=kwargs.get('source_crs'), crs=crs, stored_crs=stored,
                 )
-                log.info("Successfully executed DuckDB query")
-                return gdf
-
-            try:
-                row = result.fetchone()
-                rowcount = row[0] if row is not None else -1
-            except (_DuckDBError, TypeError):
-                rowcount = -1
+            else:
+                try:
+                    row = result.fetchone()
+                    result = row[0] if row is not None else -1
+                except (_DuckDBError, TypeError):
+                    result = -1
+            if transaction_started:
+                self.connection.execute("COMMIT")
+                transaction_started = False
             log.info("Successfully executed DuckDB query")
-            return rowcount
+            return result
 
-        except (_DuckDBError, _ShapelyError, OSError, ValueError, TypeError, AttributeError, ImportError) as e:
+        except Exception as e:
+            # Every failure before commit must undo owned writes, including
+            # errors raised by result conversion or metadata validation.
+            if transaction_started:
+                try:
+                    self.connection.execute("ROLLBACK")
+                except _DuckDBError as rollback_error:
+                    e.add_note(f"DuckDB rollback also failed: {rollback_error}")
             log.error(f"Failed to execute DuckDB query: {e}")
             raise SpatialQueryError(f"DuckDB query failed: {e}") from e
 
@@ -925,9 +1064,8 @@ def execute_duckdb_query(query: str, db_path: Optional[str] = None, **kwargs) ->
         **kwargs: Forwarded to
             :meth:`DuckDBConnector.execute_spatial_query`. Accepts
             ``crs`` (output CRS, applies to row-returning queries) and
-            ``source_crs`` for missing metadata. Include ``_siege_crs``
-            in spatial query projections to retain uploaded CRS metadata;
-            otherwise supply ``source_crs``. Omit ``crs`` to keep the source.
+            ``source_crs`` for missing metadata. Uploaded source CRS is read
+            from table comments. Omit ``crs`` to keep the source.
 
     Returns:
         GeoDataFrame for row-returning queries, int rowcount for others.

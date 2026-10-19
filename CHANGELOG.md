@@ -122,8 +122,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or inserts restore the original table. DuckDB append now inserts into
   existing tables by column name. PostGIS and DuckDB queries return rows
   for CTEs and `RETURNING` statements without replaying mutations. DuckDB
-  uploads persist full source CRS metadata in `_siege_crs`, and reads no
-  longer label every geometry EPSG:4326 (#1414).
+  uploads persist full source CRS metadata in table comments, including for
+  empty tables, and preserve caller-owned `_siege_crs` attributes. Reads no
+  longer label every geometry EPSG:4326. PostGIS resolves SRID authorities
+  through `spatial_ref_sys`, wraps CRS errors in `SpatialQueryError`, and
+  leaves read transactions open. DuckDB validates returned geometry before
+  committing writes and rolls back when decoding fails (#1414, #1818).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting

@@ -502,43 +502,38 @@ class TestDuckDBConnector:
         connector = self._make_connector()
         mock_duckdb = MagicMock()
         import siege_utilities.geo.spatial_transformations as st_mod
-        st_mod.duckdb = mock_duckdb
-        try:
+        with patch.object(st_mod, "duckdb", mock_duckdb, create=True):
             connector.connect()
             assert connector.connection is not None
-        finally:
-            if not hasattr(st_mod, '_orig_duckdb'):
-                del st_mod.duckdb
 
     def test_connect_failure(self):
         connector = self._make_connector()
         mock_duckdb = MagicMock()
         mock_duckdb.connect.side_effect = RuntimeError("fail")
         import siege_utilities.geo.spatial_transformations as st_mod
-        st_mod.duckdb = mock_duckdb
-        try:
+        with patch.object(st_mod, "duckdb", mock_duckdb, create=True):
             with pytest.raises(RuntimeError, match="Failed to connect"):
                 connector.connect()
-        finally:
-            del st_mod.duckdb
 
     def test_upload_no_connection_calls_connect(self, sample_gdf):
         connector = self._make_connector()
         connector.connection = None
         mock_conn = MagicMock()
+        mock_conn.execute.return_value.fetchone.return_value = (None,)
         mock_duckdb = MagicMock()
         mock_duckdb.connect.return_value = mock_conn
+        real_duckdb = pytest.importorskip("duckdb")
+        mock_duckdb.tokenize = real_duckdb.tokenize
+        mock_duckdb.token_type = real_duckdb.token_type
         import siege_utilities.geo.spatial_transformations as st_mod
-        st_mod.duckdb = mock_duckdb
-        try:
+        with patch.object(st_mod, "duckdb", mock_duckdb, create=True):
             connector.upload_spatial_data(sample_gdf, "test_table")
             assert connector.connection is not None
-        finally:
-            del st_mod.duckdb
 
     def test_upload_replace_drops_table(self, sample_gdf):
         connector = self._make_connector()
         mock_conn = MagicMock()
+        mock_conn.execute.return_value.fetchone.return_value = (None,)
         connector.connection = mock_conn
         connector.upload_spatial_data(sample_gdf, "test_table", if_exists="replace")
         calls = [str(c) for c in mock_conn.execute.call_args_list]
@@ -547,6 +542,7 @@ class TestDuckDBConnector:
     def test_upload_no_replace_skips_drop(self, sample_gdf):
         connector = self._make_connector()
         mock_conn = MagicMock()
+        mock_conn.execute.return_value.fetchone.return_value = (None,)
         connector.connection = mock_conn
         connector.upload_spatial_data(sample_gdf, "test_table", if_exists="append")
         calls = [str(c) for c in mock_conn.execute.call_args_list]
@@ -558,12 +554,9 @@ class TestDuckDBConnector:
         mock_duckdb = MagicMock()
         mock_duckdb.connect.side_effect = RuntimeError("fail")
         import siege_utilities.geo.spatial_transformations as st_mod
-        st_mod.duckdb = mock_duckdb
-        try:
+        with patch.object(st_mod, "duckdb", mock_duckdb, create=True):
             with pytest.raises(RuntimeError, match="Failed to connect"):
                 connector.download_spatial_data("tbl")
-        finally:
-            del st_mod.duckdb
 
     def test_execute_spatial_query_no_connection_tries_connect_and_fails(self):
         connector = self._make_connector()
@@ -571,12 +564,9 @@ class TestDuckDBConnector:
         mock_duckdb = MagicMock()
         mock_duckdb.connect.side_effect = RuntimeError("fail")
         import siege_utilities.geo.spatial_transformations as st_mod
-        st_mod.duckdb = mock_duckdb
-        try:
+        with patch.object(st_mod, "duckdb", mock_duckdb, create=True):
             with pytest.raises(RuntimeError, match="Failed to connect"):
                 connector.execute_spatial_query("SELECT 1")
-        finally:
-            del st_mod.duckdb
 
 
 # ---------------------------------------------------------------------------

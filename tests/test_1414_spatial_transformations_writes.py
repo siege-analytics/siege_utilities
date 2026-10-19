@@ -121,11 +121,15 @@ def test_row_returning_queries_return_rows(backend, statement):
         cursor.description = [("id", None, None, None, None, None, None)]
         cursor.fetchall.return_value = [(7,)]
         cursor.rowcount = 1
+        cursor.statusmessage = "SELECT 1" if statement == "cte" else "INSERT 0 1"
         result = connector.execute_spatial_query(query)
         assert result["id"].tolist() == [7]
         cursor.execute.assert_called_once_with(query)
         cursor.close.assert_called_once()
-        connector.connection.commit.assert_called_once()
+        if statement == "cte":
+            connector.connection.commit.assert_not_called()
+        else:
+            connector.connection.commit.assert_called_once()
     else:
         duckdb = pytest.importorskip("duckdb")
         connector = DuckDBConnector.__new__(DuckDBConnector)
@@ -175,6 +179,8 @@ def test_postgis_returning_decodes_ewkb_once(encoding):
     connector.connection = MagicMock()
     cursor = connector.connection.cursor.return_value
     cursor.description = [("id",), ("geom",)]
+    cursor.statusmessage = "INSERT 0 2"
+    cursor.__enter__.return_value.fetchone.return_value = ("EPSG", 3857)
     cursor.fetchall.return_value = [(1, encoded), (2, None)]
     query = "INSERT INTO places SELECT * FROM incoming RETURNING id, geom"
     result = connector.execute_spatial_query(query, geom_col="geom", crs="EPSG:3857")
@@ -191,6 +197,7 @@ def test_postgis_bad_geometry_rolls_back_returning():
     connector.connection = MagicMock()
     cursor = connector.connection.cursor.return_value
     cursor.description = [("geometry",)]
+    cursor.statusmessage = "INSERT 0 1"
     cursor.fetchall.return_value = [(b"invalid wkb",)]
     with pytest.raises(SpatialQueryError):
         connector.execute_spatial_query("INSERT INTO places DEFAULT VALUES RETURNING geometry")
@@ -207,6 +214,7 @@ def test_non_returning_dml_keeps_rowcount(backend):
         connector.connection = MagicMock()
         cursor = connector.connection.cursor.return_value
         cursor.description = None
+        cursor.statusmessage = "INSERT 0 2"
         cursor.rowcount = 2
         assert connector.execute_spatial_query(query) == 2
         cursor.fetchall.assert_not_called()

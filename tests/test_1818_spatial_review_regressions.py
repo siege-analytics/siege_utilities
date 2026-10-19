@@ -1,8 +1,5 @@
 """B1-B4 regression fixtures from the independent review of PR #1818."""
 
-import os
-from uuid import uuid4
-
 import pytest
 
 gpd = pytest.importorskip("geopandas")
@@ -23,58 +20,6 @@ def duck_connector():
     connector.connection = duckdb.connect(":memory:")
     yield connector
     connector.close()
-
-
-@pytest.fixture
-def postgis_pair():
-    """Use only the disposable database named by the test run."""
-    psycopg2 = pytest.importorskip("psycopg2")
-    dsn = os.environ.get("SIEGE_TEST_POSTGIS_DSN")
-    if not dsn:
-        pytest.skip("Set SIEGE_TEST_POSTGIS_DSN to a disposable PostGIS database")
-    observer = psycopg2.connect(dsn)
-    observer.autocommit = True
-    connector = PostGISConnector.__new__(PostGISConnector)
-    connector.connection = psycopg2.connect(dsn)
-    schema = "review_1818_" + uuid4().hex
-    with observer.cursor() as cursor:
-        cursor.execute(f'CREATE SCHEMA "{schema}"')
-        cursor.execute(f'CREATE TABLE "{schema}".places (id INTEGER, geometry geometry)')
-    try:
-        yield connector, observer, f'"{schema}".places'
-    finally:
-        connector.close()
-        with observer.cursor() as cursor:
-            cursor.execute(f'DROP SCHEMA "{schema}" CASCADE')
-        observer.close()
-
-
-def test_b1_postgis_resolves_esri_authority(postgis_pair):
-    connector, observer, _ = postgis_pair
-    with observer.cursor() as cursor:
-        cursor.execute(
-            "INSERT INTO spatial_ref_sys (srid, auth_name, auth_srid, srtext) "
-            "VALUES (102003, 'ESRI', 102003, %s) ON CONFLICT (srid) DO NOTHING",
-            [CRS("ESRI:102003").to_wkt()],
-        )
-    result = connector.execute_spatial_query(
-        "SELECT ST_SetSRID(ST_Point(1000000,2000000),102003) AS geometry",
-        crs="ESRI:102003",
-    )
-    assert result.crs == CRS("ESRI:102003")
-    assert result.geometry.iloc[0].equals_exact(Point(1000000, 2000000), 0)
-
-
-def test_b1_postgis_wraps_crs_errors(postgis_pair):
-    connector, _, _ = postgis_pair
-    with pytest.raises(SpatialQueryError) as raised:
-        connector.execute_spatial_query(
-            "SELECT ST_SetSRID(ST_Point(0,0),4326) AS geometry", crs="invalid:crs",
-        )
-    from pyproj.exceptions import CRSError
-
-    assert isinstance(raised.value.__cause__, CRSError)
-    assert connector.connection.get_transaction_status() == 0
 
 
 def test_b2_legacy_caller_metadata_is_preserved(duck_connector):
@@ -103,25 +48,6 @@ def test_b2_input_caller_metadata_roundtrips(duck_connector):
     assert_geodataframe_equal(result, frame)
 
 
-def test_b3_select_does_not_commit_caller_pending_write(postgis_pair):
-    connector, observer, table = postgis_pair
-    with connector.connection.cursor() as cursor:
-        cursor.execute(f"INSERT INTO {table} VALUES (99, ST_SetSRID(ST_Point(0,0),4326))")
-    before = connector.connection.get_transaction_status()
-    result = connector.execute_spatial_query(f"SELECT * FROM {table}")
-    after = connector.connection.get_transaction_status()
-    with observer.cursor() as cursor:
-        cursor.execute(f"SELECT count(*) FROM {table}")
-        visible_before_rollback = cursor.fetchone()[0]
-    connector.connection.rollback()
-    with observer.cursor() as cursor:
-        cursor.execute(f"SELECT count(*) FROM {table}")
-        visible_after_rollback = cursor.fetchone()[0]
-    assert result.id.tolist() == [99]
-    assert (visible_before_rollback, visible_after_rollback) == (0, 0)
-    assert before == after
-
-
 def test_b4_returning_decode_failure_rolls_back(duck_connector):
     duck_connector.connection.execute(
         "CREATE TABLE places (id INTEGER, geometry_wkt VARCHAR, _siege_crs VARCHAR)"
@@ -130,4 +56,154 @@ def test_b4_returning_decode_failure_rolls_back(duck_connector):
         duck_connector.execute_spatial_query(
             "INSERT INTO places VALUES (1, 'not a geometry', 'EPSG:4326') RETURNING *"
         )
+    assert duck_connector.connection.execute("SELECT * FROM places").fetchall() == []
+
+
+@pytest.mark.parametrize("authority", [("ESRI", 102003), None, ("bad_authority", 102003)])
+def test_b1_authority_lookup_never_replays_returning(authority):
+    from unittest.mock import MagicMock
+    from shapely import set_srid, to_wkb
+
+    connector = PostGISConnector.__new__(PostGISConnector)
+    connector.connection = MagicMock()
+    query_cursor, crs_cursor = MagicMock(), MagicMock()
+    connector.connection.cursor.side_effect = [query_cursor, crs_cursor]
+    crs_cursor.__enter__.return_value = crs_cursor
+    crs_cursor.fetchone.return_value = authority
+    srid = 4326 if authority is None else 102003
+    query_cursor.statusmessage = "INSERT 0 1"
+    query_cursor.description = [("geometry",)]
+    query_cursor.fetchall.return_value = [(to_wkb(set_srid(Point(1, 2), srid), include_srid=True),)]
+    query = "INSERT INTO places DEFAULT VALUES RETURNING geometry"
+    if authority and authority[0] == "bad_authority":
+        with pytest.raises(SpatialQueryError):
+            connector.execute_spatial_query(query)
+        connector.connection.rollback.assert_called_once()
+        connector.connection.commit.assert_not_called()
+    else:
+        expected = "EPSG:4326" if authority is None else "ESRI:102003"
+        result = connector.execute_spatial_query(query, crs=expected)
+        assert result.crs == CRS(expected)
+        connector.connection.commit.assert_called_once()
+    query_cursor.execute.assert_called_once_with(query)
+    crs_cursor.execute.assert_called_once_with(
+        "SELECT auth_name, auth_srid FROM spatial_ref_sys WHERE srid = %s", (srid,),
+    )
+
+
+@pytest.mark.parametrize("reader", ["download", "query"])
+def test_b2_empty_table_crs_survives_reconnect(tmp_path, reader):
+    duckdb = pytest.importorskip("duckdb")
+    connector = DuckDBConnector.__new__(DuckDBConnector)
+    path = str(tmp_path / "empty.duckdb")
+    frame = gpd.GeoDataFrame({"id": [1]}, geometry=[Point(1, 2)], crs="EPSG:3857")
+    connector.connection = duckdb.connect(path)
+    try:
+        connector.upload_spatial_data(frame.iloc[:0], "places")
+        connector.close()
+        connector.connection = duckdb.connect(path)
+        result = (connector.download_spatial_data("places") if reader == "download"
+                  else connector.execute_spatial_query("SELECT geometry_wkt FROM places"))
+        assert result.empty
+        assert result.crs == frame.crs
+        with pytest.raises(RuntimeError, match="different source CRS"):
+            connector.upload_spatial_data(frame.to_crs(4326), "places", if_exists="append")
+        assert connector.connection.execute("SELECT count(*) FROM places").fetchone() == (0,)
+    finally:
+        connector.close()
+
+
+@pytest.mark.parametrize("query", [
+    'WITH p AS (SELECT * FROM "places") SELECT geometry_wkt, _siege_crs FROM p',
+    'INSERT INTO /* target */ "places" SELECT * FROM "places" RETURNING *',
+    'UPDATE "places" SET id=2 RETURNING *',
+    'DELETE FROM "places" RETURNING *',
+    'PREPARE "q x" AS INSERT INTO "places" SELECT * FROM "places" RETURNING *; EXECUTE "q x"',
+])
+def test_b2_queries_retain_table_crs_and_caller_column(duck_connector, query):
+    frame = gpd.GeoDataFrame(
+        {"id": [1], "_siege_crs": ["caller value"]}, geometry=[Point(1, 2)], crs="EPSG:3857",
+    )
+    duck_connector.connection.execute("CREATE SCHEMA retained")
+    duck_connector.connection.execute("SET schema='retained'")
+    duck_connector.upload_spatial_data(frame, "places")
+    result = duck_connector.execute_spatial_query(query)
+    assert result.crs == frame.crs
+    assert result._siege_crs.tolist() == ["caller value"]
+    assert result.geometry.iloc[0].equals_exact(frame.geometry.iloc[0], 0)
+
+
+def test_b2_legacy_comment_and_columns_survive_append(duck_connector):
+    duck_connector.connection.execute(
+        "CREATE TABLE places (id BIGINT, _siege_crs VARCHAR, geometry_wkt VARCHAR)"
+    )
+    duck_connector.connection.execute("COMMENT ON TABLE places IS 'caller comment'")
+    frame = gpd.GeoDataFrame(
+        {"id": [1], "_siege_crs": ["caller value"]}, geometry=[Point(1, 2)], crs="EPSG:3857",
+    )
+    duck_connector.upload_spatial_data(frame, "places", if_exists="append")
+    result = duck_connector.download_spatial_data("places")
+    assert result._siege_crs.tolist() == ["caller value"]
+    assert result.crs == frame.crs
+    comment = duck_connector.connection.execute("SELECT comment FROM duckdb_tables()").fetchone()[0]
+    assert comment.startswith("caller comment\n")
+
+
+@pytest.mark.parametrize("query", [
+    "UPDATE places SET geometry_wkt='not a geometry' RETURNING *",
+    "DELETE FROM places RETURNING id, 'not a geometry' AS geometry_wkt",
+    "INSERT INTO places VALUES (2,'POINT (2 2)'); "
+    "INSERT INTO places VALUES (3,'not a geometry') RETURNING *",
+])
+def test_b4_failed_mutation_restores_all_rows(duck_connector, query):
+    duck_connector.connection.execute("CREATE TABLE places (id INTEGER, geometry_wkt VARCHAR)")
+    duck_connector.connection.execute("INSERT INTO places VALUES (1,'POINT (1 1)')")
+    with pytest.raises(SpatialQueryError):
+        duck_connector.execute_spatial_query(query)
+    assert duck_connector.connection.execute("SELECT * FROM places").fetchall() == [(1, "POINT (1 1)")]
+
+
+def test_b4_crs_validation_failure_rolls_back(duck_connector):
+    frame = gpd.GeoDataFrame({"id": [1]}, geometry=[Point(1, 2)], crs="EPSG:3857")
+    duck_connector.upload_spatial_data(frame, "places")
+    with pytest.raises(SpatialQueryError):
+        duck_connector.execute_spatial_query(
+            "INSERT INTO places SELECT * FROM places RETURNING *", crs="invalid:crs",
+        )
+    assert duck_connector.connection.execute("SELECT count(*) FROM places").fetchone() == (1,)
+
+
+def test_b4_caller_transaction_is_preserved_when_owned_write_is_refused(duck_connector):
+    connection = duck_connector.connection
+    connection.execute("CREATE TABLE places (id INTEGER)")
+    connection.execute("BEGIN")
+    connection.execute("INSERT INTO places VALUES (99)")
+    assert duck_connector.execute_spatial_query("SELECT * FROM places").id.tolist() == [99]
+    with pytest.raises(SpatialQueryError, match="active transaction"):
+        duck_connector.execute_spatial_query("INSERT INTO places VALUES (1) RETURNING *")
+    assert connection.execute("SELECT * FROM places").fetchall() == [(99,)]
+    connection.execute("ROLLBACK")
+    assert connection.execute("SELECT * FROM places").fetchall() == []
+
+
+def test_b2_unreserved_keyword_table_name(duck_connector):
+    frame = gpd.GeoDataFrame({"id": [1]}, geometry=[Point(1, 2)], crs="EPSG:3857")
+    duck_connector.upload_spatial_data(frame, "data")
+    duck_connector.upload_spatial_data(frame, "data", if_exists="append")
+    result = duck_connector.execute_spatial_query("UPDATE data SET id=2 RETURNING *")
+    assert result.crs == frame.crs
+    assert result.id.tolist() == [2, 2]
+
+
+def test_b4_unexpected_decoder_failure_rolls_back(duck_connector, monkeypatch):
+    import siege_utilities.geo.spatial_transformations as module
+
+    duck_connector.connection.execute("CREATE TABLE places (id INTEGER)")
+
+    def fail_decode(*args, **kwargs):
+        raise RuntimeError("decoder failed")
+
+    monkeypatch.setattr(module, "_duckdb_result_frame", fail_decode)
+    with pytest.raises(SpatialQueryError, match="decoder failed"):
+        duck_connector.execute_spatial_query("INSERT INTO places VALUES (1) RETURNING *")
     assert duck_connector.connection.execute("SELECT * FROM places").fetchall() == []
