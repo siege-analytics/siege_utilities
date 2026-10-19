@@ -13,9 +13,12 @@ no CDC, no conflict resolution beyond dedup.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from datetime import date, datetime
 from typing import Any, Protocol, runtime_checkable
 
+import numpy as np
 import pandas as pd
 
 __all__ = [
@@ -27,6 +30,88 @@ __all__ = [
     "ConnectorRateLimitError",
     "ConnectorNotFoundError",
 ]
+
+
+def sanitize_record(row: dict[str, Any]) -> dict[str, Any]:
+    """Return JSON-safe upsert fields without mutating the input row.
+
+    Omit top-level missing fields (None, NaN, NaT, pd.NA). Recurse through
+    dicts and lists, keeping explicit nested None as JSON null. Missing
+    pandas/numpy sentinels in nested dict values raise ConnectorError with
+    the key path. Missing list items become null, preserving their positions.
+    Tuples become JSON lists.
+    Dates use ISO 8601 and numpy scalars become native Python scalars.
+    Scalar leaves that strict JSON cannot encode (such as Decimal or infinity)
+    keep their string representation; containers are never stringified.
+
+    Raises:
+        ConnectorError: a nested dict contains a missing pandas/numpy sentinel,
+            or an unsupported container, invalid JSON object key, circular
+            reference, or excessive nesting cannot be represented as JSON.
+    """
+    try:
+        return _sanitize_value(row, path="$", ancestors=set(), top_level=True)
+    except RecursionError as exc:
+        raise ConnectorError("Record nesting exceeds the JSON recursion limit") from exc
+
+
+def _sanitize_value(value: Any, *, path: str, ancestors: set[int], top_level: bool) -> Any:
+    if isinstance(value, (dict, list, tuple)):
+        container_id = id(value)
+        if container_id in ancestors:
+            raise ConnectorError(f"Circular container reference at {path}")
+        ancestors.add(container_id)
+        try:
+            if isinstance(value, dict):
+                sanitized = {}
+                for key, child in value.items():
+                    try:
+                        json.dumps({key: None}, allow_nan=False)
+                    except (TypeError, ValueError) as exc:
+                        raise ConnectorError(
+                            f"Invalid JSON object key at {path}: {key!r}"
+                        ) from exc
+                    child_path = f"{path}[{key!r}]"
+                    # pd.isna on containers returns arrays, not a scalar flag.
+                    if pd.api.types.is_scalar(child) and pd.isna(child):
+                        if top_level:
+                            continue
+                        if child is not None:
+                            raise ConnectorError(
+                                f"Missing pandas/numpy sentinel at {child_path}"
+                            )
+                    sanitized[key] = _sanitize_value(
+                        child, path=child_path, ancestors=ancestors, top_level=False,
+                    )
+                return sanitized
+            return [
+                _sanitize_value(
+                    child, path=f"{path}[{index}]", ancestors=ancestors, top_level=False,
+                )
+                for index, child in enumerate(value)
+            ]
+        finally:
+            ancestors.remove(container_id)
+
+    if not pd.api.types.is_scalar(value):
+        raise ConnectorError(
+            f"Unsupported value or container type {type(value).__name__} at {path}"
+        )
+    if pd.isna(value):
+        return None
+    if isinstance(value, (datetime, date)):
+        value = value.isoformat()
+    elif isinstance(value, np.bool_):
+        value = bool(value)
+    elif isinstance(value, np.integer):
+        value = int(value)
+    elif isinstance(value, np.floating):
+        value = float(value)
+    try:
+        json.dumps(value, allow_nan=False)
+    except (TypeError, ValueError):
+        value = str(value)
+    return value
 
 
 # ---------------------------------------------------------------------------
