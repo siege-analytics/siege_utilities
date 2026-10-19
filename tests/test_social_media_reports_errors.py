@@ -1,10 +1,9 @@
-"""Error-path coverage (SU-4b) for reporting.social_media_reports.
-
-_collect_platform_data wraps each connector call in best-effort handlers; a
-connector that raises on every call must degrade to empty data rather than
-propagating, exercising all three except blocks.
-"""
+"""Connector retrieval failures must stop social report collection (#1469)."""
 import datetime
+
+import pytest
+
+from siege_utilities.analytics._social_protocol import SocialMediaError
 from siege_utilities.reporting.social_media_reports import SocialMediaReportGenerator
 
 
@@ -21,9 +20,10 @@ class _FailingConnector:
         raise RuntimeError("posts failed")
 
 
-def test_collect_platform_data_degrades_on_connector_failures():
-    gen = SocialMediaReportGenerator("client")
-    out = gen._collect_platform_data(
-        [_FailingConnector()], datetime.date(2024, 1, 1), datetime.date(2024, 1, 31)
-    )
-    assert isinstance(out, list) and len(out) == 1
+def test_collect_platform_data_raises_on_connector_failures(tmp_path):
+    gen = SocialMediaReportGenerator("client", output_dir=tmp_path)
+    with pytest.raises(SocialMediaError, match="fakebook.*info failed") as exc:
+        gen._collect_platform_data(
+            [_FailingConnector()], datetime.date(2024, 1, 1), datetime.date(2024, 1, 31)
+        )
+    assert isinstance(exc.value.__cause__, RuntimeError)

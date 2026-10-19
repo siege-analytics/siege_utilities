@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Social media reports now raise `SocialMediaError` with the platform and
+  underlying cause when connector retrieval fails. Post counts, engagement
+  charts, tables and insights describe the analyzed sample, with a configurable
+  `posts_limit` that defaults to the most recent 50 posts per platform (#1469).
 - New *file* names now get the same check as new directory names. The
   `siege_utilities.files` helpers that create a file refuse a name containing
   a C0, DEL or C1 control character, or a lone surrogate: they raise
@@ -112,6 +116,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Social media reports handle missing follower, following and engagement
+  counts without crashing or displaying NaN. All-missing likes produce zero
+  aggregate likes and no top-post insight. Daily metric charts include nullable
+  and narrower numeric dtypes (#1469).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
