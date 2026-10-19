@@ -112,6 +112,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- RDH enacted-plan selection maps SLDU to state senate and SLDL to state
+  house, and matches chamber keywords on token boundaries so titles such as
+  `household` and `houses` no longer match. `get_enacted_plans`,
+  `fetch_enacted_plan`, and `RDHProvider.get_boundary` raise `ValueError`
+  with the candidate titles when multiple plans match. Narrow the year
+  filter or use `list_datasets` and load a chosen dataset directly (#1480).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
