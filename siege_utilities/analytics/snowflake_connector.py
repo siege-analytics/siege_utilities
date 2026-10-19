@@ -5,7 +5,8 @@ Provides seamless integration with Snowflake for data warehousing and analytics.
 """
 
 import logging
-from typing import Optional, Dict, List, Any, Union
+from contextlib import contextmanager as _contextmanager
+from typing import Optional, Dict, List, Any, Union, Iterator
 from pathlib import Path
 import json
 import os
@@ -208,15 +209,57 @@ class SnowflakeConnector:
         except (*_SF_QUERY_ERRORS,) as e:
             raise RuntimeError(f"DDL execution failed: {e}") from e
 
+    @_contextmanager
+    def _temporary_context(self, database: Optional[str], schema: Optional[str]) -> Iterator[None]:
+        """Scope database/schema overrides to one operation on the live session."""
+        if not database and not schema:
+            yield
+            return
+
+        from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
+        if database:
+            validate_identifier(database, label="database name")
+        if schema:
+            validate_identifier(schema, label="schema name")
+
+        self.cursor.execute("SELECT CURRENT_DATABASE(), CURRENT_SCHEMA()")
+        previous_database, previous_schema = self.cursor.fetchone()
+        # USE cannot unset a database/schema. Refuse to change an unset context
+        # instead of leaving the requested override active after the operation.
+        if previous_database is None or previous_schema is None:
+            raise RuntimeError(
+                "Temporary Snowflake context requires a current database and schema; "
+                "select both on the session before using database/schema overrides."
+            )
+
+        try:
+            if database:
+                self.cursor.execute(f'USE DATABASE "{database}"')
+            if schema:
+                self.cursor.execute(f'USE SCHEMA "{schema}"')
+            yield
+        finally:
+            # Server-returned identifiers can contain quotes and need escaping.
+            # USE DATABASE resets the schema, so restore the schema last, even
+            # when the caller only supplied a database override.
+            if database:
+                quoted_database = previous_database.replace('"', '""')
+                self.cursor.execute(f'USE DATABASE "{quoted_database}"')
+            quoted_schema = previous_schema.replace('"', '""')
+            self.cursor.execute(f'USE SCHEMA "{quoted_schema}"')
+
     def upload_dataframe(self,
-                        df: 'pd.DataFrame',
-                        table_name: str,
-                        database: Optional[str] = None,
-                        schema: Optional[str] = None,
-                        auto_create_table: bool = True,
-                        overwrite: bool = False) -> None:
+                         df: 'pd.DataFrame',
+                         table_name: str,
+                         database: Optional[str] = None,
+                         schema: Optional[str] = None,
+                         auto_create_table: bool = True,
+                         overwrite: bool = False) -> None:
         """
         Upload pandas DataFrame to Snowflake table.
+
+        Database/schema overrides restore the prior session context, including
+        on failure, and require a current database and schema on the session.
 
         Args:
             df: Pandas DataFrame to upload
@@ -240,31 +283,25 @@ class SnowflakeConnector:
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
         validate_identifier(table_name, label="table name")
         try:
-            if database:
-                validate_identifier(database, label="database name")
-                self.cursor.execute(f'USE DATABASE "{database}"')
-            if schema:
-                validate_identifier(schema, label="schema name")
-                self.cursor.execute(f'USE SCHEMA "{schema}"')
+            with self._temporary_context(database, schema):
+                if auto_create_table:
+                    self._create_table_from_dataframe(df, table_name, overwrite)
 
-            if auto_create_table:
-                self._create_table_from_dataframe(df, table_name, overwrite)
+                # write_pandas quotes identifiers by default (case-sensitive, exact
+                # DataFrame column case). _create_table_from_dataframe quotes to
+                # match, so the created columns line up with what write_pandas
+                # targets -- and an existing case-sensitive table (auto_create off)
+                # is still addressed correctly.
+                success, nchunks, nrows, _ = write_pandas(
+                    self.connection,
+                    df,
+                    table_name,
+                    auto_create_table=False,
+                    overwrite=overwrite,
+                )
 
-            # write_pandas quotes identifiers by default (case-sensitive, exact
-            # DataFrame column case). _create_table_from_dataframe quotes to
-            # match, so the created columns line up with what write_pandas
-            # targets -- and an existing case-sensitive table (auto_create off)
-            # is still addressed correctly.
-            success, nchunks, nrows, _ = write_pandas(
-                self.connection,
-                df,
-                table_name,
-                auto_create_table=False,
-                overwrite=overwrite,
-            )
-
-            if not success:
-                raise RuntimeError(f"write_pandas reported failure for table {table_name}")
+                if not success:
+                    raise RuntimeError(f"write_pandas reported failure for table {table_name}")
 
             log.info(f"Successfully uploaded {nrows} rows to table {table_name}")
 
@@ -272,8 +309,8 @@ class SnowflakeConnector:
             raise RuntimeError(f"DataFrame upload failed: {e}") from e
 
     def download_dataframe(self,
-                          query: str,
-                          params: Optional[Dict[str, Any]] = None) -> 'pd.DataFrame':
+                           query: str,
+                           params: Optional[Dict[str, Any]] = None) -> 'pd.DataFrame':
         """
         Download data from Snowflake as pandas DataFrame.
 
@@ -334,7 +371,7 @@ class SnowflakeConnector:
 
     def _map_pandas_to_snowflake_type(self, pandas_dtype) -> str:
         """Map pandas data types to Snowflake data types."""
-        dtype_str = str(pandas_dtype)
+        dtype_str = str(pandas_dtype).lower()
 
         if 'int' in dtype_str:
             return 'NUMBER(38,0)'
@@ -343,7 +380,7 @@ class SnowflakeConnector:
         elif 'bool' in dtype_str:
             return 'BOOLEAN'
         elif 'datetime' in dtype_str:
-            return 'TIMESTAMP_NTZ'
+            return 'TIMESTAMP_TZ' if ',' in dtype_str else 'TIMESTAMP_NTZ'
         elif 'object' in dtype_str:
             return 'VARCHAR(16777216)'
         else:
@@ -352,6 +389,9 @@ class SnowflakeConnector:
     def get_table_info(self, table_name: str, database: Optional[str] = None, schema: Optional[str] = None) -> Dict[str, Any]:
         """
         Get information about a Snowflake table.
+
+        Database/schema overrides restore the prior session context, including
+        on failure, and require a current database and schema on the session.
 
         Args:
             table_name: Name of the table
@@ -371,44 +411,38 @@ class SnowflakeConnector:
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
         validate_identifier(table_name, label="table name")
         try:
-            if database:
-                validate_identifier(database, label="database name")
-                self.cursor.execute(f'USE DATABASE "{database}"')
-            if schema:
-                validate_identifier(schema, label="schema name")
-                self.cursor.execute(f'USE SCHEMA "{schema}"')
+            with self._temporary_context(database, schema):
+                # Quote the identifier so a table CREATEd with quotes (case-sensitive,
+                # the write_pandas / _create_table_from_dataframe convention) is
+                # addressable here. Unquoted DESCRIBE/SELECT would uppercase the name
+                # and miss a mixed-case table.
+                self.cursor.execute(f'DESCRIBE TABLE "{table_name}"')
+                columns = self.cursor.fetchall()
 
-            # Quote the identifier so a table CREATEd with quotes (case-sensitive,
-            # the write_pandas / _create_table_from_dataframe convention) is
-            # addressable here. Unquoted DESCRIBE/SELECT would uppercase the name
-            # and miss a mixed-case table.
-            self.cursor.execute(f'DESCRIBE TABLE "{table_name}"')
-            columns = self.cursor.fetchall()
+                self.cursor.execute(f'SELECT COUNT(*) FROM "{table_name}"')
+                row_count = self.cursor.fetchone()[0]
 
-            self.cursor.execute(f'SELECT COUNT(*) FROM "{table_name}"')
-            row_count = self.cursor.fetchone()[0]
+                self.cursor.execute(
+                    """
+                    SELECT BYTES, ROWS
+                    FROM INFORMATION_SCHEMA.TABLES
+                    WHERE TABLE_NAME = %s
+                      AND TABLE_SCHEMA = CURRENT_SCHEMA()
+                      AND TABLE_CATALOG = CURRENT_DATABASE()
+                    """,
+                    (table_name,),
+                )
+                size_info = self.cursor.fetchone()
 
-            self.cursor.execute(
-                """
-                SELECT BYTES, ROWS
-                FROM INFORMATION_SCHEMA.TABLES
-                WHERE TABLE_NAME = %s
-                  AND TABLE_SCHEMA = CURRENT_SCHEMA()
-                  AND TABLE_CATALOG = CURRENT_DATABASE()
-                """,
-                (table_name,),
-            )
-            size_info = self.cursor.fetchone()
+                table_info = {
+                    'name': table_name,
+                    'columns': [{'name': col[0], 'type': col[1], 'nullable': col[2]} for col in columns],
+                    'row_count': row_count,
+                    'bytes': size_info[0] if size_info else None,
+                    'rows': size_info[1] if size_info else None
+                }
 
-            table_info = {
-                'name': table_name,
-                'columns': [{'name': col[0], 'type': col[1], 'nullable': col[2]} for col in columns],
-                'row_count': row_count,
-                'bytes': size_info[0] if size_info else None,
-                'rows': size_info[1] if size_info else None
-            }
-
-            return table_info
+                return table_info
 
         except (*_SF_QUERY_ERRORS, ValueError, IndexError) as e:
             raise RuntimeError(f"Failed to get table info for {table_name}: {e}") from e
@@ -416,6 +450,9 @@ class SnowflakeConnector:
     def list_tables(self, database: Optional[str] = None, schema: Optional[str] = None) -> List[str]:
         """
         List all tables in a database/schema.
+
+        Database/schema overrides restore the prior session context, including
+        on failure, and require a current database and schema on the session.
 
         Args:
             database: Database name (uses default if not specified)
@@ -431,19 +468,12 @@ class SnowflakeConnector:
         if not self.connection:
             self.connect()
 
-        from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
         try:
-            if database:
-                validate_identifier(database, label="database name")
-                self.cursor.execute(f'USE DATABASE "{database}"')
-            if schema:
-                validate_identifier(schema, label="schema name")
-                self.cursor.execute(f'USE SCHEMA "{schema}"')
+            with self._temporary_context(database, schema):
+                self.cursor.execute("SHOW TABLES")
+                tables = [row[1] for row in self.cursor.fetchall()]
 
-            self.cursor.execute("SHOW TABLES")
-            tables = [row[1] for row in self.cursor.fetchall()]
-
-            return tables
+                return tables
 
         except (*_SF_QUERY_ERRORS, ValueError, IndexError) as e:
             raise RuntimeError(f"Failed to list tables: {e}") from e
@@ -492,8 +522,8 @@ def upload_to_snowflake(df: 'pd.DataFrame',
 
 
 def download_from_snowflake(query: str,
-                           config_file: Optional[Union[str, Path]] = None,
-                           **kwargs) -> 'pd.DataFrame':
+                            config_file: Optional[Union[str, Path]] = None,
+                            **kwargs) -> 'pd.DataFrame':
     """Convenience function to download DataFrame from Snowflake.
 
     Args:
@@ -507,8 +537,8 @@ def download_from_snowflake(query: str,
 
 
 def execute_snowflake_query(query: str,
-                           config_file: Optional[Union[str, Path]] = None,
-                           **kwargs) -> List[tuple]:
+                            config_file: Optional[Union[str, Path]] = None,
+                            **kwargs) -> List[tuple]:
     """Convenience function to execute Snowflake query.
 
     Args:
