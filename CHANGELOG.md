@@ -112,6 +112,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The CI battle-test script now runs the repository-root test suite and
+  returns pytest's exit status, so the job reflects real test results (#1475).
+  Logs, coverage reports and the summary JSON are saved in the repository-root
+  `overnight_results/` directory used by CI, including when tests fail.
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
