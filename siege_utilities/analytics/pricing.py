@@ -89,6 +89,15 @@ def _validate_responses(
     if any(v < 0 for v in all_vals):
         raise ValueError("All prices must be non-negative")
 
+    for index, (tc, ch, ex, te) in enumerate(zip(
+        too_cheap, cheap, expensive, too_expensive,
+    )):
+        if not tc <= ch <= ex <= te:
+            raise ValueError(
+                f"Inconsistent price ordering at response index {index}: "
+                "expected too_cheap <= cheap <= expensive <= too_expensive"
+            )
+
     if n < min_sample:
         warnings.warn(
             f"Only {n} responses (minimum recommended: {min_sample}). "
@@ -133,27 +142,6 @@ def _build_cumulative(
     return result
 
 
-def _check_monotonicity(
-    curve: np.ndarray,
-    label: str,
-    ascending: bool,
-) -> None:
-    """Raise ValueError if cumulative distribution is non-monotonic."""
-    diffs = np.diff(curve)
-    if ascending:
-        if np.any(diffs < -1e-10):
-            raise ValueError(
-                f"Non-monotonic cumulative distribution for '{label}'. "
-                f"This indicates data quality issues in the survey responses."
-            )
-    else:
-        if np.any(diffs > 1e-10):
-            raise ValueError(
-                f"Non-monotonic cumulative distribution for '{label}'. "
-                f"This indicates data quality issues in the survey responses."
-            )
-
-
 def _find_intersection(
     grid: np.ndarray,
     curve_a: np.ndarray,
@@ -188,6 +176,11 @@ def analyze_price_sensitivity(
 ) -> PricingCorridor:
     """Run Van Westendorp Price Sensitivity Meter analysis.
 
+    Each index across the four sequences must represent the same respondent,
+    with too_cheap <= cheap <= expensive <= too_expensive. Ties are allowed.
+    An inconsistent respondent raises ValueError with the zero-based index
+    before any curves are built; responses are not reordered or dropped.
+
     Parameters
     ----------
     too_cheap : sequence of float
@@ -211,8 +204,8 @@ def analyze_price_sensitivity(
     Raises
     ------
     ValueError
-        If responses are empty, unequal length, contain negatives,
-        or have non-monotonic distributions.
+        If responses are empty, unequal length, contain negative or non-finite
+        prices, or violate the per-respondent price ordering.
     """
     if min_sample < 1:
         raise ValueError(
@@ -240,11 +233,6 @@ def analyze_price_sensitivity(
     cum_cheap = _build_cumulative(cheap, grid, ascending=True)
     cum_expensive = _build_cumulative(expensive, grid, ascending=False)
     cum_too_expensive = _build_cumulative(too_expensive, grid, ascending=False)
-
-    _check_monotonicity(cum_too_cheap, "too_cheap", ascending=True)
-    _check_monotonicity(cum_cheap, "cheap", ascending=True)
-    _check_monotonicity(cum_expensive, "expensive", ascending=False)
-    _check_monotonicity(cum_too_expensive, "too_expensive", ascending=False)
 
     not_cheap = 1.0 - cum_cheap
     not_expensive = 1.0 - cum_expensive
