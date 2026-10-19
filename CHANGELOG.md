@@ -112,6 +112,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Bivariate choropleths with tied values use the actual quantile grid and
+  preserve the palette's low and high colors. Crosstab dimensions and legend
+  ticks match the retained breaks, and verification reports reduced class
+  counts as errors. Rendering raises a clear error if ties leave fewer than
+  two bins on an axis, unless one class was requested (#1462).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
