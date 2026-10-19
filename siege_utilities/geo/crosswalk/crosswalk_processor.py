@@ -578,8 +578,10 @@ def normalize_to_year(
     """
     Normalize data to a specific boundary year.
 
-    Convenience function that determines the correct crosswalk direction
-    and applies it to transform data to the target year's boundaries.
+    Applies a supported forward crosswalk from data_year to target_year.
+    Backward normalization is not supported: relationship files are not
+    inverted. Only 2010->2020 is available for tract, block_group, and county.
+    Equal years return a copy without looking up a crosswalk.
 
     Args:
         df: DataFrame with data
@@ -593,6 +595,11 @@ def normalize_to_year(
     Returns:
         DataFrame normalized to target year boundaries
 
+    Raises:
+        ValueError: "Backward normalization is not supported: <data_year>-><target_year>"
+            before crosswalk lookup when data_year > target_year. Other unavailable
+            transitions or geographies are rejected by the crosswalk client.
+
     Example:
         # Normalize mixed-year data to 2020 boundaries
         df_normalized = normalize_to_year(
@@ -605,6 +612,11 @@ def normalize_to_year(
     if data_year == target_year:
         log.info(f"Data already in {target_year} boundaries, no transformation needed")
         return df.copy()
+
+    if data_year > target_year:
+        raise ValueError(
+            f"Backward normalization is not supported: {data_year}->{target_year}"
+        )
 
     return apply_crosswalk(
         df=df,

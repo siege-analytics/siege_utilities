@@ -112,6 +112,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Documented behavior change from v4.0.0: crosswalk availability now lists
+  only 2010->2020 for tract, block_group, and county, matching the configured
+  Census file patterns. Requests for 2000->2010 or block crosswalks fail
+  validation before cache access or download. `normalize_to_year` rejects
+  backward normalization before crosswalk lookup and documents its forward-only
+  behavior. `LongitudinalAligner` rejects unavailable directions and geographies
+  before alignment instead of planning nonexistent crosswalk steps; areal
+  fallback remains available for failures of supported transitions. Equal-year
+  normalization still returns a copy (#1494).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
