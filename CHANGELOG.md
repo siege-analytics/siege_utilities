@@ -112,6 +112,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Instagram follows all account, post and insight pages across Graph hosts
+  and versions, filters every post page by date and limit, and splits daily
+  insights into at most 30-day UTC windows. GA4 retrieves every reported row
+  using offsets; `row_limit` now controls page size, and an incomplete report
+  raises. Vista Social account/profile lists document their first-page limit
+  and expose `has_more` (including unknown completeness) and pagination
+  metadata on a list-compatible result (#1439).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
