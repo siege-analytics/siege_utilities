@@ -298,6 +298,7 @@ class PostGISConnector:
             import psycopg2
             self.psycopg2 = psycopg2
             self.connection = psycopg2.connect(self.connection_string)
+            self._opened_connection = True
             log.info("Successfully connected to PostGIS")
         except ImportError:
             raise ImportError("psycopg2 not available. Install with: pip install psycopg2-binary")
@@ -443,10 +444,12 @@ class PostGISConnector:
         produce a GeoDataFrame (without active geometry for tabular results).
         Other statements return an affected-row count, or -1 if unavailable.
 
-        Read commands leave the connection transaction open. Mutating commands,
-        including data-modifying CTEs, commit after decoding succeeds when the
-        connection was idle. An existing caller transaction stays open; a
-        savepoint isolates failures without committing or discarding its writes.
+        When this connector opened the connection and no caller transaction is
+        active, every statement commits after decoding succeeds and rolls back
+        on error. In a caller transaction, read-only statements never commit;
+        writes keep the existing behavior: SELECT leaves the transaction open,
+        other write statements commit. Savepoints isolate failures without
+        rolling back the caller's transaction.
 
         Args:
             query: SQL query string
@@ -471,6 +474,7 @@ class PostGISConnector:
 
         cursor = None
         caller_transaction = self.connection.get_transaction_status() == TRANSACTION_STATUS_INTRANS
+        owns_transaction = self._opened_connection and not caller_transaction
         savepoint = False
         try:
             cursor = self.connection.cursor()
@@ -478,11 +482,6 @@ class PostGISConnector:
                 cursor.execute("SAVEPOINT siege_spatial_query")
                 savepoint = True
             cursor.execute(query)
-            # PostgreSQL's command tag is independent of the result shape.
-            # Capture it before the separate spatial_ref_sys lookup.
-            command = cursor.statusmessage.split(' ', 1)[0]
-            mutates = (command not in {'SELECT', 'SHOW', 'EXPLAIN', 'FETCH'}
-                       or _postgis_has_dml(query))
             if cursor.description is not None:
                 result = gpd.GeoDataFrame(
                     cursor.fetchall(), columns=[column[0] for column in cursor.description],
@@ -515,7 +514,11 @@ class PostGISConnector:
             if savepoint:
                 cursor.execute("RELEASE SAVEPOINT siege_spatial_query")
                 savepoint = False
-            elif mutates:
+            if owns_transaction:
+                # SELECT can invoke volatile functions that write data.
+                self.connection.commit()
+            elif _postgis_has_dml(query) and not query.strip().upper().startswith('SELECT'):
+                # Preserve develop's commit behavior for caller-owned writes.
                 self.connection.commit()
             log.info("Successfully executed PostGIS query")
             return result
@@ -526,7 +529,7 @@ class PostGISConnector:
                     if savepoint:
                         cursor.execute("ROLLBACK TO SAVEPOINT siege_spatial_query")
                         cursor.execute("RELEASE SAVEPOINT siege_spatial_query")
-                    elif not caller_transaction:
+                    elif owns_transaction:
                         self.connection.rollback()
                 except (_Psycopg2Error, OSError) as rb_exc:
                     log.warning("Failed to rollback PostGIS transaction: %s", rb_exc)

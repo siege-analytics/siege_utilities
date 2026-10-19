@@ -103,6 +103,7 @@ def postgis_observations():
                 cursor.execute(f"TRUNCATE {table}")
                 cursor.execute(f"INSERT INTO {table} VALUES (7,ST_SetSRID(ST_Point(1,2),4326))")
             connector = PostGISConnector.__new__(PostGISConnector)
+            connector._opened_connection = True
             connector.connection = psycopg2.connect(dsn)
             try:
                 if name in {"b3_read", "caller_write"}:

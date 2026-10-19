@@ -21,8 +21,7 @@ def postgis_pair():
         pytest.skip("Set SIEGE_TEST_POSTGIS_DSN to a disposable PostGIS database")
     observer = psycopg2.connect(dsn)
     observer.autocommit = True
-    connector = PostGISConnector.__new__(PostGISConnector)
-    connector.connection = psycopg2.connect(dsn)
+    connector = PostGISConnector(dsn)
     schema = "review_1818_" + uuid4().hex
     with observer.cursor() as cursor:
         cursor.execute(f'CREATE SCHEMA "{schema}"')
@@ -67,7 +66,7 @@ def test_b1_postgis_wraps_crs_errors(postgis_pair):
 
 
 
-def test_b3_select_does_not_commit_caller_pending_write(postgis_pair):
+def test_b3_select_does_not_commit_caller_pending_write(postgis_pair, record_property):
     connector, observer, table = postgis_pair
     with connector.connection.cursor() as cursor:
         cursor.execute(f"INSERT INTO {table} VALUES (99, ST_SetSRID(ST_Point(0,0),4326))")
@@ -82,6 +81,8 @@ def test_b3_select_does_not_commit_caller_pending_write(postgis_pair):
         cursor.execute(f"SELECT count(*) FROM {table}")
         visible_after_rollback = cursor.fetchone()[0]
     assert result.id.tolist() == [99]
+    record_property("observer_before_caller_rollback", visible_before_rollback)
+    record_property("observer_after_caller_rollback", visible_after_rollback)
     assert (visible_before_rollback, visible_after_rollback) == (0, 0)
     assert before == after
 
@@ -133,22 +134,97 @@ def test_r2_1_mutating_cte_rows_match_durable_state_after_close(postgis_pair, op
     assert after_success == after_close == expected
 
 
+@pytest.fixture
+def volatile_insert(postgis_pair):
+    connector, observer, table = postgis_pair
+    function = table.rsplit(".", 1)[0] + ".record_point"
+    with observer.cursor() as cursor:
+        cursor.execute(
+            f"CREATE FUNCTION {function}() RETURNS geometry LANGUAGE plpgsql VOLATILE AS $$ "
+            f"BEGIN INSERT INTO {table} VALUES (8, ST_SetSRID(ST_Point(3,4),4326)); "
+            "RETURN ST_SetSRID(ST_Point(3,4),4326); END $$"
+        )
+    return connector, observer, table, f"SELECT 8 AS id, {function}() AS geometry"
+
+
+def test_r2_1_owned_volatile_select_is_durable_after_close(volatile_insert, record_property):
+    connector, observer, table, query = volatile_insert
+    with connector:
+        result = connector.execute_spatial_query(query)
+        assert result.id.tolist() == [8]
+        assert result.crs.to_epsg() == 4326
+        status_after_success = connector.connection.get_transaction_status()
+        with observer.cursor() as cursor:
+            cursor.execute(f"SELECT id FROM {table}")
+            after_success = cursor.fetchall()
+    with observer.cursor() as cursor:
+        cursor.execute(f"SELECT id FROM {table}")
+        after_close = cursor.fetchall()
+    record_property("observer_after_success", after_success)
+    record_property("observer_after_close", after_close)
+    assert after_success == after_close == [(8,)]
+    assert status_after_success == 0
+
+
+def test_r2_1_owned_volatile_select_rolls_back_on_decode_error(volatile_insert):
+    connector, observer, table, query = volatile_insert
+    with pytest.raises(SpatialQueryError):
+        connector.execute_spatial_query(query, crs="invalid:crs")
+    assert connector.connection.get_transaction_status() == 0
+    connector.close()
+    with observer.cursor() as cursor:
+        cursor.execute(f"SELECT id FROM {table}")
+        assert cursor.fetchall() == []
+
+
+def test_r2_1_caller_for_update_retains_lock_until_caller_rollback(postgis_pair):
+    from unittest.mock import MagicMock
+    from psycopg2.errors import LockNotAvailable
+    from psycopg2.extensions import TRANSACTION_STATUS_INTRANS
+
+    connector, observer, table = postgis_pair
+    connection = connector.connection
+    connector.connection = MagicMock(wraps=connection)
+    with observer.cursor() as cursor:
+        cursor.execute(f"INSERT INTO {table} VALUES (7, ST_SetSRID(ST_Point(1,2),4326))")
+    with connection.cursor() as cursor:
+        cursor.execute("BEGIN")
+    result = connector.execute_spatial_query(f"SELECT * FROM {table} WHERE id=7 FOR UPDATE")
+    assert result.id.tolist() == [7]
+    assert connection.get_transaction_status() == TRANSACTION_STATUS_INTRANS
+    connector.connection.commit.assert_not_called()
+    connector.connection.rollback.assert_not_called()
+    with observer.cursor() as cursor:
+        with pytest.raises(LockNotAvailable):
+            cursor.execute(f"SELECT id FROM {table} WHERE id=7 FOR UPDATE NOWAIT")
+    connection.rollback()
+    with observer.cursor() as cursor:
+        cursor.execute(f"SELECT id FROM {table} WHERE id=7 FOR UPDATE NOWAIT")
+        assert cursor.fetchall() == [(7,)]
+
+
 @pytest.mark.parametrize("cte", [False, True])
-def test_r2_1_caller_write_transaction_remains_caller_managed(postgis_pair, cte):
+def test_r2_1_caller_write_commits_like_develop(postgis_pair, cte, record_property):
     connector, observer, table = postgis_pair
     with connector.connection.cursor() as cursor:
         cursor.execute(f"INSERT INTO {table} VALUES (99, ST_SetSRID(ST_Point(0,0),4326))")
     query = f"INSERT INTO {table} VALUES (8, ST_SetSRID(ST_Point(3,4),4326)) RETURNING *"
     if cte:
         query = f"WITH written AS ({query}) SELECT * FROM written"
-    assert connector.execute_spatial_query(query).id.tolist() == [8]
+    connector.execute_spatial_query(query)
+    status_after_success = connector.connection.get_transaction_status()
     with observer.cursor() as cursor:
-        cursor.execute(f"SELECT id FROM {table}")
-        assert cursor.fetchall() == []
+        cursor.execute(f"SELECT id FROM {table} ORDER BY id")
+        after_success = cursor.fetchall()
     connector.connection.rollback()
     with observer.cursor() as cursor:
-        cursor.execute(f"SELECT id FROM {table}")
-        assert cursor.fetchall() == []
+        cursor.execute(f"SELECT id FROM {table} ORDER BY id")
+        after_rollback = cursor.fetchall()
+    record_property("observer_after_success", after_success)
+    record_property("observer_after_caller_rollback", after_rollback)
+    record_property("transaction_status_after_success", status_after_success)
+    assert status_after_success == 0
+    assert after_success == after_rollback == [(8,), (99,)]
 
 
 @pytest.mark.parametrize("query", [
@@ -195,18 +271,20 @@ def test_r2_1_failed_write_preserves_caller_pending_rows(postgis_pair):
     "TRUNCATE", "COPY", "CALL", "DO", "GRANT", "REVOKE",
 ])
 @pytest.mark.parametrize("template", ["SELECT {word}", "SELECT ({word})", "SELECT (({word}))"])
-def test_r2_1_every_write_keyword_marks_outer_select_non_read_only(keyword, template):
+def test_r2_1_every_write_keyword_marks_caller_cte_non_read_only(keyword, template):
     """Exercise commit classification independently of PostgreSQL grammar."""
     from unittest.mock import MagicMock
 
     connector = PostGISConnector.__new__(PostGISConnector)
+    connector._opened_connection = True
     connector.connection = MagicMock()
-    connector.connection.get_transaction_status.return_value = 0
+    connector.connection.get_transaction_status.return_value = 2
     cursor = connector.connection.cursor.return_value
     cursor.statusmessage = "SELECT 1"
     cursor.description = [("id",)]
     cursor.fetchall.return_value = [(7,)]
-    result = connector.execute_spatial_query(template.format(word=keyword.lower()))
+    query = f"WITH src AS ({template.format(word=keyword.lower())}) SELECT * FROM src"
+    result = connector.execute_spatial_query(query)
     assert result.id.tolist() == [7]
     connector.connection.commit.assert_called_once()
 
@@ -223,11 +301,49 @@ def test_r2_1_literals_comments_and_identifier_substrings_do_not_commit(query):
     from unittest.mock import MagicMock
 
     connector = PostGISConnector.__new__(PostGISConnector)
+    connector._opened_connection = True
     connector.connection = MagicMock()
-    connector.connection.get_transaction_status.return_value = 0
+    connector.connection.get_transaction_status.return_value = 2
     cursor = connector.connection.cursor.return_value
     cursor.statusmessage = "SELECT 1"
     cursor.description = [("id",)]
     cursor.fetchall.return_value = [(7,)]
     assert connector.execute_spatial_query(query).id.tolist() == [7]
     connector.connection.commit.assert_not_called()
+    connector.connection.rollback.assert_not_called()
+
+
+@pytest.mark.parametrize("query", ["SELECT 7 AS id", "SHOW server_version", "EXPLAIN SELECT 7"])
+def test_r2_1_owned_success_commits_without_classification(query, monkeypatch):
+    from unittest.mock import MagicMock
+    import siege_utilities.geo.spatial_transformations as module
+
+    connector = PostGISConnector.__new__(PostGISConnector)
+    connector._opened_connection = True
+    connector.connection = MagicMock()
+    connector.connection.get_transaction_status.return_value = 0
+    cursor = connector.connection.cursor.return_value
+    cursor.statusmessage = query.split()[0] + " 1"
+    cursor.description = [("id",)]
+    cursor.fetchall.return_value = [(7,)]
+    classifier = MagicMock(side_effect=AssertionError("Owned statements must not be classified"))
+    monkeypatch.setattr(module, "_postgis_has_dml", classifier)
+    assert connector.execute_spatial_query(query).id.tolist() == [7]
+    connector.connection.commit.assert_called_once()
+    connector.connection.rollback.assert_not_called()
+    classifier.assert_not_called()
+
+
+def test_r2_1_constructor_records_connection_ownership(monkeypatch):
+    from unittest.mock import MagicMock
+    import psycopg2
+    import siege_utilities.geo.spatial_transformations as module
+
+    connection = MagicMock()
+    connect = MagicMock(return_value=connection)
+    monkeypatch.setattr(module, "get_user_config", lambda: None)
+    monkeypatch.setattr(psycopg2, "connect", connect)
+    connector = PostGISConnector("dbname=test")
+    assert connector.connection is connection
+    assert connector._opened_connection is True
+    connect.assert_called_once_with("dbname=test")

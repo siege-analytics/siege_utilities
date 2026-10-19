@@ -65,6 +65,7 @@ def test_b1_authority_lookup_never_replays_returning(authority):
     from shapely import set_srid, to_wkb
 
     connector = PostGISConnector.__new__(PostGISConnector)
+    connector._opened_connection = True
     connector.connection = MagicMock()
     query_cursor, crs_cursor = MagicMock(), MagicMock()
     connector.connection.cursor.side_effect = [query_cursor, crs_cursor]

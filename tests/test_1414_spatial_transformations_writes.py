@@ -116,6 +116,7 @@ def test_row_returning_queries_return_rows(backend, statement):
     query = queries[statement]
     if backend == "postgis":
         connector = PostGISConnector.__new__(PostGISConnector)
+        connector._opened_connection = True
         connector.connection = MagicMock()
         cursor = connector.connection.cursor.return_value
         cursor.description = [("id", None, None, None, None, None, None)]
@@ -126,10 +127,7 @@ def test_row_returning_queries_return_rows(backend, statement):
         assert result["id"].tolist() == [7]
         cursor.execute.assert_called_once_with(query)
         cursor.close.assert_called_once()
-        if statement == "cte":
-            connector.connection.commit.assert_not_called()
-        else:
-            connector.connection.commit.assert_called_once()
+        connector.connection.commit.assert_called_once()
     else:
         duckdb = pytest.importorskip("duckdb")
         connector = DuckDBConnector.__new__(DuckDBConnector)
@@ -176,6 +174,7 @@ def test_postgis_returning_decodes_ewkb_once(encoding):
     elif encoding == "memoryview":
         encoded = memoryview(encoded)
     connector = PostGISConnector.__new__(PostGISConnector)
+    connector._opened_connection = True
     connector.connection = MagicMock()
     cursor = connector.connection.cursor.return_value
     cursor.description = [("id",), ("geom",)]
@@ -194,6 +193,7 @@ def test_postgis_returning_decodes_ewkb_once(encoding):
 
 def test_postgis_bad_geometry_rolls_back_returning():
     connector = PostGISConnector.__new__(PostGISConnector)
+    connector._opened_connection = True
     connector.connection = MagicMock()
     cursor = connector.connection.cursor.return_value
     cursor.description = [("geometry",)]
@@ -211,6 +211,7 @@ def test_non_returning_dml_keeps_rowcount(backend):
     query = "INSERT INTO places VALUES (1), (2)"
     if backend == "postgis":
         connector = PostGISConnector.__new__(PostGISConnector)
+        connector._opened_connection = True
         connector.connection = MagicMock()
         cursor = connector.connection.cursor.return_value
         cursor.description = None
