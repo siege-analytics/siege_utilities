@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Database JSON configs now normalize password environment-variable names and
+  log the chosen name; loading raises for unset variables or invalid password
+  references, without echoing the rejected value. Spark JDBC options retain
+  connection parameters and map PostgreSQL `ssl_mode` to `sslmode`, preventing a
+  security-relevant silent TLS downgrade. JDBC URLs preserve hosts (including
+  bracketed IPv6) and consistently encode database path segments with `%20` for
+  spaces. Hosts are now validated rather than percent-encoded: a hostname, IPv4
+  address, or (optionally bracketed) IPv6 literal is accepted and a bare IPv6
+  literal is bracketed. IPv6 literals are validated with `IPv6Address`; hosts
+  containing a port, trailing newline, or URL-structural characters raise
+  `ValueError`, closing JDBC URL injection through the host. Ports accept only
+  integers or strings of 1 to 5 ASCII digits in range 1-65535, reject booleans,
+  and are interpolated as validated integers. Conflicting `ssl_mode` and
+  `sslmode` connection parameters raise instead of overriding the requested
+  TLS mode. Core Spark options
+  (`url`, `driver`, `user`, `password`) are applied last so `connection_params`
+  cannot shadow them, and a non-PostgreSQL `ssl_mode` now raises rather than
+  being forwarded as an ignored literal key (set the driver's own TLS option in
+  `spark_options` instead) (#1476).
+
 - `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
   `48-49` and excludes the `10` all-industry total that caused double-counting,
   along with supersector aggregates. **Behavior change:** `parse()` and
