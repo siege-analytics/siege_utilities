@@ -121,6 +121,42 @@ def _sanitize_value(value: Any, *, path: str, ancestors: set[int], top_level: bo
 # ---------------------------------------------------------------------------
 
 
+class _SecretRedactionMixin:
+    """Connector-boundary redaction of the instance's own configured secret
+    values.
+
+    Diagnostic text only -- exception messages/reprs, log records, and
+    UpsertResult/UpsertError reprs. NEVER applied to outgoing request payloads,
+    URLs, or headers (those must stay byte-identical; see #1846 B2 item 4).
+    """
+
+    _SECRET_ATTRS = (
+        "_client_secret", "_access_token", "_refresh_token", "_password", "_api_key",
+    )
+
+    def _secret_values(self) -> list[str]:
+        values: list[str] = []
+        for attr in self._SECRET_ATTRS:
+            value = getattr(self, attr, None)
+            if isinstance(value, str) and value:
+                values.append(value)
+        session = getattr(self, "_session", None)
+        headers = getattr(session, "headers", None)
+        if headers is not None:
+            for header in ("Authorization", "X-Api-Key"):
+                try:
+                    raw = headers.get(header)
+                except Exception:
+                    raw = None
+                if isinstance(raw, str) and raw:
+                    values.append(raw[7:] if raw[:7].lower() == "bearer " else raw)
+        return values
+
+    def _redact(self, text: object) -> str:
+        """Key-based plus configured-value redaction for diagnostic text."""
+        return redact_secrets(str(text), values=self._secret_values())
+
+
 class ConnectorError(Exception):
     """Base for all connector errors."""
 

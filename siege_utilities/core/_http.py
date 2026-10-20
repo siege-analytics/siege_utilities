@@ -1,8 +1,9 @@
 """Internal helpers for safe HTTP diagnostics."""
 
+import json
 import re
 from collections.abc import Iterator
-from urllib.parse import unquote, unquote_plus
+from urllib.parse import quote, quote_plus, unquote, unquote_plus
 
 from ._sensitivity import SECRET_FIELD_NAME
 
@@ -103,7 +104,7 @@ _SECRET_HEADERS = (
 )
 _SECRET_FIELDS = (
     "client_secret|refresh_token|access_token|token|password|assertion|"
-    "client_assertion|code|secret|private_key"
+    "client_assertion|code|secret|private_key|api_key|apikey|api-key|x-api-key|key"
 )
 _QUOTED_SECRET = re.compile(
     r"(?P<prefix>(?<![\w-])(?P<key_quote>[\"'])"
@@ -122,11 +123,18 @@ _FORM_SECRET = re.compile(
 _BEARER_SECRET = re.compile(r"(\bBearer\s+)[^\s,'\"<>{}]+", re.IGNORECASE)
 
 
-def redact_secrets(text: str, *, replacement: str = "[REDACTED]") -> str:
+def redact_secrets(text: str, *, replacement: str = "[REDACTED]", values=()) -> str:
     """Redact URL, header, bearer, form and quoted JSON secret values.
 
     Keep non-sensitive fields intact. Quoted pairs also cover Python mapping
     diagnostics; escaped quotes in JSON values do not terminate the secret.
+
+    ``values`` are the caller's configured secret values (access/refresh token,
+    client secret, API key, password). After key-based redaction, each such
+    value is replaced verbatim and in its URL/JSON-encoded forms, so an upstream
+    body that echoes the secret without a recognised field name is still
+    redacted. This is diagnostic-text redaction only: never call it on an
+    outgoing request payload, URL, or header.
     """
     text = redact_url_secrets(text, replacement=replacement)
     text = _QUOTED_SECRET.sub(
@@ -134,4 +142,31 @@ def redact_secrets(text: str, *, replacement: str = "[REDACTED]") -> str:
     )
     for pattern in (_HEADER_SECRET, _FORM_SECRET, _BEARER_SECRET):
         text = pattern.sub(lambda m: m[1] + replacement, text)
+    for secret in _expand_secret_values(values):
+        text = text.replace(secret, replacement)
     return text
+
+
+_MIN_SECRET_VALUE_LEN = 8
+
+
+def _expand_secret_values(values) -> list[str]:
+    """Literal forms of each configured secret value to redact.
+
+    For each value of at least ``_MIN_SECRET_VALUE_LEN`` characters, include the
+    value itself plus its ``quote(safe='')``, ``quote_plus`` and JSON-escaped
+    forms when they differ. Longest first, so a longer form is replaced before
+    any shorter substring of it. Empty or very short values are skipped so a
+    common short string cannot blank out diagnostics.
+    """
+    forms: set[str] = set()
+    for value in values or ():
+        if not isinstance(value, str):
+            value = str(value)
+        if len(value) < _MIN_SECRET_VALUE_LEN:
+            continue
+        forms.add(value)
+        for encoded in (quote(value, safe=""), quote_plus(value), json.dumps(value)[1:-1]):
+            if encoded and encoded != value:
+                forms.add(encoded)
+    return sorted(forms, key=len, reverse=True)

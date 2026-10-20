@@ -41,6 +41,7 @@ from siege_utilities.connectors._protocol import (
     ConnectorError,
     ConnectorNotFoundError,
     UpsertResult,
+    _SecretRedactionMixin,
     sanitize_record,
 )
 from siege_utilities.connectors._retry import (
@@ -274,7 +275,7 @@ def _soql_literal(value: Any) -> str:
     return f"'{escaped}'"
 
 
-class SalesforceConnector:
+class SalesforceConnector(_SecretRedactionMixin):
     """Salesforce CRM connector implementing ConnectorProtocol.
 
     Usage (Username-Password Flow)::
@@ -1236,7 +1237,7 @@ class SalesforceConnector:
             except ValueError:
                 error = redact_secrets(resp.text)[:200]
             raise ConnectorAuthError(
-                f"Salesforce auth failed ({resp.status_code}): {redact_secrets(str(error))}"
+                f"Salesforce auth failed ({resp.status_code}): {self._redact(error)}"
             )
 
         data = resp.json()
@@ -1313,7 +1314,7 @@ class SalesforceConnector:
                 ) from requests.exceptions.InvalidJSONError(encoding_failure)
 
             if resp.status_code in (401, 403):
-                error_msg = redact_secrets(str(self._extract_error(resp)))
+                error_msg = self._redact(self._extract_error(resp))
                 raise ConnectorAuthError(
                     f"Salesforce {resp.status_code}: {error_msg}"
                 )
@@ -1347,7 +1348,7 @@ class SalesforceConnector:
                 return {}
 
             if not (200 <= resp.status_code < 300):
-                error_msg = redact_secrets(str(self._extract_error(resp)))
+                error_msg = self._redact(self._extract_error(resp))
                 raise ConnectorError(
                     f"Salesforce {resp.status_code}: {error_msg}"
                 )

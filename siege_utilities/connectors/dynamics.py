@@ -44,6 +44,7 @@ from siege_utilities.connectors._protocol import (
     ConnectorError,
     ConnectorNotFoundError,
     UpsertResult,
+    _SecretRedactionMixin,
     sanitize_record,
 )
 from siege_utilities.connectors._query_utils import _validate_identifier
@@ -106,7 +107,7 @@ def _odata_string_literal(value: Any) -> str:
     return "'" + str(value).replace("'", "''") + "'"
 
 
-class DynamicsConnector:
+class DynamicsConnector(_SecretRedactionMixin):
     """Microsoft Dynamics 365 connector implementing ConnectorProtocol.
 
     Usage (App-Only / Client Credentials)::
@@ -716,7 +717,7 @@ class DynamicsConnector:
 
     def _raise_batch_control_error(self, status: int, headers: Mapping[str, str], body: str) -> None:
         if status in (401, 403):
-            raise ConnectorAuthError(f"Dynamics {status}: {redact_secrets(body)[:200]}")
+            raise ConnectorAuthError(f"Dynamics {status}: {self._redact(body)[:200]}")
         if status == 429:
             raise rate_limit_error(
                 headers, "Dynamics rate limit hit on POST $batch.", self._retry_backoff,
@@ -828,7 +829,7 @@ class DynamicsConnector:
             raise ConnectorAuthError(f"Dynamics token request failed: {failure}")
         if "access_token" not in result:
             error = result.get("error_description", result.get("error", "Unknown error"))
-            raise ConnectorAuthError(f"Dynamics 365 client credentials auth failed: {redact_secrets(str(error))}")
+            raise ConnectorAuthError(f"Dynamics 365 client credentials auth failed: {self._redact(error)}")
         self._set_token(result)
         log.info("Authenticated via client credentials (env: %s)", self._environment_url)
 
@@ -848,7 +849,7 @@ class DynamicsConnector:
             raise ConnectorAuthError(f"Dynamics token request failed: {failure}")
         if "access_token" not in result:
             error = result.get("error_description", result.get("error", "Unknown error"))
-            raise ConnectorAuthError(f"Dynamics 365 user auth failed: {redact_secrets(str(error))}")
+            raise ConnectorAuthError(f"Dynamics 365 user auth failed: {self._redact(error)}")
         self._set_token(result)
         log.info("Authenticated via username/password (env: %s)", self._environment_url)
 
@@ -929,7 +930,7 @@ class DynamicsConnector:
                 ) from requests.exceptions.InvalidJSONError(encoding_failure)
 
             if resp.status_code in (401, 403):
-                error_msg = redact_secrets(str(self._extract_error(resp)))
+                error_msg = self._redact(self._extract_error(resp))
                 raise ConnectorAuthError(f"Dynamics {resp.status_code}: {error_msg}")
 
             if resp.status_code == 429:
@@ -962,7 +963,7 @@ class DynamicsConnector:
                 return {}
 
             if not (200 <= resp.status_code < 300):
-                error_msg = redact_secrets(str(self._extract_error(resp)))
+                error_msg = self._redact(self._extract_error(resp))
                 raise ConnectorError(f"Dynamics {resp.status_code}: {error_msg}")
 
             try:

@@ -37,6 +37,7 @@ from siege_utilities.connectors._protocol import (
     ConnectorNotFoundError,
     ConnectorRateLimitError,
     UpsertResult,
+    _SecretRedactionMixin,
     sanitize_record,
 )
 from siege_utilities.connectors._query_utils import _validate_identifier
@@ -131,7 +132,7 @@ def _lookup_id(record: dict[str, Any], field: str) -> str | None:
     return str(value) if value is not None else None
 
 
-class ZohoConnector:
+class ZohoConnector(_SecretRedactionMixin):
     """Zoho CRM connector implementing ConnectorProtocol.
 
     Usage (Self-Client)::
@@ -737,7 +738,7 @@ class ZohoConnector:
             except ValueError:
                 error = redact_secrets(resp.text)[:200]
             raise ConnectorAuthError(
-                f"Zoho auth failed ({resp.status_code}): {redact_secrets(str(error))}"
+                f"Zoho auth failed ({resp.status_code}): {self._redact(error)}"
             )
 
         data = resp.json()
@@ -804,7 +805,7 @@ class ZohoConnector:
                 ) from requests.exceptions.InvalidJSONError(encoding_failure)
 
             if resp.status_code in (401, 403):
-                error_msg = redact_secrets(str(self._extract_error(resp)))
+                error_msg = self._redact(self._extract_error(resp))
                 raise ConnectorAuthError(f"Zoho {resp.status_code}: {error_msg}")
 
             if resp.status_code == 429:
@@ -834,7 +835,7 @@ class ZohoConnector:
                 return {}
 
             if not (200 <= resp.status_code < 300):
-                error_msg = redact_secrets(str(self._extract_error(resp)))
+                error_msg = self._redact(self._extract_error(resp))
                 raise ConnectorError(f"Zoho {resp.status_code}: {error_msg}")
 
             try:

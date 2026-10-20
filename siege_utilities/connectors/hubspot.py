@@ -43,6 +43,7 @@ from siege_utilities.connectors._protocol import (
     ConnectorNotFoundError,
     ConnectorRateLimitError,
     UpsertResult,
+    _SecretRedactionMixin,
     sanitize_record,
 )
 
@@ -94,7 +95,7 @@ DEFAULT_PROPERTIES: dict[str, list[str]] = {
 __all__ = ["HubSpotConnector"]
 
 
-class HubSpotConnector:
+class HubSpotConnector(_SecretRedactionMixin):
     """HubSpot CRM connector implementing ConnectorProtocol.
 
     Usage (Private App)::
@@ -744,7 +745,7 @@ class HubSpotConnector:
             except ValueError:
                 error = redact_secrets(resp.text)[:200]
             raise ConnectorAuthError(
-                f"HubSpot auth failed ({resp.status_code}): {redact_secrets(str(error))}"
+                f"HubSpot auth failed ({resp.status_code}): {self._redact(error)}"
             )
 
         data = resp.json()
@@ -810,7 +811,7 @@ class HubSpotConnector:
                 ) from requests.exceptions.InvalidJSONError(encoding_failure)
 
             if resp.status_code in (401, 403):
-                error_msg = redact_secrets(str(self._extract_error(resp)))
+                error_msg = self._redact(self._extract_error(resp))
                 raise ConnectorAuthError(f"HubSpot {resp.status_code}: {error_msg}")
 
             if resp.status_code == 429:
@@ -840,7 +841,7 @@ class HubSpotConnector:
                 return {}
 
             if not (200 <= resp.status_code < 300):
-                error_msg = redact_secrets(str(self._extract_error(resp)))
+                error_msg = self._redact(self._extract_error(resp))
                 raise ConnectorError(f"HubSpot {resp.status_code}: {error_msg}")
 
             try:
