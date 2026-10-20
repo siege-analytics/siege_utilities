@@ -111,6 +111,8 @@ def test_b3_returning_commits_only_after_crs_validation(postgis_pair):
 @pytest.mark.parametrize("operation", ["INSERT", "DELETE", "UPDATE", "MERGE"])
 def test_r2_1_mutating_cte_rows_match_durable_state_after_close(postgis_pair, operation):
     connector, observer, table = postgis_pair
+    if operation == "MERGE" and observer.server_version < 170000:
+        pytest.skip("MERGE ... RETURNING requires PostgreSQL 17+")
     with observer.cursor() as cursor:
         cursor.execute(f"INSERT INTO {table} VALUES (7, ST_SetSRID(ST_Point(1,2),4326))")
     bodies = {
@@ -177,9 +179,10 @@ def test_r2_1_owned_volatile_select_rolls_back_on_decode_error(volatile_insert):
         assert cursor.fetchall() == []
 
 
-def test_beta_caller_for_update_commits_under_write_token_classifier(postgis_pair):
+def test_beta_caller_for_update_retains_lock_without_commit(postgis_pair):
     from unittest.mock import MagicMock
-    from psycopg2.extensions import TRANSACTION_STATUS_IDLE
+    from psycopg2.errors import LockNotAvailable
+    from psycopg2.extensions import TRANSACTION_STATUS_INTRANS
 
     connector, observer, table = postgis_pair
     connection = connector.connection
@@ -190,9 +193,12 @@ def test_beta_caller_for_update_commits_under_write_token_classifier(postgis_pai
         cursor.execute("BEGIN")
     result = connector.execute_spatial_query(f"SELECT * FROM {table} WHERE id=7 FOR UPDATE")
     assert result.id.tolist() == [7]
-    assert connection.get_transaction_status() == TRANSACTION_STATUS_IDLE
-    connector.connection.commit.assert_called_once()
+    connector.connection.commit.assert_not_called()
     connector.connection.rollback.assert_not_called()
+    assert connection.get_transaction_status() == TRANSACTION_STATUS_INTRANS
+    with observer.cursor() as cursor, pytest.raises(LockNotAvailable):
+        cursor.execute(f"SELECT id FROM {table} WHERE id=7 FOR UPDATE NOWAIT")
+    connection.commit()
     with observer.cursor() as cursor:
         cursor.execute(f"SELECT id FROM {table} WHERE id=7 FOR UPDATE NOWAIT")
         assert cursor.fetchall() == [(7,)]

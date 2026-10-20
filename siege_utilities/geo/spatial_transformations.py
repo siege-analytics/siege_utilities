@@ -523,8 +523,11 @@ class PostGISConnector:
             if owns_transaction:
                 # SELECT can invoke volatile functions that write data.
                 self.connection.commit()
-            elif _postgis_has_dml(query):
+            elif not query.strip().upper().startswith('SELECT') and _postgis_has_dml(query):
                 # Preserve develop's commit behavior for caller-owned writes.
+                # A SELECT-prefixed statement (including FOR UPDATE / FOR SHARE and
+                # volatile-function SELECT) is never committed here, matching develop's
+                # read_postgis path, so the caller keeps its transaction and row locks.
                 self.connection.commit()
             log.info("Successfully executed PostGIS query")
             return result

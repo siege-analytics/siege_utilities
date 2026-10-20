@@ -13,6 +13,57 @@ from siege_utilities.geo.spatial_transformations import (
 )
 
 
+@pytest.mark.parametrize("query, should_commit", [
+    ("SELECT * FROM t FOR UPDATE", False),
+    ("SELECT * FROM t FOR NO KEY UPDATE", False),
+    ("SELECT * FROM t FOR SHARE", False),
+    ("SELECT * FROM t FOR KEY SHARE", False),
+    ("SELECT * FROM t for /* lock */ no key update", False),
+    ("SELECT * FROM t FOR UPDATE; SELECT * FROM t FOR NO KEY UPDATE", False),
+    ("SELECT * FROM t FOR UPDATE; UPDATE t SET id=8", False),
+    ("UPDATE t SET id=8", True),
+    ("WITH locked AS (SELECT * FROM t FOR UPDATE) UPDATE t SET id=8", True),
+])
+def test_caller_owned_select_prefixed_row_locks_do_not_commit(query, should_commit):
+    """Design A, develop parity. On a caller-owned connection, a SELECT-prefixed
+    statement (FOR UPDATE / FOR SHARE, or a SELECT ...; UPDATE multi-statement) is
+    never committed, so the caller keeps its transaction and row locks; a
+    non-SELECT-prefixed write commits as develop does."""
+    from unittest.mock import MagicMock
+
+    connector = PostGISConnector.__new__(PostGISConnector)
+    connector._opened_connection = False
+    connector.connection = MagicMock()
+    connector.connection.get_transaction_status.return_value = 2
+    cursor = connector.connection.cursor.return_value
+    cursor.description = [("id",)]
+    cursor.fetchall.return_value = [(7,)]
+    connector.execute_spatial_query(query)
+    if should_commit:
+        connector.connection.commit.assert_called_once()
+    else:
+        connector.connection.commit.assert_not_called()
+    connector.connection.rollback.assert_not_called()
+
+
+@pytest.mark.parametrize("connector_type", [PostGISConnector, DuckDBConnector])
+def test_characterization_caller_owned_close_delegates_to_driver(connector_type):
+    """Document, without endorsing, develop's caller-owned close behavior."""
+    from unittest.mock import MagicMock, call
+
+    connector = connector_type.__new__(connector_type)
+    connector._opened_connection = False
+    connection = MagicMock()
+    connector.connection = connection
+
+    connector.close()
+
+    connection.commit.assert_not_called()
+    connection.rollback.assert_not_called()
+    assert connection.mock_calls == [call.close()]
+    assert connector.connection is None
+
+
 @pytest.fixture
 def duck_connector():
     duckdb = pytest.importorskip("duckdb")
