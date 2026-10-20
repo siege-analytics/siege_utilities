@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- CRM deduplication now skips entire frames missing a required source column
+  and ignores null name parts. Canonical IDs include normalized strong
+  identifiers (`identifier_columns`, default `["email"]`), so namesakes with
+  different emails remain distinct. Identifier-aware IDs change from the
+  previous name-only IDs; callers persisting merge tables should regenerate
+  them. Name-only matching retains its previous IDs with confidence `0.5`
+  for full names and `0.25` when any configured name part is missing, including
+  surname-only rows; full confidence requires identifier evidence. Textual
+  null identifiers (`nan`, `none`, `null`, `<na>`, `nat`) are ignored after
+  stripping and casefolding, matching whole tokens only (#1416).
 - `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
   `48-49` and excludes the `10` all-industry total that caused double-counting,
   along with supersector aggregates. **Behavior change:** `parse()` and
