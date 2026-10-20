@@ -51,6 +51,33 @@ def test_fixture_narrative_never_promises_live_or_current_results():
         assert not re.search(r"\b(live|current|last\s+7\s+days)\b", text), index
 
 
+def test_inbound_references_describe_analytics_02_as_offline():
+    # Notebooks and docs that link to analytics/02 must not advertise it as a
+    # live, weekly, or full-pipeline GA digest: it is an offline fixed-date demo
+    # (#1662). The credential table must not list it under a credential it never
+    # uses.
+    root = Path(__file__).resolve().parents[1]
+    forbidden = re.compile(r"\bweekly\b|\blive\b|\bships\b|full ga pipeline")
+    for rel in (
+        "notebooks/analytics/01_connectors.ipynb",
+        "notebooks/reports/01_charts_and_pdf.ipynb",
+    ):
+        notebook = nbformat.read(root / rel, as_version=4)
+        for cell in notebook.cells:
+            if cell.cell_type != "markdown" or "analytics/02" not in cell.source:
+                continue
+            for line in cell.source.splitlines():
+                if "analytics/02" in line:
+                    assert not forbidden.search(line.lower()), (rel, line)
+    doc = (root / "docs/NOTEBOOKS.md").read_text(encoding="utf-8")
+    credential_rows = [
+        line
+        for line in doc.splitlines()
+        if "GOOGLE_APPLICATION_CREDENTIALS" in line and "analytics/02" in line
+    ]
+    assert not credential_rows, credential_rows
+
+
 @pytest.mark.parametrize("credentials_present", [False, True])
 def test_fixture_ignores_credentials_and_labels_fixed_comparison(
     credentials_present, tmp_path, monkeypatch, capsys
