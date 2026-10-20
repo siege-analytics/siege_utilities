@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `notebooks/analytics/01_connectors.ipynb` no longer advertises live
+  Google Analytics / Snowflake queries while only initializing the
+  connectors and always returning a hardcoded fixture. The notebook now
+  has an explicitly opted-in credentialed path (GA4 when
+  `GOOGLE_APPLICATION_CREDENTIALS` and `GA_PROPERTY_ID` are set, else a
+  configured Snowflake rollup) that issues the real `get_ga4_data` /
+  `execute_query` calls over the previous two complete Monday-through-Sunday
+  weeks and fails visibly on a missing property or query error, and an offline
+  path whose output is clearly labelled an illustrative fixture. Empty or
+  malformed live results
+  fail rather than silently becoming the fixture: missing dates and null or
+  non-finite session counts raise before grouping. The offline fixture also
+  covers two full weeks, keeping week-over-week comparisons aligned. Adds
+  `tests/test_1661_notebook_connector_truth.py` asserting the promised
+  branch behavior (#1661).
+
 - `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
   `48-49` and excludes the `10` all-industry total that caused double-counting,
   along with supersector aggregates. **Behavior change:** `parse()` and
