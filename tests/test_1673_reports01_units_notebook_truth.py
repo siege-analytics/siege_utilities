@@ -103,12 +103,12 @@ def test_growth_matches_counts_on_every_report_surface(report_inputs: dict[str, 
 
 
 def test_pdf_table_renders_counts(monkeypatch):
+    # Skip only when ReportLab is genuinely absent (the minimal lane). When it is
+    # installed, a missing report_generator.Table is a real regression and must
+    # FAIL, not skip -- a bare `Table is None` skip masked that (#1673 r2).
+    pytest.importorskip("reportlab")
     import siege_utilities.reporting.report_generator as rgmod
-    if rgmod.Table is None:
-        pytest.skip(
-            "report_generator.Table requires ReportLab, which is absent in the "
-            "minimal (geo without GDAL) lane; install reportlab to run this test"
-        )
+    assert rgmod.Table is not None, "ReportLab installed but Table unavailable"
     rendered = []
 
     class Spy(rgmod.Table):
