@@ -18,7 +18,7 @@ import json
 import logging
 import pathlib
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Mapping
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -181,11 +181,19 @@ class InstagramConnector:
         end_date: date,
         metrics: list[str] | None = None,
     ) -> pd.DataFrame:
-        """Time-series account-level metrics (daily granularity)."""
+        """Daily account metrics for an inclusive UTC date window.
+
+        Rows are labelled with the calendar day covered by each daily
+        insight, one day before its end-of-period ``end_time`` date.
+        """
         self._ensure_connected()
         metric_str = ",".join(metrics) if metrics else DEFAULT_ACCOUNT_METRICS
-        since_ts = int(datetime.combine(start_date, datetime.min.time()).timestamp())
-        until_ts = int(datetime.combine(end_date, datetime.max.time()).timestamp())
+        since_ts = int(datetime.combine(
+            start_date, datetime.min.time(), tzinfo=timezone.utc,
+        ).timestamp())
+        until_ts = int(datetime.combine(
+            end_date, datetime.max.time(), tzinfo=timezone.utc,
+        ).timestamp())
 
         data = self._request("GET", f"/{self._ig_user_id}/insights", params={
             "metric": metric_str,
@@ -199,7 +207,15 @@ class InstagramConnector:
             metric_name = metric_block["name"]
             for value_entry in metric_block.get("values", []):
                 end_time = value_entry.get("end_time", "")
-                dt = end_time[:10] if end_time else ""
+                # For period=day, end_time marks the following midnight,
+                # ending the measured day. Keep the marker's calendar date
+                # (without host/UTC conversion) and label the preceding day.
+                dt = ""
+                if end_time:
+                    covered_day = (
+                        date.fromisoformat(end_time[:10]) - timedelta(days=1)
+                    )
+                    dt = covered_day.isoformat()
                 existing = next((r for r in rows if r["date"] == dt), None)
                 if existing:
                     existing[metric_name] = value_entry.get("value", 0)

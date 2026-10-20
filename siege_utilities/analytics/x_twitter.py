@@ -20,7 +20,7 @@ import json
 import logging
 import pathlib
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any, Mapping
 
 import pandas as pd
@@ -210,8 +210,9 @@ class XTwitterConnector:
 
         X API v2 does not provide historical time-series for account
         metrics. This returns a single-row DataFrame with the current
-        public_metrics as a point-in-time snapshot. For trend analysis,
-        call periodically and store results externally.
+        public_metrics as a point-in-time snapshot labelled with the UTC
+        date. For trend analysis, call periodically and store results
+        externally.
         """
         self._ensure_connected()
         info = self.get_account_info()
@@ -219,7 +220,7 @@ class XTwitterConnector:
             "followers_count", "following_count", "tweet_count",
             "listed_count", "like_count",
         ]
-        row = {"date": str(date.today())}
+        row = {"date": datetime.now(timezone.utc).date().isoformat()}
         for k in metric_keys:
             row[k] = info.get(k, 0)
         return pd.DataFrame([row])
