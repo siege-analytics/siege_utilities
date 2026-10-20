@@ -107,7 +107,7 @@ not credentials are present.
 | `DW_AUTH_TOKEN` | `analytics/01` | Call shape printed |
 | RDH API | `spatial/04` | Synthetic stand-in polygons with call shape in comments |
 | Azure Databricks workspace | `engines/03` | Pure-Python URL / SQL builder cells run; cluster-dependent cells conceptual |
-| Local PostGIS | `spatial/06` | Schematic GeoDjango call shapes; only the import smoke cell executes |
+| Local PostGIS | `spatial/06` | Schematic GeoDjango call shapes; markdown-only, no code cells execute |
 
 ## Why `engines/02` and `spatial/06` don't execute their primary cells
 
@@ -115,8 +115,9 @@ Local Spark inside nbconvert is fragile (JVM startup, Py4J gateway lifetime,
 serializer registration). Likewise a Django + PostGIS server spun up inside a
 notebook is unsafe to provision from CI. Both notebooks are schematic: their
 Spark/Sedona and GeoDjango sections document call shapes, not runnable copy-paste
-recipes. Only an import smoke cell executes in each notebook. The documented
-patterns require separately configured runtimes, data, and services.
+recipes. engines/02 executes only an import smoke cell; spatial/06 is markdown-only
+and has no code cells to execute. The documented patterns require separately
+configured runtimes, data, and services.
 
 ## Inventory, capability coverage, and CI truth checks
 

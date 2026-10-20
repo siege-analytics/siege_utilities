@@ -25,6 +25,23 @@ def test_notebooks_doc_drops_copy_paste_promise_for_engines_02():
     assert "copy-pasteable" not in doc
 
 
+def test_notebooks_doc_marks_spatial_06_markdown_only():
+    # spatial/06 has zero code cells, so NOTEBOOKS.md must not claim it runs an
+    # import smoke cell (unlike engines/02, which does). Keep the doc truthful so
+    # it also agrees with #1786's markdown-only description.
+    doc = (Path(__file__).resolve().parents[1] / "docs/NOTEBOOKS.md").read_text(encoding="utf-8")
+    spatial06 = [line for line in doc.splitlines() if "spatial/06" in line]
+    assert spatial06, "NOTEBOOKS.md should mention spatial/06"
+    assert all("import smoke cell executes" not in line for line in spatial06), (
+        "NOTEBOOKS.md claims spatial/06 executes an import smoke cell, but it has "
+        "zero code cells"
+    )
+    assert any(
+        "markdown-only" in line.lower() or "no code cells" in line.lower()
+        for line in spatial06
+    ), "NOTEBOOKS.md should describe spatial/06 as markdown-only with no code cells"
+
+
 def test_sedona_sql_is_labeled_schematic(
     notebook: nbformat.NotebookNode,
 ) -> None:
