@@ -37,6 +37,8 @@ from typing import Dict, List, Optional, Union, TYPE_CHECKING
 
 import pandas as pd
 
+from ..place_history import _raise_for_ct_2022_crossing
+
 if TYPE_CHECKING:
     import geopandas as gpd
 
@@ -245,7 +247,15 @@ def _normalize_boundaries_multi_year(
 
     Returns:
         Dictionary with normalized DataFrames
+
+    Raises:
+        ValueError: CT county-equivalent or descendant data would cross the
+            unsupported 2022 planning-region recode to reach target_year.
     """
+    # Check before decennial-vintage equality can bypass normalization.
+    for year, df in yearly_data.items():
+        _raise_for_ct_2022_crossing(df.get('GEOID', ()), year, target_year)
+
     from ..crosswalk.crosswalk_processor import apply_crosswalk
 
     normalized = {}
@@ -308,6 +318,8 @@ def _get_boundary_year(data_year: int) -> int:
     ACS and other surveys use the boundaries from the most recent decennial:
     - 2010-2019 data uses 2010 boundaries
     - 2020+ data uses 2020 boundaries
+
+    The CT 2022 recode is guarded separately by _normalize_boundaries_multi_year.
 
     Args:
         data_year: Year of the data
