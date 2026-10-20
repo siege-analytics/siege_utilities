@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Narrow the engines/01 notebook's teaching claim to result parity across
+  pandas and DuckDB using different query implementations. Keep the existing
+  queries and results comparison, with a regression test for the claim. Correct
+  the synthetic data description to 5 TX counties and test it against the
+  generator (#1663).
+
 - `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
   `48-49` and excludes the `10` all-industry total that caused double-counting,
   along with supersector aggregates. **Behavior change:** `parse()` and
