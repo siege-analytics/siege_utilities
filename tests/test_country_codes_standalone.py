@@ -88,5 +88,5 @@ def test_standalone_concatenate_addresses_coerces_realistic_components():
         postal_code=78701,
         country="US",
     ) == "123 Main St, Austin, TX, 78701, US"
-    assert geocoding.concatenate_addresses(postal_code=0) == "0"
+    assert geocoding.concatenate_addresses(postal_code=0) == "00000"
     assert geocoding.concatenate_addresses(street="", city="   ", postal_code=None) == ""

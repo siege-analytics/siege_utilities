@@ -82,5 +82,5 @@ def test_concatenate_addresses_coerces_realistic_components():
     assert concatenate_addresses(
         street=" 123 Main St ", city="Austin", state_province_area="TX", postal_code=78701, country="US"
     ) == "123 Main St, Austin, TX, 78701, US"
-    assert concatenate_addresses(postal_code=0) == "0"
+    assert concatenate_addresses(postal_code=0) == "00000"
     assert concatenate_addresses(street="", city="   ", postal_code=None) == ""

@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Migration:** `GeocodingResult.input_id` is now always `str` for dictionary
+  inputs on Nominatim, TAMU, and composite geocoders. Callers keyed on integer
+  IDs must key on `str(id)` (#1526).
+
 ### Fixed
+
+- Batch geocoder normalization now restores leading zeros in numeric ZIPs,
+  preserves string ZIPs (including ZIP+4), converts dictionary fields to strings,
+  and treats NaN/None and pandas NA/NaT as empty values. Numeric ZIP+4 values
+  are padded to nine digits; invalid numeric ZIPs (negative, fractional,
+  boolean, non-finite, or over nine digits) become empty values. The public
+  Census `geocode_batch` / `geocode_batch_chunked` dictionary path uses the
+  same normalization. Mixed address lists and non-string
+  `AddressInput.one_line` components no longer crash. Nominatim and TAMU query
+  construction failures now produce one unmatched row instead of aborting the
+  whole batch and causing the composite geocoder to silently drop the backend.
+  Per-row failures are reported in `BatchGeocodingResult.errors` by input ID
+  and exception type, without address text; the composite preserves backend
+  errors. `concatenate_addresses` also skips missing components and normalizes
+  numeric postal codes. Directly constructed `AddressInput` objects normalize
+  their ZIP codes (#1526).
 
 - `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
   `48-49` and excludes the `10` all-industry total that caused double-counting,

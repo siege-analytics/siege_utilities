@@ -30,6 +30,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, TYPE_CHECKING
 
+from ..geocoding_core import _normalize_address_field
+
 if TYPE_CHECKING:
     import pandas as pd
 
@@ -337,6 +339,13 @@ def geocode_batch(
     if not addresses:
         return []
 
+    addresses = [
+        {
+            key: _normalize_address_field(addr.get(key, ""), zipcode=key == "zipcode")
+            for key in ("id", "street", "city", "state", "zipcode")
+        }
+        for addr in addresses
+    ]
     cg = _get_geocoder(vintage)
 
     # Build CSV for batch submission
