@@ -61,6 +61,7 @@ from .relationship_types import (
 from .crosswalk_client import (
     # Client class
     CrosswalkClient,
+    CrosswalkUnavailable,
     # Convenience functions
     get_crosswalk,
     get_crosswalk_client,
@@ -92,6 +93,7 @@ __all__ = [
     'GeographyChange',
     # Client
     'CrosswalkClient',
+    'CrosswalkUnavailable',
     'get_crosswalk',
     'get_crosswalk_client',
     'get_crosswalk_metadata',

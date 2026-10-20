@@ -54,6 +54,7 @@ __all__ = [
     'COUNTY_COLUMNS_2010_2020',
     'COLUMN_MAPPINGS',
     'CrosswalkClient',
+    'CrosswalkUnavailable',
     'get_crosswalk_client',
     'get_crosswalk',
     'get_crosswalk_metadata',
@@ -61,6 +62,15 @@ __all__ = [
 ]
 
 log = logging.getLogger(__name__)
+
+
+class CrosswalkUnavailable(ValueError):
+    """No crosswalk is configured for the requested years or geography.
+
+    Remains a ValueError for existing callers, while allowing alignment to
+    distinguish missing crosswalk coverage from corrupt data or processing bugs.
+    Download and parsing errors are not availability signals.
+    """
 
 
 # =============================================================================
@@ -186,7 +196,8 @@ class CrosswalkClient:
             - Additional metadata columns
 
         Raises:
-            ValueError: If year combination is not supported
+            CrosswalkUnavailable: If years or geography are unsupported, or no
+                crosswalk file is configured
             requests.RequestException: If download fails
         """
         # Normalize geography level
@@ -197,13 +208,13 @@ class CrosswalkClient:
         # Validate year combination
         year_pair = (source_year, target_year)
         if year_pair not in SUPPORTED_CROSSWALK_YEARS:
-            raise ValueError(
+            raise CrosswalkUnavailable(
                 f"Crosswalk not supported for {source_year}->{target_year}. "
                 f"Supported: {list(SUPPORTED_CROSSWALK_YEARS.keys())}"
             )
 
         if geo_level not in SUPPORTED_CROSSWALK_YEARS[year_pair]:
-            raise ValueError(
+            raise CrosswalkUnavailable(
                 f"Geography level '{geo_level}' not supported for {source_year}->{target_year}"
             )
 
@@ -372,7 +383,7 @@ class CrosswalkClient:
         file_path = file_patterns.get((source_year, target_year))
 
         if file_path is None:
-            raise ValueError(
+            raise CrosswalkUnavailable(
                 f"No crosswalk file available for {geography_level} "
                 f"{source_year}->{target_year}"
             )

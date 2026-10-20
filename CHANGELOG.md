@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `LongitudinalAligner.align` falls back to areal interpolation only when the
+  crosswalk client explicitly reports unavailable coverage. Other crosswalk
+  errors propagate unchanged. If areal interpolation also fails, alignment
+  raises with the transition and both causes instead of returning partial data;
+  callers should handle exceptions instead of checking `method="failed"` (#1408).
+
 - `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
   `48-49` and excludes the `10` all-industry total that caused double-counting,
   along with supersector aggregates. **Behavior change:** `parse()` and

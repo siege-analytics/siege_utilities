@@ -11,6 +11,8 @@ from shapely.geometry import Point, box
 from shapely.errors import GEOSException
 from geopandas.testing import assert_geodataframe_equal
 
+from siege_utilities.geo.crosswalk.crosswalk_client import CrosswalkUnavailable
+
 
 def test_to_geodataframe_decodes_hex_wkb_and_wkt():
     pytest.importorskip("duckdb")
@@ -297,7 +299,7 @@ def test_align_areal_carries_only_requested_variables(monkeypatch, source_vintag
     monkeypatch.setattr(
         spatial, "get_census_boundaries", lambda year, **kwargs: boundaries[year].copy(),
     )
-    unavailable = Mock(side_effect=FileNotFoundError("crosswalk unavailable"))
+    unavailable = Mock(side_effect=CrosswalkUnavailable("crosswalk unavailable"))
     monkeypatch.setattr(crosswalk, "apply_crosswalk", unavailable)
     interpolations = []
     interpolate = areal.interpolate_areal
