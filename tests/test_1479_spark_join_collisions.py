@@ -109,3 +109,24 @@ def test_pandas_multi_assign_keeps_unmatched_points_and_drops_named_index(pandas
     assert result["name"].tolist() == ["voter", "outside"]
     assert result.loc[1, ["cd_name", "sldu_name"]].isna().all()
     assert "polygon_row" not in result.columns
+
+
+@pytest.mark.requires_spark
+@pytest.mark.parametrize("method", ["spatial_join", "assign_boundaries"])
+def test_collision_rejection_does_not_retain_catalog_views(spark_engine, pandas_frames, method):
+    # A suffix collision must be rejected BEFORE any temp view is registered,
+    # so repeated rejected calls do not accumulate catalog views.
+    from pyspark.sql import functions as F
+
+    points, polygons = [spark_engine.from_geodataframe(frame) for frame in pandas_frames]
+    points = points.withColumn("name_left", F.lit("original"))
+    session = spark_engine._session
+
+    def temp_view_count():
+        return sum(1 for t in session.catalog.listTables() if t.isTemporary)
+
+    before = temp_view_count()
+    for _ in range(3):
+        with pytest.raises(ValueError, match="duplicate output column.*name_left"):
+            getattr(spark_engine, method)(points, polygons)
+    assert temp_view_count() == before

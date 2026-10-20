@@ -1165,11 +1165,41 @@ class DuckDBEngine(DataFrameEngine):
     ) -> Any:
         import pandas as pd
         if isinstance(left, pd.DataFrame) and isinstance(right, pd.DataFrame):
-            return left.merge(right, on=on, how=how)
+            suffixes = ("_x", "_y")
+            result = left.merge(right, on=on, how=how, suffixes=suffixes)
+            # pandas.merge drops DataFrame.attrs, where per-column geometry CRS
+            # lives. Re-attach it so a known CRS survives an attribute join,
+            # remapping any non-key column the merge suffixed.
+            merged_crs = self._merge_geometry_crs(left, right, result, on, suffixes)
+            if merged_crs:
+                result.attrs[_GEOMETRY_CRS_ATTR] = merged_crs
+            return result
         raise TypeError(
             "DuckDBEngine.join expects pandas DataFrames "
             "(use .query() with JOIN for pure-SQL workflows)"
         )
+
+    @staticmethod
+    def _merge_geometry_crs(
+        left: Any, right: Any, result: Any, on: Union[str, List[str]],
+        suffixes: tuple,
+    ) -> dict:
+        """Carry per-column geometry CRS across a pandas merge.
+
+        pandas.merge does not preserve ``DataFrame.attrs``, so the CRS map stored
+        by ``_materialize_geometry_wkb`` is lost. Rebuild it from both inputs,
+        applying the merge suffix to any non-key column present in both frames.
+        """
+        on_cols = {on} if isinstance(on, str) else set(on)
+        overlap = (set(left.columns) & set(right.columns)) - on_cols
+        merged: dict = {}
+        for frame, suffix in ((left, suffixes[0]), (right, suffixes[1])):
+            crs_map = frame.attrs.get(_GEOMETRY_CRS_ATTR, {})
+            for col, crs in crs_map.items():
+                new_col = f"{col}{suffix}" if col in overlap else col
+                if new_col in result.columns:
+                    merged[new_col] = crs
+        return merged
 
     # -- Spatial -----------------------------------------------------------
 
@@ -1724,24 +1754,30 @@ class SparkEngine(DataFrameEngine):
             )
         if how.lower() not in ("inner", "left", "right", "outer", "full"):
             raise ValueError(f"unsupported join type {how!r}")
-        # Unique per-call temp-view names so concurrent calls don't
-        # collide on a shared `_sjoin_left` and so a failed previous
-        # call doesn't leave stale state in the catalog. The returned
-        # DataFrame is lazy -- we can't drop the views in this scope.
         import uuid as _uuid
         tag = _uuid.uuid4().hex[:8]
         lv = f"_sjoin_left_{tag}"
         rv = f"_sjoin_right_{tag}"
+        st_func = f"ST_{predicate.capitalize()}"
+        # Compute the projection -- which rejects a suffix collision with a
+        # ValueError -- BEFORE registering any temp view, so a rejected join
+        # leaves nothing behind in the session catalog (#1479 B2). If building
+        # or analysing the SQL fails after the views are registered, drop them
+        # so repeated failures cannot accumulate catalog views.
+        projection = self._spatial_join_projection(left, right, left_geom, right_geom, "l", "r")
         left.createOrReplaceTempView(lv)
         right.createOrReplaceTempView(rv)
-        st_func = f"ST_{predicate.capitalize()}"
-        projection = self._spatial_join_projection(left, right, left_geom, right_geom, "l", "r")
-        sql = (
-            f"SELECT {projection} "
-            f"FROM {lv} l {how.upper()} JOIN {rv} r "
-            f"ON {st_func}(ST_GeomFromText(l.{left_geom}), ST_GeomFromText(r.{right_geom}))"
-        )
-        return self._session.sql(sql)
+        try:
+            sql = (
+                f"SELECT {projection} "
+                f"FROM {lv} l {how.upper()} JOIN {rv} r "
+                f"ON {st_func}(ST_GeomFromText(l.{left_geom}), ST_GeomFromText(r.{right_geom}))"
+            )
+            return self._session.sql(sql)
+        except Exception:
+            self._session.catalog.dropTempView(lv)
+            self._session.catalog.dropTempView(rv)
+            raise
 
     def _spatial_join_projection(self, left, right, left_geom, right_geom, left_alias, right_alias):
         """Keep the left geometry and apply the invariant's attribute suffixes."""
@@ -1947,15 +1983,23 @@ class SparkEngine(DataFrameEngine):
         tag = _uuid.uuid4().hex[:8]
         pv = f"_assign_pts_{tag}"
         poly_v = f"_assign_poly_{tag}"
+        # Reject a suffix collision before registering any temp view (#1479 B2),
+        # and drop the views if SQL analysis fails after registration so
+        # rejected calls cannot accumulate catalog views.
+        projection = self._spatial_join_projection(points, polygons, point_geom, polygon_geom, "p", "poly")
         points.createOrReplaceTempView(pv)
         broadcast(polygons).createOrReplaceTempView(poly_v)
-        projection = self._spatial_join_projection(points, polygons, point_geom, polygon_geom, "p", "poly")
-        return self._session.sql(
-            f"SELECT {projection} "
-            f"FROM {pv} p {how.upper()} JOIN {poly_v} poly "
-            f"ON ST_Contains(ST_GeomFromText(poly.{polygon_geom}), "
-            f"ST_GeomFromText(p.{point_geom}))"
-        )
+        try:
+            return self._session.sql(
+                f"SELECT {projection} "
+                f"FROM {pv} p {how.upper()} JOIN {poly_v} poly "
+                f"ON ST_Contains(ST_GeomFromText(poly.{polygon_geom}), "
+                f"ST_GeomFromText(p.{point_geom}))"
+            )
+        except Exception:
+            self._session.catalog.dropTempView(pv)
+            self._session.catalog.dropTempView(poly_v)
+            raise
 
     def multi_assign(self, points, boundary_layers, *, point_geom="geometry"):
         """Assign all layers lazily without collecting a Spark frame."""

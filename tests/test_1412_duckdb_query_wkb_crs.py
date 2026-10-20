@@ -172,3 +172,30 @@ def test_read_spatial_unknown_crs_is_not_defaulted(engine, stateplane_file):
     assert result.geometry.iloc[0].equals(Point(3000000, 10000000))
     with pytest.raises(ValueError, match="naive geometries"):
         engine.read_spatial(str(path), crs=4326)
+
+
+@pytest.mark.parametrize("epsg", [4326, 3857])
+def test_known_crs_survives_engine_attribute_join(typed_engine, epsg):
+    # A known per-column CRS lives in DataFrame.attrs; an ordinary attribute
+    # join must not drop it (fix-by-removal regression). The bare GEOMETRY /
+    # unknown-source case stays None and is covered separately.
+    spatial = typed_engine.query(
+        f"SELECT 1 AS pid, ST_Point(-97, 30)::GEOMETRY('EPSG:{epsg}') AS geometry"
+    )
+    joined = typed_engine.join(
+        spatial, pd.DataFrame({"pid": [1], "label": ["x"]}), on="pid"
+    )
+    result = typed_engine.to_geodataframe(joined)
+    assert result.crs is not None
+    assert result.crs.to_epsg() == epsg
+    assert list(result.columns) == ["pid", "geometry", "label"]
+    assert result.geometry.iloc[0].equals(Point(-97, 30))
+
+
+def test_unknown_crs_stays_none_through_engine_attribute_join(typed_engine):
+    spatial = typed_engine.query("SELECT 1 AS pid, ST_Point(-97, 30) AS geometry")
+    joined = typed_engine.join(
+        spatial, pd.DataFrame({"pid": [1], "label": ["x"]}), on="pid"
+    )
+    result = typed_engine.to_geodataframe(joined)
+    assert result.crs is None
