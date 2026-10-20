@@ -146,7 +146,9 @@ class _SecretRedactionMixin:
             for header in ("Authorization", "X-Api-Key"):
                 try:
                     raw = headers.get(header)
-                except Exception:
+                except (AttributeError, TypeError):
+                    # headers is not a real mapping (no/incompatible .get);
+                    # diagnostics must stay robust, so skip rather than raise.
                     raw = None
                 if isinstance(raw, str) and raw:
                     values.append(raw[7:] if raw[:7].lower() == "bearer " else raw)

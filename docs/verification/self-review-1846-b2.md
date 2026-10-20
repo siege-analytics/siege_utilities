@@ -69,3 +69,12 @@ Artifact: docs/verification/self-review-1846-b2.md
 First-added commit: this artifact is committed in the same (amended, never-pushed) B2 work commit, so its first-added commit IS the work commit (self-ancestor). The review was written pre-push, post-implementation.
 Work commit: the amended B2 implementation commit on fix/crm-cluster-1.
 Verification: `git merge-base --is-ancestor <work-commit> <work-commit>` → 0 (a commit is its own ancestor; artifact does not post-date the pushed head).
+
+## CI remediation addendum (ad9c6c03 → follow-up commit)
+
+CI run 39392473438 on ad9c6c03 was RED. Two static-guard failures, one shared with the test matrix:
+
+- **Exception-contract guard (shared cause).** `connectors/_protocol.py:149` `_SecretRedactionMixin._secret_values` wrapped `headers.get(header)` in a BROAD `except Exception` → `check_exception_contracts` reported `unlisted: 1`, failing `tests/guard/test_exception_contract_guard.py::test_converted_tree_has_zero_unlisted` in the `static guards`, `test (3.13)`, `test (3.14)` and `geo without GDAL` jobs. Fix: narrow to `except (AttributeError, TypeError)` — the only exceptions a non-mapping `headers` object raises; the `raw = None` fallback is kept so diagnostics never raise. Per the hub directive this is a genuine narrowing, not a blanket allowlist and not a registered exemption. Red-first reproduced locally (1 failed); after the fix `--list` reports `unlisted: 0` and the guard is 52 passed.
+- **Error-path coverage.** `connectors/_http.py` had error sites (1 `except` + 3 `raise`) but no error-path tests → `check_error_path_coverage.py` FAIL. Fix: add `tests/test_1846_connectors_http_error_paths.py` exercising `request_raw`'s 401/403 `ConnectorAuthError`, exhausted-5xx `ConnectorError`, 429-never-clears `ConnectorError`, and repeated-`RequestException` `ConnectorError` via `pytest.raises` (backoff pinned to 0). After: scanner reports `connectors/_http.py PASS`, `397 pass / 0 fail`; the 5 new tests pass.
+
+Regression: 775 passed across the b2 redaction, connector-secret-redaction, new connectors-http error-path, and connector ticket (#1417/#1436/#1427/#1428) suites — the narrowing is behavior-preserving for real mappings. The `test (3.13/3.14)` and `geo without GDAL` jobs shared the exception-contract guard as their cause (the `test (3.14)` log names it explicitly); CI on the new head confirms whether any non-shared failure remains.
