@@ -104,6 +104,11 @@ def test_growth_matches_counts_on_every_report_surface(report_inputs: dict[str, 
 
 def test_pdf_table_renders_counts(monkeypatch):
     import siege_utilities.reporting.report_generator as rgmod
+    if rgmod.Table is None:
+        pytest.skip(
+            "report_generator.Table requires ReportLab, which is absent in the "
+            "minimal (geo without GDAL) lane; install reportlab to run this test"
+        )
     rendered = []
 
     class Spy(rgmod.Table):
