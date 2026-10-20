@@ -118,6 +118,11 @@ def test_b1_authority_lookup_never_replays_returning(authority):
     connector = PostGISConnector.__new__(PostGISConnector)
     connector._opened_connection = True
     connector.connection = MagicMock()
+    # IDLE + autocommit=False is the connector-owned case that finalizes with
+    # connection.commit() and no SQL BEGIN (#1818 R4b); a default MagicMock would
+    # otherwise look like autocommit=True and take the SQL-finalizer path.
+    connector.connection.autocommit = False
+    connector.connection.get_transaction_status.return_value = 0
     query_cursor, crs_cursor = MagicMock(), MagicMock()
     connector.connection.cursor.side_effect = [query_cursor, crs_cursor]
     crs_cursor.__enter__.return_value = crs_cursor
@@ -225,15 +230,21 @@ def test_b4_crs_validation_failure_rolls_back(duck_connector):
     assert duck_connector.connection.execute("SELECT count(*) FROM places").fetchone() == (1,)
 
 
-def test_b4_caller_transaction_is_preserved_when_owned_write_is_refused(duck_connector):
+def test_b4_caller_transaction_joins_owned_write(duck_connector):
+    # R3: in a caller-owned DuckDB transaction the connector issues no BEGIN,
+    # COMMIT or ROLLBACK; an owned write joins the caller's transaction (visible
+    # within it and returning its RETURNING rows), and the caller's own ROLLBACK
+    # undoes it. The previous refusal ("active transaction") was the #1818 R3
+    # regression and has been removed.
     connection = duck_connector.connection
     connection.execute("CREATE TABLE places (id INTEGER)")
     connection.execute("BEGIN")
     connection.execute("INSERT INTO places VALUES (99)")
     assert duck_connector.execute_spatial_query("SELECT * FROM places").id.tolist() == [99]
-    with pytest.raises(SpatialQueryError, match="active transaction"):
-        duck_connector.execute_spatial_query("INSERT INTO places VALUES (1) RETURNING *")
-    assert connection.execute("SELECT * FROM places").fetchall() == [(99,)]
+    assert duck_connector.execute_spatial_query(
+        "INSERT INTO places VALUES (1) RETURNING *"
+    ).id.tolist() == [1]
+    assert connection.execute("SELECT * FROM places ORDER BY id").fetchall() == [(1,), (99,)]
     connection.execute("ROLLBACK")
     assert connection.execute("SELECT * FROM places").fetchall() == []
 

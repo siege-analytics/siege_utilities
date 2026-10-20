@@ -323,6 +323,10 @@ def test_r2_1_owned_success_commits_without_classification(query, monkeypatch):
     connector._opened_connection = True
     connector.connection = MagicMock()
     connector.connection.get_transaction_status.return_value = 0
+    # IDLE + autocommit=False is the connector-owned case that finalizes with
+    # connection.commit() (#1818 R4b). A default MagicMock .autocommit is truthy,
+    # which would select the SQL-finalizer autocommit path instead.
+    connector.connection.autocommit = False
     cursor = connector.connection.cursor.return_value
     cursor.statusmessage = query.split()[0] + " 1"
     cursor.description = [("id",)]
@@ -378,11 +382,142 @@ def test_beta_postgis_unknown_srid_uses_develop_fallback(postgis_pair, caplog):
     assert "PostGIS geometries lack SRID metadata" in caplog.text
 
 
-def test_beta_unquoted_write_token_alias_uses_classifier(postgis_pair):
+def test_beta_select_prefixed_write_token_alias_does_not_commit(postgis_pair):
+    # Characterization (#1818 R2, Design A): a SELECT-prefixed statement is never
+    # committed on a caller-owned transaction, even when a write token such as
+    # "merge" appears only as a column alias. Design A routes caller-transaction
+    # finalization on the SELECT prefix, not a write-token classifier, so the
+    # caller's pending INSERT stays invisible to an observer until the caller
+    # itself commits. (The classifier-precision question is tracked as a
+    # follow-up; see the PR body.)
     connector, observer, table = postgis_pair
     with connector.connection.cursor() as cursor:
         cursor.execute(f"INSERT INTO {table} VALUES (99, ST_SetSRID(ST_Point(0,0),4326))")
     assert connector.execute_spatial_query("SELECT 1 AS merge")["merge"].tolist() == [1]
     with observer.cursor() as cursor:
         cursor.execute(f"SELECT id FROM {table}")
+        assert cursor.fetchall() == []
+    connector.connection.commit()
+    with observer.cursor() as cursor:
+        cursor.execute(f"SELECT id FROM {table}")
         assert cursor.fetchall() == [(99,)]
+
+
+# -- #1818 round-3 explicit item tests (red-first on 4c355a60) ---------------
+
+
+def test_r4a_invalid_crs_raises_before_executing(postgis_pair):
+    # R4(a): a bad crs= raises before executing, with zero side effects; develop
+    # silently ignored crs on writes.
+    connector, observer, table = postgis_pair
+    with pytest.raises(SpatialQueryError, match="Invalid output CRS"):
+        connector.execute_spatial_query(
+            f"INSERT INTO {table} VALUES (7, ST_SetSRID(ST_Point(0,0),4326))",
+            crs="NOT_A_CRS_zzz",
+        )
+    with observer.cursor() as cursor:
+        cursor.execute(f"SELECT count(*) FROM {table}")
+        assert cursor.fetchone()[0] == 0
+
+
+def test_r5_inerror_is_caller_owned_until_standalone_recovery(postgis_pair):
+    # R5: a failed (INERROR) transaction is caller-owned. A non-recovery
+    # statement is refused before executing and the status stays INERROR; a
+    # standalone ROLLBACK TO SAVEPOINT recovers (returns -1) and the caller's
+    # pending write survives its own COMMIT.
+    from psycopg2.extensions import (
+        TRANSACTION_STATUS_INERROR,
+        TRANSACTION_STATUS_INTRANS,
+    )
+
+    connector, observer, table = postgis_pair
+    conn = connector.connection
+    with conn.cursor() as cursor:
+        cursor.execute(f"INSERT INTO {table} VALUES (99, ST_SetSRID(ST_Point(0,0),4326))")
+        cursor.execute("SAVEPOINT cp")
+        with pytest.raises(Exception):
+            cursor.execute("SELECT * FROM no_such_table_zzz")
+    assert conn.get_transaction_status() == TRANSACTION_STATUS_INERROR
+    with pytest.raises(SpatialQueryError, match="failed transaction"):
+        connector.execute_spatial_query("SELECT 1")
+    assert conn.get_transaction_status() == TRANSACTION_STATUS_INERROR
+    assert connector.execute_spatial_query("ROLLBACK TO SAVEPOINT cp") == -1
+    assert conn.get_transaction_status() == TRANSACTION_STATUS_INTRANS
+    conn.commit()
+    with observer.cursor() as cursor:
+        cursor.execute(f"SELECT id FROM {table}")
+        assert cursor.fetchall() == [(99,)]
+
+
+def test_r6_standalone_commit_commits_caller_pending(postgis_pair):
+    # R6: a standalone COMMIT runs directly (no savepoint wrapper), returns -1,
+    # and commits the caller's pending write (develop parity).
+    connector, observer, table = postgis_pair
+    with connector.connection.cursor() as cursor:
+        cursor.execute(f"INSERT INTO {table} VALUES (99, ST_SetSRID(ST_Point(0,0),4326))")
+    assert connector.execute_spatial_query("COMMIT") == -1
+    with observer.cursor() as cursor:
+        cursor.execute(f"SELECT id FROM {table}")
+        assert cursor.fetchall() == [(99,)]
+
+
+def test_r6_standalone_rollback_discards_caller_pending(postgis_pair):
+    connector, observer, table = postgis_pair
+    with connector.connection.cursor() as cursor:
+        cursor.execute(f"INSERT INTO {table} VALUES (99, ST_SetSRID(ST_Point(0,0),4326))")
+    assert connector.execute_spatial_query("ROLLBACK") == -1
+    with observer.cursor() as cursor:
+        cursor.execute(f"SELECT id FROM {table}")
+        assert cursor.fetchall() == []
+
+
+def test_r6_standalone_begin_on_idle_opens_transaction(postgis_pair):
+    # R6: BEGIN on an idle connection is a disclosed behavior change -- it runs
+    # directly, returns -1, and leaves the connection INTRANS.
+    from psycopg2.extensions import TRANSACTION_STATUS_INTRANS
+
+    connector, _observer, _table = postgis_pair
+    assert connector.execute_spatial_query("BEGIN") == -1
+    assert connector.connection.get_transaction_status() == TRANSACTION_STATUS_INTRANS
+    connector.connection.rollback()
+
+
+def test_r6_mixed_control_batch_rejected_with_zero_side_effects(postgis_pair):
+    # R6: a batch that mixes a transaction-control statement with other
+    # statements is rejected before any execution; nothing is written.
+    connector, observer, table = postgis_pair
+    with pytest.raises(SpatialQueryError, match="transaction-control"):
+        connector.execute_spatial_query(
+            f"INSERT INTO {table} VALUES (8, ST_SetSRID(ST_Point(0,0),4326)); "
+            f"COMMIT; SELECT 'x'"
+        )
+    with observer.cursor() as cursor:
+        cursor.execute(f"SELECT count(*) FROM {table}")
+        assert cursor.fetchone()[0] == 0
+
+
+def test_r6_plain_prepare_as_takes_the_normal_path(postgis_pair):
+    # R6: PREPARE name AS ... is not transaction control; it takes the normal
+    # path and reports a rowcount rather than being rejected or bypassed.
+    connector, _observer, _table = postgis_pair
+    assert connector.execute_spatial_query("PREPARE q AS SELECT 1") == -1
+    connector.connection.rollback()
+
+
+def test_r7_merge_without_returning_writes_durable_state(postgis_pair):
+    # R7: a PG16-runnable MERGE write without RETURNING reports a rowcount and
+    # its effect is durable (observed on a separate connection).
+    connector, observer, table = postgis_pair
+    if observer.server_version < 150000:
+        pytest.skip("MERGE requires PostgreSQL 15+")
+    with observer.cursor() as cursor:
+        cursor.execute(f"INSERT INTO {table} VALUES (1, ST_SetSRID(ST_Point(0,0),4326))")
+    result = connector.execute_spatial_query(
+        f"MERGE INTO {table} t USING (SELECT 1 AS sid) s ON t.id = s.sid "
+        f"WHEN MATCHED THEN UPDATE SET id = 42"
+    )
+    assert isinstance(result, int) and result >= 0
+    connector.connection.commit()
+    with observer.cursor() as cursor:
+        cursor.execute(f"SELECT id FROM {table} ORDER BY id")
+        assert cursor.fetchall() == [(42,)]

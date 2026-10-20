@@ -82,6 +82,89 @@ def _postgis_has_dml(query):
     return any(kind == 'word' and value.upper() in keywords
                for kind, value in _sql_tokens(query))
 
+
+# Leading keywords that make a standalone statement a transaction-control
+# statement (#1818 R6). COMMIT/ROLLBACK cover their PREPARED variants; ROLLBACK
+# also covers ROLLBACK TO [SAVEPOINT] name.
+_TRANSACTION_CONTROL_HEADS = {
+    'BEGIN', 'END', 'ABORT', 'SAVEPOINT', 'COMMIT', 'ROLLBACK', 'RELEASE',
+}
+
+
+def _sql_statement_list(query):
+    """Split a SQL string into non-empty statements on top-level ``;``.
+
+    Uses :func:`_sql_tokens` so a ``;`` inside a string literal, quoted
+    identifier, dollar-quoted body or comment does not split a statement.
+    Each element is the statement's list of ``(kind, value)`` lexemes.
+    """
+    statements, current = [], []
+    for kind, value in _sql_tokens(query):
+        if kind == 'symbol' and value == ';':
+            if current:
+                statements.append(current)
+            current = []
+        else:
+            current.append((kind, value))
+    if current:
+        statements.append(current)
+    return statements
+
+
+def _transaction_control_kind(tokens):
+    """Classify a single statement's leading keywords as transaction control.
+
+    Returns the control label (``BEGIN``, ``END``, ``ABORT``, ``SAVEPOINT``,
+    ``COMMIT``, ``ROLLBACK``, ``RELEASE``, ``START TRANSACTION`` or
+    ``PREPARE TRANSACTION``) or ``None``. ``PREPARE name AS ...`` is NOT
+    transaction control -- only ``PREPARE TRANSACTION`` is; ``START`` counts
+    only before ``TRANSACTION`` (#1818 R6).
+    """
+    words = [value.upper() for kind, value in tokens if kind == 'word']
+    if not words:
+        return None
+    head = words[0]
+    if head in _TRANSACTION_CONTROL_HEADS:
+        return head
+    if head == 'START' and len(words) > 1 and words[1] == 'TRANSACTION':
+        return 'START TRANSACTION'
+    if head == 'PREPARE' and len(words) > 1 and words[1] == 'TRANSACTION':
+        return 'PREPARE TRANSACTION'
+    return None
+
+
+def _is_standalone_recovery(statements, controls):
+    """True if the input is a single standalone recovery statement (#1818 R5).
+
+    Recovery accepted in a failed (INERROR) transaction is a precisely
+    recognized ``ROLLBACK``, ``ROLLBACK TO [SAVEPOINT] name`` or ``ABORT``.
+    ``ROLLBACK PREPARED`` is two-phase control, not caller recovery.
+    """
+    if len(statements) != 1 or controls[0] is None:
+        return False
+    words = [value.upper() for kind, value in statements[0] if kind == 'word']
+    head = words[0]
+    if head == 'ABORT':
+        return True
+    if head == 'ROLLBACK':
+        return not (len(words) > 1 and words[1] == 'PREPARED')
+    return False
+
+
+def _validate_output_crs(crs):
+    """Reject an invalid output CRS before executing anything (#1818 R4a).
+
+    A bad ``crs=`` must raise with zero side effects in every mode, rather than
+    being silently ignored (develop's behavior on writes).
+    """
+    if crs is None:
+        return
+    try:
+        from pyproj import CRS as _PyprojCRS
+        _PyprojCRS.from_user_input(crs)
+    except Exception as e:
+        raise SpatialQueryError(f"Invalid output CRS {crs!r}: {e}") from e
+
 # Try to import DuckDB (optional)
 try:
     import duckdb
@@ -470,17 +553,77 @@ class PostGISConnector:
         if not self.connection:
             raise SpatialQueryError("No PostGIS connection available")
 
-        from psycopg2.extensions import TRANSACTION_STATUS_INTRANS
+        # R4(a): reject a bad output CRS before touching the connection.
+        _validate_output_crs(crs)
+
+        from psycopg2.extensions import (
+            TRANSACTION_STATUS_INERROR,
+            TRANSACTION_STATUS_INTRANS,
+        )
+
+        # R6: classify statements before executing anything. A multi-statement
+        # batch that mixes a transaction-control statement with other statements
+        # is non-atomic on the normal path, so reject it with zero side effects.
+        statements = _sql_statement_list(query)
+        controls = [_transaction_control_kind(statement) for statement in statements]
+        if len(statements) > 1 and any(controls):
+            raise SpatialQueryError(
+                "Refusing a multi-statement batch that mixes a transaction-control "
+                "statement with other statements; run them separately."
+            )
+
+        status = self.connection.get_transaction_status()
+        caller_intrans = status == TRANSACTION_STATUS_INTRANS
+        autocommit = bool(getattr(self.connection, "autocommit", False))
+
+        # R5: a failed (INERROR) transaction is caller-owned. Raise before
+        # executing anything except a precisely recognized standalone recovery
+        # statement (ROLLBACK / ROLLBACK TO [SAVEPOINT] name / ABORT).
+        if status == TRANSACTION_STATUS_INERROR and not _is_standalone_recovery(statements, controls):
+            raise SpatialQueryError(
+                "PostGIS connection is in a failed transaction; only a standalone "
+                "ROLLBACK, ROLLBACK TO [SAVEPOINT] name, or ABORT is accepted until "
+                "the caller recovers."
+            )
+
+        # R6: a standalone transaction-control statement runs directly, with no
+        # savepoint wrapper and no connector finalization, and returns -1.
+        if len(statements) == 1 and controls[0] is not None:
+            control_cursor = None
+            try:
+                control_cursor = self.connection.cursor()
+                control_cursor.execute(query)
+                log.info("Executed PostGIS transaction-control statement")
+                return -1
+            except Exception as e:
+                raise SpatialQueryError(f"PostGIS query failed: {e}") from e
+            finally:
+                if control_cursor is not None:
+                    control_cursor.close()
+
+        # R4(b): ownership is set by the transaction status before execution.
+        #   INTRANS (incl. autocommit + an explicit SQL BEGIN): caller-owned; a
+        #     savepoint isolates failure and the connector never finalizes.
+        #   IDLE + autocommit=True: the connector establishes real ownership with
+        #     SQL BEGIN/COMMIT/ROLLBACK (connection.commit()/rollback() do not end
+        #     an explicit SQL transaction under autocommit).
+        #   IDLE + autocommit=False: connector-owned via connection.commit()/rollback().
+        caller_owned = caller_intrans
+        sql_owned = (not caller_intrans) and autocommit
+        conn_owned = (not caller_intrans) and (not autocommit)
 
         cursor = None
-        caller_transaction = self.connection.get_transaction_status() == TRANSACTION_STATUS_INTRANS
-        owns_transaction = self._opened_connection and not caller_transaction
         savepoint = False
+        began = False
+        committed = False
         try:
             cursor = self.connection.cursor()
-            if caller_transaction:
+            if caller_owned:
                 cursor.execute("SAVEPOINT siege_spatial_query")
                 savepoint = True
+            elif sql_owned:
+                cursor.execute("BEGIN")
+                began = True
             cursor.execute(query)
             if cursor.description is not None:
                 result = gpd.GeoDataFrame(
@@ -520,25 +663,39 @@ class PostGISConnector:
             if savepoint:
                 cursor.execute("RELEASE SAVEPOINT siege_spatial_query")
                 savepoint = False
-            if owns_transaction:
-                # SELECT can invoke volatile functions that write data.
-                self.connection.commit()
-            elif not query.strip().upper().startswith('SELECT') and _postgis_has_dml(query):
-                # Preserve develop's commit behavior for caller-owned writes.
+            if caller_owned:
+                # R1 Design A: on a caller-owned transaction, commit only a
+                # non-SELECT statement that carries write tokens (develop parity).
                 # A SELECT-prefixed statement (including FOR UPDATE / FOR SHARE and
-                # volatile-function SELECT) is never committed here, matching develop's
-                # read_postgis path, so the caller keeps its transaction and row locks.
+                # volatile-function SELECT) is never committed here, so the caller
+                # keeps its transaction and row locks.
+                if not query.strip().upper().startswith('SELECT') and _postgis_has_dml(query):
+                    self.connection.commit()
+            elif sql_owned:
+                # Autocommit + connector-established BEGIN: end with SQL COMMIT;
+                # connection.commit() would not close an explicit SQL transaction.
+                cursor.execute("COMMIT")
+                began = False
+                committed = True
+            elif conn_owned:
                 self.connection.commit()
+                committed = True
             log.info("Successfully executed PostGIS query")
             return result
-        except (_Psycopg2Error, _ShapelyError, _CRSError, OSError, ValueError, TypeError, AttributeError) as e:
+        except Exception as e:
+            # R8: an actually-owned transaction rolls back on ANY exception,
+            # preserving the original error and its SpatialQueryError mapping. A
+            # caller-owned (INTRANS/INERROR) transaction only rolls back and
+            # releases the savepoint, never the caller's transaction.
             log.error(f"Failed to execute PostGIS query: {e}")
             if self.connection:
                 try:
                     if savepoint:
                         cursor.execute("ROLLBACK TO SAVEPOINT siege_spatial_query")
                         cursor.execute("RELEASE SAVEPOINT siege_spatial_query")
-                    elif owns_transaction:
+                    elif sql_owned and began and not committed:
+                        cursor.execute("ROLLBACK")
+                    elif conn_owned and not committed:
                         self.connection.rollback()
                 except (_Psycopg2Error, OSError) as rb_exc:
                     log.warning("Failed to rollback PostGIS transaction: %s", rb_exc)
@@ -885,6 +1042,21 @@ class DuckDBConnector:
         if not self.connection:
             self.connect()
 
+        # R4(a): reject a bad output CRS before executing anything.
+        _validate_output_crs(crs)
+
+        # R6: reject a mixed batch that mingles a transaction-control statement
+        # with other statements, before executing anything (zero side effects).
+        # This also resolves the pre-existing embedded-COMMIT batch atomicity gap.
+        statement_lists = _sql_statement_list(query)
+        controls = [_transaction_control_kind(statement) for statement in statement_lists]
+        if len(statement_lists) > 1 and any(controls):
+            raise SpatialQueryError(
+                "Refusing a multi-statement batch that mixes a transaction-control "
+                "statement with other statements; run them separately."
+            )
+        standalone_control = len(statement_lists) == 1 and controls[0] is not None
+
         transaction_started = False
         try:
             import duckdb
@@ -894,15 +1066,21 @@ class DuckDBConnector:
             engine = DuckDBEngine()
             engine._conn = self.connection
             statements = self.connection.extract_statements(query)
-            if any(statement.type != duckdb.StatementType.SELECT for statement in statements):
-                # Two autocommit reads have distinct transaction IDs. Refuse
-                # caller-owned transactions before BEGIN can abort one.
+            has_non_select = any(
+                statement.type != duckdb.StatementType.SELECT for statement in statements
+            )
+            # R3: in a caller-owned transaction the connector issues no BEGIN,
+            # COMMIT or ROLLBACK -- its writes join the caller's transaction. Only
+            # an autocommit connection (two reads get distinct transaction ids)
+            # gets a connector-owned BEGIN/COMMIT. A standalone transaction-control
+            # statement (R6) runs directly without any wrapping.
+            if has_non_select and not standalone_control:
                 first_id = self.connection.execute("SELECT current_transaction_id()").fetchone()[0]
                 second_id = self.connection.execute("SELECT current_transaction_id()").fetchone()[0]
-                if first_id == second_id:
-                    raise ValueError("Mutating queries require a connection without an active transaction")
-                self.connection.execute("BEGIN TRANSACTION")
-                transaction_started = True
+                caller_owned = first_id == second_id
+                if not caller_owned:
+                    self.connection.execute("BEGIN TRANSACTION")
+                    transaction_started = True
             for statement in statements[:-1]:
                 self.connection.execute(statement)
             statement = statements[-1] if statements else None
