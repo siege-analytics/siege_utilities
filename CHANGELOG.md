@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Place history reverse lineage uses `CrosswalkRecord.reverse_weight`, also
+  accepted by `DictCrosswalkProvider.add`, for step weights, cumulative target
+  shares, and `min_weight` pruning. Steps pair GEOIDs with their correct vintage
+  years, and `Lineage.terminal_weights` sums paths reaching the same terminal
+  GEOID while preserving `terminal_geoids`. If any retained reverse terminal
+  path lacks a reverse share, the entire `terminal_weights` dictionary is empty;
+  ancestry and the legacy forward allocation on those steps remain available.
+  Forward traversal now skips nonpositive and nonfinite record weights, and
+  terminal totals contain only finite, positive values (#1434).
+
 - `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
   `48-49` and excludes the `10` all-industry total that caused double-counting,
   along with supersector aggregates. **Behavior change:** `parse()` and
