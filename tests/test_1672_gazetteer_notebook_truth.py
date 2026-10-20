@@ -92,9 +92,14 @@ def test_directional_demo_uses_the_lake_reference(notebook):
     assert not predicate(namespace["south_point"])
 
 
-# CI excludes test_notebooks.py from its main test job and runs only the pure
-# group in notebook-governance. Collect the existing geo group here so this
-# regression also executes that group in CI without changing the workflow.
+# Execute the existing geo notebook group so this regression also covers it in
+# CI. These notebooks run unmocked -- 01_boundaries fetches real TIGER boundaries
+# over the network -- so the group is marked `integration` and runs only in the
+# network-enabled lane. The ordinary offline lane (`-m "not integration"`) must
+# not run it, or 01_boundaries raises BoundaryFetchError. Offline, network-mocked
+# coverage of the same geo group is provided separately by #1783; do not rely on
+# this collector for the offline lane.
+@pytest.mark.integration
 @pytest.mark.requires_gdal
 @pytest.mark.parametrize(
     "nb_rel", notebook_runner.NOTEBOOK_GROUPS["geo"],
