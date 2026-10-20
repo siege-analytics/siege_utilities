@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Precinct/VTD name matching now restricts candidates to the precinct's county,
+  using official county FIPS, spatial overlap counties, then optional provider
+  county keys. Unknown or conflicting counties skip name matching, and malformed
+  VTD GEOIDs are ignored. Direct `reconcile_names` callers must supply
+  `precinct_county`; name-only providers can supply `get_precinct_counties`.
+  Official-crosswalk mappings retain precedence (#1433).
+- Precinct/VTD reconciliation emits fewer name-only mappings: an official
+  mapping or spatial overlap of at least 95% suppresses names pointing to
+  another VTD. Name-only confidence is capped at 0.84, below HIGH; same-VTD
+  name confirmation still contributes to COMBINED confidence. Spatial overlaps
+  below 1% no longer create county conflicts that block name confirmation (#1433).
 - `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
   `48-49` and excludes the `10` all-industry total that caused double-counting,
   along with supersector aggregates. **Behavior change:** `parse()` and
