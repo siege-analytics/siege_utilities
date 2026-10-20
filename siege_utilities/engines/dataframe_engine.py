@@ -1189,13 +1189,27 @@ class DuckDBEngine(DataFrameEngine):
         pandas.merge does not preserve ``DataFrame.attrs``, so the CRS map stored
         by ``_materialize_geometry_wkb`` is lost. Rebuild it from both inputs,
         applying the merge suffix to any non-key column present in both frames.
+
+        A geometry join key coalesces to one output column, which keeps the
+        **left** frame's CRS (develop parity, #1852 R1). The right CRS, known or
+        unknown, never relabels or erases a surviving left key. Non-key
+        overlapping geometry columns keep each side's CRS under its suffix.
         """
         on_cols = {on} if isinstance(on, str) else set(on)
         overlap = (set(left.columns) & set(right.columns)) - on_cols
         merged: dict = {}
-        for frame, suffix in ((left, suffixes[0]), (right, suffixes[1])):
+        for frame, suffix, is_left in (
+            (left, suffixes[0], True), (right, suffixes[1], False),
+        ):
             crs_map = frame.attrs.get(_GEOMETRY_CRS_ATTR, {})
             for col, crs in crs_map.items():
+                if col in on_cols:
+                    # Coalesced geometry join key: the left side is authoritative;
+                    # the right side must not overwrite it (last-writer-wins was
+                    # the #1852 R1 relabeling defect).
+                    if is_left and col in result.columns:
+                        merged[col] = crs
+                    continue
                 new_col = f"{col}{suffix}" if col in overlap else col
                 if new_col in result.columns:
                     merged[new_col] = crs
@@ -1761,13 +1775,18 @@ class SparkEngine(DataFrameEngine):
         st_func = f"ST_{predicate.capitalize()}"
         # Compute the projection -- which rejects a suffix collision with a
         # ValueError -- BEFORE registering any temp view, so a rejected join
-        # leaves nothing behind in the session catalog (#1479 B2). If building
-        # or analysing the SQL fails after the views are registered, drop them
-        # so repeated failures cannot accumulate catalog views.
+        # leaves nothing behind in the session catalog (#1479 B2). Every view
+        # registration happens INSIDE the cleanup scope and is tracked, so a
+        # failure at any registration or at SQL analysis drops every view
+        # registered so far (#1852 R2); the success path keeps the views for the
+        # returned lazy frame.
         projection = self._spatial_join_projection(left, right, left_geom, right_geom, "l", "r")
-        left.createOrReplaceTempView(lv)
-        right.createOrReplaceTempView(rv)
+        registered: list = []
         try:
+            left.createOrReplaceTempView(lv)
+            registered.append(lv)
+            right.createOrReplaceTempView(rv)
+            registered.append(rv)
             sql = (
                 f"SELECT {projection} "
                 f"FROM {lv} l {how.upper()} JOIN {rv} r "
@@ -1775,8 +1794,8 @@ class SparkEngine(DataFrameEngine):
             )
             return self._session.sql(sql)
         except Exception:
-            self._session.catalog.dropTempView(lv)
-            self._session.catalog.dropTempView(rv)
+            for view in registered:
+                self._session.catalog.dropTempView(view)
             raise
 
     def _spatial_join_projection(self, left, right, left_geom, right_geom, left_alias, right_alias):
@@ -1983,13 +2002,18 @@ class SparkEngine(DataFrameEngine):
         tag = _uuid.uuid4().hex[:8]
         pv = f"_assign_pts_{tag}"
         poly_v = f"_assign_poly_{tag}"
-        # Reject a suffix collision before registering any temp view (#1479 B2),
-        # and drop the views if SQL analysis fails after registration so
-        # rejected calls cannot accumulate catalog views.
+        # Reject a suffix collision before registering any temp view (#1479 B2).
+        # Every view registration happens INSIDE the cleanup scope and is tracked,
+        # so a failure at any registration or at SQL analysis drops every view
+        # registered so far (#1852 R2); the success path keeps the views for the
+        # returned lazy frame.
         projection = self._spatial_join_projection(points, polygons, point_geom, polygon_geom, "p", "poly")
-        points.createOrReplaceTempView(pv)
-        broadcast(polygons).createOrReplaceTempView(poly_v)
+        registered: list = []
         try:
+            points.createOrReplaceTempView(pv)
+            registered.append(pv)
+            broadcast(polygons).createOrReplaceTempView(poly_v)
+            registered.append(poly_v)
             return self._session.sql(
                 f"SELECT {projection} "
                 f"FROM {pv} p {how.upper()} JOIN {poly_v} poly "
@@ -1997,8 +2021,8 @@ class SparkEngine(DataFrameEngine):
                 f"ST_GeomFromText(p.{point_geom}))"
             )
         except Exception:
-            self._session.catalog.dropTempView(pv)
-            self._session.catalog.dropTempView(poly_v)
+            for view in registered:
+                self._session.catalog.dropTempView(view)
             raise
 
     def multi_assign(self, points, boundary_layers, *, point_geom="geometry"):

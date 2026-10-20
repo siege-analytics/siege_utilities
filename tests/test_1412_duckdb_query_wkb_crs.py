@@ -199,3 +199,55 @@ def test_unknown_crs_stays_none_through_engine_attribute_join(typed_engine):
     )
     result = typed_engine.to_geodataframe(joined)
     assert result.crs is None
+
+
+# -- #1852 R1 re-review: geometry join-key CRS provenance -------------------
+# Adopted from snug-coral's test_rereview_delta.py (#1852 scoped re-review),
+# adapted to the repo's typed_engine fixture (which skips on DuckDB < 1.5). The
+# key test must be red at 46f4b882 and green on develop and at the new head.
+
+
+@pytest.mark.parametrize("right_epsg", [None, 3857])
+def test_left_geometry_join_key_is_not_relabelled_from_right(typed_engine, right_epsg):
+    left = typed_engine.query(
+        "SELECT 1 AS pid, ST_Point(-97, 30)::GEOMETRY('EPSG:4326') AS geometry"
+    )
+    cast = f"::GEOMETRY('EPSG:{right_epsg}')" if right_epsg else ""
+    right = typed_engine.query(
+        f"SELECT ST_Point(500, 1000){cast} AS geometry, 'x' AS note_text"
+    )
+    out = typed_engine.to_geodataframe(
+        typed_engine.join(left, right, on="geometry", how="left")
+    )
+    assert out.geometry.iloc[0].wkt == "POINT (-97 30)"
+    assert out["note_text"].isna().all(), "Fixture must retain only the unmatched left key"
+    assert out.crs is not None, "Known left key CRS overwritten with unknown right metadata"
+    assert out.crs.to_epsg() == 4326, f"Left key relabelled {out.crs}"
+
+
+@pytest.mark.parametrize("direction", ["left", "right"])
+@pytest.mark.parametrize("epsg", [4326, 3857])
+def test_known_crs_attribute_join_both_directions(typed_engine, epsg, direction):
+    spatial = typed_engine.query(
+        f"SELECT 1 AS pid, ST_Point(-97, 30)::GEOMETRY('EPSG:{epsg}') AS geometry"
+    )
+    attrs = pd.DataFrame({"pid": [1], "label": ["x"]})
+    left, right = (spatial, attrs) if direction == "left" else (attrs, spatial)
+    out = typed_engine.to_geodataframe(typed_engine.join(left, right, on="pid"))
+    assert out.crs.to_epsg() == epsg
+    assert out.geometry.iloc[0].wkt == "POINT (-97 30)"
+
+
+def test_suffixes_keep_both_geometry_crses(typed_engine):
+    left = typed_engine.query(
+        "SELECT 1 AS pid, ST_Point(-97, 30)::GEOMETRY('EPSG:4326') AS geometry"
+    )
+    right = typed_engine.query(
+        "SELECT 1 AS pid, ST_Point(500, 1000)::GEOMETRY('EPSG:3857') AS geometry"
+    )
+    out = typed_engine.join(left, right, on=["pid"])
+    assert out.columns.tolist() == ["pid", "geometry_x", "geometry_y"]
+    a = typed_engine.to_geodataframe(out, "geometry_x")
+    b = typed_engine.to_geodataframe(out, "geometry_y")
+    assert a.crs.to_epsg() == 4326 and a.geometry.iloc[0].wkt == "POINT (-97 30)"
+    assert b.crs.to_epsg() == 3857 and b.geometry.iloc[0].wkt == "POINT (500 1000)"

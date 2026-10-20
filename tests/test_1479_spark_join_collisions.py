@@ -130,3 +130,69 @@ def test_collision_rejection_does_not_retain_catalog_views(spark_engine, pandas_
         with pytest.raises(ValueError, match="duplicate output column.*name_left"):
             getattr(spark_engine, method)(points, polygons)
     assert temp_view_count() == before
+
+
+# -- #1852 R2 re-review: registration-failure view lifecycle ----------------
+# Adapted from snug-coral's test_rereview_delta.py (#1852 scoped re-review) to
+# the repo's spark_engine fixture. A failure at the second registration, or at
+# SQL analysis, must leave zero new catalog views. Run under real Spark/Sedona
+# (SZSH). Must be red at 46f4b882 (the second-registration case) and green here.
+
+
+@pytest.mark.requires_spark
+@pytest.mark.parametrize("method", ["spatial_join", "assign_boundaries"])
+def test_second_registration_failure_leaves_no_catalog_views(spark_engine, monkeypatch, method):
+    session = spark_engine._session
+    points = session.createDataFrame([(1, "POINT (0 0)")], ["pid", "geometry"])
+    polys = session.createDataFrame(
+        [("district", "POLYGON ((-1 -1,1 -1,1 1,-1 1,-1 -1))")], ["name", "geometry"]
+    )
+    before = {t.name for t in session.catalog.listTables() if t.isTemporary}
+    cls = type(points)
+    original = cls.createOrReplaceTempView
+    right_prefix = "_sjoin_right_" if method == "spatial_join" else "_assign_poly_"
+
+    def register(self, name):
+        if name.startswith(right_prefix):
+            raise RuntimeError("injected second-view registration failure")
+        return original(self, name)
+
+    try:
+        monkeypatch.setattr(cls, "createOrReplaceTempView", register)
+        with pytest.raises(RuntimeError, match="injected second-view"):
+            getattr(spark_engine, method)(points, polys)
+        monkeypatch.undo()
+        after = {t.name for t in session.catalog.listTables() if t.isTemporary}
+        assert after == before, f"Second registration failure leaked views: {sorted(after - before)}"
+    finally:
+        monkeypatch.undo()
+        for t in session.catalog.listTables():
+            if t.isTemporary and t.name not in before:
+                session.catalog.dropTempView(t.name)
+
+
+@pytest.mark.requires_spark
+@pytest.mark.parametrize("method", ["spatial_join", "assign_boundaries"])
+def test_sql_failure_leaves_no_catalog_views(spark_engine, monkeypatch, method):
+    session = spark_engine._session
+    points = session.createDataFrame([(1, "POINT (0 0)")], ["pid", "geometry"])
+    polys = session.createDataFrame(
+        [("district", "POLYGON ((-1 -1,1 -1,1 1,-1 1,-1 -1))")], ["name", "geometry"]
+    )
+    before = {t.name for t in session.catalog.listTables() if t.isTemporary}
+
+    def fail(*a, **k):
+        raise RuntimeError("injected SQL analysis failure")
+
+    try:
+        monkeypatch.setattr(session, "sql", fail)
+        with pytest.raises(RuntimeError, match="injected SQL analysis"):
+            getattr(spark_engine, method)(points, polys)
+        monkeypatch.undo()
+        after = {t.name for t in session.catalog.listTables() if t.isTemporary}
+        assert after == before, f"SQL failure leaked views: {sorted(after - before)}"
+    finally:
+        monkeypatch.undo()
+        for t in session.catalog.listTables():
+            if t.isTemporary and t.name not in before:
+                session.catalog.dropTempView(t.name)
