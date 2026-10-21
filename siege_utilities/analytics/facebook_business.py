@@ -214,21 +214,25 @@ class FacebookBusinessConnector:
                 }
             )
 
-            # Convert to DataFrame
-            data = []
+            # Convert to DataFrame: one row per date, each response insight's
+            # values keyed by that insight's own metric name. The response
+            # returns one insight object per metric, each with a values list of
+            # one entry per date, so we must not collapse to values[0] or copy
+            # one metric's number into another column (#1812).
+            rows_by_date = {}
+            date_order = []
             for insight in insights:
-                insight_data = {}
-                for metric in metrics:
-                    values = insight.get('values', [])
-                    if values:
-                        insight_data['date'] = values[0].get('end_time', '')
-                        insight_data[metric] = values[0].get('value', 0)
-                    else:
-                        insight_data['date'] = ''
-                        insight_data[metric] = 0
+                metric_name = insight.get('name')
+                if not metric_name:
+                    continue
+                for entry in insight.get('values', []):
+                    date = entry.get('end_time', '')
+                    if date not in rows_by_date:
+                        rows_by_date[date] = {'date': date}
+                        date_order.append(date)
+                    rows_by_date[date][metric_name] = entry.get('value', 0)
 
-                data.append(insight_data)
-
+            data = [rows_by_date[date] for date in date_order]
             df = pd.DataFrame(data)
             log_info(f"Retrieved {len(df)} page insights from page {page_id}")
             return df
