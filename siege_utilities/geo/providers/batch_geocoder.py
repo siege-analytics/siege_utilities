@@ -37,6 +37,7 @@ class MatchQuality(str, Enum):
     APPROXIMATE = "approximate"
     CENTROID = "centroid"
     NO_MATCH = "no_match"
+    ERROR = "error"
 
 
 @dataclass
@@ -49,7 +50,7 @@ class GeocodingResult:
         matched_address: Standardized matched address from the geocoder.
         lat: Latitude of the matched location.
         lon: Longitude of the matched location.
-        match_quality: How precise the match is.
+        match_quality: How precise the match is, or "error" if the lookup failed.
         block_geoid: 15-digit Census block GEOID (if available).
         tract_geoid: 11-digit Census tract GEOID (if available).
         county_geoid: 5-digit county GEOID (if available).
@@ -71,7 +72,7 @@ class GeocodingResult:
 
     @property
     def matched(self) -> bool:
-        return self.match_quality != MatchQuality.NO_MATCH.value
+        return self.match_quality not in (MatchQuality.NO_MATCH.value, MatchQuality.ERROR.value)
 
     @property
     def has_block(self) -> bool:
@@ -89,7 +90,7 @@ class GeocodingResult:
 
 @dataclass
 class BatchGeocodingResult:
-    """Container for a batch geocoding run."""
+    """Container for a batch run, including errors from earlier fallback attempts."""
 
     results: list[GeocodingResult] = field(default_factory=list)
     backend: str = ""
@@ -243,7 +244,10 @@ class BatchGeocoder(abc.ABC):
         """Geocode a batch of addresses.
 
         Args:
-            addresses: List of addresses in any supported format.
+            addresses: List of addresses in any supported format. When called
+                by a composite, input_id is an opaque library-assigned ID.
+                Backends must echo it on each result, including failures;
+                response order is not significant.
 
         Returns:
             BatchGeocodingResult with one GeocodingResult per input address.

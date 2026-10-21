@@ -56,6 +56,29 @@ Batch geocoding:
    for result in results:
        print(f"{result['address']}: ({result['lat']}, {result['lon']})")
 
+Provider batch alignment and errors
+-----------------------------------
+
+Starting in v4.1.0, ``CompositeBatchGeocoder`` and ``CensusBatchGeocoder``
+join responses using library-assigned unique IDs. Caller IDs are preserved
+as output metadata, including duplicates and blanks. Each input retains its
+own response when a backend reorders or omits rows. Custom backends must
+echo the ``input_id`` received on each ``AddressInput``; they must not
+substitute caller IDs or rely on response position.
+
+``CensusBatchGeocoder`` continues after a failed chunk and preserves the
+successful chunks. Failed or missing rows have ``MatchQuality.ERROR``
+(``"error"``) and ``matched=False``. Genuine service responses with no match
+still have ``NO_MATCH``. Inspect ``BatchGeocodingResult.errors`` for failure
+details. The composite retains these diagnostics even if fallback succeeds.
+
+The low-level ``geocode_batch`` function uses the same internal IDs and
+returns caller IDs in ``CensusGeocodeResult.input_id``. Missing responses
+have ``match_type="Error"``. Unknown or duplicate response IDs raise
+``CensusGeocodeError``. ``geocode_batch_chunked`` remains a list-returning
+convenience function that raises on request failure; use
+``CensusBatchGeocoder`` for partial success with error reporting.
+
 .. note::
 
    Reverse geocoding, distance calculations, and coordinate validation are

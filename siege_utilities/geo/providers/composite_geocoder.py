@@ -11,8 +11,11 @@ Nominatim or TAMU for failures.
 from __future__ import annotations
 
 import logging
+from collections import Counter
+from dataclasses import replace
 from typing import Union
 
+from ._batch_ids import _assign_batch_ids
 from .batch_geocoder import (
     AddressInput,
     BatchGeocoder,
@@ -51,7 +54,8 @@ class CompositeBatchGeocoder(BatchGeocoder):
     Args:
         backends: Ordered list of geocoder backends (highest priority first).
         min_quality: Minimum match quality to accept without fallback.
-            Default "approximate" — only "centroid" and "no_match" trigger fallback.
+            Default "approximate"; "centroid", "no_match", and "error"
+            trigger fallback.
         skip_unavailable: Skip backends where is_available() returns False.
             Default True.
     """
@@ -80,27 +84,30 @@ class CompositeBatchGeocoder(BatchGeocoder):
 
         Each address is tried against backends in order until a result
         meeting the quality threshold is found, or all backends are
-        exhausted. The best result is kept.
+        exhausted. The best result is kept. Backends receive library IDs;
+        caller IDs are restored on output. Backend failures and missing or
+        ambiguous response rows are errors, distinct from a genuine no match.
+        Errors remain visible even if a later backend succeeds.
         """
         normalized = normalize_addresses(addresses)
         if not normalized:
             return BatchGeocodingResult(backend=self.backend_name)
 
+        batch_ids = _assign_batch_ids([addr.input_id for addr in normalized])
+        inputs = {batch_ids[i]: addr for i, addr in enumerate(normalized)}
         available = self._get_available_backends()
-        if not available:
-            result = BatchGeocodingResult(backend=self.backend_name)
-            result.errors.append("No available geocoding backends")
-            return result
-
-        best: dict[int, GeocodingResult] = {}
-        pending = set(range(len(normalized)))
+        errors = [] if available else ["No available geocoding backends"]
+        best: dict[str, GeocodingResult] = {}
+        pending = set(inputs)
 
         for backend in available:
             if not pending:
                 break
 
-            pending_addrs = [normalized[i] for i in sorted(pending)]
-            pending_indices = sorted(pending)
+            pending_addrs = [
+                replace(addr, input_id=batch_id)
+                for batch_id, addr in inputs.items() if batch_id in pending
+            ]
 
             try:
                 batch_result = backend.geocode(pending_addrs)
@@ -108,33 +115,60 @@ class CompositeBatchGeocoder(BatchGeocoder):
                 log.warning(
                     "Backend %s failed: %s", backend.backend_name, exc
                 )
-                continue
+                batch_result = BatchGeocodingResult(
+                    errors=[f"Backend {backend.backend_name} failed: {exc}"],
+                )
 
-            for idx, gr in zip(pending_indices, batch_result.results):
+            errors.extend(batch_result.errors)
+            counts = Counter(gr.input_id for gr in batch_result.results)
+            returned = {}
+            for gr in batch_result.results:
+                if gr.input_id not in pending:
+                    errors.append(f"Backend {backend.backend_name} returned unknown input_id {gr.input_id!r}")
+                elif counts[gr.input_id] == 1:
+                    returned[gr.input_id] = gr
+
+            for addr in pending_addrs:
+                batch_id = addr.input_id
+                gr = returned.get(batch_id)
+                if gr is None:
+                    reason = "duplicate" if counts[batch_id] else "missing"
+                    errors.append(f"Backend {backend.backend_name}: {reason} result for input_id {batch_id!r}")
+                    gr = GeocodingResult(
+                        input_id=batch_id,
+                        input_address=addr.one_line,
+                        match_quality=MatchQuality.ERROR.value,
+                        backend=backend.backend_name,
+                    )
                 current_rank = _quality_rank(gr.match_quality)
-                prev = best.get(idx)
+                prev = best.get(batch_id)
 
-                if prev is None or current_rank > _quality_rank(prev.match_quality):
-                    best[idx] = gr
+                if (
+                    prev is None
+                    or current_rank > _quality_rank(prev.match_quality)
+                    or (not prev.matched and gr.match_quality == MatchQuality.ERROR.value)
+                ):
+                    best[batch_id] = gr
 
-                if current_rank >= self._min_quality_rank:
-                    pending.discard(idx)
+                if gr.match_quality != MatchQuality.ERROR.value and current_rank >= self._min_quality_rank:
+                    pending.discard(batch_id)
 
         results = []
-        for i in range(len(normalized)):
-            if i in best:
-                results.append(best[i])
+        for batch_id, addr in inputs.items():
+            if batch_id in best:
+                results.append(replace(best[batch_id], input_id=addr.input_id))
             else:
                 results.append(GeocodingResult(
-                    input_address=normalized[i].one_line,
-                    input_id=normalized[i].input_id,
-                    match_quality=MatchQuality.NO_MATCH.value,
+                    input_address=addr.one_line,
+                    input_id=addr.input_id,
+                    match_quality=MatchQuality.ERROR.value,
                     backend=self.backend_name,
                 ))
 
         result = BatchGeocodingResult(
             results=results,
             backend=self.backend_name,
+            errors=errors,
         )
 
         log.info(

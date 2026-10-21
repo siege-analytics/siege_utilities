@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from siege_utilities.geo.providers.batch_geocoder import (
@@ -45,13 +47,15 @@ class _StubGeocoder(BatchGeocoder):
         self.called_with = addresses
         result = BatchGeocodingResult(backend=self._name)
         for addr in addresses:
-            key = addr.input_id if isinstance(addr, AddressInput) else str(addr)
+            key = addr.street if isinstance(addr, AddressInput) else str(addr)
             if key in self._results:
-                result.results.append(self._results[key])
+                result.results.append(replace(
+                    self._results[key], input_id=addr.input_id, input_address=addr.one_line,
+                ))
             else:
                 result.results.append(GeocodingResult(
                     input_address=addr.one_line if isinstance(addr, AddressInput) else str(addr),
-                    input_id=key,
+                    input_id=addr.input_id,
                     match_quality=MatchQuality.NO_MATCH.value,
                     backend=self._name,
                 ))
@@ -123,7 +127,7 @@ class TestCompositeConfig:
 class TestCompositeFallback:
     def test_first_backend_succeeds(self):
         b1 = _StubGeocoder("census", results={
-            "0": _gr("0", MatchQuality.EXACT.value, "census"),
+            "123 Main St": _gr("0", MatchQuality.EXACT.value, "census"),
         })
         b2 = _StubGeocoder("nominatim")
         g = CompositeBatchGeocoder(backends=[b1, b2])
@@ -137,7 +141,7 @@ class TestCompositeFallback:
     def test_fallback_to_second_backend(self):
         b1 = _StubGeocoder("census", results={})
         b2 = _StubGeocoder("nominatim", results={
-            "0": _gr("0", MatchQuality.APPROXIMATE.value, "nominatim"),
+            "123 Main St": _gr("0", MatchQuality.APPROXIMATE.value, "nominatim"),
         })
         g = CompositeBatchGeocoder(backends=[b1, b2])
         result = g.geocode(["123 Main St"])
@@ -148,10 +152,10 @@ class TestCompositeFallback:
 
     def test_keeps_best_result_across_backends(self):
         b1 = _StubGeocoder("census", results={
-            "0": _gr("0", MatchQuality.CENTROID.value, "census"),
+            "123 Main St": _gr("0", MatchQuality.CENTROID.value, "census"),
         })
         b2 = _StubGeocoder("nominatim", results={
-            "0": _gr("0", MatchQuality.APPROXIMATE.value, "nominatim"),
+            "123 Main St": _gr("0", MatchQuality.APPROXIMATE.value, "nominatim"),
         })
         g = CompositeBatchGeocoder(
             backends=[b1, b2],
@@ -164,10 +168,10 @@ class TestCompositeFallback:
 
     def test_mixed_results_partial_fallback(self):
         b1 = _StubGeocoder("census", results={
-            "0": _gr("0", MatchQuality.EXACT.value, "census"),
+            "addr1": _gr("0", MatchQuality.EXACT.value, "census"),
         })
         b2 = _StubGeocoder("nominatim", results={
-            "1": _gr("1", MatchQuality.APPROXIMATE.value, "nominatim"),
+            "addr2": _gr("1", MatchQuality.APPROXIMATE.value, "nominatim"),
         })
         g = CompositeBatchGeocoder(backends=[b1, b2])
         result = g.geocode(["addr1", "addr2"])
@@ -179,7 +183,7 @@ class TestCompositeFallback:
     def test_backend_exception_continues_to_next(self):
         b1 = _StubGeocoder("census", raises=RuntimeError("API down"))
         b2 = _StubGeocoder("nominatim", results={
-            "0": _gr("0", MatchQuality.APPROXIMATE.value, "nominatim"),
+            "123 Main St": _gr("0", MatchQuality.APPROXIMATE.value, "nominatim"),
         })
         g = CompositeBatchGeocoder(backends=[b1, b2])
         result = g.geocode(["123 Main St"])
@@ -190,7 +194,7 @@ class TestCompositeFallback:
     def test_skip_unavailable_backends(self):
         b1 = _StubGeocoder("tamu", available=False)
         b2 = _StubGeocoder("nominatim", results={
-            "0": _gr("0", MatchQuality.APPROXIMATE.value, "nominatim"),
+            "123 Main St": _gr("0", MatchQuality.APPROXIMATE.value, "nominatim"),
         })
         g = CompositeBatchGeocoder(backends=[b1, b2])
         result = g.geocode(["123 Main St"])
@@ -200,7 +204,7 @@ class TestCompositeFallback:
 
     def test_dont_skip_unavailable_when_disabled(self):
         b1 = _StubGeocoder("tamu", available=False, results={
-            "0": _gr("0", MatchQuality.EXACT.value, "tamu"),
+            "123 Main St": _gr("0", MatchQuality.EXACT.value, "tamu"),
         })
         g = CompositeBatchGeocoder(backends=[b1], skip_unavailable=False)
         result = g.geocode(["123 Main St"])
@@ -218,10 +222,10 @@ class TestCompositeFallback:
 
     def test_quality_threshold_triggers_fallback(self):
         b1 = _StubGeocoder("census", results={
-            "0": _gr("0", MatchQuality.CENTROID.value, "census"),
+            "123 Main St": _gr("0", MatchQuality.CENTROID.value, "census"),
         })
         b2 = _StubGeocoder("nominatim", results={
-            "0": _gr("0", MatchQuality.INTERPOLATED.value, "nominatim"),
+            "123 Main St": _gr("0", MatchQuality.INTERPOLATED.value, "nominatim"),
         })
         g = CompositeBatchGeocoder(
             backends=[b1, b2],
@@ -233,10 +237,10 @@ class TestCompositeFallback:
 
     def test_exact_threshold_only_accepts_exact(self):
         b1 = _StubGeocoder("census", results={
-            "0": _gr("0", MatchQuality.INTERPOLATED.value, "census"),
+            "123 Main St": _gr("0", MatchQuality.INTERPOLATED.value, "census"),
         })
         b2 = _StubGeocoder("nominatim", results={
-            "0": _gr("0", MatchQuality.EXACT.value, "nominatim"),
+            "123 Main St": _gr("0", MatchQuality.EXACT.value, "nominatim"),
         })
         g = CompositeBatchGeocoder(
             backends=[b1, b2],
@@ -249,10 +253,10 @@ class TestCompositeFallback:
     def test_three_backends_chain(self):
         b1 = _StubGeocoder("census", results={})
         b2 = _StubGeocoder("nominatim", results={
-            "0": _gr("0", MatchQuality.CENTROID.value, "nominatim"),
+            "123 Main St": _gr("0", MatchQuality.CENTROID.value, "nominatim"),
         })
         b3 = _StubGeocoder("tamu", results={
-            "0": _gr("0", MatchQuality.EXACT.value, "tamu"),
+            "123 Main St": _gr("0", MatchQuality.EXACT.value, "tamu"),
         })
         g = CompositeBatchGeocoder(backends=[b1, b2, b3])
         result = g.geocode(["123 Main St"])
@@ -261,7 +265,7 @@ class TestCompositeFallback:
 
     def test_preserves_input_ids(self):
         b1 = _StubGeocoder("census", results={
-            "MY-ID": _gr("MY-ID", MatchQuality.EXACT.value, "census"),
+            "123 Main St": _gr("MY-ID", MatchQuality.EXACT.value, "census"),
         })
         g = CompositeBatchGeocoder(backends=[b1])
         result = g.geocode([
@@ -272,8 +276,8 @@ class TestCompositeFallback:
 
     def test_stops_early_when_all_resolved(self):
         b1 = _StubGeocoder("census", results={
-            "0": _gr("0", MatchQuality.EXACT.value, "census"),
-            "1": _gr("1", MatchQuality.EXACT.value, "census"),
+            "a": _gr("0", MatchQuality.EXACT.value, "census"),
+            "b": _gr("1", MatchQuality.EXACT.value, "census"),
         })
         b2 = _StubGeocoder("nominatim")
         g = CompositeBatchGeocoder(backends=[b1, b2])
@@ -284,11 +288,11 @@ class TestCompositeFallback:
 
     def test_multiple_addresses_different_backends(self):
         b1 = _StubGeocoder("census", results={
-            "0": _gr("0", MatchQuality.EXACT.value, "census"),
-            "2": _gr("2", MatchQuality.EXACT.value, "census"),
+            "a": _gr("0", MatchQuality.EXACT.value, "census"),
+            "c": _gr("2", MatchQuality.EXACT.value, "census"),
         })
         b2 = _StubGeocoder("nominatim", results={
-            "1": _gr("1", MatchQuality.APPROXIMATE.value, "nominatim"),
+            "b": _gr("1", MatchQuality.APPROXIMATE.value, "nominatim"),
         })
         g = CompositeBatchGeocoder(backends=[b1, b2])
         result = g.geocode(["a", "b", "c"])
