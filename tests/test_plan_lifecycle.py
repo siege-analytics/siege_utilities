@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
+import pytest
 
 from siege_utilities.geo.plan_lifecycle import (
     DictPlanLifecycleProvider,
@@ -286,6 +287,124 @@ class TestResolvePlanAt:
         assert resolve_plan_at(prov, "AL", PlanType.CONGRESSIONAL, date(2022, 6, 1)).plan_id == "AL-CD-2021"
         assert resolve_plan_at(prov, "AL", PlanType.CONGRESSIONAL, date(2024, 1, 1)).plan_id == "AL-CD-2023-COURT"
         assert resolve_plan_at(prov, "AL", PlanType.CONGRESSIONAL, date(2023, 8, 1)) is None
+
+
+class TestPlanLifecycleResolutionRegressions:
+    @pytest.mark.parametrize("when", [date(2023, 3, 1), date(2023, 6, 1)])
+    def test_stayed_plan_is_not_in_effect(self, when):
+        p = _plan(enacted_date="2022-01-01", events=[
+            _event(PlanLifecycleStatus.ENACTED, "2022-01-01"),
+            _event(PlanLifecycleStatus.STAYED, "2023-03-01"),
+        ])
+        prov = DictPlanLifecycleProvider()
+        prov.add(p)
+        lineage = build_lineage([p])
+
+        assert p.status_at(when) == PlanLifecycleStatus.STAYED
+        assert not p.was_active_at(when)
+        assert not p.is_active
+        assert lineage.current_plan is None
+        assert lineage.plan_at(when) is None
+        assert resolve_plan_at(prov, "TX", PlanType.CONGRESSIONAL, when) is None
+
+    def test_stayed_successor_falls_back_to_active_challenged_plan(self):
+        original = _plan(plan_id="ORIGINAL", enacted_date="2022-01-01", events=[
+            _event(PlanLifecycleStatus.ENACTED, "2022-01-01"),
+            _event(PlanLifecycleStatus.CHALLENGED, "2022-06-01"),
+        ])
+        successor = _plan(
+            plan_id="SUCCESSOR", enacted_date="2023-01-01",
+            supersedes_id=original.plan_id, enacted_by=EnactedBy.COURT,
+            events=[
+                _event(PlanLifecycleStatus.ENACTED, "2023-01-01"),
+                _event(PlanLifecycleStatus.STAYED, "2023-03-01"),
+            ],
+        )
+        prov = DictPlanLifecycleProvider()
+        prov.add(successor)
+        prov.add(original)
+        lineage = build_lineage([successor, original])
+        when = date(2023, 3, 1)
+
+        assert original.status_at(when) == PlanLifecycleStatus.CHALLENGED
+        assert original.was_active_at(when)
+        assert original.is_active
+        assert lineage.plan_at(date(2023, 2, 1)) is successor
+        assert lineage.plan_at(when) is original
+        assert lineage.current_plan is original
+        assert resolve_plan_at(prov, "TX", PlanType.CONGRESSIONAL, when) is original
+
+    @pytest.mark.parametrize("when", [date(2022, 1, 1), date(2023, 1, 1)])
+    def test_same_day_adoption_and_enactment_are_in_effect(self, when):
+        p = _plan(enacted_date="2022-01-01", events=[
+            _event(PlanLifecycleStatus.ADOPTED, "2022-01-01"),
+            _event(PlanLifecycleStatus.ENACTED, "2022-01-01"),
+        ])
+        prov = DictPlanLifecycleProvider()
+        prov.add(p)
+        lineage = build_lineage([p])
+
+        assert p.status_at(when) == PlanLifecycleStatus.ENACTED
+        assert p.was_active_at(when)
+        assert p.is_active
+        assert lineage.current_plan is p
+        assert lineage.plan_at(when) is p
+        assert resolve_plan_at(prov, "TX", PlanType.CONGRESSIONAL, when) is p
+
+    @pytest.mark.parametrize("earlier,later", [
+        ("proposed", "adopted"),
+        ("adopted", "enacted"),
+        ("enacted", "challenged"),
+        ("challenged", "stayed"),
+        ("stayed", "struck"),
+        ("struck", "superseded"),
+        ("superseded", "expired"),
+    ])
+    @pytest.mark.parametrize("reverse_events", [False, True])
+    @pytest.mark.parametrize("query", ["latest_event", "status_at"])
+    def test_same_day_stage_order(self, earlier, later, reverse_events, query):
+        when = date(2022, 1, 1)
+        advanced = _event(PlanLifecycleStatus(later), when)
+        events = [_event(PlanLifecycleStatus(earlier), when), advanced]
+        p = _plan(events=events[::-1] if reverse_events else events)
+
+        if query == "latest_event":
+            assert p.latest_event is advanced
+        else:
+            assert p.status_at(when) == advanced.status
+
+    def test_later_date_takes_priority_over_stage(self):
+        reinstated = _event(PlanLifecycleStatus.ENACTED, "2023-01-01")
+        p = _plan(events=[
+            reinstated,
+            _event(PlanLifecycleStatus.STAYED, "2022-06-01"),
+            _event(PlanLifecycleStatus.ENACTED, "2022-01-01"),
+        ])
+        prov = DictPlanLifecycleProvider()
+        prov.add(p)
+        when = date(2023, 1, 1)
+
+        assert p.status_at(date(2022, 3, 1)) == PlanLifecycleStatus.ENACTED
+        assert p.status_at(date(2022, 6, 1)) == PlanLifecycleStatus.STAYED
+        assert p.status_at(when) == PlanLifecycleStatus.ENACTED
+        assert p.latest_event is reinstated
+        assert p.was_active_at(when)
+        assert resolve_plan_at(prov, "TX", PlanType.CONGRESSIONAL, when) is p
+
+    def test_single_event_timeline_is_unchanged(self):
+        enacted = _event(PlanLifecycleStatus.ENACTED, "2022-01-01")
+        p = _plan(events=[enacted])
+        prov = DictPlanLifecycleProvider()
+        prov.add(p)
+
+        assert p.latest_event is enacted
+        assert p.status_at(date(2021, 12, 31)) is None
+        assert resolve_plan_at(prov, "TX", PlanType.CONGRESSIONAL, date(2021, 12, 31)) is None
+        for when in (date(2022, 1, 1), date(2023, 1, 1)):
+            assert p.status_at(when) == PlanLifecycleStatus.ENACTED
+            assert p.was_active_at(when)
+            assert build_lineage([p]).plan_at(when) is p
+            assert resolve_plan_at(prov, "TX", PlanType.CONGRESSIONAL, when) is p
 
 
 # ── Error-path tests ──────────────────────────────────────────────────
