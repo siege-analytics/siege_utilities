@@ -144,15 +144,6 @@
     "reason": "Reviewed NCES extraction uses a UUID sibling staging directory, publishes it with os.replace only after complete extraction, and removes it on failure. Dynamic sibling-directory provenance is not inferred by the scanner."
   },
   {
-    "scope": "RDHClient.download_dataset",
-    "rule": "open",
-    "sha256": "e98649a416fbd543a8beeb80d514d3eda4921e35cc5d99cb7aaf04f2b6354f5c",
-    "call": "open(dest, 'wb')",
-    "file": "geo/providers/redistricting_data_hub.py",
-    "count": 1,
-    "reason": "RDH downloader belongs to #1415 and is explicitly excluded from #1509; interrupted download handling remains that issue's responsibility."
-  },
-  {
     "scope": "RDHClient._extract_zip",
     "rule": "extractall",
     "sha256": "f2e91be74cecb3bb81fb94036946f0e78b320be18b73be29634b53f1ece66258",
