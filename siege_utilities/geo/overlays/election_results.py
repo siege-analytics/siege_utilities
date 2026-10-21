@@ -11,6 +11,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
+from siege_utilities.config.census_registry import FIPS_TO_STATE
 from siege_utilities.geo.overlay_registry import PlaceHistoryOverlay
 
 log = logging.getLogger(__name__)
@@ -127,11 +128,15 @@ class DictElectionDataProvider(ElectionDataProvider):
         to_year: int,
         state_fips: Optional[str] = None,
     ) -> list[ElectionReturn]:
+        """Return elections within either year order, filtered by FIPS or abbreviation."""
+        lo = min(from_year, to_year)
+        hi = max(from_year, to_year)
+        state = FIPS_TO_STATE.get(state_fips, state_fips.upper()) if state_fips else None
         results = []
         for r in self._returns:
-            if r.election_year < from_year or r.election_year > to_year:
+            if r.election_year < lo or r.election_year > hi:
                 continue
-            if state_fips and r.state.upper() != state_fips.upper():
+            if state and r.state.upper() != state:
                 continue
             results.append(r)
         return results
