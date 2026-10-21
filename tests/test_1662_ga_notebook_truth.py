@@ -75,11 +75,10 @@ def test_inbound_references_describe_analytics_02_as_offline():
         for line in doc.splitlines()
         if "GOOGLE_APPLICATION_CREDENTIALS" in line and "analytics/02" in line
     ]
-    # Hub directive on PR #1782: analytics/02's demo is always offline, but the
-    # notebook exposes an opt-in credentialed `live-recipe` cell, so the
-    # credential table documents that row instead of omitting the notebook. The
-    # row must frame it as offline with a live-recipe opt-in, never as a
-    # weekly/live/ships path.
+    # analytics/02's demo is always offline, but the notebook exposes an opt-in
+    # credentialed `live-recipe` cell, so the credential table documents that
+    # row instead of omitting the notebook. The row must frame it as offline
+    # with a live-recipe opt-in, never as a weekly or ships path.
     assert len(credential_rows) == 1, credential_rows
     row = credential_rows[0].lower()
     assert "offline" in row, credential_rows[0]
