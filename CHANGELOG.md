@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The natural-language geometry notebook resolves Lausanne and Lake Geneva to
+  distinct illustrative fixtures, rejects unknown place names, and labels
+  directional results against the queried fixture's centroid. The Lake Geneva
+  fixture joins Grand Lac and Petit Lac boxes so south-shore towns fall south of
+  its centroid (#1672).
 - `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
   `48-49` and excludes the `10` all-industry total that caused double-counting,
   along with supersector aggregates. **Behavior change:** `parse()` and
