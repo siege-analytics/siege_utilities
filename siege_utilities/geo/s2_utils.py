@@ -41,6 +41,11 @@ import math
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Optional
 
+from siege_utilities.geo._geographic_crs import (
+    _geographic_geometries,
+    _geographic_polygon,
+)
+
 if TYPE_CHECKING:  # pragma: no cover
     # pandas is only needed for the DataFrame-batch helpers (e.g.
     # s2_index_points, s2_spatial_join). Cell-level functions —
@@ -244,7 +249,10 @@ def s2_index_polygon(
     bbox cover unchanged.
 
     Args:
-        geometry: A shapely Polygon / MultiPolygon, or a GeoJSON-like dict.
+        geometry: A shapely Polygon / MultiPolygon, a GeoJSON-like dict, or
+            a GeoDataFrame/GeoSeries. Frame/series polygons are reprojected to
+            EPSG:4326 and combined without mutating the input. Bare geometries
+            and inputs with no CRS are assumed to use longitude/latitude degrees.
         level: S2 level (0–30). All returned cells are at this level.
         refine: Filter cells by checking whether the cell center lies
             inside the polygon (default True).
@@ -254,11 +262,13 @@ def s2_index_polygon(
 
     Raises:
         ImportError: If s2sphere (or shapely, when refine=True) is missing.
-        ValueError: If level is out of range.
+        ValueError: If level is out of range, or CRS is missing and coordinates
+            exceed +/-180 longitude or +/-90 latitude.
         TypeError: If geometry can't be converted to a shapely shape.
     """
     _require_s2()
     _validate_level(level)
+    geometry = _geographic_polygon(geometry, "EPSG:4326", "s2_index_polygon")
     poly = _coerce_polygon(geometry)
     minx, miny, maxx, maxy = poly.bounds
 
@@ -382,9 +392,21 @@ def s2_spatial_join(
     Same shape as :func:`h3_spatial_join`. Points and polygons sharing
     a cell are joined; polygons are decomposed into S2 cells via
     :func:`s2_index_polygon`. First-polygon-wins on overlap.
+
+    Polygon GeoDataFrames with a known CRS are reprojected to EPSG:4326
+    without changing the caller's frame. With no CRS, coordinates are assumed
+    to be longitude/latitude degrees. Point latitude/longitude columns must
+    already contain degrees.
+
+    Raises:
+        ValueError: If polygon CRS is missing and coordinates exceed +/-180
+            longitude or +/-90 latitude; names this function and the value.
     """
     _require_s2()
     _validate_level(level)
+    geometries = _geographic_geometries(
+        polygons_gdf["geometry"], "EPSG:4326", "s2_spatial_join",
+    )
     import pandas as pd  # local import; see TYPE_CHECKING note at top
     point_cells = s2_index_points(points_df, lat_col, lon_col, level, as_token=False)
     indexed = points_df.copy()
@@ -392,9 +414,9 @@ def s2_spatial_join(
 
     cell_to_polygon: dict = {}
     polygon_attrs: dict = {}
-    for idx, row in polygons_gdf.iterrows():
+    for (idx, row), geometry in zip(polygons_gdf.iterrows(), geometries):
         poly_id = row[polygon_id_col] if polygon_id_col else idx
-        cells = s2_index_polygon(row["geometry"], level)
+        cells = s2_index_polygon(geometry, level)
         polygon_attrs[poly_id] = {
             col: row[col] for col in polygons_gdf.columns if col != "geometry"
         }
