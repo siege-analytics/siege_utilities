@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Use cumulative volunteer sign-up counts throughout `notebooks/reports/01_charts_and_pdf.ipynb`.
+  Derive the chart, table, and report's +37.8% growth from 37 baseline sign-ups to 51 Q1 sign-ups,
+  replacing the unsupported percentage-share labels (#1673).
+  Pass the DataFrame directly to the PDF table builder so the rendered table shows
+  51, 37, and `+14 (+37.8%)`, with a regression test on the rendered table cells.
+  Clarify that only the chart image uses ElectInfo's primary color; the PDF frame
+  has no ElectInfo header, footer, or page numbering. The library's
+  `generate_pdf_report` ignoring `self.branding_config` is tracked separately (#1789).
 - `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
   `48-49` and excludes the `10` all-industry total that caused double-counting,
   along with supersector aggregates. **Behavior change:** `parse()` and
