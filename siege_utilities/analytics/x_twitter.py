@@ -551,12 +551,12 @@ class XTwitterConnector:
                 "media_url": None,
                 "published_at": t.get("created_at"),
                 "permalink": f"https://x.com/i/status/{t.get('id')}" if t.get("id") else None,
-                "retweet_count": metrics.get("retweet_count", 0),
-                "reply_count": metrics.get("reply_count", 0),
-                "like_count": metrics.get("like_count", 0),
-                "quote_count": metrics.get("quote_count", 0),
-                "bookmark_count": metrics.get("bookmark_count", 0),
-                "impression_count": metrics.get("impression_count", 0),
+                "retweet_count": metrics.get("retweet_count"),
+                "reply_count": metrics.get("reply_count"),
+                "like_count": metrics.get("like_count"),
+                "quote_count": metrics.get("quote_count"),
+                "bookmark_count": metrics.get("bookmark_count"),
+                "impression_count": metrics.get("impression_count"),
                 "metrics": metrics,
             })
         df = pd.DataFrame(rows, columns=_POST_COLUMNS)

@@ -688,8 +688,8 @@ class InstagramConnector:
                 "media_url": p.get("media_url"),
                 "published_at": p.get("timestamp"),
                 "permalink": p.get("permalink"),
-                "like_count": p.get("like_count", 0),
-                "comments_count": p.get("comments_count", 0),
+                "like_count": p.get("like_count"),
+                "comments_count": p.get("comments_count"),
                 "metrics": {key: p[key] for key in ("like_count", "comments_count") if key in p},
             })
         df = pd.DataFrame(rows, columns=_POST_COLUMNS)

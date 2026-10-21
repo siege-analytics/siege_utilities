@@ -504,3 +504,32 @@ def test_instagram_current_insight_response_shapes(monkeypatch, kind, payload, e
     else:
         value = client.get_stories_insights().loc[0, "views"]
     assert value is None if expected is None else value == expected
+
+
+def test_instagram_posts_missing_counts_are_none_not_zero():
+    """An omitted like/comment count becomes None, not 0; a real 0 stays 0, so
+    downstream averages exclude unknowns instead of counting a fake zero (#1458)."""
+    df = instagram.InstagramConnector._posts_to_dataframe([
+        {"id": "a", "like_count": 12, "comments_count": 3},
+        {"id": "b"},
+        {"id": "c", "like_count": 0, "comments_count": 0},
+    ])
+    assert df.loc[0, "like_count"] == 12
+    assert pd.isna(df.loc[1, "like_count"])
+    assert pd.isna(df.loc[1, "comments_count"])
+    assert df.loc[2, "like_count"] == 0
+    assert df.loc[2, "comments_count"] == 0
+
+
+def test_x_twitter_posts_missing_metrics_are_none_not_zero():
+    """An omitted public-metric count becomes None, not 0; a real 0 stays 0 (#1458)."""
+    df = x_twitter.XTwitterConnector._tweets_to_dataframe([
+        {"id": "a", "public_metrics": {"like_count": 12, "retweet_count": 4}},
+        {"id": "b", "public_metrics": {}},
+        {"id": "c", "public_metrics": {"like_count": 0}},
+    ])
+    assert df.loc[0, "like_count"] == 12
+    assert df.loc[0, "retweet_count"] == 4
+    assert pd.isna(df.loc[1, "like_count"])
+    assert pd.isna(df.loc[1, "retweet_count"])
+    assert df.loc[2, "like_count"] == 0

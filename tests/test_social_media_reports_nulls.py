@@ -87,3 +87,18 @@ def test_b5_nullable_series_and_chart_gaps(assembler, dtype):
     daily = next(c for c in report["charts"] if c["type"] == "line")
     assert daily["data"]["datasets"][0]["data"] == [None, 2]
     assert "unavailable likes per post" in " ".join(report["insights"])
+
+
+def test_b5_api_omitted_like_count_averages_known_only_end_to_end(assembler):
+    """End-to-end: a tweet whose public_metrics omit like_count must not be
+    averaged as 0. [12, missing] -> average 12, not 6; the converter emits None
+    for the omitted count so the report's known-only average stays correct (#1458)."""
+    posts = XTwitterConnector._tweets_to_dataframe([
+        {"id": "a", "text": "hi", "public_metrics": {"like_count": 12}},
+        {"id": "b", "text": "yo", "public_metrics": {}},
+    ])
+    data = [platform("x_twitter", followers=100, posts=posts)]
+    report = assembler._build_report_data(data, START, END)
+    joined = " ".join(report["insights"])
+    assert "average 12 likes per post" in joined
+    assert "average 6" not in joined
