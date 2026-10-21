@@ -106,6 +106,45 @@ class VistaSocialResponse:
 
 
 # ---------------------------------------------------------------------------
+# List results
+# ---------------------------------------------------------------------------
+
+class _VistaSocialPage(list):
+    """One page of accounts/profiles, retaining list iteration and indexing.
+
+    ``has_more`` is True when a next link, cursor, flag or total indicates
+    more items, False when those markers indicate completion, and None
+    when the response does not expose a recognized pagination marker.
+    Treat None as unknown completeness, never as a complete enumeration.
+
+    ``pagination`` preserves the response envelope except for ``data``.
+    Recognized markers are ``has_more``, ``next``, ``next_page``,
+    ``next_cursor``, ``total`` and ``total_count``, at the top level or in
+    ``paging``, ``pagination``, ``links`` or ``meta`` mappings. These are
+    best-known v1 conventions, not a verified Vista Social API contract.
+    This class does not fetch subsequent pages.
+    """
+
+    def __init__(self, response: Mapping[str, Any]) -> None:
+        super().__init__(response.get("data") or [])
+        self.pagination = {key: value for key, value in response.items() if key != "data"}
+        markers = [self.pagination]
+        markers.extend(
+            value for key in ("paging", "pagination", "links", "meta")
+            if isinstance(value := response.get(key), Mapping)
+        )
+        signals = []
+        for marker in markers:
+            for key in ("has_more", "next", "next_page", "next_cursor"):
+                if key in marker:
+                    signals.append(bool(marker[key]))
+            for key in ("total", "total_count"):
+                if isinstance(marker.get(key), int):
+                    signals.append(marker[key] > len(self))
+        self.has_more: Optional[bool] = any(signals) if signals else None
+
+
+# ---------------------------------------------------------------------------
 # Connector
 # ---------------------------------------------------------------------------
 
@@ -284,11 +323,14 @@ class VistaSocialConnector:
     # High-level: best-known endpoint paths (verify against real docs)
     # ------------------------------------------------------------------
 
-    def list_accounts(self) -> List[Mapping[str, Any]]:
-        """Return the list of accounts this token can access.
+    def list_accounts(self) -> _VistaSocialPage:
+        """Return the first page of accounts this token can access.
 
-        Wraps ``GET /v1/accounts``. Returns the decoded ``data`` list
-        from the response, or an empty list if the API returned nothing.
+        Wraps ``GET /v1/accounts``. The list-compatible result may be
+        truncated: check ``result.has_more`` (True means more pages, None
+        means unknown) and ``result.pagination`` for continuation metadata.
+        The v1 paging request contract is unverified, so this method makes
+        only one request. See :class:`_VistaSocialPage` for recognized markers.
         Raises on auth / rate-limit / network failures (no silent
         empty-on-error).
         """
@@ -297,13 +339,16 @@ class VistaSocialConnector:
             raise TypeError(
                 f"Expected mapping response from /v1/accounts, got {type(resp.data).__name__}"
             )
-        items = resp.data.get("data")
-        return list(items) if items else []
+        return _VistaSocialPage(resp.data)
 
-    def list_profiles(self, account_id: str) -> List[Mapping[str, Any]]:
-        """Return social profiles connected to *account_id*.
+    def list_profiles(self, account_id: str) -> _VistaSocialPage:
+        """Return the first page of social profiles for *account_id*.
 
         Wraps ``GET /v1/accounts/{account_id}/profiles``.
+        The list-compatible result may be truncated: check ``has_more``
+        (True means more pages, None means unknown) and ``pagination``.
+        Like :meth:`list_accounts`, this makes only one request because
+        the v1 paging request contract is unverified.
         """
         if not account_id:
             raise ValueError("list_profiles requires a non-empty account_id")
@@ -312,8 +357,7 @@ class VistaSocialConnector:
             raise TypeError(
                 f"Expected mapping response from profiles endpoint, got {type(resp.data).__name__}"
             )
-        items = resp.data.get("data")
-        return list(items) if items else []
+        return _VistaSocialPage(resp.data)
 
     def get_account_analytics(
         self,

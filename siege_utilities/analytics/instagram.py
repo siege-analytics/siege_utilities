@@ -18,8 +18,8 @@ import json
 import logging
 import pathlib
 import time
-from datetime import date, datetime
-from typing import Any, Mapping
+from datetime import date, datetime, timezone
+from typing import Any, Iterator, Mapping
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import pandas as pd
@@ -132,8 +132,8 @@ class InstagramConnector:
     def authenticate(self) -> None:
         """Validate token and discover IG user ID if not provided.
 
-        Calls ``/me/accounts`` to find the Facebook Page, then queries
-        the page's ``instagram_business_account`` field.
+        Pages through ``/me/accounts`` to find a Facebook Page with an
+        ``instagram_business_account`` field.
         """
         if self._ig_user_id:
             resp = self._request("GET", f"/{self._ig_user_id}", params={
@@ -143,20 +143,19 @@ class InstagramConnector:
             log.info("Authenticated as IG user %s", resp.get("username", self._ig_user_id))
             return
 
-        pages = self._request("GET", "/me/accounts", params={
+        for pages in self._iter_pages("/me/accounts", params={
             "fields": "id,name,instagram_business_account",
-        })
-        page_data = pages.get("data", [])
-        for page in page_data:
-            ig_account = page.get("instagram_business_account")
-            if ig_account:
-                self._ig_user_id = ig_account["id"]
-                self._authenticated = True
-                log.info(
-                    "Discovered IG user %s via page '%s'",
-                    self._ig_user_id, page.get("name"),
-                )
-                return
+        }):
+            for page in pages.get("data", []):
+                ig_account = page.get("instagram_business_account")
+                if ig_account:
+                    self._ig_user_id = ig_account["id"]
+                    self._authenticated = True
+                    log.info(
+                        "Discovered IG user %s via page '%s'",
+                        self._ig_user_id, page.get("name"),
+                    )
+                    return
 
         raise SocialMediaAuthError(
             "No Instagram Business/Creator account found linked to any "
@@ -181,35 +180,35 @@ class InstagramConnector:
         end_date: date,
         metrics: list[str] | None = None,
     ) -> pd.DataFrame:
-        """Time-series account-level metrics (daily granularity)."""
+        """Daily account metrics for the inclusive UTC date range.
+
+        Fetch every page in each window of at most 30 days. UTC boundaries
+        keep chunk lengths independent of the caller's timezone and DST.
+        """
         self._ensure_connected()
         metric_str = ",".join(metrics) if metrics else DEFAULT_ACCOUNT_METRICS
-        since_ts = int(datetime.combine(start_date, datetime.min.time()).timestamp())
-        until_ts = int(datetime.combine(end_date, datetime.max.time()).timestamp())
+        since_ts = int(datetime.combine(start_date, datetime.min.time(), timezone.utc).timestamp())
+        until_ts = int(datetime.combine(end_date, datetime.max.time(), timezone.utc).timestamp())
 
-        data = self._request("GET", f"/{self._ig_user_id}/insights", params={
-            "metric": metric_str,
-            "period": "day",
-            "since": since_ts,
-            "until": until_ts,
-        })
+        rows_by_date: dict[str, dict[str, Any]] = {}
+        while since_ts <= until_ts:
+            chunk_until = min(since_ts + 30 * 86400 - 1, until_ts)
+            for data in self._iter_pages(f"/{self._ig_user_id}/insights", params={
+                "metric": metric_str,
+                "period": "day",
+                "since": since_ts,
+                "until": chunk_until,
+            }):
+                for metric_block in data.get("data", []):
+                    metric_name = metric_block["name"]
+                    for value_entry in metric_block.get("values", []):
+                        end_time = value_entry.get("end_time", "")
+                        dt = end_time[:10] if end_time else ""
+                        row = rows_by_date.setdefault(dt, {"date": dt})
+                        row[metric_name] = value_entry.get("value", 0)
+            since_ts = chunk_until + 1
 
-        rows: list[dict[str, Any]] = []
-        for metric_block in data.get("data", []):
-            metric_name = metric_block["name"]
-            for value_entry in metric_block.get("values", []):
-                end_time = value_entry.get("end_time", "")
-                dt = end_time[:10] if end_time else ""
-                existing = next((r for r in rows if r["date"] == dt), None)
-                if existing:
-                    existing[metric_name] = value_entry.get("value", 0)
-                else:
-                    rows.append({
-                        "date": dt,
-                        metric_name: value_entry.get("value", 0),
-                    })
-
-        df = pd.DataFrame(rows)
+        df = pd.DataFrame(rows_by_date.values())
         if not df.empty and "date" in df.columns:
             df = df.sort_values("date").reset_index(drop=True)
         log.info("Retrieved %d days of account insights", len(df))
@@ -222,7 +221,12 @@ class InstagramConnector:
         *,
         limit: int | None = None,
     ) -> pd.DataFrame:
-        """Posts published in the given date range."""
+        """Posts with valid timestamps in the inclusive date range.
+
+        Apply the date window and total ``limit`` to every page. Media is
+        normally newest first; stop when a whole page predates the window.
+        A mixed-date page must not hide matching posts on a later page.
+        """
         self._ensure_connected()
         all_posts: list[dict[str, Any]] = []
         params: dict[str, Any] = {
@@ -233,10 +237,10 @@ class InstagramConnector:
         start_dt = datetime.combine(start_date, datetime.min.time())
         end_dt = datetime.combine(end_date, datetime.max.time())
 
-        url_path = f"/{self._ig_user_id}/media"
-        while True:
-            data = self._request("GET", url_path, params=params)
-            for post in data.get("data", []):
+        for data in self._iter_pages(f"/{self._ig_user_id}/media", params=params):
+            page_posts = data.get("data", [])
+            page_before_window = bool(page_posts)
+            for post in page_posts:
                 ts_str = post.get("timestamp", "")
                 if ts_str:
                     try:
@@ -247,23 +251,14 @@ class InstagramConnector:
                 else:
                     post_dt = None
 
-                if post_dt and post_dt < start_dt:
-                    return self._posts_to_dataframe(all_posts)
-                if post_dt is None or (start_dt <= post_dt <= end_dt):
+                if post_dt is None or post_dt >= start_dt:
+                    page_before_window = False
+                if post_dt is not None and start_dt <= post_dt <= end_dt:
                     all_posts.append(post)
                     if limit and len(all_posts) >= limit:
                         return self._posts_to_dataframe(all_posts)
 
-            paging = data.get("paging", {})
-            next_url = paging.get("next")
-            if not next_url:
-                break
-            params = {}
-            url_path = next_url.replace(f"{BASE_URL}", "")
-            if url_path == next_url:
-                data = self._request_url("GET", next_url)
-                for post in data.get("data", []):
-                    all_posts.append(post)
+            if page_before_window:
                 break
 
         return self._posts_to_dataframe(all_posts)
@@ -328,6 +323,22 @@ class InstagramConnector:
             raise SocialMediaAuthError(
                 "Not authenticated. Call authenticate() first."
             )
+
+    def _iter_pages(
+        self,
+        path: str,
+        *,
+        params: Mapping[str, Any] | None = None,
+    ) -> Iterator[dict[str, Any]]:
+        """Follow Graph's absolute next URLs, including host/version changes."""
+        data = self._request("GET", path, params=params)
+        while True:
+            log.debug("Retrieved Graph page with %d entries", len(data.get("data", [])))
+            yield data
+            next_url = data.get("paging", {}).get("next")
+            if not next_url:
+                return
+            data = self._request_url("GET", next_url)
 
     def _request(
         self,
