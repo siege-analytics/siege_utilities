@@ -334,7 +334,7 @@ class SnowflakeConnector:
 
     def _map_pandas_to_snowflake_type(self, pandas_dtype) -> str:
         """Map pandas data types to Snowflake data types."""
-        dtype_str = str(pandas_dtype)
+        dtype_str = str(pandas_dtype).lower()
 
         if 'int' in dtype_str:
             return 'NUMBER(38,0)'
@@ -343,7 +343,7 @@ class SnowflakeConnector:
         elif 'bool' in dtype_str:
             return 'BOOLEAN'
         elif 'datetime' in dtype_str:
-            return 'TIMESTAMP_NTZ'
+            return 'TIMESTAMP_TZ' if ',' in dtype_str else 'TIMESTAMP_NTZ'
         elif 'object' in dtype_str:
             return 'VARCHAR(16777216)'
         else:
