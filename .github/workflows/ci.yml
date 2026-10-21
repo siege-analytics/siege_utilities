@@ -252,7 +252,8 @@ jobs:
       run: |
         sed -i "s/\"gdal>=3.6,<4\"/\"gdal==$(gdal-config --version)\"/g" pyproject.toml
         grep -qE '"gdal==[0-9]' pyproject.toml || { echo "gdal pin rewrite failed (gdal-config missing or pin literal changed)"; exit 1; }
-        uv sync --extra all --extra gdal --extra dev
+        uv sync --extra all --extra gdal --extra dev --extra crm
+        uv run python -c "import msal"  # Fail instead of skipping Dynamics tests.
 
     - name: Install DuckDB spatial for real integration tests
       run: uv run python scripts/prepare_duckdb_spatial.py
