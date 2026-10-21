@@ -7,12 +7,15 @@
 # ================================================================
 
 set -e
+set -o pipefail
 
 # Get script directory (portable, no hardcoded paths)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_ROOT"
 
-# Create output directory
+# Keep reports in $REPO_ROOT/overnight_results/ regardless of the caller's
+# working directory, matching the CI artifact upload path.
 mkdir -p overnight_results
 
 echo "=========================================="
@@ -25,6 +28,8 @@ echo ""
 echo "Running comprehensive test suite..."
 echo ""
 
+# Allow pytest to fail so we can capture its status and still write the summary.
+set +e
 # Use uv if available (CI), fall back to python directly
 if command -v uv &> /dev/null; then
     uv run pytest tests/ \
@@ -36,6 +41,7 @@ if command -v uv &> /dev/null; then
         --cov-report=html:overnight_results/coverage_html \
         --cov-report=json:overnight_results/coverage.json \
         2>&1 | tee overnight_results/test_output.txt
+    TEST_EXIT_CODE=${PIPESTATUS[0]}
 else
     python -m pytest tests/ \
         -v \
@@ -46,9 +52,9 @@ else
         --cov-report=html:overnight_results/coverage_html \
         --cov-report=json:overnight_results/coverage.json \
         2>&1 | tee overnight_results/test_output.txt
+    TEST_EXIT_CODE=${PIPESTATUS[0]}
 fi
-
-TEST_EXIT_CODE=$?
+set -e
 
 # Generate summary
 echo ""
@@ -69,7 +75,7 @@ cat > overnight_results/summary.json << EOF
 EOF
 
 echo ""
-echo "Results saved to: overnight_results/"
+echo "Results saved to: $REPO_ROOT/overnight_results/"
 echo "=========================================="
 
 exit $TEST_EXIT_CODE
