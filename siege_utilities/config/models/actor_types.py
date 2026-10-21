@@ -497,14 +497,6 @@ class Collaborator(Person):
             raise ValueError('External organization name cannot be empty')
         return v.strip()
     
-    @field_validator('access_expires')
-    @classmethod
-    def validate_access_expires(cls, v):
-        """Validate access expiration date."""
-        if v and v <= datetime.now():
-            raise ValueError('Access expiration must be in the future')
-        return v
-    
     @field_validator('allowed_services')
     @classmethod
     def validate_allowed_services(cls, v):
@@ -815,14 +807,6 @@ class Collaboration(BaseModel):
             # Check for duplicates
             if len(v) != len(set(v)):
                 raise ValueError('Participants must be unique')
-        return v
-    
-    @field_validator('end_date')
-    @classmethod
-    def validate_end_date(cls, v):
-        """Validate end date."""
-        if v and v <= datetime.now():
-            raise ValueError('End date must be in the future')
         return v
     
     def add_organization(self, org_id: str) -> None:
