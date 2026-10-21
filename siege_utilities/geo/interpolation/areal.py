@@ -148,18 +148,23 @@ def _interpolate_duckdb(
     extensive_variables: list[str],
     intensive_variables: list[str],
 ) -> gpd.GeoDataFrame:
-    """Area-weighted interpolation via DuckDB spatial SQL."""
+    """Area-weighted interpolation via DuckDB spatial SQL in World Mollweide."""
     import pandas as pd
+
+    # Project only the geometries used for area math; retain target geometry
+    # and attributes in the returned frame, as in compute_area_weights.
+    source_ea = source.to_crs("ESRI:54009")
+    target_ea = target.to_crs("ESRI:54009")
 
     con = _duckdb.connect()
     con.execute("INSTALL spatial; LOAD spatial;")
 
     src_df = pd.DataFrame(source.drop(columns="geometry"))
-    src_df["_geom_wkb"] = source.geometry.apply(lambda g: g.wkb_hex)
+    src_df["_geom_wkb"] = source_ea.geometry.apply(lambda g: g.wkb_hex)
     src_df["_src_idx"] = range(len(src_df))
 
     tgt_df = pd.DataFrame(target.drop(columns="geometry"))
-    tgt_df["_geom_wkb"] = target.geometry.apply(lambda g: g.wkb_hex)
+    tgt_df["_geom_wkb"] = target_ea.geometry.apply(lambda g: g.wkb_hex)
     tgt_df["_tgt_idx"] = range(len(tgt_df))
 
     con.register("source_tbl", src_df)
@@ -232,8 +237,10 @@ def _interpolate_shapely(
     intensive_variables: list[str],
 ) -> gpd.GeoDataFrame:
     """Area-weighted interpolation via Shapely STRtree (no GDAL, no DuckDB)."""
-    src_geoms = source.geometry.values
-    tgt_geoms = target.geometry.values
+    # Source areas and intersections must use the same equal-area measure,
+    # regardless of the common working CRS or the requested output CRS.
+    src_geoms = source.to_crs("ESRI:54009").geometry.values
+    tgt_geoms = target.to_crs("ESRI:54009").geometry.values
 
     tree = STRtree(src_geoms)
 
@@ -364,6 +371,9 @@ def interpolate_areal(
 
     Uses area-weighted interpolation to redistribute values from source
     polygons to target polygons based on the area of intersection.
+    Shapely and DuckDB measure all areas in World Mollweide (ESRI:54009),
+    independently of the input and output CRSs. Tobler retains its own CRS
+    handling, including warnings when computing areas in a geographic CRS.
 
     Backend dispatch (in priority order):
     1. tobler (PySAL) — when tobler + geopandas are installed
@@ -386,7 +396,8 @@ def interpolate_areal(
         crs: Output CRS for the result GeoDataFrame (default: source CRS).
 
     Returns:
-        ArealInterpolationResult with interpolated GeoDataFrame in *crs*.
+        ArealInterpolationResult with interpolated GeoDataFrame in *crs*,
+        or the original source CRS when *crs* is omitted.
         Target columns and row order are preserved; requested variables are
         floats that replace same-named target columns or are appended in
         extensive/intensive order.
@@ -511,13 +522,13 @@ def interpolate_areal(
     output = target.copy()
     for v in extensive_variables + intensive_variables:
         output[v] = result_gdf[v].to_numpy(dtype=float, copy=True)
-    result_gdf = reproject_if_needed(output, crs)
+    result_gdf = reproject_if_needed(output, crs if crs is not None else source_gdf.crs)
 
     return ArealInterpolationResult(
         data=result_gdf,
         extensive_variables=extensive_variables,
         intensive_variables=intensive_variables,
-        source_crs=str(source.crs),
+        source_crs=str(source_gdf.crs),
         target_crs=str(target.crs),
         n_source=len(source),
         n_target=len(target),
