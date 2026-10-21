@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Correct the geocoding notebook's cache-hit claim: the timed cell scans
+  already-collected results in memory to select matched input IDs. Add a
+  narrative regression test and offline execution coverage for the geo notebook
+  group. Correct the related notebook descriptions to cover precinct-level
+  bivariate mapping and statistical primitives, and add regression coverage for
+  their cross-reference claims (#1667).
 - `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
   `48-49` and excludes the `10` all-industry total that caused double-counting,
   along with supersector aggregates. **Behavior change:** `parse()` and
