@@ -13,7 +13,7 @@ Functions:
     create_choropleth_comparison     -- Multiple variables side by side
     create_classified_comparison     -- Same variable, different classification schemes
     create_bivariate_choropleth      -- Two-variable bivariate map with legend
-    create_bivariate_crosstab        -- NxN count table for bivariate bins
+    create_bivariate_crosstab        -- Count table for actual bivariate bins
     create_bivariate_companion_maps  -- Side-by-side monovariate maps with same bins
     verify_bivariate_classification  -- Data-level verification of classification
     create_bivariate_analysis        -- Orchestrator returning all artifacts
@@ -194,6 +194,26 @@ def _format_breakpoint(value: float) -> str:
     return f"{value:.1f}"
 
 
+def _bivariate_color_grid(
+    colors: List[str],
+    n_classes: int,
+    var1_count: int,
+    var2_count: int,
+) -> np.ndarray:
+    """Sample the requested palette across the actual bins, keeping both ends."""
+    minimum = min(2, n_classes)
+    if min(var1_count, var2_count) < minimum:
+        raise ValueError(
+            f"Cannot render bivariate quantiles with {var1_count} classes for var1 "
+            f"and {var2_count} classes for var2 (requested {n_classes} each). "
+            f"Each variable needs at least {minimum} classes to preserve the "
+            "color range; use fewer requested classes or more distinct values."
+        )
+    x_indices = np.rint(np.linspace(0, n_classes - 1, var1_count)).astype(int)
+    y_indices = np.rint(np.linspace(0, n_classes - 1, var2_count)).astype(int)
+    return np.asarray(colors).reshape(n_classes, n_classes)[np.ix_(y_indices, x_indices)]
+
+
 def _compute_bivariate_classes(
     gdf: gpd.GeoDataFrame,
     var1: str,
@@ -211,23 +231,24 @@ def _compute_bivariate_classes(
     Returns:
         Tuple of:
             - GeoDataFrame copy with columns '_var1_class', '_var2_class', '_bivar_class'
-            - var1_breaks: numpy array of breakpoint values (length n_classes + 1)
-            - var2_breaks: numpy array of breakpoint values (length n_classes + 1)
+            - var1_breaks: numpy array of breakpoint values
+            - var2_breaks: numpy array of breakpoint values
+
+        Ties may reduce the number of bins. Each break array has one more
+        entry than its actual bin count; '_bivar_class' indexes that grid
+        in row-major order, with var1 along columns and var2 along rows.
     """
     gdf = gdf.copy()
 
-    _, var1_bins = pd.qcut(gdf[var1], n_classes, labels=False,
-                           duplicates='drop', retbins=True)
-    _, var2_bins = pd.qcut(gdf[var2], n_classes, labels=False,
-                           duplicates='drop', retbins=True)
-
-    gdf['_var1_class'] = pd.qcut(
-        gdf[var1], n_classes, labels=False, duplicates='drop'
+    gdf['_var1_class'], var1_bins = pd.qcut(
+        gdf[var1], n_classes, labels=False, duplicates='drop', retbins=True
     )
-    gdf['_var2_class'] = pd.qcut(
-        gdf[var2], n_classes, labels=False, duplicates='drop'
+    gdf['_var2_class'], var2_bins = pd.qcut(
+        gdf[var2], n_classes, labels=False, duplicates='drop', retbins=True
     )
-    gdf['_bivar_class'] = gdf['_var1_class'] + gdf['_var2_class'] * n_classes
+    gdf['_bivar_class'] = (
+        gdf['_var1_class'] + gdf['_var2_class'] * (len(var1_bins) - 1)
+    )
 
     return gdf, np.asarray(var1_bins), np.asarray(var2_bins)
 
@@ -453,7 +474,8 @@ def create_bivariate_choropleth(
     """Create a bivariate choropleth map showing two variables.
 
     Bins each variable into quantile classes and combines them into a 2D
-    color index, rendered with a proper NxN legend grid.
+    color index. When ties reduce the bin counts, the map and legend use
+    the actual rectangular grid and sample the palette from low to high.
 
     Args:
         gdf: GeoDataFrame with geometry and two numeric columns.
@@ -472,13 +494,17 @@ def create_bivariate_choropleth(
 
     Raises:
         ValueError: If color scheme is unknown or has wrong number of colors.
+            Also raised when an axis has fewer than two bins after ties
+            are dropped, unless n_classes=1 was requested.
     """
     colors = _resolve_color_scheme(color_scheme, n_classes)
-    cmap = mcolors.ListedColormap(colors)
 
     classified, var1_breaks, var2_breaks = _compute_bivariate_classes(
         gdf, var1, var2, n_classes
     )
+    var1_count, var2_count = len(var1_breaks) - 1, len(var2_breaks) - 1
+    color_grid = _bivariate_color_grid(colors, n_classes, var1_count, var2_count)
+    cmap = mcolors.ListedColormap(color_grid.ravel())
 
     fig, (ax_map, ax_legend) = plt.subplots(
         1, 2, figsize=figsize,
@@ -492,23 +518,24 @@ def create_bivariate_choropleth(
         edgecolor=edgecolor,
         linewidth=linewidth,
         vmin=0,
-        vmax=n_classes * n_classes - 1,
+        vmax=color_grid.size - 1,
     )
     ax_map.set_title(title, fontsize=14)
     ax_map.axis('off')
 
-    # Create NxN legend grid with magnitude tick labels
-    legend_array = np.arange(n_classes * n_classes).reshape(n_classes, n_classes)
-    ax_legend.imshow(legend_array, cmap=cmap, origin='lower')
+    # Use the same actual grid and color scale as the map.
+    legend_array = np.arange(color_grid.size).reshape(var2_count, var1_count)
+    ax_legend.imshow(
+        legend_array, cmap=cmap, origin='lower', vmin=0, vmax=color_grid.size - 1,
+    )
 
     # Tick positions at cell boundaries (edges between cells + outer edges)
-    tick_positions = np.arange(n_classes + 1) - 0.5
     var1_labels = [_format_breakpoint(v) for v in var1_breaks]
     var2_labels = [_format_breakpoint(v) for v in var2_breaks]
 
-    ax_legend.set_xticks(tick_positions)
+    ax_legend.set_xticks(np.arange(len(var1_breaks)) - 0.5)
     ax_legend.set_xticklabels(var1_labels, fontsize=7, rotation=45, ha='right')
-    ax_legend.set_yticks(tick_positions)
+    ax_legend.set_yticks(np.arange(len(var2_breaks)) - 0.5)
     ax_legend.set_yticklabels(var2_labels, fontsize=7)
 
     ax_legend.set_xlabel(f'{var1} \u2192', fontsize=10)
@@ -582,8 +609,13 @@ def create_bivariate_crosstab(
         figsize: Figure size for rendered crosstab.
 
     Returns:
-        If render=False: DataFrame with counts (n_classes rows × n_classes cols).
+        If render=False: DataFrame with one row per actual var2 bin and
+        one column per actual var1 bin. Ties may reduce either dimension.
         If render=True: Tuple of (DataFrame, fig, ax).
+
+    Raises:
+        ValueError: When rendering, if the color scheme is invalid or an
+            axis has fewer than two bins, unless n_classes=1 was requested.
     """
     classified, var1_breaks, var2_breaks = _compute_bivariate_classes(
         gdf, var1, var2, n_classes
@@ -600,23 +632,19 @@ def create_bivariate_crosstab(
 
     var1_labels = _range_labels(var1_breaks)
     var2_labels = _range_labels(var2_breaks)
+    var1_count, var2_count = len(var1_labels), len(var2_labels)
 
     ct = pd.crosstab(
         classified['_var2_class'],
         classified['_var1_class'],
     )
 
-    # Ensure all classes present even if empty
-    for i in range(n_classes):
-        if i not in ct.index:
-            ct.loc[i] = 0
-        if i not in ct.columns:
-            ct[i] = 0
-    ct = ct.sort_index(axis=0).sort_index(axis=1)
+    # Include empty bins, but do not recreate bins dropped by qcut.
+    ct = ct.reindex(index=range(var2_count), columns=range(var1_count), fill_value=0)
 
     # Apply readable labels
-    ct.index = var2_labels[:ct.shape[0]]
-    ct.columns = var1_labels[:ct.shape[1]]
+    ct.index = var2_labels
+    ct.columns = var1_labels
     ct.index.name = var2
     ct.columns.name = var1
 
@@ -625,9 +653,9 @@ def create_bivariate_crosstab(
 
     # Render colored figure
     colors = _resolve_color_scheme(color_scheme, n_classes)
+    color_array = _bivariate_color_grid(colors, n_classes, var1_count, var2_count)
     fig, ax = plt.subplots(1, 1, figsize=figsize)
 
-    color_array = np.array(colors).reshape(n_classes, n_classes)
     for row in range(ct.shape[0]):
         for col in range(ct.shape[1]):
             cell_color = color_array[row, col]
@@ -645,11 +673,11 @@ def create_bivariate_crosstab(
                 color=text_color,
             )
 
-    ax.set_xlim(0, n_classes)
-    ax.set_ylim(0, n_classes)
-    ax.set_xticks(np.arange(n_classes) + 0.5)
+    ax.set_xlim(0, var1_count)
+    ax.set_ylim(0, var2_count)
+    ax.set_xticks(np.arange(var1_count) + 0.5)
     ax.set_xticklabels(ct.columns, fontsize=8, rotation=45, ha='right')
-    ax.set_yticks(np.arange(n_classes) + 0.5)
+    ax.set_yticks(np.arange(var2_count) + 0.5)
     ax.set_yticklabels(ct.index, fontsize=8)
     ax.set_xlabel(f'{var1} \u2192', fontsize=10)
     ax.set_ylabel(f'{var2} \u2192', fontsize=10)
@@ -719,7 +747,9 @@ def verify_bivariate_classification(
     """Verify the integrity of a bivariate quantile classification.
 
     Pure data function — no plotting. Checks that the classification is
-    complete, breakpoints are monotonic, and counts sum correctly.
+    complete, both variables have the requested number of classes,
+    breakpoints are monotonic, and counts sum correctly. Reduced class
+    counts are errors even when the reduced grid can be rendered.
 
     Args:
         gdf: GeoDataFrame with two numeric columns.
@@ -752,8 +782,23 @@ def verify_bivariate_classification(
             f"Unclassified units: {total_units - classified_units} of {total_units}"
         )
 
-    # Check breakpoints are monotonically increasing
-    for name, breaks in [('var1', var1_breaks), ('var2', var2_breaks)]:
+    # Check actual class counts as well as breakpoint ordering.
+    for name, breaks, column in [
+        (var1, var1_breaks, '_var1_class'),
+        (var2, var2_breaks, '_var2_class'),
+    ]:
+        class_count = len(breaks) - 1
+        populated_count = classified[column].nunique()
+        if class_count != n_classes:
+            errors.append(
+                f"Variable '{name}' has {class_count} quantile classes; "
+                f"expected {n_classes}. Tied values can reduce the class count."
+            )
+        elif populated_count != n_classes:
+            errors.append(
+                f"Variable '{name}' has {populated_count} populated quantile "
+                f"classes; expected {n_classes}."
+            )
         diffs = np.diff(breaks)
         if not np.all(diffs >= 0):
             errors.append(f"{name} breakpoints are not monotonically increasing")
@@ -834,6 +879,10 @@ def create_bivariate_analysis(
     - Two companion monovariate maps (one per variable)
     - Verification dict confirming classification integrity
 
+    Ties may reduce the map, legend, and crosstab dimensions. The reduced
+    grid preserves the palette endpoints, while verification reports the
+    reduced class count as an error.
+
     Args:
         gdf: GeoDataFrame with geometry and two numeric columns.
         var1: Column name for first variable (x-axis).
@@ -852,6 +901,10 @@ def create_bivariate_analysis(
 
     Returns:
         BivariateAnalysisResult dataclass with all artifacts.
+
+    Raises:
+        ValueError: If the color scheme is invalid or an axis has fewer
+            than two bins, unless n_classes=1 was requested.
     """
     bivar_fig, bivar_axes = create_bivariate_choropleth(
         gdf, var1, var2,
