@@ -74,6 +74,7 @@ NOTEBOOK_GROUPS: dict[str, list[str]] = {
         "git/repo_analysis.ipynb",
         "economic/economic_data_irs_bls.ipynb",
         "analytics/01_connectors.ipynb",
+        "analytics/02_ga_end_to_end.ipynb",
         "analytics/03_social_media_analytics.ipynb",
         "analytics/04_crm_pipeline.ipynb",
         "analytics/05_crm_sales_reports.ipynb",
@@ -97,9 +98,7 @@ NOTEBOOK_GROUPS: dict[str, list[str]] = {
         "spatial/06_geodjango.ipynb",
     ],
     # Analytics with credentials — external service tokens required.
-    "analytics_integration": [
-        "analytics/02_ga_end_to_end.ipynb",
-    ],
+    "analytics_integration": [],
     # Spark / distributed — require pyspark + JVM.
     "spark": [
         "engines/02_distributed_spark.ipynb",
