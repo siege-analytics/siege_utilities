@@ -428,6 +428,9 @@ def flatten_json_column_and_join_back_to_df(df: "DataFrame", json_column: str,
 def validate_geocode_data(df, lat_col_name: str, lon_col_name: str):
     """Filters out rows with invalid geographic coordinates using string-based column names.
 
+    Rejects the exact (0, 0) failed-geocode sentinel; single-zero coordinates
+    within world ranges remain valid.
+
     Raises:
         ValueError: If *lat_col_name* or *lon_col_name* is not in the DataFrame.
     """
@@ -436,7 +439,8 @@ def validate_geocode_data(df, lat_col_name: str, lon_col_name: str):
             f'Columns {lat_col_name}, {lon_col_name} not found in DataFrame')
     return df.filter(df[lat_col_name].isNotNull() & df[lon_col_name].
         isNotNull() & df[lat_col_name].between(-90, 90) & df[lon_col_name].
-        between(-180, 180))
+        between(-180, 180) &
+        ~((df[lat_col_name] == 0) & (df[lon_col_name] == 0)))
 
 
 def mark_valid_geocode_data(df, lat_col_name: str, lon_col_name: str,
@@ -448,6 +452,8 @@ def mark_valid_geocode_data(df, lat_col_name: str, lon_col_name: str,
     - The latitude and longitude columns are not null.
     - The latitude is between -90 and 90.
     - The longitude is between -180 and 180.
+    - The pair is not exactly (0, 0), the failed-geocode sentinel. A single
+      zero coordinate remains valid.
 
     Unlike filtering functions, this function preserves all rows in the DataFrame by simply marking
     each row with a True (valid) or False (invalid) value in the new output column.
@@ -471,7 +477,8 @@ def mark_valid_geocode_data(df, lat_col_name: str, lon_col_name: str,
             )
     return df.withColumn(output_col_name, col(lat_col_name).isNotNull() &
         col(lon_col_name).isNotNull() & col(lat_col_name).between(-90, 90) &
-        col(lon_col_name).between(-180, 180))
+        col(lon_col_name).between(-180, 180) &
+        ~((col(lat_col_name) == 0) & (col(lon_col_name) == 0)))
 
 
 def clean_and_reorder_bbox(df, bbox_col):
