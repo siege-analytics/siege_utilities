@@ -13,8 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   donor and precinct views, geometry inputs, and runtime prerequisites. Clarify
   that notebook execution checks imports, with cluster-free CI regression
   coverage for the documented contract and import smoke test. Describe both
-  the Spark/Sedona and GeoDjango notebooks as schematic in the notebook guide,
-  with only their import smoke cells executing (#1664).
+  the Spark/Sedona and GeoDjango notebooks as schematic in the notebook guide;
+  the Spark/Sedona notebook executes only an import smoke cell, while the
+  GeoDjango spatial/06 notebook is markdown-only with no code cells (#1664).
 - `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
   `48-49` and excludes the `10` all-industry total that caused double-counting,
   along with supersector aggregates. **Behavior change:** `parse()` and
