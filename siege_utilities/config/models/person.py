@@ -20,7 +20,7 @@ from .credential import Credential, OnePasswordCredential
 from .google_account import GoogleAccount
 from .oauth_integration import OAuthIntegration
 from .database_connection import DatabaseConnection
-from ._sensitivity import SECRET_FIELD_NAME
+from ._sensitivity import SECRET_FIELD_NAME, field_has_sensitive_name
 
 __all__ = ["Person"]
 
@@ -631,15 +631,41 @@ def _convert_to_yaml_safe(obj: Any) -> Any:
 
 
 _REDACTED = '***REDACTED***'
+
+
+def _redact_sensitive_value(value: Any) -> Any:
+    """Redact a value whose field or key is classified sensitive (#1460 B1832-1).
+
+    No truthiness guards: a falsey container can still hold a SecretStr. ``None``
+    stays ``None`` (there is no secret to redact); a model or container is
+    recursed so nested secrets are redacted regardless of truthiness while its
+    non-secret structure is preserved; any other (scalar) value is the secret
+    itself and is redacted.
+    """
+    if (
+        isinstance(value, (BaseModel, dict, list, tuple))
+        or (is_dataclass(value) and not isinstance(value, type))
+    ):
+        # A model or container is redacted whatever its truthiness: a falsey
+        # container (e.g. a zero-length model) can still hold a SecretStr.
+        return _REDACTED
+    # A scalar is the secret itself: a present scalar is redacted; an empty or
+    # None scalar carries no secret and is kept, matching develop.
+    return _REDACTED if value else value
 _URL_PASSWORD = re.compile(r'([a-zA-Z][a-zA-Z0-9+.-]*://[^\s/:?#@]*:)[^\s/?#]*(@)')
 
 
 def _sensitive_name(name: Any) -> bool:
-    """Conservatively classify unmarked fields and free-form metadata keys."""
-    return (
-        isinstance(name, str)
-        and SECRET_FIELD_NAME.search(name) is not None
-    )
+    """Classify metadata keys without changing their output representation."""
+    if isinstance(name, (bytes, bytearray)):
+        try:
+            name = name.decode('utf-8')
+        except UnicodeDecodeError:
+            return True
+    if isinstance(name, str):
+        return SECRET_FIELD_NAME.search(name) is not None
+    # Numeric/null keys cannot name credentials; unknown key types fail closed.
+    return not isinstance(name, (int, float, bool, type(None)))
 
 
 def _strip_sensitive_fields(data: Any) -> Any:
@@ -647,7 +673,8 @@ def _strip_sensitive_fields(data: Any) -> Any:
 
     A field's ``json_schema_extra['sensitive']`` declares its policy. True
     redacts the entire value; False explicitly permits a non-secret field.
-    Unmarked secret-like names fail closed, including in free-form metadata.
+    Unmarked secret-like names and aliases fail closed. Metadata keys also
+    fail closed for unknown types or bytes that cannot be decoded as UTF-8.
     Secrets with innocuous names (e.g. ``pin`` or ``material``) are covered
     only by an explicit ``sensitive`` marker, not by the name floor.
     Empty values remain empty, and public containers are still traversed.
@@ -664,11 +691,12 @@ def _strip_sensitive_fields(data: Any) -> Any:
             value = getattr(data, name)
             extra = field.json_schema_extra
             policy = extra.get('sensitive') if isinstance(extra, dict) else None
-            sensitive = policy is True or (policy is not False and _sensitive_name(name))
-            result[name] = (
-                _REDACTED if value else value
-            ) if sensitive else _strip_sensitive_fields(value)
-        if data.model_extra:
+            sensitive = policy is True or (policy is not False and field_has_sensitive_name(name, field))
+            # A sensitive field is redacted via _redact_sensitive_value (which
+            # recurses containers regardless of truthiness, #1460 B1832-1);
+            # non-sensitive values are always recursed, including falsey ones.
+            result[name] = _redact_sensitive_value(value) if sensitive else _strip_sensitive_fields(value)
+        if data.model_extra is not None:
             result.update(_strip_sensitive_fields(data.model_extra))
         return result
     if is_dataclass(data) and not isinstance(data, type):
@@ -676,7 +704,10 @@ def _strip_sensitive_fields(data: Any) -> Any:
                                         for field in fields(data)})
     if isinstance(data, dict):
         return {
-            name: (_REDACTED if value else value) if _sensitive_name(name)
+            # A sensitive mapping key redacts its value via _redact_sensitive_value
+            # (recurses containers regardless of truthiness, #1460 B1832-1); a
+            # non-sensitive key always recurses, including falsey values.
+            name: _redact_sensitive_value(value) if _sensitive_name(name)
             else _strip_sensitive_fields(value)
             for name, value in data.items()
         }
