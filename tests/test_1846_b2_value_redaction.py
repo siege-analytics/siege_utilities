@@ -46,11 +46,23 @@ def test_traceback_contains_no_secret_in_any_form():
     assert encoded not in tb
 
 
-def test_short_configured_value_is_not_redacted():
-    # A short value must not blank out diagnostics (min-length guard).
+def test_short_configured_credential_suppresses_auth_upstream_detail():
+    # #1846 B2 r4 D3 reversal. This test previously asserted the opposite --
+    # "A short value must not blank out diagnostics (min-length guard)" with
+    # ``assert "abc stays visible" in str(caught.value)``. D3 ("configured
+    # cred <8 chars -> diagnostics carry NO upstream detail") supersedes that
+    # on the auth/token path: a short credential cannot be removed by value
+    # replacement, so an auth-error body that may echo it is dropped in full,
+    # leaving only the trusted constant and status. The min-length guard's
+    # original intent (short values do not blank innocent diagnostics) still
+    # holds off the auth path -- see
+    # test_connectors_salesforce_errors.test_short_credential_preserves_general_path_detail.
     c = connector("salesforce")
     c._client_secret = "abc"  # len 3 < _MIN_SECRET_VALUE_LEN
     c._session.post = Mock(return_value=response(400, {"error": "detail abc stays visible"}))
     with pytest.raises(ConnectorError) as caught:
         c._exchange_token("https://auth.example.test/token", {"client_secret": "abc"})
-    assert "abc stays visible" in str(caught.value)
+    text = str(caught.value)
+    assert text == "Salesforce auth failed (400)"
+    assert "abc stays visible" not in text
+    assert "detail" not in text

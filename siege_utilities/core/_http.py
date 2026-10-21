@@ -136,14 +136,20 @@ def redact_secrets(text: str, *, replacement: str = "[REDACTED]", values=()) -> 
     redacted. This is diagnostic-text redaction only: never call it on an
     outgoing request payload, URL, or header.
     """
+    text = str(text)
+    # D4 (#1846 r4): whole-value replacement FIRST, longest-first across all
+    # encodings, so a configured secret that contains spaces or quotes is
+    # removed in full before the syntax passes -- otherwise a form/URL pattern
+    # stops at an inner delimiter and leaves the secret's unique suffix exposed.
+    for secret in _expand_secret_values(values):
+        text = text.replace(secret, replacement)
+    # Then syntax/key redaction.
     text = redact_url_secrets(text, replacement=replacement)
     text = _QUOTED_SECRET.sub(
         lambda m: m["prefix"] + m["quote"] + replacement + m["quote"], text,
     )
     for pattern in (_HEADER_SECRET, _FORM_SECRET, _BEARER_SECRET):
         text = pattern.sub(lambda m: m[1] + replacement, text)
-    for secret in _expand_secret_values(values):
-        text = text.replace(secret, replacement)
     return text
 
 

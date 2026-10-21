@@ -202,19 +202,21 @@ def test_request_retries_then_raises_on_5xx():
 
 def test_extract_error_falls_back_to_text_for_unknown_dict_keys():
     resp = _FakeResp(400, json_body={"code": "REQUIRED_FIELD_MISSING"}, text="fallback text")
-    result = ZohoConnector._extract_error(resp)
+    # _extract_error is a bound method now: value redaction needs the
+    # instance's configured secrets (#1846 B2 r4). Fallback-to-text unchanged.
+    result = _connector()._extract_error(resp)
     assert result == "fallback text"
 
 
 def test_extract_error_falls_back_to_text_for_non_dict_json():
     resp = _FakeResp(400, json_body=["error", "list"], text="list fallback")
-    result = ZohoConnector._extract_error(resp)
+    result = _connector()._extract_error(resp)
     assert result == "list fallback"
 
 
 def test_extract_error_falls_back_to_text_for_non_json_response():
     resp = _FakeResp(400, json_raises=True, text="plain error text")
-    result = ZohoConnector._extract_error(resp)
+    result = _connector()._extract_error(resp)
     assert result == "plain error text"
 
 

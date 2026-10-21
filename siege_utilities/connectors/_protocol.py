@@ -21,7 +21,13 @@ from typing import Any, Protocol, runtime_checkable
 import numpy as np
 import pandas as pd
 
-from siege_utilities.core._http import redact_secrets
+from siege_utilities.core._http import _MIN_SECRET_VALUE_LEN, redact_secrets
+
+# Distinct fail-closed signal: secret collection could not be trusted, so the
+# caller must not emit any upstream text it cannot prove secret-free.
+_SECRET_COLLECTION_FAILED = object()
+# Constant substituted when redaction is unavailable. Carries no upstream detail.
+_REDACTION_UNAVAILABLE = "[secret-redaction unavailable]"
 
 __all__ = [
     "ConnectorProtocol",
@@ -134,29 +140,66 @@ class _SecretRedactionMixin:
         "_client_secret", "_access_token", "_refresh_token", "_password", "_api_key",
     )
 
-    def _secret_values(self) -> list[str]:
-        values: list[str] = []
-        for attr in self._SECRET_ATTRS:
-            value = getattr(self, attr, None)
-            if isinstance(value, str) and value:
-                values.append(value)
-        session = getattr(self, "_session", None)
-        headers = getattr(session, "headers", None)
-        if headers is not None:
-            for header in ("Authorization", "X-Api-Key"):
-                try:
+    def _secret_values(self) -> "list[str] | object":
+        """Configured secret values to redact, or the fail-closed signal.
+
+        Returns a list of the instance's own secret strings, or
+        ``_SECRET_COLLECTION_FAILED`` when collection could not complete. A
+        caller-supplied header mapping is untrusted: its ``.get`` may be a
+        hostile override that raises anything (its own exception text can
+        carry a secret). Any such failure yields the fail-closed signal rather
+        than a partial list, so ``_redact`` cannot emit text it did not fully
+        scan. The broad handler is reviewed in
+        scripts/exception_contracts_allowlist.json (#1846 B2 D5).
+        """
+        try:
+            values: list[str] = []
+            for attr in self._SECRET_ATTRS:
+                value = getattr(self, attr, None)
+                if isinstance(value, str) and value:
+                    values.append(value)
+            session = getattr(self, "_session", None)
+            headers = getattr(session, "headers", None)
+            if headers is not None:
+                for header in ("Authorization", "X-Api-Key"):
                     raw = headers.get(header)
-                except (AttributeError, TypeError):
-                    # headers is not a real mapping (no/incompatible .get);
-                    # diagnostics must stay robust, so skip rather than raise.
-                    raw = None
-                if isinstance(raw, str) and raw:
-                    values.append(raw[7:] if raw[:7].lower() == "bearer " else raw)
-        return values
+                    if isinstance(raw, str) and raw:
+                        values.append(raw[7:] if raw[:7].lower() == "bearer " else raw)
+            return values
+        except Exception:
+            # Build the signal AFTER the except so no raise chains the caught
+            # exception (whose text may hold a secret) into __context__.
+            return _SECRET_COLLECTION_FAILED
 
     def _redact(self, text: object) -> str:
-        """Key-based plus configured-value redaction for diagnostic text."""
-        return redact_secrets(str(text), values=self._secret_values())
+        """Key-based plus configured-value redaction for diagnostic text.
+
+        Fails closed: when secret collection could not be trusted, return a
+        constant carrying no upstream detail rather than text scanned only by
+        the key-based pass (which cannot remove an un-enumerated secret value).
+        """
+        values = self._secret_values()
+        if values is _SECRET_COLLECTION_FAILED:
+            return _REDACTION_UNAVAILABLE
+        return redact_secrets(str(text), values=values)
+
+    def _safe_upstream_detail(self, text: object, *, limit: int = 200) -> str | None:
+        """Value+syntax-redacted upstream text, or ``None`` when untrustworthy.
+
+        Returns ``None`` (caller must fall back to trusted constants only) when
+        secret collection failed, or when any configured secret is shorter than
+        the value redactor's minimum length -- such a secret is not removed by
+        value replacement (short strings are skipped so common words cannot
+        blank diagnostics), so echoing upstream text could expose it. Value
+        redaction runs on the full text before truncation, so a long secret is
+        removed in full rather than merely having its tail cut (#1846 B2 D3/D4).
+        """
+        values = self._secret_values()
+        if values is _SECRET_COLLECTION_FAILED:
+            return None
+        if any(len(value) < _MIN_SECRET_VALUE_LEN for value in values):
+            return None
+        return redact_secrets(str(text), values=values)[:limit]
 
 
 class ConnectorError(Exception):

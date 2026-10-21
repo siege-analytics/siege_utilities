@@ -38,7 +38,6 @@ from siege_utilities.connectors._retry import (
     backoff_wait, rate_limit_error, retry_attempts, validate_wait_settings,
 )
 from siege_utilities.connectors._http import RedactingLogger, RefreshOn401, request_raw
-from siege_utilities.core._http import redact_secrets
 from siege_utilities.connectors._protocol import (
     ConnectorAuthError,
     ConnectorError,
@@ -660,11 +659,13 @@ class DynamicsConnector(_SecretRedactionMixin):
 
         self._raise_batch_control_error(resp.status_code, resp.headers, resp.text)
         if resp.status_code not in (200, 202):
+            detail = self._redact(resp.text)[:200]
             for i, rec in enumerate(records):
                 failure_count += 1
                 errors.append(UpsertError(
                     record_index=base_index + i,
-                    message=f"Batch failed with status {resp.status_code}: {redact_secrets(resp.text)[:200]}",
+                    message=f"Batch failed with status {resp.status_code}"
+                            + (f": {detail}" if detail else ""),
                 ))
         else:
             parts = self._parse_batch_response(resp)
@@ -717,7 +718,10 @@ class DynamicsConnector(_SecretRedactionMixin):
 
     def _raise_batch_control_error(self, status: int, headers: Mapping[str, str], body: str) -> None:
         if status in (401, 403):
-            raise ConnectorAuthError(f"Dynamics {status}: {self._redact(body)[:200]}")
+            detail = self._redact(body)[:200]
+            raise ConnectorAuthError(
+                f"Dynamics {status}" + (f": {detail}" if detail else "")
+            )
         if status == 429:
             raise rate_limit_error(
                 headers, "Dynamics rate limit hit on POST $batch.", self._retry_backoff,
@@ -749,18 +753,22 @@ class DynamicsConnector(_SecretRedactionMixin):
             ))
         return parts
 
-    @staticmethod
-    def _batch_error_detail(status: int, body: str) -> tuple[str, str | None]:
+    def _batch_error_detail(self, status: int, body: str) -> tuple[str, str | None]:
         import json
 
         try:
             payload = json.loads(body)
             error = payload.get("error", {}) if isinstance(payload, dict) else {}
             if isinstance(error, dict) and error.get("message"):
-                return redact_secrets(str(error["message"])), error.get("code")
+                code = error.get("code")
+                return (
+                    self._redact(str(error["message"])),
+                    self._redact(code) if code is not None else None,
+                )
         except json.JSONDecodeError:
             pass
-        return f"HTTP {status}: {redact_secrets(body)[:200]}", str(status)
+        detail = self._redact(body)[:200]
+        return f"HTTP {status}" + (f": {detail}" if detail else ""), str(status)
 
     # ------------------------------------------------------------------
     # OData query helpers
@@ -828,8 +836,12 @@ class DynamicsConnector(_SecretRedactionMixin):
         if failure is not None:
             raise ConnectorAuthError(f"Dynamics token request failed: {failure}")
         if "access_token" not in result:
-            error = result.get("error_description", result.get("error", "Unknown error"))
-            raise ConnectorAuthError(f"Dynamics 365 client credentials auth failed: {self._redact(error)}")
+            raw = result.get("error_description", result.get("error", "Unknown error"))
+            detail = self._safe_upstream_detail(raw)
+            raise ConnectorAuthError(
+                "Dynamics 365 client credentials auth failed"
+                + (f": {detail}" if detail else "")
+            )
         self._set_token(result)
         log.info("Authenticated via client credentials (env: %s)", self._environment_url)
 
@@ -848,8 +860,11 @@ class DynamicsConnector(_SecretRedactionMixin):
         if failure is not None:
             raise ConnectorAuthError(f"Dynamics token request failed: {failure}")
         if "access_token" not in result:
-            error = result.get("error_description", result.get("error", "Unknown error"))
-            raise ConnectorAuthError(f"Dynamics 365 user auth failed: {self._redact(error)}")
+            raw = result.get("error_description", result.get("error", "Unknown error"))
+            detail = self._safe_upstream_detail(raw)
+            raise ConnectorAuthError(
+                "Dynamics 365 user auth failed" + (f": {detail}" if detail else "")
+            )
         self._set_token(result)
         log.info("Authenticated via username/password (env: %s)", self._environment_url)
 
@@ -930,12 +945,15 @@ class DynamicsConnector(_SecretRedactionMixin):
                 ) from requests.exceptions.InvalidJSONError(encoding_failure)
 
             if resp.status_code in (401, 403):
-                error_msg = self._redact(self._extract_error(resp))
-                raise ConnectorAuthError(f"Dynamics {resp.status_code}: {error_msg}")
+                detail = self._extract_error(resp)
+                raise ConnectorAuthError(
+                    f"Dynamics {resp.status_code}" + (f": {detail}" if detail else "")
+                )
 
             if resp.status_code == 429:
                 error = rate_limit_error(
-                    resp.headers, f"Dynamics rate limit hit on {method} {path}.",
+                    resp.headers,
+                    f"Dynamics rate limit hit on {method} {self._redact(path)}.",
                     backoff_wait(self._retry_backoff, attempt, max_retry_wait),
                     max_retry_wait=max_retry_wait,
                 )
@@ -944,13 +962,15 @@ class DynamicsConnector(_SecretRedactionMixin):
                 raise error
 
             if resp.status_code == 404:
-                raise ConnectorNotFoundError(f"Dynamics resource not found: {path}")
+                raise ConnectorNotFoundError(
+                    f"Dynamics resource not found: {self._redact(path)}"
+                )
 
             if 500 <= resp.status_code < 600:
                 last_failure = f"HTTP {resp.status_code}"
                 log.warning(
                     "Dynamics %s %s 5xx %d attempt %d/%d",
-                    method, path, resp.status_code, attempt, attempts,
+                    method, self._redact(path), resp.status_code, attempt, attempts,
                 )
                 if attempt < attempts:
                     time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
@@ -963,8 +983,10 @@ class DynamicsConnector(_SecretRedactionMixin):
                 return {}
 
             if not (200 <= resp.status_code < 300):
-                error_msg = self._redact(self._extract_error(resp))
-                raise ConnectorError(f"Dynamics {resp.status_code}: {error_msg}")
+                detail = self._extract_error(resp)
+                raise ConnectorError(
+                    f"Dynamics {resp.status_code}" + (f": {detail}" if detail else "")
+                )
 
             try:
                 return resp.json()
@@ -977,15 +999,24 @@ class DynamicsConnector(_SecretRedactionMixin):
             f"attempts: {last_failure}"
         )
 
-    @staticmethod
-    def _extract_error(resp: requests.Response) -> str:
+    def _extract_error(self, resp: requests.Response) -> str:
+        """Value-redacted upstream detail for a failed response.
+
+        Value redaction runs on the full untruncated body before the 200-char
+        bound, so a long configured secret is removed in full rather than
+        having its tail cut (#1846 B2 D4). Fails closed when secret collection
+        is untrustworthy (#1846 B2 D5).
+        """
         try:
             body = resp.json()
             if isinstance(body, dict):
                 error = body.get("error", {})
                 if isinstance(error, dict):
-                    return error.get("message", redact_secrets(resp.text)[:200])
-                return str(error) or redact_secrets(resp.text)[:200]
-            return redact_secrets(resp.text)[:200]
+                    raw = error.get("message", resp.text)
+                else:
+                    raw = str(error) or resp.text
+            else:
+                raw = resp.text
         except ValueError:
-            return redact_secrets(resp.text)[:200]
+            raw = resp.text
+        return self._redact(raw)[:200]

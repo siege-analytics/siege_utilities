@@ -48,7 +48,6 @@ from siege_utilities.connectors._retry import (
     backoff_wait, rate_limit_error, retry_attempts, validate_wait_settings,
 )
 from siege_utilities.connectors._http import RedactingLogger, RefreshOn401, request_raw
-from siege_utilities.core._http import redact_secrets
 from siege_utilities.connectors._query_utils import _validate_identifier
 
 log = RedactingLogger(logging.getLogger(__name__), {})
@@ -879,8 +878,10 @@ class SalesforceConnector(_SecretRedactionMixin):
 
         resp = request_raw(self, "PUT", send, self.refresh_access_token if self._refresh_token else None)
         if resp.status_code not in (200, 201):
+            detail = self._redact(resp.text)[:200]
             raise ConnectorError(
-                f"Bulk API upload failed ({resp.status_code}): {redact_secrets(resp.text)[:200]}"
+                f"Bulk API upload failed ({resp.status_code})"
+                + (f": {detail}" if detail else "")
             )
 
     def _bulk_close_job(self, job_id: str) -> None:
@@ -959,10 +960,11 @@ class SalesforceConnector(_SecretRedactionMixin):
             fail_path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}/failedResults"
             fail_data = self._bulk_get_csv_results(fail_path)
             for i, row in enumerate(fail_data):
+                sf_error = row.get("sf__Error", "Unknown error")
                 errors.append(UpsertError(
                     record_index=i,
-                    message=row.get("sf__Error", "Unknown error"),
-                    code=row.get("sf__Error", None),
+                    message=self._redact(sf_error),
+                    code=self._redact(row["sf__Error"]) if "sf__Error" in row else None,
                 ))
             if len(fail_data) != failed:
                 raise ConnectorError("Bulk API failure results are missing records")
@@ -991,8 +993,10 @@ class SalesforceConnector(_SecretRedactionMixin):
 
         resp = request_raw(self, "GET", send, self.refresh_access_token if self._refresh_token else None)
         if resp.status_code != 200:
+            detail = self._redact(resp.text)[:200]
             raise ConnectorError(
-                f"Bulk API results retrieval failed ({resp.status_code}): {redact_secrets(resp.text)[:200]}"
+                f"Bulk API results retrieval failed ({resp.status_code})"
+                + (f": {detail}" if detail else "")
             )
         reader = csv.DictReader(io.StringIO(resp.text))
         return list(reader)
@@ -1054,11 +1058,13 @@ class SalesforceConnector(_SecretRedactionMixin):
                 failure_count += 1
                 err_list = result.get("errors", []) if isinstance(result, dict) else []
                 for err in err_list:
+                    field = err.get("fields", [None])[0] if err.get("fields") else None
+                    code = err.get("statusCode")
                     errors.append(UpsertError(
                         record_index=base_index + i,
-                        message=err.get("message", "Unknown error"),
-                        field=err.get("fields", [None])[0] if err.get("fields") else None,
-                        code=err.get("statusCode"),
+                        message=self._redact(err.get("message", "Unknown error")),
+                        field=self._redact(field) if field is not None else None,
+                        code=self._redact(code) if code is not None else None,
                     ))
                 if not err_list:
                     errors.append(UpsertError(
@@ -1233,11 +1239,13 @@ class SalesforceConnector(_SecretRedactionMixin):
         if resp.status_code != 200:
             try:
                 body = resp.json()
-                error = body.get("error_description", body.get("error", redact_secrets(resp.text)[:200]))
+                raw = body.get("error_description", body.get("error", resp.text))
             except ValueError:
-                error = redact_secrets(resp.text)[:200]
+                raw = resp.text
+            detail = self._safe_upstream_detail(raw)
             raise ConnectorAuthError(
-                f"Salesforce auth failed ({resp.status_code}): {self._redact(error)}"
+                f"Salesforce auth failed ({resp.status_code})"
+                + (f": {detail}" if detail else "")
             )
 
         data = resp.json()
@@ -1314,14 +1322,15 @@ class SalesforceConnector(_SecretRedactionMixin):
                 ) from requests.exceptions.InvalidJSONError(encoding_failure)
 
             if resp.status_code in (401, 403):
-                error_msg = self._redact(self._extract_error(resp))
+                detail = self._extract_error(resp)
                 raise ConnectorAuthError(
-                    f"Salesforce {resp.status_code}: {error_msg}"
+                    f"Salesforce {resp.status_code}" + (f": {detail}" if detail else "")
                 )
 
             if resp.status_code == 429:
                 error = rate_limit_error(
-                    resp.headers, f"Salesforce rate limit hit on {method} {path}.",
+                    resp.headers,
+                    f"Salesforce rate limit hit on {method} {self._redact(path)}.",
                     backoff_wait(self._retry_backoff, attempt, max_retry_wait),
                     max_retry_wait=max_retry_wait,
                 )
@@ -1331,14 +1340,14 @@ class SalesforceConnector(_SecretRedactionMixin):
 
             if resp.status_code == 404:
                 raise ConnectorNotFoundError(
-                    f"Salesforce resource not found: {path}"
+                    f"Salesforce resource not found: {self._redact(path)}"
                 )
 
             if 500 <= resp.status_code < 600:
                 last_failure = f"HTTP {resp.status_code}"
                 log.warning(
                     "Salesforce %s %s 5xx %d attempt %d/%d",
-                    method, path, resp.status_code, attempt, attempts,
+                    method, self._redact(path), resp.status_code, attempt, attempts,
                 )
                 if attempt < attempts:
                     time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
@@ -1348,9 +1357,9 @@ class SalesforceConnector(_SecretRedactionMixin):
                 return {}
 
             if not (200 <= resp.status_code < 300):
-                error_msg = self._redact(self._extract_error(resp))
+                detail = self._extract_error(resp)
                 raise ConnectorError(
-                    f"Salesforce {resp.status_code}: {error_msg}"
+                    f"Salesforce {resp.status_code}" + (f": {detail}" if detail else "")
                 )
 
             try:
@@ -1364,14 +1373,22 @@ class SalesforceConnector(_SecretRedactionMixin):
             f"attempts: {last_failure}"
         )
 
-    @staticmethod
-    def _extract_error(resp: requests.Response) -> str:
+    def _extract_error(self, resp: requests.Response) -> str:
+        """Value-redacted upstream detail for a failed response.
+
+        Value redaction runs on the full untruncated body before the 200-char
+        bound, so a long configured secret is removed in full rather than
+        having its tail cut (#1846 B2 D4). Fails closed when secret collection
+        is untrustworthy (#1846 B2 D5).
+        """
         try:
             body = resp.json()
             if isinstance(body, list) and body:
-                return body[0].get("message", str(body))
-            if isinstance(body, dict):
-                return body.get("message", body.get("error", redact_secrets(resp.text)[:200]))
-            return redact_secrets(resp.text)[:200]
+                raw = body[0].get("message", str(body))
+            elif isinstance(body, dict):
+                raw = body.get("message", body.get("error", resp.text))
+            else:
+                raw = resp.text
         except ValueError:
-            return redact_secrets(resp.text)[:200]
+            raw = resp.text
+        return self._redact(raw)[:200]

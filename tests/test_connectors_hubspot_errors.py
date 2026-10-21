@@ -363,9 +363,14 @@ def test_exchange_token_raises_on_non_200(monkeypatch):
         c._exchange_token("https://api.hubapi.com/oauth/v1/token", {"grant_type": "refresh_token"})
 
 
-def test_exchange_token_non_200_falls_back_to_text_when_not_json(monkeypatch):
-    """When _exchange_token receives a non-200 response whose body is not
-    valid JSON, it falls back to resp.text[:200] in the error message."""
+def test_exchange_token_non_200_suppresses_body_with_short_credential(monkeypatch):
+    """#1846 B2 r4 D3 reversal. This test previously asserted the auth body
+    fell back to ``resp.text[:200]`` with ``assert "Unavailable" in
+    str(exc_info.value)``. D3 supersedes that on the auth/token path: the
+    fixture configures ``access_token="tok"`` (3 chars < the value-redactor
+    minimum), which cannot be removed by value replacement, so the upstream
+    503 body is dropped in full and only the trusted constant and status
+    remain."""
     c = _connector()
     monkeypatch.setattr(
         c._session, "post",
@@ -377,8 +382,10 @@ def test_exchange_token_non_200_falls_back_to_text_when_not_json(monkeypatch):
     )
     with pytest.raises(ConnectorAuthError) as exc_info:
         c._exchange_token("https://api.hubapi.com/oauth/v1/token", {"grant_type": "refresh_token"})
-    assert "503" in str(exc_info.value)
-    assert "Unavailable" in str(exc_info.value)
+    text = str(exc_info.value)
+    assert text == "HubSpot auth failed (503)"
+    assert "Unavailable" not in text
+    assert "gateway" not in text
 
 
 # ---------------------------------------------------------------------------

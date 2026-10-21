@@ -268,6 +268,29 @@ def test_request_4xx_other_raises_connector_error_with_extracted_message(
     assert "MALFORMED_QUERY" in str(exc_info.value)
 
 
+def test_short_credential_preserves_general_path_detail(monkeypatch):
+    """#1846 B2 r4 D3 min-length-guard counterpart. D3 suppresses upstream
+    detail only on the auth/token path; on a general request path a short
+    configured credential (``client_secret="secret"``, len 6 < the value
+    redactor minimum) must NOT blank a secret-free upstream diagnostic -- the
+    original min-length-guard intent still holds here. Pairs with
+    test_1846_b2_value_redaction.test_short_configured_credential_suppresses_auth_upstream_detail.
+    """
+    c = _authed_connector()
+    monkeypatch.setattr(
+        c._session, "request",
+        lambda *a, **k: _FakeResp(
+            422,
+            json_body=[{"message": "VALIDATION_ERROR: Email is required"}],
+        ),
+    )
+    with pytest.raises(ConnectorError) as exc_info:
+        c.request("GET", "/services/data/v60.0/sobjects/Contact")
+    text = str(exc_info.value)
+    assert "422" in text
+    assert "VALIDATION_ERROR: Email is required" in text
+
+
 def test_request_204_returns_empty_dict(monkeypatch):
     c = _authed_connector()
     monkeypatch.setattr(

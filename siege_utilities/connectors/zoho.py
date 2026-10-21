@@ -30,7 +30,6 @@ from siege_utilities.connectors._retry import (
     backoff_wait, rate_limit_error, retry_attempts, validate_wait_settings,
 )
 from siege_utilities.connectors._http import RedactingLogger, RefreshOn401
-from siege_utilities.core._http import redact_secrets
 from siege_utilities.connectors._protocol import (
     ConnectorAuthError,
     ConnectorError,
@@ -528,10 +527,11 @@ class ZohoConnector(_SecretRedactionMixin):
                         all_updated.append(rec_id)
                 else:
                     total_failure += 1
+                    code = result.get("code")
                     all_errors.append(UpsertError(
                         record_index=batch_idx * BATCH_SIZE + i,
-                        message=result.get("message", "Unknown error"),
-                        code=result.get("code"),
+                        message=self._redact(result.get("message", "Unknown error")),
+                        code=self._redact(code) if code is not None else None,
                     ))
 
         log.info(
@@ -734,11 +734,13 @@ class ZohoConnector(_SecretRedactionMixin):
         if resp.status_code != 200:
             try:
                 body = resp.json()
-                error = body.get("error", redact_secrets(resp.text)[:200])
+                raw = body.get("error", resp.text)
             except ValueError:
-                error = redact_secrets(resp.text)[:200]
+                raw = resp.text
+            detail = self._safe_upstream_detail(raw)
             raise ConnectorAuthError(
-                f"Zoho auth failed ({resp.status_code}): {self._redact(error)}"
+                f"Zoho auth failed ({resp.status_code})"
+                + (f": {detail}" if detail else "")
             )
 
         data = resp.json()
@@ -805,12 +807,15 @@ class ZohoConnector(_SecretRedactionMixin):
                 ) from requests.exceptions.InvalidJSONError(encoding_failure)
 
             if resp.status_code in (401, 403):
-                error_msg = self._redact(self._extract_error(resp))
-                raise ConnectorAuthError(f"Zoho {resp.status_code}: {error_msg}")
+                detail = self._extract_error(resp)
+                raise ConnectorAuthError(
+                    f"Zoho {resp.status_code}" + (f": {detail}" if detail else "")
+                )
 
             if resp.status_code == 429:
                 error = rate_limit_error(
-                    resp.headers, f"Zoho rate limit hit on {method} {path}.",
+                    resp.headers,
+                    f"Zoho rate limit hit on {method} {self._redact(path)}.",
                     backoff_wait(self._retry_backoff, attempt, max_retry_wait),
                     max_retry_wait=max_retry_wait,
                 )
@@ -819,13 +824,15 @@ class ZohoConnector(_SecretRedactionMixin):
                 raise error
 
             if resp.status_code == 404:
-                raise ConnectorNotFoundError(f"Zoho resource not found: {path}")
+                raise ConnectorNotFoundError(
+                    f"Zoho resource not found: {self._redact(path)}"
+                )
 
             if 500 <= resp.status_code < 600:
                 last_failure = f"HTTP {resp.status_code}"
                 log.warning(
                     "Zoho %s %s 5xx %d attempt %d/%d",
-                    method, path, resp.status_code, attempt, attempts,
+                    method, self._redact(path), resp.status_code, attempt, attempts,
                 )
                 if attempt < attempts:
                     time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
@@ -835,8 +842,10 @@ class ZohoConnector(_SecretRedactionMixin):
                 return {}
 
             if not (200 <= resp.status_code < 300):
-                error_msg = self._redact(self._extract_error(resp))
-                raise ConnectorError(f"Zoho {resp.status_code}: {error_msg}")
+                detail = self._extract_error(resp)
+                raise ConnectorError(
+                    f"Zoho {resp.status_code}" + (f": {detail}" if detail else "")
+                )
 
             try:
                 return resp.json()
@@ -849,12 +858,20 @@ class ZohoConnector(_SecretRedactionMixin):
             f"attempts: {last_failure}"
         )
 
-    @staticmethod
-    def _extract_error(resp: requests.Response) -> str:
+    def _extract_error(self, resp: requests.Response) -> str:
+        """Value-redacted upstream detail for a failed response.
+
+        Value redaction runs on the full untruncated body before the 200-char
+        bound, so a long configured secret is removed in full rather than
+        having its tail cut (#1846 B2 D4). Fails closed when secret collection
+        is untrustworthy (#1846 B2 D5).
+        """
         try:
             body = resp.json()
             if isinstance(body, dict):
-                return body.get("message", body.get("error", redact_secrets(resp.text)[:200]))
-            return redact_secrets(resp.text)[:200]
+                raw = body.get("message", body.get("error", resp.text))
+            else:
+                raw = resp.text
         except ValueError:
-            return redact_secrets(resp.text)[:200]
+            raw = resp.text
+        return self._redact(raw)[:200]
