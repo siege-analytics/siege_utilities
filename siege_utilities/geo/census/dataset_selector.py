@@ -19,7 +19,7 @@ class DatasetSelector:
 
     # Supported Census API geography levels
     API_SUPPORTED_GEOGRAPHIES = frozenset({
-        'state', 'county', 'tract', 'block_group', 'place', 'zcta',
+        'nation', 'state', 'county', 'tract', 'block_group', 'place', 'zcta',
     })
 
     @staticmethod
@@ -89,6 +89,9 @@ class DatasetSelector:
                 f"Supported: {sorted(cls.API_SUPPORTED_GEOGRAPHIES)}"
             )
 
+        if canonical == 'nation' and (state_fips or county_fips):
+            raise ValueError("Nation geography does not accept state/county filters")
+
         if canonical in ('tract', 'block_group') and not state_fips:
             raise ValueError(
                 f"State FIPS code is required for {canonical}-level data"
@@ -118,7 +121,10 @@ class DatasetSelector:
         Returns:
             URL query-string fragment, e.g. ``for=county:*&in=state:06``
         """
-        if geography == 'state':
+        if geography == 'nation':
+            return "for=us:1"
+
+        elif geography == 'state':
             if state_fips:
                 return f"for=state:{state_fips}"
             return "for=state:*"

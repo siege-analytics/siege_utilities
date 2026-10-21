@@ -256,7 +256,9 @@ DataFrame and a `Provenance`); concrete `ApiSource` and `BulkFileSource`; an
 `AlternationPolicy` describing which errors trigger fallback and how many
 attempts each source gets; and a `DualSourceCensusClient` that tries the primary,
 then the secondary, and returns the first success with a `Provenance(source,
-url_or_path, attempts, degraded)` record. Every success returns the source's
+url_or_path, attempts, degraded, location, cache_hit, cache_paths)` record.
+`location` lists all origin URLs; `cache_paths` identifies the cached inputs,
+and `cache_hit` is true if any input was cached. Every success returns the source's
 unchanged frame plus provenance; if no source succeeds, the last error propagates
 (`SU-1`, no empty-frame-on-failure).
 
