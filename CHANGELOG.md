@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Label the spatial/06 GeoDjango notebook's management command as a schematic
+  and remove the complete, copy-pasteable recipe claim. Document that
+  `spatial_05_unified` refers to the spatial/05 notebook, not an importable
+  module, and requires a real ingestion loader and Django project setup.
+  Add a regression test for the documentation contract and clarify that
+  notebook validation does not exercise the loader, ORM, or PostGIS. Track
+  markdown-only schematics separately from execution groups and require code
+  cells in every execution notebook. Align the notebook-system documentation
+  with the schematic execution scope (#1671).
+
 - `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
   `48-49` and excludes the `10` all-industry total that caused double-counting,
   along with supersector aggregates. **Behavior change:** `parse()` and
