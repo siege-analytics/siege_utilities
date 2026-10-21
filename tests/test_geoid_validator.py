@@ -100,10 +100,13 @@ class TestGEOIDValidator:
 
     @pytest.mark.parametrize(
         "level,length",
-        [(level, length) for level, length in GEOID_LENGTHS.items() if level != "vtd"],
+        [
+            (level, length) for level, length in GEOID_LENGTHS.items()
+            if level not in {"vtd", "sldu", "sldl", "cd"}
+        ],
     )
-    def test_non_vtd_validator_rejects_letters(self, level, length):
-        """The VTD exception must not relax any other geography level."""
+    def test_numeric_level_validator_rejects_letters(self, level, length):
+        """The district alphabets must not relax numeric geography levels."""
         from django.core.exceptions import ValidationError
 
         with pytest.raises(ValidationError, match="only digits"):
@@ -116,6 +119,21 @@ class TestGEOIDValidator:
         validator = GEOIDValidator("state")
         with pytest.raises(ValidationError, match="2 digits"):
             validator("123")  # 3 digits, expected 2
+
+    @pytest.mark.parametrize(
+        "geoid,level",
+        [
+            ("CAZZZ", "sldu"), ("06zzZ", "sldl"), ("0600-", "sldu"),
+            ("06ZZZZ", "sldl"), ("CAZZ", "cd"), ("06zz", "cd"),
+            ("060/", "cd"), ("06ZZZ", "cd"), ("06\u00e9Z", "cd"),
+            ("０６０３７", "county"),
+        ],
+    )
+    def test_invalid_district_and_numeric_characters(self, geoid, level):
+        from django.core.exceptions import ValidationError
+
+        with pytest.raises(ValidationError):
+            GEOIDValidator(level)(geoid)
 
     def test_invalid_geoid_non_digits(self):
         """GEOID with non-digit characters should raise ValidationError."""
