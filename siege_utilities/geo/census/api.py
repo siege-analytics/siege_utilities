@@ -137,6 +137,10 @@ class CensusAPI:
 
         Delegates variable resolution to VariableRegistry and geography
         validation to DatasetSelector, then handles the HTTP round-trip.
+        Exhausted HTTP 5xx, connection/DNS failures, and timeouts raise
+        CensusServerError; rate limits raise CensusRateLimitError. Other
+        HTTP errors raise CensusAPIError. Retry delays occur only between
+        attempts.
 
         Args:
             variables: Variable name(s) to fetch (resolved via VariableRegistry).
@@ -211,8 +215,9 @@ class CensusAPI:
     # ------------------------------------------------------------------
 
     def _make_request_with_retry(self, url: str) -> pd.DataFrame:
+        # Import here to avoid a cycle with the CensusAPIClient facade.
         from siege_utilities.geo.census_api_client import (
-            CensusRateLimitError, CensusAPIError,
+            CensusRateLimitError, CensusAPIError, CensusServerError,
         )
         last_exception = None
 
@@ -235,30 +240,39 @@ class CensusAPI:
                 return df
 
             except (CensusAPIError, requests.exceptions.RequestException, ValueError) as e:
+                retry_delay = 2 ** attempt
                 if isinstance(e, CensusRateLimitError):
-                    log.warning(f"Rate limit hit, waiting {CENSUS_API_RATE_LIMIT_RETRY_DELAY}s...")
-                    time.sleep(CENSUS_API_RATE_LIMIT_RETRY_DELAY)
+                    log.warning(f"Rate limit hit (attempt {attempt + 1})")
+                    retry_delay = CENSUS_API_RATE_LIMIT_RETRY_DELAY
                     last_exception = CensusRateLimitError(
                         f"Census API rate limit exceeded after {attempt + 1} attempts"
                     )
                 elif isinstance(e, requests.exceptions.Timeout):
                     log.warning(f"Request timeout (attempt {attempt + 1})")
-                    last_exception = CensusAPIError(
+                    last_exception = CensusServerError(
                         f"Census API request timed out after {attempt + 1} attempts"
                     )
-                    time.sleep(2 ** attempt)
                 elif isinstance(e, requests.exceptions.RequestException):
                     log.warning(redact_url_secrets(f"Request failed: {e}"))
-                    last_exception = CensusAPIError(
+                    is_server_error = isinstance(e, requests.exceptions.ConnectionError) or (
+                        isinstance(e, requests.exceptions.HTTPError)
+                        and e.response is not None
+                        and 500 <= e.response.status_code < 600
+                    )
+                    error_type = CensusServerError if is_server_error else CensusAPIError
+                    last_exception = error_type(
                         redact_url_secrets(f"Census API request failed: {e}")
                     )
-                    time.sleep(2 ** attempt)
                 elif isinstance(e, ValueError):
                     log.error(redact_url_secrets(f"Failed to parse API response: {e}"))
                     last_exception = CensusAPIError(redact_url_secrets(f"Invalid API response: {e}"))
                     break
                 else:
                     raise
+
+                if attempt + 1 < CENSUS_RETRY_ATTEMPTS:
+                    log.warning("Retrying Census API request in %ss", retry_delay)
+                    time.sleep(retry_delay)
 
         if last_exception:
             raise last_exception from None

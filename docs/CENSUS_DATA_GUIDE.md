@@ -889,8 +889,22 @@ frame, provenance = client.fetch(
 )
 ```
 
-The default policy makes at most three primary source calls on rate limits or
-timeouts, then calls the secondary once. Other primary errors propagate.
+The default policy falls back on `CensusRateLimitError`, timeouts, and
+`CensusServerError` (HTTP 5xx, connection/DNS failures, and exhausted transport
+timeouts). Other primary errors, including HTTP 400 bad-variable requests,
+propagate as `CensusAPIError` without fallback. `CensusServerError` is a subclass
+of `CensusAPIError` and is available from `siege_utilities.geo`.
+
+For `ApiSource`, `CensusAPI` owns retries: the dual-source client calls it once,
+then calls the secondary once if its transport attempts are exhausted. With
+the shipped defaults, five HTTP attempts on sustained 429s incur four
+60-second sleeps, at most 240 seconds of retry delay. Server/transport errors
+use exponential delays of 1, 2, 4, and 8 seconds. No sleep follows the final
+attempt. These bounds exclude time spent on HTTP requests and bulk retrieval.
+`AlternationPolicy.max_api_attempts` applies to other primary sources and does
+not multiply `CensusAPI` retries. `fallback_on=()` disables source retries and
+fallback without changing the API's transport retries.
+
 The bulk source also works directly with the same request keywords. Every
 failure raises; a missing table, missing column, malformed table or absent
 requested geography is never returned as an empty success. Provenance records

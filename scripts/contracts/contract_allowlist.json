@@ -1,5 +1,6 @@
 {
   "added_symbols": [
+    "CensusServerError",
     "DEFAULT_ORS_BASE_URL",
     "DEFAULT_VALHALLA_BASE_URL",
     "build_isochrone_request",

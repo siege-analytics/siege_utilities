@@ -54,6 +54,7 @@ from .census.api import CensusAPI, CENSUS_API_CACHE_TIMEOUT
 
 __all__ = [
     'CensusAPIError',
+    'CensusServerError',
     'CensusAPIKeyError',
     'CensusRateLimitError',
     'CensusVariableError',
@@ -81,6 +82,10 @@ log = logging.getLogger(__name__)
 class CensusAPIError(Exception):
     """Base exception for Census API errors."""
     pass
+
+
+class CensusServerError(CensusAPIError):
+    """Census service unavailable: HTTP 5xx, connection/DNS failure, or timeout."""
 
 
 class CensusAPIKeyError(CensusAPIError):
