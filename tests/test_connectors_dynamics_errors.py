@@ -15,7 +15,7 @@ ConnectorError with retry count, and all three _extract_error branches
 classes and a real-shape fake session/response (writing-tests:4).
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -30,6 +30,11 @@ from siege_utilities.connectors._protocol import (  # noqa: E402
     ConnectorRateLimitError,
 )
 from siege_utilities.connectors.dynamics import DynamicsConnector  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def no_retry_sleep(monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda _: None)
 
 
 class _FakeResp:
@@ -177,7 +182,7 @@ def test_ensure_connected_triggers_reauth_on_expired_token():
     which calls _auth_client_credentials(). The MSAL mock returns a fresh
     token so the connector re-authenticates cleanly."""
     c = _connector()
-    c._token_expires_at = datetime.now() - timedelta(seconds=1)
+    c._token_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
     c._msal_app.acquire_token_for_client.return_value = {
         "access_token": "new-tok",
         "expires_in": 3600,

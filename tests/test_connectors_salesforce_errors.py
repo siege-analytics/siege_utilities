@@ -12,7 +12,7 @@ dict, non-JSON 2xx → ConnectorError, transport errors exhausting all
 retries → ConnectorError.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 import requests
@@ -27,6 +27,11 @@ from siege_utilities.connectors.salesforce import (
     SOQLQuery,
     SalesforceConnector,
 )
+
+
+@pytest.fixture(autouse=True)
+def no_retry_sleep(monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda _: None)
 
 
 class _FakeResp:
@@ -150,7 +155,7 @@ def test_ensure_connected_raises_when_access_token_expired() -> None:
     c = _connector()
     c._authenticated = True
     c._access_token = "expired"
-    c._token_expires_at = datetime.now() - timedelta(seconds=1)
+    c._token_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
     c._refresh_token = None
     with pytest.raises(ConnectorAuthError) as exc_info:
         c._ensure_connected()
@@ -261,6 +266,29 @@ def test_request_4xx_other_raises_connector_error_with_extracted_message(
     # Non-401/404/429/5xx path names the status and extracted message.
     assert "422" in str(exc_info.value)
     assert "MALFORMED_QUERY" in str(exc_info.value)
+
+
+def test_short_credential_preserves_general_path_detail(monkeypatch):
+    """#1846 B2 r4 D3 min-length-guard counterpart. D3 suppresses upstream
+    detail only on the auth/token path; on a general request path a short
+    configured credential (``client_secret="secret"``, len 6 < the value
+    redactor minimum) must NOT blank a secret-free upstream diagnostic -- the
+    original min-length-guard intent still holds here. Pairs with
+    test_1846_b2_value_redaction.test_short_configured_credential_suppresses_auth_upstream_detail.
+    """
+    c = _authed_connector()
+    monkeypatch.setattr(
+        c._session, "request",
+        lambda *a, **k: _FakeResp(
+            422,
+            json_body=[{"message": "VALIDATION_ERROR: Email is required"}],
+        ),
+    )
+    with pytest.raises(ConnectorError) as exc_info:
+        c.request("GET", "/services/data/v60.0/sobjects/Contact")
+    text = str(exc_info.value)
+    assert "422" in text
+    assert "VALIDATION_ERROR: Email is required" in text
 
 
 def test_request_204_returns_empty_dict(monkeypatch):

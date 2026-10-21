@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
 from urllib.parse import quote
 
@@ -34,22 +34,28 @@ try:
 except ImportError:
     MSAL_AVAILABLE = False
 
+from siege_utilities.connectors._retry import (
+    backoff_wait, rate_limit_error, retry_attempts, validate_wait_settings,
+)
+from siege_utilities.connectors._http import RedactingLogger, RefreshOn401, request_raw
 from siege_utilities.connectors._protocol import (
     ConnectorAuthError,
     ConnectorError,
     ConnectorNotFoundError,
-    ConnectorRateLimitError,
     UpsertResult,
+    _SecretRedactionMixin,
     sanitize_record,
 )
 from siege_utilities.connectors._query_utils import _validate_identifier
 
-log = logging.getLogger(__name__)
+log = RedactingLogger(logging.getLogger(__name__), {})
 
 DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_BACKOFF = 2.0
+TOKEN_REFRESH_MARGIN = timedelta(seconds=60)
 BATCH_SIZE = 1000
+FORMATTED_VALUE_ANNOTATION = "OData.Community.Display.V1.FormattedValue"
 
 STANDARD_ENTITIES: dict[str, str] = {
     "contacts": "contacts",
@@ -100,7 +106,7 @@ def _odata_string_literal(value: Any) -> str:
     return "'" + str(value).replace("'", "''") + "'"
 
 
-class DynamicsConnector:
+class DynamicsConnector(_SecretRedactionMixin):
     """Microsoft Dynamics 365 connector implementing ConnectorProtocol.
 
     Usage (App-Only / Client Credentials)::
@@ -138,6 +144,7 @@ class DynamicsConnector:
         timeout: float = DEFAULT_TIMEOUT,
         retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
         retry_backoff: float = DEFAULT_RETRY_BACKOFF,
+        max_retry_wait: float = 900.0,
     ) -> None:
         if not REQUESTS_AVAILABLE:  # pragma: no cover
             raise ImportError("DynamicsConnector requires `requests`.")
@@ -157,7 +164,9 @@ class DynamicsConnector:
         self._password = password
         self._timeout = timeout
         self._retry_attempts = max(1, retry_attempts)
+        validate_wait_settings(retry_backoff, max_retry_wait)
         self._retry_backoff = retry_backoff
+        self._max_retry_wait = max_retry_wait
 
         self._access_token: str | None = None
         self._token_expires_at: datetime | None = None
@@ -184,6 +193,7 @@ class DynamicsConnector:
             "Content-Type": "application/json",
             "OData-MaxVersion": "4.0",
             "OData-Version": "4.0",
+            "Prefer": f'odata.include-annotations="{FORMATTED_VALUE_ANNOTATION}"',
             "User-Agent": "siege_utilities/DynamicsConnector",
         })
         log.info("DynamicsConnector initialised (env: %s)", self._environment_url)
@@ -220,11 +230,18 @@ class DynamicsConnector:
     def is_connected(self) -> bool:
         if not self._authenticated or not self._access_token:
             return False
-        if self._token_expires_at and datetime.now() >= self._token_expires_at:
+        if (
+            self._token_expires_at is not None
+            and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
+        ):
             return False
         return True
 
     def refresh_access_token(self) -> None:
+        # acquire_token_for_client may reuse a cached token rejected by the
+        # API. Evict it so renewal obtains a fresh token from the authority.
+        if self._client_secret:
+            self._msal_app.remove_tokens_for_client()
         self.authenticate()
 
     # ------------------------------------------------------------------
@@ -249,34 +266,78 @@ class DynamicsConnector:
     ) -> pd.DataFrame:
         """Fetch records via OData query.
 
+        Requests formatted values and retains their annotation columns,
+        including industry labels, on every page.
+
         Args:
             object_type: Dataverse entity set name (``"contacts"``, etc.).
             fields: Columns ($select). ``None`` for defaults.
             filters: Key-value pairs translated to OData $filter.
-            limit: Maximum records ($top).
+            limit: Maximum records ($top). ``None`` for all; zero returns no rows.
         """
         entity_set = STANDARD_ENTITIES.get(object_type, object_type)
         columns = fields or DEFAULT_COLUMNS.get(entity_set, [])
+        if limit == 0:
+            return pd.DataFrame(columns=columns)
 
         params: dict[str, Any] = {}
         if columns:
             params["$select"] = ",".join(columns)
         if filters:
             params["$filter"] = self._build_odata_filter(filters)
-        if limit:
+        if limit is not None:
             params["$top"] = limit
 
         return self._query_all_odata(entity_set, params, columns)
 
     def fetch_xml(self, entity: str, fetch_xml: str) -> pd.DataFrame:
-        """Execute a FetchXML query (power-user escape hatch)."""
+        """Execute FetchXML and follow paging cookies until all rows are read.
+
+        Raises ConnectorError if more rows are advertised without a usable
+        paging cookie, rather than returning a partial result.
+        """
         import urllib.parse
+        import xml.etree.ElementTree as ET
 
         self._ensure_connected()
-        encoded = urllib.parse.quote(fetch_xml)
-        path = f"/api/data/v9.2/{entity}?fetchXml={encoded}"
-        data = self.request("GET", path)
-        records = data.get("value", [])
+        root = ET.fromstring(fetch_xml)
+        page = int(root.get("page", "1"))
+        root.set("page", str(page))
+        records = []
+        seen_cookies = set()
+        annotations = ",".join([
+            FORMATTED_VALUE_ANNOTATION,
+            "Microsoft.Dynamics.CRM.fetchxmlpagingcookie",
+            "Microsoft.Dynamics.CRM.morerecords",
+        ])
+        while True:
+            encoded = urllib.parse.quote(ET.tostring(root, encoding="unicode"))
+            path = f"/api/data/v9.2/{entity}?fetchXml={encoded}"
+            data = self.request("GET", path, headers={
+                "Prefer": f'odata.include-annotations="{annotations}"',
+            })
+            records.extend(data.get("value", []))
+            cookie = data.get("@Microsoft.Dynamics.CRM.fetchxmlpagingcookie")
+            if not data.get("@Microsoft.Dynamics.CRM.morerecords", bool(cookie)):
+                break
+            if not cookie or cookie in seen_cookies:
+                raise ConnectorError("Dynamics FetchXML has more records but no new paging cookie.")
+            seen_cookies.add(cookie)
+            try:
+                wrapper = ET.fromstring(cookie)
+                next_page = int(wrapper.get("pagenumber", str(page + 1)))
+                encoded_cookie = wrapper.get("pagingcookie")
+                if encoded_cookie is not None:
+                    cookie = urllib.parse.unquote(urllib.parse.unquote(encoded_cookie))
+                elif wrapper.get("page") is None:
+                    raise ValueError("Missing paging cookie value")
+                if ET.fromstring(cookie).tag != "cookie" or next_page <= page:
+                    raise ValueError("Invalid cookie or page")
+            except (ET.ParseError, ValueError) as exc:
+                raise ConnectorError("Dynamics FetchXML returned an invalid paging cookie.") from exc
+            root.set("paging-cookie", cookie)
+            root.set("page", str(next_page))
+            page = next_page
         if not records:
             log.warning("FetchXML query returned 0 records")
             return pd.DataFrame()
@@ -287,11 +348,11 @@ class DynamicsConnector:
     # ------------------------------------------------------------------
 
     def to_crm_contacts(self, df: pd.DataFrame) -> list:
-        from siege_utilities.connectors._models import CRMAddress, CRMContact
+        from siege_utilities.connectors._models import CRMAddress, CRMContact, _normalize_crm_record
 
         results: list[CRMContact] = []
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             address = CRMAddress(
                 street=r.get("address1_line1"),
                 city=r.get("address1_city"),
@@ -321,12 +382,18 @@ class DynamicsConnector:
         return results
 
     def to_crm_accounts(self, df: pd.DataFrame) -> list:
-        from siege_utilities.connectors._models import CRMAccount, CRMAddress
+        """Map accounts using the formatted industry label when available.
+
+        Without a label, industry is the option-set code as a string, not a
+        label. Missing names use an empty string.
+        """
+        from siege_utilities.connectors._models import CRMAccount, CRMAddress, _normalize_crm_record
         from decimal import Decimal
 
         results: list[CRMAccount] = []
+        industry_label_field = f"industrycode@{FORMATTED_VALUE_ANNOTATION}"
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             address = CRMAddress(
                 street=r.get("address1_line1"),
                 city=r.get("address1_city"),
@@ -336,16 +403,20 @@ class DynamicsConnector:
             )
             revenue = r.get("revenue")
             employees = r.get("numberofemployees")
+            industry = r.get(industry_label_field)
+            if not industry and r.get("industrycode") is not None:
+                industry = str(r["industrycode"])
             extra_keys = set(r.keys()) - {
                 "accountid", "name", "industrycode", "websiteurl",
+                industry_label_field,
                 "revenue", "numberofemployees", "address1_line1",
                 "address1_city", "address1_stateorprovince",
                 "address1_postalcode", "address1_country",
             }
             results.append(CRMAccount(
                 id=str(r.get("accountid", "")),
-                name=r.get("name", ""),
-                industry=str(r.get("industrycode")) if r.get("industrycode") else None,
+                name=r.get("name") or "",
+                industry=industry,
                 website=r.get("websiteurl"),
                 revenue=Decimal(str(revenue)) if revenue is not None else None,
                 employee_count=int(employees) if employees is not None else None,
@@ -357,13 +428,17 @@ class DynamicsConnector:
         return results
 
     def to_crm_opportunities(self, df: pd.DataFrame) -> list:
-        from siege_utilities.connectors._models import CRMOpportunity
+        """Map opportunities, retaining Dataverse's 0-100 probability scale.
+
+        Missing names use an empty string.
+        """
+        from siege_utilities.connectors._models import CRMOpportunity, _normalize_crm_record
         from datetime import date as date_type
         from decimal import Decimal
 
         results: list[CRMOpportunity] = []
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             amount = r.get("estimatedvalue")
             close_raw = r.get("estimatedclosedate")
             close_date = None
@@ -381,7 +456,7 @@ class DynamicsConnector:
             }
             results.append(CRMOpportunity(
                 id=str(r.get("opportunityid", "")),
-                name=r.get("name", ""),
+                name=r.get("name") or "",
                 account_id=r.get("_parentaccountid_value"),
                 stage=r.get("stepname"),
                 amount=Decimal(str(amount)) if amount is not None else None,
@@ -401,14 +476,37 @@ class DynamicsConnector:
     def create_record(
         self, object_type: str, data: dict[str, Any]
     ) -> str:
+        """Create a record from *data* in the *object_type* entity set.
+
+        Return its ID from OData-EntityId, an edit link, or a body attribute.
+        Raise ConnectorError if the response does not identify the new record.
+        """
         entity_set = STANDARD_ENTITIES.get(object_type, object_type)
         path = f"/api/data/v9.2/{entity_set}"
         resp = self.request("POST", path, json_body=data)
-        record_id = resp.get(f"{object_type.rstrip('s')}id", "")
+        record_id = ""
+        for link_key in ("OData-EntityId", "@odata.editLink"):
+            odata_id = resp.get(link_key) or ""
+            _, separator, key = odata_id.rpartition("(")
+            if separator and key.endswith(")"):
+                record_id = key[:-1]
+                if record_id:
+                    break
         if not record_id:
-            odata_id = resp.get("@odata.editLink", "")
-            if "(" in odata_id:
-                record_id = odata_id.split("(")[-1].rstrip(")")
+            id_attribute = {
+                "contacts": "contactid",
+                "accounts": "accountid",
+                "opportunities": "opportunityid",
+                "leads": "leadid",
+                "tasks": "activityid",
+                "appointments": "activityid",
+                "incidents": "incidentid",
+            }.get(object_type, f"{object_type.removesuffix('s')}id")
+            record_id = resp.get(id_attribute, "")
+        if not record_id:
+            raise ConnectorError(
+                f"Dynamics create {entity_set} succeeded but returned no record id."
+            )
         log.info("Created %s record: %s", entity_set, record_id)
         return record_id
 
@@ -523,17 +621,34 @@ class DynamicsConnector:
         body_parts.extend([f"--{changeset_boundary}--", f"--{boundary}--"])
         batch_body = "\r\n".join(body_parts)
 
-        url = f"{self._environment_url}/api/data/v9.2/$batch"
-        resp = self._session.post(
-            url,
-            data=batch_body,
-            headers={
-                "Content-Type": f"multipart/mixed;boundary={boundary}",
-                "Authorization": f"Bearer {self._access_token}",
-                "OData-MaxVersion": "4.0",
-                "OData-Version": "4.0",
-            },
-            timeout=self._timeout * 4,
+        def send():
+            return self._session.post(
+                f"{self._environment_url}/api/data/v9.2/$batch",
+                data=batch_body,
+                headers={
+                    "Content-Type": f"multipart/mixed;boundary={boundary}",
+                    "Authorization": f"Bearer {self._access_token}",
+                    "OData-MaxVersion": "4.0",
+                    "OData-Version": "4.0",
+                },
+                timeout=self._timeout * 4,
+            )
+
+        can_refresh = getattr(self, "_client_secret", None) or (
+            getattr(self, "_username", None) and getattr(self, "_password", None)
+        )
+
+        def unauthorized(response):
+            # A 401 part rolls back this atomic changeset. It permits the same
+            # single auth replay as a 401 on the outer multipart response.
+            return response.status_code == 401 or (
+                response.status_code in (200, 202)
+                and any(status == 401 for _, status, _, _ in self._parse_batch_response(response))
+            )
+
+        resp = request_raw(
+            self, "POST", send, self.refresh_access_token if can_refresh else None,
+            unauthorized=unauthorized,
         )
 
         created: list[str] = []
@@ -542,17 +657,56 @@ class DynamicsConnector:
         success_count = 0
         failure_count = 0
 
-        if resp.status_code in (200, 202):
-            for i, rec in enumerate(records):
-                success_count += 1
-                updated.append(rec.get(match_field, f"record-{base_index + i}"))
-        else:
+        self._raise_batch_control_error(resp.status_code, resp.headers, resp.text)
+        if resp.status_code not in (200, 202):
+            detail = self._redact(resp.text)[:200]
             for i, rec in enumerate(records):
                 failure_count += 1
                 errors.append(UpsertError(
                     record_index=base_index + i,
-                    message=f"Batch failed with status {resp.status_code}: {resp.text[:200]}",
+                    message=f"Batch failed with status {resp.status_code}"
+                            + (f": {detail}" if detail else ""),
                 ))
+        else:
+            parts = self._parse_batch_response(resp)
+            by_id = {}
+            invalid = False
+            for position, (content_id, status, headers, body) in enumerate(parts, 1):
+                self._raise_batch_control_error(status, headers, body)
+                try:
+                    index = int(content_id) if content_id is not None else position
+                except ValueError:
+                    invalid = True
+                    continue
+                if index in by_id or not 1 <= index <= len(records):
+                    invalid = True
+                by_id[index] = (status, body)
+
+            # All submitted operations share one atomic changeset. A failed
+            # operation rolls back the other records, even if parts are absent
+            # or a response includes earlier successful operation statuses.
+            failed = next(((status, body) for _, status, _, body in parts
+                           if not 200 <= status < 300), None)
+            for i, rec in enumerate(records):
+                result = by_id.get(i + 1)
+                if failed is not None:
+                    status, body = result if result and not 200 <= result[0] < 300 else failed
+                    message, code = self._batch_error_detail(status, body)
+                    errors.append(UpsertError(
+                        record_index=base_index + i,
+                        message=f"Changeset failed or rolled back: {message}",
+                        code=code,
+                    ))
+                elif invalid or result is None:
+                    errors.append(UpsertError(
+                        record_index=base_index + i,
+                        message="Missing or invalid Dynamics batch response part",
+                    ))
+                else:
+                    success_count += 1
+                    target = created if result[0] == 201 else updated
+                    target.append(rec.get(match_field, f"record-{base_index + i}"))
+            failure_count = len(errors)
 
         return UpsertResult(
             success_count=success_count,
@@ -561,6 +715,60 @@ class DynamicsConnector:
             updated_ids=updated,
             errors=errors,
         )
+
+    def _raise_batch_control_error(self, status: int, headers: Mapping[str, str], body: str) -> None:
+        if status in (401, 403):
+            detail = self._redact(body)[:200]
+            raise ConnectorAuthError(
+                f"Dynamics {status}" + (f": {detail}" if detail else "")
+            )
+        if status == 429:
+            raise rate_limit_error(
+                headers, "Dynamics rate limit hit on POST $batch.", self._retry_backoff,
+                max_retry_wait=getattr(self, "_max_retry_wait", 900.0),
+            )
+
+    @staticmethod
+    def _parse_batch_response(resp: requests.Response) -> list[tuple[str | None, int, Any, str]]:
+        """Read nested MIME changesets and the embedded HTTP responses."""
+        from email.parser import Parser
+
+        content_type = resp.headers.get("Content-Type", "")
+        message = Parser().parsestr(f"Content-Type: {content_type}\n\n{resp.text}")
+        parts = []
+        for part in message.walk():
+            if part.get_content_type() != "application/http":
+                continue
+            payload = part.get_payload()
+            if not isinstance(payload, str):
+                continue
+            status_line, _, rest = payload.lstrip().partition("\n")
+            tokens = status_line.split()
+            if len(tokens) < 2 or not tokens[0].startswith("HTTP/") or not tokens[1].isdigit():
+                continue
+            http = Parser().parsestr(rest)
+            parts.append((
+                part.get("Content-ID", http.get("Content-ID")),
+                int(tokens[1]), http, http.get_payload(),
+            ))
+        return parts
+
+    def _batch_error_detail(self, status: int, body: str) -> tuple[str, str | None]:
+        import json
+
+        try:
+            payload = json.loads(body)
+            error = payload.get("error", {}) if isinstance(payload, dict) else {}
+            if isinstance(error, dict) and error.get("message"):
+                code = error.get("code")
+                return (
+                    self._redact(str(error["message"])),
+                    self._redact(code) if code is not None else None,
+                )
+        except json.JSONDecodeError:
+            pass
+        detail = self._redact(body)[:200]
+        return f"HTTP {status}" + (f": {detail}" if detail else ""), str(status)
 
     # ------------------------------------------------------------------
     # OData query helpers
@@ -619,23 +827,44 @@ class DynamicsConnector:
 
     def _auth_client_credentials(self) -> None:
         """App-only auth via client credentials."""
-        result = self._msal_app.acquire_token_for_client(scopes=self._scope)
+        try:
+            result = self._msal_app.acquire_token_for_client(scopes=self._scope)
+        except requests.exceptions.RequestException as exc:
+            failure = type(exc).__name__
+        else:
+            failure = None
+        if failure is not None:
+            raise ConnectorAuthError(f"Dynamics token request failed: {failure}")
         if "access_token" not in result:
-            error = result.get("error_description", result.get("error", "Unknown error"))
-            raise ConnectorAuthError(f"Dynamics 365 client credentials auth failed: {error}")
+            raw = result.get("error_description", result.get("error", "Unknown error"))
+            detail = self._safe_upstream_detail(raw)
+            raise ConnectorAuthError(
+                "Dynamics 365 client credentials auth failed"
+                + (f": {detail}" if detail else "")
+            )
         self._set_token(result)
         log.info("Authenticated via client credentials (env: %s)", self._environment_url)
 
     def _auth_username_password(self) -> None:
         """Delegated auth via username/password (ROPC)."""
-        result = self._msal_app.acquire_token_by_username_password(
-            username=self._username,
-            password=self._password,
-            scopes=self._scope,
-        )
+        try:
+            result = self._msal_app.acquire_token_by_username_password(
+                username=self._username,
+                password=self._password,
+                scopes=self._scope,
+            )
+        except requests.exceptions.RequestException as exc:
+            failure = type(exc).__name__
+        else:
+            failure = None
+        if failure is not None:
+            raise ConnectorAuthError(f"Dynamics token request failed: {failure}")
         if "access_token" not in result:
-            error = result.get("error_description", result.get("error", "Unknown error"))
-            raise ConnectorAuthError(f"Dynamics 365 user auth failed: {error}")
+            raw = result.get("error_description", result.get("error", "Unknown error"))
+            detail = self._safe_upstream_detail(raw)
+            raise ConnectorAuthError(
+                "Dynamics 365 user auth failed" + (f": {detail}" if detail else "")
+            )
         self._set_token(result)
         log.info("Authenticated via username/password (env: %s)", self._environment_url)
 
@@ -644,7 +873,7 @@ class DynamicsConnector:
         self._session.headers["Authorization"] = f"Bearer {self._access_token}"
         self._authenticated = True
         expires_in = result.get("expires_in", 3600)
-        self._token_expires_at = datetime.now() + timedelta(seconds=int(expires_in))
+        self._token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
 
     # ------------------------------------------------------------------
     # HTTP plumbing
@@ -653,9 +882,12 @@ class DynamicsConnector:
     def _ensure_connected(self) -> None:
         if not self._authenticated:
             raise ConnectorAuthError("Not authenticated. Call authenticate() first.")
-        if self._token_expires_at and datetime.now() >= self._token_expires_at:
-            log.info("Token expired, re-authenticating...")
-            self.authenticate()
+        if (
+            self._token_expires_at is not None
+            and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
+        ):
+            log.info("Token expires soon or has expired, re-authenticating...")
+            self.refresh_access_token()
 
     def request(
         self,
@@ -664,87 +896,127 @@ class DynamicsConnector:
         *,
         params: Mapping[str, Any] | None = None,
         json_body: dict[str, Any] | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> dict[str, Any]:
         """Send an authenticated request to the Dataverse Web API."""
         self._ensure_connected()
         url = f"{self._environment_url}{path}" if not path.startswith("http") else path
-        last_exc: BaseException | None = None
+        last_failure = "HTTP error"
 
-        for attempt in range(1, self._retry_attempts + 1):
+        can_refresh = getattr(self, "_client_secret", None) or (
+            getattr(self, "_username", None) and getattr(self, "_password", None)
+        )
+        auth = RefreshOn401(self.refresh_access_token if can_refresh else None)
+        attempts = retry_attempts(method, self._retry_attempts)
+        max_retry_wait = getattr(self, "_max_retry_wait", 900.0)
+        for attempt in range(1, attempts + 1):
+            transport_failed = False
             try:
-                resp = self._session.request(
-                    method, url,
-                    params=dict(params) if params else None,
-                    json=json_body,
-                    timeout=self._timeout,
-                )
+                while True:
+                    resp = self._session.request(
+                        method, url,
+                        params=dict(params) if params else None,
+                        json=json_body,
+                        timeout=self._timeout,
+                        **({"headers": dict(headers)} if headers is not None else {}),
+                    )
+                    if not auth.retry(resp):
+                        break
             except requests.exceptions.InvalidJSONError as exc:
-                raise ConnectorError(
-                    f"Dynamics JSON encoding failed for {method} {path}: {exc}"
-                ) from exc
+                encoding_failure = type(exc).__name__
             except requests.exceptions.RequestException as exc:
-                last_exc = exc
+                last_failure = type(exc).__name__
                 log.warning(
-                    "Dynamics %s %s attempt %d/%d failed: %s",
-                    method, path, attempt, self._retry_attempts, exc,
+                    "Dynamics request attempt %d/%d failed: %s",
+                    attempt, attempts, last_failure,
                 )
-                if attempt < self._retry_attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                transport_failed = True
+                encoding_failure = None
+            else:
+                encoding_failure = None
+
+            if transport_failed:
+                if attempt < attempts:
+                    time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
                 continue
+            if encoding_failure is not None:
+                raise ConnectorError(
+                    f"Dynamics JSON encoding failed: {encoding_failure}"
+                ) from requests.exceptions.InvalidJSONError(encoding_failure)
 
             if resp.status_code in (401, 403):
-                error_msg = self._extract_error(resp)
-                raise ConnectorAuthError(f"Dynamics {resp.status_code}: {error_msg}")
+                detail = self._extract_error(resp)
+                raise ConnectorAuthError(
+                    f"Dynamics {resp.status_code}" + (f": {detail}" if detail else "")
+                )
 
             if resp.status_code == 429:
-                retry_after = resp.headers.get("Retry-After")
-                raise ConnectorRateLimitError(
-                    f"Dynamics rate limit hit on {method} {path}.",
-                    retry_after=float(retry_after) if retry_after else None,
+                error = rate_limit_error(
+                    resp.headers,
+                    f"Dynamics rate limit hit on {method} {self._redact(path)}.",
+                    backoff_wait(self._retry_backoff, attempt, max_retry_wait),
+                    max_retry_wait=max_retry_wait,
                 )
+                if attempt < attempts:
+                    continue
+                raise error
 
             if resp.status_code == 404:
-                raise ConnectorNotFoundError(f"Dynamics resource not found: {path}")
+                raise ConnectorNotFoundError(
+                    f"Dynamics resource not found: {self._redact(path)}"
+                )
 
             if 500 <= resp.status_code < 600:
-                last_exc = ConnectorError(f"Dynamics {resp.status_code} on {method} {path}.")
+                last_failure = f"HTTP {resp.status_code}"
                 log.warning(
                     "Dynamics %s %s 5xx %d attempt %d/%d",
-                    method, path, resp.status_code, attempt, self._retry_attempts,
+                    method, self._redact(path), resp.status_code, attempt, attempts,
                 )
-                if attempt < self._retry_attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                if attempt < attempts:
+                    time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
                 continue
 
             if resp.status_code == 204:
+                entity_id = resp.headers.get("OData-EntityId")
+                if entity_id is not None:
+                    return {"OData-EntityId": entity_id}
                 return {}
 
             if not (200 <= resp.status_code < 300):
-                error_msg = self._extract_error(resp)
-                raise ConnectorError(f"Dynamics {resp.status_code}: {error_msg}")
+                detail = self._extract_error(resp)
+                raise ConnectorError(
+                    f"Dynamics {resp.status_code}" + (f": {detail}" if detail else "")
+                )
 
             try:
                 return resp.json()
             except ValueError as exc:
-                raise ConnectorError(
-                    f"Dynamics returned non-JSON on {method} {path}: "
-                    f"{resp.text[:200]!r}"
-                ) from exc
+                decoding_failure = type(exc).__name__
+            raise ConnectorError(f"Dynamics returned non-JSON: {decoding_failure}")
 
         raise ConnectorError(
-            f"Dynamics {method} {path} failed after {self._retry_attempts} "
-            f"attempts: {last_exc}"
+            f"Dynamics request failed after {attempts} "
+            f"attempts: {last_failure}"
         )
 
-    @staticmethod
-    def _extract_error(resp: requests.Response) -> str:
+    def _extract_error(self, resp: requests.Response) -> str:
+        """Value-redacted upstream detail for a failed response.
+
+        Value redaction runs on the full untruncated body before the 200-char
+        bound, so a long configured secret is removed in full rather than
+        having its tail cut (#1846 B2 D4). Fails closed when secret collection
+        is untrustworthy (#1846 B2 D5).
+        """
         try:
             body = resp.json()
             if isinstance(body, dict):
                 error = body.get("error", {})
                 if isinstance(error, dict):
-                    return error.get("message", resp.text[:200])
-                return str(error) or resp.text[:200]
-            return resp.text[:200]
+                    raw = error.get("message", resp.text)
+                else:
+                    raw = str(error) or resp.text
+            else:
+                raw = resp.text
         except ValueError:
-            return resp.text[:200]
+            raw = resp.text
+        return self._redact(raw)[:200]
