@@ -93,9 +93,45 @@ def test_schematic_code_buffers_in_meters_and_does_not_overwrite_with_a_sample()
     assert not ("limit(max_driver_rows)" in code and "mode('overwrite')" in code), \
         "a capped sample must not overwrite a persistent table"
 
+def _documented_params(line):
+    """Parameter identifiers the notebook lists for a bridge function.
+
+    The listing is ``- `name(a, b='x', c=None)` ``; return ``{'a', 'b', 'c'}``
+    by taking the token before any ``=`` or ``:`` in each comma-separated
+    argument. Matching whole identifiers (not substrings) keeps a shared prefix
+    such as ``crs`` versus ``crs_column`` from masking a dropped parameter.
+    """
+    inside = line.split("(", 1)[1].rsplit(")", 1)[0]
+    names = set()
+    for segment in inside.split(","):
+        token = segment.strip().split("=")[0].split(":")[0].strip()
+        if token:
+            names.add(token)
+    return names
+
+
 @pytest.mark.parametrize("name", ["pandas_to_spark", "spark_to_pandas", "geopandas_to_spark", "spark_to_geopandas"])
 def test_listed_bridge_signatures_match_module(name):
     from siege_utilities.databricks import dataframe_bridge
     line = next(l for l in _bridge_source().splitlines() if l.startswith(f"- `{name}("))
+    documented = _documented_params(line)
     for param in inspect.signature(getattr(dataframe_bridge, name)).parameters:
-        assert param in line, f"{name} listing omits {param!r}"
+        assert param in documented, f"{name} listing omits {param!r}"
+
+
+def test_signature_check_flags_a_dropped_documented_param():
+    # A shared prefix must not mask a missing parameter: dropping `crs=None`
+    # while keeping `crs_column='geometry_crs'` has to be caught. The earlier
+    # `param in line` substring check passed that mutation falsely.
+    from siege_utilities.databricks import dataframe_bridge
+    line = next(l for l in _bridge_source().splitlines() if l.startswith("- `spark_to_geopandas("))
+    real = set(inspect.signature(dataframe_bridge.spark_to_geopandas).parameters)
+    assert {"crs", "crs_column"} <= real, "fixture assumes both parameters exist"
+    mutated = line.replace("crs=None, ", "")
+    assert "crs=None" not in mutated and "crs_column=" in mutated, mutated
+    # The discredited substring check still accepts the mutation (the false green).
+    assert all(param in mutated for param in real)
+    # The exact-identifier check flags the dropped parameter.
+    documented = _documented_params(mutated)
+    assert "crs_column" in documented and "crs" not in documented, documented
+    assert [param for param in real if param not in documented] == ["crs"]
