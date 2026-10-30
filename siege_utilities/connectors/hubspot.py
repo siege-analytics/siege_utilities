@@ -17,10 +17,10 @@ canonical :mod:`connectors._models` shapes via ``to_crm_contacts()``,
 
 from __future__ import annotations
 
-import logging
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
+from urllib.parse import quote, urlencode
 
 import pandas as pd
 
@@ -31,22 +31,27 @@ try:
 except ImportError:  # pragma: no cover
     REQUESTS_AVAILABLE = False
 
+from siege_utilities.connectors._retry import (
+    backoff_wait, rate_limit_error, retry_attempts, validate_wait_settings,
+)
+from siege_utilities.connectors._http import RefreshOn401
 from siege_utilities.connectors._protocol import (
     ConnectorAuthError,
     ConnectorError,
     ConnectorNotFoundError,
     ConnectorRateLimitError,
     UpsertResult,
+    _SecretRedactionMixin,
     sanitize_record,
 )
 
-log = logging.getLogger(__name__)
 
 HUBSPOT_API_BASE = "https://api.hubapi.com"
 HUBSPOT_AUTH_BASE = "https://app.hubspot.com"
 DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_BACKOFF = 2.0
+TOKEN_REFRESH_MARGIN = timedelta(seconds=60)
 BATCH_SIZE = 100
 
 STANDARD_OBJECTS = [
@@ -87,7 +92,7 @@ DEFAULT_PROPERTIES: dict[str, list[str]] = {
 __all__ = ["HubSpotConnector"]
 
 
-class HubSpotConnector:
+class HubSpotConnector(_SecretRedactionMixin):
     """HubSpot CRM connector implementing ConnectorProtocol.
 
     Usage (Private App)::
@@ -119,6 +124,7 @@ class HubSpotConnector:
         timeout: float = DEFAULT_TIMEOUT,
         retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
         retry_backoff: float = DEFAULT_RETRY_BACKOFF,
+        max_retry_wait: float = 900.0,
     ) -> None:
         if not REQUESTS_AVAILABLE:  # pragma: no cover
             raise ImportError(
@@ -138,7 +144,9 @@ class HubSpotConnector:
         self._token_expires_at: datetime | None = None
         self._timeout = timeout
         self._retry_attempts = max(1, retry_attempts)
+        validate_wait_settings(retry_backoff, max_retry_wait)
         self._retry_backoff = retry_backoff
+        self._max_retry_wait = max_retry_wait
         self._authenticated = False
         self._is_private_app = access_token is not None
 
@@ -148,7 +156,7 @@ class HubSpotConnector:
             "Content-Type": "application/json",
             "User-Agent": "siege_utilities/HubSpotConnector",
         })
-        log.info("HubSpotConnector initialised (mode: %s)",
+        self._log.info("HubSpotConnector initialised (mode: %s)",
                  "private_app" if self._is_private_app else "oauth")
 
     def close(self) -> None:
@@ -198,7 +206,7 @@ class HubSpotConnector:
             "redirect_uri": redirect_uri,
         }
         self._exchange_token(token_url, payload)
-        log.info("Authenticated via OAuth authorization code flow")
+        self._log.info("Authenticated via OAuth authorization code flow")
 
     def get_authorization_url(
         self,
@@ -215,13 +223,16 @@ class HubSpotConnector:
         }
         if state:
             params["state"] = state
-        query = "&".join(f"{k}={v}" for k, v in params.items())
+        query = urlencode(params, quote_via=quote)
         return f"{HUBSPOT_AUTH_BASE}/oauth/authorize?{query}"
 
     def is_connected(self) -> bool:
         if not self._authenticated or not self._access_token:
             return False
-        if self._token_expires_at and datetime.now() >= self._token_expires_at:
+        if (
+            self._token_expires_at is not None
+            and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
+        ):
             return False
         return True
 
@@ -238,7 +249,7 @@ class HubSpotConnector:
             "client_secret": self._client_secret,
         }
         self._exchange_token(token_url, payload)
-        log.info("Access token refreshed")
+        self._log.info("Access token refreshed")
 
     # ------------------------------------------------------------------
     # ConnectorProtocol — read operations
@@ -262,7 +273,8 @@ class HubSpotConnector:
             object_type: HubSpot object type (``"contacts"``, etc.).
             fields: Properties to return. ``None`` uses defaults.
             filters: Key-value criteria for the Search API.
-            limit: Maximum records. ``None`` for all.
+            limit: Maximum records. ``None`` for all; zero returns no rows.
+                Searches raise ConnectorError if paging would exceed 10,000.
         """
         properties = fields or DEFAULT_PROPERTIES.get(object_type, [])
 
@@ -288,11 +300,11 @@ class HubSpotConnector:
     # ------------------------------------------------------------------
 
     def to_crm_contacts(self, df: pd.DataFrame) -> list:
-        from siege_utilities.connectors._models import CRMAddress, CRMContact
+        from siege_utilities.connectors._models import CRMAddress, CRMContact, _normalize_crm_record
 
         results: list[CRMContact] = []
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             props = r.get("properties", r)
             address = CRMAddress(
                 street=props.get("address"),
@@ -322,12 +334,13 @@ class HubSpotConnector:
         return results
 
     def to_crm_accounts(self, df: pd.DataFrame) -> list:
-        from siege_utilities.connectors._models import CRMAccount, CRMAddress
+        """Map to :class:`CRMAccount`; missing names use an empty string."""
+        from siege_utilities.connectors._models import CRMAccount, CRMAddress, _normalize_crm_record
         from decimal import Decimal
 
         results: list[CRMAccount] = []
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             props = r.get("properties", r)
             address = CRMAddress(
                 street=props.get("address"),
@@ -344,7 +357,7 @@ class HubSpotConnector:
             }
             results.append(CRMAccount(
                 id=str(r.get("id", props.get("hs_object_id", ""))),
-                name=props.get("name", ""),
+                name=props.get("name") or "",
                 industry=props.get("industry"),
                 website=props.get("website"),
                 revenue=Decimal(str(revenue)) if revenue is not None else None,
@@ -357,13 +370,17 @@ class HubSpotConnector:
         return results
 
     def to_crm_opportunities(self, df: pd.DataFrame) -> list:
-        from siege_utilities.connectors._models import CRMOpportunity
+        """Map deals, converting HubSpot's 0-1 probability fraction to 0-100.
+
+        Missing names use an empty string.
+        """
+        from siege_utilities.connectors._models import CRMOpportunity, _normalize_crm_record
         from datetime import date as date_type
         from decimal import Decimal
 
         results: list[CRMOpportunity] = []
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             props = r.get("properties", r)
             amount = props.get("amount")
             close_date_raw = props.get("closedate")
@@ -381,12 +398,12 @@ class HubSpotConnector:
             }
             results.append(CRMOpportunity(
                 id=str(r.get("id", props.get("hs_object_id", ""))),
-                name=props.get("dealname", ""),
+                name=props.get("dealname") or "",
                 account_id=None,
                 stage=props.get("dealstage"),
                 amount=Decimal(str(amount)) if amount is not None else None,
                 close_date=close_date,
-                probability=float(probability) if probability is not None else None,
+                probability=float(probability) * 100 if probability is not None else None,
                 owner_id=props.get("hubspot_owner_id"),
                 source_system="hubspot",
                 source_id=str(r.get("id", props.get("hs_object_id", ""))),
@@ -406,7 +423,7 @@ class HubSpotConnector:
         record_id = resp.get("id", "")
         if not record_id:
             raise ConnectorError(f"HubSpot create {object_type} returned no ID")
-        log.info("Created %s record: %s", object_type, record_id)
+        self._log.info("Created %s record: %s", object_type, self._redact_field(record_id))
         return record_id
 
     def update_record(
@@ -414,7 +431,7 @@ class HubSpotConnector:
     ) -> bool:
         path = f"/crm/v3/objects/{object_type}/{record_id}"
         self.request("PATCH", path, json_body={"properties": data})
-        log.info("Updated %s record: %s", object_type, record_id)
+        self._log.info("Updated %s record: %s", object_type, self._redact_field(record_id))
         return True
 
     def upsert_records(
@@ -427,8 +444,8 @@ class HubSpotConnector:
         from siege_utilities.connectors._protocol import UpsertError
 
         if records.empty:
-            log.warning("upsert_records(%s): empty DataFrame", object_type)
-            return UpsertResult(success_count=0, failure_count=0)
+            self._log.warning("upsert_records(%s): empty DataFrame", object_type)
+            return UpsertResult(success_count=0, failure_count=0, redact=self._redact_field)
 
         record_dicts = [sanitize_record(row) for row in records.to_dict(orient="records")]
         batches = [
@@ -443,7 +460,7 @@ class HubSpotConnector:
         total_failure = 0
 
         for batch_idx, batch in enumerate(batches):
-            log.info(
+            self._log.info(
                 "upsert_records(%s): batch %d/%d (%d records)",
                 object_type, batch_idx + 1, len(batches), len(batch),
             )
@@ -458,6 +475,8 @@ class HubSpotConnector:
             path = f"/crm/v3/objects/{object_type}/batch/upsert"
             try:
                 resp = self.request("POST", path, json_body={"inputs": inputs})
+            except (ConnectorAuthError, ConnectorRateLimitError):
+                raise
             except ConnectorError as exc:
                 for i, _ in enumerate(batch):
                     all_errors.append(UpsertError(
@@ -479,13 +498,14 @@ class HubSpotConnector:
             errors_resp = resp.get("errors", [])
             for err in errors_resp:
                 total_failure += 1
+                category = err.get("category")
                 all_errors.append(UpsertError(
                     record_index=batch_idx * BATCH_SIZE,
-                    message=err.get("message", "Unknown error"),
-                    code=err.get("category"),
+                    message=self._redact_field(err.get("message", "Unknown error")),
+                    code=self._redact_field(category) if category is not None else None,
                 ))
 
-        log.info(
+        self._log.info(
             "upsert_records(%s): %d succeeded, %d failed",
             object_type, total_success, total_failure,
         )
@@ -495,6 +515,7 @@ class HubSpotConnector:
             created_ids=all_created,
             updated_ids=all_updated,
             errors=all_errors,
+            redact=self._redact_field,
         )
 
     # ------------------------------------------------------------------
@@ -518,7 +539,7 @@ class HubSpotConnector:
                 "associationTypeId": association_type,
             })
         self.request("PUT", path, json_body=body)
-        log.info("Associated %s/%s → %s/%s", from_type, from_id, to_type, to_id)
+        self._log.info("Associated %s/%s -> %s/%s", from_type, self._redact_field(from_id), to_type, self._redact_field(to_id))
 
     def remove_association(
         self,
@@ -530,7 +551,7 @@ class HubSpotConnector:
         """Remove an association between two records."""
         path = f"/crm/v3/objects/{from_type}/{from_id}/associations/{to_type}/{to_id}"
         self.request("DELETE", path)
-        log.info("Removed association %s/%s → %s/%s", from_type, from_id, to_type, to_id)
+        self._log.info("Removed association %s/%s -> %s/%s", from_type, self._redact_field(from_id), to_type, self._redact_field(to_id))
 
     def merge_contacts(self, primary_id: str, secondary_id: str) -> None:
         """Merge two contacts, keeping the primary."""
@@ -539,7 +560,7 @@ class HubSpotConnector:
             "primaryObjectId": primary_id,
             "objectIdToMerge": secondary_id,
         })
-        log.info("Merged contact %s into %s", secondary_id, primary_id)
+        self._log.info("Merged contact %s into %s", self._redact_field(secondary_id), self._redact_field(primary_id))
 
     # ------------------------------------------------------------------
     # Internal — list and search
@@ -552,9 +573,11 @@ class HubSpotConnector:
         limit: int | None,
     ) -> pd.DataFrame:
         """List objects via the CRM v3 list endpoint with cursor pagination."""
+        if limit == 0:
+            return self._records_to_dataframe([], properties)
         all_records: list[dict[str, Any]] = []
         after: str | None = None
-        page_limit = min(limit or 100, 100)
+        page_limit = min(limit, 100) if limit is not None else 100
 
         while True:
             params: dict[str, Any] = {"limit": page_limit}
@@ -568,10 +591,10 @@ class HubSpotConnector:
             results = data.get("results", [])
             all_records.extend(results)
 
-            log.info("Listed %s: %d records (total so far: %d)",
+            self._log.info("Listed %s: %d records (total so far: %d)",
                      object_type, len(results), len(all_records))
 
-            if limit and len(all_records) >= limit:
+            if limit is not None and len(all_records) >= limit:
                 all_records = all_records[:limit]
                 break
 
@@ -590,7 +613,9 @@ class HubSpotConnector:
         filters: dict[str, Any],
         limit: int | None,
     ) -> pd.DataFrame:
-        """Search objects via the CRM v3 Search API."""
+        """Search objects, raising if pagination crosses the 10,000-result cap."""
+        if limit == 0:
+            return self._records_to_dataframe([], properties)
         filter_groups = []
         search_filters = []
         for key, value in filters.items():
@@ -615,13 +640,13 @@ class HubSpotConnector:
 
         all_records: list[dict[str, Any]] = []
         after: int = 0
-        page_limit = min(limit or 100, 100)
+        page_limit = min(limit, 100) if limit is not None else 100
 
         while True:
             body: dict[str, Any] = {
                 "filterGroups": filter_groups,
                 "properties": properties,
-                "limit": page_limit,
+                "limit": min(page_limit, 10000 - after),
                 "after": after,
             }
             path = f"/crm/v3/objects/{object_type}/search"
@@ -629,10 +654,10 @@ class HubSpotConnector:
             results = data.get("results", [])
             all_records.extend(results)
 
-            log.info("Searched %s: %d results (total so far: %d)",
+            self._log.info("Searched %s: %d results (total so far: %d)",
                      object_type, len(results), len(all_records))
 
-            if limit and len(all_records) >= limit:
+            if limit is not None and len(all_records) >= limit:
                 all_records = all_records[:limit]
                 break
 
@@ -642,6 +667,11 @@ class HubSpotConnector:
             if not next_after:
                 break
             after = int(next_after)
+            if after >= 10000:
+                raise ConnectorError(
+                    "HubSpot search cannot page beyond the 10,000-result cap. "
+                    "Narrow the search filters or use the unfiltered list endpoint."
+                )
 
         return self._records_to_dataframe(all_records, properties)
 
@@ -671,9 +701,12 @@ class HubSpotConnector:
     def _ensure_connected(self) -> None:
         if not self._authenticated:
             raise ConnectorAuthError("Not authenticated. Call authenticate() first.")
-        if self._token_expires_at and datetime.now() >= self._token_expires_at:
+        if (
+            self._token_expires_at is not None
+            and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
+        ):
             if self._refresh_token:
-                log.info("Token expired, refreshing...")
+                self._log.info("Token expires soon or has expired, refreshing...")
                 self.refresh_access_token()
             else:
                 raise ConnectorAuthError("Access token expired. Re-authenticate.")
@@ -684,12 +717,10 @@ class HubSpotConnector:
         self._authenticated = True
         try:
             self.request("GET", "/crm/v3/objects/contacts", params={"limit": 1})
-        except ConnectorAuthError:
+        except Exception:
             self._authenticated = False
             raise
-        except ConnectorError:
-            pass
-        log.info("Private app token validated")
+        self._log.info("Private app token validated")
 
     def _exchange_token(self, token_url: str, payload: dict[str, str]) -> None:
         try:
@@ -700,16 +731,22 @@ class HubSpotConnector:
                 timeout=self._timeout,
             )
         except requests.exceptions.RequestException as exc:
-            raise ConnectorAuthError(f"Token request failed: {exc}") from exc
+            failure = type(exc).__name__
+        else:
+            failure = None
+        if failure is not None:
+            raise ConnectorAuthError(f"Token request failed: {failure}")
 
         if resp.status_code != 200:
             try:
                 body = resp.json()
-                error = body.get("message", resp.text[:200])
+                raw = body.get("message", resp.text)
             except ValueError:
-                error = resp.text[:200]
+                raw = resp.text
+            detail = self._safe_upstream_detail(raw)
             raise ConnectorAuthError(
-                f"HubSpot auth failed ({resp.status_code}): {error}"
+                f"HubSpot auth failed ({resp.status_code})"
+                + (f": {detail}" if detail else "")
             )
 
         data = resp.json()
@@ -719,10 +756,10 @@ class HubSpotConnector:
         self._authenticated = True
 
         expires_in = data.get("expires_in")
-        if expires_in:
-            self._token_expires_at = datetime.now() + timedelta(seconds=int(expires_in))
+        if expires_in is not None:
+            self._token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
         else:
-            self._token_expires_at = datetime.now() + timedelta(hours=6)
+            self._token_expires_at = datetime.now(timezone.utc) + timedelta(hours=6)
 
     def request(
         self,
@@ -735,82 +772,111 @@ class HubSpotConnector:
         """Send an authenticated request to the HubSpot API."""
         self._ensure_connected()
         url = f"{HUBSPOT_API_BASE}{path}"
-        last_exc: BaseException | None = None
+        last_failure = "HTTP error"
 
-        for attempt in range(1, self._retry_attempts + 1):
+        auth = RefreshOn401(self.refresh_access_token if self._refresh_token else None)
+        attempts = retry_attempts(method, self._retry_attempts)
+        max_retry_wait = getattr(self, "_max_retry_wait", 900.0)
+        for attempt in range(1, attempts + 1):
+            transport_failed = False
             try:
-                resp = self._session.request(
-                    method, url,
-                    params=dict(params) if params else None,
-                    json=json_body,
-                    timeout=self._timeout,
-                )
+                while True:
+                    resp = self._session.request(
+                        method, url,
+                        params=dict(params) if params else None,
+                        json=json_body,
+                        timeout=self._timeout,
+                    )
+                    if not auth.retry(resp):
+                        break
             except requests.exceptions.InvalidJSONError as exc:
-                raise ConnectorError(
-                    f"HubSpot JSON encoding failed for {method} {path}: {exc}"
-                ) from exc
+                encoding_failure = type(exc).__name__
             except requests.exceptions.RequestException as exc:
-                last_exc = exc
-                log.warning(
-                    "HubSpot %s %s attempt %d/%d failed: %s",
-                    method, path, attempt, self._retry_attempts, exc,
+                last_failure = type(exc).__name__
+                self._log.warning(
+                    "HubSpot request attempt %d/%d failed: %s",
+                    attempt, attempts, last_failure,
                 )
-                if attempt < self._retry_attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                transport_failed = True
+                encoding_failure = None
+            else:
+                encoding_failure = None
+
+            if transport_failed:
+                if attempt < attempts:
+                    time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
                 continue
+            if encoding_failure is not None:
+                raise ConnectorError(
+                    f"HubSpot JSON encoding failed: {encoding_failure}"
+                ) from requests.exceptions.InvalidJSONError(encoding_failure)
 
             if resp.status_code in (401, 403):
-                error_msg = self._extract_error(resp)
-                raise ConnectorAuthError(f"HubSpot {resp.status_code}: {error_msg}")
+                detail = self._extract_error(resp)
+                raise ConnectorAuthError(
+                    f"HubSpot {resp.status_code}" + (f": {detail}" if detail else "")
+                )
 
             if resp.status_code == 429:
-                retry_after = resp.headers.get("Retry-After")
-                raise ConnectorRateLimitError(
-                    f"HubSpot rate limit hit on {method} {path}.",
-                    retry_after=float(retry_after) if retry_after else None,
+                error = rate_limit_error(
+                    resp.headers,
+                    f"HubSpot rate limit hit on {method} {self._redact_field(path)}.",
+                    backoff_wait(self._retry_backoff, attempt, max_retry_wait),
+                    max_retry_wait=max_retry_wait,
                 )
+                if attempt < attempts:
+                    continue
+                raise error
 
             if resp.status_code == 404:
-                raise ConnectorNotFoundError(f"HubSpot resource not found: {path}")
+                raise ConnectorNotFoundError(
+                    f"HubSpot resource not found: {self._redact_field(path)}"
+                )
 
             if 500 <= resp.status_code < 600:
-                last_exc = ConnectorError(
-                    f"HubSpot {resp.status_code} on {method} {path}."
-                )
-                log.warning(
+                last_failure = f"HTTP {resp.status_code}"
+                self._log.warning(
                     "HubSpot %s %s 5xx %d attempt %d/%d",
-                    method, path, resp.status_code, attempt, self._retry_attempts,
+                    method, self._redact_field(path), resp.status_code, attempt, attempts,
                 )
-                if attempt < self._retry_attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                if attempt < attempts:
+                    time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
                 continue
 
             if resp.status_code == 204:
                 return {}
 
             if not (200 <= resp.status_code < 300):
-                error_msg = self._extract_error(resp)
-                raise ConnectorError(f"HubSpot {resp.status_code}: {error_msg}")
+                detail = self._extract_error(resp)
+                raise ConnectorError(
+                    f"HubSpot {resp.status_code}" + (f": {detail}" if detail else "")
+                )
 
             try:
                 return resp.json()
             except ValueError as exc:
-                raise ConnectorError(
-                    f"HubSpot returned non-JSON on {method} {path}: "
-                    f"{resp.text[:200]!r}"
-                ) from exc
+                decoding_failure = type(exc).__name__
+            raise ConnectorError(f"HubSpot returned non-JSON: {decoding_failure}")
 
         raise ConnectorError(
-            f"HubSpot {method} {path} failed after {self._retry_attempts} "
-            f"attempts: {last_exc}"
+            f"HubSpot request failed after {attempts} "
+            f"attempts: {last_failure}"
         )
 
-    @staticmethod
-    def _extract_error(resp: requests.Response) -> str:
+    def _extract_error(self, resp: requests.Response) -> str | None:
+        """Value-redacted upstream detail for a failed response.
+
+        Value redaction runs on the full untruncated body before the 200-char
+        bound, so a long configured secret is removed in full rather than
+        having its tail cut (#1846 B2 D4). Fails closed when secret collection
+        is untrustworthy (#1846 B2 D5).
+        """
         try:
             body = resp.json()
             if isinstance(body, dict):
-                return body.get("message", body.get("error", resp.text[:200]))
-            return resp.text[:200]
+                raw = body.get("message", body.get("error", resp.text))
+            else:
+                raw = resp.text
         except ValueError:
-            return resp.text[:200]
+            raw = resp.text
+        return self._safe_upstream_detail(raw)

@@ -27,6 +27,29 @@ def _response(body, *, content_type="application/json", status=200):
     return response
 
 
+def _batch_response(count):
+    parts = [
+        "--batch_response",
+        "Content-Type: multipart/mixed; boundary=changeset_response",
+        "",
+    ]
+    for content_id in range(1, count + 1):
+        parts.extend([
+            "--changeset_response",
+            "Content-Type: application/http",
+            f"Content-ID: {content_id}",
+            "",
+            "HTTP/1.1 204 No Content",
+            "",
+            "",
+        ])
+    parts.extend(["--changeset_response--", "--batch_response--"])
+    return _response(
+        "\r\n".join(parts),
+        content_type="multipart/mixed; boundary=batch_response", status=202,
+    )
+
+
 def _mock_http(monkeypatch, responses):
     # Mock only the transport: Session.request still prepares/encodes the body.
     # Patch all sessions so these tests cannot accidentally reach the network.
@@ -114,7 +137,7 @@ def test_upsert_records_sends_sanitized_json(provider, upsert_rows, monkeypatch)
         ]})
         object_type = "Contacts"
     else:
-        response = _response("", content_type="multipart/mixed", status=202)
+        response = _batch_response(2)
         object_type = "contacts"
     send = _mock_http(monkeypatch, [response])
 
@@ -186,7 +209,7 @@ def test_encoding_error_keeps_connector_error_contract(provider, object_type, mo
     ("salesforce", "Account"), ("hubspot", "contacts"),
     ("zoho", "Contacts"), ("dynamics", "contacts"),
 ])
-def test_transport_errors_keep_three_attempts_and_two_backoffs(provider, object_type, monkeypatch):
+def test_idempotent_transport_errors_keep_three_attempts_and_two_backoffs(provider, object_type, monkeypatch):
     connector = _connector(provider)
     connector._retry_attempts = 3
     connector._retry_backoff = 2
@@ -198,7 +221,7 @@ def test_transport_errors_keep_three_attempts_and_two_backoffs(provider, object_
     monkeypatch.setattr(connector._session, "request", request)
 
     with pytest.raises(ConnectorError):
-        connector.create_record(object_type, {"name": "test"})
+        connector.request("GET", f"/{object_type}")
 
     assert request.call_count == 3
     assert send.call_count == 3
@@ -337,7 +360,7 @@ def test_nested_upsert_values_preserve_http_types(provider, monkeypatch):
             "status": "success", "action": "update", "details": {"id": "test"},
         }]})
     else:
-        response = _response("", content_type="multipart/mixed", status=202)
+        response = _batch_response(1)
     send = _mock_http(monkeypatch, [response])
     frame = pd.DataFrame([{
         "external_id": "test",

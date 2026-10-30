@@ -21,10 +21,10 @@ from __future__ import annotations
 
 import csv
 import io
-import logging
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Mapping
+from urllib.parse import urlencode
 
 import pandas as pd
 
@@ -39,13 +39,16 @@ from siege_utilities.connectors._protocol import (
     ConnectorAuthError,
     ConnectorError,
     ConnectorNotFoundError,
-    ConnectorRateLimitError,
     UpsertResult,
+    _SecretRedactionMixin,
     sanitize_record,
 )
+from siege_utilities.connectors._retry import (
+    backoff_wait, rate_limit_error, retry_attempts, validate_wait_settings,
+)
+from siege_utilities.connectors._http import RefreshOn401, request_raw
 from siege_utilities.connectors._query_utils import _validate_identifier
 
-log = logging.getLogger(__name__)
 
 PRODUCTION_LOGIN_URL = "https://login.salesforce.com"
 SANDBOX_LOGIN_URL = "https://test.salesforce.com"
@@ -53,6 +56,7 @@ API_VERSION = "v60.0"
 DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_BACKOFF = 2.0
+TOKEN_REFRESH_MARGIN = timedelta(seconds=60)
 BULK_THRESHOLD = 2000
 BULK_POLL_INTERVAL = 5.0
 BULK_TIMEOUT = 600.0
@@ -268,7 +272,7 @@ def _soql_literal(value: Any) -> str:
     return f"'{escaped}'"
 
 
-class SalesforceConnector:
+class SalesforceConnector(_SecretRedactionMixin):
     """Salesforce CRM connector implementing ConnectorProtocol.
 
     Usage (Username-Password Flow)::
@@ -309,6 +313,7 @@ class SalesforceConnector:
         timeout: float = DEFAULT_TIMEOUT,
         retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
         retry_backoff: float = DEFAULT_RETRY_BACKOFF,
+        max_retry_wait: float = 900.0,
     ) -> None:
         if not REQUESTS_AVAILABLE:  # pragma: no cover
             raise ImportError(
@@ -326,7 +331,9 @@ class SalesforceConnector:
         self._login_url = login_url or (SANDBOX_LOGIN_URL if sandbox else PRODUCTION_LOGIN_URL)
         self._timeout = timeout
         self._retry_attempts = max(1, retry_attempts)
+        validate_wait_settings(retry_backoff, max_retry_wait)
         self._retry_backoff = retry_backoff
+        self._max_retry_wait = max_retry_wait
 
         self._access_token: str | None = None
         self._refresh_token: str | None = None
@@ -340,7 +347,7 @@ class SalesforceConnector:
             "Content-Type": "application/json",
             "User-Agent": "siege_utilities/SalesforceConnector",
         })
-        log.info("SalesforceConnector initialised (login: %s)", self._login_url)
+        self._log.info("SalesforceConnector initialised (login: %s)", self._login_url)
 
     def close(self) -> None:
         """Close the underlying HTTP session."""
@@ -397,7 +404,10 @@ class SalesforceConnector:
             "redirect_uri": redirect_uri,
         }
         self._exchange_token(token_url, payload)
-        log.info("Authenticated via Web Server Flow (instance: %s)", self._instance_url)
+        self._log.info(
+            "Authenticated via Web Server Flow (instance: %s)",
+            self._redact_field(self._instance_url),
+        )
 
     def get_authorization_url(
         self,
@@ -412,14 +422,17 @@ class SalesforceConnector:
         }
         if state:
             params["state"] = state
-        query = "&".join(f"{k}={v}" for k, v in params.items())
+        query = urlencode(params)
         return f"{self._login_url}/services/oauth2/authorize?{query}"
 
     def is_connected(self) -> bool:
         """Whether the connector has an active, authenticated session."""
         if not self._authenticated or not self._access_token:
             return False
-        if self._token_expires_at and datetime.now() >= self._token_expires_at:
+        if (
+            self._token_expires_at is not None
+            and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
+        ):
             return False
         return True
 
@@ -438,7 +451,10 @@ class SalesforceConnector:
             "client_secret": self._client_secret,
         }
         self._exchange_token(token_url, payload)
-        log.info("Access token refreshed (instance: %s)", self._instance_url)
+        self._log.info(
+            "Access token refreshed (instance: %s)",
+            self._redact_field(self._instance_url),
+        )
 
     # ------------------------------------------------------------------
     # ConnectorProtocol — read operations
@@ -450,7 +466,7 @@ class SalesforceConnector:
         path = f"/services/data/{API_VERSION}/sobjects"
         data = self.request("GET", path)
         names = sorted(obj["name"] for obj in data.get("sobjects", []) if obj.get("queryable"))
-        log.info("Discovered %d queryable object types", len(names))
+        self._log.info("Discovered %d queryable object types", len(names))
         return names
 
     def get_objects(
@@ -480,12 +496,12 @@ class SalesforceConnector:
         records = self._query_all(soql)
         selected_fields = fields or DEFAULT_FIELDS.get(object_type, ["Id"])
         if not records:
-            log.warning("get_objects(%s): query returned 0 records", object_type)
+            self._log.warning("get_objects(%s): query returned 0 records", object_type)
             return pd.DataFrame(columns=selected_fields)
 
         cleaned = self._clean_records(records, selected_fields)
         df = pd.DataFrame(cleaned)
-        log.info("get_objects(%s): returned %d records, %d fields", object_type, len(df), len(df.columns))
+        self._log.info("get_objects(%s): returned %d records, %d fields", object_type, len(df), len(df.columns))
         return df
 
     def soql(self, query: str | SOQLQuery) -> pd.DataFrame:
@@ -497,7 +513,7 @@ class SalesforceConnector:
         soql_str = query.build() if isinstance(query, SOQLQuery) else query
         records = self._query_all(soql_str)
         if not records:
-            log.warning("soql(): query returned 0 records")
+            self._log.warning("soql(): query returned 0 records")
             return pd.DataFrame()
         keys = [k for k in records[0].keys() if k != "attributes"]
         cleaned = [{k: rec.get(k) for k in keys} for rec in records]
@@ -509,11 +525,11 @@ class SalesforceConnector:
 
     def to_crm_contacts(self, df: pd.DataFrame) -> list:
         """Map a Contact DataFrame to a list of :class:`CRMContact`."""
-        from siege_utilities.connectors._models import CRMAddress, CRMContact
+        from siege_utilities.connectors._models import CRMAddress, CRMContact, _normalize_crm_record
 
         results: list[CRMContact] = []
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             address = CRMAddress(
                 street=r.get("MailingStreet"),
                 city=r.get("MailingCity"),
@@ -542,13 +558,13 @@ class SalesforceConnector:
         return results
 
     def to_crm_accounts(self, df: pd.DataFrame) -> list:
-        """Map an Account DataFrame to a list of :class:`CRMAccount`."""
-        from siege_utilities.connectors._models import CRMAccount, CRMAddress
+        """Map to :class:`CRMAccount`; missing names use an empty string."""
+        from siege_utilities.connectors._models import CRMAccount, CRMAddress, _normalize_crm_record
         from decimal import Decimal
 
         results: list[CRMAccount] = []
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             address = CRMAddress(
                 street=r.get("BillingStreet"),
                 city=r.get("BillingCity"),
@@ -564,7 +580,7 @@ class SalesforceConnector:
             }
             results.append(CRMAccount(
                 id=r["Id"],
-                name=r["Name"],
+                name=r.get("Name") or "",
                 industry=r.get("Industry"),
                 website=r.get("Website"),
                 revenue=Decimal(str(revenue)) if revenue is not None else None,
@@ -577,14 +593,17 @@ class SalesforceConnector:
         return results
 
     def to_crm_opportunities(self, df: pd.DataFrame) -> list:
-        """Map an Opportunity DataFrame to a list of :class:`CRMOpportunity`."""
-        from siege_utilities.connectors._models import CRMOpportunity
+        """Map opportunities, retaining Salesforce's 0-100 probability scale.
+
+        Missing names use an empty string.
+        """
+        from siege_utilities.connectors._models import CRMOpportunity, _normalize_crm_record
         from datetime import date as date_type
         from decimal import Decimal
 
         results: list[CRMOpportunity] = []
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             amount = r.get("Amount")
             close_date_raw = r.get("CloseDate")
             close_date = None
@@ -600,7 +619,7 @@ class SalesforceConnector:
             }
             results.append(CRMOpportunity(
                 id=r["Id"],
-                name=r["Name"],
+                name=r.get("Name") or "",
                 account_id=r.get("AccountId"),
                 stage=r.get("StageName"),
                 amount=Decimal(str(amount)) if amount is not None else None,
@@ -632,9 +651,12 @@ class SalesforceConnector:
         if not resp.get("success"):
             errors = resp.get("errors", [])
             msg = errors[0].get("message", str(errors)) if errors else "Unknown error"
-            raise ConnectorError(f"Failed to create {object_type}: {msg}")
+            detail = self._safe_upstream_detail(msg)
+            raise ConnectorError(
+                f"Failed to create {object_type}" + (f": {detail}" if detail else "")
+            )
         record_id = resp["id"]
-        log.info("Created %s record: %s", object_type, record_id)
+        self._log.info("Created %s record: %s", object_type, self._redact_field(record_id))
         return record_id
 
     def update_record(
@@ -646,7 +668,7 @@ class SalesforceConnector:
         """
         path = f"/services/data/{API_VERSION}/sobjects/{object_type}/{record_id}"
         self.request("PATCH", path, json_body=data)
-        log.info("Updated %s record: %s", object_type, record_id)
+        self._log.info("Updated %s record: %s", object_type, self._redact_field(record_id))
         return True
 
     def upsert_records(
@@ -675,11 +697,11 @@ class SalesforceConnector:
             :class:`UpsertResult` with per-record outcome.
         """
         if records.empty:
-            log.warning("upsert_records(%s): empty DataFrame, nothing to upsert", object_type)
-            return UpsertResult(success_count=0, failure_count=0)
+            self._log.warning("upsert_records(%s): empty DataFrame, nothing to upsert", object_type)
+            return UpsertResult(success_count=0, failure_count=0, redact=self._redact_field)
 
         if force_bulk or len(records) > BULK_THRESHOLD:
-            log.info(
+            self._log.info(
                 "upsert_records(%s): routing to Bulk API v2 (%d records)",
                 object_type, len(records),
             )
@@ -718,7 +740,7 @@ class SalesforceConnector:
         ]
 
         for batch_idx, batch in enumerate(batches):
-            log.info(
+            self._log.info(
                 "upsert_records(%s): batch %d/%d (%d records)",
                 object_type, batch_idx + 1, len(batches), len(batch),
             )
@@ -736,7 +758,7 @@ class SalesforceConnector:
                 processed = min((batch_idx + 1) * self.COMPOSITE_BATCH_SIZE, total)
                 progress_callback("processing", processed, total)
 
-        log.info(
+        self._log.info(
             "upsert_records(%s): %d succeeded, %d failed (total %d)",
             object_type, total_success, total_failure, total_success + total_failure,
         )
@@ -746,6 +768,7 @@ class SalesforceConnector:
             created_ids=all_created,
             updated_ids=all_updated,
             errors=all_errors,
+            redact=self._redact_field,
         )
 
     # ------------------------------------------------------------------
@@ -803,13 +826,13 @@ class SalesforceConnector:
         total = len(records)
 
         job_id = self._bulk_create_job(object_type, operation, external_id_field)
-        log.info("Bulk API %s job created: %s (%d records)", operation, job_id, total)
+        self._log.info("Bulk API %s job created: %s (%d records)", operation, self._redact_field(job_id), total)
 
         if progress_callback:
             progress_callback("uploading", 0, total)
 
         self._bulk_upload_data(job_id, csv_data)
-        log.info("Bulk API job %s: CSV data uploaded (%d bytes)", job_id, len(csv_data))
+        self._log.info("Bulk API job %s: CSV data uploaded (%d bytes)", self._redact_field(job_id), len(csv_data))
 
         self._bulk_close_job(job_id)
 
@@ -819,9 +842,9 @@ class SalesforceConnector:
         job_info = self._bulk_poll_job(job_id, total, progress_callback)
         result = self._bulk_collect_results(job_id, job_info)
 
-        log.info(
+        self._log.info(
             "Bulk API job %s complete: %d succeeded, %d failed",
-            job_id, result.success_count, result.failure_count,
+            self._redact_field(job_id), result.success_count, result.failure_count,
         )
         return result
 
@@ -848,19 +871,25 @@ class SalesforceConnector:
     def _bulk_upload_data(self, job_id: str, csv_data: str) -> None:
         """Upload CSV data to an open Bulk API v2 job."""
         path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}/batches"
-        url = f"{self._instance_url}{path}"
-        resp = self._session.put(
-            url,
-            data=csv_data.encode("utf-8"),
-            headers={
-                "Content-Type": "text/csv",
-                "Authorization": f"Bearer {self._access_token}",
-            },
-            timeout=self._timeout * 4,
-        )
+        self._ensure_connected()
+
+        def send():
+            return self._session.put(
+                f"{self._instance_url}{path}",
+                data=csv_data.encode("utf-8"),
+                headers={
+                    "Content-Type": "text/csv",
+                    "Authorization": f"Bearer {self._access_token}",
+                },
+                timeout=self._timeout * 4,
+            )
+
+        resp = request_raw(self, "PUT", send, self.refresh_access_token if self._refresh_token else None)
         if resp.status_code not in (200, 201):
+            detail = self._safe_upstream_detail(resp.text)
             raise ConnectorError(
-                f"Bulk API upload failed ({resp.status_code}): {resp.text[:200]}"
+                f"Bulk API upload failed ({resp.status_code})"
+                + (f": {detail}" if detail else "")
             )
 
     def _bulk_close_job(self, job_id: str) -> None:
@@ -891,9 +920,9 @@ class SalesforceConnector:
             processed = job_info.get("numberRecordsProcessed", 0)
             failed = job_info.get("numberRecordsFailed", 0)
 
-            log.info(
+            self._log.info(
                 "Bulk API job %s: state=%s, processed=%d, failed=%d (%.0fs elapsed)",
-                job_id, state, processed, failed, elapsed,
+                self._redact_field(job_id), self._redact_field(state), processed, failed, elapsed,
             )
 
             if progress_callback:
@@ -912,8 +941,12 @@ class SalesforceConnector:
 
         state = job_info.get("state", "Unknown")
         if state in ("Failed", "Aborted"):
-            error_msg = job_info.get("errorMessage", f"Job {state}")
-            raise ConnectorError(f"Bulk API job {job_id} {state}: {error_msg}")
+            error_msg = job_info.get("errorMessage")
+            detail = self._safe_upstream_detail(error_msg) if error_msg else None
+            raise ConnectorError(
+                f"Bulk API job {self._redact_field(job_id)} {state}"
+                + (f": {detail}" if detail else "")
+            )
 
         processed = job_info.get("numberRecordsProcessed", 0)
         failed = job_info.get("numberRecordsFailed", 0)
@@ -924,34 +957,29 @@ class SalesforceConnector:
         updated_ids: list[str] = []
 
         if succeeded > 0:
-            try:
-                success_path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}/successfulResults"
-                success_data = self._bulk_get_csv_results(success_path)
-                for row in success_data:
-                    rec_id = row.get("sf__Id", "")
-                    if row.get("sf__Created", "").lower() == "true":
-                        created_ids.append(rec_id)
-                    else:
-                        updated_ids.append(rec_id)
-            except ConnectorError as exc:
-                log.warning("Could not retrieve success results: %s", exc)
+            success_path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}/successfulResults"
+            success_data = self._bulk_get_csv_results(success_path)
+            for row in success_data:
+                rec_id = row.get("sf__Id", "")
+                if row.get("sf__Created", "").lower() == "true":
+                    created_ids.append(rec_id)
+                else:
+                    updated_ids.append(rec_id)
+            if len(success_data) != succeeded or not all(created_ids + updated_ids):
+                raise ConnectorError("Bulk API success results are missing record IDs")
 
         if failed > 0:
-            try:
-                fail_path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}/failedResults"
-                fail_data = self._bulk_get_csv_results(fail_path)
-                for i, row in enumerate(fail_data):
-                    errors.append(UpsertError(
-                        record_index=i,
-                        message=row.get("sf__Error", "Unknown error"),
-                        code=row.get("sf__Error", None),
-                    ))
-            except ConnectorError as exc:
-                log.warning("Could not retrieve failure results: %s", exc)
+            fail_path = f"/services/data/{API_VERSION}/jobs/ingest/{job_id}/failedResults"
+            fail_data = self._bulk_get_csv_results(fail_path)
+            for i, row in enumerate(fail_data):
+                sf_error = row.get("sf__Error", "Unknown error")
                 errors.append(UpsertError(
-                    record_index=0,
-                    message=f"Failed to retrieve error details: {exc}",
+                    record_index=i,
+                    message=self._redact_field(sf_error),
+                    code=self._redact_field(row["sf__Error"]) if "sf__Error" in row else None,
                 ))
+            if len(fail_data) != failed:
+                raise ConnectorError("Bulk API failure results are missing records")
 
         return UpsertResult(
             success_count=succeeded,
@@ -959,22 +987,29 @@ class SalesforceConnector:
             created_ids=created_ids,
             updated_ids=updated_ids,
             errors=errors,
+            redact=self._redact_field,
         )
 
     def _bulk_get_csv_results(self, path: str) -> list[dict[str, str]]:
         """Retrieve CSV results from a Bulk API v2 job endpoint."""
-        url = f"{self._instance_url}{path}"
-        resp = self._session.get(
-            url,
-            headers={
-                "Accept": "text/csv",
-                "Authorization": f"Bearer {self._access_token}",
-            },
-            timeout=self._timeout * 2,
-        )
+        self._ensure_connected()
+
+        def send():
+            return self._session.get(
+                f"{self._instance_url}{path}",
+                headers={
+                    "Accept": "text/csv",
+                    "Authorization": f"Bearer {self._access_token}",
+                },
+                timeout=self._timeout * 2,
+            )
+
+        resp = request_raw(self, "GET", send, self.refresh_access_token if self._refresh_token else None)
         if resp.status_code != 200:
+            detail = self._safe_upstream_detail(resp.text)
             raise ConnectorError(
-                f"Bulk API results retrieval failed ({resp.status_code}): {resp.text[:200]}"
+                f"Bulk API results retrieval failed ({resp.status_code})"
+                + (f": {detail}" if detail else "")
             )
         reader = csv.DictReader(io.StringIO(resp.text))
         return list(reader)
@@ -1036,11 +1071,13 @@ class SalesforceConnector:
                 failure_count += 1
                 err_list = result.get("errors", []) if isinstance(result, dict) else []
                 for err in err_list:
+                    field = err.get("fields", [None])[0] if err.get("fields") else None
+                    code = err.get("statusCode")
                     errors.append(UpsertError(
                         record_index=base_index + i,
-                        message=err.get("message", "Unknown error"),
-                        field=err.get("fields", [None])[0] if err.get("fields") else None,
-                        code=err.get("statusCode"),
+                        message=self._redact_field(err.get("message", "Unknown error")),
+                        field=self._redact_field(field) if field is not None else None,
+                        code=self._redact_field(code) if code is not None else None,
                     ))
                 if not err_list:
                     errors.append(UpsertError(
@@ -1054,6 +1091,7 @@ class SalesforceConnector:
             created_ids=created,
             updated_ids=updated,
             errors=errors,
+            redact=self._redact_field,
         )
 
     # ------------------------------------------------------------------
@@ -1120,26 +1158,46 @@ class SalesforceConnector:
         data = self.request("GET", path, params={"q": soql})
         all_records: list[dict[str, Any]] = data.get("records", [])
         total = data.get("totalSize", len(all_records))
-        log.info("SOQL query returned %d total records (first page: %d)", total, len(all_records))
+        self._log.info("SOQL query returned %d total records (first page: %d)", total, len(all_records))
 
         while data.get("nextRecordsUrl"):
             next_path = data["nextRecordsUrl"]
             data = self.request("GET", next_path)
             page_records = data.get("records", [])
             all_records.extend(page_records)
-            log.info("Fetched page: %d records (total so far: %d)", len(page_records), len(all_records))
+            self._log.info("Fetched page: %d records (total so far: %d)", len(page_records), len(all_records))
 
         return all_records
+
+    @staticmethod
+    def _resolve_field(record: dict[str, Any], field: str) -> Any:
+        """Resolve a dotted path, preferring exact keys before case-insensitive matches.
+
+        Missing fields and null or non-dict intermediate values return ``None``.
+        """
+        value: Any = record
+        for segment in field.split("."):
+            if not isinstance(value, dict):
+                return None
+            if segment in value:
+                value = value[segment]
+            else:
+                folded_segment = segment.casefold()
+                value = next(
+                    (item for key, item in value.items() if key.casefold() == folded_segment),
+                    None,
+                )
+        return value
 
     @staticmethod
     def _clean_records(
         records: list[dict[str, Any]],
         fields: list[str],
     ) -> list[dict[str, Any]]:
-        """Strip Salesforce metadata (``attributes``) and normalize columns."""
+        """Resolve requested fields while preserving the caller's column labels."""
         cleaned: list[dict[str, Any]] = []
         for rec in records:
-            row = {f: rec.get(f) for f in fields}
+            row = {field: SalesforceConnector._resolve_field(rec, field) for field in fields}
             cleaned.append(row)
         return cleaned
 
@@ -1150,9 +1208,12 @@ class SalesforceConnector:
     def _ensure_connected(self) -> None:
         if not self._authenticated:
             raise ConnectorAuthError("Not authenticated. Call authenticate() first.")
-        if self._token_expires_at and datetime.now() >= self._token_expires_at:
+        if (
+            self._token_expires_at is not None
+            and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
+        ):
             if self._refresh_token:
-                log.info("Token expired, refreshing...")
+                self._log.info("Token expires soon or has expired, refreshing...")
                 self.refresh_access_token()
             else:
                 raise ConnectorAuthError("Access token expired. Re-authenticate.")
@@ -1168,9 +1229,9 @@ class SalesforceConnector:
             "password": f"{self._password}{self._security_token}",
         }
         self._exchange_token(token_url, payload)
-        log.info(
+        self._log.info(
             "Authenticated via Username-Password Flow as %s (instance: %s)",
-            self._username, self._instance_url,
+            self._username, self._redact_field(self._instance_url),
         )
 
     def _exchange_token(self, token_url: str, payload: dict[str, str]) -> None:
@@ -1183,16 +1244,22 @@ class SalesforceConnector:
                 timeout=self._timeout,
             )
         except requests.exceptions.RequestException as exc:
-            raise ConnectorAuthError(f"Token request failed: {exc}") from exc
+            failure = type(exc).__name__
+        else:
+            failure = None
+        if failure is not None:
+            raise ConnectorAuthError(f"Token request failed: {failure}")
 
         if resp.status_code != 200:
             try:
                 body = resp.json()
-                error = body.get("error_description", body.get("error", resp.text[:200]))
+                raw = body.get("error_description", body.get("error", resp.text))
             except ValueError:
-                error = resp.text[:200]
+                raw = resp.text
+            detail = self._safe_upstream_detail(raw)
             raise ConnectorAuthError(
-                f"Salesforce auth failed ({resp.status_code}): {error}"
+                f"Salesforce auth failed ({resp.status_code})"
+                + (f": {detail}" if detail else "")
             )
 
         data = resp.json()
@@ -1202,15 +1269,9 @@ class SalesforceConnector:
         self._session.headers["Authorization"] = f"Bearer {self._access_token}"
         self._authenticated = True
 
-        issued_at = data.get("issued_at")
-        if issued_at:
-            try:
-                issued = datetime.fromtimestamp(int(issued_at) / 1000)
-                self._token_expires_at = issued + timedelta(hours=2)
-            except (ValueError, OSError):
-                self._token_expires_at = datetime.now() + timedelta(hours=2)
-        else:
-            self._token_expires_at = datetime.now() + timedelta(hours=2)
+        # Salesforce does not supply an access-token lifetime. issued_at is
+        # not an expiry; keep it unknown and renew when the API returns 401.
+        self._token_expires_at = None
 
     def request(
         self,
@@ -1234,90 +1295,115 @@ class SalesforceConnector:
         """
         self._ensure_connected()
         url = f"{self._instance_url}{path}"
-        last_exc: BaseException | None = None
+        last_failure = "HTTP error"
 
-        for attempt in range(1, self._retry_attempts + 1):
+        auth = RefreshOn401(self.refresh_access_token if self._refresh_token else None)
+        attempts = retry_attempts(method, self._retry_attempts)
+        max_retry_wait = getattr(self, "_max_retry_wait", 900.0)
+        for attempt in range(1, attempts + 1):
+            transport_failed = False
             try:
-                resp = self._session.request(
-                    method, url,
-                    params=dict(params) if params else None,
-                    json=json_body,
-                    timeout=self._timeout,
-                )
+                while True:
+                    resp = self._session.request(
+                        method, url,
+                        params=dict(params) if params else None,
+                        json=json_body,
+                        timeout=self._timeout,
+                    )
+                    if not auth.retry(resp):
+                        break
+                    url = f"{self._instance_url}{path}"
             except requests.exceptions.InvalidJSONError as exc:
-                raise ConnectorError(
-                    f"Salesforce JSON encoding failed for {method} {path}: {exc}"
-                ) from exc
+                encoding_failure = type(exc).__name__
             except requests.exceptions.RequestException as exc:
-                last_exc = exc
-                log.warning(
-                    "Salesforce %s %s attempt %d/%d failed: %s",
-                    method, path, attempt, self._retry_attempts, exc,
+                last_failure = type(exc).__name__
+                self._log.warning(
+                    "Salesforce request attempt %d/%d failed: %s",
+                    attempt, attempts, last_failure,
                 )
-                if attempt < self._retry_attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                transport_failed = True
+                encoding_failure = None
+            else:
+                encoding_failure = None
+
+            if transport_failed:
+                if attempt < attempts:
+                    time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
                 continue
+            if encoding_failure is not None:
+                raise ConnectorError(
+                    f"Salesforce JSON encoding failed: {encoding_failure}"
+                ) from requests.exceptions.InvalidJSONError(encoding_failure)
 
             if resp.status_code in (401, 403):
-                error_msg = self._extract_error(resp)
+                detail = self._extract_error(resp)
                 raise ConnectorAuthError(
-                    f"Salesforce {resp.status_code}: {error_msg}"
+                    f"Salesforce {resp.status_code}" + (f": {detail}" if detail else "")
                 )
 
             if resp.status_code == 429:
-                retry_after = resp.headers.get("Retry-After")
-                raise ConnectorRateLimitError(
-                    f"Salesforce rate limit hit on {method} {path}.",
-                    retry_after=float(retry_after) if retry_after else None,
+                error = rate_limit_error(
+                    resp.headers,
+                    f"Salesforce rate limit hit on {method} {self._redact_field(path)}.",
+                    backoff_wait(self._retry_backoff, attempt, max_retry_wait),
+                    max_retry_wait=max_retry_wait,
                 )
+                if attempt < attempts:
+                    continue
+                raise error
 
             if resp.status_code == 404:
                 raise ConnectorNotFoundError(
-                    f"Salesforce resource not found: {path}"
+                    f"Salesforce resource not found: {self._redact_field(path)}"
                 )
 
             if 500 <= resp.status_code < 600:
-                last_exc = ConnectorError(
-                    f"Salesforce {resp.status_code} on {method} {path}."
-                )
-                log.warning(
+                last_failure = f"HTTP {resp.status_code}"
+                self._log.warning(
                     "Salesforce %s %s 5xx %d attempt %d/%d",
-                    method, path, resp.status_code, attempt, self._retry_attempts,
+                    method, self._redact_field(path), resp.status_code, attempt, attempts,
                 )
-                if attempt < self._retry_attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                if attempt < attempts:
+                    time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
                 continue
 
             if resp.status_code == 204:
                 return {}
 
             if not (200 <= resp.status_code < 300):
-                error_msg = self._extract_error(resp)
+                detail = self._extract_error(resp)
                 raise ConnectorError(
-                    f"Salesforce {resp.status_code}: {error_msg}"
+                    f"Salesforce {resp.status_code}" + (f": {detail}" if detail else "")
                 )
 
             try:
                 return resp.json()
             except ValueError as exc:
-                raise ConnectorError(
-                    f"Salesforce returned non-JSON on {method} {path}: "
-                    f"{resp.text[:200]!r}"
-                ) from exc
+                decoding_failure = type(exc).__name__
+            raise ConnectorError(f"Salesforce returned non-JSON: {decoding_failure}")
 
         raise ConnectorError(
-            f"Salesforce {method} {path} failed after {self._retry_attempts} "
-            f"attempts: {last_exc}"
+            f"Salesforce request failed after {attempts} "
+            f"attempts: {last_failure}"
         )
 
-    @staticmethod
-    def _extract_error(resp: requests.Response) -> str:
+    def _extract_error(self, resp: requests.Response) -> str | None:
+        """Suppression-aware upstream detail for a failed response, or None.
+
+        D3 applies to all credential-bearing diagnostics (#1846 R-1846): when a
+        configured credential is too short to redact by value, or collection
+        failed, this returns None and the caller emits trusted constants only.
+        Otherwise the full body is value-redacted before the 200-char bound so a
+        long configured secret is removed in full (#1846 B2 D4).
+        """
         try:
             body = resp.json()
             if isinstance(body, list) and body:
-                return body[0].get("message", str(body))
-            if isinstance(body, dict):
-                return body.get("message", body.get("error", resp.text[:200]))
-            return resp.text[:200]
+                raw = body[0].get("message", str(body))
+            elif isinstance(body, dict):
+                raw = body.get("message", body.get("error", resp.text))
+            else:
+                raw = resp.text
         except ValueError:
-            return resp.text[:200]
+            raw = resp.text
+        return self._safe_upstream_detail(raw)

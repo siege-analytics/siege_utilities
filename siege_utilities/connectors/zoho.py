@@ -11,10 +11,10 @@ before requiring re-authorization.
 
 from __future__ import annotations
 
-import logging
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
+from urllib.parse import urlencode
 
 import pandas as pd
 
@@ -25,17 +25,21 @@ try:
 except ImportError:  # pragma: no cover
     REQUESTS_AVAILABLE = False
 
+from siege_utilities.connectors._retry import (
+    backoff_wait, rate_limit_error, retry_attempts, validate_wait_settings,
+)
+from siege_utilities.connectors._http import RefreshOn401
 from siege_utilities.connectors._protocol import (
     ConnectorAuthError,
     ConnectorError,
     ConnectorNotFoundError,
     ConnectorRateLimitError,
     UpsertResult,
+    _SecretRedactionMixin,
     sanitize_record,
 )
 from siege_utilities.connectors._query_utils import _validate_identifier
 
-log = logging.getLogger(__name__)
 
 ZOHO_DATA_CENTERS: dict[str, dict[str, str]] = {
     "us": {
@@ -64,6 +68,7 @@ API_VERSION = "v6"
 DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_BACKOFF = 2.0
+TOKEN_REFRESH_MARGIN = timedelta(seconds=60)
 BATCH_SIZE = 100
 
 STANDARD_MODULES = [
@@ -116,7 +121,15 @@ DEFAULT_FIELDS: dict[str, list[str]] = {
 __all__ = ["ZohoConnector"]
 
 
-class ZohoConnector:
+def _lookup_id(record: dict[str, Any], field: str) -> str | None:
+    """Read a flattened lookup's companion ID or a raw lookup dictionary."""
+    value = record.get(f"{field}_id")
+    if value is None and isinstance(record.get(field), dict):
+        value = record[field].get("id")
+    return str(value) if value is not None else None
+
+
+class ZohoConnector(_SecretRedactionMixin):
     """Zoho CRM connector implementing ConnectorProtocol.
 
     Usage (Self-Client)::
@@ -154,6 +167,7 @@ class ZohoConnector:
         timeout: float = DEFAULT_TIMEOUT,
         retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
         retry_backoff: float = DEFAULT_RETRY_BACKOFF,
+        max_retry_wait: float = 900.0,
     ) -> None:
         if not REQUESTS_AVAILABLE:  # pragma: no cover
             raise ImportError(
@@ -175,7 +189,9 @@ class ZohoConnector:
         self._data_center = data_center
         self._timeout = timeout
         self._retry_attempts = max(1, retry_attempts)
+        validate_wait_settings(retry_backoff, max_retry_wait)
         self._retry_backoff = retry_backoff
+        self._max_retry_wait = max_retry_wait
 
         self._access_token: str | None = None
         self._token_expires_at: datetime | None = None
@@ -187,7 +203,7 @@ class ZohoConnector:
             "Content-Type": "application/json",
             "User-Agent": "siege_utilities/ZohoConnector",
         })
-        log.info("ZohoConnector initialised (dc: %s)", data_center)
+        self._log.info("ZohoConnector initialised (dc: %s)", data_center)
 
     def close(self) -> None:
         self._session.close()
@@ -231,7 +247,7 @@ class ZohoConnector:
             "redirect_uri": redirect_uri,
         }
         self._exchange_token(token_url, payload)
-        log.info("Authenticated via web-based OAuth flow (dc: %s)", self._data_center)
+        self._log.info("Authenticated via web-based OAuth flow (dc: %s)", self._data_center)
 
     def get_authorization_url(
         self,
@@ -251,13 +267,16 @@ class ZohoConnector:
         }
         if state:
             params["state"] = state
-        query = "&".join(f"{k}={v}" for k, v in params.items())
+        query = urlencode(params)
         return f"{self._dc['accounts_url']}/oauth/v2/auth?{query}"
 
     def is_connected(self) -> bool:
         if not self._authenticated or not self._access_token:
             return False
-        if self._token_expires_at and datetime.now() >= self._token_expires_at:
+        if (
+            self._token_expires_at is not None
+            and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
+        ):
             return False
         return True
 
@@ -284,7 +303,7 @@ class ZohoConnector:
         filters: dict[str, Any] | None = None,
         limit: int | None = None,
     ) -> pd.DataFrame:
-        """Fetch records from a Zoho CRM module."""
+        """Fetch records from a Zoho CRM module; None is unlimited, zero returns no rows."""
         selected_fields = fields or DEFAULT_FIELDS.get(object_type, ["id"])
 
         if filters:
@@ -304,11 +323,12 @@ class ZohoConnector:
     # ------------------------------------------------------------------
 
     def to_crm_contacts(self, df: pd.DataFrame) -> list:
-        from siege_utilities.connectors._models import CRMAddress, CRMContact
+        """Map contacts using account lookup IDs from flattened or raw records."""
+        from siege_utilities.connectors._models import CRMAddress, CRMContact, _normalize_crm_record
 
         results: list[CRMContact] = []
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             address = CRMAddress(
                 street=r.get("Mailing_Street"),
                 city=r.get("Mailing_City"),
@@ -318,13 +338,9 @@ class ZohoConnector:
             )
             extra_keys = set(r.keys()) - {
                 "id", "First_Name", "Last_Name", "Email", "Phone",
-                "Title", "Account_Name", "Mailing_Street", "Mailing_City",
+                "Title", "Account_Name", "Account_Name_id", "Mailing_Street", "Mailing_City",
                 "Mailing_State", "Mailing_Zip", "Mailing_Country",
             }
-            account_name = r.get("Account_Name")
-            account_id = None
-            if isinstance(account_name, dict):
-                account_id = account_name.get("id")
             results.append(CRMContact(
                 id=str(r["id"]),
                 first_name=r.get("First_Name"),
@@ -332,7 +348,7 @@ class ZohoConnector:
                 email=r.get("Email"),
                 phone=r.get("Phone"),
                 title=r.get("Title"),
-                account_id=account_id,
+                account_id=_lookup_id(r, "Account_Name"),
                 address=address,
                 source_system="zoho",
                 source_id=str(r["id"]),
@@ -341,12 +357,13 @@ class ZohoConnector:
         return results
 
     def to_crm_accounts(self, df: pd.DataFrame) -> list:
-        from siege_utilities.connectors._models import CRMAccount, CRMAddress
+        """Map to :class:`CRMAccount`; missing names use an empty string."""
+        from siege_utilities.connectors._models import CRMAccount, CRMAddress, _normalize_crm_record
         from decimal import Decimal
 
         results: list[CRMAccount] = []
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             address = CRMAddress(
                 street=r.get("Billing_Street"),
                 city=r.get("Billing_City"),
@@ -363,7 +380,7 @@ class ZohoConnector:
             }
             results.append(CRMAccount(
                 id=str(r["id"]),
-                name=r.get("Account_Name", ""),
+                name=r.get("Account_Name") or "",
                 industry=r.get("Industry"),
                 website=r.get("Website"),
                 revenue=Decimal(str(revenue)) if revenue is not None else None,
@@ -376,13 +393,18 @@ class ZohoConnector:
         return results
 
     def to_crm_opportunities(self, df: pd.DataFrame) -> list:
-        from siege_utilities.connectors._models import CRMOpportunity
+        """Map deals with lookup IDs and Zoho's 0-100 probability scale.
+
+        Lookups use companion ID columns or raw dictionaries, never display
+        names. Missing names use an empty string.
+        """
+        from siege_utilities.connectors._models import CRMOpportunity, _normalize_crm_record
         from datetime import date as date_type
         from decimal import Decimal
 
         results: list[CRMOpportunity] = []
         for _, row in df.iterrows():
-            r = row.to_dict()
+            r = _normalize_crm_record(row.to_dict())
             amount = r.get("Amount")
             close_raw = r.get("Closing_Date")
             close_date = None
@@ -393,24 +415,20 @@ class ZohoConnector:
                     close_date = close_raw
 
             probability = r.get("Probability")
-            owner = r.get("Owner")
-            owner_id = owner.get("id") if isinstance(owner, dict) else str(owner) if owner else None
-            account = r.get("Account_Name")
-            account_id = account.get("id") if isinstance(account, dict) else None
-
             extra_keys = set(r.keys()) - {
                 "id", "Deal_Name", "Stage", "Amount",
                 "Closing_Date", "Probability", "Owner", "Account_Name",
+                "Owner_id", "Account_Name_id",
             }
             results.append(CRMOpportunity(
                 id=str(r["id"]),
-                name=r.get("Deal_Name", ""),
-                account_id=account_id,
+                name=r.get("Deal_Name") or "",
+                account_id=_lookup_id(r, "Account_Name"),
                 stage=r.get("Stage"),
                 amount=Decimal(str(amount)) if amount is not None else None,
                 close_date=close_date,
                 probability=float(probability) if probability is not None else None,
-                owner_id=owner_id,
+                owner_id=_lookup_id(r, "Owner"),
                 source_system="zoho",
                 source_id=str(r["id"]),
                 metadata={k: r[k] for k in extra_keys if r.get(k) is not None},
@@ -430,9 +448,12 @@ class ZohoConnector:
         if not results or results[0].get("status") != "success":
             details = results[0] if results else resp
             msg = details.get("message", str(details))
-            raise ConnectorError(f"Failed to create {object_type}: {msg}")
+            detail = self._safe_upstream_detail(msg)
+            raise ConnectorError(
+                f"Failed to create {object_type}" + (f": {detail}" if detail else "")
+            )
         record_id = results[0]["details"]["id"]
-        log.info("Created %s record: %s", object_type, record_id)
+        self._log.info("Created %s record: %s", object_type, self._redact_field(record_id))
         return record_id
 
     def update_record(
@@ -445,8 +466,12 @@ class ZohoConnector:
         if not results or results[0].get("status") != "success":
             details = results[0] if results else resp
             msg = details.get("message", str(details))
-            raise ConnectorError(f"Failed to update {object_type}/{record_id}: {msg}")
-        log.info("Updated %s record: %s", object_type, record_id)
+            detail = self._safe_upstream_detail(msg)
+            raise ConnectorError(
+                f"Failed to update {object_type}/{self._redact_field(record_id)}"
+                + (f": {detail}" if detail else "")
+            )
+        self._log.info("Updated %s record: %s", object_type, self._redact_field(record_id))
         return True
 
     def upsert_records(
@@ -459,8 +484,8 @@ class ZohoConnector:
         from siege_utilities.connectors._protocol import UpsertError
 
         if records.empty:
-            log.warning("upsert_records(%s): empty DataFrame", object_type)
-            return UpsertResult(success_count=0, failure_count=0)
+            self._log.warning("upsert_records(%s): empty DataFrame", object_type)
+            return UpsertResult(success_count=0, failure_count=0, redact=self._redact_field)
 
         record_dicts = [sanitize_record(row) for row in records.to_dict(orient="records")]
         batches = [
@@ -475,7 +500,7 @@ class ZohoConnector:
         total_failure = 0
 
         for batch_idx, batch in enumerate(batches):
-            log.info(
+            self._log.info(
                 "upsert_records(%s): batch %d/%d (%d records)",
                 object_type, batch_idx + 1, len(batches), len(batch),
             )
@@ -485,6 +510,8 @@ class ZohoConnector:
                     "data": batch,
                     "duplicate_check_fields": [match_field],
                 })
+            except (ConnectorAuthError, ConnectorRateLimitError):
+                raise
             except ConnectorError as exc:
                 for i in range(len(batch)):
                     all_errors.append(UpsertError(
@@ -505,13 +532,14 @@ class ZohoConnector:
                         all_updated.append(rec_id)
                 else:
                     total_failure += 1
+                    code = result.get("code")
                     all_errors.append(UpsertError(
                         record_index=batch_idx * BATCH_SIZE + i,
-                        message=result.get("message", "Unknown error"),
-                        code=result.get("code"),
+                        message=self._redact_field(result.get("message", "Unknown error")),
+                        code=self._redact_field(code) if code is not None else None,
                     ))
 
-        log.info(
+        self._log.info(
             "upsert_records(%s): %d succeeded, %d failed",
             object_type, total_success, total_failure,
         )
@@ -521,6 +549,7 @@ class ZohoConnector:
             created_ids=all_created,
             updated_ids=all_updated,
             errors=all_errors,
+            redact=self._redact_field,
         )
 
     # ------------------------------------------------------------------
@@ -534,33 +563,43 @@ class ZohoConnector:
         limit: int | None,
     ) -> pd.DataFrame:
         """List records via the records API with pagination."""
+        if limit == 0:
+            return self._records_to_dataframe([], fields)
         all_records: list[dict[str, Any]] = []
         page = 1
-        per_page = min(limit or 200, 200)
+        page_token = None
+        per_page = min(limit, 200) if limit is not None else 200
 
         while True:
             path = f"/crm/{API_VERSION}/{module}"
             params: dict[str, Any] = {
                 "fields": ",".join(fields),
                 "per_page": per_page,
-                "page": page,
             }
+            if page_token:
+                params["page_token"] = page_token
+            else:
+                params["page"] = page
             data = self.request("GET", path, params=params)
             records = data.get("data", [])
             if not records:
                 break
 
             all_records.extend(records)
-            log.info("Listed %s: page %d, %d records (total: %d)",
+            self._log.info("Listed %s: page %d, %d records (total: %d)",
                      module, page, len(records), len(all_records))
 
-            if limit and len(all_records) >= limit:
+            if limit is not None and len(all_records) >= limit:
                 all_records = all_records[:limit]
                 break
 
             info = data.get("info", {})
             if not info.get("more_records"):
                 break
+            next_token = info.get("next_page_token")
+            if page_token and (not next_token or next_token == page_token):
+                raise ConnectorError("Zoho pagination did not return a new page token.")
+            page_token = next_token
             page += 1
 
         return self._records_to_dataframe(all_records, fields)
@@ -573,6 +612,8 @@ class ZohoConnector:
         limit: int | None,
     ) -> pd.DataFrame:
         """Execute a COQL query for filtered access."""
+        if limit == 0:
+            return self._records_to_dataframe([], fields)
         _validate_identifier(module)
         field_clause = ", ".join(_validate_identifier(field, allow_dotted=True) for field in fields)
         where_parts: list[str] = []
@@ -593,24 +634,25 @@ class ZohoConnector:
         query = f"select {field_clause} from {module}"
         if where_parts:
             query += " where " + " and ".join(where_parts)
-        if limit:
-            query += f" limit {int(limit)}"
 
         path = f"/crm/{API_VERSION}/coql"
         all_records: list[dict[str, Any]] = []
         offset = 0
 
         while True:
-            paginated_query = query
-            if offset > 0:
-                paginated_query += f" offset {offset}"
+            page_size = min(200, limit - len(all_records)) if limit is not None else 200
+            paginated_query = f"{query} limit {offset}, {page_size}"
             data = self.request("POST", path, json_body={"select_query": paginated_query})
             records = data.get("data", [])
             if not records:
                 break
 
             all_records.extend(records)
-            log.info("COQL query: %d records (total: %d)", len(records), len(all_records))
+            self._log.info("COQL query: %d records (total: %d)", len(records), len(all_records))
+
+            if limit is not None and len(all_records) >= limit:
+                all_records = all_records[:limit]
+                break
 
             if not data.get("info", {}).get("more_records"):
                 break
@@ -656,9 +698,12 @@ class ZohoConnector:
     def _ensure_connected(self) -> None:
         if not self._authenticated:
             raise ConnectorAuthError("Not authenticated. Call authenticate() first.")
-        if self._token_expires_at and datetime.now() >= self._token_expires_at:
+        if (
+            self._token_expires_at is not None
+            and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
+        ):
             if self._refresh_token:
-                log.info("Token expired, refreshing...")
+                self._log.info("Token expires soon or has expired, refreshing...")
                 self._refresh_access()
             else:
                 raise ConnectorAuthError("Access token expired. Re-authenticate.")
@@ -675,7 +720,7 @@ class ZohoConnector:
             "client_secret": self._client_secret,
         }
         self._exchange_token(token_url, payload)
-        log.info("Access token refreshed (dc: %s)", self._data_center)
+        self._log.info("Access token refreshed (dc: %s)", self._data_center)
 
     def _exchange_token(self, token_url: str, payload: dict[str, str]) -> None:
         try:
@@ -686,21 +731,30 @@ class ZohoConnector:
                 timeout=self._timeout,
             )
         except requests.exceptions.RequestException as exc:
-            raise ConnectorAuthError(f"Token request failed: {exc}") from exc
+            failure = type(exc).__name__
+        else:
+            failure = None
+        if failure is not None:
+            raise ConnectorAuthError(f"Token request failed: {failure}")
 
         if resp.status_code != 200:
             try:
                 body = resp.json()
-                error = body.get("error", resp.text[:200])
+                raw = body.get("error", resp.text)
             except ValueError:
-                error = resp.text[:200]
+                raw = resp.text
+            detail = self._safe_upstream_detail(raw)
             raise ConnectorAuthError(
-                f"Zoho auth failed ({resp.status_code}): {error}"
+                f"Zoho auth failed ({resp.status_code})"
+                + (f": {detail}" if detail else "")
             )
 
         data = resp.json()
         if "error" in data:
-            raise ConnectorAuthError(f"Zoho auth error: {data['error']}")
+            detail = self._safe_upstream_detail(data["error"])
+            raise ConnectorAuthError(
+                "Zoho auth error" + (f": {detail}" if detail else "")
+            )
 
         self._access_token = data["access_token"]
         if "refresh_token" in data:
@@ -709,7 +763,7 @@ class ZohoConnector:
         self._authenticated = True
 
         expires_in = data.get("expires_in", 3600)
-        self._token_expires_at = datetime.now() + timedelta(seconds=int(expires_in))
+        self._token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
 
     def request(
         self,
@@ -722,80 +776,111 @@ class ZohoConnector:
         """Send an authenticated request to the Zoho CRM API."""
         self._ensure_connected()
         url = f"{self._dc['api_url']}{path}"
-        last_exc: BaseException | None = None
+        last_failure = "HTTP error"
 
-        for attempt in range(1, self._retry_attempts + 1):
+        auth = RefreshOn401(self.refresh_access_token if self._refresh_token else None)
+        attempts = retry_attempts(method, self._retry_attempts)
+        max_retry_wait = getattr(self, "_max_retry_wait", 900.0)
+        for attempt in range(1, attempts + 1):
+            transport_failed = False
             try:
-                resp = self._session.request(
-                    method, url,
-                    params=dict(params) if params else None,
-                    json=json_body,
-                    timeout=self._timeout,
-                )
+                while True:
+                    resp = self._session.request(
+                        method, url,
+                        params=dict(params) if params else None,
+                        json=json_body,
+                        timeout=self._timeout,
+                    )
+                    if not auth.retry(resp):
+                        break
             except requests.exceptions.InvalidJSONError as exc:
-                raise ConnectorError(
-                    f"Zoho JSON encoding failed for {method} {path}: {exc}"
-                ) from exc
+                encoding_failure = type(exc).__name__
             except requests.exceptions.RequestException as exc:
-                last_exc = exc
-                log.warning(
-                    "Zoho %s %s attempt %d/%d failed: %s",
-                    method, path, attempt, self._retry_attempts, exc,
+                last_failure = type(exc).__name__
+                self._log.warning(
+                    "Zoho request attempt %d/%d failed: %s",
+                    attempt, attempts, last_failure,
                 )
-                if attempt < self._retry_attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                transport_failed = True
+                encoding_failure = None
+            else:
+                encoding_failure = None
+
+            if transport_failed:
+                if attempt < attempts:
+                    time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
                 continue
+            if encoding_failure is not None:
+                raise ConnectorError(
+                    f"Zoho JSON encoding failed: {encoding_failure}"
+                ) from requests.exceptions.InvalidJSONError(encoding_failure)
 
             if resp.status_code in (401, 403):
-                error_msg = self._extract_error(resp)
-                raise ConnectorAuthError(f"Zoho {resp.status_code}: {error_msg}")
+                detail = self._extract_error(resp)
+                raise ConnectorAuthError(
+                    f"Zoho {resp.status_code}" + (f": {detail}" if detail else "")
+                )
 
             if resp.status_code == 429:
-                retry_after = resp.headers.get("Retry-After")
-                raise ConnectorRateLimitError(
-                    f"Zoho rate limit hit on {method} {path}.",
-                    retry_after=float(retry_after) if retry_after else None,
+                error = rate_limit_error(
+                    resp.headers,
+                    f"Zoho rate limit hit on {method} {self._redact_field(path)}.",
+                    backoff_wait(self._retry_backoff, attempt, max_retry_wait),
+                    max_retry_wait=max_retry_wait,
                 )
+                if attempt < attempts:
+                    continue
+                raise error
 
             if resp.status_code == 404:
-                raise ConnectorNotFoundError(f"Zoho resource not found: {path}")
+                raise ConnectorNotFoundError(
+                    f"Zoho resource not found: {self._redact_field(path)}"
+                )
 
             if 500 <= resp.status_code < 600:
-                last_exc = ConnectorError(f"Zoho {resp.status_code} on {method} {path}.")
-                log.warning(
+                last_failure = f"HTTP {resp.status_code}"
+                self._log.warning(
                     "Zoho %s %s 5xx %d attempt %d/%d",
-                    method, path, resp.status_code, attempt, self._retry_attempts,
+                    method, self._redact_field(path), resp.status_code, attempt, attempts,
                 )
-                if attempt < self._retry_attempts:
-                    time.sleep(self._retry_backoff ** attempt)
+                if attempt < attempts:
+                    time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
                 continue
 
             if resp.status_code == 204:
                 return {}
 
             if not (200 <= resp.status_code < 300):
-                error_msg = self._extract_error(resp)
-                raise ConnectorError(f"Zoho {resp.status_code}: {error_msg}")
+                detail = self._extract_error(resp)
+                raise ConnectorError(
+                    f"Zoho {resp.status_code}" + (f": {detail}" if detail else "")
+                )
 
             try:
                 return resp.json()
             except ValueError as exc:
-                raise ConnectorError(
-                    f"Zoho returned non-JSON on {method} {path}: "
-                    f"{resp.text[:200]!r}"
-                ) from exc
+                decoding_failure = type(exc).__name__
+            raise ConnectorError(f"Zoho returned non-JSON: {decoding_failure}")
 
         raise ConnectorError(
-            f"Zoho {method} {path} failed after {self._retry_attempts} "
-            f"attempts: {last_exc}"
+            f"Zoho request failed after {attempts} "
+            f"attempts: {last_failure}"
         )
 
-    @staticmethod
-    def _extract_error(resp: requests.Response) -> str:
+    def _extract_error(self, resp: requests.Response) -> str | None:
+        """Value-redacted upstream detail for a failed response.
+
+        Value redaction runs on the full untruncated body before the 200-char
+        bound, so a long configured secret is removed in full rather than
+        having its tail cut (#1846 B2 D4). Fails closed when secret collection
+        is untrustworthy (#1846 B2 D5).
+        """
         try:
             body = resp.json()
             if isinstance(body, dict):
-                return body.get("message", body.get("error", resp.text[:200]))
-            return resp.text[:200]
+                raw = body.get("message", body.get("error", resp.text))
+            else:
+                raw = resp.text
         except ValueError:
-            return resp.text[:200]
+            raw = resp.text
+        return self._safe_upstream_detail(raw)

@@ -10,7 +10,7 @@ create_record/update_record API-error-status paths, and upsert_records
 empty-DataFrame and batch-ConnectorError handling.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pandas as pd
 import pytest
@@ -23,6 +23,11 @@ from siege_utilities.connectors._protocol import (
     ConnectorRateLimitError,
 )
 from siege_utilities.connectors.zoho import ZohoConnector
+
+
+@pytest.fixture(autouse=True)
+def no_retry_sleep(monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda _: None)
 
 
 class _FakeResp:
@@ -55,7 +60,7 @@ class _FakeSession:
 
 
 def _connector():
-    c = ZohoConnector(client_id="id", client_secret="secret", retry_attempts=1)
+    c = ZohoConnector(client_id="id", client_secret="client-secret-value", retry_attempts=1)
     c._authenticated = True
     c._token_expires_at = None
     return c
@@ -91,7 +96,7 @@ def test_ensure_connected_raises_when_not_authenticated():
 def test_ensure_connected_raises_when_token_expired_no_refresh():
     c = ZohoConnector(client_id="id", client_secret="secret")
     c._authenticated = True
-    c._token_expires_at = datetime(2000, 1, 1)  # expired; no refresh_token
+    c._token_expires_at = datetime(2000, 1, 1, tzinfo=timezone.utc)  # expired; no refresh_token
     with pytest.raises(ConnectorAuthError) as exc_info:
         c._ensure_connected()
     assert "expired" in str(exc_info.value).lower()
@@ -100,7 +105,7 @@ def test_ensure_connected_raises_when_token_expired_no_refresh():
 def test_ensure_connected_refreshes_when_token_expired_with_refresh_token(monkeypatch):
     c = ZohoConnector(client_id="id", client_secret="secret", refresh_token="tok")
     c._authenticated = True
-    c._token_expires_at = datetime(2000, 1, 1)  # expired
+    c._token_expires_at = datetime(2000, 1, 1, tzinfo=timezone.utc)  # expired
 
     refreshed = []
 
@@ -197,19 +202,21 @@ def test_request_retries_then_raises_on_5xx():
 
 def test_extract_error_falls_back_to_text_for_unknown_dict_keys():
     resp = _FakeResp(400, json_body={"code": "REQUIRED_FIELD_MISSING"}, text="fallback text")
-    result = ZohoConnector._extract_error(resp)
+    # _extract_error is a bound method now: value redaction needs the
+    # instance's configured secrets (#1846 B2 r4). Fallback-to-text unchanged.
+    result = _connector()._extract_error(resp)
     assert result == "fallback text"
 
 
 def test_extract_error_falls_back_to_text_for_non_dict_json():
     resp = _FakeResp(400, json_body=["error", "list"], text="list fallback")
-    result = ZohoConnector._extract_error(resp)
+    result = _connector()._extract_error(resp)
     assert result == "list fallback"
 
 
 def test_extract_error_falls_back_to_text_for_non_json_response():
     resp = _FakeResp(400, json_raises=True, text="plain error text")
-    result = ZohoConnector._extract_error(resp)
+    result = _connector()._extract_error(resp)
     assert result == "plain error text"
 
 

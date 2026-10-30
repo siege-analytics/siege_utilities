@@ -15,7 +15,7 @@ ConnectorError with retry count, and all three _extract_error branches
 classes and a real-shape fake session/response (writing-tests:4).
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -30,6 +30,11 @@ from siege_utilities.connectors._protocol import (  # noqa: E402
     ConnectorRateLimitError,
 )
 from siege_utilities.connectors.dynamics import DynamicsConnector  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def no_retry_sleep(monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda _: None)
 
 
 class _FakeResp:
@@ -133,23 +138,34 @@ def test_authenticate_raises_with_no_credentials():
 # ---------------------------------------------------------------------------
 
 
-def test_auth_client_credentials_failure_raises_auth_error():
+# credentials >= 8 chars keep the upstream auth detail; a short configured
+# credential makes D3 suppress it (R-1846/R-1846-2). Both paths asserted.
+@pytest.mark.parametrize("secret,detail_shown", [("dynamics-secret-value", True), ("tok", False)])
+def test_auth_client_credentials_failure_raises_auth_error(secret, detail_shown):
     """_auth_client_credentials() raises ConnectorAuthError when MSAL returns
-    a result without access_token (error path at line ~303)."""
+    a result without access_token; the upstream detail is shown only when no
+    configured credential is too short to redact (error path at line ~303)."""
     c = _connector()
+    c._access_token = c._client_secret = secret
     c._msal_app.acquire_token_for_client.return_value = {
         "error": "invalid_client",
         "error_description": "No application found.",
     }
     with pytest.raises(ConnectorAuthError) as exc_info:
         c._auth_client_credentials()
-    assert "No application found" in str(exc_info.value)
+    if detail_shown:
+        assert "No application found" in str(exc_info.value)
+    else:
+        assert "No application found" not in str(exc_info.value)
 
 
-def test_auth_username_password_failure_raises_auth_error():
+@pytest.mark.parametrize("secret,detail_shown", [("dynamics-secret-value", True), ("tok", False)])
+def test_auth_username_password_failure_raises_auth_error(secret, detail_shown):
     """_auth_username_password() raises ConnectorAuthError when MSAL returns
-    a result without access_token (error path at line ~315)."""
+    a result without access_token; upstream detail is shown only when no
+    configured credential is too short to redact (error path at line ~315)."""
     c = _connector()
+    c._access_token = c._client_secret = secret
     c._username = "user@example.com"
     c._password = "bad-password"
     c._msal_app.acquire_token_by_username_password.return_value = {
@@ -158,7 +174,10 @@ def test_auth_username_password_failure_raises_auth_error():
     }
     with pytest.raises(ConnectorAuthError) as exc_info:
         c._auth_username_password()
-    assert "AADSTS50126" in str(exc_info.value)
+    if detail_shown:
+        assert "AADSTS50126" in str(exc_info.value)
+    else:
+        assert "AADSTS50126" not in str(exc_info.value)
 
 
 # ---------------------------------------------------------------------------
@@ -177,7 +196,7 @@ def test_ensure_connected_triggers_reauth_on_expired_token():
     which calls _auth_client_credentials(). The MSAL mock returns a fresh
     token so the connector re-authenticates cleanly."""
     c = _connector()
-    c._token_expires_at = datetime.now() - timedelta(seconds=1)
+    c._token_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
     c._msal_app.acquire_token_for_client.return_value = {
         "access_token": "new-tok",
         "expires_in": 3600,
@@ -280,10 +299,13 @@ def test_request_5xx_retries_exact_count():
     assert "failed after 2 attempts" in str(exc_info.value)
 
 
-def test_request_4xx_extracts_odata_error_message():
+@pytest.mark.parametrize("secret,detail_shown", [("dynamics-secret-value", True), ("tok", False)])
+def test_request_4xx_extracts_odata_error_message(secret, detail_shown):
     """4xx other than 401/403/404/429 raises ConnectorError carrying the
-    status code and the OData error.message field."""
+    status code always, and the OData error.message only when no configured
+    credential is too short to redact (D3)."""
     c = _connector()
+    c._access_token = c._client_secret = secret
     c._session = _FakeSession(
         response=_FakeResp(
             400,
@@ -293,7 +315,10 @@ def test_request_4xx_extracts_odata_error_message():
     with pytest.raises(ConnectorError) as exc_info:
         c.request("POST", "/api/data/v9.2/contacts")
     assert "400" in str(exc_info.value)
-    assert "Required field missing" in str(exc_info.value)
+    if detail_shown:
+        assert "Required field missing" in str(exc_info.value)
+    else:
+        assert "Required field missing" not in str(exc_info.value)
 
 
 def test_request_204_returns_empty_dict():
@@ -349,10 +374,13 @@ def test_request_transport_error_count_verified():
 # ---------------------------------------------------------------------------
 
 
-def test_extract_error_falls_back_to_text_on_non_json():
+@pytest.mark.parametrize("secret,detail_shown", [("dynamics-secret-value", True), ("tok", False)])
+def test_extract_error_falls_back_to_text_on_non_json(secret, detail_shown):
     """_extract_error returns resp.text[:200] when resp.json() raises ValueError.
-    Exercised through the 4xx-other path with json_raises=True."""
+    Exercised through the 4xx-other path with json_raises=True; the plain text
+    is shown only when no configured credential is too short to redact (D3)."""
     c = _connector()
+    c._access_token = c._client_secret = secret
     c._session = _FakeSession(
         response=_FakeResp(
             418,
@@ -363,7 +391,10 @@ def test_extract_error_falls_back_to_text_on_non_json():
     with pytest.raises(ConnectorError) as exc_info:
         c.request("GET", "/api/data/v9.2/accounts")
     assert "418" in str(exc_info.value)
-    assert "teapot" in str(exc_info.value)
+    if detail_shown:
+        assert "teapot" in str(exc_info.value)
+    else:
+        assert "teapot" not in str(exc_info.value)
 
 
 def test_extract_error_odata_non_dict_error_value():

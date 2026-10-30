@@ -12,7 +12,7 @@ dict, non-JSON 2xx → ConnectorError, transport errors exhausting all
 retries → ConnectorError.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 import requests
@@ -27,6 +27,11 @@ from siege_utilities.connectors.salesforce import (
     SOQLQuery,
     SalesforceConnector,
 )
+
+
+@pytest.fixture(autouse=True)
+def no_retry_sleep(monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda _: None)
 
 
 class _FakeResp:
@@ -64,7 +69,7 @@ def _authed_connector(retry_attempts: int = 1, retry_backoff: float = 0.01) -> S
     """
     c = SalesforceConnector(
         client_id="id",
-        client_secret="secret",
+        client_secret="client-secret-value",
         retry_attempts=retry_attempts,
         retry_backoff=retry_backoff,
     )
@@ -150,7 +155,7 @@ def test_ensure_connected_raises_when_access_token_expired() -> None:
     c = _connector()
     c._authenticated = True
     c._access_token = "expired"
-    c._token_expires_at = datetime.now() - timedelta(seconds=1)
+    c._token_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
     c._refresh_token = None
     with pytest.raises(ConnectorAuthError) as exc_info:
         c._ensure_connected()
@@ -261,6 +266,31 @@ def test_request_4xx_other_raises_connector_error_with_extracted_message(
     # Non-401/404/429/5xx path names the status and extracted message.
     assert "422" in str(exc_info.value)
     assert "MALFORMED_QUERY" in str(exc_info.value)
+
+
+def test_short_credential_suppresses_general_path_detail(monkeypatch):
+    """#1846 R-1846 reversal. The hub's 10-20 ruling narrowed D3 to the auth
+    path; R-1846 overrides it: D3 applies to ALL credential-bearing diagnostics.
+    With a short configured credential (len < the value-redactor minimum) a
+    general request path must emit only the trusted class + status, never the
+    upstream VALIDATION_ERROR detail. This test previously asserted the opposite
+    (retention); it is one of the three disclosed reversals.
+    """
+    c = _authed_connector()
+    c._client_secret = "secret"  # len 6 < _MIN_SECRET_VALUE_LEN: triggers D3 suppression
+    monkeypatch.setattr(
+        c._session, "request",
+        lambda *a, **k: _FakeResp(
+            422,
+            json_body=[{"message": "VALIDATION_ERROR: Email is required"}],
+        ),
+    )
+    with pytest.raises(ConnectorError) as exc_info:
+        c.request("GET", "/services/data/v60.0/sobjects/Contact")
+    text = str(exc_info.value)
+    assert "422" in text
+    assert "VALIDATION_ERROR" not in text
+    assert "Email is required" not in text
 
 
 def test_request_204_returns_empty_dict(monkeypatch):
