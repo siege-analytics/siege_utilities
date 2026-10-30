@@ -466,7 +466,11 @@ class ZohoConnector(_SecretRedactionMixin):
         if not results or results[0].get("status") != "success":
             details = results[0] if results else resp
             msg = details.get("message", str(details))
-            raise ConnectorError(f"Failed to update {object_type}/{record_id}: {msg}")
+            detail = self._safe_upstream_detail(msg)
+            raise ConnectorError(
+                f"Failed to update {object_type}/{self._redact_field(record_id)}"
+                + (f": {detail}" if detail else "")
+            )
         self._log.info("Updated %s record: %s", object_type, self._redact_field(record_id))
         return True
 
@@ -747,7 +751,10 @@ class ZohoConnector(_SecretRedactionMixin):
 
         data = resp.json()
         if "error" in data:
-            raise ConnectorAuthError(f"Zoho auth error: {data['error']}")
+            detail = self._safe_upstream_detail(data["error"])
+            raise ConnectorAuthError(
+                "Zoho auth error" + (f": {detail}" if detail else "")
+            )
 
         self._access_token = data["access_token"]
         if "refresh_token" in data:

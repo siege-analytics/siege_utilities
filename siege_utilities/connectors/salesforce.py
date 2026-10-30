@@ -404,7 +404,10 @@ class SalesforceConnector(_SecretRedactionMixin):
             "redirect_uri": redirect_uri,
         }
         self._exchange_token(token_url, payload)
-        self._log.info("Authenticated via Web Server Flow (instance: %s)", self._instance_url)
+        self._log.info(
+            "Authenticated via Web Server Flow (instance: %s)",
+            self._redact_field(self._instance_url),
+        )
 
     def get_authorization_url(
         self,
@@ -448,7 +451,10 @@ class SalesforceConnector(_SecretRedactionMixin):
             "client_secret": self._client_secret,
         }
         self._exchange_token(token_url, payload)
-        self._log.info("Access token refreshed (instance: %s)", self._instance_url)
+        self._log.info(
+            "Access token refreshed (instance: %s)",
+            self._redact_field(self._instance_url),
+        )
 
     # ------------------------------------------------------------------
     # ConnectorProtocol — read operations
@@ -935,8 +941,12 @@ class SalesforceConnector(_SecretRedactionMixin):
 
         state = job_info.get("state", "Unknown")
         if state in ("Failed", "Aborted"):
-            error_msg = job_info.get("errorMessage", f"Job {state}")
-            raise ConnectorError(f"Bulk API job {job_id} {state}: {error_msg}")
+            error_msg = job_info.get("errorMessage")
+            detail = self._safe_upstream_detail(error_msg) if error_msg else None
+            raise ConnectorError(
+                f"Bulk API job {self._redact_field(job_id)} {state}"
+                + (f": {detail}" if detail else "")
+            )
 
         processed = job_info.get("numberRecordsProcessed", 0)
         failed = job_info.get("numberRecordsFailed", 0)
@@ -1221,7 +1231,7 @@ class SalesforceConnector(_SecretRedactionMixin):
         self._exchange_token(token_url, payload)
         self._log.info(
             "Authenticated via Username-Password Flow as %s (instance: %s)",
-            self._username, self._instance_url,
+            self._username, self._redact_field(self._instance_url),
         )
 
     def _exchange_token(self, token_url: str, payload: dict[str, str]) -> None:

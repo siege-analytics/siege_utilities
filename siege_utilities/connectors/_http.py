@@ -22,22 +22,39 @@ class RedactingLogger(logging.LoggerAdapter):
     """
 
     def log(self, level, msg, *args, **kwargs):
-        if self.isEnabledFor(level):
-            text = str(msg) % args if args else str(msg)
-            self.logger.log(
-                level, redact_secrets(text, values=self._configured_values()), **kwargs,
-            )
+        if not self.isEnabledFor(level):
+            return
+        values, usable = self._configured_values()
+        if not usable:
+            # Fail closed: secret collection failed, so we cannot prove the
+            # interpolated arguments are free of a configured secret. Emit only
+            # the trusted template (key/syntax redacted, no values) and a marker,
+            # dropping every argument rather than letting one through verbatim.
+            suppressed = redact_secrets(str(msg)) + " [log args suppressed: secret collection unavailable]"
+            self.logger.log(level, suppressed, **kwargs)
+            return
+        text = str(msg) % args if args else str(msg)
+        self.logger.log(level, redact_secrets(text, values=values), **kwargs)
 
     def _configured_values(self):
+        """Return ``(values, usable)``. ``usable`` is False only when a bound
+        connector's collection failed or returned a non-sequence; the module
+        logger (no provider) is usable with key/syntax-only redaction."""
         provider = (self.extra or {}).get("secret_values")
         if provider is None:
-            return ()
+            return (), True
         from siege_utilities.connectors._protocol import _SECRET_COLLECTION_FAILED
 
-        values = provider()  # _secret_values is itself fail-closed and never raises
+        # _secret_values is itself fail-closed, but the thunk late-binds a
+        # replaceable policy, so a raising provider must also fail closed here
+        # rather than crash the log call or fall through to no redaction.
+        try:
+            values = provider()
+        except Exception:
+            return (), False
         if values is _SECRET_COLLECTION_FAILED or not isinstance(values, (list, tuple)):
-            return ()
-        return values
+            return (), False
+        return values, True
 
 
 class RefreshOn401:

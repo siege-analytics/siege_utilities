@@ -139,6 +139,7 @@ class _SecretRedactionMixin:
 
     _SECRET_ATTRS = (
         "_client_secret", "_access_token", "_refresh_token", "_password", "_api_key",
+        "_security_token",
     )
 
     @property
@@ -151,7 +152,9 @@ class _SecretRedactionMixin:
         explicit ``_redact_field`` call. Short configured values still need
         site-level suppression via ``_redact_field`` (the shared length floor
         keeps the adapter from blanking common short strings). Cached per
-        instance; the bound ``_secret_values`` tracks later credential changes.
+        instance; the bound thunk re-reads ``self._secret_values`` at log time
+        so both later credential changes and a replaced collection policy are
+        observed rather than frozen at cache time.
         """
         adapter = self.__dict__.get("_redacting_log")
         if adapter is None:
@@ -161,7 +164,7 @@ class _SecretRedactionMixin:
 
             adapter = RedactingLogger(
                 logging.getLogger(type(self).__module__),
-                {"secret_values": self._secret_values},
+                {"secret_values": lambda: self._secret_values()},
             )
             self.__dict__["_redacting_log"] = adapter
         return adapter
