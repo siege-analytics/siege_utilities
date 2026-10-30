@@ -42,15 +42,72 @@ def client_for(module, platform, body):
     return client
 
 
-def assert_equal(old, new):
-    if isinstance(old, pd.DataFrame):
-        pd.testing.assert_frame_equal(old, new)
-    else:
-        assert old == new, (old, new)
+import numbers
+
+
+def _is_null(value):
+    if value is None:
+        return True
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):
+        return False
+
+
+def _is_zero(value):
+    return (
+        isinstance(value, numbers.Number)
+        and not isinstance(value, bool)
+        and not _is_null(value)
+        and value == 0
+    )
+
+
+def compare(old, new, where="root"):
+    """Count ONLY the intended baseline-zero -> current-null differences.
+
+    Returns the number of cells where the pre-fix baseline held a fabricated
+    numeric zero and the post-fix output is null (the omitted IG/X count fix).
+    EVERY other value, row, column, index key and timestamp must match exactly;
+    any other difference raises, so a new unexplained removal or relabel fails
+    the audit rather than being silently absorbed.
+    """
+    if isinstance(old, pd.DataFrame) or isinstance(new, pd.DataFrame):
+        assert isinstance(old, pd.DataFrame) and isinstance(new, pd.DataFrame), (where, type(old), type(new))
+        assert list(old.columns) == list(new.columns), (where, list(old.columns), list(new.columns))
+        assert list(old.index) == list(new.index), (where, list(old.index), list(new.index))
+        allowed = 0
+        for col in old.columns:
+            for idx in old.index:
+                allowed += compare(old.at[idx, col], new.at[idx, col], f"{where}[{idx!r},{col!r}]")
+        return allowed
+    if isinstance(old, dict) or isinstance(new, dict):
+        assert isinstance(old, dict) and isinstance(new, dict), (where, type(old), type(new))
+        assert set(old) == set(new), (where, set(old), set(new))
+        return sum(compare(old[key], new[key], f"{where}.{key}") for key in old)
+    if isinstance(old, (list, tuple)) or isinstance(new, (list, tuple)):
+        assert type(old) is type(new) and len(old) == len(new), (where, old, new)
+        return sum(compare(o, n, f"{where}[{i}]") for i, (o, n) in enumerate(zip(old, new)))
+    if _is_null(old) and _is_null(new):
+        return 0
+    if _is_null(old) != _is_null(new):
+        if _is_zero(old) and _is_null(new):
+            return 1
+        raise AssertionError(f"unexpected null/non-null diff at {where}: {old!r} -> {new!r}")
+    if old == new:
+        return 0
+    raise AssertionError(f"unexpected value diff at {where}: {old!r} -> {new!r}")
+
+
+# The audit permits exactly this many baseline-zero -> current-null cells: the
+# omitted-count fix produces 2 Instagram and 6 X cells across the 23 fixtures.
+# Any other count fails, so a new leak (or a lost intended null) is caught.
+_EXPECTED_ABSENT_ZERO_TO_NULL = 8
 
 
 def audit():
     count = 0
+    allowed = 0
     for platform, current in (("instagram", instagram), ("x", x_twitter)):
         old = old_module(current)
         class_name = "InstagramConnector" if platform == "instagram" else "XTwitterConnector"
@@ -83,7 +140,7 @@ def audit():
         for posts in ([], populated, [{"id": "123"}]):
             before = getattr(getattr(old, class_name), converter)(deepcopy(posts))
             after = getattr(getattr(current, class_name), converter)(deepcopy(posts))
-            assert_equal(before, after)
+            allowed += compare(before, after, f"{platform}.{converter}")
             count += 1
         for method, args, bodies in (
             ("get_account_info", (), (account, account_empty)),
@@ -94,7 +151,7 @@ def audit():
                 with client_for(old, platform, body) as previous, client_for(current, platform, body) as new:
                     before = getattr(previous, method)(*args)
                     after = getattr(new, method)(*args)
-                assert_equal(before, after)
+                allowed += compare(before, after, f"{platform}.{method}")
                 if platform == "x" and method == "get_account_info" and body == account_empty:
                     assert after["followers_count"] is None
                 count += 1
@@ -115,7 +172,7 @@ def audit():
             except TypeError:
                 reports.append("TypeError")
         if None not in values:
-            assert_equal(*reports)
+            allowed += compare(reports[0], reports[1], "report")
         else:
             assert reports[0] == "TypeError"
             assert isinstance(reports[1], dict)
@@ -125,7 +182,14 @@ def audit():
             assert reports[1]["metrics"]["x_twitter — Followers"]["value"] == "unavailable"
             assert data[0]["account_info"]["followers_count"] is None
         count += 1
-    print(f"old/new diff: 0 unexplained removals ({count} fixtures)")
+    assert allowed == _EXPECTED_ABSENT_ZERO_TO_NULL, (
+        f"expected exactly {_EXPECTED_ABSENT_ZERO_TO_NULL} baseline-zero -> null "
+        f"count cells, classified {allowed}"
+    )
+    print(
+        f"old/new diff: {allowed} baseline-zero -> null count cells "
+        f"(the intended omitted IG/X fix), 0 other differences ({count} fixtures)"
+    )
 
 
 if __name__ == "__main__":
