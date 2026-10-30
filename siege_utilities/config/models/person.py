@@ -2,7 +2,7 @@
 Base Person model with comprehensive validation and credential management.
 """
 
-from pydantic import SecretStr, BaseModel, Field, field_validator, ConfigDict
+from pydantic import SecretStr, SecretBytes, BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 from dataclasses import fields, is_dataclass
@@ -633,25 +633,47 @@ def _convert_to_yaml_safe(obj: Any) -> Any:
 _REDACTED = '***REDACTED***'
 
 
-def _redact_sensitive_value(value: Any) -> Any:
-    """Redact a value whose field or key is classified sensitive (#1460 B1832-1).
+# Exact builtin types whose genuinely empty/zero value carries no secret and is
+# preserved in a sensitive position (matching develop's empty-value behaviour).
+_EMPTY_SENTINELS = {
+    str: '', bytes: b'', list: [], dict: {}, tuple: (),
+    set: set(), frozenset: frozenset(), int: 0, float: 0.0, bool: False,
+}
 
-    No truthiness guards: a falsey container can still hold a SecretStr. ``None``
-    stays ``None`` (there is no secret to redact); a model or container is
-    recursed so nested secrets are redacted regardless of truthiness while its
-    non-secret structure is preserved; any other (scalar) value is the secret
-    itself and is redacted.
+
+def _redact_sensitive_value(value: Any) -> Any:
+    """Redact a value whose field or key is classified sensitive.
+
+    Fail-closed allowlist, not truthiness. ``None`` stays ``None``. A value is
+    otherwise preserved only in two cases, both decided by EXACT type
+    (``type(v) is``, never ``isinstance``):
+
+    * its exact builtin type holds its genuinely empty/zero form -- ``''``,
+      ``b''``, ``[]``, ``{}``, ``()``, ``set()``, ``frozenset()``, ``0``,
+      ``0.0``, ``False``; or
+    * it is exactly ``SecretStr('')`` or ``SecretBytes(b'')`` -- an empty
+      Pydantic secret, which carries no secret and which the model defaults
+      rely on for a working export -> import round-trip. This matches what
+      develop did for exact empties and is not a behaviour change.
+
+    Everything else is redacted regardless of what ``__bool__``/``__len__``
+    report: any non-empty value, any custom object, and -- critically -- any
+    SUBCLASS of ``SecretStr``/``SecretBytes`` even if it unwraps to empty. The
+    exact-type check gates the unwrap, so a hostile subclass's
+    ``get_secret_value()`` (which could return ``''`` while the real secret
+    lives in another attribute) is never consulted. A sensitive position
+    therefore cannot export a wrapped or custom-object credential as plaintext.
     """
-    if (
-        isinstance(value, (BaseModel, dict, list, tuple))
-        or (is_dataclass(value) and not isinstance(value, type))
-    ):
-        # A model or container is redacted whatever its truthiness: a falsey
-        # container (e.g. a zero-length model) can still hold a SecretStr.
-        return _REDACTED
-    # A scalar is the secret itself: a present scalar is redacted; an empty or
-    # None scalar carries no secret and is kept, matching develop.
-    return _REDACTED if value else value
+    if value is None:
+        return None
+    exact = type(value)
+    if exact in _EMPTY_SENTINELS and value == _EMPTY_SENTINELS[exact]:
+        return value
+    if exact is SecretStr and value.get_secret_value() == '':
+        return value
+    if exact is SecretBytes and value.get_secret_value() == b'':
+        return value
+    return _REDACTED
 _URL_PASSWORD = re.compile(r'([a-zA-Z][a-zA-Z0-9+.-]*://[^\s/:?#@]*:)[^\s/?#]*(@)')
 
 
@@ -692,9 +714,10 @@ def _strip_sensitive_fields(data: Any) -> Any:
             extra = field.json_schema_extra
             policy = extra.get('sensitive') if isinstance(extra, dict) else None
             sensitive = policy is True or (policy is not False and field_has_sensitive_name(name, field))
-            # A sensitive field is redacted via _redact_sensitive_value (which
-            # recurses containers regardless of truthiness, #1460 B1832-1);
-            # non-sensitive values are always recursed, including falsey ones.
+            # A sensitive field is redacted via _redact_sensitive_value (a
+            # fail-closed allowlist that preserves only a genuinely empty
+            # builtin and redacts the whole value otherwise); a non-sensitive
+            # value is recursed, including falsey ones.
             result[name] = _redact_sensitive_value(value) if sensitive else _strip_sensitive_fields(value)
         if data.model_extra is not None:
             result.update(_strip_sensitive_fields(data.model_extra))
@@ -705,8 +728,8 @@ def _strip_sensitive_fields(data: Any) -> Any:
     if isinstance(data, dict):
         return {
             # A sensitive mapping key redacts its value via _redact_sensitive_value
-            # (recurses containers regardless of truthiness, #1460 B1832-1); a
-            # non-sensitive key always recurses, including falsey values.
+            # (fail-closed allowlist: only a genuinely empty builtin is kept); a
+            # non-sensitive key recurses, including falsey values.
             name: _redact_sensitive_value(value) if _sensitive_name(name)
             else _strip_sensitive_fields(value)
             for name, value in data.items()
