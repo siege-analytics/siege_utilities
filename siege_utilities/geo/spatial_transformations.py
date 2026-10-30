@@ -42,10 +42,10 @@ class SpatialQueryError(RuntimeError):
 
 
 _SQL_TOKEN = re.compile(
-    r"(?P<space>\s+|--[^\n]*(?:\n|$))|(?P<comment>/\*)|"
+    r"(?P<space>\s+|--[^\n\r]*(?:\r\n|[\n\r]|$))|(?P<comment>/\*)|"
     r"(?P<string>[eE]'(?:[^'\\]|\\.|'')*'|'(?:[^']|'')*')|"
     r'(?P<identifier>"(?:[^"]|"")*")|'
-    r"(?P<dollar>\$(?:[A-Za-z_][A-Za-z_0-9]*)?\$)|"
+    r"(?P<dollar>\$(?:[A-Za-z_\u0080-￿][A-Za-z_0-9\u0080-￿]*)?\$)|"
     r"(?P<word>[A-Za-z_\u0080-\uffff][A-Za-z_0-9$\u0080-\uffff]*)|(?P<symbol>.)",
     re.DOTALL,
 )
@@ -879,6 +879,20 @@ class DuckDBConnector:
     def __exit__(self, *exc_info):
         self.close()
 
+    def _caller_owns_transaction(self) -> bool:
+        """True when the DuckDB connection is already in a caller transaction.
+
+        Two reads of ``current_transaction_id()`` return the same id inside an
+        explicit transaction and distinct ids under autocommit (each read is its
+        own implicit transaction). When the caller owns the transaction the
+        connector issues no BEGIN/COMMIT/ROLLBACK and its writes join the
+        caller's transaction (R3). Shared by ``execute_spatial_query`` and
+        ``upload_spatial_data`` so both decide ownership identically.
+        """
+        first = self.connection.execute("SELECT current_transaction_id()").fetchone()[0]
+        second = self.connection.execute("SELECT current_transaction_id()").fetchone()[0]
+        return first == second
+
     def upload_spatial_data(self, gdf: GeoDataFrame, table_name: str, **kwargs) -> None:
         """
         Upload spatial data to DuckDB in one transaction.
@@ -911,8 +925,16 @@ class DuckDBConnector:
             incoming_crs = gdf.crs.to_wkt() if gdf.crs is not None else None
             self.connection.register("siege_upload_df", df)
             try:
-                self.connection.execute("BEGIN TRANSACTION")
+                # R3: join a caller transaction. Only an autocommit connection
+                # gets a connector-owned BEGIN/COMMIT; in a caller transaction the
+                # upload issues no BEGIN/COMMIT/ROLLBACK and its writes join the
+                # caller's transaction. Same shared detection as the query path.
+                caller_owned = self._caller_owns_transaction()
+                transaction_started = False
                 try:
+                    if not caller_owned:
+                        self.connection.execute("BEGIN TRANSACTION")
+                        transaction_started = True
                     if if_exists == 'replace':
                         self.connection.execute(f"DROP TABLE IF EXISTS {table_name}")
                     comment, stored = _duckdb_table_metadata(self.connection, table_name)
@@ -946,12 +968,17 @@ class DuckDBConnector:
                     comment = prior_comment + _DUCKDB_CRS_COMMENT + json.dumps(metadata)
                     literal = escape_sql_string_literal(comment)
                     self.connection.execute(f"COMMENT ON TABLE {table_name} IS '{literal}'")
-                    self.connection.execute("COMMIT")
+                    if transaction_started:
+                        self.connection.execute("COMMIT")
+                        transaction_started = False
                 except Exception:
-                    # Roll back every failure after BEGIN, including conversion
-                    # and schema errors. A rollback failure retains the upload
-                    # failure as its exception context.
-                    self.connection.execute("ROLLBACK")
+                    # R3: undo only a connector-owned transaction. In caller mode
+                    # the writes join the caller's transaction and the caller
+                    # decides rollback -- the connector issues no BEGIN/COMMIT/
+                    # ROLLBACK. A rollback failure retains the upload failure as
+                    # its exception context.
+                    if transaction_started:
+                        self.connection.execute("ROLLBACK")
                     raise
             finally:
                 try:
@@ -1066,6 +1093,17 @@ class DuckDBConnector:
             engine = DuckDBEngine()
             engine._conn = self.connection
             statements = self.connection.extract_statements(query)
+            # R6 fail-closed cross-check: the guard lexer must agree with the
+            # driver's own statement split. If they disagree -- a comment, quote
+            # or newline the guard lexed differently from DuckDB -- reject before
+            # executing anything, rather than let an unlexed control statement
+            # commit durably ahead of a later error.
+            if len(statements) != len(statement_lists):
+                raise SpatialQueryError(
+                    "Refusing a query whose statement count disagrees with the "
+                    "database parser; the guard and the driver must agree before "
+                    "anything runs."
+                )
             has_non_select = any(
                 statement.type != duckdb.StatementType.SELECT for statement in statements
             )
@@ -1075,10 +1113,7 @@ class DuckDBConnector:
             # gets a connector-owned BEGIN/COMMIT. A standalone transaction-control
             # statement (R6) runs directly without any wrapping.
             if has_non_select and not standalone_control:
-                first_id = self.connection.execute("SELECT current_transaction_id()").fetchone()[0]
-                second_id = self.connection.execute("SELECT current_transaction_id()").fetchone()[0]
-                caller_owned = first_id == second_id
-                if not caller_owned:
+                if not self._caller_owns_transaction():
                     self.connection.execute("BEGIN TRANSACTION")
                     transaction_started = True
             for statement in statements[:-1]:

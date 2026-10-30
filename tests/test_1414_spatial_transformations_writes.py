@@ -118,6 +118,8 @@ def test_row_returning_queries_return_rows(backend, statement):
         connector = PostGISConnector.__new__(PostGISConnector)
         connector._opened_connection = True
         connector.connection = MagicMock()
+        connector.connection.autocommit = False
+        connector.connection.get_transaction_status.return_value = 0  # IDLE
         cursor = connector.connection.cursor.return_value
         cursor.description = [("id", None, None, None, None, None, None)]
         cursor.fetchall.return_value = [(7,)]
@@ -176,6 +178,8 @@ def test_postgis_returning_decodes_ewkb_once(encoding):
     connector = PostGISConnector.__new__(PostGISConnector)
     connector._opened_connection = True
     connector.connection = MagicMock()
+    connector.connection.autocommit = False
+    connector.connection.get_transaction_status.return_value = 0  # IDLE
     cursor = connector.connection.cursor.return_value
     cursor.description = [("id",), ("geom",)]
     cursor.statusmessage = "INSERT 0 2"
@@ -195,6 +199,8 @@ def test_postgis_bad_geometry_rolls_back_returning():
     connector = PostGISConnector.__new__(PostGISConnector)
     connector._opened_connection = True
     connector.connection = MagicMock()
+    connector.connection.autocommit = False
+    connector.connection.get_transaction_status.return_value = 0  # IDLE
     cursor = connector.connection.cursor.return_value
     cursor.description = [("geometry",)]
     cursor.statusmessage = "INSERT 0 1"
@@ -213,6 +219,8 @@ def test_non_returning_dml_keeps_rowcount(backend):
         connector = PostGISConnector.__new__(PostGISConnector)
         connector._opened_connection = True
         connector.connection = MagicMock()
+        connector.connection.autocommit = False
+        connector.connection.get_transaction_status.return_value = 0  # IDLE
         cursor = connector.connection.cursor.return_value
         cursor.description = None
         cursor.statusmessage = "INSERT 0 2"
