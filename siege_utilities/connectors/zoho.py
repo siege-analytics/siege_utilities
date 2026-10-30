@@ -450,9 +450,12 @@ class ZohoConnector(_SecretRedactionMixin):
         if not results or results[0].get("status") != "success":
             details = results[0] if results else resp
             msg = details.get("message", str(details))
-            raise ConnectorError(f"Failed to create {object_type}: {msg}")
+            detail = self._safe_upstream_detail(msg)
+            raise ConnectorError(
+                f"Failed to create {object_type}" + (f": {detail}" if detail else "")
+            )
         record_id = results[0]["details"]["id"]
-        log.info("Created %s record: %s", object_type, record_id)
+        log.info("Created %s record: %s", object_type, self._redact_field(record_id))
         return record_id
 
     def update_record(
@@ -466,7 +469,7 @@ class ZohoConnector(_SecretRedactionMixin):
             details = results[0] if results else resp
             msg = details.get("message", str(details))
             raise ConnectorError(f"Failed to update {object_type}/{record_id}: {msg}")
-        log.info("Updated %s record: %s", object_type, record_id)
+        log.info("Updated %s record: %s", object_type, self._redact_field(record_id))
         return True
 
     def upsert_records(
@@ -480,7 +483,7 @@ class ZohoConnector(_SecretRedactionMixin):
 
         if records.empty:
             log.warning("upsert_records(%s): empty DataFrame", object_type)
-            return UpsertResult(success_count=0, failure_count=0)
+            return UpsertResult(success_count=0, failure_count=0, redact=self._redact_field)
 
         record_dicts = [sanitize_record(row) for row in records.to_dict(orient="records")]
         batches = [
@@ -530,8 +533,8 @@ class ZohoConnector(_SecretRedactionMixin):
                     code = result.get("code")
                     all_errors.append(UpsertError(
                         record_index=batch_idx * BATCH_SIZE + i,
-                        message=self._redact(result.get("message", "Unknown error")),
-                        code=self._redact(code) if code is not None else None,
+                        message=self._redact_field(result.get("message", "Unknown error")),
+                        code=self._redact_field(code) if code is not None else None,
                     ))
 
         log.info(
@@ -544,6 +547,7 @@ class ZohoConnector(_SecretRedactionMixin):
             created_ids=all_created,
             updated_ids=all_updated,
             errors=all_errors,
+            redact=self._redact_field,
         )
 
     # ------------------------------------------------------------------
@@ -815,7 +819,7 @@ class ZohoConnector(_SecretRedactionMixin):
             if resp.status_code == 429:
                 error = rate_limit_error(
                     resp.headers,
-                    f"Zoho rate limit hit on {method} {self._redact(path)}.",
+                    f"Zoho rate limit hit on {method} {self._redact_field(path)}.",
                     backoff_wait(self._retry_backoff, attempt, max_retry_wait),
                     max_retry_wait=max_retry_wait,
                 )
@@ -825,14 +829,14 @@ class ZohoConnector(_SecretRedactionMixin):
 
             if resp.status_code == 404:
                 raise ConnectorNotFoundError(
-                    f"Zoho resource not found: {self._redact(path)}"
+                    f"Zoho resource not found: {self._redact_field(path)}"
                 )
 
             if 500 <= resp.status_code < 600:
                 last_failure = f"HTTP {resp.status_code}"
                 log.warning(
                     "Zoho %s %s 5xx %d attempt %d/%d",
-                    method, self._redact(path), resp.status_code, attempt, attempts,
+                    method, self._redact_field(path), resp.status_code, attempt, attempts,
                 )
                 if attempt < attempts:
                     time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
@@ -858,7 +862,7 @@ class ZohoConnector(_SecretRedactionMixin):
             f"attempts: {last_failure}"
         )
 
-    def _extract_error(self, resp: requests.Response) -> str:
+    def _extract_error(self, resp: requests.Response) -> str | None:
         """Value-redacted upstream detail for a failed response.
 
         Value redaction runs on the full untruncated body before the 200-char
@@ -874,4 +878,4 @@ class ZohoConnector(_SecretRedactionMixin):
                 raw = resp.text
         except ValueError:
             raw = resp.text
-        return self._redact(raw)[:200]
+        return self._safe_upstream_detail(raw)

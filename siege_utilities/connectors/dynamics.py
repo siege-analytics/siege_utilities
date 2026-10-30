@@ -507,7 +507,7 @@ class DynamicsConnector(_SecretRedactionMixin):
             raise ConnectorError(
                 f"Dynamics create {entity_set} succeeded but returned no record id."
             )
-        log.info("Created %s record: %s", entity_set, record_id)
+        log.info("Created %s record: %s", entity_set, self._redact_field(record_id))
         return record_id
 
     def update_record(
@@ -516,7 +516,7 @@ class DynamicsConnector(_SecretRedactionMixin):
         entity_set = STANDARD_ENTITIES.get(object_type, object_type)
         path = f"/api/data/v9.2/{entity_set}({record_id})"
         self.request("PATCH", path, json_body=data)
-        log.info("Updated %s record: %s", entity_set, record_id)
+        log.info("Updated %s record: %s", entity_set, self._redact_field(record_id))
         return True
 
     def upsert_records(
@@ -530,7 +530,7 @@ class DynamicsConnector(_SecretRedactionMixin):
 
         if records.empty:
             log.warning("upsert_records(%s): empty DataFrame", object_type)
-            return UpsertResult(success_count=0, failure_count=0)
+            return UpsertResult(success_count=0, failure_count=0, redact=self._redact_field)
 
         entity_set = STANDARD_ENTITIES.get(object_type, object_type)
         record_dicts = [sanitize_record(row) for row in records.to_dict(orient="records")]
@@ -570,6 +570,7 @@ class DynamicsConnector(_SecretRedactionMixin):
             created_ids=all_created,
             updated_ids=all_updated,
             errors=all_errors,
+            redact=self._redact_field,
         )
 
     def _batch_upsert(
@@ -659,7 +660,7 @@ class DynamicsConnector(_SecretRedactionMixin):
 
         self._raise_batch_control_error(resp.status_code, resp.headers, resp.text)
         if resp.status_code not in (200, 202):
-            detail = self._redact(resp.text)[:200]
+            detail = self._safe_upstream_detail(resp.text)
             for i, rec in enumerate(records):
                 failure_count += 1
                 errors.append(UpsertError(
@@ -714,11 +715,12 @@ class DynamicsConnector(_SecretRedactionMixin):
             created_ids=created,
             updated_ids=updated,
             errors=errors,
+            redact=self._redact_field,
         )
 
     def _raise_batch_control_error(self, status: int, headers: Mapping[str, str], body: str) -> None:
         if status in (401, 403):
-            detail = self._redact(body)[:200]
+            detail = self._safe_upstream_detail(body)
             raise ConnectorAuthError(
                 f"Dynamics {status}" + (f": {detail}" if detail else "")
             )
@@ -762,12 +764,12 @@ class DynamicsConnector(_SecretRedactionMixin):
             if isinstance(error, dict) and error.get("message"):
                 code = error.get("code")
                 return (
-                    self._redact(str(error["message"])),
-                    self._redact(code) if code is not None else None,
+                    self._redact_field(str(error["message"])),
+                    self._redact_field(code) if code is not None else None,
                 )
         except json.JSONDecodeError:
             pass
-        detail = self._redact(body)[:200]
+        detail = self._safe_upstream_detail(body)
         return f"HTTP {status}" + (f": {detail}" if detail else ""), str(status)
 
     # ------------------------------------------------------------------
@@ -953,7 +955,7 @@ class DynamicsConnector(_SecretRedactionMixin):
             if resp.status_code == 429:
                 error = rate_limit_error(
                     resp.headers,
-                    f"Dynamics rate limit hit on {method} {self._redact(path)}.",
+                    f"Dynamics rate limit hit on {method} {self._redact_field(path)}.",
                     backoff_wait(self._retry_backoff, attempt, max_retry_wait),
                     max_retry_wait=max_retry_wait,
                 )
@@ -963,14 +965,14 @@ class DynamicsConnector(_SecretRedactionMixin):
 
             if resp.status_code == 404:
                 raise ConnectorNotFoundError(
-                    f"Dynamics resource not found: {self._redact(path)}"
+                    f"Dynamics resource not found: {self._redact_field(path)}"
                 )
 
             if 500 <= resp.status_code < 600:
                 last_failure = f"HTTP {resp.status_code}"
                 log.warning(
                     "Dynamics %s %s 5xx %d attempt %d/%d",
-                    method, self._redact(path), resp.status_code, attempt, attempts,
+                    method, self._redact_field(path), resp.status_code, attempt, attempts,
                 )
                 if attempt < attempts:
                     time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
@@ -999,7 +1001,7 @@ class DynamicsConnector(_SecretRedactionMixin):
             f"attempts: {last_failure}"
         )
 
-    def _extract_error(self, resp: requests.Response) -> str:
+    def _extract_error(self, resp: requests.Response) -> str | None:
         """Value-redacted upstream detail for a failed response.
 
         Value redaction runs on the full untruncated body before the 200-char
@@ -1019,4 +1021,4 @@ class DynamicsConnector(_SecretRedactionMixin):
                 raw = resp.text
         except ValueError:
             raw = resp.text
-        return self._redact(raw)[:200]
+        return self._safe_upstream_detail(raw)

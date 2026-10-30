@@ -151,6 +151,9 @@ def batch_response(parts, *, nested=True):
 @pytest.mark.parametrize("nested", [True, False])
 def test_failed_changeset_marks_all_rolled_back_records_failed(nested):
     c = connector("dynamics")
+    # Realistic (>= 8-char) credential so D3 value-redacts rather than suppresses;
+    # this exercises batch error-detail mapping, not short-credential policy (#1846 R-1846).
+    c._access_token = "access-token-value"
     c._session.post = Mock(return_value=batch_response([
         (2, 400, {"error": {"code": "bad_key", "message": "Invalid alternate key"}}),
     ], nested=nested))
@@ -176,6 +179,8 @@ def test_batch_successes_are_matched_by_content_id():
 
 def test_non_json_batch_failure_preserves_error_details():
     c = connector("dynamics")
+    # Realistic (>= 8-char) credential so D3 value-redacts rather than suppresses (#1846 R-1846).
+    c._access_token = "access-token-value"
     resp = batch_response([(1, 500, {})])
     resp._content = resp.content.replace(b"{}", b"Upstream service unavailable")
     c._session.post = Mock(return_value=resp)

@@ -425,7 +425,7 @@ class HubSpotConnector(_SecretRedactionMixin):
         record_id = resp.get("id", "")
         if not record_id:
             raise ConnectorError(f"HubSpot create {object_type} returned no ID")
-        log.info("Created %s record: %s", object_type, record_id)
+        log.info("Created %s record: %s", object_type, self._redact_field(record_id))
         return record_id
 
     def update_record(
@@ -433,7 +433,7 @@ class HubSpotConnector(_SecretRedactionMixin):
     ) -> bool:
         path = f"/crm/v3/objects/{object_type}/{record_id}"
         self.request("PATCH", path, json_body={"properties": data})
-        log.info("Updated %s record: %s", object_type, record_id)
+        log.info("Updated %s record: %s", object_type, self._redact_field(record_id))
         return True
 
     def upsert_records(
@@ -447,7 +447,7 @@ class HubSpotConnector(_SecretRedactionMixin):
 
         if records.empty:
             log.warning("upsert_records(%s): empty DataFrame", object_type)
-            return UpsertResult(success_count=0, failure_count=0)
+            return UpsertResult(success_count=0, failure_count=0, redact=self._redact_field)
 
         record_dicts = [sanitize_record(row) for row in records.to_dict(orient="records")]
         batches = [
@@ -503,8 +503,8 @@ class HubSpotConnector(_SecretRedactionMixin):
                 category = err.get("category")
                 all_errors.append(UpsertError(
                     record_index=batch_idx * BATCH_SIZE,
-                    message=self._redact(err.get("message", "Unknown error")),
-                    code=self._redact(category) if category is not None else None,
+                    message=self._redact_field(err.get("message", "Unknown error")),
+                    code=self._redact_field(category) if category is not None else None,
                 ))
 
         log.info(
@@ -517,6 +517,7 @@ class HubSpotConnector(_SecretRedactionMixin):
             created_ids=all_created,
             updated_ids=all_updated,
             errors=all_errors,
+            redact=self._redact_field,
         )
 
     # ------------------------------------------------------------------
@@ -821,7 +822,7 @@ class HubSpotConnector(_SecretRedactionMixin):
             if resp.status_code == 429:
                 error = rate_limit_error(
                     resp.headers,
-                    f"HubSpot rate limit hit on {method} {self._redact(path)}.",
+                    f"HubSpot rate limit hit on {method} {self._redact_field(path)}.",
                     backoff_wait(self._retry_backoff, attempt, max_retry_wait),
                     max_retry_wait=max_retry_wait,
                 )
@@ -831,14 +832,14 @@ class HubSpotConnector(_SecretRedactionMixin):
 
             if resp.status_code == 404:
                 raise ConnectorNotFoundError(
-                    f"HubSpot resource not found: {self._redact(path)}"
+                    f"HubSpot resource not found: {self._redact_field(path)}"
                 )
 
             if 500 <= resp.status_code < 600:
                 last_failure = f"HTTP {resp.status_code}"
                 log.warning(
                     "HubSpot %s %s 5xx %d attempt %d/%d",
-                    method, self._redact(path), resp.status_code, attempt, attempts,
+                    method, self._redact_field(path), resp.status_code, attempt, attempts,
                 )
                 if attempt < attempts:
                     time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
@@ -864,7 +865,7 @@ class HubSpotConnector(_SecretRedactionMixin):
             f"attempts: {last_failure}"
         )
 
-    def _extract_error(self, resp: requests.Response) -> str:
+    def _extract_error(self, resp: requests.Response) -> str | None:
         """Value-redacted upstream detail for a failed response.
 
         Value redaction runs on the full untruncated body before the 200-char
@@ -880,4 +881,4 @@ class HubSpotConnector(_SecretRedactionMixin):
                 raw = resp.text
         except ValueError:
             raw = resp.text
-        return self._redact(raw)[:200]
+        return self._safe_upstream_detail(raw)

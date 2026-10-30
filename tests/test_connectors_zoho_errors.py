@@ -60,7 +60,7 @@ class _FakeSession:
 
 
 def _connector():
-    c = ZohoConnector(client_id="id", client_secret="secret", retry_attempts=1)
+    c = ZohoConnector(client_id="id", client_secret="client-secret-value", retry_attempts=1)
     c._authenticated = True
     c._token_expires_at = None
     return c

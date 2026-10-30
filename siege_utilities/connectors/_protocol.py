@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from collections.abc import Callable
 from typing import Any, Protocol, runtime_checkable
 
 import numpy as np
@@ -201,6 +202,20 @@ class _SecretRedactionMixin:
             return None
         return redact_secrets(str(text), values=values)[:limit]
 
+    def _redact_field(self, value: object) -> object:
+        """Value-aware redaction for one diagnostic field (D3 all-paths).
+
+        ``None`` stays ``None``. Otherwise return the configured-value-redacted
+        text, or the trusted ``[REDACTED]`` constant when a configured credential
+        is too short to remove by value (D3 suppression) or collection failed.
+        This is the render-safe transform for UpsertError fields and the
+        rendered repr copy of returned ids; it never mutates the stored value.
+        """
+        if value is None:
+            return None
+        detail = self._safe_upstream_detail(str(value))
+        return "[REDACTED]" if detail is None else detail
+
 
 class ConnectorError(Exception):
     """Base for all connector errors."""
@@ -266,10 +281,17 @@ class UpsertResult:
     created_ids: list[str] = field(default_factory=list)
     updated_ids: list[str] = field(default_factory=list)
     errors: list[UpsertError] = field(default_factory=list)
+    # Connector-supplied value-aware redactor (#1846 D1 render-only). Applied
+    # ONLY inside __repr__ over a copy; the stored id lists stay byte-identical.
+    # Excluded from equality and from the rendered repr itself.
+    redact: "Callable[[object], object] | None" = field(
+        default=None, repr=False, compare=False,
+    )
 
     def __repr__(self) -> str:
-        created = [redact_secrets(str(value)) for value in self.created_ids]
-        updated = [redact_secrets(str(value)) for value in self.updated_ids]
+        render = self.redact if self.redact is not None else (lambda value: redact_secrets(str(value)))
+        created = [render(value) for value in self.created_ids]
+        updated = [render(value) for value in self.updated_ids]
         return (
             f"UpsertResult(success_count={self.success_count}, failure_count={self.failure_count}, "
             f"created_ids={created!r}, updated_ids={updated!r}, errors={self.errors!r})"

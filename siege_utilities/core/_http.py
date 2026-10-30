@@ -141,8 +141,14 @@ def redact_secrets(text: str, *, replacement: str = "[REDACTED]", values=()) -> 
     # encodings, so a configured secret that contains spaces or quotes is
     # removed in full before the syntax passes -- otherwise a form/URL pattern
     # stops at an inner delimiter and leaves the secret's unique suffix exposed.
-    for secret in _expand_secret_values(values):
-        text = text.replace(secret, replacement)
+    # One non-recursive pass over the original text: a single re.sub does not
+    # rescan its own inserted markers, so values=[SECRET, "REDACTED"] yields a
+    # single [REDACTED], not [[REDACTED]] (#1846 r4 item 6).
+    expanded = _expand_secret_values(values)
+    if expanded:
+        text = re.compile("|".join(re.escape(secret) for secret in expanded)).sub(
+            lambda _match: replacement, text,
+        )
     # Then syntax/key redaction.
     text = redact_url_secrets(text, replacement=replacement)
     text = _QUOTED_SECRET.sub(
@@ -175,4 +181,10 @@ def _expand_secret_values(values) -> list[str]:
         for encoded in (quote(value, safe=""), quote_plus(value), json.dumps(value)[1:-1]):
             if encoded and encoded != value:
                 forms.add(encoded)
+                # A valid URL-encoded value may lowercase its %HH triplets
+                # (%2F == %2f, %CE%A9 == %ce%a9); match that equivalent form too
+                # without touching the credential's ordinary letters (#1846 r4 item 5).
+                lowered = re.sub(r"%[0-9A-Fa-f]{2}", lambda m: m.group(0).lower(), encoded)
+                if lowered != encoded:
+                    forms.add(lowered)
     return sorted(forms, key=len, reverse=True)

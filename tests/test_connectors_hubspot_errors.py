@@ -78,7 +78,7 @@ def _authed_connector(retry_attempts=1, retry_backoff=0.0):
     """
     c = HubSpotConnector(
         client_id="id",
-        client_secret="secret",
+        client_secret="client-secret-value",
         retry_attempts=retry_attempts,
         retry_backoff=retry_backoff,
     )

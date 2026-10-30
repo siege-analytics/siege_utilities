@@ -69,7 +69,7 @@ def _authed_connector(retry_attempts: int = 1, retry_backoff: float = 0.01) -> S
     """
     c = SalesforceConnector(
         client_id="id",
-        client_secret="secret",
+        client_secret="client-secret-value",
         retry_attempts=retry_attempts,
         retry_backoff=retry_backoff,
     )
@@ -268,15 +268,16 @@ def test_request_4xx_other_raises_connector_error_with_extracted_message(
     assert "MALFORMED_QUERY" in str(exc_info.value)
 
 
-def test_short_credential_preserves_general_path_detail(monkeypatch):
-    """#1846 B2 r4 D3 min-length-guard counterpart. D3 suppresses upstream
-    detail only on the auth/token path; on a general request path a short
-    configured credential (``client_secret="secret"``, len 6 < the value
-    redactor minimum) must NOT blank a secret-free upstream diagnostic -- the
-    original min-length-guard intent still holds here. Pairs with
-    test_1846_b2_value_redaction.test_short_configured_credential_suppresses_auth_upstream_detail.
+def test_short_credential_suppresses_general_path_detail(monkeypatch):
+    """#1846 R-1846 reversal. The hub's 10-20 ruling narrowed D3 to the auth
+    path; R-1846 overrides it: D3 applies to ALL credential-bearing diagnostics.
+    With a short configured credential (len < the value-redactor minimum) a
+    general request path must emit only the trusted class + status, never the
+    upstream VALIDATION_ERROR detail. This test previously asserted the opposite
+    (retention); it is one of the three disclosed reversals.
     """
     c = _authed_connector()
+    c._client_secret = "secret"  # len 6 < _MIN_SECRET_VALUE_LEN: triggers D3 suppression
     monkeypatch.setattr(
         c._session, "request",
         lambda *a, **k: _FakeResp(
@@ -288,7 +289,8 @@ def test_short_credential_preserves_general_path_detail(monkeypatch):
         c.request("GET", "/services/data/v60.0/sobjects/Contact")
     text = str(exc_info.value)
     assert "422" in text
-    assert "VALIDATION_ERROR: Email is required" in text
+    assert "VALIDATION_ERROR" not in text
+    assert "Email is required" not in text
 
 
 def test_request_204_returns_empty_dict(monkeypatch):

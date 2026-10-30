@@ -647,9 +647,12 @@ class SalesforceConnector(_SecretRedactionMixin):
         if not resp.get("success"):
             errors = resp.get("errors", [])
             msg = errors[0].get("message", str(errors)) if errors else "Unknown error"
-            raise ConnectorError(f"Failed to create {object_type}: {msg}")
+            detail = self._safe_upstream_detail(msg)
+            raise ConnectorError(
+                f"Failed to create {object_type}" + (f": {detail}" if detail else "")
+            )
         record_id = resp["id"]
-        log.info("Created %s record: %s", object_type, record_id)
+        log.info("Created %s record: %s", object_type, self._redact_field(record_id))
         return record_id
 
     def update_record(
@@ -661,7 +664,7 @@ class SalesforceConnector(_SecretRedactionMixin):
         """
         path = f"/services/data/{API_VERSION}/sobjects/{object_type}/{record_id}"
         self.request("PATCH", path, json_body=data)
-        log.info("Updated %s record: %s", object_type, record_id)
+        log.info("Updated %s record: %s", object_type, self._redact_field(record_id))
         return True
 
     def upsert_records(
@@ -691,7 +694,7 @@ class SalesforceConnector(_SecretRedactionMixin):
         """
         if records.empty:
             log.warning("upsert_records(%s): empty DataFrame, nothing to upsert", object_type)
-            return UpsertResult(success_count=0, failure_count=0)
+            return UpsertResult(success_count=0, failure_count=0, redact=self._redact_field)
 
         if force_bulk or len(records) > BULK_THRESHOLD:
             log.info(
@@ -761,6 +764,7 @@ class SalesforceConnector(_SecretRedactionMixin):
             created_ids=all_created,
             updated_ids=all_updated,
             errors=all_errors,
+            redact=self._redact_field,
         )
 
     # ------------------------------------------------------------------
@@ -878,7 +882,7 @@ class SalesforceConnector(_SecretRedactionMixin):
 
         resp = request_raw(self, "PUT", send, self.refresh_access_token if self._refresh_token else None)
         if resp.status_code not in (200, 201):
-            detail = self._redact(resp.text)[:200]
+            detail = self._safe_upstream_detail(resp.text)
             raise ConnectorError(
                 f"Bulk API upload failed ({resp.status_code})"
                 + (f": {detail}" if detail else "")
@@ -963,8 +967,8 @@ class SalesforceConnector(_SecretRedactionMixin):
                 sf_error = row.get("sf__Error", "Unknown error")
                 errors.append(UpsertError(
                     record_index=i,
-                    message=self._redact(sf_error),
-                    code=self._redact(row["sf__Error"]) if "sf__Error" in row else None,
+                    message=self._redact_field(sf_error),
+                    code=self._redact_field(row["sf__Error"]) if "sf__Error" in row else None,
                 ))
             if len(fail_data) != failed:
                 raise ConnectorError("Bulk API failure results are missing records")
@@ -975,6 +979,7 @@ class SalesforceConnector(_SecretRedactionMixin):
             created_ids=created_ids,
             updated_ids=updated_ids,
             errors=errors,
+            redact=self._redact_field,
         )
 
     def _bulk_get_csv_results(self, path: str) -> list[dict[str, str]]:
@@ -993,7 +998,7 @@ class SalesforceConnector(_SecretRedactionMixin):
 
         resp = request_raw(self, "GET", send, self.refresh_access_token if self._refresh_token else None)
         if resp.status_code != 200:
-            detail = self._redact(resp.text)[:200]
+            detail = self._safe_upstream_detail(resp.text)
             raise ConnectorError(
                 f"Bulk API results retrieval failed ({resp.status_code})"
                 + (f": {detail}" if detail else "")
@@ -1062,9 +1067,9 @@ class SalesforceConnector(_SecretRedactionMixin):
                     code = err.get("statusCode")
                     errors.append(UpsertError(
                         record_index=base_index + i,
-                        message=self._redact(err.get("message", "Unknown error")),
-                        field=self._redact(field) if field is not None else None,
-                        code=self._redact(code) if code is not None else None,
+                        message=self._redact_field(err.get("message", "Unknown error")),
+                        field=self._redact_field(field) if field is not None else None,
+                        code=self._redact_field(code) if code is not None else None,
                     ))
                 if not err_list:
                     errors.append(UpsertError(
@@ -1078,6 +1083,7 @@ class SalesforceConnector(_SecretRedactionMixin):
             created_ids=created,
             updated_ids=updated,
             errors=errors,
+            redact=self._redact_field,
         )
 
     # ------------------------------------------------------------------
@@ -1330,7 +1336,7 @@ class SalesforceConnector(_SecretRedactionMixin):
             if resp.status_code == 429:
                 error = rate_limit_error(
                     resp.headers,
-                    f"Salesforce rate limit hit on {method} {self._redact(path)}.",
+                    f"Salesforce rate limit hit on {method} {self._redact_field(path)}.",
                     backoff_wait(self._retry_backoff, attempt, max_retry_wait),
                     max_retry_wait=max_retry_wait,
                 )
@@ -1340,14 +1346,14 @@ class SalesforceConnector(_SecretRedactionMixin):
 
             if resp.status_code == 404:
                 raise ConnectorNotFoundError(
-                    f"Salesforce resource not found: {self._redact(path)}"
+                    f"Salesforce resource not found: {self._redact_field(path)}"
                 )
 
             if 500 <= resp.status_code < 600:
                 last_failure = f"HTTP {resp.status_code}"
                 log.warning(
                     "Salesforce %s %s 5xx %d attempt %d/%d",
-                    method, self._redact(path), resp.status_code, attempt, attempts,
+                    method, self._redact_field(path), resp.status_code, attempt, attempts,
                 )
                 if attempt < attempts:
                     time.sleep(backoff_wait(self._retry_backoff, attempt, max_retry_wait))
@@ -1373,13 +1379,14 @@ class SalesforceConnector(_SecretRedactionMixin):
             f"attempts: {last_failure}"
         )
 
-    def _extract_error(self, resp: requests.Response) -> str:
-        """Value-redacted upstream detail for a failed response.
+    def _extract_error(self, resp: requests.Response) -> str | None:
+        """Suppression-aware upstream detail for a failed response, or None.
 
-        Value redaction runs on the full untruncated body before the 200-char
-        bound, so a long configured secret is removed in full rather than
-        having its tail cut (#1846 B2 D4). Fails closed when secret collection
-        is untrustworthy (#1846 B2 D5).
+        D3 applies to all credential-bearing diagnostics (#1846 R-1846): when a
+        configured credential is too short to redact by value, or collection
+        failed, this returns None and the caller emits trusted constants only.
+        Otherwise the full body is value-redacted before the 200-char bound so a
+        long configured secret is removed in full (#1846 B2 D4).
         """
         try:
             body = resp.json()
@@ -1391,4 +1398,4 @@ class SalesforceConnector(_SecretRedactionMixin):
                 raw = resp.text
         except ValueError:
             raw = resp.text
-        return self._redact(raw)[:200]
+        return self._safe_upstream_detail(raw)
