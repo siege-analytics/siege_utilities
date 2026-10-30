@@ -1,10 +1,12 @@
 """Genuinely empty builtins in a sensitive position are preserved, not redacted.
 
-The fail-closed allowlist preserves only a value whose EXACT builtin type holds
-its empty/zero form; a subclass or any non-empty value is redacted. This pins
-the MEDIUM contract the merge-gate review flagged:
-empty builtins must come back unchanged (they did on develop), while an empty
-str subclass or SecretStr must still be redacted.
+The fail-closed allowlist preserves a value only when, by EXACT class identity,
+it is a sized builtin empty by len, an exact numeric zero, or an exact empty
+SecretStr('')/SecretBytes(b''); any subclass (even one that unwraps to empty)
+and any non-empty value is redacted. This pins the contract the merge-gate
+review flagged: empty builtins come back unchanged (as on develop), an exact
+empty SecretStr/SecretBytes is preserved for the default export->import
+round-trip, and an empty str subclass or a SecretStr subclass is still redacted.
 """
 from pydantic import SecretStr, SecretBytes
 import pytest
