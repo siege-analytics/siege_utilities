@@ -96,3 +96,34 @@ def test_facebook_live_get_ad_accounts(api_credentials):
     )
     accounts = c.get_ad_accounts()
     assert isinstance(accounts, list)
+
+
+def test_get_page_insights_keys_by_metric_name_across_every_date(_patch_fb, monkeypatch):
+    """Each response insight carries its own metric name and a values list with
+    one entry per date. The mapper must key each value by that insight's name
+    and emit one row per date, never collapsing to values[0] or copying one
+    metric's values into another (still-dune repro)."""
+    from siege_utilities.analytics import facebook_business as mod
+
+    fake_page = MagicMock()
+    fake_page.get_insights.return_value = [
+        {"name": "page_views_total", "values": [
+            {"end_time": "2026-01-01", "value": 100},
+            {"end_time": "2026-01-02", "value": 200},
+        ]},
+        {"name": "page_follows", "values": [
+            {"end_time": "2026-01-01", "value": 7},
+            {"end_time": "2026-01-02", "value": 8},
+        ]},
+    ]
+    monkeypatch.setattr(mod, "Page", lambda *a, **k: fake_page, raising=False)
+
+    conn = mod.FacebookBusinessConnector(access_token="tok")
+    df = conn.get_page_insights(
+        "page-1", "2026-01-01", "2026-01-02",
+        metrics=["page_views_total", "page_follows"],
+    )
+
+    assert list(df["date"]) == ["2026-01-01", "2026-01-02"]
+    assert list(df["page_views_total"]) == [100, 200]
+    assert list(df["page_follows"]) == [7, 8]
