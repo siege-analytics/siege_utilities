@@ -58,6 +58,27 @@ DUCKDB = Engine.DUCKDB.value
 SPARK = Engine.SPARK.value
 POSTGIS = Engine.POSTGIS.value
 
+# pandas attrs carry per-column CRS across eager DuckDB WKB materialization.
+_GEOMETRY_CRS_ATTR = "siege_geometry_crs"
+
+
+def _is_geoseries(series: Any) -> bool:
+    """True only for a real geopandas GeoSeries.
+
+    A plain pandas Series whose index contains a label named ``crs`` exposes a
+    ``crs`` attribute through index access, so ``hasattr(series, "crs")`` and
+    ``getattr(series, "crs", None)`` misclassify it as a geometry column. The
+    real test is membership in :class:`geopandas.GeoSeries`. geopandas is
+    imported lazily and the guard returns ``False`` when it is absent, so the
+    engine still imports and a plain Series is still classified correctly
+    without geopandas installed.
+    """
+    try:
+        from geopandas import GeoSeries
+    except ImportError:
+        return False
+    return isinstance(series, GeoSeries)
+
 
 # Shared across all engines; see docs/engines/INVARIANTS.md groupby_agg.
 # "avg" is the Spark spelling; "mean" is the pandas spelling. Both are
@@ -248,6 +269,8 @@ class DataFrameEngine(ABC):
         """Convert *df* to a GeoPandas ``GeoDataFrame``.
 
         Always returns a ``geopandas.GeoDataFrame`` regardless of engine.
+        An existing GeoDataFrame retains its CRS unless ``crs`` is supplied.
+        Text geometry without CRS metadata uses the configured default CRS.
         """
 
     def from_geodataframe(
@@ -373,14 +396,17 @@ class DataFrameEngine(ABC):
         df: Any,
         by: Union[str, List[str]],
         geometry_col: str = "geometry",
+        *,
+        crs: Optional[str] = None,
         **agg_kwargs: Any,
     ) -> Any:
         """Dissolve/merge geometries grouped by *by* columns.
 
         Default converts to GeoDataFrame and uses ``gdf.dissolve()``.
         Engines may override for native performance.
+        Preserve the input CRS unless a target ``crs`` is supplied.
         """
-        gdf = self.to_geodataframe(df, geometry_col=geometry_col)
+        gdf = self.to_geodataframe(df, geometry_col=geometry_col, crs=crs)
         return gdf.dissolve(by=by, **agg_kwargs).reset_index()
 
     # -- Spatial geometry loading (concrete defaults) ----------------------
@@ -590,6 +616,7 @@ class DataFrameEngine(ABC):
         *,
         source_geom: str = "geometry",
         target_geom: str = "geometry",
+        crs: Optional[str] = None,
     ) -> Any:
         """Apportion a value from source polygons to target polygons by overlap.
 
@@ -600,11 +627,16 @@ class DataFrameEngine(ABC):
         Default: intersect, compute area ratios via GeoPandas, aggregate.
         Engines may override for native area computation (Sedona ST_Area,
         PostGIS ST_Area, etc.).
+        Areas use the input's projected CRS. For geographic inputs, supply
+        a projected ``crs`` (preferably equal-area) to reproject both inputs.
+        Without a target CRS, inputs must have the same projected CRS.
+        The result is a table of target attributes and apportioned values.
         """
         import geopandas as gpd
 
-        src = self.to_geodataframe(source_polys, source_geom)
-        tgt = self.to_geodataframe(target_polys, target_geom)
+        src = self.to_geodataframe(source_polys, source_geom, crs=crs)
+        tgt = self.to_geodataframe(target_polys, target_geom, crs=crs)
+        self._require_projected_crs(src, tgt, "apportion")
 
         # Detect zero-area sources BEFORE gpd.overlay. A degenerate source
         # polygon that produces no intersection rows would otherwise
@@ -644,12 +676,17 @@ class DataFrameEngine(ABC):
         max_distance: Optional[float] = None,
         point_geom: str = "geometry",
         target_geom: str = "geometry",
+        crs: Optional[str] = None,
     ) -> Any:
         """Find the k nearest targets for each point.
 
         Default: brute-force via GeoPandas sjoin_nearest (supports k=1 only).
         Engines should override for native spatial indexing (Sedona KNN,
         PostGIS ST_DWithin + ORDER BY distance, DuckDB spatial) and k>1.
+        Distances and ``max_distance`` use the input's projected CRS units.
+        Preserve that CRS unless a target ``crs`` is supplied to reproject
+        both inputs. Geographic or unknown CRS inputs require a projected CRS;
+        different input CRSes require a shared target CRS.
 
         Raises
         ------
@@ -664,8 +701,9 @@ class DataFrameEngine(ABC):
             )
         import geopandas as gpd
 
-        pts = self.to_geodataframe(points, point_geom)
-        tgts = self.to_geodataframe(targets, target_geom)
+        pts = self.to_geodataframe(points, point_geom, crs=crs)
+        tgts = self.to_geodataframe(targets, target_geom, crs=crs)
+        self._require_projected_crs(pts, tgts, "nearest")
 
         return gpd.sjoin_nearest(
             pts, tgts,
@@ -673,6 +711,13 @@ class DataFrameEngine(ABC):
             max_distance=max_distance,
             distance_col="distance",
         )
+
+    @staticmethod
+    def _require_projected_crs(left, right, operation):
+        if left.crs != right.crs:
+            raise ValueError(f"CRS mismatch in {operation}: {left.crs} and {right.crs}; supply a shared crs")
+        if left.crs is None or not left.crs.is_projected:
+            raise ValueError(f"{operation} requires a projected CRS for area/distance math; supply crs")
 
     def multi_assign(
         self,
@@ -702,37 +747,32 @@ class DataFrameEngine(ABC):
         DataFrame
             Points enriched with ``{layer_name}_*`` columns for every
             polygon-side column from each boundary layer. Bare polygon
-            column names never appear in the output.
+            column names never appear in the output. The join's generated
+            right index is dropped. Point-side column names are preserved;
+            a prefixed layer name colliding with a point column raises ValueError.
         """
-        # Snapshot point-side schema before the first join so we know
-        # exactly which columns belong to the points and which were
-        # added by assign_boundaries. Use to_pandas() rather than a
-        # native columns probe because the abstract default cannot
-        # assume an engine-native columns accessor exists across all
-        # implementations -- subclasses may override for efficiency.
-        point_cols = set(self.to_pandas(points).columns)
+        import geopandas as gpd
 
         result = points
         for layer_name, polygons in boundary_layers.items():
-            assigned = self.assign_boundaries(
-                result, polygons,
+            if not isinstance(polygons, gpd.GeoDataFrame):
+                polygons = self.to_geodataframe(polygons)
+            names = self._boundary_column_names(polygons.columns, layer_name, result.columns)
+            result = self.assign_boundaries(
+                result, polygons.rename(columns=names).reset_index(drop=True),
                 point_geom=point_geom, polygon_geom="geometry",
                 how="left",
-            )
-            assigned_pdf = self.to_pandas(assigned)
-            new_cols = {}
-            for col in assigned_pdf.columns:
-                if col in point_cols or col == point_geom:
-                    continue
-                new_cols[col] = f"{layer_name}_{col}"
-            if new_cols:
-                assigned_pdf = assigned_pdf.rename(columns=new_cols)
-            # Update point_cols for the next iteration so the just-added
-            # layer's prefixed columns are preserved (not re-prefixed).
-            point_cols = set(assigned_pdf.columns)
-            result = assigned_pdf
-
+            ).drop(columns=["index_right"], errors="ignore")
         return result
+
+    @staticmethod
+    def _boundary_column_names(columns, layer_name, point_columns):
+        """Prefix attributes before joining so point names cannot be suffixed."""
+        names = {c: f"{layer_name}_{c}" for c in columns if c != "geometry"}
+        collisions = set(names.values()) & set(point_columns)
+        if collisions:
+            raise ValueError(f"multi_assign: layer columns collide with point columns: {sorted(collisions)}")
+        return names
 
 
 # ---------------------------------------------------------------------------
@@ -857,9 +897,11 @@ class PandasEngine(DataFrameEngine):
 
     def to_geodataframe(self, df, geometry_col="geometry", *, crs=None):
         import geopandas as gpd
-        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+        from siege_utilities.geo.crs import get_default_crs
         if isinstance(df, gpd.GeoDataFrame):
-            return reproject_if_needed(df, crs or get_default_crs())
+            if crs is None:
+                return df
+            return df.to_crs(crs) if df.crs is not None else df.set_crs(crs)
         if geometry_col in df.columns:
             from shapely import wkt
             target_crs = crs or get_default_crs()
@@ -949,7 +991,7 @@ class DuckDBEngine(DataFrameEngine):
 
     # -- SQL ----------------------------------------------------------------
 
-    def query(self, sql: str, **kwargs: Any) -> Any:
+    def query(self, sql: str, *, parameters: Any = None, **kwargs: Any) -> Any:
         """Execute *sql* against the DuckDB connection.
 
         If a ``table`` keyword is supplied together with a pandas DataFrame
@@ -966,24 +1008,43 @@ class DuckDBEngine(DataFrameEngine):
         DML without RETURNING retains its affected-row Count; PREPARE returns
         its empty Success status without executing the prepared statement.
         Spatial is loaded only for geometry conversion or SQL requiring it.
+        ``parameters`` (or ``params``) binds a sequence or named mapping to a
+        single statement. Parameterized multi-statement SQL and unknown keywords
+        are rejected before execution. Geometry CRS is retained per column in
+        the returned frame's ``attrs['siege_geometry_crs']`` mapping.
         """
         table = kwargs.pop("table", None)
         df = kwargs.pop("df", None)
-        if table is not None and df is not None:
-            self._connection.register(table, df)
+        params = kwargs.pop("params", None)
+        if kwargs:
+            raise TypeError(f"DuckDBEngine.query: unexpected keyword argument(s): {sorted(kwargs)}")
+        if parameters is not None and params is not None:
+            raise TypeError("DuckDBEngine.query: pass only one of parameters or params")
+        if parameters is None:
+            parameters = params
+        if (table is None) != (df is None):
+            raise ValueError("DuckDBEngine.query: table and df must be supplied together")
         # Bind each statement separately: a spatial bind failure must not
         # replay preceding DML. Relations are strictly internal and always
         # materialized before returning to the caller.
         statements = self._connection.extract_statements(sql)
+        if parameters is not None and len(statements) != 1:
+            raise ValueError("DuckDBEngine.query: parameters require a single statement")
+        if table is not None:
+            self._connection.register(table, df)
         for statement in statements[:-1]:
             self._bind_spatial_if_needed(self._connection.execute, statement)
         if not statements:
             return self._connection.execute(sql).fetchdf()
         statement = statements[-1]
         if self._statement_returns_rows(statement):
-            relation = self._bind_spatial_if_needed(self._connection.sql, statement)
+            bindings = {"params": parameters} if parameters is not None else {}
+            relation = self._bind_spatial_if_needed(self._connection.sql, statement, **bindings)
             return self._materialize_geometry_wkb(relation)
-        return self._bind_spatial_if_needed(self._connection.execute, statement).fetchdf()
+        bindings = {"parameters": parameters} if parameters is not None else {}
+        return self._bind_spatial_if_needed(
+            self._connection.execute, statement, **bindings,
+        ).fetchdf()
 
     def _statement_returns_rows(self, statement: Any) -> bool:
         """Select the typed-result API without executing a mutation to probe it.
@@ -1055,17 +1116,17 @@ class DuckDBEngine(DataFrameEngine):
                     return True
         return False
 
-    def _bind_spatial_if_needed(self, operation, statement):
+    def _bind_spatial_if_needed(self, operation, statement, **kwargs):
         """Retry only a bind failure that explicitly requires spatial."""
         import duckdb
 
         try:
-            return operation(statement)
+            return operation(statement, **kwargs)
         except duckdb.CatalogException as exc:
             if self._spatial_loaded or "exists in the spatial extension" not in str(exc):
                 raise
             self._ensure_spatial()
-            return operation(statement)
+            return operation(statement, **kwargs)
 
     # -- Transforms ---------------------------------------------------------
 
@@ -1122,11 +1183,192 @@ class DuckDBEngine(DataFrameEngine):
     ) -> Any:
         import pandas as pd
         if isinstance(left, pd.DataFrame) and isinstance(right, pd.DataFrame):
-            return left.merge(right, on=on, how=how)
+            suffixes = ("_x", "_y")
+            # Resolve the CRS of every coalesced geometry key BEFORE merging, so
+            # a conflicting or outer-unjoinable pair is rejected before any rows
+            # are produced.
+            key_crs = self._resolve_geometry_key_crs(left, right, on, how)
+            result = left.merge(right, on=on, how=how, suffixes=suffixes)
+            # pandas.merge drops DataFrame.attrs, where per-column geometry CRS
+            # lives. Re-attach it so a known CRS survives an attribute join,
+            # remapping any non-key column the merge suffixed.
+            merged_crs = self._merge_geometry_crs(
+                left, right, result, on, suffixes, key_crs
+            )
+            if merged_crs:
+                result.attrs[_GEOMETRY_CRS_ATTR] = merged_crs
+                # A geometry-aware result (merged GeoDataFrame) carries its CRS
+                # on the live GeoSeries, which to_geodataframe trusts over the
+                # attrs map; stamp the resolved CRS there so a right join yields
+                # the right side's CRS and non-key columns keep their own.
+                self._apply_geoseries_crs(result, merged_crs)
+            return result
         raise TypeError(
             "DuckDBEngine.join expects pandas DataFrames "
             "(use .query() with JOIN for pure-SQL workflows)"
         )
+
+    @staticmethod
+    def _is_geometry_column(frame: Any, col: Any) -> bool:
+        """True when *col* carries geometry CRS on *frame*.
+
+        A geometry-aware input (GeoDataFrame) exposes the column as a GeoSeries
+        (it has a ``crs`` attribute even when that CRS is None); the raw-WKB path
+        records the column only in the ``siege_geometry_crs`` attrs map. Either
+        marks the column as a geometry key/column.
+        """
+        crs_map = frame.attrs.get(_GEOMETRY_CRS_ATTR, {})
+        if col in crs_map:
+            return True
+        return col in getattr(frame, "columns", ()) and _is_geoseries(frame[col])
+
+    @staticmethod
+    def _column_crs(frame: Any, col: Any) -> Any:
+        """The authoritative CRS of *col*: the live GeoSeries CRS if the column
+        is a real GeoSeries, otherwise the ``siege_geometry_crs`` attrs entry. A
+        real GeoSeries is authoritative even when its CRS is None -- an unknown
+        real CRS must not lose to a stale attrs entry -- so only a non-GeoSeries
+        column falls back to the attrs map.
+        """
+        if col in getattr(frame, "columns", ()) and _is_geoseries(frame[col]):
+            return frame[col].crs
+        return frame.attrs.get(_GEOMETRY_CRS_ATTR, {}).get(col)
+
+    @staticmethod
+    def _apply_geoseries_crs(result: Any, merged_crs: dict) -> None:
+        """Stamp resolved CRS onto the merged frame's live GeoSeries columns.
+
+        pandas.merge can carry the wrong (left) CRS or None onto a coalesced
+        geometry column; ``to_geodataframe`` trusts the GeoSeries CRS for an
+        already geometry-aware frame, so each GeoSeries column is set to the CRS
+        resolved by the R-1852 rule. Non-GeoSeries (raw-WKB) columns are left to
+        the attrs map. A resolved None clears a wrongly inherited CRS, since an
+        unknown resolved provenance must not keep a merge-inherited label;
+        coordinates are never changed.
+        """
+        for col, crs in merged_crs.items():
+            if col in getattr(result, "columns", ()) and _is_geoseries(result[col]):
+                if crs is None:
+                    if result[col].crs is not None:
+                        # Clear a wrongly inherited CRS when the resolved
+                        # provenance is unknown. Reassigning a fresh crs=None
+                        # GeoSeries or set_geometry does NOT clear the active
+                        # column (geopandas re-applies the frame CRS), so clear
+                        # the backing GeometryArray directly. Coordinates are
+                        # unchanged.
+                        result[col].values.crs = None
+                else:
+                    result[col] = result[col].set_crs(crs, allow_override=True)
+
+    @staticmethod
+    def _crs_equal(left_crs: Any, right_crs: Any) -> bool:
+        """Compare two known CRS values semantically, not by raw string.
+
+        Stored CRS values are heterogeneous strings (``EPSG:n``, WKT, PROJJSON,
+        proj4). Identical strings short-circuit; otherwise both sides are
+        canonicalized through :func:`siege_utilities.geo.crs._normalize_crs`
+        (which pulls in pyproj) before comparing.
+        """
+        if left_crs == right_crs:
+            return True
+        from siege_utilities.geo.crs import _normalize_crs
+
+        return _normalize_crs(left_crs) == _normalize_crs(right_crs)
+
+    @classmethod
+    def _coalesce_key_crs(
+        cls, left_crs: Any, right_crs: Any, how: str, key: Any,
+    ) -> Any:
+        """Resolve the CRS of one coalesced geometry join key.
+
+        Two different KNOWN CRSes are rejected in every mode. A known-vs-None
+        pair is source-selected for inner/left/right (the CRS of the side that
+        supplies the surviving key) but rejected for outer, which keeps
+        unmatched rows from both sides. None/None stays None.
+        """
+        left_known = left_crs is not None
+        right_known = right_crs is not None
+        if left_known and right_known:
+            if cls._crs_equal(left_crs, right_crs):
+                return left_crs
+            raise ValueError(
+                f"join key {key!r} has conflicting geometry CRS: "
+                f"left {left_crs!r} vs right {right_crs!r}; reproject one side "
+                f"to a common CRS before joining"
+            )
+        if how == "outer":
+            if not left_known and not right_known:
+                return None
+            raise ValueError(
+                f"outer join on geometry key {key!r} needs a known CRS on both "
+                f"sides; got left {left_crs!r} and right {right_crs!r}. An outer "
+                f"join keeps unmatched rows from both frames, so the key column "
+                f"cannot carry one known and one unknown CRS; set the CRS on "
+                f"both sides before joining"
+            )
+        # inner/left/right: the surviving key comes from the left frame for
+        # inner and left joins, and from the right frame for a right join.
+        return right_crs if how == "right" else left_crs
+
+    @classmethod
+    def _resolve_geometry_key_crs(
+        cls, left: Any, right: Any, on: Union[str, List[str]], how: str,
+    ) -> dict:
+        """Resolve/validate the CRS of each coalesced geometry join key.
+
+        A key is a geometry key when either input carries geometry CRS for it --
+        a live GeoSeries CRS (GeoDataFrame inputs) or an entry in the
+        ``siege_geometry_crs`` attrs map (raw-WKB inputs); a scalar key carries
+        no CRS and is skipped. Each key's CRS is read with the GeoSeries winning
+        over the attrs map, and resolved independently, so the rule applies per
+        component of a composite key. Raises before the merge on a conflicting
+        or outer-unjoinable CRS pair.
+        """
+        on_cols = {on} if isinstance(on, str) else set(on)
+        resolved: dict = {}
+        for key in on_cols:
+            if not (cls._is_geometry_column(left, key) or cls._is_geometry_column(right, key)):
+                continue
+            resolved[key] = cls._coalesce_key_crs(
+                cls._column_crs(left, key), cls._column_crs(right, key), how, key
+            )
+        return resolved
+
+    @classmethod
+    def _merge_geometry_crs(
+        cls, left: Any, right: Any, result: Any, on: Union[str, List[str]],
+        suffixes: tuple, key_crs: dict,
+    ) -> dict:
+        """Carry per-column geometry CRS across a pandas merge.
+
+        pandas.merge does not preserve ``DataFrame.attrs`` (or a GeoSeries CRS on
+        a suffixed column), so rebuild the per-column CRS map from both inputs,
+        applying the merge suffix to any non-key column present in both frames.
+        Each column's CRS is read with the live GeoSeries winning over the attrs
+        map, so geometry-aware (GeoDataFrame) inputs are covered too.
+
+        Coalesced geometry keys take the CRS resolved by
+        :meth:`_resolve_geometry_key_crs`. Non-key overlapping geometry columns
+        keep each side's own CRS under its suffix.
+        """
+        on_cols = {on} if isinstance(on, str) else set(on)
+        overlap = (set(left.columns) & set(right.columns)) - on_cols
+        merged: dict = {}
+        for key, crs in key_crs.items():
+            if key in result.columns:
+                merged[key] = crs
+        for frame, suffix in ((left, suffixes[0]), (right, suffixes[1])):
+            crs_map = frame.attrs.get(_GEOMETRY_CRS_ATTR, {})
+            geom_cols = set(crs_map) | {
+                col for col in getattr(frame, "columns", ()) if _is_geoseries(frame[col])
+            }
+            for col in geom_cols:
+                if col in on_cols:
+                    continue
+                new_col = f"{col}{suffix}" if col in overlap else col
+                if new_col in result.columns:
+                    merged[new_col] = cls._column_crs(frame, col)
+        return merged
 
     # -- Spatial -----------------------------------------------------------
 
@@ -1214,15 +1456,14 @@ class DuckDBEngine(DataFrameEngine):
             out.append(candidate)
         return out
 
-    def _spatial_meta_names(self, path: str) -> List[str]:
-        """Return ST_Read's real column names in column order: attribute
-        ``fields`` followed by ``geometry_fields``.
+    def _spatial_meta_layer(self, path: str) -> dict:
+        """Return the first layer's fields and geometry CRS from ST_Read_Meta.
 
         Metadata-read failures propagate: a scan failure and a metadata failure
         must behave consistently (both raise), never silently yield a different
         schema. An absent or empty layer is an error, not an empty schema.
         Driver-injected columns that ST_Read_Meta does not list (for example the
-        leading ``OGC_FID`` on DuckDB spatial 1.5.x) are NOT in this list; the
+        leading ``OGC_FID`` on DuckDB spatial 1.5.x) are NOT in these fields; the
         caller drops them so the output matches metadata and 1.4.x.
         """
         meta_rows = self._connection.sql(
@@ -1230,10 +1471,7 @@ class DuckDBEngine(DataFrameEngine):
         ).fetchall()
         if not meta_rows or not meta_rows[0][0]:
             raise ValueError(f"ST_Read_Meta returned no layer for {path!r}")
-        layer = meta_rows[0][0][0]
-        names = [f["name"] for f in (layer.get("fields", []) or [])]
-        names += [g["name"] for g in (layer.get("geometry_fields", []) or [])]
-        return names
+        return meta_rows[0][0][0]
 
     def _materialize_geometry_wkb(self, df: Any) -> Any:
         """Eagerly fetch a typed result with columns typed GEOMETRY in WKB.
@@ -1241,6 +1479,8 @@ class DuckDBEngine(DataFrameEngine):
         DuckDB's one-based positional references preserve distinct columns
         even when their aliases coincide. fetchdf then deduplicates the output
         names using DuckDB's usual rules (x, x_1, ...).
+        CRS is read from the geometry type before WKB drops it, including for
+        empty and all-null results. A bare GEOMETRY type has unknown CRS.
         """
         import duckdb
 
@@ -1250,12 +1490,23 @@ class DuckDBEngine(DataFrameEngine):
         if not positions:
             return df.fetchdf()
         self._ensure_spatial()
+        column_crs = {}
+        for i in positions:
+            dtype = str(df.types[i])
+            # Qualified GEOMETRY and ST_CRS arrived together in DuckDB 1.5.
+            # Inspect a typed NULL, never scan/re-execute the input relation.
+            column_crs[i] = (
+                self._connection.sql(f"SELECT ST_CRS(NULL::{dtype})").fetchone()[0]
+                if dtype.upper() != "GEOMETRY" else None
+            )
         projection = ", ".join(
             f'ST_AsWKB(#{i + 1}) AS {self._quote_ident(name)}'
             if i in positions else f'#{i + 1} AS {self._quote_ident(name)}'
             for i, name in enumerate(df.columns)
         )
-        return df.project(projection).fetchdf()
+        result = df.project(projection).fetchdf()
+        result.attrs[_GEOMETRY_CRS_ATTR] = {result.columns[i]: crs for i, crs in column_crs.items()}
+        return result
 
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
         """Read a spatial file via DuckDB's ``ST_Read``.
@@ -1271,14 +1522,19 @@ class DuckDBEngine(DataFrameEngine):
         across DuckDB versions. Names are then restored from metadata with
         pandas-style deduplication, so a clashing ``geom`` property stays
         addressable while the real geometry becomes ``geom_1``.
+        Preserve each geometry field's source CRS from file metadata; unknown
+        CRS stays None. A supplied target ``crs`` reprojects the active geometry
+        and requires a known source CRS.
 
         **kwargs: Forwarded for interface compatibility (unused in the current
         DuckDB path).
         """
         import geopandas as gpd
-        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
         self._ensure_spatial()
-        meta_names = self._spatial_meta_names(path)
+        layer = self._spatial_meta_layer(path)
+        geometry_fields = layer.get("geometry_fields", []) or []
+        meta_names = [f["name"] for f in (layer.get("fields", []) or [])]
+        meta_names += [g["name"] for g in geometry_fields]
         ncols_expected = len(meta_names)
         # Collision-proof aliases wide enough for the real columns plus a margin
         # for any driver-injected columns. The prefix cannot clash with a real
@@ -1314,11 +1570,23 @@ class DuckDBEngine(DataFrameEngine):
             return None
         # Parse every geometry column so a multi-geometry file keeps all of
         # them; the first becomes the active geometry.
-        for gc in geom_cols:
-            result[gc] = result[gc].apply(_parse_geom)
+        source_crses = {}
+        for gc, field in zip(geom_cols, geometry_fields):
+            metadata = field.get("crs") or {}
+            authority = metadata.get("auth_name")
+            code = metadata.get("auth_code")
+            source_crs = (
+                metadata.get("wkt") or metadata.get("projjson")
+                or (f"{authority}:{code}" if authority and code else None)
+                or metadata.get("proj4")
+            )
+            source_crses[gc] = source_crs
+            parsed = result[gc].apply(_parse_geom)
+            result[gc] = gpd.GeoSeries(parsed, index=result.index, crs=source_crs)
+        result.attrs[_GEOMETRY_CRS_ATTR] = source_crses
         active_geom = geom_cols[0]
-        gdf = gpd.GeoDataFrame(result, geometry=active_geom, crs=crs or get_default_crs())
-        return reproject_if_needed(gdf, crs or get_default_crs())
+        gdf = gpd.GeoDataFrame(result, geometry=active_geom)
+        return gdf.to_crs(crs) if crs is not None else gdf
 
     def spatial_join(self, left, right, how="inner", predicate="intersects",
                      *, left_geom="geometry", right_geom="geometry"):
@@ -1353,13 +1621,25 @@ class DuckDBEngine(DataFrameEngine):
 
         Also accepts typed DuckDB relations (materialized via :meth:`to_pandas`),
         frames containing hex WKB, WKT or Shapely geometry, and GeoDataFrames.
+        WKB uses the per-column CRS retained in pandas attrs; absent metadata
+        means unknown CRS, not the default. WKT text retains default-CRS
+        normalization. ``crs`` reprojects known CRS or assigns unknown CRS.
         """
         import geopandas as gpd
         import pandas as pd
-        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+        from siege_utilities.geo.crs import get_default_crs
         df = self.to_pandas(df)
-        if isinstance(df, gpd.GeoDataFrame):
-            return reproject_if_needed(df, crs or get_default_crs())
+        # Only pass a GeoDataFrame straight through when the requested column is
+        # already its active, valid geometry. A suffixed (geometry_x) selection
+        # or a raw-WKB key surviving a join leaves the active geometry pointing
+        # elsewhere, so fall through and honour the requested column instead of
+        # returning a frame whose .geometry/.crs would raise.
+        active = getattr(df, "_geometry_column_name", None)
+        if (isinstance(df, gpd.GeoDataFrame) and active == geometry_col
+                and geometry_col in df.columns and _is_geoseries(df[geometry_col])):
+            if crs is None:
+                return df
+            return df.to_crs(crs) if df.crs is not None else df.set_crs(crs)
         if isinstance(df, pd.DataFrame) and geometry_col in df.columns:
             from shapely import wkb as shapely_wkb
             from shapely.geometry.base import BaseGeometry
@@ -1368,30 +1648,44 @@ class DuckDBEngine(DataFrameEngine):
             # IndexError on .iloc[0].
             non_null = df[geometry_col].dropna()
             sample = non_null.iloc[0] if not non_null.empty else None
+            metadata = df.attrs.get(_GEOMETRY_CRS_ATTR, {})
+            source_crs = metadata.get(geometry_col)
+            if geometry_col not in metadata:
+                source_crs = getattr(df[geometry_col], "crs", None)
+                # Hex WKB, unlike WKT text, must not acquire the text default.
+                if isinstance(sample, str):
+                    head = sample[:32].strip()
+                    is_hex = head and all(c in "0123456789abcdefABCDEF" for c in head)
+                    if not is_hex:
+                        source_crs = crs if crs is not None else get_default_crs()
+            geoms = df[geometry_col]
             if sample is not None and not isinstance(sample, BaseGeometry):
-                if isinstance(sample, (bytes, bytearray)):
+                if isinstance(sample, (bytes, bytearray, memoryview)):
                     # DuckDB returns pd.NA (not None) for null geometry; guard
                     # with pd.isna so a null row does not reach shapely_wkb.loads.
                     geoms = df[geometry_col].apply(
-                        lambda g: shapely_wkb.loads(bytes(g) if isinstance(g, bytearray) else g)
+                        lambda g: shapely_wkb.loads(bytes(g))
                         if (g is not None and not pd.isna(g)) else None
                     )
                 else:
                     geoms = df[geometry_col].apply(
                         lambda g: self._decode_geometry_text(g) if isinstance(g, str) else g
                     )
-                target_crs = crs or get_default_crs()
-                out = df.copy()
-                out[geometry_col] = gpd.GeoSeries(geoms.values, index=out.index, crs=target_crs)
-                return gpd.GeoDataFrame(out, geometry=geometry_col, crs=target_crs)
-            return gpd.GeoDataFrame(df, geometry=geometry_col, crs=crs or get_default_crs())
+            out = df.copy()
+            out[geometry_col] = gpd.GeoSeries(geoms.values, index=out.index, crs=source_crs)
+            result = gpd.GeoDataFrame(out, geometry=geometry_col, crs=source_crs)
+            if crs is not None:
+                return result.to_crs(crs) if result.crs is not None else result.set_crs(crs)
+            return result
         raise ValueError(f"Cannot construct GeoDataFrame: column '{geometry_col}' not found")
 
     def from_geodataframe(self, gdf, geometry_col="geometry"):
-        """Convert GeoDataFrame to a pandas DataFrame with standard WKB geometry."""
+        """Convert to standard WKB with the geometry column's CRS in pandas attrs."""
         import pandas as pd
 
         self._ensure_spatial()
+        source_crs = getattr(gdf[geometry_col], "crs", None)
+        metadata = {geometry_col: str(source_crs) if source_crs is not None else None}
 
         attr_cols = [c for c in gdf.columns if c != geometry_col]
         df = pd.DataFrame({c: gdf[c].values for c in attr_cols})
@@ -1402,6 +1696,7 @@ class DuckDBEngine(DataFrameEngine):
 
         if df.empty:
             result = pd.DataFrame(columns=attr_cols + [geometry_col])
+            result.attrs[_GEOMETRY_CRS_ATTR] = metadata
             return result
 
         tbl_name = f"_boundary_{id(gdf) % 100000}"
@@ -1420,7 +1715,7 @@ class DuckDBEngine(DataFrameEngine):
         )
         result = self._connection.execute(sql).fetchdf()
         self._connection.unregister(tbl_name)
-
+        result.attrs[_GEOMETRY_CRS_ATTR] = metadata
         return result
 
 
@@ -1635,23 +1930,56 @@ class SparkEngine(DataFrameEngine):
             )
         if how.lower() not in ("inner", "left", "right", "outer", "full"):
             raise ValueError(f"unsupported join type {how!r}")
-        # Unique per-call temp-view names so concurrent calls don't
-        # collide on a shared `_sjoin_left` and so a failed previous
-        # call doesn't leave stale state in the catalog. The returned
-        # DataFrame is lazy -- we can't drop the views in this scope.
         import uuid as _uuid
         tag = _uuid.uuid4().hex[:8]
         lv = f"_sjoin_left_{tag}"
         rv = f"_sjoin_right_{tag}"
-        left.createOrReplaceTempView(lv)
-        right.createOrReplaceTempView(rv)
         st_func = f"ST_{predicate.capitalize()}"
-        sql = (
-            f"SELECT l.*, r.* "
-            f"FROM {lv} l {how.upper()} JOIN {rv} r "
-            f"ON {st_func}(ST_GeomFromText(l.{left_geom}), ST_GeomFromText(r.{right_geom}))"
-        )
-        return self._session.sql(sql)
+        # Compute the projection -- which rejects a suffix collision with a
+        # ValueError -- BEFORE registering any temp view, so a rejected join
+        # leaves nothing behind in the session catalog (#1479 B2). Every view
+        # registration happens INSIDE the cleanup scope and is tracked, so a
+        # failure at any registration or at SQL analysis drops every view
+        # registered so far (#1852 R2); the success path keeps the views for the
+        # returned lazy frame.
+        projection = self._spatial_join_projection(left, right, left_geom, right_geom, "l", "r")
+        registered: list = []
+        try:
+            left.createOrReplaceTempView(lv)
+            registered.append(lv)
+            right.createOrReplaceTempView(rv)
+            registered.append(rv)
+            sql = (
+                f"SELECT {projection} "
+                f"FROM {lv} l {how.upper()} JOIN {rv} r "
+                f"ON {st_func}(ST_GeomFromText(l.{left_geom}), ST_GeomFromText(r.{right_geom}))"
+            )
+            return self._session.sql(sql)
+        except Exception:
+            for view in registered:
+                self._session.catalog.dropTempView(view)
+            raise
+
+    def _spatial_join_projection(self, left, right, left_geom, right_geom, left_alias, right_alias):
+        """Keep the left geometry and apply the invariant's attribute suffixes."""
+        from collections import Counter
+
+        right_columns = [c for c in right.columns if c != right_geom]
+        shared = set(left.columns) & set(right_columns)
+        output = [
+            (left_alias, c, c + "_left" if c in shared and c != left_geom else c)
+            for c in left.columns
+        ] + [(right_alias, c, c + "_right" if c in shared else c) for c in right_columns]
+        case_sensitive = self._session.conf.get("spark.sql.caseSensitive", "false").lower() == "true"
+        counts = Counter(name if case_sensitive else name.lower() for _, _, name in output)
+        duplicates = sorted(name for name, count in counts.items() if count > 1)
+        if duplicates:
+            raise ValueError(f"SparkEngine spatial join: duplicate output column names: {duplicates}")
+
+        def quote(name):
+            return "`" + name.replace("`", "``") + "`"
+
+        return ", ".join(f"{alias}.{quote(column)} AS {quote(name)}" for alias, column, name in output)
 
     def buffer(self, df, distance, geometry_col="geometry", *, crs=None):
         self._ensure_sedona()
@@ -1836,14 +2164,42 @@ class SparkEngine(DataFrameEngine):
         tag = _uuid.uuid4().hex[:8]
         pv = f"_assign_pts_{tag}"
         poly_v = f"_assign_poly_{tag}"
-        points.createOrReplaceTempView(pv)
-        broadcast(polygons).createOrReplaceTempView(poly_v)
-        return self._session.sql(
-            f"SELECT p.*, poly.* "
-            f"FROM {pv} p {how.upper()} JOIN {poly_v} poly "
-            f"ON ST_Contains(ST_GeomFromText(poly.{polygon_geom}), "
-            f"ST_GeomFromText(p.{point_geom}))"
-        )
+        # Reject a suffix collision before registering any temp view (#1479 B2).
+        # Every view registration happens INSIDE the cleanup scope and is tracked,
+        # so a failure at any registration or at SQL analysis drops every view
+        # registered so far (#1852 R2); the success path keeps the views for the
+        # returned lazy frame.
+        projection = self._spatial_join_projection(points, polygons, point_geom, polygon_geom, "p", "poly")
+        registered: list = []
+        try:
+            points.createOrReplaceTempView(pv)
+            registered.append(pv)
+            broadcast(polygons).createOrReplaceTempView(poly_v)
+            registered.append(poly_v)
+            return self._session.sql(
+                f"SELECT {projection} "
+                f"FROM {pv} p {how.upper()} JOIN {poly_v} poly "
+                f"ON ST_Contains(ST_GeomFromText(poly.{polygon_geom}), "
+                f"ST_GeomFromText(p.{point_geom}))"
+            )
+        except Exception:
+            for view in registered:
+                self._session.catalog.dropTempView(view)
+            raise
+
+    def multi_assign(self, points, boundary_layers, *, point_geom="geometry"):
+        """Assign all layers lazily without collecting a Spark frame."""
+        from pyspark.sql import functions as F
+
+        result = points
+        for layer_name, polygons in boundary_layers.items():
+            names = self._boundary_column_names(polygons.columns, layer_name, result.columns)
+            prefixed = polygons.select(*[
+                F.col("`" + c.replace("`", "``") + "`").alias(names.get(c, c))
+                for c in polygons.columns
+            ])
+            result = self.assign_boundaries(result, prefixed, point_geom=point_geom)
+        return result
 
     def nearest(self, points, targets, *, k=1, max_distance=None,
                 point_geom="geometry", target_geom="geometry"):
@@ -2153,9 +2509,11 @@ class PostGISEngine(DataFrameEngine):
 
     def to_geodataframe(self, df, geometry_col="geometry", *, crs=None):
         import geopandas as gpd
-        from siege_utilities.geo.crs import get_default_crs, reproject_if_needed
+        from siege_utilities.geo.crs import get_default_crs
         if isinstance(df, gpd.GeoDataFrame):
-            return reproject_if_needed(df, crs or get_default_crs())
+            if crs is None:
+                return df
+            return df.to_crs(crs) if df.crs is not None else df.set_crs(crs)
         import pandas as pd
         if isinstance(df, pd.DataFrame) and geometry_col in df.columns:
             from shapely import wkt
