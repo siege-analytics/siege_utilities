@@ -306,3 +306,67 @@ def test_outer_join_unknown_both_sides_stays_none(typed_engine):
         typed_engine.join(left, right, on="geometry", how="outer")
     )
     assert out.crs is None
+
+
+# The rule applies to each geometry component of a composite key independently;
+# pandas never suffixes the key itself, so a composite-key geometry still
+# coalesces to one column that carries the resolved CRS.
+
+
+@pytest.mark.parametrize("how", ["inner", "left", "right", "outer"])
+def test_composite_key_conflicting_geometry_crs_rejected(typed_engine, how):
+    left = typed_engine.query(
+        "SELECT 1 AS pid, ST_Point(-97, 30)::GEOMETRY('EPSG:4326') AS geometry"
+    )
+    right = typed_engine.query(
+        "SELECT 1 AS pid, ST_Point(500, 1000)::GEOMETRY('EPSG:3857') AS geometry, 'x' AS note_text"
+    )
+    with pytest.raises(ValueError, match="conflicting geometry CRS"):
+        typed_engine.join(left, right, on=["pid", "geometry"], how=how)
+
+
+def test_composite_right_join_takes_right_geometry_crs(typed_engine):
+    # An end-to-end composite merge whose key includes the WKB geometry column
+    # raises pandas' pre-existing "unhashable type: bytearray" before any CRS
+    # logic (identical on develop and both heads), so the merged result is not
+    # observable. Verify the rule-5 source selection on the composite geometry
+    # component directly: a right join selects the right side's CRS, and the
+    # scalar pid component carries none.
+    left = typed_engine.query("SELECT 1 AS pid, ST_Point(-97, 30) AS geometry")
+    right = typed_engine.query(
+        "SELECT 1 AS pid, ST_Point(500, 1000)::GEOMETRY('EPSG:3857') AS geometry"
+    )
+    resolved = DuckDBEngine._resolve_geometry_key_crs(
+        left, right, ["pid", "geometry"], "right"
+    )
+    assert set(resolved) == {"geometry"}, "pid is scalar and must carry no CRS"
+    assert resolved["geometry"] is not None, "Right composite key CRS dropped to unknown left"
+    assert DuckDBEngine._crs_equal(resolved["geometry"], "EPSG:3857")
+
+
+def test_composite_outer_join_rejects_known_vs_unknown_geometry_crs(typed_engine):
+    left = typed_engine.query(
+        "SELECT 1 AS pid, ST_Point(-97, 30)::GEOMETRY('EPSG:4326') AS geometry"
+    )
+    right = typed_engine.query("SELECT 1 AS pid, ST_Point(500, 1000) AS geometry, 'x' AS note_text")
+    with pytest.raises(ValueError, match="outer join"):
+        typed_engine.join(left, right, on=["pid", "geometry"], how="outer")
+
+
+def test_key_geometry_source_selected_while_nonkey_geometry_keeps_own_crs(typed_engine):
+    # A geometry join key plus a second overlapping non-key geometry column:
+    # the key coalesces to one source-selected column, while the non-key column
+    # is suffixed and each side keeps its own CRS (rule 5, non-key clause).
+    left = typed_engine.query(
+        "SELECT ST_Point(-97, 30)::GEOMETRY('EPSG:4326') AS geometry, "
+        "ST_Point(1, 1)::GEOMETRY('EPSG:4326') AS extra_geom"
+    )
+    right = typed_engine.query(
+        "SELECT ST_Point(-97, 30)::GEOMETRY('EPSG:4326') AS geometry, "
+        "ST_Point(2, 2)::GEOMETRY('EPSG:3857') AS extra_geom"
+    )
+    out = typed_engine.join(left, right, on="geometry", how="inner")
+    assert out.columns.tolist() == ["geometry", "extra_geom_x", "extra_geom_y"]
+    assert typed_engine.to_geodataframe(out, "geometry").crs.to_epsg() == 4326
+    assert typed_engine.to_geodataframe(out, "extra_geom_x").crs.to_epsg() == 4326
+    assert typed_engine.to_geodataframe(out, "extra_geom_y").crs.to_epsg() == 3857
