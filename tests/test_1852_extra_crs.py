@@ -1,5 +1,8 @@
 """Independent coalesced-key checks with actual public engine outputs."""
 import pytest
+
+pytest.importorskip("duckdb")
+
 from siege_utilities.engines.dataframe_engine import DuckDBEngine
 
 @pytest.fixture

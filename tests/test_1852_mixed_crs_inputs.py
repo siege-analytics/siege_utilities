@@ -6,6 +6,8 @@ the GeoSeries wins.
 """
 import pytest
 
+pytest.importorskip("duckdb")
+
 from siege_utilities.engines.dataframe_engine import DuckDBEngine
 
 

@@ -62,6 +62,24 @@ POSTGIS = Engine.POSTGIS.value
 _GEOMETRY_CRS_ATTR = "siege_geometry_crs"
 
 
+def _is_geoseries(series: Any) -> bool:
+    """True only for a real geopandas GeoSeries.
+
+    A plain pandas Series whose index contains a label named ``crs`` exposes a
+    ``crs`` attribute through index access, so ``hasattr(series, "crs")`` and
+    ``getattr(series, "crs", None)`` misclassify it as a geometry column. The
+    real test is membership in :class:`geopandas.GeoSeries`. geopandas is
+    imported lazily and the guard returns ``False`` when it is absent, so the
+    engine still imports and a plain Series is still classified correctly
+    without geopandas installed.
+    """
+    try:
+        from geopandas import GeoSeries
+    except ImportError:
+        return False
+    return isinstance(series, GeoSeries)
+
+
 # Shared across all engines; see docs/engines/INVARIANTS.md groupby_agg.
 # "avg" is the Spark spelling; "mean" is the pandas spelling. Both are
 # accepted at the validator and normalised inside each engine.
@@ -1202,18 +1220,18 @@ class DuckDBEngine(DataFrameEngine):
         crs_map = frame.attrs.get(_GEOMETRY_CRS_ATTR, {})
         if col in crs_map:
             return True
-        return col in getattr(frame, "columns", ()) and hasattr(frame[col], "crs")
+        return col in getattr(frame, "columns", ()) and _is_geoseries(frame[col])
 
     @staticmethod
     def _column_crs(frame: Any, col: Any) -> Any:
         """The authoritative CRS of *col*: the live GeoSeries CRS if the column
-        is one, otherwise the ``siege_geometry_crs`` attrs entry. When both exist
-        the GeoSeries wins, because it is the real, validated CRS of the data.
+        is a real GeoSeries, otherwise the ``siege_geometry_crs`` attrs entry. A
+        real GeoSeries is authoritative even when its CRS is None -- an unknown
+        real CRS must not lose to a stale attrs entry -- so only a non-GeoSeries
+        column falls back to the attrs map.
         """
-        if col in getattr(frame, "columns", ()):
-            series_crs = getattr(frame[col], "crs", None)
-            if series_crs is not None:
-                return series_crs
+        if col in getattr(frame, "columns", ()) and _is_geoseries(frame[col]):
+            return frame[col].crs
         return frame.attrs.get(_GEOMETRY_CRS_ATTR, {}).get(col)
 
     @staticmethod
@@ -1224,13 +1242,23 @@ class DuckDBEngine(DataFrameEngine):
         geometry column; ``to_geodataframe`` trusts the GeoSeries CRS for an
         already geometry-aware frame, so each GeoSeries column is set to the CRS
         resolved by the R-1852 rule. Non-GeoSeries (raw-WKB) columns are left to
-        the attrs map, and a resolved None is left unchanged.
+        the attrs map. A resolved None clears a wrongly inherited CRS, since an
+        unknown resolved provenance must not keep a merge-inherited label;
+        coordinates are never changed.
         """
         for col, crs in merged_crs.items():
-            if crs is None:
-                continue
-            if col in getattr(result, "columns", ()) and hasattr(result[col], "crs"):
-                result[col] = result[col].set_crs(crs, allow_override=True)
+            if col in getattr(result, "columns", ()) and _is_geoseries(result[col]):
+                if crs is None:
+                    if result[col].crs is not None:
+                        # Clear a wrongly inherited CRS when the resolved
+                        # provenance is unknown. Reassigning a fresh crs=None
+                        # GeoSeries or set_geometry does NOT clear the active
+                        # column (geopandas re-applies the frame CRS), so clear
+                        # the backing GeometryArray directly. Coordinates are
+                        # unchanged.
+                        result[col].values.crs = None
+                else:
+                    result[col] = result[col].set_crs(crs, allow_override=True)
 
     @staticmethod
     def _crs_equal(left_crs: Any, right_crs: Any) -> bool:
@@ -1332,7 +1360,7 @@ class DuckDBEngine(DataFrameEngine):
         for frame, suffix in ((left, suffixes[0]), (right, suffixes[1])):
             crs_map = frame.attrs.get(_GEOMETRY_CRS_ATTR, {})
             geom_cols = set(crs_map) | {
-                col for col in getattr(frame, "columns", ()) if hasattr(frame[col], "crs")
+                col for col in getattr(frame, "columns", ()) if _is_geoseries(frame[col])
             }
             for col in geom_cols:
                 if col in on_cols:
@@ -1601,7 +1629,14 @@ class DuckDBEngine(DataFrameEngine):
         import pandas as pd
         from siege_utilities.geo.crs import get_default_crs
         df = self.to_pandas(df)
-        if isinstance(df, gpd.GeoDataFrame):
+        # Only pass a GeoDataFrame straight through when the requested column is
+        # already its active, valid geometry. A suffixed (geometry_x) selection
+        # or a raw-WKB key surviving a join leaves the active geometry pointing
+        # elsewhere, so fall through and honour the requested column instead of
+        # returning a frame whose .geometry/.crs would raise.
+        active = getattr(df, "_geometry_column_name", None)
+        if (isinstance(df, gpd.GeoDataFrame) and active == geometry_col
+                and geometry_col in df.columns and _is_geoseries(df[geometry_col])):
             if crs is None:
                 return df
             return df.to_crs(crs) if df.crs is not None else df.set_crs(crs)
