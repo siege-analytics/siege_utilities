@@ -194,3 +194,28 @@ def test_zero_sessions_are_valid(tmp_path, monkeypatch):
     assert ns["daily"]["sessions"].tolist() == [0] * 14
     assert ns["summary"]["weekly_sessions"].tolist() == [0, 0]
     assert ns["summary"]["WoW change %"].isna().all()
+
+
+def test_sparse_live_weeks_withhold_wow(tmp_path, monkeypatch):
+    # One observed day per week is not a complete week; a confident
+    # "+100.0% WoW" from such a sparse response is wrong. The summary must
+    # withhold the percentage and show the day counts instead.
+    creds = tmp_path / "service-account.json"
+    creds.write_text('{"type": "service_account"}', encoding="utf-8")
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", str(creds))
+    monkeypatch.setenv("GA_PROPERTY_ID", "1")
+    monkeypatch.delenv("SNOWFLAKE_CONFIG_FILE", raising=False)
+    ga = Mock()
+    ga.get_ga4_data.return_value = pd.DataFrame(
+        {"date": ["20260928", "20261005"], "sessions": [100, 200]}
+    )
+    with patch(
+        "siege_utilities.analytics.google_analytics.create_ga_connector_with_service_account",
+        return_value=ga,
+    ):
+        ns = _run_cells(2, 4, 6, 8)
+    summary = ns["summary"]
+    assert not (pd.to_numeric(summary["WoW change %"], errors="coerce") == 100.0).any(), summary
+    assert (pd.to_numeric(summary["WoW change %"], errors="coerce").isna()).all(), summary
+    assert summary["observed_days"].tolist() == [1, 1]
+    assert summary["weekly_sessions"].tolist() == [100, 200]
