@@ -171,7 +171,7 @@ def _secret_regex_source(form: str) -> str:
     same byte in either case (``%2F`` == ``%2f``, ``%CE%A9`` == ``%ce%a9``) so an
     equivalently-encoded credential -- including mixed case like ``%2f%2B%CE%A9``
     -- is still redacted, without loosening the match on the credential's own
-    letters (#1846 r4 item 5; r4-2 item 2).
+    letters.
     """
     parts: list[str] = []
     index = 0

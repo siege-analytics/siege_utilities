@@ -18,7 +18,7 @@ class RedactingLogger(logging.LoggerAdapter):
     credential even if a new call site forgets to redact its arguments. The
     module-level logger (``extra={}``) keeps only the key/syntax redaction.
     Value redaction honours the shared length floor, so short configured values
-    are still suppressed at the call site via ``_redact_field`` (#1846 r4-2).
+    are still suppressed at the call site via ``_redact_field``.
     """
 
     def log(self, level, msg, *args, **kwargs):
