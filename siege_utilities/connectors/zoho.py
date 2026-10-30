@@ -11,7 +11,6 @@ before requiring re-authorization.
 
 from __future__ import annotations
 
-import logging
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
@@ -29,7 +28,7 @@ except ImportError:  # pragma: no cover
 from siege_utilities.connectors._retry import (
     backoff_wait, rate_limit_error, retry_attempts, validate_wait_settings,
 )
-from siege_utilities.connectors._http import RedactingLogger, RefreshOn401
+from siege_utilities.connectors._http import RefreshOn401
 from siege_utilities.connectors._protocol import (
     ConnectorAuthError,
     ConnectorError,
@@ -41,7 +40,6 @@ from siege_utilities.connectors._protocol import (
 )
 from siege_utilities.connectors._query_utils import _validate_identifier
 
-log = RedactingLogger(logging.getLogger(__name__), {})
 
 ZOHO_DATA_CENTERS: dict[str, dict[str, str]] = {
     "us": {
@@ -205,7 +203,7 @@ class ZohoConnector(_SecretRedactionMixin):
             "Content-Type": "application/json",
             "User-Agent": "siege_utilities/ZohoConnector",
         })
-        log.info("ZohoConnector initialised (dc: %s)", data_center)
+        self._log.info("ZohoConnector initialised (dc: %s)", data_center)
 
     def close(self) -> None:
         self._session.close()
@@ -249,7 +247,7 @@ class ZohoConnector(_SecretRedactionMixin):
             "redirect_uri": redirect_uri,
         }
         self._exchange_token(token_url, payload)
-        log.info("Authenticated via web-based OAuth flow (dc: %s)", self._data_center)
+        self._log.info("Authenticated via web-based OAuth flow (dc: %s)", self._data_center)
 
     def get_authorization_url(
         self,
@@ -455,7 +453,7 @@ class ZohoConnector(_SecretRedactionMixin):
                 f"Failed to create {object_type}" + (f": {detail}" if detail else "")
             )
         record_id = results[0]["details"]["id"]
-        log.info("Created %s record: %s", object_type, self._redact_field(record_id))
+        self._log.info("Created %s record: %s", object_type, self._redact_field(record_id))
         return record_id
 
     def update_record(
@@ -469,7 +467,7 @@ class ZohoConnector(_SecretRedactionMixin):
             details = results[0] if results else resp
             msg = details.get("message", str(details))
             raise ConnectorError(f"Failed to update {object_type}/{record_id}: {msg}")
-        log.info("Updated %s record: %s", object_type, self._redact_field(record_id))
+        self._log.info("Updated %s record: %s", object_type, self._redact_field(record_id))
         return True
 
     def upsert_records(
@@ -482,7 +480,7 @@ class ZohoConnector(_SecretRedactionMixin):
         from siege_utilities.connectors._protocol import UpsertError
 
         if records.empty:
-            log.warning("upsert_records(%s): empty DataFrame", object_type)
+            self._log.warning("upsert_records(%s): empty DataFrame", object_type)
             return UpsertResult(success_count=0, failure_count=0, redact=self._redact_field)
 
         record_dicts = [sanitize_record(row) for row in records.to_dict(orient="records")]
@@ -498,7 +496,7 @@ class ZohoConnector(_SecretRedactionMixin):
         total_failure = 0
 
         for batch_idx, batch in enumerate(batches):
-            log.info(
+            self._log.info(
                 "upsert_records(%s): batch %d/%d (%d records)",
                 object_type, batch_idx + 1, len(batches), len(batch),
             )
@@ -537,7 +535,7 @@ class ZohoConnector(_SecretRedactionMixin):
                         code=self._redact_field(code) if code is not None else None,
                     ))
 
-        log.info(
+        self._log.info(
             "upsert_records(%s): %d succeeded, %d failed",
             object_type, total_success, total_failure,
         )
@@ -584,7 +582,7 @@ class ZohoConnector(_SecretRedactionMixin):
                 break
 
             all_records.extend(records)
-            log.info("Listed %s: page %d, %d records (total: %d)",
+            self._log.info("Listed %s: page %d, %d records (total: %d)",
                      module, page, len(records), len(all_records))
 
             if limit is not None and len(all_records) >= limit:
@@ -646,7 +644,7 @@ class ZohoConnector(_SecretRedactionMixin):
                 break
 
             all_records.extend(records)
-            log.info("COQL query: %d records (total: %d)", len(records), len(all_records))
+            self._log.info("COQL query: %d records (total: %d)", len(records), len(all_records))
 
             if limit is not None and len(all_records) >= limit:
                 all_records = all_records[:limit]
@@ -701,7 +699,7 @@ class ZohoConnector(_SecretRedactionMixin):
             and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
         ):
             if self._refresh_token:
-                log.info("Token expires soon or has expired, refreshing...")
+                self._log.info("Token expires soon or has expired, refreshing...")
                 self._refresh_access()
             else:
                 raise ConnectorAuthError("Access token expired. Re-authenticate.")
@@ -718,7 +716,7 @@ class ZohoConnector(_SecretRedactionMixin):
             "client_secret": self._client_secret,
         }
         self._exchange_token(token_url, payload)
-        log.info("Access token refreshed (dc: %s)", self._data_center)
+        self._log.info("Access token refreshed (dc: %s)", self._data_center)
 
     def _exchange_token(self, token_url: str, payload: dict[str, str]) -> None:
         try:
@@ -792,7 +790,7 @@ class ZohoConnector(_SecretRedactionMixin):
                 encoding_failure = type(exc).__name__
             except requests.exceptions.RequestException as exc:
                 last_failure = type(exc).__name__
-                log.warning(
+                self._log.warning(
                     "Zoho request attempt %d/%d failed: %s",
                     attempt, attempts, last_failure,
                 )
@@ -834,7 +832,7 @@ class ZohoConnector(_SecretRedactionMixin):
 
             if 500 <= resp.status_code < 600:
                 last_failure = f"HTTP {resp.status_code}"
-                log.warning(
+                self._log.warning(
                     "Zoho %s %s 5xx %d attempt %d/%d",
                     method, self._redact_field(path), resp.status_code, attempt, attempts,
                 )

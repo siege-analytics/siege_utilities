@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import csv
 import io
-import logging
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Mapping
@@ -47,10 +46,9 @@ from siege_utilities.connectors._protocol import (
 from siege_utilities.connectors._retry import (
     backoff_wait, rate_limit_error, retry_attempts, validate_wait_settings,
 )
-from siege_utilities.connectors._http import RedactingLogger, RefreshOn401, request_raw
+from siege_utilities.connectors._http import RefreshOn401, request_raw
 from siege_utilities.connectors._query_utils import _validate_identifier
 
-log = RedactingLogger(logging.getLogger(__name__), {})
 
 PRODUCTION_LOGIN_URL = "https://login.salesforce.com"
 SANDBOX_LOGIN_URL = "https://test.salesforce.com"
@@ -349,7 +347,7 @@ class SalesforceConnector(_SecretRedactionMixin):
             "Content-Type": "application/json",
             "User-Agent": "siege_utilities/SalesforceConnector",
         })
-        log.info("SalesforceConnector initialised (login: %s)", self._login_url)
+        self._log.info("SalesforceConnector initialised (login: %s)", self._login_url)
 
     def close(self) -> None:
         """Close the underlying HTTP session."""
@@ -406,7 +404,7 @@ class SalesforceConnector(_SecretRedactionMixin):
             "redirect_uri": redirect_uri,
         }
         self._exchange_token(token_url, payload)
-        log.info("Authenticated via Web Server Flow (instance: %s)", self._instance_url)
+        self._log.info("Authenticated via Web Server Flow (instance: %s)", self._instance_url)
 
     def get_authorization_url(
         self,
@@ -450,7 +448,7 @@ class SalesforceConnector(_SecretRedactionMixin):
             "client_secret": self._client_secret,
         }
         self._exchange_token(token_url, payload)
-        log.info("Access token refreshed (instance: %s)", self._instance_url)
+        self._log.info("Access token refreshed (instance: %s)", self._instance_url)
 
     # ------------------------------------------------------------------
     # ConnectorProtocol — read operations
@@ -462,7 +460,7 @@ class SalesforceConnector(_SecretRedactionMixin):
         path = f"/services/data/{API_VERSION}/sobjects"
         data = self.request("GET", path)
         names = sorted(obj["name"] for obj in data.get("sobjects", []) if obj.get("queryable"))
-        log.info("Discovered %d queryable object types", len(names))
+        self._log.info("Discovered %d queryable object types", len(names))
         return names
 
     def get_objects(
@@ -492,12 +490,12 @@ class SalesforceConnector(_SecretRedactionMixin):
         records = self._query_all(soql)
         selected_fields = fields or DEFAULT_FIELDS.get(object_type, ["Id"])
         if not records:
-            log.warning("get_objects(%s): query returned 0 records", object_type)
+            self._log.warning("get_objects(%s): query returned 0 records", object_type)
             return pd.DataFrame(columns=selected_fields)
 
         cleaned = self._clean_records(records, selected_fields)
         df = pd.DataFrame(cleaned)
-        log.info("get_objects(%s): returned %d records, %d fields", object_type, len(df), len(df.columns))
+        self._log.info("get_objects(%s): returned %d records, %d fields", object_type, len(df), len(df.columns))
         return df
 
     def soql(self, query: str | SOQLQuery) -> pd.DataFrame:
@@ -509,7 +507,7 @@ class SalesforceConnector(_SecretRedactionMixin):
         soql_str = query.build() if isinstance(query, SOQLQuery) else query
         records = self._query_all(soql_str)
         if not records:
-            log.warning("soql(): query returned 0 records")
+            self._log.warning("soql(): query returned 0 records")
             return pd.DataFrame()
         keys = [k for k in records[0].keys() if k != "attributes"]
         cleaned = [{k: rec.get(k) for k in keys} for rec in records]
@@ -652,7 +650,7 @@ class SalesforceConnector(_SecretRedactionMixin):
                 f"Failed to create {object_type}" + (f": {detail}" if detail else "")
             )
         record_id = resp["id"]
-        log.info("Created %s record: %s", object_type, self._redact_field(record_id))
+        self._log.info("Created %s record: %s", object_type, self._redact_field(record_id))
         return record_id
 
     def update_record(
@@ -664,7 +662,7 @@ class SalesforceConnector(_SecretRedactionMixin):
         """
         path = f"/services/data/{API_VERSION}/sobjects/{object_type}/{record_id}"
         self.request("PATCH", path, json_body=data)
-        log.info("Updated %s record: %s", object_type, self._redact_field(record_id))
+        self._log.info("Updated %s record: %s", object_type, self._redact_field(record_id))
         return True
 
     def upsert_records(
@@ -693,11 +691,11 @@ class SalesforceConnector(_SecretRedactionMixin):
             :class:`UpsertResult` with per-record outcome.
         """
         if records.empty:
-            log.warning("upsert_records(%s): empty DataFrame, nothing to upsert", object_type)
+            self._log.warning("upsert_records(%s): empty DataFrame, nothing to upsert", object_type)
             return UpsertResult(success_count=0, failure_count=0, redact=self._redact_field)
 
         if force_bulk or len(records) > BULK_THRESHOLD:
-            log.info(
+            self._log.info(
                 "upsert_records(%s): routing to Bulk API v2 (%d records)",
                 object_type, len(records),
             )
@@ -736,7 +734,7 @@ class SalesforceConnector(_SecretRedactionMixin):
         ]
 
         for batch_idx, batch in enumerate(batches):
-            log.info(
+            self._log.info(
                 "upsert_records(%s): batch %d/%d (%d records)",
                 object_type, batch_idx + 1, len(batches), len(batch),
             )
@@ -754,7 +752,7 @@ class SalesforceConnector(_SecretRedactionMixin):
                 processed = min((batch_idx + 1) * self.COMPOSITE_BATCH_SIZE, total)
                 progress_callback("processing", processed, total)
 
-        log.info(
+        self._log.info(
             "upsert_records(%s): %d succeeded, %d failed (total %d)",
             object_type, total_success, total_failure, total_success + total_failure,
         )
@@ -822,13 +820,13 @@ class SalesforceConnector(_SecretRedactionMixin):
         total = len(records)
 
         job_id = self._bulk_create_job(object_type, operation, external_id_field)
-        log.info("Bulk API %s job created: %s (%d records)", operation, job_id, total)
+        self._log.info("Bulk API %s job created: %s (%d records)", operation, self._redact_field(job_id), total)
 
         if progress_callback:
             progress_callback("uploading", 0, total)
 
         self._bulk_upload_data(job_id, csv_data)
-        log.info("Bulk API job %s: CSV data uploaded (%d bytes)", job_id, len(csv_data))
+        self._log.info("Bulk API job %s: CSV data uploaded (%d bytes)", self._redact_field(job_id), len(csv_data))
 
         self._bulk_close_job(job_id)
 
@@ -838,9 +836,9 @@ class SalesforceConnector(_SecretRedactionMixin):
         job_info = self._bulk_poll_job(job_id, total, progress_callback)
         result = self._bulk_collect_results(job_id, job_info)
 
-        log.info(
+        self._log.info(
             "Bulk API job %s complete: %d succeeded, %d failed",
-            job_id, result.success_count, result.failure_count,
+            self._redact_field(job_id), result.success_count, result.failure_count,
         )
         return result
 
@@ -916,9 +914,9 @@ class SalesforceConnector(_SecretRedactionMixin):
             processed = job_info.get("numberRecordsProcessed", 0)
             failed = job_info.get("numberRecordsFailed", 0)
 
-            log.info(
+            self._log.info(
                 "Bulk API job %s: state=%s, processed=%d, failed=%d (%.0fs elapsed)",
-                job_id, state, processed, failed, elapsed,
+                self._redact_field(job_id), self._redact_field(state), processed, failed, elapsed,
             )
 
             if progress_callback:
@@ -1150,14 +1148,14 @@ class SalesforceConnector(_SecretRedactionMixin):
         data = self.request("GET", path, params={"q": soql})
         all_records: list[dict[str, Any]] = data.get("records", [])
         total = data.get("totalSize", len(all_records))
-        log.info("SOQL query returned %d total records (first page: %d)", total, len(all_records))
+        self._log.info("SOQL query returned %d total records (first page: %d)", total, len(all_records))
 
         while data.get("nextRecordsUrl"):
             next_path = data["nextRecordsUrl"]
             data = self.request("GET", next_path)
             page_records = data.get("records", [])
             all_records.extend(page_records)
-            log.info("Fetched page: %d records (total so far: %d)", len(page_records), len(all_records))
+            self._log.info("Fetched page: %d records (total so far: %d)", len(page_records), len(all_records))
 
         return all_records
 
@@ -1205,7 +1203,7 @@ class SalesforceConnector(_SecretRedactionMixin):
             and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
         ):
             if self._refresh_token:
-                log.info("Token expires soon or has expired, refreshing...")
+                self._log.info("Token expires soon or has expired, refreshing...")
                 self.refresh_access_token()
             else:
                 raise ConnectorAuthError("Access token expired. Re-authenticate.")
@@ -1221,7 +1219,7 @@ class SalesforceConnector(_SecretRedactionMixin):
             "password": f"{self._password}{self._security_token}",
         }
         self._exchange_token(token_url, payload)
-        log.info(
+        self._log.info(
             "Authenticated via Username-Password Flow as %s (instance: %s)",
             self._username, self._instance_url,
         )
@@ -1309,7 +1307,7 @@ class SalesforceConnector(_SecretRedactionMixin):
                 encoding_failure = type(exc).__name__
             except requests.exceptions.RequestException as exc:
                 last_failure = type(exc).__name__
-                log.warning(
+                self._log.warning(
                     "Salesforce request attempt %d/%d failed: %s",
                     attempt, attempts, last_failure,
                 )
@@ -1351,7 +1349,7 @@ class SalesforceConnector(_SecretRedactionMixin):
 
             if 500 <= resp.status_code < 600:
                 last_failure = f"HTTP {resp.status_code}"
-                log.warning(
+                self._log.warning(
                     "Salesforce %s %s 5xx %d attempt %d/%d",
                     method, self._redact_field(path), resp.status_code, attempt, attempts,
                 )

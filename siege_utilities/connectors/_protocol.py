@@ -141,6 +141,31 @@ class _SecretRedactionMixin:
         "_client_secret", "_access_token", "_refresh_token", "_password", "_api_key",
     )
 
+    @property
+    def _log(self):
+        """Instance logger that redacts this connector's configured values.
+
+        Every record emitted through this adapter is redacted against the
+        instance's own secret values, so a log site that interpolates a value
+        equal to a configured long credential cannot leak it even without an
+        explicit ``_redact_field`` call. Short configured values still need
+        site-level suppression via ``_redact_field`` (the shared length floor
+        keeps the adapter from blanking common short strings). Cached per
+        instance; the bound ``_secret_values`` tracks later credential changes.
+        """
+        adapter = self.__dict__.get("_redacting_log")
+        if adapter is None:
+            import logging
+
+            from siege_utilities.connectors._http import RedactingLogger
+
+            adapter = RedactingLogger(
+                logging.getLogger(type(self).__module__),
+                {"secret_values": self._secret_values},
+            )
+            self.__dict__["_redacting_log"] = adapter
+        return adapter
+
     def _secret_values(self) -> "list[str] | object":
         """Configured secret values to redact, or the fail-closed signal.
 

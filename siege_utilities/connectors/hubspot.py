@@ -17,7 +17,6 @@ canonical :mod:`connectors._models` shapes via ``to_crm_contacts()``,
 
 from __future__ import annotations
 
-import logging
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
@@ -35,7 +34,7 @@ except ImportError:  # pragma: no cover
 from siege_utilities.connectors._retry import (
     backoff_wait, rate_limit_error, retry_attempts, validate_wait_settings,
 )
-from siege_utilities.connectors._http import RedactingLogger, RefreshOn401
+from siege_utilities.connectors._http import RefreshOn401
 from siege_utilities.connectors._protocol import (
     ConnectorAuthError,
     ConnectorError,
@@ -46,7 +45,6 @@ from siege_utilities.connectors._protocol import (
     sanitize_record,
 )
 
-log = RedactingLogger(logging.getLogger(__name__), {})
 
 HUBSPOT_API_BASE = "https://api.hubapi.com"
 HUBSPOT_AUTH_BASE = "https://app.hubspot.com"
@@ -158,7 +156,7 @@ class HubSpotConnector(_SecretRedactionMixin):
             "Content-Type": "application/json",
             "User-Agent": "siege_utilities/HubSpotConnector",
         })
-        log.info("HubSpotConnector initialised (mode: %s)",
+        self._log.info("HubSpotConnector initialised (mode: %s)",
                  "private_app" if self._is_private_app else "oauth")
 
     def close(self) -> None:
@@ -208,7 +206,7 @@ class HubSpotConnector(_SecretRedactionMixin):
             "redirect_uri": redirect_uri,
         }
         self._exchange_token(token_url, payload)
-        log.info("Authenticated via OAuth authorization code flow")
+        self._log.info("Authenticated via OAuth authorization code flow")
 
     def get_authorization_url(
         self,
@@ -251,7 +249,7 @@ class HubSpotConnector(_SecretRedactionMixin):
             "client_secret": self._client_secret,
         }
         self._exchange_token(token_url, payload)
-        log.info("Access token refreshed")
+        self._log.info("Access token refreshed")
 
     # ------------------------------------------------------------------
     # ConnectorProtocol — read operations
@@ -425,7 +423,7 @@ class HubSpotConnector(_SecretRedactionMixin):
         record_id = resp.get("id", "")
         if not record_id:
             raise ConnectorError(f"HubSpot create {object_type} returned no ID")
-        log.info("Created %s record: %s", object_type, self._redact_field(record_id))
+        self._log.info("Created %s record: %s", object_type, self._redact_field(record_id))
         return record_id
 
     def update_record(
@@ -433,7 +431,7 @@ class HubSpotConnector(_SecretRedactionMixin):
     ) -> bool:
         path = f"/crm/v3/objects/{object_type}/{record_id}"
         self.request("PATCH", path, json_body={"properties": data})
-        log.info("Updated %s record: %s", object_type, self._redact_field(record_id))
+        self._log.info("Updated %s record: %s", object_type, self._redact_field(record_id))
         return True
 
     def upsert_records(
@@ -446,7 +444,7 @@ class HubSpotConnector(_SecretRedactionMixin):
         from siege_utilities.connectors._protocol import UpsertError
 
         if records.empty:
-            log.warning("upsert_records(%s): empty DataFrame", object_type)
+            self._log.warning("upsert_records(%s): empty DataFrame", object_type)
             return UpsertResult(success_count=0, failure_count=0, redact=self._redact_field)
 
         record_dicts = [sanitize_record(row) for row in records.to_dict(orient="records")]
@@ -462,7 +460,7 @@ class HubSpotConnector(_SecretRedactionMixin):
         total_failure = 0
 
         for batch_idx, batch in enumerate(batches):
-            log.info(
+            self._log.info(
                 "upsert_records(%s): batch %d/%d (%d records)",
                 object_type, batch_idx + 1, len(batches), len(batch),
             )
@@ -507,7 +505,7 @@ class HubSpotConnector(_SecretRedactionMixin):
                     code=self._redact_field(category) if category is not None else None,
                 ))
 
-        log.info(
+        self._log.info(
             "upsert_records(%s): %d succeeded, %d failed",
             object_type, total_success, total_failure,
         )
@@ -541,7 +539,7 @@ class HubSpotConnector(_SecretRedactionMixin):
                 "associationTypeId": association_type,
             })
         self.request("PUT", path, json_body=body)
-        log.info("Associated %s/%s → %s/%s", from_type, from_id, to_type, to_id)
+        self._log.info("Associated %s/%s -> %s/%s", from_type, self._redact_field(from_id), to_type, self._redact_field(to_id))
 
     def remove_association(
         self,
@@ -553,7 +551,7 @@ class HubSpotConnector(_SecretRedactionMixin):
         """Remove an association between two records."""
         path = f"/crm/v3/objects/{from_type}/{from_id}/associations/{to_type}/{to_id}"
         self.request("DELETE", path)
-        log.info("Removed association %s/%s → %s/%s", from_type, from_id, to_type, to_id)
+        self._log.info("Removed association %s/%s -> %s/%s", from_type, self._redact_field(from_id), to_type, self._redact_field(to_id))
 
     def merge_contacts(self, primary_id: str, secondary_id: str) -> None:
         """Merge two contacts, keeping the primary."""
@@ -562,7 +560,7 @@ class HubSpotConnector(_SecretRedactionMixin):
             "primaryObjectId": primary_id,
             "objectIdToMerge": secondary_id,
         })
-        log.info("Merged contact %s into %s", secondary_id, primary_id)
+        self._log.info("Merged contact %s into %s", self._redact_field(secondary_id), self._redact_field(primary_id))
 
     # ------------------------------------------------------------------
     # Internal — list and search
@@ -593,7 +591,7 @@ class HubSpotConnector(_SecretRedactionMixin):
             results = data.get("results", [])
             all_records.extend(results)
 
-            log.info("Listed %s: %d records (total so far: %d)",
+            self._log.info("Listed %s: %d records (total so far: %d)",
                      object_type, len(results), len(all_records))
 
             if limit is not None and len(all_records) >= limit:
@@ -656,7 +654,7 @@ class HubSpotConnector(_SecretRedactionMixin):
             results = data.get("results", [])
             all_records.extend(results)
 
-            log.info("Searched %s: %d results (total so far: %d)",
+            self._log.info("Searched %s: %d results (total so far: %d)",
                      object_type, len(results), len(all_records))
 
             if limit is not None and len(all_records) >= limit:
@@ -708,7 +706,7 @@ class HubSpotConnector(_SecretRedactionMixin):
             and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
         ):
             if self._refresh_token:
-                log.info("Token expires soon or has expired, refreshing...")
+                self._log.info("Token expires soon or has expired, refreshing...")
                 self.refresh_access_token()
             else:
                 raise ConnectorAuthError("Access token expired. Re-authenticate.")
@@ -722,7 +720,7 @@ class HubSpotConnector(_SecretRedactionMixin):
         except Exception:
             self._authenticated = False
             raise
-        log.info("Private app token validated")
+        self._log.info("Private app token validated")
 
     def _exchange_token(self, token_url: str, payload: dict[str, str]) -> None:
         try:
@@ -795,7 +793,7 @@ class HubSpotConnector(_SecretRedactionMixin):
                 encoding_failure = type(exc).__name__
             except requests.exceptions.RequestException as exc:
                 last_failure = type(exc).__name__
-                log.warning(
+                self._log.warning(
                     "HubSpot request attempt %d/%d failed: %s",
                     attempt, attempts, last_failure,
                 )
@@ -837,7 +835,7 @@ class HubSpotConnector(_SecretRedactionMixin):
 
             if 500 <= resp.status_code < 600:
                 last_failure = f"HTTP {resp.status_code}"
-                log.warning(
+                self._log.warning(
                     "HubSpot %s %s 5xx %d attempt %d/%d",
                     method, self._redact_field(path), resp.status_code, attempt, attempts,
                 )

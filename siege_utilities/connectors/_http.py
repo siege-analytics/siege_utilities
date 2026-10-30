@@ -10,12 +10,34 @@ from siege_utilities.connectors._retry import backoff_wait, rate_limit_error, re
 
 
 class RedactingLogger(logging.LoggerAdapter):
-    """Remove secrets before creating a record, including its message args."""
+    """Remove secrets before creating a record, including its message args.
+
+    When bound to a connector (``extra={"secret_values": conn._secret_values}``)
+    every record is additionally redacted against that connector's configured
+    secret values, so a connector's own log line cannot echo a configured
+    credential even if a new call site forgets to redact its arguments. The
+    module-level logger (``extra={}``) keeps only the key/syntax redaction.
+    Value redaction honours the shared length floor, so short configured values
+    are still suppressed at the call site via ``_redact_field`` (#1846 r4-2).
+    """
 
     def log(self, level, msg, *args, **kwargs):
         if self.isEnabledFor(level):
             text = str(msg) % args if args else str(msg)
-            self.logger.log(level, redact_secrets(text), **kwargs)
+            self.logger.log(
+                level, redact_secrets(text, values=self._configured_values()), **kwargs,
+            )
+
+    def _configured_values(self):
+        provider = (self.extra or {}).get("secret_values")
+        if provider is None:
+            return ()
+        from siege_utilities.connectors._protocol import _SECRET_COLLECTION_FAILED
+
+        values = provider()  # _secret_values is itself fail-closed and never raises
+        if values is _SECRET_COLLECTION_FAILED or not isinstance(values, (list, tuple)):
+            return ()
+        return values
 
 
 class RefreshOn401:

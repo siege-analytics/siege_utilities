@@ -11,7 +11,6 @@ requests use ``requests`` for consistency with other connectors.
 
 from __future__ import annotations
 
-import logging
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -37,7 +36,7 @@ except ImportError:
 from siege_utilities.connectors._retry import (
     backoff_wait, rate_limit_error, retry_attempts, validate_wait_settings,
 )
-from siege_utilities.connectors._http import RedactingLogger, RefreshOn401, request_raw
+from siege_utilities.connectors._http import RefreshOn401, request_raw
 from siege_utilities.connectors._protocol import (
     ConnectorAuthError,
     ConnectorError,
@@ -48,7 +47,6 @@ from siege_utilities.connectors._protocol import (
 )
 from siege_utilities.connectors._query_utils import _validate_identifier
 
-log = RedactingLogger(logging.getLogger(__name__), {})
 
 DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
@@ -196,7 +194,7 @@ class DynamicsConnector(_SecretRedactionMixin):
             "Prefer": f'odata.include-annotations="{FORMATTED_VALUE_ANNOTATION}"',
             "User-Agent": "siege_utilities/DynamicsConnector",
         })
-        log.info("DynamicsConnector initialised (env: %s)", self._environment_url)
+        self._log.info("DynamicsConnector initialised (env: %s)", self._environment_url)
 
     def close(self) -> None:
         self._session.close()
@@ -339,7 +337,7 @@ class DynamicsConnector(_SecretRedactionMixin):
             root.set("page", str(next_page))
             page = next_page
         if not records:
-            log.warning("FetchXML query returned 0 records")
+            self._log.warning("FetchXML query returned 0 records")
             return pd.DataFrame()
         return pd.DataFrame(records)
 
@@ -507,7 +505,7 @@ class DynamicsConnector(_SecretRedactionMixin):
             raise ConnectorError(
                 f"Dynamics create {entity_set} succeeded but returned no record id."
             )
-        log.info("Created %s record: %s", entity_set, self._redact_field(record_id))
+        self._log.info("Created %s record: %s", entity_set, self._redact_field(record_id))
         return record_id
 
     def update_record(
@@ -516,7 +514,7 @@ class DynamicsConnector(_SecretRedactionMixin):
         entity_set = STANDARD_ENTITIES.get(object_type, object_type)
         path = f"/api/data/v9.2/{entity_set}({record_id})"
         self.request("PATCH", path, json_body=data)
-        log.info("Updated %s record: %s", entity_set, self._redact_field(record_id))
+        self._log.info("Updated %s record: %s", entity_set, self._redact_field(record_id))
         return True
 
     def upsert_records(
@@ -529,7 +527,7 @@ class DynamicsConnector(_SecretRedactionMixin):
         from siege_utilities.connectors._protocol import UpsertError
 
         if records.empty:
-            log.warning("upsert_records(%s): empty DataFrame", object_type)
+            self._log.warning("upsert_records(%s): empty DataFrame", object_type)
             return UpsertResult(success_count=0, failure_count=0, redact=self._redact_field)
 
         entity_set = STANDARD_ENTITIES.get(object_type, object_type)
@@ -546,7 +544,7 @@ class DynamicsConnector(_SecretRedactionMixin):
         total_failure = 0
 
         for batch_idx, batch in enumerate(batches):
-            log.info(
+            self._log.info(
                 "upsert_records(%s): batch %d/%d (%d records)",
                 object_type, batch_idx + 1, len(batches), len(batch),
             )
@@ -560,7 +558,7 @@ class DynamicsConnector(_SecretRedactionMixin):
             all_updated.extend(result.updated_ids)
             all_errors.extend(result.errors)
 
-        log.info(
+        self._log.info(
             "upsert_records(%s): %d succeeded, %d failed",
             object_type, total_success, total_failure,
         )
@@ -807,7 +805,7 @@ class DynamicsConnector(_SecretRedactionMixin):
         data = self.request("GET", path, params=params)
         records = data.get("value", [])
         all_records.extend(records)
-        log.info("OData query %s: %d records", entity_set, len(records))
+        self._log.info("OData query %s: %d records", entity_set, len(records))
 
         while data.get("@odata.nextLink"):
             next_url = data["@odata.nextLink"]
@@ -815,10 +813,10 @@ class DynamicsConnector(_SecretRedactionMixin):
             data = self.request("GET", rel_path)
             page_records = data.get("value", [])
             all_records.extend(page_records)
-            log.info("OData page: %d records (total: %d)", len(page_records), len(all_records))
+            self._log.info("OData page: %d records (total: %d)", len(page_records), len(all_records))
 
         if not all_records:
-            log.warning("get_objects(%s): 0 records", entity_set)
+            self._log.warning("get_objects(%s): 0 records", entity_set)
             return pd.DataFrame(columns=columns or [])
 
         return pd.DataFrame(all_records)
@@ -845,7 +843,7 @@ class DynamicsConnector(_SecretRedactionMixin):
                 + (f": {detail}" if detail else "")
             )
         self._set_token(result)
-        log.info("Authenticated via client credentials (env: %s)", self._environment_url)
+        self._log.info("Authenticated via client credentials (env: %s)", self._environment_url)
 
     def _auth_username_password(self) -> None:
         """Delegated auth via username/password (ROPC)."""
@@ -868,7 +866,7 @@ class DynamicsConnector(_SecretRedactionMixin):
                 "Dynamics 365 user auth failed" + (f": {detail}" if detail else "")
             )
         self._set_token(result)
-        log.info("Authenticated via username/password (env: %s)", self._environment_url)
+        self._log.info("Authenticated via username/password (env: %s)", self._environment_url)
 
     def _set_token(self, result: dict[str, Any]) -> None:
         self._access_token = result["access_token"]
@@ -888,7 +886,7 @@ class DynamicsConnector(_SecretRedactionMixin):
             self._token_expires_at is not None
             and datetime.now(timezone.utc) + TOKEN_REFRESH_MARGIN >= self._token_expires_at
         ):
-            log.info("Token expires soon or has expired, re-authenticating...")
+            self._log.info("Token expires soon or has expired, re-authenticating...")
             self.refresh_access_token()
 
     def request(
@@ -928,7 +926,7 @@ class DynamicsConnector(_SecretRedactionMixin):
                 encoding_failure = type(exc).__name__
             except requests.exceptions.RequestException as exc:
                 last_failure = type(exc).__name__
-                log.warning(
+                self._log.warning(
                     "Dynamics request attempt %d/%d failed: %s",
                     attempt, attempts, last_failure,
                 )
@@ -970,7 +968,7 @@ class DynamicsConnector(_SecretRedactionMixin):
 
             if 500 <= resp.status_code < 600:
                 last_failure = f"HTTP {resp.status_code}"
-                log.warning(
+                self._log.warning(
                     "Dynamics %s %s 5xx %d attempt %d/%d",
                     method, self._redact_field(path), resp.status_code, attempt, attempts,
                 )
