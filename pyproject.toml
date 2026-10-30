@@ -191,7 +191,9 @@ web = [
 ]
 # DuckDB performance backend
 performance = [
-    "duckdb>=0.7.0",
+    # Upper bound: DuckDB 2.0 changes tokenizer byte offsets and prepared-statement
+    # result metadata, breaking the class-hardening suite. Pinned pending 2.0 support.
+    "duckdb>=0.7.0,<2.0",
 ]
 # Database connectivity
 database = [
@@ -333,7 +335,9 @@ all = [
     "beautifulsoup4>=4.12.0",
     "lxml>=4.9.0",
     # performance
-    "duckdb>=0.7.0",
+    # Upper bound: DuckDB 2.0 changes tokenizer byte offsets and prepared-statement
+    # result metadata, breaking the class-hardening suite. Pinned pending 2.0 support.
+    "duckdb>=0.7.0,<2.0",
     # database
     "sqlalchemy>=1.4.0",
     # 3d
