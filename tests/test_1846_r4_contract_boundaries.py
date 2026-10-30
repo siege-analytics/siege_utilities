@@ -1,5 +1,4 @@
 """Independent FINAL D1-D5 controls; all credentials synthetic, all HTTP intercepted."""
-import json
 import logging
 import re
 import traceback
