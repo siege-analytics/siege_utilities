@@ -143,17 +143,22 @@ class DictRedistrictingDataProvider(RedistrictingDataProvider):
         """Return assignments overlapping the inclusive years, in either order.
 
         Assignments use [from_date, to_date), with None for an unbounded end.
-        Empty spans never apply. Inverted bounds raise ValueError.
-        The state filter accepts FIPS codes or abbreviations.
+        Empty spans never apply. The state filter accepts FIPS codes or
+        abbreviations and is applied before span validation, so inverted bounds
+        raise ValueError only for assignments within the queried state; rows for
+        other states are filtered out first.
         """
         from_date = date(min(from_year, to_year), 1, 1)
         to_date = date(max(from_year, to_year), 12, 31)
         state = FIPS_TO_STATE.get(state_fips, state_fips.upper()) if state_fips else None
         results = []
         for a in self._assignments:
-            if not _has_nonempty_span(a):
-                continue
+            # Scope to the queried state before validating spans, so an invalid
+            # span in an unrelated state cannot abort a valid in-state query.
+            # A queried-state inverted span still raises in _has_nonempty_span.
             if state and a.state.upper() != state:
+                continue
+            if not _has_nonempty_span(a):
                 continue
             if a.to_date and a.to_date <= from_date:
                 continue
