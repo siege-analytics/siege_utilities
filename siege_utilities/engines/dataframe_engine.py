@@ -1179,11 +1179,58 @@ class DuckDBEngine(DataFrameEngine):
             )
             if merged_crs:
                 result.attrs[_GEOMETRY_CRS_ATTR] = merged_crs
+                # A geometry-aware result (merged GeoDataFrame) carries its CRS
+                # on the live GeoSeries, which to_geodataframe trusts over the
+                # attrs map; stamp the resolved CRS there so a right join yields
+                # the right side's CRS and non-key columns keep their own.
+                self._apply_geoseries_crs(result, merged_crs)
             return result
         raise TypeError(
             "DuckDBEngine.join expects pandas DataFrames "
             "(use .query() with JOIN for pure-SQL workflows)"
         )
+
+    @staticmethod
+    def _is_geometry_column(frame: Any, col: Any) -> bool:
+        """True when *col* carries geometry CRS on *frame*.
+
+        A geometry-aware input (GeoDataFrame) exposes the column as a GeoSeries
+        (it has a ``crs`` attribute even when that CRS is None); the raw-WKB path
+        records the column only in the ``siege_geometry_crs`` attrs map. Either
+        marks the column as a geometry key/column.
+        """
+        crs_map = frame.attrs.get(_GEOMETRY_CRS_ATTR, {})
+        if col in crs_map:
+            return True
+        return col in getattr(frame, "columns", ()) and hasattr(frame[col], "crs")
+
+    @staticmethod
+    def _column_crs(frame: Any, col: Any) -> Any:
+        """The authoritative CRS of *col*: the live GeoSeries CRS if the column
+        is one, otherwise the ``siege_geometry_crs`` attrs entry. When both exist
+        the GeoSeries wins, because it is the real, validated CRS of the data.
+        """
+        if col in getattr(frame, "columns", ()):
+            series_crs = getattr(frame[col], "crs", None)
+            if series_crs is not None:
+                return series_crs
+        return frame.attrs.get(_GEOMETRY_CRS_ATTR, {}).get(col)
+
+    @staticmethod
+    def _apply_geoseries_crs(result: Any, merged_crs: dict) -> None:
+        """Stamp resolved CRS onto the merged frame's live GeoSeries columns.
+
+        pandas.merge can carry the wrong (left) CRS or None onto a coalesced
+        geometry column; ``to_geodataframe`` trusts the GeoSeries CRS for an
+        already geometry-aware frame, so each GeoSeries column is set to the CRS
+        resolved by the R-1852 rule. Non-GeoSeries (raw-WKB) columns are left to
+        the attrs map, and a resolved None is left unchanged.
+        """
+        for col, crs in merged_crs.items():
+            if crs is None:
+                continue
+            if col in getattr(result, "columns", ()) and hasattr(result[col], "crs"):
+                result[col] = result[col].set_crs(crs, allow_override=True)
 
     @staticmethod
     def _crs_equal(left_crs: Any, right_crs: Any) -> bool:
@@ -1241,34 +1288,36 @@ class DuckDBEngine(DataFrameEngine):
     ) -> dict:
         """Resolve/validate the CRS of each coalesced geometry join key.
 
-        A key is a geometry key when it is present in either input's CRS map
-        (a scalar key is absent from both maps and carries no CRS). Each such
-        key is resolved independently, so the rule applies per component of a
-        composite key. Raises before the merge on a conflicting or
-        outer-unjoinable CRS pair.
+        A key is a geometry key when either input carries geometry CRS for it --
+        a live GeoSeries CRS (GeoDataFrame inputs) or an entry in the
+        ``siege_geometry_crs`` attrs map (raw-WKB inputs); a scalar key carries
+        no CRS and is skipped. Each key's CRS is read with the GeoSeries winning
+        over the attrs map, and resolved independently, so the rule applies per
+        component of a composite key. Raises before the merge on a conflicting
+        or outer-unjoinable CRS pair.
         """
         on_cols = {on} if isinstance(on, str) else set(on)
-        left_map = left.attrs.get(_GEOMETRY_CRS_ATTR, {})
-        right_map = right.attrs.get(_GEOMETRY_CRS_ATTR, {})
         resolved: dict = {}
         for key in on_cols:
-            if key not in left_map and key not in right_map:
+            if not (cls._is_geometry_column(left, key) or cls._is_geometry_column(right, key)):
                 continue
             resolved[key] = cls._coalesce_key_crs(
-                left_map.get(key), right_map.get(key), how, key
+                cls._column_crs(left, key), cls._column_crs(right, key), how, key
             )
         return resolved
 
-    @staticmethod
+    @classmethod
     def _merge_geometry_crs(
-        left: Any, right: Any, result: Any, on: Union[str, List[str]],
+        cls, left: Any, right: Any, result: Any, on: Union[str, List[str]],
         suffixes: tuple, key_crs: dict,
     ) -> dict:
         """Carry per-column geometry CRS across a pandas merge.
 
-        pandas.merge does not preserve ``DataFrame.attrs``, so the CRS map stored
-        by ``_materialize_geometry_wkb`` is lost. Rebuild it from both inputs,
+        pandas.merge does not preserve ``DataFrame.attrs`` (or a GeoSeries CRS on
+        a suffixed column), so rebuild the per-column CRS map from both inputs,
         applying the merge suffix to any non-key column present in both frames.
+        Each column's CRS is read with the live GeoSeries winning over the attrs
+        map, so geometry-aware (GeoDataFrame) inputs are covered too.
 
         Coalesced geometry keys take the CRS resolved by
         :meth:`_resolve_geometry_key_crs`. Non-key overlapping geometry columns
@@ -1282,12 +1331,15 @@ class DuckDBEngine(DataFrameEngine):
                 merged[key] = crs
         for frame, suffix in ((left, suffixes[0]), (right, suffixes[1])):
             crs_map = frame.attrs.get(_GEOMETRY_CRS_ATTR, {})
-            for col, crs in crs_map.items():
+            geom_cols = set(crs_map) | {
+                col for col in getattr(frame, "columns", ()) if hasattr(frame[col], "crs")
+            }
+            for col in geom_cols:
                 if col in on_cols:
                     continue
                 new_col = f"{col}{suffix}" if col in overlap else col
                 if new_col in result.columns:
-                    merged[new_col] = crs
+                    merged[new_col] = cls._column_crs(frame, col)
         return merged
 
     # -- Spatial -----------------------------------------------------------
