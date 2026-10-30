@@ -201,20 +201,24 @@ def test_unknown_crs_stays_none_through_engine_attribute_join(typed_engine):
     assert result.crs is None
 
 
-# -- #1852 R1 re-review: geometry join-key CRS provenance -------------------
-# Adopted from snug-coral's test_rereview_delta.py (#1852 scoped re-review),
-# adapted to the repo's typed_engine fixture (which skips on DuckDB < 1.5). The
-# key test must be red at 46f4b882 and green on develop and at the new head.
+# -- geometry join-key CRS coalescing rule ----------------------------------
+# A coalesced geometry join key gets the CRS of the side that supplies it
+# (left for inner/left, right for right). Two conflicting KNOWN CRSes are
+# rejected before the merge in every join mode; an outer join additionally
+# rejects a known-vs-unknown pair, since it keeps unmatched rows from both
+# sides and one geometry column cannot carry two provenances. This replaces
+# the earlier "left always wins" provenance and is a deliberate behaviour
+# change from develop, which accepts mixed CRS and mislabels the result 4326.
 
 
-@pytest.mark.parametrize("right_epsg", [None, 3857])
-def test_left_geometry_join_key_is_not_relabelled_from_right(typed_engine, right_epsg):
+def test_left_key_crs_is_source_selected_not_relabelled_from_unknown_right(typed_engine):
+    # how="left": the surviving key is the left frame's, so an unknown right
+    # key must not erase the known left CRS (source selection picks left).
     left = typed_engine.query(
         "SELECT 1 AS pid, ST_Point(-97, 30)::GEOMETRY('EPSG:4326') AS geometry"
     )
-    cast = f"::GEOMETRY('EPSG:{right_epsg}')" if right_epsg else ""
     right = typed_engine.query(
-        f"SELECT ST_Point(500, 1000){cast} AS geometry, 'x' AS note_text"
+        "SELECT ST_Point(500, 1000) AS geometry, 'x' AS note_text"
     )
     out = typed_engine.to_geodataframe(
         typed_engine.join(left, right, on="geometry", how="left")
@@ -251,3 +255,54 @@ def test_suffixes_keep_both_geometry_crses(typed_engine):
     b = typed_engine.to_geodataframe(out, "geometry_y")
     assert a.crs.to_epsg() == 4326 and a.geometry.iloc[0].wkt == "POINT (-97 30)"
     assert b.crs.to_epsg() == 3857 and b.geometry.iloc[0].wkt == "POINT (500 1000)"
+
+
+@pytest.mark.parametrize("how", ["inner", "left", "right", "outer"])
+def test_conflicting_known_key_crs_rejected_in_every_mode(typed_engine, how):
+    # Two different KNOWN CRSes on a coalesced geometry key cannot be reconciled
+    # without reprojection, so the join is rejected before execution regardless
+    # of mode. The message names both CRSes.
+    left = typed_engine.query(
+        "SELECT ST_Point(-97, 30)::GEOMETRY('EPSG:4326') AS geometry"
+    )
+    right = typed_engine.query(
+        "SELECT ST_Point(500, 1000)::GEOMETRY('EPSG:3857') AS geometry, 'x' AS note_text"
+    )
+    with pytest.raises(ValueError, match="conflicting geometry CRS"):
+        typed_engine.join(left, right, on="geometry", how=how)
+
+
+def test_right_join_key_takes_right_crs_not_unknown_left(typed_engine):
+    # how="right": the surviving key is the right frame's, so a known right CRS
+    # is selected over the unknown left (the result must be 3857, not None).
+    left = typed_engine.query("SELECT ST_Point(-97, 30) AS geometry, 'L' AS left_note")
+    right = typed_engine.query(
+        "SELECT ST_Point(500, 1000)::GEOMETRY('EPSG:3857') AS geometry"
+    )
+    out = typed_engine.to_geodataframe(
+        typed_engine.join(left, right, on="geometry", how="right")
+    )
+    assert out.geometry.iloc[0].wkt == "POINT (500 1000)"
+    assert out.crs is not None, "Right key CRS dropped to unknown left"
+    assert out.crs.to_epsg() == 3857, f"Right key relabelled from left {out.crs}"
+
+
+def test_outer_join_rejects_known_vs_unknown_key_crs(typed_engine):
+    # An outer join keeps unmatched rows from both sides; a single geometry
+    # column cannot label some rows 4326 and leave others unknown, so a
+    # known-vs-unknown key CRS is rejected (not source-selected).
+    left = typed_engine.query(
+        "SELECT ST_Point(-97, 30)::GEOMETRY('EPSG:4326') AS geometry"
+    )
+    right = typed_engine.query("SELECT ST_Point(500, 1000) AS geometry, 'x' AS note_text")
+    with pytest.raises(ValueError, match="outer join"):
+        typed_engine.join(left, right, on="geometry", how="outer")
+
+
+def test_outer_join_unknown_both_sides_stays_none(typed_engine):
+    left = typed_engine.query("SELECT ST_Point(-97, 30) AS geometry")
+    right = typed_engine.query("SELECT ST_Point(500, 1000) AS geometry, 'x' AS note_text")
+    out = typed_engine.to_geodataframe(
+        typed_engine.join(left, right, on="geometry", how="outer")
+    )
+    assert out.crs is None

@@ -1166,11 +1166,17 @@ class DuckDBEngine(DataFrameEngine):
         import pandas as pd
         if isinstance(left, pd.DataFrame) and isinstance(right, pd.DataFrame):
             suffixes = ("_x", "_y")
+            # Resolve the CRS of every coalesced geometry key BEFORE merging, so
+            # a conflicting or outer-unjoinable pair is rejected before any rows
+            # are produced.
+            key_crs = self._resolve_geometry_key_crs(left, right, on, how)
             result = left.merge(right, on=on, how=how, suffixes=suffixes)
             # pandas.merge drops DataFrame.attrs, where per-column geometry CRS
             # lives. Re-attach it so a known CRS survives an attribute join,
             # remapping any non-key column the merge suffixed.
-            merged_crs = self._merge_geometry_crs(left, right, result, on, suffixes)
+            merged_crs = self._merge_geometry_crs(
+                left, right, result, on, suffixes, key_crs
+            )
             if merged_crs:
                 result.attrs[_GEOMETRY_CRS_ATTR] = merged_crs
             return result
@@ -1180,9 +1186,83 @@ class DuckDBEngine(DataFrameEngine):
         )
 
     @staticmethod
+    def _crs_equal(left_crs: Any, right_crs: Any) -> bool:
+        """Compare two known CRS values semantically, not by raw string.
+
+        Stored CRS values are heterogeneous strings (``EPSG:n``, WKT, PROJJSON,
+        proj4). Identical strings short-circuit; otherwise both sides are
+        canonicalized through :func:`siege_utilities.geo.crs._normalize_crs`
+        (which pulls in pyproj) before comparing.
+        """
+        if left_crs == right_crs:
+            return True
+        from siege_utilities.geo.crs import _normalize_crs
+
+        return _normalize_crs(left_crs) == _normalize_crs(right_crs)
+
+    @classmethod
+    def _coalesce_key_crs(
+        cls, left_crs: Any, right_crs: Any, how: str, key: Any,
+    ) -> Any:
+        """Resolve the CRS of one coalesced geometry join key.
+
+        Two different KNOWN CRSes are rejected in every mode. A known-vs-None
+        pair is source-selected for inner/left/right (the CRS of the side that
+        supplies the surviving key) but rejected for outer, which keeps
+        unmatched rows from both sides. None/None stays None.
+        """
+        left_known = left_crs is not None
+        right_known = right_crs is not None
+        if left_known and right_known:
+            if cls._crs_equal(left_crs, right_crs):
+                return left_crs
+            raise ValueError(
+                f"join key {key!r} has conflicting geometry CRS: "
+                f"left {left_crs!r} vs right {right_crs!r}; reproject one side "
+                f"to a common CRS before joining"
+            )
+        if how == "outer":
+            if not left_known and not right_known:
+                return None
+            raise ValueError(
+                f"outer join on geometry key {key!r} needs a known CRS on both "
+                f"sides; got left {left_crs!r} and right {right_crs!r}. An outer "
+                f"join keeps unmatched rows from both frames, so the key column "
+                f"cannot carry one known and one unknown CRS; set the CRS on "
+                f"both sides before joining"
+            )
+        # inner/left/right: the surviving key comes from the left frame for
+        # inner and left joins, and from the right frame for a right join.
+        return right_crs if how == "right" else left_crs
+
+    @classmethod
+    def _resolve_geometry_key_crs(
+        cls, left: Any, right: Any, on: Union[str, List[str]], how: str,
+    ) -> dict:
+        """Resolve/validate the CRS of each coalesced geometry join key.
+
+        A key is a geometry key when it is present in either input's CRS map
+        (a scalar key is absent from both maps and carries no CRS). Each such
+        key is resolved independently, so the rule applies per component of a
+        composite key. Raises before the merge on a conflicting or
+        outer-unjoinable CRS pair.
+        """
+        on_cols = {on} if isinstance(on, str) else set(on)
+        left_map = left.attrs.get(_GEOMETRY_CRS_ATTR, {})
+        right_map = right.attrs.get(_GEOMETRY_CRS_ATTR, {})
+        resolved: dict = {}
+        for key in on_cols:
+            if key not in left_map and key not in right_map:
+                continue
+            resolved[key] = cls._coalesce_key_crs(
+                left_map.get(key), right_map.get(key), how, key
+            )
+        return resolved
+
+    @staticmethod
     def _merge_geometry_crs(
         left: Any, right: Any, result: Any, on: Union[str, List[str]],
-        suffixes: tuple,
+        suffixes: tuple, key_crs: dict,
     ) -> dict:
         """Carry per-column geometry CRS across a pandas merge.
 
@@ -1190,25 +1270,20 @@ class DuckDBEngine(DataFrameEngine):
         by ``_materialize_geometry_wkb`` is lost. Rebuild it from both inputs,
         applying the merge suffix to any non-key column present in both frames.
 
-        A geometry join key coalesces to one output column, which keeps the
-        **left** frame's CRS (develop parity, #1852 R1). The right CRS, known or
-        unknown, never relabels or erases a surviving left key. Non-key
-        overlapping geometry columns keep each side's CRS under its suffix.
+        Coalesced geometry keys take the CRS resolved by
+        :meth:`_resolve_geometry_key_crs`. Non-key overlapping geometry columns
+        keep each side's own CRS under its suffix.
         """
         on_cols = {on} if isinstance(on, str) else set(on)
         overlap = (set(left.columns) & set(right.columns)) - on_cols
         merged: dict = {}
-        for frame, suffix, is_left in (
-            (left, suffixes[0], True), (right, suffixes[1], False),
-        ):
+        for key, crs in key_crs.items():
+            if key in result.columns:
+                merged[key] = crs
+        for frame, suffix in ((left, suffixes[0]), (right, suffixes[1])):
             crs_map = frame.attrs.get(_GEOMETRY_CRS_ATTR, {})
             for col, crs in crs_map.items():
                 if col in on_cols:
-                    # Coalesced geometry join key: the left side is authoritative;
-                    # the right side must not overwrite it (last-writer-wins was
-                    # the #1852 R1 relabeling defect).
-                    if is_left and col in result.columns:
-                        merged[col] = crs
                     continue
                 new_col = f"{col}{suffix}" if col in overlap else col
                 if new_col in result.columns:
