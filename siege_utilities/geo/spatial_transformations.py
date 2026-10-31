@@ -4,14 +4,20 @@ Provides format conversion and transformation capabilities using the core geospa
 DuckDB support is included but optional for enhanced performance on large datasets.
 """
 
+import json
 import logging
+import re
 from pathlib import Path
 
 try:
     import geopandas as gpd
+    from pyproj.exceptions import CRSError as _CRSError
+    from shapely.errors import ShapelyError as _ShapelyError
     _GEOPANDAS_AVAILABLE = True
 except ImportError:
     gpd = None
+    _ShapelyError = ValueError
+    _CRSError = ValueError
     _GEOPANDAS_AVAILABLE = False
 from typing import Optional, Union
 
@@ -33,6 +39,152 @@ class SpatialQueryError(RuntimeError):
     Use the ``__cause__`` attribute (set via ``raise ... from e``) to
     inspect the underlying database exception.
     """
+
+
+_SQL_TOKEN = re.compile(
+    r"(?P<space>\s+|--[^\n\r]*(?:\r\n|[\n\r]|$))|(?P<comment>/\*)|"
+    r"(?P<string>[eE]'(?:[^'\\]|\\.|'')*'|'(?:[^']|'')*')|"
+    r'(?P<identifier>"(?:[^"]|"")*")|'
+    r"(?P<dollar>\$(?:[A-Za-z_\u0080-￿][A-Za-z_0-9\u0080-￿]*)?\$)|"
+    r"(?P<word>[A-Za-z_\u0080-\uffff][A-Za-z_0-9$\u0080-\uffff]*)|(?P<symbol>.)",
+    re.DOTALL,
+)
+
+
+# F2: extend the identifier and dollar-tag ranges past the BMP to the full
+# Unicode space, so astral letters in a tag or word lex as one token on both
+# backends (the source range char is U+FFFF; swap it for U+10FFFF).
+_SQL_TOKEN = re.compile(_SQL_TOKEN.pattern.replace("￿", "\U0010ffff"), re.DOTALL)
+
+# F1: PostgreSQL with standard_conforming_strings off honours backslash escapes
+# inside a plain '...' string, so a \' can hide a statement boundary. Derive a
+# backslash-aware lexer from the standard one so the two stay in sync; E'' already
+# honours backslash in both.
+_SQL_TOKEN_BACKSLASH = re.compile(
+    _SQL_TOKEN.pattern.replace(r"|'(?:[^']|'')*')", r"|'(?:[^'\\]|\\.|'')*')"),
+    re.DOTALL,
+)
+
+
+def _sql_tokens(query, backslash_escapes=False):
+    """Yield actual lexemes, excluding whitespace and nested SQL comments.
+
+    With *backslash_escapes* (PostgreSQL standard_conforming_strings off), a
+    backslash inside a plain string is an escape, matching the server's lexer.
+    """
+    token_re = _SQL_TOKEN_BACKSLASH if backslash_escapes else _SQL_TOKEN
+    offset = 0
+    while offset < len(query):
+        match = token_re.match(query, offset)
+        kind, value = match.lastgroup, match.group()
+        offset = match.end()
+        if kind == 'comment':
+            depth = 1
+            while depth and offset < len(query):
+                delimiter = re.search(r'/\*|\*/', query[offset:])
+                if delimiter is None:
+                    offset = len(query)
+                    break
+                depth += 1 if delimiter.group() == '/*' else -1
+                offset += delimiter.end()
+        elif kind == 'dollar':
+            end = query.find(value, offset)
+            offset = len(query) if end < 0 else end + len(value)
+            yield 'string', query[match.start():offset]
+        elif kind != 'space':
+            yield kind, value
+
+
+def _postgis_has_dml(query, backslash_escapes=False):
+    """Flag write keywords at any depth outside literals."""
+    keywords = {'INSERT', 'UPDATE', 'DELETE', 'MERGE', 'CREATE', 'DROP', 'ALTER',
+                'TRUNCATE', 'COPY', 'CALL', 'DO', 'GRANT', 'REVOKE'}
+    return any(kind == 'word' and value.upper() in keywords
+               for kind, value in _sql_tokens(query, backslash_escapes))
+
+
+# Leading keywords that make a standalone statement a transaction-control
+# statement (#1818 R6). COMMIT/ROLLBACK cover their PREPARED variants; ROLLBACK
+# also covers ROLLBACK TO [SAVEPOINT] name.
+_TRANSACTION_CONTROL_HEADS = {
+    'BEGIN', 'END', 'ABORT', 'SAVEPOINT', 'COMMIT', 'ROLLBACK', 'RELEASE',
+}
+
+
+def _sql_statement_list(query, backslash_escapes=False):
+    """Split a SQL string into non-empty statements on top-level ``;``.
+
+    Uses :func:`_sql_tokens` so a ``;`` inside a string literal, quoted
+    identifier, dollar-quoted body or comment does not split a statement.
+    *backslash_escapes* selects the PostgreSQL standard_conforming_strings-off
+    lexer. Each element is the statement's list of ``(kind, value)`` lexemes.
+    """
+    statements, current = [], []
+    for kind, value in _sql_tokens(query, backslash_escapes):
+        if kind == 'symbol' and value == ';':
+            if current:
+                statements.append(current)
+            current = []
+        else:
+            current.append((kind, value))
+    if current:
+        statements.append(current)
+    return statements
+
+
+def _transaction_control_kind(tokens):
+    """Classify a single statement's leading keywords as transaction control.
+
+    Returns the control label (``BEGIN``, ``END``, ``ABORT``, ``SAVEPOINT``,
+    ``COMMIT``, ``ROLLBACK``, ``RELEASE``, ``START TRANSACTION`` or
+    ``PREPARE TRANSACTION``) or ``None``. ``PREPARE name AS ...`` is NOT
+    transaction control -- only ``PREPARE TRANSACTION`` is; ``START`` counts
+    only before ``TRANSACTION`` (#1818 R6).
+    """
+    words = [value.upper() for kind, value in tokens if kind == 'word']
+    if not words:
+        return None
+    head = words[0]
+    if head in _TRANSACTION_CONTROL_HEADS:
+        return head
+    if head == 'START' and len(words) > 1 and words[1] == 'TRANSACTION':
+        return 'START TRANSACTION'
+    if head == 'PREPARE' and len(words) > 1 and words[1] == 'TRANSACTION':
+        return 'PREPARE TRANSACTION'
+    return None
+
+
+def _is_standalone_recovery(statements, controls):
+    """True if the input is a single standalone recovery statement (#1818 R5).
+
+    Recovery accepted in a failed (INERROR) transaction is a precisely
+    recognized ``ROLLBACK``, ``ROLLBACK TO [SAVEPOINT] name`` or ``ABORT``.
+    ``ROLLBACK PREPARED`` is two-phase control, not caller recovery.
+    """
+    if len(statements) != 1 or controls[0] is None:
+        return False
+    words = [value.upper() for kind, value in statements[0] if kind == 'word']
+    head = words[0]
+    if head == 'ABORT':
+        return True
+    if head == 'ROLLBACK':
+        return not (len(words) > 1 and words[1] == 'PREPARED')
+    return False
+
+
+def _validate_output_crs(crs):
+    """Reject an invalid output CRS before executing anything (#1818 R4a).
+
+    A bad ``crs=`` must raise with zero side effects in every mode, rather than
+    being silently ignored (develop's behavior on writes).
+    """
+    if crs is None:
+        return
+    try:
+        from pyproj import CRS as _PyprojCRS
+        _PyprojCRS.from_user_input(crs)
+    except Exception as e:
+        raise SpatialQueryError(f"Invalid output CRS {crs!r}: {e}") from e
 
 # Try to import DuckDB (optional)
 try:
@@ -250,6 +402,7 @@ class PostGISConnector:
             import psycopg2
             self.psycopg2 = psycopg2
             self.connection = psycopg2.connect(self.connection_string)
+            self._opened_connection = True
             log.info("Successfully connected to PostGIS")
         except ImportError:
             raise ImportError("psycopg2 not available. Install with: pip install psycopg2-binary")
@@ -289,8 +442,9 @@ class PostGISConnector:
             gdf: GeoDataFrame to upload (all columns including geometry).
             table_name: Target table name.
             **kwargs: Additional parameters:
-                if_exists: How to handle existing table -- ``'fail'``,
-                    ``'replace'`` (default), or ``'append'``.
+                if_exists: How to handle existing table -- ``'fail'``
+                    (default), ``'replace'``, or ``'append'``. Failed
+                    replacements roll back the original table.
                 schema: PostgreSQL schema name (default ``'public'``).
 
         Raises:
@@ -301,7 +455,7 @@ class PostGISConnector:
         if not self.connection_string:
             raise RuntimeError("No PostGIS connection_string available")
 
-        if_exists = kwargs.get('if_exists', 'replace')
+        if_exists = kwargs.get('if_exists', 'fail')
         schema = kwargs.get('schema', 'public')
 
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
@@ -320,12 +474,14 @@ class PostGISConnector:
             from sqlalchemy import create_engine
             engine = create_engine(self.connection_string)
             try:
-                gdf.to_postgis(
-                    name=table_name,
-                    con=engine,
-                    schema=schema,
-                    if_exists=if_exists,
-                )
+                # Keep DROP, CREATE and inserts in one transaction.
+                with engine.begin() as connection:
+                    gdf.to_postgis(
+                        name=table_name,
+                        con=connection,
+                        schema=schema,
+                        if_exists=if_exists,
+                    )
             finally:
                 engine.dispose()
             log.info(
@@ -346,8 +502,8 @@ class PostGISConnector:
 
         Args:
             table_name: Source table name
-            crs: Output CRS. Defaults to
-                :func:`~siege_utilities.geo.crs.get_default_crs`.
+            crs: Optional output CRS. Omit to preserve the native SRID when
+                available; otherwise use the configured default CRS.
             **kwargs: Additional parameters. Accepts ``geom_col``
                 (default ``'geom'``) to specify the geometry column name.
 
@@ -379,28 +535,34 @@ class PostGISConnector:
                 geom_col=geom_col,
             )
             log.info(f"Successfully downloaded from PostGIS: {table_name}")
-            return reproject_if_needed(gdf, crs)
+            return reproject_if_needed(gdf, crs) if crs is not None else gdf
 
-        except (_Psycopg2Error, OSError, ValueError, TypeError, AttributeError, KeyError) as e:
+        except (_Psycopg2Error, _CRSError, OSError, ValueError, TypeError, AttributeError, KeyError) as e:
             raise SpatialQueryError(f"PostGIS download failed for {table_name}: {e}") from e
     
     def execute_spatial_query(self, query: str, *, crs: str | None = None, **kwargs) -> Union[GeoDataFrame, int]:
         """
         Execute a spatial SQL query.
 
-        For SELECT queries the result is a :class:`GeoDataFrame`.
-        For non-SELECT queries (INSERT, UPDATE, DELETE, DDL) the result
-        is the ``cursor.rowcount`` integer (``-1`` when the row count
-        is not determinable, e.g. DDL).
+        Row-returning statements, including CTEs and DML with RETURNING,
+        produce a GeoDataFrame (without active geometry for tabular results).
+        Other statements return an affected-row count, or -1 if unavailable.
+
+        When this connector opened the connection and no caller transaction is
+        active, every statement commits after decoding succeeds and rolls back
+        on error. In a caller transaction, read-only statements never commit;
+        statements containing write tokens commit, while volatile-function SELECT
+        calls without write tokens leave the transaction open. Savepoints isolate
+        failures without rolling back the caller's transaction.
 
         Args:
             query: SQL query string
-            crs: Output CRS. Defaults to
-                :func:`~siege_utilities.geo.crs.get_default_crs`.
+            crs: Optional output CRS. Omit to preserve the native SRID when
+                available; otherwise use the configured default CRS.
             **kwargs: Additional parameters
 
         Returns:
-            GeoDataFrame for SELECT queries, int rowcount for others.
+            GeoDataFrame for row-returning queries, int rowcount for others.
 
         Raises:
             SpatialQueryError: If the connection is unavailable or the
@@ -412,42 +574,168 @@ class PostGISConnector:
         if not self.connection:
             raise SpatialQueryError("No PostGIS connection available")
 
-        if query.strip().upper().startswith('SELECT'):
+        # R4(a): reject a bad output CRS before touching the connection.
+        _validate_output_crs(crs)
+
+        from psycopg2.extensions import (
+            TRANSACTION_STATUS_INERROR,
+            TRANSACTION_STATUS_INTRANS,
+        )
+
+        # F1: lex plain strings the way this connection does. With
+        # standard_conforming_strings off, PostgreSQL honours backslash escapes
+        # inside '...', so a \' can hide a statement boundary from a lexer that
+        # assumes standard strings. The standard and backslash lexers differ ONLY
+        # when a backslash is present, so read the live setting only then. Use the
+        # cached server parameter (no query, so it is safe even in a failed
+        # transaction) and fail closed if it is unknown rather than mis-lex.
+        backslash_escapes = False
+        if "\\" in query:
+            scs = self.connection.get_parameter_status("standard_conforming_strings")
+            scs = scs.strip().lower() if isinstance(scs, str) else ""
+            if scs not in ("on", "off"):
+                raise SpatialQueryError(
+                    "Cannot determine standard_conforming_strings; refusing a "
+                    "backslash-containing query to avoid mis-lexing string escapes."
+                )
+            backslash_escapes = scs == "off"
+
+        # R6: classify statements before executing anything. A multi-statement
+        # batch that mixes a transaction-control statement with other statements
+        # is non-atomic on the normal path, so reject it with zero side effects.
+        statements = _sql_statement_list(query, backslash_escapes=backslash_escapes)
+        controls = [_transaction_control_kind(statement) for statement in statements]
+        if len(statements) > 1 and any(controls):
+            raise SpatialQueryError(
+                "Refusing a multi-statement batch that mixes a transaction-control "
+                "statement with other statements; run them separately."
+            )
+
+        status = self.connection.get_transaction_status()
+        caller_intrans = status == TRANSACTION_STATUS_INTRANS
+        autocommit = bool(getattr(self.connection, "autocommit", False))
+
+        # R5: a failed (INERROR) transaction is caller-owned. Raise before
+        # executing anything except a precisely recognized standalone recovery
+        # statement (ROLLBACK / ROLLBACK TO [SAVEPOINT] name / ABORT).
+        if status == TRANSACTION_STATUS_INERROR and not _is_standalone_recovery(statements, controls):
+            raise SpatialQueryError(
+                "PostGIS connection is in a failed transaction; only a standalone "
+                "ROLLBACK, ROLLBACK TO [SAVEPOINT] name, or ABORT is accepted until "
+                "the caller recovers."
+            )
+
+        # R6: a standalone transaction-control statement runs directly, with no
+        # savepoint wrapper and no connector finalization, and returns -1.
+        if len(statements) == 1 and controls[0] is not None:
+            control_cursor = None
             try:
-                geom_col = kwargs.get('geom_col', 'geometry')
-                # gpd.read_postgis decodes WKB and reads SRID from the
-                # geometry column. The previous manual-fetch path
-                # returned raw bytes in the geometry column, which
-                # silently produced a non-geo frame.
-                gdf = gpd.read_postgis(query, self.connection, geom_col=geom_col)
-                log.info("Successfully executed PostGIS query")
-                return reproject_if_needed(gdf, crs)
-            except (_Psycopg2Error, OSError, ValueError, TypeError, AttributeError) as e:
-                # read_postgis raises sqlalchemy / pandas / geopandas
-                # exceptions depending on the failure mode; catch broadly
-                # and roll back so the psycopg2 connection is not left in
-                # an aborted-transaction state for subsequent calls.
-                log.error(f"Failed to execute PostGIS query: {e}")
-                if self.connection:
-                    try:
-                        self.connection.rollback()
-                    except (_Psycopg2Error, OSError) as rb_exc:
-                        log.warning("Failed to rollback PostGIS transaction: %s", rb_exc)
+                control_cursor = self.connection.cursor()
+                control_cursor.execute(query)
+                log.info("Executed PostGIS transaction-control statement")
+                return -1
+            except Exception as e:
                 raise SpatialQueryError(f"PostGIS query failed: {e}") from e
+            finally:
+                if control_cursor is not None:
+                    control_cursor.close()
+
+        # R4(b): ownership is set by the transaction status before execution.
+        #   INTRANS (incl. autocommit + an explicit SQL BEGIN): caller-owned; a
+        #     savepoint isolates failure and the connector never finalizes.
+        #   IDLE + autocommit=True: the connector establishes real ownership with
+        #     SQL BEGIN/COMMIT/ROLLBACK (connection.commit()/rollback() do not end
+        #     an explicit SQL transaction under autocommit).
+        #   IDLE + autocommit=False: connector-owned via connection.commit()/rollback().
+        caller_owned = caller_intrans
+        sql_owned = (not caller_intrans) and autocommit
+        conn_owned = (not caller_intrans) and (not autocommit)
 
         cursor = None
+        savepoint = False
+        began = False
+        committed = False
         try:
             cursor = self.connection.cursor()
+            if caller_owned:
+                cursor.execute("SAVEPOINT siege_spatial_query")
+                savepoint = True
+            elif sql_owned:
+                cursor.execute("BEGIN")
+                began = True
             cursor.execute(query)
-            self.connection.commit()
-            rowcount = cursor.rowcount
+            if cursor.description is not None:
+                result = gpd.GeoDataFrame(
+                    cursor.fetchall(), columns=[column[0] for column in cursor.description],
+                )
+                geom_col = kwargs.get('geom_col', 'geometry')
+                if geom_col in result.columns:
+                    from shapely import get_srid
+
+                    # Decode fetched rows without replaying INSERT ... RETURNING.
+                    wkb = result[geom_col].map(
+                        lambda value: bytes(value) if isinstance(value, memoryview) else value
+                    )
+                    geometry = gpd.GeoSeries.from_wkb(wkb)
+                    non_null = geometry.dropna()
+                    srid = int(get_srid(non_null.iloc[0])) if len(non_null) else 0
+                    result = result.set_geometry(geometry.rename(geom_col))
+                    if srid:
+                        with self.connection.cursor() as crs_cursor:
+                            crs_cursor.execute(
+                                "SELECT auth_name, auth_srid FROM spatial_ref_sys WHERE srid = %s",
+                                (srid,),
+                            )
+                            authority = crs_cursor.fetchone()
+                        # Match read_postgis's EPSG fallback for an absent row.
+                        source_crs = f"{authority[0]}:{authority[1]}" if authority else f"EPSG:{srid}"
+                        result = result.set_crs(source_crs)
+                    elif crs is None:
+                        log.warning(
+                            "PostGIS geometries lack SRID metadata; assuming the default CRS. "
+                            "Pass crs= to specify a target CRS."
+                        )
+                    if crs is not None or not srid:
+                        result = reproject_if_needed(result, crs)
+            else:
+                result = cursor.rowcount
+            if savepoint:
+                cursor.execute("RELEASE SAVEPOINT siege_spatial_query")
+                savepoint = False
+            if caller_owned:
+                # R1 Design A: on a caller-owned transaction, commit only a
+                # non-SELECT statement that carries write tokens (develop parity).
+                # A SELECT-prefixed statement (including FOR UPDATE / FOR SHARE and
+                # volatile-function SELECT) is never committed here, so the caller
+                # keeps its transaction and row locks.
+                if not query.strip().upper().startswith('SELECT') and _postgis_has_dml(query, backslash_escapes):
+                    self.connection.commit()
+            elif sql_owned:
+                # Autocommit + connector-established BEGIN: end with SQL COMMIT;
+                # connection.commit() would not close an explicit SQL transaction.
+                cursor.execute("COMMIT")
+                began = False
+                committed = True
+            elif conn_owned:
+                self.connection.commit()
+                committed = True
             log.info("Successfully executed PostGIS query")
-            return rowcount
-        except (_Psycopg2Error, OSError, ValueError, TypeError, AttributeError) as e:
+            return result
+        except Exception as e:
+            # R8: an actually-owned transaction rolls back on ANY exception,
+            # preserving the original error and its SpatialQueryError mapping. A
+            # caller-owned (INTRANS/INERROR) transaction only rolls back and
+            # releases the savepoint, never the caller's transaction.
             log.error(f"Failed to execute PostGIS query: {e}")
             if self.connection:
                 try:
-                    self.connection.rollback()
+                    if savepoint:
+                        cursor.execute("ROLLBACK TO SAVEPOINT siege_spatial_query")
+                        cursor.execute("RELEASE SAVEPOINT siege_spatial_query")
+                    elif sql_owned and began and not committed:
+                        cursor.execute("ROLLBACK")
+                    elif conn_owned and not committed:
+                        self.connection.rollback()
                 except (_Psycopg2Error, OSError) as rb_exc:
                     log.warning("Failed to rollback PostGIS transaction: %s", rb_exc)
             raise SpatialQueryError(f"PostGIS query failed: {e}") from e
@@ -506,6 +794,77 @@ class PostGISConnector:
             cursor.close()
 
 
+_DUCKDB_CRS_COMMENT = '\nsiege_utilities.crs.v1='
+
+
+def _duckdb_table_metadata(connection, table_name):
+    """Read table comments without using any caller column names."""
+    # Uploads can be exercised with a supplied connection and no installed
+    # optional driver. Identifier parsing must not use a module-global driver.
+    parts = []
+    for kind, value in _sql_tokens(table_name):
+        if kind in {'identifier', 'word'}:
+            parts.append(value[1:-1].replace('""', '"') if kind == 'identifier' else value)
+        elif value != '.':
+            break
+    table = parts[-1]
+    schema = parts[-2] if len(parts) > 1 else None
+    database = parts[-3] if len(parts) > 2 else None
+    row = connection.execute(
+        "SELECT comment FROM duckdb_tables() "
+        "WHERE lower(table_name) = lower(?) "
+        "AND lower(schema_name) = lower(coalesce(?, current_schema())) "
+        "AND (lower(database_name) = lower(coalesce(?, current_database())) "
+        "OR (? IS NULL AND temporary)) ORDER BY temporary DESC LIMIT 1",
+        [table, schema, database, database],
+    ).fetchone()
+    comment = row[0] if row else None
+    if comment and _DUCKDB_CRS_COMMENT in comment:
+        return comment, json.loads(comment.rsplit(_DUCKDB_CRS_COMMENT, 1)[1])
+    return comment, None
+
+
+def _duckdb_result_frame(df, *, source_crs=None, crs=None, stored_crs=()):
+    """Decode stored WKT and table CRS without consuming caller attributes."""
+    from pyproj import CRS
+
+    if 'geometry_wkt' not in df.columns and 'geometry' not in df.columns:
+        return gpd.GeoDataFrame(df)
+    source = CRS.from_user_input(source_crs) if source_crs is not None else None
+    known = {CRS.from_user_input(value) for value in stored_crs if value is not None}
+    if len(known) > 1 or (source is not None and any(value != source for value in known)):
+        raise ValueError("Result contains conflicting source CRSs")
+    if source is None and known:
+        if None in stored_crs:
+            raise ValueError("Result mixes known and unknown CRSs; provide source_crs")
+        source = next(iter(known))
+    if 'geometry_wkt' in df.columns:
+        df['geometry'] = gpd.GeoSeries.from_wkt(df.pop('geometry_wkt'), index=df.index)
+    gdf = gpd.GeoDataFrame(df, geometry='geometry', crs=source)
+    if crs is not None:
+        if source is None:
+            raise ValueError("Source CRS is unknown; provide source_crs before reprojecting")
+        return gdf.to_crs(crs)
+    return gdf
+
+
+def _duckdb_query_frame(df, crs=None):
+    """Decode arbitrary SQL results using develop's assumed WKT CRS."""
+    from siege_utilities.geo.crs import reproject_if_needed
+
+    if 'geometry_wkt' not in df.columns and 'geometry' not in df.columns:
+        return gpd.GeoDataFrame(df)
+    if 'geometry_wkt' in df.columns:
+        df['geometry'] = gpd.GeoSeries.from_wkt(df.pop('geometry_wkt'), index=df.index)
+    gdf = gpd.GeoDataFrame(df, geometry='geometry', crs="EPSG:4326")
+    if crs is None:
+        log.warning(
+            "DuckDB WKT geometries lack SRID metadata; assuming EPSG:4326. "
+            "Pass crs= to reproject to a target CRS."
+        )
+    return reproject_if_needed(gdf, crs)
+
+
 class DuckDBConnector:
     """Handles DuckDB database connections and operations (optional)."""
     
@@ -559,14 +918,31 @@ class DuckDBConnector:
     def __exit__(self, *exc_info):
         self.close()
 
+    def _caller_owns_transaction(self) -> bool:
+        """True when the DuckDB connection is already in a caller transaction.
+
+        Two reads of ``current_transaction_id()`` return the same id inside an
+        explicit transaction and distinct ids under autocommit (each read is its
+        own implicit transaction). When the caller owns the transaction the
+        connector issues no BEGIN/COMMIT/ROLLBACK and its writes join the
+        caller's transaction (R3). Shared by ``execute_spatial_query`` and
+        ``upload_spatial_data`` so both decide ownership identically.
+        """
+        first = self.connection.execute("SELECT current_transaction_id()").fetchone()[0]
+        second = self.connection.execute("SELECT current_transaction_id()").fetchone()[0]
+        return first == second
+
     def upload_spatial_data(self, gdf: GeoDataFrame, table_name: str, **kwargs) -> None:
         """
-        Upload spatial data to DuckDB.
+        Upload spatial data to DuckDB in one transaction.
 
         Args:
-            gdf: GeoDataFrame to upload
+            gdf: GeoDataFrame to upload. Geometry is stored as geometry_wkt
+                with full CRS WKT in the table comment, including for empty tables.
             table_name: Target table name
-            **kwargs: Additional parameters
+            **kwargs: if_exists is 'fail' (default), 'replace', or 'append'.
+                Append matches columns by name and rejects conflicting CRSs.
+                Legacy rows retain unknown CRS when metadata is first added.
 
         Raises:
             RuntimeError: If connection or upload fails
@@ -578,54 +954,102 @@ class DuckDBConnector:
         validate_sql_identifier(table_name, "table name")
 
         try:
-            df = gdf.copy()
-            df['geometry_wkt'] = df.geometry.apply(lambda geom: geom.wkt)
-            df = df.drop(columns=['geometry'])
-
-            if_exists = kwargs.get('if_exists', 'replace')
-            if if_exists == 'replace':
-                self.connection.execute(f"DROP TABLE IF EXISTS {table_name}")
-
+            if_exists = kwargs.get('if_exists', 'fail')
+            if if_exists not in {'fail', 'replace', 'append'}:
+                raise ValueError("if_exists must be 'fail', 'replace', or 'append'")
+            if 'geometry_wkt' in gdf.columns:
+                raise ValueError("geometry_wkt is a reserved storage column")
+            df = gdf.to_wkt(rounding_precision=-1).rename(columns={gdf.geometry.name: 'geometry_wkt'})
+            df['geometry_wkt'] = df['geometry_wkt'].astype('string')
+            incoming_crs = gdf.crs.to_wkt() if gdf.crs is not None else None
             self.connection.register("siege_upload_df", df)
             try:
-                self.connection.execute(
-                    f"CREATE TABLE {table_name} AS SELECT * FROM siege_upload_df"
-                )
+                # R3: join a caller transaction. Only an autocommit connection
+                # gets a connector-owned BEGIN/COMMIT; in a caller transaction the
+                # upload issues no BEGIN/COMMIT/ROLLBACK and its writes join the
+                # caller's transaction. Same shared detection as the query path.
+                caller_owned = self._caller_owns_transaction()
+                transaction_started = False
+                try:
+                    if not caller_owned:
+                        self.connection.execute("BEGIN TRANSACTION")
+                        transaction_started = True
+                    if if_exists == 'replace':
+                        self.connection.execute(f"DROP TABLE IF EXISTS {table_name}")
+                    comment, stored = _duckdb_table_metadata(self.connection, table_name)
+                    metadata = [incoming_crs]
+                    if if_exists == 'append':
+                        self.connection.execute(
+                            f"CREATE TABLE IF NOT EXISTS {table_name} AS "
+                            "SELECT * FROM siege_upload_df WHERE FALSE"
+                        )
+                        if stored is None:
+                            has_rows = self.connection.execute(
+                                f"SELECT EXISTS (SELECT 1 FROM {table_name})"
+                            ).fetchone()[0]
+                            stored = [None] if has_rows else []
+                        from pyproj import CRS
+
+                        if any(value is not None and CRS.from_user_input(value) != gdf.crs
+                               for value in (stored or [])):
+                            raise ValueError("Cannot append data with a different source CRS")
+                        metadata = list(dict.fromkeys((stored or []) + [incoming_crs]))
+                        self.connection.execute(
+                            f"INSERT INTO {table_name} BY NAME SELECT * FROM siege_upload_df"
+                        )
+                    else:
+                        self.connection.execute(
+                            f"CREATE TABLE {table_name} AS SELECT * FROM siege_upload_df"
+                        )
+                    from siege_utilities.core.sql_safety import escape_sql_string_literal
+
+                    prior_comment = (comment or '').split(_DUCKDB_CRS_COMMENT, 1)[0]
+                    comment = prior_comment + _DUCKDB_CRS_COMMENT + json.dumps(metadata)
+                    literal = escape_sql_string_literal(comment)
+                    self.connection.execute(f"COMMENT ON TABLE {table_name} IS '{literal}'")
+                    if transaction_started:
+                        self.connection.execute("COMMIT")
+                        transaction_started = False
+                except Exception:
+                    # R3: undo only a connector-owned transaction. In caller mode
+                    # the writes join the caller's transaction and the caller
+                    # decides rollback -- the connector issues no BEGIN/COMMIT/
+                    # ROLLBACK. A rollback failure retains the upload failure as
+                    # its exception context.
+                    if transaction_started:
+                        self.connection.execute("ROLLBACK")
+                    raise
             finally:
                 try:
                     self.connection.unregister("siege_upload_df")
                 except (_DuckDBError, RuntimeError) as cleanup_exc:
-                    log.warning(
-                        "Failed to unregister siege_upload_df: %s",
-                        cleanup_exc,
-                    )
+                    log.warning("Failed to unregister siege_upload_df: %s", cleanup_exc)
 
             log.info(f"Successfully uploaded to DuckDB: {table_name}")
 
-        except (_DuckDBError, OSError, ValueError, TypeError, AttributeError) as e:
+        except (_DuckDBError, _CRSError, OSError, ValueError, TypeError, AttributeError) as e:
             raise RuntimeError(f"Failed to upload to DuckDB: {e}") from e
-    
+
     def download_spatial_data(self, table_name: str, *, crs: str | None = None, **kwargs) -> GeoDataFrame:
         """
         Download spatial data from DuckDB.
 
         Args:
             table_name: Source table name
-            crs: Output CRS. Defaults to
-                :func:`~siege_utilities.geo.crs.get_default_crs`.
-            **kwargs: Additional parameters
+            crs: Optional output CRS. Omit to preserve the source CRS.
+            **kwargs: Additional parameters. Reads accept source_crs for
+                legacy tables without source table metadata.
 
         Returns:
-            GeoDataFrame with spatial data.  WKT geometries stored in
-            DuckDB lack SRID metadata; EPSG:4326 is assumed as the
-            source CRS.  Pass *crs* to reproject to a different target.
+            GeoDataFrame retaining the stored source CRS. Legacy WKT tables
+            without table metadata have unknown CRS unless
+            source_crs is supplied. Empty tables retain their CRS. Pass crs to
+            reproject from the known source to a different target.
 
         Raises:
             SpatialQueryError: If the connection is unavailable or the
                 query fails.
         """
-        from siege_utilities.geo.crs import reproject_if_needed
-
         if not self.connection:
             self.connect()
 
@@ -645,87 +1069,119 @@ class DuckDBConnector:
             # Execute query
             df = self.connection.execute(query).df()
 
-            # Convert WKT back to geometries
-            if 'geometry_wkt' in df.columns:
-                from shapely import wkt
-                df['geometry'] = df['geometry_wkt'].apply(wkt.loads)
-                df = df.drop(columns=['geometry_wkt'])
-
-            # WKT does not carry SRID metadata.  Assume WGS84 as the
-            # storage CRS, then reproject to the caller's target CRS if
-            # one was specified.  If the data was actually stored in a
-            # different CRS the coordinates will be wrong — there is no
-            # way to recover the SRID from bare WKT.
-            gdf = gpd.GeoDataFrame(df, geometry='geometry', crs="EPSG:4326")
-            if crs is None:
-                log.warning(
-                    "DuckDB WKT geometries lack SRID metadata; assuming "
-                    "EPSG:4326.  Pass crs= to reproject to a target CRS."
-                )
-
+            _, stored = _duckdb_table_metadata(self.connection, table_name)
+            gdf = _duckdb_result_frame(
+                df, source_crs=kwargs.get('source_crs'), crs=crs, stored_crs=stored or [],
+            )
             log.info(f"Successfully downloaded from DuckDB: {table_name}")
-            return reproject_if_needed(gdf, crs)
+            return gdf
 
-        except (_DuckDBError, OSError, ValueError, TypeError, AttributeError, ImportError) as e:
+        except (_DuckDBError, _ShapelyError, _CRSError, OSError, ValueError, TypeError, AttributeError, ImportError) as e:
             raise SpatialQueryError(f"DuckDB download failed for {table_name}: {e}") from e
     
     def execute_spatial_query(self, query: str, *, crs: str | None = None, **kwargs) -> Union[GeoDataFrame, int]:
         """
         Execute a spatial SQL query.
 
-        For SELECT queries the result is a :class:`GeoDataFrame`.
-        For non-SELECT queries (INSERT, UPDATE, DELETE, DDL) the result
-        is the ``cursor.rowcount`` integer (``-1`` when the row count
-        is not determinable, e.g. DDL).
+        Row-returning statements, including CTEs and DML with RETURNING,
+        produce a GeoDataFrame (without active geometry for tabular results).
+        Other statements return an affected-row count, or -1 if unavailable.
+        Mutating calls own a transaction through result validation. They require
+        a connection without an active transaction; nested transactions are
+        unsupported by DuckDB. SELECT calls do not finalize transactions.
+        WKT results assume EPSG:4326, matching develop. Pass crs to reproject.
+        Use download_spatial_data to attach a named table's stored CRS.
 
         Args:
             query: SQL query string
-            crs: Output CRS. Defaults to
-                :func:`~siege_utilities.geo.crs.get_default_crs`.
-            **kwargs: Additional parameters
+            crs: Output CRS. WKT results start with an EPSG:4326 label.
+            **kwargs: Additional parameters.
 
         Returns:
-            GeoDataFrame for SELECT queries, int rowcount for others.
+            GeoDataFrame for row-returning queries, int rowcount for others.
 
         Raises:
             SpatialQueryError: If the connection is unavailable or the
                 query fails. The original exception is chained as
                 ``__cause__``.
         """
-        from siege_utilities.geo.crs import reproject_if_needed
-
         if not self.connection:
             self.connect()
 
+        # R4(a): reject a bad output CRS before executing anything.
+        _validate_output_crs(crs)
+
+        # R6: reject a mixed batch that mingles a transaction-control statement
+        # with other statements, before executing anything (zero side effects).
+        # This also resolves the pre-existing embedded-COMMIT batch atomicity gap.
+        statement_lists = _sql_statement_list(query)
+        controls = [_transaction_control_kind(statement) for statement in statement_lists]
+        if len(statement_lists) > 1 and any(controls):
+            raise SpatialQueryError(
+                "Refusing a multi-statement batch that mixes a transaction-control "
+                "statement with other statements; run them separately."
+            )
+        standalone_control = len(statement_lists) == 1 and controls[0] is not None
+
+        transaction_started = False
         try:
-            if query.strip().upper().startswith('SELECT'):
-                df = self.connection.execute(query).df()
+            import duckdb
+            from siege_utilities.engines.dataframe_engine import DuckDBEngine
 
-                if 'geometry_wkt' in df.columns:
-                    from shapely import wkt
-                    df['geometry'] = df['geometry_wkt'].apply(wkt.loads)
-                    df = df.drop(columns=['geometry_wkt'])
-
-                gdf = gpd.GeoDataFrame(df, geometry='geometry', crs="EPSG:4326")
-                if crs is None:
-                    log.warning(
-                        "DuckDB WKT geometries lack SRID metadata; assuming "
-                        "EPSG:4326.  Pass crs= to reproject to a target CRS."
-                    )
-
-                log.info("Successfully executed DuckDB query")
-                return reproject_if_needed(gdf, crs)
-
-            result = self.connection.execute(query)
-            try:
-                row = result.fetchone()
-                rowcount = row[0] if row is not None else -1
-            except (_DuckDBError, TypeError):
-                rowcount = -1
+            # Result shape and transaction ownership are separate decisions.
+            engine = DuckDBEngine()
+            engine._conn = self.connection
+            statements = self.connection.extract_statements(query)
+            # R6 fail-closed cross-check: the guard lexer must agree with the
+            # driver's own statement split. If they disagree -- a comment, quote
+            # or newline the guard lexed differently from DuckDB -- reject before
+            # executing anything, rather than let an unlexed control statement
+            # commit durably ahead of a later error.
+            if len(statements) != len(statement_lists):
+                raise SpatialQueryError(
+                    "Refusing a query whose statement count disagrees with the "
+                    "database parser; the guard and the driver must agree before "
+                    "anything runs."
+                )
+            has_non_select = any(
+                statement.type != duckdb.StatementType.SELECT for statement in statements
+            )
+            # R3: in a caller-owned transaction the connector issues no BEGIN,
+            # COMMIT or ROLLBACK -- its writes join the caller's transaction. Only
+            # an autocommit connection (two reads get distinct transaction ids)
+            # gets a connector-owned BEGIN/COMMIT. A standalone transaction-control
+            # statement (R6) runs directly without any wrapping.
+            if has_non_select and not standalone_control:
+                if not self._caller_owns_transaction():
+                    self.connection.execute("BEGIN TRANSACTION")
+                    transaction_started = True
+            for statement in statements[:-1]:
+                self.connection.execute(statement)
+            statement = statements[-1] if statements else None
+            returns_rows = statement is not None and engine._statement_returns_rows(statement)
+            result = self.connection.execute(statement if statement is not None else query)
+            if returns_rows:
+                result = _duckdb_query_frame(result.df(), crs=crs)
+            else:
+                try:
+                    row = result.fetchone()
+                    result = row[0] if row is not None else -1
+                except (_DuckDBError, TypeError):
+                    result = -1
+            if transaction_started:
+                self.connection.execute("COMMIT")
+                transaction_started = False
             log.info("Successfully executed DuckDB query")
-            return rowcount
+            return result
 
-        except (_DuckDBError, OSError, ValueError, TypeError, AttributeError, ImportError) as e:
+        except Exception as e:
+            # Every failure before commit must undo owned writes, including
+            # errors raised by result conversion or metadata validation.
+            if transaction_started:
+                try:
+                    self.connection.execute("ROLLBACK")
+                except _DuckDBError as rollback_error:
+                    e.add_note(f"DuckDB rollback also failed: {rollback_error}")
             log.error(f"Failed to execute DuckDB query: {e}")
             raise SpatialQueryError(f"DuckDB query failed: {e}") from e
 
@@ -764,7 +1220,7 @@ def upload_to_postgis(gdf: GeoDataFrame, table_name: str, connection_string: Opt
         **kwargs: Forwarded to
             :meth:`PostGISConnector.upload_spatial_data`. Accepts
             ``if_exists`` (``'fail'``, ``'replace'``, ``'append'``;
-            default ``'replace'``) and ``schema`` (default ``'public'``).
+            default ``'fail'``) and ``schema`` (default ``'public'``).
 
     Raises:
         RuntimeError: If no connection string is configured.
@@ -808,10 +1264,10 @@ def execute_postgis_query(query: str, connection_string: Optional[str] = None, *
         **kwargs: Forwarded to
             :meth:`PostGISConnector.execute_spatial_query`. Accepts
             ``geom_col`` (default ``'geometry'``) and ``crs`` (output CRS,
-            applies to SELECT queries only).
+            applies to row-returning queries).
 
     Returns:
-        GeoDataFrame for SELECT queries, int rowcount for others.
+        GeoDataFrame for row-returning queries, int rowcount for others.
 
     Raises:
         SpatialQueryError: If the connection is unavailable or the
@@ -831,7 +1287,7 @@ def upload_to_duckdb(gdf: GeoDataFrame, table_name: str, db_path: Optional[str] 
             in-memory when omitted).
         **kwargs: Forwarded to
             :meth:`DuckDBConnector.upload_spatial_data`. Accepts
-            ``if_exists`` (``'replace'`` by default).
+            ``if_exists`` (``'fail'`` by default; ``'replace'`` or ``'append'``).
 
     Raises:
         ImportError: If DuckDB is not installed.
@@ -854,7 +1310,9 @@ def download_from_duckdb(table_name: str, db_path: Optional[str] = None, **kwarg
         **kwargs: Forwarded to
             :meth:`DuckDBConnector.download_spatial_data`. Accepts
             ``where_clause`` (optional SQL WHERE fragment) and ``crs``
-            (output CRS).
+            (output CRS). ``source_crs`` supplies missing source metadata
+            for legacy tables or empty results. Without ``crs``, the
+            source CRS is preserved.
 
     Returns:
         GeoDataFrame with spatial data.
@@ -880,10 +1338,12 @@ def execute_duckdb_query(query: str, db_path: Optional[str] = None, **kwargs) ->
             in-memory when omitted).
         **kwargs: Forwarded to
             :meth:`DuckDBConnector.execute_spatial_query`. Accepts
-            ``crs`` (output CRS, applies to SELECT queries only).
+            ``crs`` (output CRS, applies to row-returning queries). WKT
+            results assume EPSG:4326. Use download_from_duckdb for stored
+            table CRS metadata.
 
     Returns:
-        GeoDataFrame for SELECT queries, int rowcount for others.
+        GeoDataFrame for row-returning queries, int rowcount for others.
 
     Raises:
         SpatialQueryError: If the connection is unavailable or the
