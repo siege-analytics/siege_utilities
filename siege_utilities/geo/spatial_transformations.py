@@ -51,11 +51,31 @@ _SQL_TOKEN = re.compile(
 )
 
 
-def _sql_tokens(query):
-    """Yield actual lexemes, excluding whitespace and nested SQL comments."""
+# F2: extend the identifier and dollar-tag ranges past the BMP to the full
+# Unicode space, so astral letters in a tag or word lex as one token on both
+# backends (the source range char is U+FFFF; swap it for U+10FFFF).
+_SQL_TOKEN = re.compile(_SQL_TOKEN.pattern.replace("￿", "\U0010ffff"), re.DOTALL)
+
+# F1: PostgreSQL with standard_conforming_strings off honours backslash escapes
+# inside a plain '...' string, so a \' can hide a statement boundary. Derive a
+# backslash-aware lexer from the standard one so the two stay in sync; E'' already
+# honours backslash in both.
+_SQL_TOKEN_BACKSLASH = re.compile(
+    _SQL_TOKEN.pattern.replace(r"|'(?:[^']|'')*')", r"|'(?:[^'\\]|\\.|'')*')"),
+    re.DOTALL,
+)
+
+
+def _sql_tokens(query, backslash_escapes=False):
+    """Yield actual lexemes, excluding whitespace and nested SQL comments.
+
+    With *backslash_escapes* (PostgreSQL standard_conforming_strings off), a
+    backslash inside a plain string is an escape, matching the server's lexer.
+    """
+    token_re = _SQL_TOKEN_BACKSLASH if backslash_escapes else _SQL_TOKEN
     offset = 0
     while offset < len(query):
-        match = _SQL_TOKEN.match(query, offset)
+        match = token_re.match(query, offset)
         kind, value = match.lastgroup, match.group()
         offset = match.end()
         if kind == 'comment':
@@ -75,12 +95,12 @@ def _sql_tokens(query):
             yield kind, value
 
 
-def _postgis_has_dml(query):
+def _postgis_has_dml(query, backslash_escapes=False):
     """Flag write keywords at any depth outside literals."""
     keywords = {'INSERT', 'UPDATE', 'DELETE', 'MERGE', 'CREATE', 'DROP', 'ALTER',
                 'TRUNCATE', 'COPY', 'CALL', 'DO', 'GRANT', 'REVOKE'}
     return any(kind == 'word' and value.upper() in keywords
-               for kind, value in _sql_tokens(query))
+               for kind, value in _sql_tokens(query, backslash_escapes))
 
 
 # Leading keywords that make a standalone statement a transaction-control
@@ -91,15 +111,16 @@ _TRANSACTION_CONTROL_HEADS = {
 }
 
 
-def _sql_statement_list(query):
+def _sql_statement_list(query, backslash_escapes=False):
     """Split a SQL string into non-empty statements on top-level ``;``.
 
     Uses :func:`_sql_tokens` so a ``;`` inside a string literal, quoted
     identifier, dollar-quoted body or comment does not split a statement.
-    Each element is the statement's list of ``(kind, value)`` lexemes.
+    *backslash_escapes* selects the PostgreSQL standard_conforming_strings-off
+    lexer. Each element is the statement's list of ``(kind, value)`` lexemes.
     """
     statements, current = [], []
-    for kind, value in _sql_tokens(query):
+    for kind, value in _sql_tokens(query, backslash_escapes):
         if kind == 'symbol' and value == ';':
             if current:
                 statements.append(current)
@@ -561,10 +582,28 @@ class PostGISConnector:
             TRANSACTION_STATUS_INTRANS,
         )
 
+        # F1: lex plain strings the way this connection does. With
+        # standard_conforming_strings off, PostgreSQL honours backslash escapes
+        # inside '...', so a \' can hide a statement boundary from a lexer that
+        # assumes standard strings. The standard and backslash lexers differ ONLY
+        # when a backslash is present, so read the live setting only then. Use the
+        # cached server parameter (no query, so it is safe even in a failed
+        # transaction) and fail closed if it is unknown rather than mis-lex.
+        backslash_escapes = False
+        if "\\" in query:
+            scs = self.connection.get_parameter_status("standard_conforming_strings")
+            scs = scs.strip().lower() if isinstance(scs, str) else ""
+            if scs not in ("on", "off"):
+                raise SpatialQueryError(
+                    "Cannot determine standard_conforming_strings; refusing a "
+                    "backslash-containing query to avoid mis-lexing string escapes."
+                )
+            backslash_escapes = scs == "off"
+
         # R6: classify statements before executing anything. A multi-statement
         # batch that mixes a transaction-control statement with other statements
         # is non-atomic on the normal path, so reject it with zero side effects.
-        statements = _sql_statement_list(query)
+        statements = _sql_statement_list(query, backslash_escapes=backslash_escapes)
         controls = [_transaction_control_kind(statement) for statement in statements]
         if len(statements) > 1 and any(controls):
             raise SpatialQueryError(
@@ -669,7 +708,7 @@ class PostGISConnector:
                 # A SELECT-prefixed statement (including FOR UPDATE / FOR SHARE and
                 # volatile-function SELECT) is never committed here, so the caller
                 # keeps its transaction and row locks.
-                if not query.strip().upper().startswith('SELECT') and _postgis_has_dml(query):
+                if not query.strip().upper().startswith('SELECT') and _postgis_has_dml(query, backslash_escapes):
                     self.connection.commit()
             elif sql_owned:
                 # Autocommit + connector-established BEGIN: end with SQL COMMIT;
