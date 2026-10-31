@@ -1,6 +1,5 @@
 """Exact-type/ruling probes. Synthetic metadata only; no credential files."""
 import math
-from copy import deepcopy
 from decimal import Decimal
 from typing import Any
 import pytest,yaml
