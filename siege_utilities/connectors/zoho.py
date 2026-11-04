@@ -450,10 +450,10 @@ class ZohoConnector(_SecretRedactionMixin):
             msg = details.get("message", str(details))
             detail = self._safe_upstream_detail(msg)
             raise ConnectorError(
-                f"Failed to create {object_type}" + (f": {detail}" if detail else "")
+                f"Failed to create {self._redact_field(object_type)}" + (f": {detail}" if detail else "")
             )
         record_id = results[0]["details"]["id"]
-        self._log.info("Created %s record: %s", object_type, self._redact_field(record_id))
+        self._log.info("Created %s record: %s", self._redact_field(object_type), self._redact_field(record_id))
         return record_id
 
     def update_record(
@@ -468,7 +468,7 @@ class ZohoConnector(_SecretRedactionMixin):
             msg = details.get("message", str(details))
             detail = self._safe_upstream_detail(msg)
             raise ConnectorError(
-                f"Failed to update {object_type}/{self._redact_field(record_id)}"
+                f"Failed to update {self._redact_field(object_type)}/{self._redact_field(record_id)}"
                 + (f": {detail}" if detail else "")
             )
         self._log.info("Updated %s record: %s", object_type, self._redact_field(record_id))

@@ -503,9 +503,9 @@ class DynamicsConnector(_SecretRedactionMixin):
             record_id = resp.get(id_attribute, "")
         if not record_id:
             raise ConnectorError(
-                f"Dynamics create {entity_set} succeeded but returned no record id."
+                f"Dynamics create {self._redact_field(entity_set)} succeeded but returned no record id."
             )
-        self._log.info("Created %s record: %s", entity_set, self._redact_field(record_id))
+        self._log.info("Created %s record: %s", self._redact_field(entity_set), self._redact_field(record_id))
         return record_id
 
     def update_record(

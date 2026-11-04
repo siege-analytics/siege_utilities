@@ -653,10 +653,10 @@ class SalesforceConnector(_SecretRedactionMixin):
             msg = errors[0].get("message", str(errors)) if errors else "Unknown error"
             detail = self._safe_upstream_detail(msg)
             raise ConnectorError(
-                f"Failed to create {object_type}" + (f": {detail}" if detail else "")
+                f"Failed to create {self._redact_field(object_type)}" + (f": {detail}" if detail else "")
             )
         record_id = resp["id"]
-        self._log.info("Created %s record: %s", object_type, self._redact_field(record_id))
+        self._log.info("Created %s record: %s", self._redact_field(object_type), self._redact_field(record_id))
         return record_id
 
     def update_record(
@@ -912,7 +912,7 @@ class SalesforceConnector(_SecretRedactionMixin):
             elapsed = time.monotonic() - start
             if elapsed > BULK_TIMEOUT:
                 raise ConnectorError(
-                    f"Bulk API job {job_id} timed out after {BULK_TIMEOUT}s"
+                    f"Bulk API job {self._redact_field(job_id)} timed out after {BULK_TIMEOUT}s"
                 )
 
             job_info = self.request("GET", path)
@@ -944,7 +944,7 @@ class SalesforceConnector(_SecretRedactionMixin):
             error_msg = job_info.get("errorMessage")
             detail = self._safe_upstream_detail(error_msg) if error_msg else None
             raise ConnectorError(
-                f"Bulk API job {self._redact_field(job_id)} {state}"
+                f"Bulk API job {self._redact_field(job_id)} {self._redact_field(state)}"
                 + (f": {detail}" if detail else "")
             )
 

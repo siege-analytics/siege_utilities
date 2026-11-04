@@ -117,7 +117,7 @@ def test_short_marker_collision_auth_drops_upstream_content_not_characters(provi
     else:
         c._session.post=Mock(return_value=response(400,b));invoke=lambda:c._exchange_token('https://auth.example.test/token',{'client_secret':secret})
     with pytest.raises(ConnectorError) as caught:invoke()
-    assert DETAIL not in displays(caught.value)  # deliberately NOT assert secret-char absence
+    assert DETAIL not in displays(caught.value)  # asserts upstream content is gone, not secret-char absence
 
 @pytest.mark.parametrize('provider',PROVIDERS)
 def test_collector_failure_signal_and_hidden_chains_are_safe(provider):

@@ -422,8 +422,8 @@ class HubSpotConnector(_SecretRedactionMixin):
         resp = self.request("POST", path, json_body={"properties": data})
         record_id = resp.get("id", "")
         if not record_id:
-            raise ConnectorError(f"HubSpot create {object_type} returned no ID")
-        self._log.info("Created %s record: %s", object_type, self._redact_field(record_id))
+            raise ConnectorError(f"HubSpot create {self._redact_field(object_type)} returned no ID")
+        self._log.info("Created %s record: %s", self._redact_field(object_type), self._redact_field(record_id))
         return record_id
 
     def update_record(
