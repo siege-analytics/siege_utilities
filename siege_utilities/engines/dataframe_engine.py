@@ -76,6 +76,9 @@ def _is_geoseries(series: Any) -> bool:
     try:
         from geopandas import GeoSeries
     except ImportError:
+        # Capability probe, not error suppression: with geopandas absent no
+        # value can be a GeoSeries, so the correct classification is False and
+        # the engine still imports and handles plain Series.
         return False
     return isinstance(series, GeoSeries)
 
@@ -1648,10 +1651,15 @@ class DuckDBEngine(DataFrameEngine):
             # IndexError on .iloc[0].
             non_null = df[geometry_col].dropna()
             sample = non_null.iloc[0] if not non_null.empty else None
+            # The live column is authoritative via _column_crs: a real GeoSeries
+            # CRS wins over a stale siege_geometry_crs attrs entry, even when it
+            # is None (an unknown real CRS must not be relabelled). A
+            # non-GeoSeries column (a plain Series, or raw WKB surviving a join,
+            # whose index may even carry a label named "crs") falls back to the
+            # attrs map, and to the WKT text default only when attrs has no entry.
+            source_crs = self._column_crs(df, geometry_col)
             metadata = df.attrs.get(_GEOMETRY_CRS_ATTR, {})
-            source_crs = metadata.get(geometry_col)
-            if geometry_col not in metadata:
-                source_crs = getattr(df[geometry_col], "crs", None)
+            if not _is_geoseries(df[geometry_col]) and geometry_col not in metadata:
                 # Hex WKB, unlike WKT text, must not acquire the text default.
                 if isinstance(sample, str):
                     head = sample[:32].strip()
@@ -1684,7 +1692,9 @@ class DuckDBEngine(DataFrameEngine):
         import pandas as pd
 
         self._ensure_spatial()
-        source_crs = getattr(gdf[geometry_col], "crs", None)
+        # _column_crs, not getattr: a plain Series whose index carries a "crs"
+        # label would otherwise expose that row's value as a spoofed CRS.
+        source_crs = self._column_crs(gdf, geometry_col)
         metadata = {geometry_col: str(source_crs) if source_crs is not None else None}
 
         attr_cols = [c for c in gdf.columns if c != geometry_col]
@@ -2090,6 +2100,7 @@ class SparkEngine(DataFrameEngine):
         actually in; normalizing to a default CRS here would corrupt data
         that entered in a projected CRS.
         """
+        import geopandas as gpd
         import pandas as pd
 
         if len(gdf) == 0:
@@ -2098,7 +2109,10 @@ class SparkEngine(DataFrameEngine):
                 "rows to infer a schema from. Provide at least one row."
             )
 
-        if getattr(gdf, "crs", None) is None:
+        # isinstance, not getattr: a plain DataFrame with a column named "crs"
+        # would otherwise return that column through attribute access.
+        frame_crs = gdf.crs if isinstance(gdf, gpd.GeoDataFrame) else None
+        if frame_crs is None:
             log.warning(
                 "from_geodataframe received a GeoDataFrame with no CRS. "
                 "Coordinates are serialized as-is and Spark/Sedona stores no "

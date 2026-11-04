@@ -20,7 +20,7 @@ def engine():
 @pytest.fixture
 def typed_engine(engine):
     if tuple(map(int, duckdb.__version__.split(".")[:2])) < (1, 5):
-        pytest.skip("CRS-qualified geometry types require DuckDB 1.5")
+        pytest.skip("requires duckdb>=1.5 for CRS-qualified geometry types; install siege-utilities[performance]")
     engine._ensure_spatial()
     return engine
 
