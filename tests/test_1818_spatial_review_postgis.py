@@ -304,6 +304,7 @@ def test_r2_1_literals_comments_and_identifier_substrings_do_not_commit(query):
     connector = PostGISConnector.__new__(PostGISConnector)
     connector._opened_connection = True
     connector.connection = MagicMock()
+    connector.connection.get_parameter_status.return_value = "on"
     connector.connection.get_transaction_status.return_value = 2
     cursor = connector.connection.cursor.return_value
     cursor.statusmessage = "SELECT 1"

@@ -5,9 +5,12 @@ of its own), F2 (``--`` comments end at CR and CRLF; a comment-terminated contro
 batch is rejected before execution) and F3 (Unicode dollar-quote tags). DuckDB
 and pure-lexer only; no external services.
 """
+import pytest
+
+pytest.importorskip("duckdb")
+
 import duckdb
 import geopandas as gpd
-import pytest
 from shapely.geometry import Point
 
 from siege_utilities.geo import spatial_transformations as module

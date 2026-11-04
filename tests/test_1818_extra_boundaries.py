@@ -9,8 +9,11 @@ cluster by test_1818_r2_duckdb_and_lexer.py.
 import os
 from uuid import uuid4
 
-import duckdb
 import pytest
+
+pytest.importorskip("duckdb")
+
+import duckdb
 from siege_utilities.geo import spatial_transformations as module
 
 @pytest.fixture
