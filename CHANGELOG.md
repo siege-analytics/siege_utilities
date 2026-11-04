@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `notebooks/analytics/01_connectors.ipynb` no longer advertises live
   Google Analytics / Snowflake queries while only initializing the
   connectors and always returning a hardcoded fixture. The notebook now
-  has an explicitly opted-in credentialed path (GA4 when
+  has an opt-in credentialed path (GA4 when
   `GOOGLE_APPLICATION_CREDENTIALS` and `GA_PROPERTY_ID` are set, else a
   configured Snowflake rollup) that issues the real `get_ga4_data` /
   `execute_query` calls over the previous two complete Monday-through-Sunday
