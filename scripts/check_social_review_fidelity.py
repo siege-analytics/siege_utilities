@@ -63,51 +63,83 @@ def _is_zero(value):
     )
 
 
-def compare(old, new, where="root"):
-    """Count ONLY the intended baseline-zero -> current-null differences.
+# Baseline-zero -> current-null is authorized ONLY at these explicit
+# omitted-post converter cells: the pre-fix code fabricated 0 for a post that
+# omitted the metric, the fix returns null. Two Instagram columns and six X
+# columns, each at the single omitted-post row. A zero -> null anywhere else is
+# a leak and a missing authorized location is a lost intended null; an aggregate
+# total is a useful check, not authorization (#1812 R-1812-3).
+_AUTHORIZED = frozenset({
+    "instagram._posts_to_dataframe.omitted[0,'like_count']",
+    "instagram._posts_to_dataframe.omitted[0,'comments_count']",
+    "x._tweets_to_dataframe.omitted[0,'retweet_count']",
+    "x._tweets_to_dataframe.omitted[0,'reply_count']",
+    "x._tweets_to_dataframe.omitted[0,'like_count']",
+    "x._tweets_to_dataframe.omitted[0,'quote_count']",
+    "x._tweets_to_dataframe.omitted[0,'bookmark_count']",
+    "x._tweets_to_dataframe.omitted[0,'impression_count']",
+})
 
-    Returns the number of cells where the pre-fix baseline held a fabricated
-    numeric zero and the post-fix output is null (the omitted IG/X count fix).
-    EVERY other value, row, column, index key and timestamp must match exactly;
-    any other difference raises, so a new unexplained removal or relabel fails
-    the audit rather than being silently absorbed.
+
+def _strict_equal(old, new):
+    """Type-exact and timezone-exact leaf equality.
+
+    Ordinary ``==`` certifies a same-instant timezone relabel (UTC vs local), a
+    0 -> False value/type change, and other type coincidences as equal. The
+    audit preserves exact representation, so compare the type and, for
+    timestamps, the timezone and the instant.
+    """
+    if isinstance(old, pd.Timestamp) or isinstance(new, pd.Timestamp):
+        if not (isinstance(old, pd.Timestamp) and isinstance(new, pd.Timestamp)):
+            return False
+        return old.tz == new.tz and old == new
+    if type(old) is not type(new):
+        return False
+    return bool(old == new)
+
+
+def compare(old, new, where, hits):
+    """Count ONLY the authorized baseline-zero -> current-null cells.
+
+    ``hits`` accumulates the authorized locations actually seen, so the caller
+    asserts every intended null occurred and a compensating difference cannot
+    mask a lost null. EVERY other value, row, column, index key/name, type and
+    timestamp must match exactly; any other difference raises, so a new
+    unexplained removal, relabel or type change fails the audit.
     """
     if isinstance(old, pd.DataFrame) or isinstance(new, pd.DataFrame):
         assert isinstance(old, pd.DataFrame) and isinstance(new, pd.DataFrame), (where, type(old), type(new))
         assert list(old.columns) == list(new.columns), (where, list(old.columns), list(new.columns))
         assert list(old.index) == list(new.index), (where, list(old.index), list(new.index))
+        assert old.index.name == new.index.name, (where, old.index.name, new.index.name)
         allowed = 0
         for col in old.columns:
             for idx in old.index:
-                allowed += compare(old.at[idx, col], new.at[idx, col], f"{where}[{idx!r},{col!r}]")
+                allowed += compare(old.at[idx, col], new.at[idx, col], f"{where}[{idx!r},{col!r}]", hits)
         return allowed
     if isinstance(old, dict) or isinstance(new, dict):
         assert isinstance(old, dict) and isinstance(new, dict), (where, type(old), type(new))
         assert set(old) == set(new), (where, set(old), set(new))
-        return sum(compare(old[key], new[key], f"{where}.{key}") for key in old)
+        return sum(compare(old[key], new[key], f"{where}.{key}", hits) for key in old)
     if isinstance(old, (list, tuple)) or isinstance(new, (list, tuple)):
         assert type(old) is type(new) and len(old) == len(new), (where, old, new)
-        return sum(compare(o, n, f"{where}[{i}]") for i, (o, n) in enumerate(zip(old, new)))
+        return sum(compare(o, n, f"{where}[{i}]", hits) for i, (o, n) in enumerate(zip(old, new)))
     if _is_null(old) and _is_null(new):
         return 0
     if _is_null(old) != _is_null(new):
-        if _is_zero(old) and _is_null(new):
+        if _is_zero(old) and _is_null(new) and where in _AUTHORIZED:
+            hits.add(where)
             return 1
         raise AssertionError(f"unexpected null/non-null diff at {where}: {old!r} -> {new!r}")
-    if old == new:
+    if _strict_equal(old, new):
         return 0
     raise AssertionError(f"unexpected value diff at {where}: {old!r} -> {new!r}")
-
-
-# The audit permits exactly this many baseline-zero -> current-null cells: the
-# omitted-count fix produces 2 Instagram and 6 X cells across the 23 fixtures.
-# Any other count fails, so a new leak (or a lost intended null) is caught.
-_EXPECTED_ABSENT_ZERO_TO_NULL = 8
 
 
 def audit():
     count = 0
     allowed = 0
+    hits = set()
     for platform, current in (("instagram", instagram), ("x", x_twitter)):
         old = old_module(current)
         class_name = "InstagramConnector" if platform == "instagram" else "XTwitterConnector"
@@ -137,10 +169,10 @@ def audit():
                                       "non_public_metrics": {"like_count": 3, "url_link_clicks": 7},
                                       "organic_metrics": {"url_link_clicks": 2, "user_profile_clicks": 9}}}
             post_empty = {"data": {"public_metrics": {}}}
-        for posts in ([], populated, [{"id": "123"}]):
+        for label, posts in (("empty", []), ("populated", populated), ("omitted", [{"id": "123"}])):
             before = getattr(getattr(old, class_name), converter)(deepcopy(posts))
             after = getattr(getattr(current, class_name), converter)(deepcopy(posts))
-            allowed += compare(before, after, f"{platform}.{converter}")
+            allowed += compare(before, after, f"{platform}.{converter}.{label}", hits)
             count += 1
         for method, args, bodies in (
             ("get_account_info", (), (account, account_empty)),
@@ -151,7 +183,7 @@ def audit():
                 with client_for(old, platform, body) as previous, client_for(current, platform, body) as new:
                     before = getattr(previous, method)(*args)
                     after = getattr(new, method)(*args)
-                allowed += compare(before, after, f"{platform}.{method}")
+                allowed += compare(before, after, f"{platform}.{method}", hits)
                 if platform == "x" and method == "get_account_info" and body == account_empty:
                     assert after["followers_count"] is None
                 count += 1
@@ -172,7 +204,7 @@ def audit():
             except TypeError:
                 reports.append("TypeError")
         if None not in values:
-            allowed += compare(reports[0], reports[1], "report")
+            allowed += compare(reports[0], reports[1], "report", hits)
         else:
             assert reports[0] == "TypeError"
             assert isinstance(reports[1], dict)
@@ -182,10 +214,11 @@ def audit():
             assert reports[1]["metrics"]["x_twitter — Followers"]["value"] == "unavailable"
             assert data[0]["account_info"]["followers_count"] is None
         count += 1
-    assert allowed == _EXPECTED_ABSENT_ZERO_TO_NULL, (
-        f"expected exactly {_EXPECTED_ABSENT_ZERO_TO_NULL} baseline-zero -> null "
-        f"count cells, classified {allowed}"
+    assert hits == _AUTHORIZED, (
+        "authorized zero -> null locations differ from those observed; "
+        f"missing {sorted(_AUTHORIZED - hits)}, unexpected {sorted(hits - _AUTHORIZED)}"
     )
+    assert allowed == len(_AUTHORIZED), (allowed, len(_AUTHORIZED))
     print(
         f"old/new diff: {allowed} baseline-zero -> null count cells "
         f"(the intended omitted IG/X fix), 0 other differences ({count} fixtures)"
