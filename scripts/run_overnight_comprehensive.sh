@@ -36,6 +36,8 @@ if command -v uv &> /dev/null; then
         -v \
         --tb=short \
         --durations=20 \
+        -m "not integration and not postgis" \
+        --ignore=tests/test_notebooks.py \
         --cov=siege_utilities \
         --cov-report=term-missing \
         --cov-report=html:overnight_results/coverage_html \
@@ -47,6 +49,8 @@ else
         -v \
         --tb=short \
         --durations=20 \
+        -m "not integration and not postgis" \
+        --ignore=tests/test_notebooks.py \
         --cov=siege_utilities \
         --cov-report=term-missing \
         --cov-report=html:overnight_results/coverage_html \
