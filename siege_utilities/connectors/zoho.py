@@ -178,7 +178,7 @@ class ZohoConnector(_SecretRedactionMixin):
             raise ValueError("client_id and client_secret are required.")
         if data_center not in ZOHO_DATA_CENTERS:
             raise ValueError(
-                f"Unknown data center '{data_center}'. "
+                "Unknown data center. "
                 f"Valid: {', '.join(ZOHO_DATA_CENTERS.keys())}"
             )
 

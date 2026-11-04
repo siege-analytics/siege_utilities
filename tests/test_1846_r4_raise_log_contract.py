@@ -1,19 +1,19 @@
-"""R-1846-4 close-the-class contract (#1846).
+"""R-1846 source-level lint aid over the four CRM connectors (#1846).
 
-A committed AST check over the four CRM connectors. Exceptions are not routed
-through the RedactingLogger, so any value interpolated into a ``raise`` (or into
-an error-constructor message such as ``rate_limit_error(...)``) is emitted
-verbatim. This test fails if any such interpolation is not a reviewed redactor
-call (``_redact_field`` / ``_safe_upstream_detail`` / ``_extract_error``) or a
-short explicit safe form: ``type(exc).__name__``, an HTTP ``.status_code``, an
-ALL-CAPS module constant, or a reviewed non-credential bare name (HTTP verb /
-integer counter). It also requires every ``self._log.*`` call to use a literal
-message template, so the logger can value-redact the separate arguments.
-
-A caller-supplied field (``object_type`` / ``entity_set`` / ``job_id``) is not
-safe merely by its name: it reaches this check as a bare parameter and fails
-until wrapped. The source is parsed, never imported, so the check runs without
-the optional transport dependencies (requests, msal, duckdb).
+NON-EXHAUSTIVE and NOT a closure proof. The guarantee that no configured
+credential leaves a public connector method is the RUNTIME boundary
+(``_SecretRedactionMixin``'s public-method exception wrap and
+``RedactingLogger``'s final-record sanitization), exercised by
+``test_1846_r4_runtime_sinks.py`` and ``test_1846_r5_boundary_allmethods.py``
+against actual emitted text. An adversarial review (#1846 R-1846-5) measured
+this AST classifier at 35 false-negatives over 46 synthetic programs: it trusts
+attribute/receiver/bare-name spellings without provenance, sees only JoinedStr
+forms and positional args, does not follow aliases, `%`/`.format`/concatenation,
+raise causes, helper modules, or logging ``extra``/``exc_info``. Keep it only as
+a cheap source-level nudge that new ``raise``/log sites prefer a redactor call
+or a literal template; a pass here proves nothing about runtime safety. The
+source is parsed, never imported, so it runs without the optional transport
+dependencies (requests, msal, duckdb).
 """
 import ast
 from pathlib import Path

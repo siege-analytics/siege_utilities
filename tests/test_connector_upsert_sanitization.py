@@ -199,7 +199,11 @@ def test_encoding_error_keeps_connector_error_contract(provider, object_type, mo
     with pytest.raises(ConnectorError, match="JSON") as exc_info:
         connector.create_record(object_type, {"Name": "x", "AnnualRevenue": float("nan")})
 
-    assert isinstance(exc_info.value.__cause__, requests.exceptions.InvalidJSONError)
+    # The public-edge boundary (#1846 R-1846-5) re-raises a same-class,
+    # message-sanitized ConnectorError with the chain dropped, so a raw
+    # InvalidJSONError cause cannot leak through the formatted traceback.
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
     assert request.call_count == 1
     send.assert_not_called()
     sleep.assert_not_called()

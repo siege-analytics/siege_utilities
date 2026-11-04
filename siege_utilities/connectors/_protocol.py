@@ -22,7 +22,11 @@ from typing import Any, Protocol, runtime_checkable
 import numpy as np
 import pandas as pd
 
-from siege_utilities.core._http import _MIN_SECRET_VALUE_LEN, redact_secrets
+from siege_utilities.core._http import (
+    _MIN_SECRET_VALUE_LEN,
+    contains_secret_value,
+    redact_secrets,
+)
 
 # Distinct fail-closed signal: secret collection could not be trusted, so the
 # caller must not emit any upstream text it cannot prove secret-free.
@@ -243,6 +247,90 @@ class _SecretRedactionMixin:
             return None
         detail = self._safe_upstream_detail(str(value))
         return "[REDACTED]" if detail is None else detail
+
+    # -- Public-edge redaction boundary (#1846 R-1846-5) ---------------------
+    # One runtime boundary enforced here, not site by site: every public
+    # connector method is wrapped so any exception leaving it is re-raised as
+    # the SAME class with a sanitized message, and the RedactingLogger
+    # sanitizes the final rendered record. The per-site ``_redact_field`` calls
+    # above stay as defense in depth. The transport path (URLs, headers,
+    # payloads) is never touched, so request bytes remain identical.
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        import inspect
+
+        for name, attr in list(vars(cls).items()):
+            if name.startswith("_") or not inspect.isfunction(attr):
+                continue
+            if getattr(attr, "_secret_boundary", False):
+                continue
+            setattr(cls, name, _SecretRedactionMixin._wrap_public(attr))
+
+    @staticmethod
+    def _wrap_public(func):
+        """Wrap one public method so an exception leaving it is sanitized."""
+        import functools
+
+        @functools.wraps(func)
+        def boundary(self, *args, **kwargs):
+            sanitized = None
+            try:
+                return func(self, *args, **kwargs)
+            except Exception as exc:
+                sanitized = self._sanitize_exception(exc)
+            # Raise OUTSIDE the except block so the sanitized exception carries
+            # no implicit __context__ (and ``from None`` clears __cause__); a
+            # chained original could otherwise expose raw text to introspection
+            # even when suppressed from the formatted traceback.
+            raise sanitized from None
+
+        boundary._secret_boundary = True
+        return boundary
+
+    def _sanitize_exception(self, exc):
+        """Return a same-class copy of *exc* with a sanitized message, no chain.
+
+        A configured value under the length floor, or failed collection, yields
+        a trusted constant (the class name plus HTTP status when known);
+        otherwise the rendered message is value-redacted against the instance's
+        configured secrets. ``args`` are rebuilt from the sanitized text so
+        ``str``/``repr``/``args``/traceback all agree; the caller re-raises with
+        ``from None`` so raw text stays out of ``__cause__``/``__context__``. The
+        exception class and its status-bearing attributes are preserved so
+        callers' ``except`` clauses and status checks still work.
+        """
+        message = self._boundary_message(exc)
+        sanitized = exc.__class__.__new__(exc.__class__)
+        sanitized.args = (message,)
+        for attr in ("status_code", "status", "retry_after", "response", "code"):
+            if hasattr(exc, attr):
+                setattr(sanitized, attr, getattr(exc, attr))
+        return sanitized
+
+    def _boundary_message(self, exc):
+        """Sanitized message for *exc*: value-redacted, or a trusted constant.
+
+        Value-redact the rendered message against configured values; emit it
+        when it is proven free of every configured value. Fall back to a trusted
+        constant (class name plus HTTP status when known) only when collection
+        failed or a short configured value is still present after redaction, so
+        an ordinary non-secret message survives while a short-credential leak
+        collapses to the constant.
+        """
+        values = self._secret_values()
+        status = getattr(exc, "status_code", None)
+        if status is None:
+            status = getattr(exc, "status", None)
+
+        def constant():
+            label = type(exc).__name__
+            return f"{label} (HTTP {status})" if isinstance(status, int) else label
+
+        if values is _SECRET_COLLECTION_FAILED:
+            return constant()
+        redacted = redact_secrets(str(exc), values=values)
+        return constant() if contains_secret_value(redacted, values) else redacted
 
 
 class ConnectorError(Exception):

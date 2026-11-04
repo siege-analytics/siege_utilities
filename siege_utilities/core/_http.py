@@ -161,6 +161,27 @@ def redact_secrets(text: str, *, replacement: str = "[REDACTED]", values=()) -> 
 
 _MIN_SECRET_VALUE_LEN = 8
 
+
+def contains_secret_value(text: str, values) -> bool:
+    """True if any configured value (raw or URL-encoded) still appears in *text*.
+
+    Value redaction skips values below ``_MIN_SECRET_VALUE_LEN`` so a common
+    short string cannot blank diagnostics. A boundary emitting diagnostic text
+    calls this AFTER redaction: when a short configured value is still present,
+    the caller falls back to a trusted constant (exception) or the bare template
+    (log) rather than leak it, while text proven free of every configured value
+    is emitted intact so ordinary non-secret diagnostics survive.
+    """
+    text = str(text)
+    for value in values or ():
+        value = value if isinstance(value, str) else str(value)
+        if not value:
+            continue
+        if value in text or quote(value, safe="") in text or quote_plus(value) in text:
+            return True
+    return False
+
+
 _PERCENT_HEX = re.compile(r"%[0-9A-Fa-f]{2}")
 
 
