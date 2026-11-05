@@ -43,7 +43,7 @@ if command -v uv &> /dev/null; then
         --cov-report=html:overnight_results/coverage_html \
         --cov-report=json:overnight_results/coverage.json \
         2>&1 | tee overnight_results/test_output.txt
-    TEST_EXIT_CODE=${PIPESTATUS[0]}
+    PIPE_STATUS=("${PIPESTATUS[@]}")
 else
     python -m pytest tests/ \
         -v \
@@ -56,9 +56,23 @@ else
         --cov-report=html:overnight_results/coverage_html \
         --cov-report=json:overnight_results/coverage.json \
         2>&1 | tee overnight_results/test_output.txt
-    TEST_EXIT_CODE=${PIPESTATUS[0]}
+    PIPE_STATUS=("${PIPESTATUS[@]}")
 fi
 set -e
+
+# Both pipeline stages count: a pytest pass is not a result unless its output
+# artifact was actually written.
+PYTEST_EXIT_CODE=${PIPE_STATUS[0]}
+TEE_EXIT_CODE=${PIPE_STATUS[1]}
+TEST_EXIT_CODE=$PYTEST_EXIT_CODE
+OUTPUT_ARTIFACT="written"
+if [[ "$TEE_EXIT_CODE" -ne 0 || ! -f overnight_results/test_output.txt ]]; then
+    OUTPUT_ARTIFACT="absent"
+    echo "ERROR: could not write overnight_results/test_output.txt (tee exit $TEE_EXIT_CODE)." >&2
+    if [[ "$TEST_EXIT_CODE" -eq 0 ]]; then
+        TEST_EXIT_CODE=1
+    fi
+fi
 
 # Generate summary
 echo ""
@@ -73,6 +87,9 @@ cat > overnight_results/summary.json << EOF
 {
     "timestamp": "$(date -Iseconds)",
     "exit_code": $TEST_EXIT_CODE,
+    "pytest_exit_code": $PYTEST_EXIT_CODE,
+    "tee_exit_code": $TEE_EXIT_CODE,
+    "output_artifact": "$OUTPUT_ARTIFACT",
     "script_dir": "$SCRIPT_DIR",
     "python_version": "$(python --version 2>&1)"
 }
