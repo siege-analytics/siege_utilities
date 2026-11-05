@@ -62,5 +62,23 @@ Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11), snowfl
 - `python -m pytest tests/test_release_process.py tests/test_user_config_export_changelog.py --no-cov` -> 25 passed.
 No live Snowflake account was used; all cursors and `write_pandas` are fakes.
 
+## Ticket-fitness exemption
+
+writing-rules:4 exemption for each governing ticket. The #1398 epic is context only.
+
+### #1484
+- **Reason:** #1484 predates the canonical ticket template. It uses Problem / Evidence / Failure scenario / Done when / Assumptions / Falsifier sections rather than the current structure, so `evaluate-ticket.sh` does not accept it as written.
+- **Evidence:** the problem (three numbered defects), the evidence (probe output for the dtype mapping and a trace for timestamps and session state) and the done-when criteria live in the #1484 body under `## Problem`, `## Evidence` and `## Done when`. The owner's current-head criteria are at https://github.com/siege-analytics/siege_utilities/issues/1484#issuecomment-6649267710. The independent review of this PR is at https://github.com/siege-analytics/siege_utilities/pull/1806#pullrequestreview-5566956837. Investigation, pre-mortem and Junior/Senior records are on the ticket at issuecomment-6651144188 and issuecomment-6651207952.
+- **Falsification:** revert the implementation (restore `siege_utilities/analytics/snowflake_connector.py` from develop) and three tests go red:
+  - `tests/test_1484_snowflake_types_context.py::test_override_runs_in_requested_context_then_restores[list_tables-database]` fails because the session stays on `OTHER_DB`/`PUBLIC` instead of returning to `CONFIGURED_DB`/`CONFIGURED_SCHEMA`;
+  - `test_upload_uses_parquet_logical_types` fails because `write_pandas` receives no `use_logical_type`;
+  - `test_pandas_dtype_mapping[Int64-values0-NUMBER(38,0)]` fails because a nullable `Int64` column maps to `VARCHAR(16777216)`.
+  This was verified on 2026-11-05: with develop's connector in place, 20 failed and 12 passed in the selection; with the PR's connector restored, 32 passed.
+
+### #1421
+- **Reason:** #1421 predates the canonical template. It has only Problem / Failure scenario / Done when sections.
+- **Evidence:** the problem (identifier quoting is an undeclared case-sensitivity change) and the two acceptable done-when options live in the #1421 body. This PR does not implement #1421: by the maintainer decision recorded at https://github.com/siege-analytics/siege_utilities/pull/1806#issuecomment-6258234574, the PR keeps the existing quoting and leaves the choice to #1421. Its tie to #1421 is that it must not change the quoted `USE`/`DROP`/`DESCRIBE` lines.
+- **Falsification:** if this PR altered the #1421 quoting convention, `tests/test_final_hardening_consensus.py::test_snowflake_get_table_info_quotes_identifier` would go red, because the executed `DESCRIBE TABLE` statement would no longer contain `"events"`. Both quoting tests pass on this branch and on develop's connector, and `git diff -U0` shows no change to those lines.
+
 ## Rework ledger
 One control test first matched `CURRENT_DATABASE` inside `get_table_info`'s INFORMATION_SCHEMA query. It now matches only the exact snapshot statement.
