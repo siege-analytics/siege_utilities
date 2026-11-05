@@ -26,6 +26,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has both #1543 entries under `[4.1.0]` and none under `[Unreleased]`.
 - Request a fresh exact-head review: any earlier result is void once the head moves, and the code diff against develop is unchanged.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1543 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1543 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (caller-supplied remotes interpreted as git options and branch names as checkout pathspecs), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1543, and in the PR description, https://github.com/siege-analytics/siege_utilities/pull/1735. The reviewer verdicts are recorded on the ticket thread and the PR conversation.
+- **Falsification:** revert the implementation (the `siege_utilities/git/` changes of this PR); `tests/test_git_option_injection.py::test_remote_options_rejected_before_any_git` goes red because an option-like remote such as `--mirror` reaches git. The latest commit of this PR is process-only; that existing regression test guards the accepted fix.
+
 ## Lead review
 
 The change is additive and reverts with one commit. No behavior change. No claim in this artifact exceeds what was observed.
