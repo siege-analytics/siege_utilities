@@ -1,5 +1,6 @@
 """Regression coverage for database config round-tripping (#1476)."""
 
+import inspect
 import json
 import re
 
@@ -191,3 +192,16 @@ def test_invalid_reference_error_does_not_echo_the_value(tmp_path):
     with pytest.raises(ValueError) as excinfo:
         load_database_config("legacy", str(tmp_path))
     assert "RvSentinel-7" not in str(excinfo.value)
+
+
+def test_create_database_config_keeps_the_4_0_0_public_signature():
+    # The minor-release API contract compares this exact string (#1476).
+    assert str(inspect.signature(create_database_config)) == (
+        "(name: str, connection_type: str, host: str, port: int, database: str, "
+        "username: str, password: str, **kwargs) -> Dict[str, Any]"
+    )
+
+
+def test_digit_string_port_is_still_accepted_at_runtime():
+    config = create_database_config("db", "postgres", "localhost", "5432", "d", "u", "p")
+    assert config["jdbc_url"] == "jdbc:postgresql://localhost:5432/d"

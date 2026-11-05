@@ -102,7 +102,7 @@ def _validate_port(port: Any) -> int:
     return validated
 
 
-def create_database_config(name: str, connection_type: str, host: str, port: int | str,
+def create_database_config(name: str, connection_type: str, host: str, port: int,
                            database: str, username: str, password: str, **kwargs) -> Dict[str, Any]:
     """
     Create a database connection configuration.
@@ -111,7 +111,10 @@ def create_database_config(name: str, connection_type: str, host: str, port: int
         name: Friendly name for the connection
         connection_type: Database type (postgres, mysql, oracle, etc.)
         host: Database host
-        port: Database port, an integer or 1 to 5 digit string in range 1-65535
+        port: Database port in range 1-65535. Annotated ``int`` to keep the
+            4.x public signature; a string of 1 to 5 ASCII digits (as read
+            from config files) is also accepted at runtime. Anything else
+            raises ``ValueError``.
         database: Database name
         username: Username
         password: Password
