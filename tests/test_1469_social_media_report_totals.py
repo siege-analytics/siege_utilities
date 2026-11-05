@@ -1,5 +1,7 @@
 """Regression coverage for social report failures, sample counts and missing metrics."""
 
+import logging
+import traceback
 from datetime import date
 from unittest.mock import Mock
 
@@ -54,17 +56,57 @@ def report(tmp_path, monkeypatch):
     return generator, writer
 
 
-@pytest.mark.parametrize("method", ["get_posts", "get_account_info", "get_account_insights"])
-@pytest.mark.parametrize("error_type", [RuntimeError, SocialMediaError])
-def test_connector_failure_raises_with_platform_and_cause(report, method, error_type):
-    generator, writer = report
-    cause = error_type("retrieval failed")
-    connector = FakeConnector(failure=method, error=cause)
+OPERATIONS = {
+    "get_account_info": "account info",
+    "get_account_insights": "account insights",
+    "get_posts": "posts",
+}
 
-    with pytest.raises(SocialMediaError, match="fakebook.*retrieval failed") as exc:
+
+@pytest.mark.parametrize("method", list(OPERATIONS))
+@pytest.mark.parametrize("error_type", [RuntimeError, SocialMediaError])
+def test_connector_failure_raises_with_platform_and_category(report, method, error_type):
+    # The error names the platform, the operation and the error type. It does
+    # not chain or quote the connector error, which may carry credentials.
+    generator, writer = report
+    connector = FakeConnector(failure=method, error=error_type("retrieval failed"))
+
+    with pytest.raises(SocialMediaError) as exc:
         generator.create_social_media_report([FakeConnector("healthy"), connector], START, END)
 
-    assert exc.value.__cause__ is cause
+    message = str(exc.value)
+    assert "fakebook" in message
+    assert OPERATIONS[method] in message
+    assert error_type.__name__ in message
+    assert "retrieval failed" not in message
+    assert exc.value.__cause__ is None
+    assert exc.value.__suppress_context__ is True
+    writer.assert_not_called()
+
+
+SECRET = "DUMMY_SECRET_1807"
+
+
+@pytest.mark.parametrize("method", list(OPERATIONS))
+@pytest.mark.parametrize("secret_text", [
+    f"request failed: https://graph.instagram.com/v22.0/me?access_token={SECRET}",
+    f"401 Unauthorized; Authorization: Bearer {SECRET}",
+])
+def test_connector_failure_never_exposes_secrets(report, caplog, method, secret_text):
+    generator, writer = report
+    connector = FakeConnector(failure=method, error=RuntimeError(secret_text))
+    log = logging.getLogger("test_1469_secret_controls")
+
+    with caplog.at_level(logging.DEBUG):
+        with pytest.raises(SocialMediaError) as exc:
+            generator.create_social_media_report([connector], START, END)
+        log.exception("report failed", exc_info=exc.value)
+
+    rendered = "".join(traceback.format_exception(exc.value))
+    assert SECRET not in str(exc.value)
+    assert SECRET not in repr(exc.value)
+    assert SECRET not in rendered
+    assert SECRET not in caplog.text
     writer.assert_not_called()
 
 

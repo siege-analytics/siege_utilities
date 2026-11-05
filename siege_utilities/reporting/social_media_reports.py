@@ -36,6 +36,18 @@ def _format_metric(value: Any, spec: str = ",") -> str:
     return format(value, spec) if pd.notna(value) else "unavailable"
 
 
+def _retrieval_error(operation: str, platform: str, exc: Exception) -> SocialMediaError:
+    """Name the platform, operation and error type without the error's text.
+
+    Connector errors can carry request URLs or headers with access tokens, so
+    their text is never copied. Callers raise this ``from None`` so the original
+    error is not chained into tracebacks either.
+    """
+    return SocialMediaError(
+        f"Failed to get {operation} from {platform} ({type(exc).__name__})"
+    )
+
+
 def _numeric_likes(posts: pd.DataFrame) -> pd.Series:
     """Like counts as numbers; unparseable or missing counts become NaN."""
     return pd.to_numeric(posts.get("like_count", pd.Series(dtype=float)), errors="coerce")
@@ -139,17 +151,17 @@ class SocialMediaReportGenerator:
             try:
                 account_info = conn.get_account_info()
             except Exception as exc:
-                raise SocialMediaError(f"Failed to get account info from {platform}: {exc}") from exc
+                raise _retrieval_error("account info", platform, exc) from None
 
             try:
                 insights_df = conn.get_account_insights(start_date, end_date)
             except Exception as exc:
-                raise SocialMediaError(f"Failed to get account insights from {platform}: {exc}") from exc
+                raise _retrieval_error("account insights", platform, exc) from None
 
             try:
                 posts_df = conn.get_posts(start_date, end_date, limit=posts_limit)
             except Exception as exc:
-                raise SocialMediaError(f"Failed to get posts from {platform}: {exc}") from exc
+                raise _retrieval_error("posts", platform, exc) from None
 
             results.append({
                 "platform": platform,
