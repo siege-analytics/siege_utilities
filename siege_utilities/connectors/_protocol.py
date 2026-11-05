@@ -14,6 +14,7 @@ no CDC, no conflict resolution beyond dedup.
 from __future__ import annotations
 
 import json
+import math
 import threading
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -289,7 +290,15 @@ class _SecretRedactionMixin:
             inner = attr.__func__
             if not _SecretRedactionMixin._wants_wrap(name, inner):
                 return None
-            return type(attr)(_SecretRedactionMixin._wrap_callable(inner))
+            # #1846 R-1846-7 F3: a class/static method has no instance, so the
+            # instance-shaped boundary would bind ``cls``/the first arg as
+            # ``self`` and raise a secondary TypeError/AttributeError. Wrap with a
+            # contextless boundary: classmethod forwards ``cls``, staticmethod
+            # takes no receiver, and any failure becomes the trusted constant.
+            wrapped = _SecretRedactionMixin._wrap_contextless(
+                inner, receiver=isinstance(attr, classmethod)
+            )
+            return type(attr)(wrapped)
         if isinstance(attr, property):
             parts = (attr.fget, attr.fset, attr.fdel)
             new = tuple(
@@ -322,12 +331,38 @@ class _SecretRedactionMixin:
         elif inspect.isasyncgenfunction(func):
             @functools.wraps(func)
             async def boundary(self, *args, **kwargs):
+                # #1846 R-1846-7 F4: drive the inner async generator and forward
+                # the full protocol -- asend (values), athrow (exceptions) and
+                # aclose (GeneratorExit -> inner finally) -- instead of a plain
+                # ``async for ... yield`` adapter that drops send/throw/close.
+                # Exceptions escaping the inner generator are sanitized.
+                agen = func(self, *args, **kwargs)
                 try:
-                    async for item in func(self, *args, **kwargs):
-                        yield item
+                    item = await agen.__anext__()
+                except StopAsyncIteration:
+                    return
                 except Exception as exc:
-                    sanitized = _SecretRedactionMixin._sanitize_or_reraise(self, exc, func)
-                    raise sanitized from None
+                    raise _SecretRedactionMixin._sanitize_or_reraise(self, exc, func) from None
+                while True:
+                    try:
+                        sent = yield item
+                    except GeneratorExit:
+                        await agen.aclose()
+                        raise
+                    except BaseException as thrown:
+                        try:
+                            item = await agen.athrow(thrown)
+                        except StopAsyncIteration:
+                            return
+                        except Exception as exc:
+                            raise _SecretRedactionMixin._sanitize_or_reraise(self, exc, func) from None
+                    else:
+                        try:
+                            item = await agen.asend(sent)
+                        except StopAsyncIteration:
+                            return
+                        except Exception as exc:
+                            raise _SecretRedactionMixin._sanitize_or_reraise(self, exc, func) from None
         elif inspect.isgeneratorfunction(func):
             @functools.wraps(func)
             def boundary(self, *args, **kwargs):
@@ -353,6 +388,36 @@ class _SecretRedactionMixin:
         return boundary
 
     @staticmethod
+    def _wrap_contextless(func, *, receiver):
+        """Wrap a classmethod/staticmethod (#1846 R-1846-7 F3).
+
+        There is no instance, so there is no configured credential to redact
+        against: any failure becomes the trusted constant for the SAME class via
+        ``_sanitize_contextless``. ``receiver`` is True for classmethods (the
+        bound ``cls`` is forwarded) and False for staticmethods (no receiver);
+        the enclosing descriptor rebinds the returned plain function.
+        """
+        import functools
+
+        if receiver:
+            @functools.wraps(func)
+            def boundary(cls, *args, **kwargs):
+                try:
+                    return func(cls, *args, **kwargs)
+                except Exception as exc:
+                    raise _SecretRedactionMixin._sanitize_contextless(exc) from None
+        else:
+            @functools.wraps(func)
+            def boundary(*args, **kwargs):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as exc:
+                    raise _SecretRedactionMixin._sanitize_contextless(exc) from None
+
+        boundary._secret_boundary = True
+        return boundary
+
+    @staticmethod
     def _sanitize_or_reraise(self, exc, func):
         """Sanitize *exc*, or re-raise raw if already sanitizing on this thread.
 
@@ -373,65 +438,151 @@ class _SecretRedactionMixin:
     def _sanitize_exception(self, exc):
         """Return a sanitized exception; never raise, never leave raw text.
 
-        Build the SAME class from only the sanitized message. If that fails for
-        ANY reason (e.g. ExceptionGroup / Pydantic ValidationError need extra
-        constructor arguments), fall back to ``ConnectorError(sanitized)``
-        carrying ``.original_type``. Validated numeric status attributes are
-        preserved; the raw exception reference is dropped before returning so a
-        frame-locals capture cannot retain it.
+        Read every exception metadatum ONCE inside a single fail-closed guard
+        (#1846 R-1846-7 F2): a faulting getter or ``__str__`` cannot be re-read,
+        and any failure goes straight to the ``ConnectorError`` constant fallback
+        carrying ``.original_type``. The SAME class is rebuilt from only the
+        sanitized message; only the validated numeric scalars captured in that one
+        read are set on it -- original attributes are NEVER copied back, so a rich
+        exception whose ``__str__`` renders ``status_code``/``retry_after`` cannot
+        restore raw text. The raw exception reference is dropped before returning
+        so a frame-locals capture cannot retain it.
         """
         original_type = type(exc).__name__
         _boundary_state.active = True
         try:
-            try:
-                message = self._boundary_message(exc)
-            except Exception:
-                status = self._validated_status(exc)
-                message = f"{original_type} (HTTP {status})" if status is not None else original_type
+            status = self._validated_status(exc)
+            retry_after = self._validated_retry_after(exc)
+            message = self._boundary_message(exc, status)
+            read_ok = True
+        except Exception:
+            read_ok = False
         finally:
             _boundary_state.active = False
+        if not read_ok:
+            # Fail closed: a metadata getter or __str__ raised. Nothing is
+            # re-read; emit the bare class-name constant.
+            rebuilt = self._constant_error(original_type)
+            del exc
+            return rebuilt
         try:
             rebuilt = exc.__class__(message)
             rebuilt.args = (message,)
+            self._apply_validated_scalars(rebuilt, status, retry_after)
         except Exception:
-            rebuilt = ConnectorError(message)
-            rebuilt.original_type = original_type
-        else:
-            for attr in ("status_code", "status", "retry_after"):
-                value = getattr(exc, attr, None)
-                if value is not None:
-                    try:
-                        setattr(rebuilt, attr, value)
-                    except Exception:
-                        pass
+            # Reconstruction or a scalar set failed: fall back to the always
+            # constructible constant and set the same validated scalars on it.
+            rebuilt = self._constant_error(original_type)
+            self._apply_validated_scalars(rebuilt, status, retry_after)
         del exc
         return rebuilt
 
     @staticmethod
+    def _sanitize_contextless(exc):
+        """Sanitize an exception from a class/static method (no instance creds).
+
+        With no instance there is no configured value to redact against, so the
+        message is always the trusted constant (class name plus a validated
+        numeric HTTP status). The SAME class is rebuilt so callers still catch
+        their own type; a class that cannot be rebuilt from one message falls back
+        to ``ConnectorError`` carrying ``.original_type``. Metadata is read once
+        under the same fail-closed guard as the instance path.
+        """
+        original_type = type(exc).__name__
+        _boundary_state.active = True
+        try:
+            status = _SecretRedactionMixin._validated_status(exc)
+            retry_after = _SecretRedactionMixin._validated_retry_after(exc)
+            label = f"{original_type} (HTTP {status})" if status is not None else original_type
+            read_ok = True
+        except Exception:
+            read_ok = False
+        finally:
+            _boundary_state.active = False
+        if not read_ok:
+            return _SecretRedactionMixin._constant_error(original_type)
+        try:
+            rebuilt = exc.__class__(label)
+            rebuilt.args = (label,)
+            _SecretRedactionMixin._apply_validated_scalars(rebuilt, status, retry_after)
+        except Exception:
+            rebuilt = _SecretRedactionMixin._constant_error(original_type)
+            _SecretRedactionMixin._apply_validated_scalars(rebuilt, status, retry_after)
+        return rebuilt
+
+    @staticmethod
+    def _constant_error(original_type):
+        """A ``ConnectorError`` whose text is the trusted class-name constant."""
+        rebuilt = ConnectorError(original_type)
+        rebuilt.original_type = original_type
+        return rebuilt
+
+    @staticmethod
+    def _apply_validated_scalars(rebuilt, status, retry_after):
+        """Set ONLY the validated numeric scalars captured in the single read.
+
+        Never copies original attributes back: ``status``/``retry_after`` here are
+        already proven safe (a plain ``int`` in range / an exact ``int``/``float``
+        that is either non-finite or non-negative), so setting them cannot restore
+        raw credential text.
+        """
+        if status is not None:
+            rebuilt.status_code = status
+            rebuilt.status = status
+        if retry_after is not None:
+            rebuilt.retry_after = retry_after
+
+    @staticmethod
     def _validated_status(exc):
-        """A plausible HTTP status int from *exc*, else None. Never parsed from text."""
+        """A plausible HTTP status int from *exc*, else None.
+
+        Only a *plain* ``int`` (``type(x) is int``, so ``bool`` and hostile int
+        subclasses whose ``__format__``/``__str__`` could render a credential are
+        rejected) in the 100-599 range. Never parsed from text.
+        """
         for attr in ("status_code", "status"):
             value = getattr(exc, attr, None)
-            if isinstance(value, int) and not isinstance(value, bool) and 100 <= value <= 599:
+            if type(value) is int and 100 <= value <= 599:
                 return value
         return None
 
-    def _boundary_message(self, exc):
+    @staticmethod
+    def _validated_retry_after(exc):
+        """A safe retry-after scalar from *exc*, else None.
+
+        Requires an exact ``int``/``float`` (``type(x) in (int, float)``, so
+        ``bool``, int/float subclasses with a hostile ``__str__``/``__format__``,
+        strings and arbitrary objects are all dropped). A plain number cannot
+        carry credential text; the exact-type check is the leak guard.
+
+        Finiteness is handled asymmetrically: a NON-finite value (``inf``/``nan``)
+        passes through because the B1 over-cap contract surfaces it as the "over
+        cap, do not sleep" sentinel (test_connector_over_cap_raises_without_sleep).
+        A FINITE value must be non-negative; a negative finite ``retry_after`` is
+        dropped. ``nan >= 0`` is False, so the non-finite carve-out is checked
+        first to preserve the sentinel.
+        """
+        value = getattr(exc, "retry_after", None)
+        if type(value) in (int, float) and (not math.isfinite(value) or value >= 0):
+            return value
+        return None
+
+    def _boundary_message(self, exc, status):
         """Sanitized message: a trusted constant, or the value-redacted message.
 
-        Strict short policy (#1846 R-1846-6): when any configured credential is
-        under the length floor or collection failed, emit ONLY a trusted
-        constant -- the class name plus a validated numeric HTTP status --
-        because reversible encodings (percent/base64/HTML/hex/newline) make
-        residual scanning unsafe. Otherwise value-redact the rendered message
-        against configured values.
+        Strict short policy (#1846 R-1846-6/7): when any configured credential is
+        under the length floor or collection failed, emit ONLY a trusted constant
+        -- the class name plus the pre-validated numeric HTTP ``status`` captured
+        by the single metadata read -- because reversible encodings
+        (percent/base64/HTML/hex/newline) make residual scanning unsafe.
+        Otherwise value-redact the rendered message against configured values.
+        ``status`` is read once by the caller and never re-read here.
         """
         values = self._secret_values()
         failed = values is _SECRET_COLLECTION_FAILED
         short = (not failed) and any(len(value) < _MIN_SECRET_VALUE_LEN for value in values)
         if failed or short:
             label = type(exc).__name__
-            status = self._validated_status(exc)
             return f"{label} (HTTP {status})" if status is not None else label
         return redact_secrets(str(exc), values=values)
 

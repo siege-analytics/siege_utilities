@@ -39,14 +39,14 @@ class RedactingLogger(logging.LoggerAdapter):
         template = str(msg)
         short = usable and any(len(value) < _MIN_SECRET_VALUE_LEN for value in values)
         if not usable or short:
-            # Strict (#1846 R-1846-6): under failed collection or a short
-            # configured credential the rendered message cannot be proven
-            # secret-free (reversible encodings defeat residual scanning). Emit
-            # the trusted format template (with a suppression marker, no rendered
-            # args) only when there are %-args -- a literal format string;
-            # otherwise -- a possibly pre-rendered caller message -- emit a fixed
-            # constant, never the caller's text.
-            message = (redact_secrets(template) + " [log args suppressed]") if args else _LOG_SUPPRESSED
+            # Strict (#1846 R-1846-6/7): under failed collection or a short
+            # configured credential NO rendered text can be proven secret-free --
+            # reversible encodings (raw/base64/unicode-escape) defeat residual
+            # scanning, and a caller-rendered template is not made trustworthy by
+            # the presence of a harmless %-arg or by its string shape. Emit the
+            # fixed constant ALWAYS, with or without args. The constant carries
+            # the "suppressed" marker the test_1846_siblings oracle checks.
+            message = _LOG_SUPPRESSED
         else:
             rendered = template % args if args else template
             message = redact_secrets(rendered, values=values)

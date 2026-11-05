@@ -63,12 +63,14 @@ def _surfaces(exc):
 def test_public_method_failure_never_leaks(provider, secret, name, args, caplog):
     c = configured(provider, secret)
     method = getattr(c, name, None)
-    if method is None:
-        # Breadth (every public callable is wrapped) is proven by
-        # test_1846_r6_enumerate_boundary; this functional spot-check only drives
-        # providers that actually expose the method. Action if it gains one: add
-        # the (name, args) pair to CALLS so this failure path covers it too.
-        pytest.skip(f"{provider} does not expose {name}(); add it to CALLS when the provider gains it")
+    # Hard drift guard (#1846 R-1846-7): every CALLS entry must exist on every
+    # provider. A skip here would silently stop exercising a method that was
+    # renamed or removed, so assert presence instead. Breadth of wrapping is
+    # proven separately by test_1846_r6_enumerate_boundary.
+    assert method is not None, (
+        f"{provider} is missing public CALLS method {name!r}; remove it from CALLS "
+        f"or restore it on the connector"
+    )
     # Upstream transport failure whose text equals the configured credential.
     c._session.request = Mock(side_effect=ValueError(secret))
     c._session.post = Mock(side_effect=ValueError(secret))
