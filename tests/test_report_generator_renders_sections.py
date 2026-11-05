@@ -1,5 +1,6 @@
 """PDF regressions for the section builders and canvas pagination (#1485)."""
 
+import logging
 import re
 
 import pytest
@@ -129,7 +130,12 @@ def test_invalid_section_raises_without_publishing_pdf(generator, tmp_path, sect
     assert not list(tmp_path.glob(".*.part"))
 
 
-def test_missing_chart_warns(generator, tmp_path, caplog):
+def test_missing_chart_warns(generator, tmp_path, caplog, monkeypatch):
+    # The test settings set the root logger to CRITICAL and disable existing
+    # loggers; capture this logger's warnings regardless of test order.
+    logger_name = "siege_utilities.reporting.report_generator"
+    monkeypatch.setattr(logging.getLogger(logger_name), "disabled", False)
+    caplog.set_level(logging.WARNING, logger=logger_name)
     report = generator.create_analytics_report("Missing", charts=[tmp_path / "missing.png"])
     generator.generate_pdf_report(report, str(tmp_path / "missing.pdf"))
     assert "chart" in caplog.text.lower()
