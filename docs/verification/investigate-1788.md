@@ -14,6 +14,6 @@ Sources of record: the exact-head reviews recorded on PR #1788 and ticket #1672,
 - ATTESTED: the independent reviews flagged the release-note placement, a stale description, a self-review that claimed a network job runs the group, and the unexecuted parameters.
 
 ### Findings
-- F-1788a (high): six collected is not six executed. This PR provides a local run of all six; a workflow that runs them would be a separate change and is not made here.
+- F-1788a (high): six collected is not six executed. This PR provides a local run of all six; a workflow that runs them would be a separate change and is not made here; it is tracked in #1676.
 - F-1788b (medium): the `#1672` release note belongs in the `[4.1.0]` section of `CHANGELOG.md`.
 - F-1788c (medium): the description and self-review must not claim a network job runs the group.

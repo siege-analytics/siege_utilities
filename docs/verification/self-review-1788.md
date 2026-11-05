@@ -18,7 +18,8 @@ Project-contribution: keeps the natural-language geometry notebook truthful abou
 ## Test plan
 - Offline cases: `python -m pytest test_1672_gazetteer_notebook_truth.py -m "not integration"` run from the `tests` directory -> 5 passed, 6 deselected in 2.11s (Python 3.11, repository pyproject as config).
 - Integration parameters: `python -m pytest test_1672_gazetteer_notebook_truth.py -m integration -v -rs` on the tree after the develop sync -> `test_geo_notebook_group[04_redistricting]`, `[01_boundaries]`, `[05_multi_source_joins]`, `[07_natural_language_to_geometry]`, `[03_choropleth_maps]` and `[02_geocoding]` each PASSED; 6 passed, 5 deselected in 133.04s. These six executed; they were not only collected. The run is local, uses the network (real TIGER boundaries for `01_boundaries`) and ran with the marker enabled.
-- What does not run: no workflow in `.github/workflows/ci.yml` runs the six integration-marked parameters (the main job uses `-m "not integration and not postgis"`; the only explicit integration command targets `tests/test_files_remote_tls.py`). Adding such a job is a separate change that this PR does not make.
+- What does not run: no workflow in `.github/workflows/ci.yml` runs the six integration-marked parameters (the main job uses `-m "not integration and not postgis"`; the only explicit integration command targets `tests/test_files_remote_tls.py`). Adding such a job is a separate change that this PR does not make. The tracked follow-up is #1676 (open; "CI: detect notebook claim/code drift beyond execution success", whose description records that CI executes only the pure notebooks); no new ticket is filed from this PR.
+- Revert check run on the pushed head: restoring the original one-rectangle gazetteer in the notebook's gazetteer cell made `-m "not integration"` give 5 failed, 6 deselected, including `test_demo_names_resolve_to_distinct_geometries` (Lake Geneva and Lausanne resolved to equal geometries). After `git checkout` of the notebook the same command gave 5 passed, 6 deselected, and the worktree was clean.
 - Hosted CI at the pushed head is recorded in the PR description once it finishes. Develop CI has known failures from the DuckDB 2.0 break (about 30) that are not attributable to this PR.
 
 ## Peer review
@@ -44,7 +45,7 @@ Post-mortem applicability: N/A. This is a forward content fix, not a revert or r
 ## Findings
 | ID | Priority | Description | Resolution |
 |----|----------|-------------|------------|
-| F-1 | medium | No workflow job executes the six integration-marked parameters | Open by design: reported to the maintainers as a possible workflow change; this PR provides the local run |
+| F-1 | medium | No workflow job executes the six integration-marked parameters | Open by design: tracked in #1676; no workflow change in this PR; this PR provides the local run |
 
 ## Quantified claims
 - "5 passed, 6 deselected" and "6 passed, 5 deselected in 133.04s" are the two pytest runs above.
