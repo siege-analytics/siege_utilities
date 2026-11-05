@@ -60,3 +60,12 @@ No live notebook calls the map engine bivariate methods (grep over `notebooks/`)
 ## Findings
 F1 fixed. Pre-existing and out of scope: `create_bivariate_choropleth_matplotlib`
 returns a placeholder image when matplotlib or geopandas is missing.
+
+## Ticket-fitness exemption
+
+Governing ticket: #1462. The #1398 epic is context only.
+
+### #1462
+Reason: #1462 predates the canonical ticket template. Its body uses Problem / Evidence / Failure scenario / Done when / Assumptions / Falsifier instead of Context / Goal / Acceptance, and it links no /think design note.
+Evidence: https://github.com/siege-analytics/siege_utilities/issues/1462 states the dropped-class defect under "## Problem", the probe under "## Evidence (v4.0.0, CONFIRMED by probe)" (`geo/choropleth.py`), and the done-when criteria under "## Done when". The second instance (`reporting/engines/map_engine.py`) is in owner comment https://github.com/siege-analytics/siege_utilities/issues/1462#issuecomment-6133698827. The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1462#issuecomment-6259624054.
+Falsification: revert the implementation; `tests/test_1462_bivariate_choropleth_ties.py::test_map_high_values_and_legend_share_colors` goes red because the highest tied-data feature is no longer coloured with the palette's top colour, and `tests/test_1462_map_engine_bivariate_ties.py::test_tied_data_colours_use_both_palette_ends` goes red because `pd.qcut` raises "Bin labels must be one fewer than the number of bin edges".
