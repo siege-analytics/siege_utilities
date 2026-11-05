@@ -85,7 +85,8 @@ Governing ticket: #1437. The #1398 epic and the deferred crosswalk ticket #1795 
 Reason: #1437 predates the canonical ticket template. Its body uses Problem / Evidence / Failure scenario / Done when / Assumptions / Falsifier instead of Context / Goal / Acceptance, and it links no /think design note.
 Evidence: https://github.com/siege-analytics/siege_utilities/issues/1437 states the problem under "## Problem", the probe and trace under "## Evidence" (`geo/place_history.py:36`, `geo/timeseries/longitudinal_data.py:304-323`), and the done-when criteria under "## Done when". The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1437#issuecomment-6259593773.
 Falsification: revert the implementation; `tests/test_1437_ct_2022_boundary_guard.py::test_place_history_ct_tract_crossing_raises` goes red (DID NOT RAISE) because `place_history("09001010100", 2020, 2023)` again reports unchanged lineage. Revert only the F1 level scoping (back to `6ff57933`); `::test_normalization_ct_legislative_districts_pass` goes red because CT SLDU/SLDL frames raise the county-recode error.
-Falsification verified 2026-11-05 for `geo/place_history.py` and `geo/timeseries/longitudinal_data.py`:
-- From develop `dc7d3f76`: the tract test failed. The 20 legislative cases passed, because develop has no guard to misfire.
-- From `6ff57933`: all 20 legislative cases failed, and the tract test passed.
-- With both files restored from the PR head, the whole file gave 130 passed, and the worktree was clean.
+Observed revert results (2026-11-05). Command, with `REV` set to the revert target:
+`git checkout REV -- siege_utilities/geo/place_history.py siege_utilities/geo/timeseries/longitudinal_data.py && (cd tests && python -m pytest -o addopts="" -p no:cacheprovider --rootdir=.. -q test_1437_ct_2022_boundary_guard.py::test_place_history_ct_tract_crossing_raises test_1437_ct_2022_boundary_guard.py::test_normalization_ct_legislative_districts_pass); git checkout HEAD -- <same files>`
+- `REV=dc7d3f76` (develop): 1 failed, 20 passed. The tract test fails; the legislative cases pass because develop has no guard to misfire.
+- `REV=6ff57933` (pre-F1 head): 20 failed, 1 passed. All 20 SLDU/SLDL cases fail.
+- Current-head green: after the files were restored, `(cd tests && python -m pytest -o addopts="" -p no:cacheprovider --rootdir=.. -q test_1437_ct_2022_boundary_guard.py)` gave 130 passed before this develop sync, and the same result after it (recorded in this commit). The worktree was clean.
