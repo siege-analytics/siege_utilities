@@ -118,12 +118,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Documented behavior change: `DuckDBEngine.join` applies the coalesced
-  geometry-key CRS rule to GeoDataFrame inputs (resolving from the live
-  GeoSeries CRS), not only raw-WKB frames: conflicting known CRSes are rejected
-  in every mode, a right join carries the right side's CRS, and outer
-  known-vs-unknown is rejected. Previously a GeoDataFrame join bypassed the rule
-  and mislabelled the result (#1852).
 - Documented behavior change from v4.0.0: DuckDB `query` binds `parameters`
   (or `params`) and rejects unknown keywords and parameterized multi-statement
   SQL before execution. WKB materialization retains per-column CRS in pandas
@@ -148,10 +142,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   join key by source (the left frame's CRS for inner and left joins, the right
   frame's for a right join), rejects two conflicting known CRSes before the
   merge in every join mode with a `ValueError` naming both, and rejects a
-  known-vs-unknown key CRS for outer joins. None/None stays None and non-key
-  geometry keeps its own CRS under its suffix. CRS is compared semantically
-  (EPSG/WKT/PROJJSON/proj4 canonicalized). Previously mixed CRS was accepted and
-  the result mislabelled EPSG:4326 (#1852).
+  known-vs-unknown key CRS for outer joins. The rule applies to GeoDataFrame
+  inputs as well as raw-WKB frames, resolving each key from the live GeoSeries
+  CRS. None/None stays None and non-key geometry keeps its own CRS under its
+  suffix. CRS is compared semantically (EPSG/WKT/PROJJSON/proj4 canonicalized).
+  Previously mixed CRS was accepted, a GeoDataFrame join bypassed the rule, and
+  the result was mislabelled EPSG:4326 (#1852).
 - `SparkEngine.nearest` ranks candidates by a per-point row identity,
   preserving co-located points and points with no target within `max_distance`.
   Results keep one point geometry and expose `distance` and `index_right`
