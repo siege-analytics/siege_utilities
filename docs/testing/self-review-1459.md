@@ -28,6 +28,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has both #1459 entries under `[4.1.0]` Fixed and none under `[Unreleased]`.
 - Request a fresh exact-head review: the earlier result is void once the head moves, and the code diff against develop is unchanged.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1459 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1459 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (NAD83 rows rejected across the antimeridian, projected coordinates compared with degree bounds, the (0, 0) sentinel accepted), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1459, and in the PR description. The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1459#issuecomment-6262494933.
+- **Falsification:** revert the implementation (`geocoding.py` and `spark_utils.py` changes of this PR); `tests/test_geocode_validation_crs.py::test_nad83_keeps_pacific_territories` goes red because NAD83 coordinates across the antimeridian are rejected again, and `tests/test_geocode_validation_crs.py::test_spark_validators_reject_null_island` goes red because the Spark validators accept (0, 0). The latest commit of this PR is process-only; those existing regression tests guard the accepted fix.
+
 ## Lead review
 
 The change is additive and reverts with one commit. No behavior change. No claim in this artifact exceeds what was observed.
