@@ -49,6 +49,10 @@ def boundary_table(django_db_blocker):
 
             parse_geoid = staticmethod(StateLegislativeLower.parse_geoid)
 
+            def prepare_for_bulk(self):
+                # The loader's bulk contract (#1539); this stand-in derives nothing.
+                return self
+
             class Meta:
                 app_label = "population_tests"
                 unique_together = [("geoid", "vintage_year")]

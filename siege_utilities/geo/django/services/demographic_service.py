@@ -12,7 +12,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
 from django.contrib.contenttypes.models import ContentType
-from django.db import transaction
+from django.db import IntegrityError, transaction
+
+from ._bulk import bulk_insert_counted
 
 if TYPE_CHECKING:
     pass
@@ -144,11 +146,18 @@ class DemographicPopulationService:
             state_fips: State FIPS code
             variable_group: Variable group name (income, education, housing, etc.)
             dataset: Census dataset (acs5, acs1, dec)
-            update_existing: If True, update existing records; otherwise skip
+            update_existing: If True, overwrite variables an existing snapshot
+                already holds. Either way, variables the snapshot does not hold
+                yet are merged into it, so successive variable groups accumulate
+                on the one snapshot per boundary/year/dataset (#1550).
             batch_size: Number of records per database batch
 
         Returns:
-            DemographicPopulationResult with statistics
+            DemographicPopulationResult with statistics. ``records_updated``
+            counts existing snapshots that gained or overwrote variables;
+            ``records_skipped`` counts those left unchanged. ``records_created``
+            counts rows actually inserted, excluding any dropped by a unique
+            conflict (#1539).
         """
         from ..models import DemographicSnapshot
 
@@ -213,8 +222,19 @@ class DemographicPopulationService:
 
         objects_to_create = []
 
-        # Identify variable columns (exclude GEOID and geography columns)
-        geo_cols = {"GEOID", "geoid", "state", "county", "tract", "block group", "place"}
+        def _insert(batch):
+            return bulk_insert_counted(
+                DemographicSnapshot.objects,
+                batch,
+                scope={"content_type": content_type, "year": year, "dataset": dataset},
+            )
+
+        # Identify variable columns (exclude GEOID, the API's NAME label and
+        # geography columns; NAME ends in "E" and would pass as an estimate).
+        geo_cols = {
+            "GEOID", "geoid", "NAME", "name",
+            "state", "county", "tract", "block group", "place",
+        }
         variable_cols = [c for c in df.columns if c not in geo_cols and not c.startswith("_")]
 
         # Split into estimates and MOEs
@@ -236,10 +256,6 @@ class DemographicPopulationService:
                     dataset=dataset,
                 ).first()
 
-                if existing and not update_existing:
-                    skipped += 1
-                    continue
-
                 # Build values dict
                 values = {}
                 for col in estimate_cols:
@@ -260,13 +276,29 @@ class DemographicPopulationService:
                             moe_values[col] = val
 
                 if existing:
-                    # Update - merge values
+                    # One snapshot holds every variable group (#1550): merge in
+                    # the variables it lacks; overwrite held ones only on update.
+                    if not update_existing:
+                        values = {k: v for k, v in values.items() if k not in existing.values}
+                        moe_values = {
+                            k: v for k, v in moe_values.items() if k not in existing.moe_values
+                        }
+                        if not values and not moe_values:
+                            skipped += 1
+                            continue
                     existing.values.update(values)
                     existing.moe_values.update(moe_values)
-                    existing.save()
-                    updated += 1
+                    try:
+                        # Savepoint: a rejected row must not abort the group load.
+                        with transaction.atomic():
+                            existing.save()
+                    except IntegrityError as e:
+                        logger.error(f"Integrity error updating GEOID {geoid}: {e}")
+                        errors.append(f"GEOID {geoid}: {e}")
+                    else:
+                        updated += 1
                 else:
-                    # Create
+                    # Create; bulk_create skips save(), so derive summaries here (#1539)
                     snapshot = DemographicSnapshot(
                         content_type=content_type,
                         object_id=geoid,
@@ -274,14 +306,11 @@ class DemographicPopulationService:
                         dataset=dataset,
                         values=values,
                         moe_values=moe_values,
-                    )
+                    ).prepare_for_bulk()
                     objects_to_create.append(snapshot)
 
                     if len(objects_to_create) >= batch_size:
-                        DemographicSnapshot.objects.bulk_create(
-                            objects_to_create, ignore_conflicts=True
-                        )
-                        created += len(objects_to_create)
+                        created += _insert(objects_to_create)
                         objects_to_create = []
 
             except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
@@ -290,10 +319,7 @@ class DemographicPopulationService:
 
         # Create remaining
         if objects_to_create:
-            DemographicSnapshot.objects.bulk_create(
-                objects_to_create, ignore_conflicts=True
-            )
-            created += len(objects_to_create)
+            created += _insert(objects_to_create)
 
         logger.info(
             f"Populated demographics: {created} created, {updated} updated, {skipped} skipped"

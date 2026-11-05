@@ -2,7 +2,9 @@
 
 ``git status`` does not show empty directories, and most test litter is
 exactly that (``reports/``, ``presentations/``...), so this compares
-``git ls-files --others --exclude-standard --directory`` before and after.
+``git ls-files --others --exclude-standard`` before and after, both with
+``--directory`` (empty directories) and without it (files added inside an
+untracked directory that already existed).
 Ignored caches (.hypothesis, coverage files) are excluded by .gitignore.
 
 Usage:
@@ -17,11 +19,14 @@ from pathlib import Path
 
 
 def untracked_paths() -> set[str]:
-    out = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard", "--directory", "-z"],
-        capture_output=True, text=True, check=True, timeout=120,
-    ).stdout
-    return {p for p in out.split("\0") if p}
+    paths = set()
+    for extra in (["--directory"], []):
+        out = subprocess.run(
+            ["git", "ls-files", "--others", "--exclude-standard", *extra, "-z"],
+            capture_output=True, text=True, check=True, timeout=120,
+        ).stdout
+        paths.update(p for p in out.split("\0") if p)
+    return paths
 
 
 def main(argv: list[str]) -> int:

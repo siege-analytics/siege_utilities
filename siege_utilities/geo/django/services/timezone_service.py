@@ -97,6 +97,7 @@ class TimezonePopulationService:
         from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
 
         from ..models.timezone import TimezoneGeometry
+        from ._bulk import bulk_insert_counted
 
         result = TimezonePopulationResult()
         geojson_path = Path(geojson_path)
@@ -174,16 +175,21 @@ class TimezonePopulationService:
                             utc_offset_std=utc_std,
                             utc_offset_dst=utc_dst,
                             observes_dst=obs_dst,
-                        )
+                        ).prepare_for_bulk()
                     )
 
             if to_create:
                 for i in range(0, len(to_create), batch_size):
                     batch = to_create[i : i + batch_size]
-                    TimezoneGeometry.objects.bulk_create(
-                        batch, ignore_conflicts=True
+                    # Count rows inserted, not rows offered (#1539)
+                    result.records_created += bulk_insert_counted(
+                        TimezoneGeometry.objects,
+                        batch,
+                        scope={
+                            "vintage_year": vintage_year,
+                            "timezone_id__in": [tz.timezone_id for tz in batch],
+                        },
                     )
-                result.records_created = len(to_create)
 
         log.info(
             f"Timezone populate: created={result.records_created}, "

@@ -259,8 +259,8 @@ def load_directory_config(config_name: str, config_directory: str = "config") ->
     """
     # Validate config directory path
     try:
-        from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
-        config_dir = validate_directory_path(config_directory, must_exist=False)
+        from siege_utilities.files.validation import validate_safe_path, PathSecurityError  # noqa: F401, F811
+        config_dir = validate_safe_path(config_directory, allow_absolute=True)
     except ImportError:
         config_dir = pathlib.Path(config_directory)
 
@@ -358,8 +358,8 @@ def get_directory_info(directory_path: str) -> Dict[str, Any]:
     """
     # Validate directory path
     try:
-        from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
-        dir_path = validate_directory_path(directory_path, must_exist=False)
+        from siege_utilities.files.validation import validate_safe_path, PathSecurityError  # noqa: F401, F811
+        dir_path = validate_safe_path(directory_path, allow_absolute=True)
     except ImportError:
         dir_path = pathlib.Path(directory_path)
 
@@ -500,8 +500,8 @@ def list_directory_configs(config_directory: str = "config") -> List[Dict[str, A
     """
     # Validate config directory path
     try:
-        from siege_utilities.files.validation import validate_directory_path, PathSecurityError  # noqa: F401, F811
-        config_dir = validate_directory_path(config_directory, must_exist=False)
+        from siege_utilities.files.validation import validate_safe_path, PathSecurityError  # noqa: F401, F811
+        config_dir = validate_safe_path(config_directory, allow_absolute=True)
     except ImportError:
         config_dir = pathlib.Path(config_directory)
 

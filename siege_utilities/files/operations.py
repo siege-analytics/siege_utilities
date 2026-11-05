@@ -60,6 +60,25 @@ def sanitize_filename(name: str) -> str:
     return cleaned or "_"
 
 
+def _safe_suffix(suffix: str) -> bool:
+    """Whether a name or suffix can be reused for a temporary name (#1737)."""
+    from siege_utilities.files.validation import _is_unsafe_name_character
+    return not any(_is_unsafe_name_character(ch) for ch in suffix)
+
+
+def _reject_unsafe_new_file(path: Path) -> None:
+    """Refuse ``path`` if its file name or any new parent would be an unsafe name (#1716, #1737)."""
+    from siege_utilities.files.validation import reject_unsafe_new_file_path
+    reject_unsafe_new_file_path(path)
+
+
+def _create_parent_directory(path: Path) -> None:
+    """Create ``path``'s parent, refusing unsafe names for the parts that are new,
+    the file name included (#1716, #1737)."""
+    _reject_unsafe_new_file(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+
 @contextlib.contextmanager
 def atomic_write_path(target: FilePath) -> Generator[Path, None, None]:
     """Context manager that yields a temporary path for writing, then
@@ -77,8 +96,9 @@ def atomic_write_path(target: FilePath) -> Generator[Path, None, None]:
     ``secure_write_text`` for secrets. Flush and close writers before exit.
     """
     target = Path(target)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.parent / f"atomic_{uuid.uuid4().hex}{target.suffix or '.tmp'}"
+    _create_parent_directory(target)
+    suffix = target.suffix if target.suffix and _safe_suffix(target.suffix) else '.tmp'
+    tmp = target.parent / f"atomic_{uuid.uuid4().hex}{suffix}"
     # O_EXCL reserves a random sibling without following a pre-existing link.
     # Let the kernel apply umask: reading it via os.umask would temporarily
     # change process-wide permissions for concurrent threads.
@@ -118,13 +138,24 @@ def atomic_write_shapefile(gdf, target: FilePath, **kwargs) -> None:
     to a temp stem then renames all produced files to the final stem.
     """
     target = Path(target)
-    target.parent.mkdir(parents=True, exist_ok=True)
+    if not _safe_suffix(target.name):
+        from siege_utilities.files.validation import PathSecurityError
+        raise PathSecurityError(f"Unsafe shapefile name {target.name!r}: {str(target)!r}")
+    _create_parent_directory(target)
     tmp_dir = Path(tempfile.mkdtemp(dir=target.parent, prefix="atomic_shp_"))
+    # GDAL names the layer, and for a suffix-less target the output files,
+    # after this stem, so the temporary file keeps the target's name. A
+    # shapefile always publishes sidecars under that name, so an unsafe name is
+    # refused even when the target exists (#1737).
     tmp_shp = tmp_dir / target.name
     try:
         gdf.to_file(str(tmp_shp), driver="ESRI Shapefile", **kwargs)
-        for f in tmp_dir.iterdir():
-            dest = target.parent / (target.stem + f.suffix)
+        produced = [(f, target.parent / (target.stem + f.suffix)) for f in tmp_dir.iterdir()]
+        # Check every sidecar before publishing any: a sidecar the existing
+        # target lacked would be a new file under its name (#1737).
+        for _, dest in produced:
+            _reject_unsafe_new_file(dest)
+        for f, dest in produced:
             os.replace(f, dest)
         tmp_dir.rmdir()
     except BaseException:
@@ -243,7 +274,9 @@ def touch_file(path: FilePath, create_parents: bool = True) -> None:
         path_obj = Path(path)
 
     if create_parents:
-        path_obj.parent.mkdir(parents=True, exist_ok=True)
+        _create_parent_directory(path_obj)
+    else:
+        _reject_unsafe_new_file(path_obj)
 
     path_obj.touch(exist_ok=True)
     log.info(f"Created/updated file: {path_obj}")
@@ -325,7 +358,10 @@ def copy_file(source: FilePath, destination: FilePath, overwrite: bool = False) 
     if not source_obj.is_file():
         raise FileNotFoundError(f"Source is not a file: {source_obj}")
 
-    dest_obj.parent.mkdir(parents=True, exist_ok=True)
+    _create_parent_directory(dest_obj)
+    if dest_obj.is_dir():
+        # The file is created inside it under the source's name (#1737).
+        _reject_unsafe_new_file(dest_obj / source_obj.name)
 
     if dest_obj.exists() and not overwrite:
         raise FileExistsError(f"Destination file exists and overwrite=False: {dest_obj}")
@@ -368,7 +404,10 @@ def move_file(source: FilePath, destination: FilePath, overwrite: bool = False) 
     if not source_obj.is_file():
         raise FileNotFoundError(f"Source is not a file: {source_obj}")
 
-    dest_obj.parent.mkdir(parents=True, exist_ok=True)
+    _create_parent_directory(dest_obj)
+    if dest_obj.is_dir():
+        # The file is created inside it under the source's name (#1737).
+        _reject_unsafe_new_file(dest_obj / source_obj.name)
 
     if dest_obj.exists() and not overwrite:
         raise FileExistsError(f"Destination file exists and overwrite=False: {dest_obj}")
@@ -668,7 +707,9 @@ def delete_existing_file_and_replace_it_with_an_empty_file(file_path: FilePath, 
 
         # Create parent directories if needed
         if create_parents:
-            path_obj.parent.mkdir(parents=True, exist_ok=True)
+            _create_parent_directory(path_obj)
+        else:
+            _reject_unsafe_new_file(path_obj)
 
         # Remove existing file if it exists
         if path_obj.exists():
@@ -698,8 +739,8 @@ def ensure_directory_exists(directory: Union[str, Path]) -> Path:
         PathSecurityError: If path fails security validation.
     """
     try:
-        from siege_utilities.files.validation import validate_safe_path
-        dir_path = validate_safe_path(directory, allow_absolute=True)
+        from siege_utilities.files.validation import validate_directory_path
+        dir_path = validate_directory_path(directory, must_exist=False)
     except ImportError:
         dir_path = Path(directory)
     dir_path.mkdir(parents=True, exist_ok=True)
@@ -734,7 +775,7 @@ def safe_file_write(
         validated = Path(file_path)
     try:
         if create_dirs:
-            validated.parent.mkdir(parents=True, exist_ok=True)
+            _create_parent_directory(validated)
         elif not validated.parent.is_dir():
             raise FileNotFoundError(f"Parent directory does not exist: {validated.parent}")
         with atomic_write_path(validated) as temporary:
@@ -808,7 +849,7 @@ def safe_json_write(
         validated = Path(file_path)
     try:
         if create_dirs:
-            validated.parent.mkdir(parents=True, exist_ok=True)
+            _create_parent_directory(validated)
         elif not validated.parent.is_dir():
             raise FileNotFoundError(f"Parent directory does not exist: {validated.parent}")
         with atomic_write_path(validated) as temporary:

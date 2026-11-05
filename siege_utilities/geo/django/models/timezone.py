@@ -60,10 +60,10 @@ class TimezoneGeometry(TemporalBoundary):
             models.Index(fields=["vintage_year"]),
         ]
 
-    def save(self, *args, **kwargs):
-        """Persist the model, auto-populating feature_id and source.
+    def prepare_for_bulk(self):
+        """Auto-populate feature_id and source (also applied by ``save()``).
 
-        *args/**kwargs: Forwarded to ``super().save()``.
+        ``bulk_create`` skips ``save()``; bulk loaders call this instead (#1539).
         """
         if self.timezone_id and not self.feature_id:
             self.feature_id = self.timezone_id
@@ -72,7 +72,7 @@ class TimezoneGeometry(TemporalBoundary):
             self.source = "timezone-boundary-builder"
         if not self.name:
             self.name = self.timezone_id
-        super().save(*args, **kwargs)
+        return super().prepare_for_bulk()
 
     def __str__(self):
         offset = self.utc_offset_std or "?"

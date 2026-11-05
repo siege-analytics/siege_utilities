@@ -15,17 +15,20 @@ DSN_SENTINEL = f"postgresql://rv_user:{DSN_FRAGMENT}@db.invalid/rv"
 KEY_SENTINEL = "rv-census-sentinel-key"
 
 
-def _unreleased_section() -> str:
+def _changes_since_4_0_0() -> str:
+    # The #1452 change shipped after 4.0.0: it lives under [Unreleased] until
+    # the release is cut, then under that release's heading. Search everything
+    # above the [4.0.0] heading so cutting a release does not break the test.
     text = (REPO / "CHANGELOG.md").read_text(encoding="utf-8")
-    m = re.search(r"^## \[Unreleased\]\s*$(.*?)^## \[", text, re.M | re.S)
-    assert m, "no [Unreleased] section in CHANGELOG.md"
+    m = re.search(r"^## \[Unreleased\]\s*$(.*?)^## \[4\.0\.0\]", text, re.M | re.S)
+    assert m, "CHANGELOG.md has no [Unreleased] ... [4.0.0] span"
     return m.group(1)
 
 
 def test_changelog_documents_export_config_scrub():
-    entries = re.split(r"\n(?=- )", _unreleased_section())
+    entries = re.split(r"\n(?=- )", _changes_since_4_0_0())
     hits = [e for e in entries if "export_config" in e and "#1452" in e]
-    assert hits, "no [Unreleased] CHANGELOG entry mentions export_config with #1452"
+    assert hits, "no CHANGELOG entry after 4.0.0 mentions export_config with #1452"
     assert "postgresql_connection" in hits[0] and "duckdb_path" in hits[0]
     assert "0600" in hits[0]
 

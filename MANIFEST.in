@@ -1,5 +1,10 @@
 include README.md
 include LICENSE
 recursive-include siege_utilities *.py
+# Package data loaded at runtime; must reach the sdist so a wheel built from
+# it carries them too (#1420). Mirrors [tool.setuptools.package-data].
+include siege_utilities/py.typed
+recursive-include siege_utilities/political/migrations *.sql
+recursive-include siege_utilities/configs *.yaml
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
