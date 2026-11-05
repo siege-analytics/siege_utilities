@@ -44,6 +44,8 @@ log = logging.getLogger(__name__)
 
 API_VERSION = "v22.0"
 BASE_URL = f"https://graph.facebook.com/{API_VERSION}"
+# Official Graph hosts that may receive the bearer token, including paging links.
+GRAPH_HOSTS = frozenset({"graph.facebook.com", "graph.instagram.com"})
 DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_BACKOFF = 1.5
@@ -330,7 +332,11 @@ class InstagramConnector:
         *,
         params: Mapping[str, Any] | None = None,
     ) -> Iterator[dict[str, Any]]:
-        """Follow Graph's absolute next URLs, including host/version changes."""
+        """Follow Graph's absolute next URLs, including version changes.
+
+        Next URLs must stay on an HTTPS ``GRAPH_HOSTS`` origin; any other
+        origin raises SocialMediaError before a request is sent.
+        """
         data = self._request("GET", path, params=params)
         while True:
             log.debug("Retrieved Graph page with %d entries", len(data.get("data", [])))
@@ -358,13 +364,31 @@ class InstagramConnector:
         *,
         params: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Send an authenticated request to an absolute URL."""
+        """Send a request only to an HTTPS ``GRAPH_HOSTS`` origin."""
+        # Validate every absolute URL before the session can attach credentials.
+        try:
+            parts = urlsplit(url)
+            trusted_origin = (
+                parts.scheme == "https"
+                and parts.hostname in GRAPH_HOSTS
+                and parts.port in (None, 443)
+                and parts.username is None
+                and parts.password is None
+            )
+        except ValueError:
+            trusted_origin = False
+        if not trusted_origin:
+            # Paging URLs can contain tokens, including malformed authorities.
+            raise SocialMediaError(
+                "Instagram request URL must use an HTTPS Graph origin "
+                "(graph.facebook.com or graph.instagram.com, port 443) "
+                "without user information."
+            ) from None
         req_params = {
             key: value for key, value in (params or {}).items()
             if key.lower() != "access_token"
         }
         # Graph paging links can repeat the token; authenticate via the header.
-        parts = urlsplit(url)
         query = [
             (key, value) for key, value in parse_qsl(parts.query, keep_blank_values=True)
             if key.lower() != "access_token"
