@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Correct the geocoding notebook's cache-hit claim: the timed cell scans
+  already-collected results in memory to select matched input IDs. Add a
+  narrative regression test and offline execution coverage for the geo notebook
+  group. Correct the related notebook descriptions to cover precinct-level
+  bivariate mapping and statistical primitives, and add regression coverage for
+  their cross-reference claims (#1667).
 - `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
   `48-49` and excludes the `10` all-industry total that caused double-counting,
   along with supersector aggregates. **Behavior change:** `parse()` and
@@ -124,6 +130,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   existing padding-only VTD normalization and accepts non-digit values it
   previously rejected; VTD normalization and `validate_geoid` are unchanged
   (#1486).
+- `SparkEngine.nearest` ranks candidates by a per-point row identity,
+  preserving co-located points and points with no target within `max_distance`.
+  Results keep one point geometry and expose `distance` and `index_right`
+  without backend ranking columns. The lazy join no longer retains a checkpoint
+  or temporary views per call. Shared input `distance` columns are preserved as
+  `distance_left` and `distance_right`; single-sided input `distance` is still
+  replaced by the computed distance. Input `index_right` and duplicate output
+  names, including suffix collisions, raise `ValueError`. Drop or rename a
+  previous result's `index_right` before another nearest join (#1463).
 - Sanitize CRM upsert payloads for Salesforce, HubSpot, Zoho, and Dynamics:
   omit top-level missing fields to preserve existing values, serialize dates and
   timestamps as ISO 8601 strings, and convert numpy scalars to native types.
