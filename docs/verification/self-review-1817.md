@@ -49,5 +49,14 @@ Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11), merged
 - `python -m pytest tests/test_1466_place_history_overlays.py tests/test_1817_cross_state_span.py tests/test_demographics_overlay.py tests/test_events_overlay.py tests/test_overlay_registry.py tests/test_place_history.py tests/test_rdh_overlays.py tests/test_redistricting_data_hub.py tests/test_seats_overlay.py tests/test_urbanicity_overlay.py tests/test_release_process.py tests/test_user_config_export_changelog.py --no-cov` -> 360 passed, 5 failed (all GDAL `ImproperlyConfigured`, listed above).
 - `git diff --stat origin/develop` -> the 5 PR files; `git diff 2b63a9f7` on those paths -> empty.
 
+## Ticket-fitness exemption
+
+writing-rules:4 exemption for the governing ticket. The #1398 epic is context only.
+
+### #1466
+- **Reason:** #1466 predates the canonical ticket template. It uses Problem / Evidence / Failure scenario / Done when / Assumptions / Falsifier sections, so `evaluate-ticket.sh` does not accept it as written.
+- **Evidence:** the problem, the evidence and the done-when criteria live in the #1466 body under `## Problem`, `## Evidence` (with the `ElectionReturn`/`DistrictAssignment` fixture) and `## Done when`. The PR #1817 body records the earlier independent review: its cross-state finding and fixture, the behavioral red-first, and the selection rule. No public reviewer verdict for this PR exists yet; the review request is at https://github.com/siege-analytics/siege_utilities/pull/1817#issuecomment-6259734028. Investigation, pre-mortem and Junior/Senior records are on the ticket at issuecomment-6651154786 and issuecomment-6651204533.
+- **Falsification:** revert the implementation's filtering (restore `siege_utilities/geo/overlays/election_results.py` and `redistricting.py` from develop) and `tests/test_1466_place_history_overlays.py::test_state_fips_matches_state_abbreviations[election]` goes red, because a numeric `state_fips` returns `[]` instead of the matching Texas election return. `test_inverted_redistricting_span_raises[provider]` goes red because no `ValueError` is raised. This was verified on 2026-11-05: 11 failed and 38 passed; with the files restored, 49 passed. Reverting `seats.py` as well makes the module fail to import, because `_current_districts_at` is new in this PR.
+
 ## Rework ledger
 Empty.
