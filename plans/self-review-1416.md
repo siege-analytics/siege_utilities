@@ -21,6 +21,7 @@ Hostile-review-artifact: plans/hostile-review-1416.md
 Reason: #1416 predates the canonical ticket template. Its body carries Problem, Failure scenario, Done when and Falsifier sections, but not the canonical Evidence and Assumptions sections.
 Evidence: problem, failure scenario, done-when and falsifier live in https://github.com/siege-analytics/siege_utilities/issues/1416; the exact-head reviewer verdict with reproducer is https://github.com/siege-analytics/siege_utilities/issues/1416#issuecomment-6257104805.
 Falsification: revert the implementation; `tests/test_crm_dedup.py::test_uncorroborated_namesakes_stay_distinct_final_entities` goes red because two no-email `Maria Garcia` rows group into one `canonical_id` (`[['a', 'b']]`).
+Verified 2026-11-05: with `siege_utilities/connectors/_dedup.py` checked out from the previous PR head `af0c6df7` (this fix reverted), the test -> 2 failed, `test_crm_dedup.py:303: assert [['a', 'b']] == [['a'], ['b']]`. With `_dedup.py` from `origin/develop` (the whole PR reverted) -> 2 failed with `TypeError: crm_dedup_pipeline() got an unexpected keyword argument 'identifier_columns'`. After `git checkout HEAD --` -> 2 passed, worktree clean.
 
 ## Assumptions
 
