@@ -110,6 +110,9 @@ def _documented_snowflake_config() -> dict:
 
 
 def test_documented_snowflake_config_loads_through_the_real_connector(tmp_path, monkeypatch):
+    # The real connector refuses to construct without the Snowflake SDK; lanes
+    # that do not install it (for example geo without GDAL) skip this check.
+    pytest.importorskip("snowflake.connector")
     from siege_utilities.analytics.snowflake_connector import SnowflakeConnector
 
     documented = _documented_snowflake_config()

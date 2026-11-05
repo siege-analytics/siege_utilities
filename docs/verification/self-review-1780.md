@@ -61,4 +61,5 @@ Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11), snowfl
 - Adding `tests/test_notebook_hygiene.py tests/test_notebook_capability_coverage.py tests/test_release_process.py tests/test_user_config_export_changelog.py` -> 306 passed on the post-merge tree.
 
 ## Rework ledger
+Hosted CI at 5db3550b showed the real-loader test failing in the "geo without GDAL" lane with `ImportError: Snowflake connector not available`; that lane does not install the Snowflake SDK, and the real `SnowflakeConnector` refuses to construct without it. The test now calls `pytest.importorskip("snowflake.connector")` first, so it runs wherever the SDK is installed (all main test lanes) and skips elsewhere.
 The first draft of the YAML assertion forbade the word "YAML" anywhere, which conflicted with the new JSON guidance that says YAML fails to load; it now targets the defective phrase "a YAML config".
