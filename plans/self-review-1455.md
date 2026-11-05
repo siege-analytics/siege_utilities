@@ -62,3 +62,12 @@ a break may change colour in the no-mapclassify path, which is the intended fix.
 
 ## Findings
 F1 and F2 fixed. No new findings.
+
+## Ticket-fitness exemption
+
+Governing ticket: #1455. The #1398 epic is context only.
+
+### #1455
+Reason: #1455 predates the canonical ticket template. Its body uses Problem / Evidence / Failure scenario / Done when / Assumptions / Falsifier / Related instead of Context / Goal / Acceptance, and it links no /think design note.
+Evidence: https://github.com/siege-analytics/siege_utilities/issues/1455 states the merged-outlier and on-break defects under "## Problem", the probe under "## Evidence (v4.0.0, CONFIRMED by probe)" (`geo/classification.py`), and the done-when criteria under "## Done when". The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1455#issuecomment-6259546974.
+Falsification: revert the implementation; `tests/test_1455_classify_numpy_jenks.py::test_numpy_jenks_keeps_singleton_top_class` goes red because the singleton maximum merges into the previous class, `::test_numpy_jenks_reviewer_case_finds_sse_two` goes red because the partition SSE is 48.67 instead of 2.0, and `::test_choropleth_fallback_colours_edge_values_with_their_class` goes red because an edge value takes the next class's colour.
