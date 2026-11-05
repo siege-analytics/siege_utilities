@@ -745,7 +745,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `graph.instagram.com` host, port 443 (or the default), and no user
   information. **Behavior change from v4.0.0:** non-HTTPS, foreign-origin and
   malformed URLs now raise `SocialMediaError` before a request is sent, and the
-  rejected URL is omitted from the error to protect embedded tokens. (#1439,
+  rejected URL is omitted from the error to protect embedded tokens.
+  Redirects are never followed: any 3xx response raises `SocialMediaError`
+  without echoing its `Location`, so a Graph response cannot forward the
+  request, or a token in the redirect target, to another host. (#1439,
   #1833)
 
 ## [4.0.0] - 2026-10-11

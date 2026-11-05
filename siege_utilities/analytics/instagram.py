@@ -364,7 +364,10 @@ class InstagramConnector:
         *,
         params: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Send a request only to an HTTPS ``GRAPH_HOSTS`` origin."""
+        """Send a request only to an HTTPS ``GRAPH_HOSTS`` origin.
+
+        Redirects are never followed; any 3xx response raises SocialMediaError.
+        """
         # Validate every absolute URL before the session can attach credentials.
         try:
             parts = urlsplit(url)
@@ -399,10 +402,13 @@ class InstagramConnector:
 
         for attempt in range(1, self._retry_attempts + 1):
             try:
+                # Never follow redirects: a Location could leave the Graph origin
+                # or carry a token in its query string.
                 resp = self._session.request(
                     method, url,
                     params=req_params,
                     timeout=self._timeout,
+                    allow_redirects=False,
                 )
             except requests.exceptions.RequestException as exc:
                 last_exc = SocialMediaError(redact_url_secrets(str(exc)))
@@ -413,6 +419,13 @@ class InstagramConnector:
                 if attempt < self._retry_attempts:
                     time.sleep(self._retry_backoff ** attempt)
                 continue
+
+            if 300 <= resp.status_code < 400:
+                # The Location is omitted because it may embed credentials.
+                raise SocialMediaError(
+                    f"Instagram API returned a redirect (HTTP {resp.status_code}); "
+                    "redirects are not followed so credentials stay on the Graph origin."
+                )
 
             if resp.status_code in (401, 403):
                 error_msg = self._extract_error_message(resp)

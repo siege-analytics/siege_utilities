@@ -62,5 +62,18 @@ Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11), run fr
 - Every test file importing `siege_utilities.analytics` (32 files) -> 1169 passed, 7 skipped (live-credential checks).
 All fixtures use dummy credentials and mocked transport; no live requests.
 
+## Redirect follow-up (exact-head review of 42c7619d)
+
+Finding: `_request_url` validated only the initial URL and then called `self._session.request(...)` with Requests' default `allow_redirects=True`. A permitted Graph response returning 302 to `https://evil.example.com/collect?access_token=...` was followed automatically. Requests strips `Authorization` on a host change, but a token in the `Location` query still reached the foreign host, and `_request_url` returned success. The 25 hostile-URL tests stub `Session.send`, so they never exercised redirect traversal.
+
+Fix: every request in `_request_url` passes `allow_redirects=False`, and any 3xx response raises `SocialMediaError` with the status code only (no `Location`). No legitimate Graph-to-Graph redirect is followed, because the Graph API returns paging links in the body (`paging.next`), not as redirects.
+
+Regression: `tests/test_1794_instagram_redirects.py` mounts a fake transport adapter on the connector's real session, so Requests' own redirect machinery runs, with zero network. It covers:
+- Graph to foreign-host redirects with a token-bearing `Location`, for statuses 301, 302, 303, 307 and 308, through direct calls, `get_posts` and `authenticate` (15 cases). Each case asserts exactly one prepared request, to `graph.facebook.com`, and the absence of the token and foreign host from the error, repr, traceback and logs.
+- A Graph-to-Graph redirect, which also raises.
+- An official two-host paging control, checking that `Authorization` stays in the header and the token stays out of URLs.
+
+Red/green: with `instagram.py` from 42c7619d, 16 failed ("DID NOT RAISE": the foreign request is sent and the call succeeds) and the paging control passed. With the fix, 17 passed. The Instagram, pagination, credential, Vista, changelog and additional-credential-leak selection gives 459 passed. The credential URL guard's reviewed entry for `InstagramConnector._request_url` in `scripts/check_credential_urls.py` is updated to the new call expression (with `allow_redirects=False`), with the redirect rationale added. The guard reports 0 unreviewed sites, and flake8 and test hygiene pass.
+
 ## Rework ledger
 The new test initially imported the new `GRAPH_HOSTS` constant; it now spells the allowlist out so the base run is a true red rather than an import error.
