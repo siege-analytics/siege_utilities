@@ -30,6 +30,14 @@ Gate evidence, all observed in this work cycle:
 - Request a fresh exact-head review: the earlier result is void once the head moves, and the code diff is unchanged.
 - Obtain the operator's release sign-off for the BREAKING classification before tagging.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1409 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1409 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (all-missing extensive targets converted to zero, silent area weights for POPULATION and HOUSING, inflated EQUAL splits, no rate handling in `normalize_to_year`), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1409, and in the PR description. The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1409#issuecomment-6257195272.
+- **Falsification:** revert the implementation (`crosswalk_processor.py` and `longitudinal_data.py` changes of this PR); `tests/test_crosswalk_weights_1409.py::test_extensive_sum_preserves_missing_and_sums_available_values` goes red because an all-missing extensive sum becomes 0 instead of NaN. The latest commit of this PR is process-only; that existing regression test guards the accepted fix.
+
 ## Lead review
 
 The change is additive and reverts with one commit. No behavior change. No claim in this artifact exceeds what was observed.
