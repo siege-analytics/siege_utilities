@@ -77,7 +77,8 @@ Governing ticket: #1480. The #1398 epic is context only.
 Reason: #1480 predates the canonical ticket template. Its body uses Problem / Evidence / Failure scenario / Done when / Assumptions / Falsifier instead of Context / Goal / Acceptance, and it links no /think design note.
 Evidence: https://github.com/siege-analytics/siege_utilities/issues/1480 states the swapped SLDL/SLDU mapping under "## Problem", the code citation under "## Evidence" (`geo/providers/redistricting_data_hub.py`), and the done-when criteria under "## Done when". The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1480#issuecomment-6259598610.
 Falsification: revert the implementation; `tests/test_1480_rdh_chamber_sldu_sldl.py::test_census_chamber_codes` goes red because `state_senate` again selects `va_sldl_2021_adopted_plan`, and `::test_provider_wraps_ambiguous_plan_in_boundary_fetch_error` goes red because an ambiguous plan escapes the provider as a bare `ValueError`.
-Falsification verified 2026-11-05 for `boundary_providers.py` and `redistricting_data_hub.py`:
-- From develop `dc7d3f76`, the two named tests gave 5 failed / 0 passed (2 chamber cases, 3 provider cases).
-- From the pre-F1 head `cee57289`, the 3 provider cases failed and the 2 chamber cases passed.
-- With both files restored from the PR head, the whole file gave 69 passed, and the worktree was clean.
+Observed revert results (2026-11-05). Command, with `REV` set to the revert target:
+`git checkout REV -- siege_utilities/geo/providers/boundary_providers.py siege_utilities/geo/providers/redistricting_data_hub.py && (cd tests && python -m pytest -o addopts="" -p no:cacheprovider --rootdir=.. -q test_1480_rdh_chamber_sldu_sldl.py::test_census_chamber_codes test_1480_rdh_chamber_sldu_sldl.py::test_provider_wraps_ambiguous_plan_in_boundary_fetch_error); git checkout HEAD -- <same files>`
+- `REV=dc7d3f76` (develop): 5 failed (2 chamber cases, 3 provider cases).
+- `REV=cee57289` (pre-F1 head): 3 failed, 2 passed. The provider cases fail; the chamber cases pass.
+- Current-head green: after the files were restored, `(cd tests && python -m pytest -o addopts="" -p no:cacheprovider --rootdir=.. -q test_1480_rdh_chamber_sldu_sldl.py)` gave 69 passed. The worktree was clean.
