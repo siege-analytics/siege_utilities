@@ -26,6 +26,16 @@ Working as: software engineer (Junior) and tech lead (Lead); both reviews are be
   specifier admits 0.7.0 / 1.4.4 / 1.9.9 and excludes 0.6.9 / 2.0.0 / 2.1.0.
   The DuckDB 2.0 red vs 1.5.x green matrix is established by #1863's CI run
   41002770455 (baseline evidence only; not re-run here).
+- Exact-head CI (run 41974132207, head 52c72bb6) installed duckdb 1.5.6 and
+  showed no class-hardening failure, but 3.13 and 3.14 each failed the three
+  CA/HI/OR cases of
+  `test_population_service_resilience.py::test_command_skips_unpublished_vtd_without_error`:
+  Django's `gis.W001` system check (hosted GDAL 3.8.4, below 3.9) writes into
+  the command stderr the test asserts is empty. The test file is the same on
+  develop. Fix (test-only): the test passes `--skip-checks`, so its strict
+  `stderr == ""` assertion covers only command-owned output, and a fixture
+  registers a stand-in system-check warning so the case is deterministic on any
+  GDAL. `gis.W001` is not silenced in settings, and the workflow is unchanged.
 
 ## Lead review
 
@@ -36,6 +46,10 @@ upper bound is the lowest-blast-radius fix and touches no runtime code path.
 Blast radius: the two extras only. Sequencing: lands on develop via ordinary
 review, superseding the force-pushed #1863, which is left open for the merge
 owner to close. No findings.
+
+On the system-check test fix: skipping checks in one command test narrows what
+that assertion observes. It does not hide a security warning from users, and
+the remaining command tests still run system checks. Scope stays test-only.
 
 ## Test plan
 
@@ -49,3 +63,7 @@ owner to close. No findings.
   (baseline evidence; not re-run here).
 - No library code changed and no new `.py`, so syntax and import gates are N/A
   beyond the runs above.
+- `tests/test_population_service_resilience.py` with Homebrew GDAL, Django 5.2.14 and
+  the CI Django settings: with the stand-in warning fixture and without
+  `--skip-checks`, the three CA/HI/OR cases fail (3 failed, 7 passed, the CI
+  shape); with `--skip-checks`, 10 passed.

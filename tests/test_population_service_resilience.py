@@ -192,8 +192,28 @@ def test_command_exits_nonzero_and_counts_per_record_errors(
     assert list(boundary_table.objects.values_list("geoid", flat=True)) == ["27001"]
 
 
+@pytest.fixture
+def system_check_warning():
+    """Register a Django system-check warning for the duration of a test.
+
+    Hosted CI with GDAL < 3.9 emits ``gis.W001`` from Django's system checks
+    on every command run. The stand-in makes that environment reproducible
+    on any GDAL version.
+    """
+    from django.core import checks
+
+    def _warn(app_configs, **kwargs):
+        return [checks.Warning("stand-in system-check warning", id="tests.W001")]
+
+    checks.register(_warn)
+    yield
+    checks.registry.registry.registered_checks.discard(_warn)
+
+
 @pytest.mark.parametrize("state,abbreviation", [("06", "CA"), ("15", "HI"), ("41", "OR")])
-def test_command_skips_unpublished_vtd_without_error(service, monkeypatch, state, abbreviation):
+def test_command_skips_unpublished_vtd_without_error(
+    service, monkeypatch, system_check_warning, state, abbreviation
+):
     from io import StringIO
     from unittest.mock import patch
     from siege_utilities.geo.django.management.commands import populate_boundaries
@@ -201,10 +221,12 @@ def test_command_skips_unpublished_vtd_without_error(service, monkeypatch, state
     monkeypatch.setattr(populate_boundaries, "BoundaryPopulationService", lambda: service)
     output, error = StringIO(), StringIO()
     command = populate_boundaries.Command(stdout=output, stderr=error)
+    # --skip-checks keeps environment-dependent system-check warnings out of
+    # the stderr this test asserts on; the command's own stderr stays strict.
     with patch("requests.sessions.Session.request", side_effect=AssertionError("unexpected network")):
         command.run_from_argv([
             "manage.py", "populate_boundaries", "--year", "2020",
-            "--type", "vtd", "--state", state,
+            "--type", "vtd", "--state", state, "--skip-checks",
         ])
     assert error.getvalue() == ""
     assert f"VTD 2020 not published for {abbreviation} by Census" in output.getvalue()
