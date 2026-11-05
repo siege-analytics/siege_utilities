@@ -43,7 +43,9 @@ from siege_utilities.identifiers.namespaces import (
 )
 from siege_utilities.identifiers.normalize import (
     NORMALIZER_VERSIONS,
+    normalize_address_v1,
     normalize_name_v1,
+    normalize_phone_v1,
 )
 from siege_utilities.identifiers.uuid_generation import (
     attestation_uuid,
@@ -55,6 +57,8 @@ __all__ = [
     "attestation_uuid",
     "derive_root",
     "derive_sub_namespace",
+    "normalize_address_v1",
     "normalize_name_v1",
+    "normalize_phone_v1",
     "uuid5_from_seed",
 ]

@@ -1,5 +1,6 @@
 """Identity and input-validation regressions for CRM deduplication (#1416)."""
 
+import json
 import logging
 
 import pandas as pd
@@ -373,3 +374,212 @@ def test_log_reports_unmerged_review_candidate_groups(caplog):
     assert "5 records → 3 canonical IDs" in caplog.text
     assert "2 records in identifier-corroborated matches" in caplog.text
     assert "1 name candidate groups left unmerged for review" in caplog.text
+
+
+# --- One corroborating key suffices, with name and conflict guards (#1416 B) ---
+
+
+def _ids(frame, **kwargs):
+    return crm_dedup_pipeline([frame], **kwargs).set_index("source_id")["canonical_id"]
+
+
+def test_chain_by_email_then_phone_forms_one_identity():
+    frame = pd.DataFrame([
+        _contact("a", email="maria@example.com"),
+        _contact("b", source_system="crm_b", email="maria@example.com", phone="512-555-0100"),
+        _contact("c", source_system="crm_c", phone="(512) 555-0100"),
+    ])
+
+    ids = _ids(frame)
+
+    assert ids.nunique() == 1
+
+
+def test_one_shared_key_merges_records_with_different_identifier_sets():
+    frame = pd.DataFrame([
+        _contact("a", email="maria@example.com", phone="512-555-0100"),
+        _contact("b", source_system="crm_b", email="maria@example.com"),
+    ])
+
+    # Explicit columns so the old all-keys-must-agree rule cannot pass this.
+    assert _ids(frame, identifier_columns=["email", "phone"]).nunique() == 1
+
+
+def test_different_names_sharing_a_household_email_stay_split():
+    frame = pd.DataFrame([
+        _contact("a", email="garcia.family@example.com"),
+        _contact("b", first_name="Jose", source_system="crm_b", email="garcia.family@example.com"),
+    ])
+
+    assert _ids(frame).nunique() == 2
+
+
+def test_namesakes_with_conflicting_emails_sharing_a_phone_stay_split(caplog):
+    frame = pd.DataFrame([
+        _contact("a", email="maria.a@example.com", phone="512-555-0100"),
+        _contact("b", source_system="crm_b", email="maria.b@example.com", phone="512-555-0100"),
+    ])
+
+    with caplog.at_level(logging.WARNING, logger="siege_utilities.connectors._dedup"):
+        result = crm_dedup_pipeline([frame])
+
+    assert result["canonical_id"].nunique() == 2
+    assert result["name_candidate_id"].nunique() == 1
+    assert "1 identifier links not merged because identifiers conflict" in caplog.text
+
+
+def test_chain_through_a_conflict_is_cut():
+    # a-b share an email, b-c share a phone, but a and c have conflicting phones.
+    frame = pd.DataFrame([
+        _contact("a", email="maria@example.com", phone="512-555-0199"),
+        _contact("b", source_system="crm_b", email="maria@example.com"),
+        _contact("c", source_system="crm_c", email="maria@example.com", phone="512-555-0100"),
+    ])
+
+    ids = _ids(frame)
+
+    assert ids["a"] != ids["c"]
+
+
+def test_conflicting_member_does_not_block_two_compatible_members():
+    # y sorts first for the shared email but conflicts with both a and b;
+    # a and b share the email and conflict on nothing, so they still link.
+    frame = pd.DataFrame([
+        _contact("y", email="maria@example.com", phone="512-555-0001",
+                 address_street="9 Oak St"),
+        _contact("a", source_system="crm_b", email="maria@example.com", phone="512-555-0002"),
+        _contact("b", source_system="crm_c", email="maria@example.com", address_street="1 Elm St"),
+    ])
+
+    ids = _ids(frame)
+
+    assert ids["a"] == ids["b"]
+    assert ids["y"] != ids["a"]
+
+
+@pytest.mark.parametrize("kwargs, message", [
+    ({"identifier_normalizers": {"phone": "not callable"}}, "must be callable"),
+    ({"address_columns": ["a", "b", "c", "d", "e"]}, "at most 4 columns"),
+    ({"identifier_columns": ["email", "address"]}, "collides with the composite"),
+])
+def test_invalid_identifier_configuration_raises(kwargs, message):
+    with pytest.raises(ValueError, match=message):
+        crm_dedup_pipeline([pd.DataFrame([_contact("a")])], **kwargs)
+
+
+def test_custom_normalizer_is_added_to_the_phone_default():
+    frame = pd.DataFrame([
+        _contact("a", phone="(512) 555-0100", member_id=" M-1 "),
+        _contact("b", source_system="crm_b", phone="512.555.0100", member_id="m1"),
+    ])
+
+    ids = _ids(
+        frame,
+        identifier_columns=["phone", "member_id"],
+        identifier_normalizers={"member_id": lambda v: v.replace("-", "").strip().lower()},
+    )
+
+    assert ids.nunique() == 1
+
+
+def test_email_only_migration_setting_restores_email_corroboration():
+    # Same email, different phone and a partial vs full address: the default
+    # conflict guard splits them; the documented email-only setting merges them.
+    frame = pd.DataFrame([
+        _contact("a", email="maria@example.com", phone="512-555-0100",
+                 address_street="100 Main St"),
+        _contact("b", source_system="crm_b", email="maria@example.com", phone="512-555-0199",
+                 address_street="100 Main St", address_city="Austin", address_state="TX"),
+    ])
+
+    assert _ids(frame).nunique() == 2
+    assert _ids(frame, identifier_columns=["email"], address_columns=[]).nunique() == 1
+
+
+def test_namesakes_sharing_nothing_stay_split():
+    frame = pd.DataFrame([
+        _contact("a", email="maria.a@example.com"),
+        _contact("b", source_system="crm_b", phone="512-555-0100"),
+    ])
+
+    assert _ids(frame).nunique() == 2
+
+
+def test_identities_do_not_depend_on_row_order():
+    rows = [
+        _contact("a", email="maria@example.com"),
+        _contact("b", source_system="crm_b", email="maria@example.com", phone="512-555-0100"),
+        _contact("c", source_system="crm_c", phone="512 555 0100"),
+        _contact("d", first_name="Ana", email="ana@example.com"),
+        _contact("e", first_name="Ana", source_system="crm_b"),
+    ]
+
+    forward = _ids(pd.DataFrame(rows))
+    backward = _ids(pd.DataFrame(rows[::-1]))
+
+    pd.testing.assert_series_equal(forward.sort_index(), backward.sort_index())
+
+
+def test_unmerged_identifier_record_keeps_its_own_seed_id():
+    frame = pd.DataFrame([_contact("a", email="maria@example.com")])
+    seed = json.dumps(["maria garcia", {"email": "maria@example.com"}], sort_keys=True)
+
+    assert _ids(frame)["a"] == str(uuid5_from_seed(CRM_NAMESPACE, seed))
+
+
+# --- Normalized phone and address keys (#1416 A) ---
+
+
+@pytest.mark.parametrize("phone", ["(512) 555-0100", "+1 512 555 0100"])
+def test_phone_variants_corroborate_by_default(phone):
+    frame = pd.DataFrame([
+        _contact("a", phone="512-555-0100"),
+        _contact("b", source_system="crm_b", phone=phone),
+    ])
+
+    result = crm_dedup_pipeline([frame])
+
+    assert result["canonical_id"].nunique() == 1
+    assert result["match_confidence"].eq(1.0).all()
+
+
+def test_address_variants_corroborate_by_default():
+    frame = pd.DataFrame([
+        _contact("a", address_street="100 Congress Avenue", address_city="Austin",
+                 address_state="Texas", address_postal_code="78701-1234"),
+        _contact("b", source_system="crm_b", address_street="100 congress ave.",
+                 address_city="AUSTIN", address_state="TX", address_postal_code="78701"),
+    ])
+
+    assert _ids(frame).nunique() == 1
+
+
+def test_distinct_addresses_do_not_corroborate():
+    frame = pd.DataFrame([
+        _contact("a", address_street="100 N Main St", address_city="Austin"),
+        _contact("b", source_system="crm_b", address_street="100 S Main St", address_city="Austin"),
+    ])
+
+    assert _ids(frame).nunique() == 2
+
+
+def test_address_without_street_is_not_identity_evidence():
+    frame = pd.DataFrame([
+        _contact("a", address_city="Austin", address_state="TX", address_postal_code="78701"),
+        _contact("b", source_system="crm_b", address_city="Austin", address_state="TX",
+                 address_postal_code="78701"),
+    ])
+
+    result = crm_dedup_pipeline([frame])
+
+    assert result["canonical_id"].nunique() == 2
+    assert result["match_confidence"].eq(0.5).all()
+
+
+def test_empty_identifier_and_address_columns_disable_identifier_merging():
+    frame = pd.DataFrame([
+        _contact("a", email="maria@example.com", address_street="100 Congress Ave"),
+        _contact("b", source_system="crm_b", email="maria@example.com", address_street="100 Congress Ave"),
+    ])
+
+    assert _ids(frame, identifier_columns=[], address_columns=[]).nunique() == 2

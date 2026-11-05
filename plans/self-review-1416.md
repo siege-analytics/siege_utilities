@@ -59,7 +59,20 @@ Verified 2026-11-05: with `siege_utilities/connectors/_dedup.py` checked out fro
 - Release classification: BREAKING for 4.1.0 by operator sign-off (2026-11-05). The CHANGELOG entry is a `**BREAKING (#1416):**` bullet under `[4.1.0]` → `### Changed` with its Migration paragraph; no code changed for the classification.
 - Residual: callers that relied on name-only merging lose it on purpose. The library offers no opt-in, matching the architecture note that heavy entity resolution belongs downstream.
 
+## Gaps A and B (operator ruling 2026-11-05: do not ship debt)
+
+Design note: `plans/design-1416-identifier-graph.md` (written before the code, revised after hostile review).
+
+- **A, normalized phone and address keys.** No reusable normalizer existed: `geo/providers/batch_geocoder.normalize_addresses` only reshapes geocoder input. So frozen, versioned `normalize_phone_v1` and `normalize_address_v1` were added beside `normalize_name_v1`. Phone and the composed address now corroborate by default; the widened defaults are listed in the CHANGELOG with an email-only Migration setting.
+- **B, one corroborating key suffices.** Union-find over edges that require an equal normalized name and at least one equal identifier, with a per-component conflict guard and `canonical_id = uuid5(min member seed)`. The operator approved keeping the guard on every column. Its cost is that the same person with a different phone, or a fuller or partial address, in another CRM is split; this is stated in the docstring, CHANGELOG and PR body.
+- **C, accepted.** Review candidates are exposed through the shared `name_candidate_id` grouping key, not a candidate-pair table. The operator accepted this as meeting "emitted as a candidate pair for review with a confidence below 1.0": every pair of rows sharing a `name_candidate_id` but differing in `canonical_id` is a review candidate pair.
+- **Residual risk, stated:** two same-name people sharing one identifier with no conflicting identifier merge. This is the same standard as name plus an equal email. CRMContact has no suffix field, so a Sr/Jr pair sharing a household phone or address is the realistic case.
+- **Red first** (prior head `f71e3cd9`): see the receipt under Quantified claims. Controls that also pass at `f71e3cd9`: `test_identities_do_not_depend_on_row_order`, `test_distinct_addresses_do_not_corroborate`, `test_address_without_street_is_not_identity_evidence`, `test_namesakes_sharing_nothing_stay_split`, `test_unmerged_identifier_record_keeps_its_own_seed_id`, `test_different_names_sharing_a_household_email_stay_split`.
+- Hostile review second pass: `plans/hostile-review-1416.md`. One blocker went to an operator ruling; follow-ups were fixed or documented.
+
 ## Quantified claims
+
+- Gaps A and B, red first (2026-11-05): with `connectors/_dedup.py`, `identifiers/normalize.py` and `identifiers/__init__.py` checked out from `f71e3cd9`, `pytest tests/test_crm_dedup.py` -> 14 failed, 63 passed (the 63 include the labeled controls), and `tests/test_identifiers_contact_normalizers.py` -> collection error (`normalize_address_v1` absent). After `git checkout HEAD --` on the same files, `pytest tests/test_crm_dedup.py tests/test_identifiers_contact_normalizers.py tests/test_1416_crm_notebook_truth.py` -> 110 passed (current-head green), worktree clean. Broader set (dedup, normalizers, notebook hygiene and execution, connector and identifier errors, public API surface) -> 543 passed, 1 skipped.
 
 - 57 tests in `tests/test_crm_dedup.py` pass (46 at `af0c6df7` plus 11 new cases); 2 in `tests/test_1416_crm_notebook_truth.py`.
 - Red before: 2 failed at `af0c6df7` for the new regression.

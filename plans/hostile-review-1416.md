@@ -19,3 +19,18 @@ Scope: the uncommitted diff on top of `df2faba0` (`_dedup.py`, `tests/test_crm_d
 7. Nit, fixed: the notebook lost its trailing newline after the cell edit; restored.
 
 Verdict after dispositions: no open blockers from this pass.
+
+## Second pass: gaps A and B (normalized phone and address, one key suffices)
+
+Scope: the A+B change on top of `f71e3cd9` (`identifiers/normalize.py`, `connectors/_dedup.py`, tests, CHANGELOG, notebook), reviewed against `plans/design-1416-identifier-graph.md`.
+
+1. BLOCKER raised, resolved by operator ruling: the per-component conflict guard covers every column, so a pair that merged at `f71e3cd9` on an equal email is split when its phone differs or its address is partial on one side. Escalated to the hub. The ruling keeps the guard on every column ("as written"). The trade-off is now stated in the docstring, CHANGELOG, design note and PR body. Callers who want email-only corroboration pass `identifier_columns=["email"], address_columns=[]`, pinned by `test_email_only_migration_setting_restores_email_corroboration`.
+2. FOLLOW-UP, fixed: each key linked members only to its first (smallest-seed) member, so one conflicting record kept two compatible ones apart. Now every earlier member is tried; covered by `test_conflicting_member_does_not_block_two_compatible_members`.
+3. FOLLOW-UP, documented: when one record matches two others that conflict with each other, it joins the smaller-seed side. That is deterministic and row-order independent.
+4. FOLLOW-UP, fixed before freezing v1: the address normalizer now works per component. State names map only in the state field, so "West Virginia Ave" is no longer rewritten. ZIP rules apply only to the postal field, so house numbers are not read as ZIPs and numeric ZIPs are zero-padded. Unit designators (`#`, apt, suite, unit) are unified. The phone normalizer drops extensions. The court/connecticut and floor/florida collisions are gone with the shared table.
+5. FOLLOW-UP, fixed: `identifier_normalizers` now adds to the phone default instead of replacing it, and non-callable values raise `ValueError`.
+6. FOLLOW-UP, open question to operator: unmerged namesakes that each carry their own identifier show `match_confidence` 1.0 (each record's own evidence). Asked whether candidates should show < 1.0.
+7. FOLLOW-UP, fixed: tests that also pass at `f71e3cd9` are labeled as controls in the self-review; the design note no longer claims every test fails at the prior head.
+8. FOLLOW-UP, documented: CRMContact has no suffix field, so a Sr/Jr pair sharing a household phone or address can merge if no identifier conflicts. Stated as the residual risk in the docstring and design note.
+9. FOLLOW-UP, documented: `canonical_id` can change when a smaller-seed member joins; the docstring says to regenerate merge tables rather than append.
+10. FOLLOW-UP, fixed: notebook section 2 and the CHANGELOG now describe email, phone and address defaults, the widened defaults and the email-only Migration line.

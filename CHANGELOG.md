@@ -37,23 +37,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING (#1416):** `crm_dedup_pipeline` no longer merges people by name
   alone, and `canonical_id` now identifies an identifier-corroborated person
-  or a single source record, never a name. Records share a `canonical_id` only
-  when the normalized name and every available strong identifier
-  (`identifier_columns`, default `["email"]`, stripped and lowercased) agree,
-  so namesakes with different or missing emails stay distinct. A record
-  without a corroborating identifier gets a canonical ID seeded from its own
-  `source_system` and `source_id` (frame and row position when either is null
-  or blank). Name matches without identifier evidence appear only in the new
-  trailing, review-only `name_candidate_id` column, with `match_confidence`
-  `0.5` for full names and `0.25` when any configured name part is missing;
-  `1.0` requires identifier evidence. Textual null identifiers (`nan`, `none`,
-  `null`, `<na>`, `nat`) are not corroboration. Frames missing a required
-  source column are skipped whole, and null name parts no longer become text.
+  or a single source record, never a name. Records are linked when their
+  normalized names are equal and at least one strong identifier is equal:
+  email (stripped and lowercased), phone (`normalize_phone_v1`: extension
+  dropped, digits only, leading US `1` dropped, fewer than 7 digits ignored)
+  or address (`normalize_address_v1` over `address_street`, `address_city`,
+  `address_state` and `address_postal_code`; a street line is required, unit
+  designators are unified and ZIPs are zero-padded to five digits). Links
+  chain transitively, so an email match and a phone match can join three
+  records. A link is refused, logged and left for review when the records
+  hold different values for any shared identifier column, so namesakes with
+  conflicting emails stay apart even if they share a household phone; the
+  same person recorded with a different phone or a partial address in
+  another CRM is also split. Each group's ID comes from its smallest member
+  seed, independent of row order, and can change when a smaller-seed record
+  joins.
+  A record without a corroborating identifier gets a canonical ID seeded
+  from its own `source_system` and `source_id` (frame and row position when
+  either is null or blank). Name matches without identifier evidence appear
+  only in the new trailing, review-only `name_candidate_id` column, with
+  `match_confidence` `0.5` for full names and `0.25` when any configured name
+  part is missing; `1.0` requires identifier evidence. Textual null
+  identifiers (`nan`, `none`, `null`, `<na>`, `nat`) are not corroboration.
+  Frames missing a required source column are skipped whole, and null name
+  parts no longer become text. New parameters `identifier_normalizers`
+  (added to the default `{"phone": normalize_phone_v1}`) and
+  `address_columns`, and new `siege_utilities.identifiers`
+  `normalize_phone_v1` and `normalize_address_v1`.
+  **Widened defaults:** `identifier_columns` now defaults to
+  `["email", "phone"]` (was `["email"]`), and `address_columns` defaults to
+  `["address_street", "address_city", "address_state",
+  "address_postal_code"]`, so phone and address now corroborate merges by
+  default.
   **Migration:** all canonical IDs differ from 4.0.0, so regenerate persisted
   merge tables. `name_candidate_id` equals the 4.0.0 name-only
   `canonical_id`, so it can join old tables during migration; never merge on
-  it without review. `identifier_columns=[]` now disables identifier merging
-  instead of selecting name-only merging.
+  it without review. For the previous email-only corroboration pass
+  `identifier_columns=["email"], address_columns=[]`. Pass
+  `identifier_columns=[]` and `address_columns=[]` to disable identifier
+  merging, instead of the old name-only merging.
 - New *file* names now get the same check as new directory names. The
   `siege_utilities.files` helpers that create a file refuse a name containing
   a C0, DEL or C1 control character, or a lone surrogate: they raise
