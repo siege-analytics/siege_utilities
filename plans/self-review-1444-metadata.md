@@ -27,6 +27,7 @@ Compensating-control: the 297-test analytics set rerun after the develop merge; 
 Reason: #1444 predates the canonical ticket template; it was filed before `evaluate-ticket.sh` gating, and this PR covers only part of it (the Facebook part is #1435 / PR #1774).
 Evidence: Problem, Evidence, Failure scenario, Done when, Assumptions and Falsifier sections live in https://github.com/siege-analytics/siege_utilities/issues/1444; the reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1444#issuecomment-6257165128.
 Falsification: revert the implementation; `tests/test_analytics_datetime.py::test_instagram_insights_use_covered_day` goes red because daily values carry the next day's end-of-period date instead of the covered day.
+Verified 2026-11-05: with `siege_utilities/analytics/instagram.py` checked out from `origin/develop`, `pytest tests/test_analytics_datetime.py -k test_instagram_insights_use_covered_day` -> 6 failed (`test_analytics_datetime.py:92` date-label mismatch, including leap-day and year boundaries); after `git checkout HEAD --` -> 6 passed, worktree clean.
 
 ## Assumptions
 
