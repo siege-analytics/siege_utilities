@@ -27,6 +27,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the three #1435 entries under `[4.1.0]` and none under `[Unreleased]`.
 - Request a fresh exact-head review: the earlier result is void once the head moves, and the code diff is unchanged.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1435 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1435 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (page insights copying the first value into every metric column and sharing one SDK token across connectors), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1435, and in the PR description. The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1435#issuecomment-6256996896.
+- **Falsification:** revert the implementation (`siege_utilities/analytics/facebook_business.py` changes of this PR); `tests/test_facebook_business_insights.py::test_page_insights_pivots_each_metric_for_each_day` goes red because each metric column again receives the first returned value and later days are dropped. The latest commit of this PR is process-only; that existing regression test guards the accepted fix.
+
 ## Lead review
 
 The change is additive and reverts with one commit. No behavior change. No claim in this artifact exceeds what was observed.
