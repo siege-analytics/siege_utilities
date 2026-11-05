@@ -14,6 +14,14 @@ Investigate-artifact: https://github.com/siege-analytics/siege_utilities/issues/
 Pre-mortem-artifact: https://github.com/siege-analytics/siege_utilities/issues/1574#issuecomment-6651074254
 Hostile-review-artifact: plans/hostile-review-1574-staging-paths.md
 
+## Ticket-fitness exemption
+
+### #1574
+
+Reason: #1574 predates the canonical ticket template; it was filed before `evaluate-ticket.sh` gating.
+Evidence: Problem, Evidence, Failure scenario, Done when, Assumptions and Falsifier sections live in https://github.com/siege-analytics/siege_utilities/issues/1574; the reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1574#issuecomment-6256250477.
+Falsification: revert the implementation; `tests/test_atomic_write_with_staging_hadoop_fs.py::test_promotes_output_on_spark_filesystem` goes red because promotion inspects the driver's local disk and the real destination stays empty, and `tests/test_atomic_write_with_staging_hadoop_fs.py::test_unique_staging_directory_authority_less_uri_creates_no_local_tree` goes red because a local `dbfs:` tree appears under the test cwd.
+
 ## Assumptions
 
 1. Hadoop reads a leading `name:` (two or more characters) as a scheme, so the helper should treat the same strings as URIs and never create them on the driver.
