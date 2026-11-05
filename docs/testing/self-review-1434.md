@@ -27,6 +27,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the #1434 entry under `[4.1.0]` and none under `[Unreleased]`.
 - Request a fresh exact-head review: the earlier result is void once the head moves, and the code diff is unchanged.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1434 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1434 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (reverse place-history queries dropping real ancestors, swapping step years and discarding terminal weights), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1434, and in the PR description. The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1434#issuecomment-6256938655.
+- **Falsification:** revert the implementation (`siege_utilities/geo/place_history.py` changes of this PR); `tests/test_place_history_lineage.py::test_reverse_step_years_match_geoid_vintages` goes red because reverse steps pair GEOIDs with the wrong vintage years again. The latest commit of this PR is process-only; that existing regression test guards the accepted fix.
+
 ## Lead review
 
 The change is additive and reverts with one commit. No behavior change. No claim in this artifact exceeds what was observed.
