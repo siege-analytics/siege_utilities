@@ -70,6 +70,31 @@ def test_float32_follower_count_renders_as_integer_end_to_end():
     assert all(value == "1,234" for value in followers.values()), followers
 
 
+def test_float32_count_next_to_missing_platform_count():
+    # The [4.1.0] claim: a known count renders as an integer next to a
+    # missing one. Instagram reports a float32 follower count, X omits it.
+    posts = pd.DataFrame({"text": ["known"],
+                          "like_count": pd.array([7.0], dtype="Float32"),
+                          "comments_count": pd.array([1.0], dtype="Float32")})
+    data = [
+        {"platform": "instagram", "account_info": {"followers_count": np.float32(1234)},
+         "posts": posts, "insights": pd.DataFrame()},
+        {"platform": "x_twitter", "account_info": {"followers_count": None},
+         "posts": pd.DataFrame(), "insights": pd.DataFrame()},
+    ]
+    gen = object.__new__(SocialMediaReportGenerator)
+    gen.client_name = "Dummy client"
+    report = gen._build_report_data(data, START, END)
+    metrics = {name: entry["value"] for name, entry in report["metrics"].items()}
+    assert metrics["instagram — Followers"] == "1,234"
+    assert metrics["x_twitter — Followers"] == "unavailable"
+    assert metrics["Total Followers (all platforms)"] == "1,234"
+    # Control: the Float32 posts row already rendered as integers.
+    rows = {row[0]: row[1:3] for table in report["tables"]
+            if table["headers"][:2] == ["Post", "Likes"] for row in table["data"]}
+    assert rows["known"] == ["7", "1"]
+
+
 def test_top_posts_table_shows_known_like_count_as_integer():
     posts = pd.DataFrame({"text": ["omitted", "known"], "like_count": [None, 7],
                           "comments_count": [None, 1]})

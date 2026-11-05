@@ -67,6 +67,15 @@ into `_build_report_data`, asserting both the platform and total follower
 metrics. At `fcc16c3a`: 3 failed / 11 passed (`'1,234.0' != '1,234'` for both
 metrics); with the change: 14 passed.
 
+The reviewer's pinned case is
+`test_float32_count_next_to_missing_platform_count`: instagram
+`followers_count=np.float32(1234)` next to x_twitter `followers_count=None`,
+asserting `'1,234'`, `'unavailable'` and total `'1,234'`, with the Float32
+posts row (7 likes / 1 comment) as a control. At-head control at `b832dee7`:
+reversing only the widening (back to `isinstance(value, float) and
+value.is_integer()`, the `6da7775f` logic) fails it with
+`'1,234.0' == '1,234'`; restored, it passes (file: 15 passed).
+
 ## Focused verification of the cumulative wait budget
 
 `tests/test_1812_wait_budget_grid.py` enumerates every sequence of three
