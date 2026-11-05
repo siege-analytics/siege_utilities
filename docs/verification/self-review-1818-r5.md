@@ -34,11 +34,26 @@ below.
 ## Lead review
 
 The lane's no-skip gate is the contract; the fix keeps it strict by making
-both server versions run a real assertion rather than relaxing the gate. The
-remaining risk is that the below-17 branch has not run on a live PostgreSQL 15
-or 16 locally (the local server is 14.22 and no 15 or 16 cluster is
-available), so the hosted 16.4 lane is its first execution. If it fails there,
-the failure is visible in that lane, not hidden by a skip.
+both server versions run a real assertion rather than relaxing the gate.
+
+Hosted CI evidence for the below-17 branch: Actions run 41983741272 on
+`b2951ec6` (the first head carrying this change), job `test-postgis`
+127099541616, started `PostgreSQL 16.4 (Debian 16.4-1.pgdg110+2)`, so
+`server_version < 170000` and the test takes the below-17 path. The job log
+shows
+`tests/test_1818_spatial_review_postgis.py::test_r2_1_mutating_cte_rows_match_durable_state_after_close[MERGE] PASSED`,
+the lane summary `338 passed, 1 skipped`, and the job concluded `success`, so
+the lane's "PostGIS database tests must not skip" assertion held. The same
+run's lanes that failed are outside this file. Locally there is no PostgreSQL
+15 or 16 cluster (the local server is 14.22); a disposable PostgreSQL 17.11
+cluster ran the 17+ branch and a probe of the below-17 statements.
+
+Coverage gap to watch: the below-17 branch runs in hosted CI only because the
+lane pins PostgreSQL 16. If the lane moves to 17 or later, that branch stops
+executing anywhere in CI. The proposal for that case is a CI-run unit test
+that drives the same test body through a connector whose observer reports
+`server_version = 160000` against a 17+ server (plain `MERGE` is valid on 17),
+so the fallback assertions keep running regardless of the lane's version.
 
 ## Ticket-fitness exemption
 
@@ -74,4 +89,6 @@ the failure is visible in that lane, not hidden by a skip.
 - Collection: the four `test_r2_1_mutating_cte_rows_match_durable_state_after_close`
   cases collect; without a DSN they skip in the existing fixture guard.
 - Local non-live suites listed above: 169 passed, 31 skipped (DSN only).
-- Live PostgreSQL 16.4: the hosted PostGIS lane on the pushed head.
+- Live PostgreSQL 16.4 (hosted): run 41983741272, job 127099541616 on
+  `b2951ec6`: the `[MERGE]` case PASSED on the below-17 path; lane 338 passed,
+  1 skipped; job `success`.
