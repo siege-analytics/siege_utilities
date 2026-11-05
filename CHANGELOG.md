@@ -309,9 +309,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list names `COUSUB` and `ADDRFEAT` and drops the non-existent `COUNTYSUB`,
   `SDELM`, `SDSEC` and `SDUNI`. An opt-in `-m integration` test HEADs one
   built URL per catalog type for 2010, 2019 and 2023 (#1464).
+- PostGIS and DuckDB `execute_spatial_query` return rows for every
+  row-returning statement, including CTEs (`WITH ...`) and
+  `INSERT`/`UPDATE`/`DELETE ... RETURNING`. Previously only queries starting
+  with `SELECT` returned a GeoDataFrame, so a CTE or `RETURNING` write gave a
+  row count and its rows were lost. Fetched `RETURNING` rows are decoded
+  without replaying the write. Tabular results come back without an active
+  geometry; other statements still return the affected-row count, or -1 (#1414).
+- Spatial queries handle transactions predictably. On a connection the
+  connector opened, a write commits only after its result is decoded and rolls
+  back on any error, so a failed multi-statement DuckDB write leaves nothing
+  behind. Inside a caller's transaction, a failed PostGIS statement rolls back
+  to a savepoint and keeps the caller's earlier work, instead of rolling back
+  the whole transaction; read-only statements never commit, and DuckDB writes
+  join the caller's transaction instead of finalizing it. In PostGIS, a
+  standalone transaction-control statement such as `BEGIN`, `SAVEPOINT` or
+  `RELEASE` runs as written, without the connector committing it, and returns
+  -1 (#1818).
+- A failed upload no longer destroys the existing table. PostGIS uploads run
+  their drop, create and inserts in one transaction, and DuckDB uploads run in
+  one transaction that rolls back on failure, so a failed `if_exists='replace'`
+  keeps the original table and rows. DuckDB uploads store the active geometry
+  column whatever its name, and an input column named `geometry_wkt` (the
+  storage column) is rejected (#1818).
+- DuckDB tables keep their CRS. `upload_spatial_data` records the full CRS in
+  the table comment, including for empty tables, and `download_spatial_data`
+  restores it, also after reconnecting. Previously every DuckDB read was
+  labelled EPSG:4326, whatever CRS was uploaded. `if_exists='append'` adds
+  rows by column name and refuses data in a different CRS. Arbitrary SQL
+  through `execute_spatial_query` keeps the EPSG:4326 label (#1818).
 
 ### BREAKING
 
+- PostGIS and DuckDB `upload_spatial_data` (and `upload_to_postgis` /
+  `upload_to_duckdb`) default to `if_exists='fail'` instead of `'replace'`, so
+  an upload no longer silently replaces an existing table. DuckDB also accepts
+  `'append'` and raises for any other value. **Migration:** pass
+  `if_exists='replace'` where replacing an existing table is intended (#1818).
+- PostGIS and DuckDB reads keep the source CRS when `crs` is omitted.
+  `download_spatial_data` and PostGIS `execute_spatial_query` previously
+  reprojected to the configured default CRS (EPSG:4326), and DuckDB labelled
+  every table EPSG:4326. Now a PostGIS result keeps its native SRID (for
+  example EPSG:3857), a PostGIS table without an SRID reads with CRS `None`,
+  and a DuckDB table read uses the CRS stored at upload. DuckDB tables written
+  before this release have no stored CRS and read with CRS `None`; asking such
+  a read to reproject with `crs=` raises `SpatialQueryError`. An invalid `crs=`
+  passed to `execute_spatial_query` now raises before the query runs, and a
+  query batch that mixes a
+  transaction-control statement (`BEGIN`, `COMMIT`, `SAVEPOINT` and similar)
+  with other statements is rejected before anything executes. **Migration:**
+  pass `crs="EPSG:4326"` (or your target) to keep reprojected output; for a
+  DuckDB table written by an earlier version, pass `source_crs=` with the CRS
+  it was written in (EPSG:4326 if unsure, as before), or upload it again; run
+  transaction-control statements on their own (#1818).
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,
