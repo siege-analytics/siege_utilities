@@ -48,5 +48,14 @@ Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11), run fr
 - `python -m pytest tests/test_1460_sensitive_field_bypass.py tests/test_config_sensitive_fields.py tests/test_actor_types_exclude_sensitive.py tests/test_person_actor.py tests/test_person_exclude_sensitive.py tests/test_1460_round5_dropin.py tests/test_1460_round6_dropin.py tests/test_1460_round7_security.py tests/test_1832_empty_builtins_preserved.py tests/test_1832_empty_secret_roundtrip.py tests/test_1832_exact_type_boundaries.py tests/test_1832_falsey_regression.py tests/test_1832_remaining_falsey.py tests/test_config_hydra_optional.py tests/test_release_process.py tests/test_user_config_export_changelog.py --no-cov` -> 2455 passed.
 - `git diff --stat origin/develop` -> 10 PR files before this commit; `git diff cf9eefa1` on those paths -> empty.
 
+## Ticket-fitness exemption
+
+writing-rules:4 exemption for the governing ticket. The #1398 epic is context only.
+
+### #1460
+- **Reason:** #1460 predates the canonical ticket template. It uses Problem / Evidence / Failure scenario / Done when / Assumptions / Falsifier sections, so `evaluate-ticket.sh` does not accept it as written.
+- **Evidence:** the problem (credential values leaking through `exclude_sensitive=True` exports), the evidence and the done-when criteria live in the #1460 body under `## Problem`, `## Evidence` and `## Done when`. The two reopened bypasses this PR addresses are quoted in the PR #1832 body ("Exemption: ticket-fitness" section). The earlier post-merge verification of #1460 is at https://github.com/siege-analytics/siege_utilities/issues/1460#issuecomment-6194494266. No public reviewer verdict for this PR exists yet; the earlier PASS on code at `cf9eefa1` is recorded in the PR body under "Verification at cf9eefa1". Investigation, pre-mortem and Junior/Senior records are on the ticket at issuecomment-6651153998 and issuecomment-6651203609.
+- **Falsification:** revert the implementation (restore `siege_utilities/config/models/person.py` from develop) and `tests/test_1460_sensitive_field_bypass.py::test_alias_field_redaction[alias-nested-to_dict]` goes red, because a field aliased `client_secret` keeps its dummy value in the `to_dict` export instead of being redacted. `test_non_str_key_redaction[credential-bytes-nested-to_dict]` goes red the same way for a `b"access_token"` key. This was verified on 2026-11-05: with develop's `person.py` in place, 96 failed and 125 passed; with the PR's file restored, 221 passed. Reverting `_sensitivity.py` as well makes the module fail to import, because the shared alias helper is new in this PR.
+
 ## Rework ledger
 Empty.
