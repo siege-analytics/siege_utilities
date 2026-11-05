@@ -300,6 +300,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list names `COUSUB` and `ADDRFEAT` and drops the non-existent `COUNTYSUB`,
   `SDELM`, `SDSEC` and `SDUNI`. An opt-in `-m integration` test HEADs one
   built URL per catalog type for 2010, 2019 and 2023 (#1464).
+- **Packaging behavior change from v4.0.0:** `pip install siege-utilities[crm]`
+  now installs `msal>=1.24.0` and pandas for the CRM connectors; `[all]` also
+  includes MSAL. v4.0.0 declared no MSAL dependency, so every extra left
+  Dynamics authentication unavailable without a separate install. Dynamics
+  dependency errors now recommend `[crm]`, and CI installs it so the Dynamics
+  tests execute instead of skipping (#1449).
 
 ### BREAKING
 
