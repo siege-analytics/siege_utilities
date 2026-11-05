@@ -50,5 +50,8 @@ Post-mortem applicability: N/A. This is a forward content fix, not a revert or r
 - "0 code cells" is from `nbformat.read` on `notebooks/spatial/06_geodjango.ipynb`.
 - "9 passed" is the full `test_1664_spark_notebook_truth.py` run on the synced tree.
 
+## Restoration note
+The three `docs/verification` documents for this PR were removed by commit 927be7fa and are restored from its parent, 251649079409a9003ef74802efd78209ed4384e1. They were not restored byte for byte: they were rewritten to cover the whole PR at the current head, and internal session names, absolute local paths, client names and non-ASCII punctuation were removed so that nothing internal is published.
+
 ## Evidence-predates-work
 This artifact is committed in the PR branch at `docs/verification/self-review-1784.md`. The test results above were produced in the same work cycle that restored it, after the implementation commits.
