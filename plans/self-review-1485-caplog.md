@@ -14,6 +14,14 @@ Investigate-artifact: https://github.com/siege-analytics/siege_utilities/issues/
 Pre-mortem-artifact: https://github.com/siege-analytics/siege_utilities/issues/1485#issuecomment-6651199765
 Hostile-review-artifact: plans/hostile-review-1485-caplog.md
 
+## Ticket-fitness exemption
+
+### #1485
+
+Reason: #1485 predates the canonical ticket template; it was filed before `evaluate-ticket.sh` gating.
+Evidence: Problem, Evidence, Failure scenario, Done when, Assumptions and Falsifier sections live in https://github.com/siege-analytics/siege_utilities/issues/1485; the reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1485#issuecomment-6256395578.
+Falsification: revert the implementation; `tests/test_report_generator_renders_sections.py::test_analytics_pdf_renders_sections` goes red because a chart list raises `AttributeError: 'list' object has no attribute 'get'` and the insight text is absent from the PDF.
+
 ## Assumptions
 
 1. The warning is emitted on `siege_utilities.reporting.report_generator` (module logger), so setting that logger's level is sufficient for `caplog`.
