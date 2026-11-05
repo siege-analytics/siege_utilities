@@ -56,16 +56,18 @@ Provider contract (CLAUDE.md, architectural decision 5): the same failure mode
 across providers. Caller misuse stays `ValueError`; data-side failures are
 `BoundaryFetchError`. Blast radius: one method in `boundary_providers.py`.
 
-Elephant, reported to the coordinator: this branch contains the #1777 merge
-commit 7f534f6c, which is not an ancestor of develop dc7d3f76. The PR diff
-therefore includes #1777's connector changes. It is not changed here and
-awaits a disposition.
+Correction: an earlier draft of this review said merge commit 7f534f6c is not
+an ancestor of develop dc7d3f76. That was wrong. The local clone is shallow,
+so local ancestry checks gave a false answer. GitHub's compare API reports
+`compare/dc7d3f76...7f534f6c` as ahead 0 / behind 11, so 7f534f6c is on
+develop. `compare/dc7d3f76...d551b2df` reports 5 changed files, all #1480
+files. There is no foreign content in this PR.
 
 ## Rework ledger
 - d9b24ec1/cee57289: lookup outside the try. F1 is fixed in this round.
 
 ## Findings
-F1 fixed. No new code findings. Branch contamination is escalated (see Lead review).
+F1 fixed. No new code findings.
 
 ## Ticket-fitness exemption
 
