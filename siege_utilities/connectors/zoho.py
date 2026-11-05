@@ -31,6 +31,7 @@ from siege_utilities.connectors._protocol import (
     ConnectorNotFoundError,
     ConnectorRateLimitError,
     UpsertResult,
+    sanitize_record,
 )
 from siege_utilities.connectors._query_utils import _validate_identifier
 
@@ -461,7 +462,7 @@ class ZohoConnector:
             log.warning("upsert_records(%s): empty DataFrame", object_type)
             return UpsertResult(success_count=0, failure_count=0)
 
-        record_dicts = records.to_dict(orient="records")
+        record_dicts = [sanitize_record(row) for row in records.to_dict(orient="records")]
         batches = [
             record_dicts[i:i + BATCH_SIZE]
             for i in range(0, len(record_dicts), BATCH_SIZE)
@@ -731,6 +732,10 @@ class ZohoConnector:
                     json=json_body,
                     timeout=self._timeout,
                 )
+            except requests.exceptions.InvalidJSONError as exc:
+                raise ConnectorError(
+                    f"Zoho JSON encoding failed for {method} {path}: {exc}"
+                ) from exc
             except requests.exceptions.RequestException as exc:
                 last_exc = exc
                 log.warning(
