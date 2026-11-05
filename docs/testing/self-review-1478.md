@@ -26,6 +26,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the #1478 entry under `[4.1.0]` and none under `[Unreleased]`.
 - Request a fresh exact-head review: any earlier result is void once the head moves, and the code diff against develop is unchanged.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1478 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1478 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (weighting making unchanged respondent data look significant, inflated top-N shares, unweighted scale means), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1478, and in the PR description, https://github.com/siege-analytics/siege_utilities/pull/1732. The reviewer verdicts are recorded on the ticket thread and the PR conversation.
+- **Falsification:** revert the implementation (`crosstab.py`, `models.py` and `significance.py` changes of this PR); `tests/test_survey_significance_weighting.py::test_issue_1_population_weight_scaling_preserves_empty_flags` goes red because scaling weights by 10000 again produces spurious significance letters. The latest commit of this PR is process-only; that existing regression test guards the accepted fix.
+
 ## Lead review
 
 The change is additive and reverts with one commit. No behavior change. No claim in this artifact exceeds what was observed.
