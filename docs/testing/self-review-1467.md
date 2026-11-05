@@ -27,6 +27,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the #1467 entry under `[4.1.0]` Fixed exactly once.
 - Request a fresh exact-head review: any earlier result is void once the head moves, and the code diff against develop is unchanged.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1467 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1467 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (RDH compactness scores understating circles and disagreeing between APIs), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1467, and in the PR description, https://github.com/siege-analytics/siege_utilities/pull/1792. The reviewer verdicts are recorded on the ticket thread and the PR conversation.
+- **Falsification:** revert the implementation (the `redistricting_data_hub.py` changes of this PR); `tests/test_1467_rdh_compactness_projection.py::test_reock_equilateral_triangle` goes red because the Reock score returns 0.315045 instead of 0.413497. The latest commit of this PR is process-only; that existing regression test guards the accepted fix.
+
 ## Lead review
 
 The change is additive and reverts with one commit. No behavior change. No claim in this artifact exceeds what was observed.
