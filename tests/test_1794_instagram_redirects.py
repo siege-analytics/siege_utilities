@@ -98,6 +98,54 @@ def test_graph_redirect_to_foreign_host_is_not_followed(caplog, entry_point, sta
         assert connector._authenticated is False
 
 
+STEAL = f"https://example.invalid/steal?access_token={TOKEN}"
+
+
+def _assert_token_absent(caught, caplog):
+    for text in (str(caught.value), repr(caught.value), "".join(traceback.format_exception(caught.value)), caplog.text):
+        assert TOKEN not in text
+        assert "example.invalid" not in text
+
+
+@pytest.mark.parametrize("status", [301, 302, 303, 307, 308])
+def test_first_page_redirect_to_example_invalid_sends_one_request(caplog, status):
+    connector, transport = _connector(_redirect_first(status, STEAL))
+
+    with pytest.raises(SocialMediaError, match="redirect") as caught:
+        connector.get_posts(date(2026, 1, 1), date(2026, 1, 31))
+
+    assert len(transport.sent) == 1
+    assert urlsplit(transport.sent[0].url).hostname == "graph.facebook.com"
+    assert caught.value.__suppress_context__
+    _assert_token_absent(caught, caplog)
+
+
+@pytest.mark.parametrize("status", [301, 302, 303, 307, 308])
+def test_paging_next_redirect_to_example_invalid_is_not_followed(caplog, status):
+    next_url = f"https://graph.facebook.com/v23.0/123/media?after=cursor&access_token={TOKEN}"
+
+    def route(request):
+        host = urlsplit(request.url).hostname
+        if host != "graph.facebook.com":
+            return _response(request, 200, {"data": [{"id": "stolen", "timestamp": "2026-01-15T00:00:00+0000"}]})
+        if "after=cursor" in request.url:
+            return _response(request, status, location=STEAL)
+        return _response(request, 200, {
+            "data": [{"id": "first", "timestamp": "2026-01-20T00:00:00+0000"}],
+            "paging": {"next": next_url},
+        })
+
+    connector, transport = _connector(route)
+
+    with pytest.raises(SocialMediaError, match="redirect") as caught:
+        connector.get_posts(date(2026, 1, 1), date(2026, 1, 31))
+
+    # The first page and its continuation only; nothing reaches the foreign host.
+    assert [urlsplit(r.url).hostname for r in transport.sent] == ["graph.facebook.com", "graph.facebook.com"]
+    assert all(TOKEN not in r.url for r in transport.sent)
+    _assert_token_absent(caught, caplog)
+
+
 def test_graph_to_graph_redirect_is_not_followed_either():
     location = f"https://graph.facebook.com/v23.0/123/media?access_token={TOKEN}"
     connector, transport = _connector(_redirect_first(302, location))

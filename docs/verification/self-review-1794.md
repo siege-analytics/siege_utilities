@@ -75,5 +75,16 @@ Regression: `tests/test_1794_instagram_redirects.py` mounts a fake transport ada
 
 Red/green: with `instagram.py` from 42c7619d (byte-identical at 84c86703; GitHub compare shows only `CHANGELOG.md` changed between them), 16 failed ("DID NOT RAISE": the foreign request is sent and the call succeeds) and the paging control passed. With the fix, 17 passed. The Instagram, pagination, credential, Vista, changelog and additional-credential-leak selection gives 459 passed. The credential URL guard's reviewed entry for `InstagramConnector._request_url` in `scripts/check_credential_urls.py` is updated to the new call expression (with `allow_redirects=False`), with the redirect rationale added. The guard reports 0 unreviewed sites, and flake8 and test hygiene pass.
 
+### Redirect-boundary spec round
+
+Against the hub's final redirect spec:
+- The 3xx `SocialMediaError` is raised `from None`.
+- The regression adds `Location: https://example.invalid/steal?access_token=...` cases for 301/302/303/307/308:
+  - on the first page, with exactly one prepared request, to the Graph host;
+  - on a `paging.next` continuation, with only the first page and the continuation sent, both to the Graph host and none to the foreign host.
+- Each case asserts that the token and `example.invalid` are absent from str, repr, the traceback and logs.
+
+Red/green: `tests/test_1794_instagram_redirects.py` with `instagram.py` from 84c86703 gives 26 failed and 1 passed (the safe-paging control). With the fix it gives 27 passed. The full analytics selection (36 files, including the credential-leak, changelog and connector suites) gives 1242 passed, 7 skipped. flake8 and the credential URL guard (0 unreviewed sites) pass.
+
 ## Rework ledger
 The new test initially imported the new `GRAPH_HOSTS` constant; it now spells the allowlist out so the base run is a true red rather than an import error.

@@ -425,7 +425,7 @@ class InstagramConnector:
                 raise SocialMediaError(
                     f"Instagram API returned a redirect (HTTP {resp.status_code}); "
                     "redirects are not followed so credentials stay on the Graph origin."
-                )
+                ) from None
 
             if resp.status_code in (401, 403):
                 error_msg = self._extract_error_message(resp)
