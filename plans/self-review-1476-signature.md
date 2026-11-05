@@ -21,6 +21,7 @@ Hostile-review-artifact: plans/hostile-review-1476-signature.md
 Reason: #1476 predates the canonical ticket template; it was filed during the v4.0.0 remediation wave before `evaluate-ticket.sh` gating.
 Evidence: Problem, Evidence, Failure scenario, Done when, Assumptions and Falsifier sections live in https://github.com/siege-analytics/siege_utilities/issues/1476; the reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1476#issuecomment-6256890449.
 Falsification: revert the implementation; `tests/test_databases_config_roundtrip.py::test_password_roundtrip_uses_reported_env_var` goes red because a hyphenated config name saves a password reference that loading cannot resolve.
+Verified 2026-11-05: with `siege_utilities/config/databases.py` checked out from `origin/develop`, `pytest tests/test_databases_config_roundtrip.py -k test_password_roundtrip_uses_reported_env_var` -> 4 failed, 1 passed (`:37 assert '${DB_ANALYTICS-DB_PASSWORD}' == '${DB_ANALYTICS_DB_PASSWORD}'`, likewise for `prod.replica`, `my db` and `café`); after `git checkout HEAD --` -> 5 passed, worktree clean.
 
 ## Assumptions
 
