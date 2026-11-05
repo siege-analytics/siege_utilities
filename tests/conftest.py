@@ -260,8 +260,14 @@ def real_spark_session():
     pytest.importorskip("pyspark")
     os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
     os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
+    import shutil
+    import tempfile
     from pyspark.sql import SparkSession
 
+    # Point the Spark SQL warehouse at a temp dir so the session does not
+    # write spark-warehouse/ into the checkout (the test-litter guard fails on
+    # leftover paths). newSession() inherits this SparkContext config.
+    warehouse_dir = tempfile.mkdtemp(prefix="su_spark_warehouse_")
     spark = (
         SparkSession.builder
         .appName("siege_utilities_property_tests")
@@ -270,11 +276,13 @@ def real_spark_session():
         .config("spark.default.parallelism", "2")
         .config("spark.driver.memory", "1g")
         .config("spark.ui.showConsoleProgress", "false")
+        .config("spark.sql.warehouse.dir", warehouse_dir)
         .getOrCreate()
     )
     spark.sparkContext.setLogLevel("ERROR")
     yield spark
     spark.stop()
+    shutil.rmtree(warehouse_dir, ignore_errors=True)
 
 
 @pytest.fixture
