@@ -27,6 +27,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the #1496 entry under `[4.1.0]` Fixed exactly once.
 - Request a fresh exact-head review: any earlier result is void once the head moves, and the code diff against develop is unchanged.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1496 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1496 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (four future-only expiry validators rejecting past datetimes, so persisted models fail to reload after expiry), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1496, and in the PR description, https://github.com/siege-analytics/siege_utilities/pull/1805. The reviewer verdicts are recorded on the ticket thread and the PR conversation. This PR references the ticket with `Refs`; the timezone-expiry comparison remains ticket scope.
+- **Falsification:** revert the implementation (removal of the four validators in `actor_types.py`, `credential.py` and `oauth_integration.py`); `tests/test_1496_expiry_validators_reload.py::test_expired_credential_reloads` goes red because construction raises the future-only validation error. The latest commit of this PR is process-only; that existing regression test guards the accepted fix.
+
 ## Lead review
 
 The change is additive and reverts with one commit. No behavior change. No claim in this artifact exceeds what was observed.
