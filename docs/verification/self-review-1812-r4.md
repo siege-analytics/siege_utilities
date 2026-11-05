@@ -55,6 +55,18 @@ specs (the `,.0f` average) and missing values (`unavailable`) are unchanged.
 `54cb4348` (`'7.0' != '7'`, `['7.0', '1.0'] != ['7', '1']`,
 `'1,234.0' != '1,234'`), 9 passed with the change.
 
+Residual (review of `6da7775f`): an integral `numpy.float32`, which pandas
+returns for a nullable `Float32` column and is not a `float` subclass, still
+rendered followers as `1,234.0`. The check is now
+`isinstance(value, (float, np.floating)) and float(value).is_integer()`.
+New cases in the same test file cover `np.float32(1234.0)`, a pandas
+`Float32` element, `np.float32(7.5)` (stays `7.5`) and `np.float32(12.4)`
+with `,.0f` (stays `12`), plus an end-to-end case where a connector's
+`get_account_info()` returns `Float32` counts through `_collect_platform_data`
+into `_build_report_data`, asserting both the platform and total follower
+metrics. At `fcc16c3a`: 3 failed / 11 passed (`'1,234.0' != '1,234'` for both
+metrics); with the change: 14 passed.
+
 ## Focused verification of the cumulative wait budget
 
 `tests/test_1812_wait_budget_grid.py` enumerates every sequence of three

@@ -13,6 +13,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from siege_utilities.reporting.chart_generator import ChartGenerator
@@ -34,10 +35,11 @@ def _known_sum(values) -> Any:
 def _format_metric(value: Any, spec: str = ",") -> str:
     if not pd.notna(value):
         return "unavailable"
-    # A count column that also holds a missing value is float, so a known
-    # count of 7 arrives as 7.0; render integral values as integers unless
-    # the caller asked for an explicit precision.
-    if "." not in spec and isinstance(value, float) and value.is_integer():
+    # A count column that also holds a missing value is float (Python float,
+    # numpy float64, or numpy float32 from a nullable Float32 column), so a
+    # known count of 7 arrives as 7.0; render integral values as integers
+    # unless the caller asked for an explicit precision.
+    if "." not in spec and isinstance(value, (float, np.floating)) and float(value).is_integer():
         value = int(value)
     return format(value, spec)
 
