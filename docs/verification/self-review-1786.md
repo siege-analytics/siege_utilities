@@ -50,5 +50,8 @@ Post-mortem applicability: N/A. This is a forward content fix, not a revert or r
 - "0 code cells" is from `nbformat.read` on the notebook.
 - "4 passed" is the full `test_1671_geodjango_notebook_truth.py` run; "12 passed" adds the geodjango hygiene selection.
 
+## Restoration note
+The three `docs/verification` documents for this PR were removed by commit 157d19be and are restored from its parent, 84df62a114df3c6d1c77853482b5d5e7a8e64f09. They were not restored byte for byte: they were rewritten to cover the whole PR at the current head, and internal session names, absolute local paths, client names and non-ASCII punctuation were removed so that nothing internal is published.
+
 ## Evidence-predates-work
 This artifact is committed in the PR branch at `docs/verification/self-review-1786.md`. The test results above were produced in the same work cycle that restored it, after the implementation commits.
