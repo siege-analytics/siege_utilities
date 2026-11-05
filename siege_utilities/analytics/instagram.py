@@ -484,8 +484,12 @@ class InstagramConnector:
         url = urlunsplit(parts._replace(query=urlencode(query)))
         safe_url = redact_url_secrets(url)
         last_exc: BaseException | None = None
+        # max_retry_wait bounds the total sleep across this request's retries.
+        waited = 0.0
+        attempts_made = 0
 
         for attempt in range(1, self._retry_attempts + 1):
+            attempts_made = attempt
             try:
                 resp = self._session.request(
                     method, url,
@@ -506,7 +510,11 @@ class InstagramConnector:
                         method, safe_url, attempt, self._retry_attempts, str(last_exc),
                     )
                 if attempt < self._retry_attempts:
-                    time.sleep(self._backoff_delay(attempt))
+                    delay = self._backoff_delay(attempt)
+                    if not self._within_wait_budget(waited, delay):
+                        break
+                    waited += delay
+                    time.sleep(delay)
                 continue
 
             try:
@@ -539,6 +547,9 @@ class InstagramConnector:
                 ):
                     raise error
                 delay = retry_after if retry_after is not None else self._backoff_delay(attempt)
+                if not self._within_wait_budget(waited, delay):
+                    raise error
+                waited += delay
                 log.warning(
                     "Instagram rate limit on %s %s attempt %d/%d; retrying in %s seconds",
                     method, safe_url, attempt, self._retry_attempts, delay,
@@ -567,7 +578,11 @@ class InstagramConnector:
                     method, safe_url, resp.status_code, attempt, self._retry_attempts,
                 )
                 if attempt < self._retry_attempts:
-                    time.sleep(self._backoff_delay(attempt))
+                    delay = self._backoff_delay(attempt)
+                    if not self._within_wait_budget(waited, delay):
+                        break
+                    waited += delay
+                    time.sleep(delay)
                 continue
 
             if not (200 <= resp.status_code < 300):
@@ -596,9 +611,16 @@ class InstagramConnector:
         if _token_exchange:
             raise last_exc from None
         raise SocialMediaError(
-            f"Instagram API {method} {safe_url} failed after {self._retry_attempts} "
+            f"Instagram API {method} {safe_url} failed after {attempts_made} "
             f"attempts: {last_exc}"
         )
+
+    def _within_wait_budget(self, waited: float, delay: float) -> bool:
+        """Whether sleeping ``delay`` more keeps this request within max_retry_wait.
+
+        Written as ``<=`` so a NaN delay fails closed.
+        """
+        return waited + delay <= self._max_retry_wait
 
     def _backoff_delay(self, attempt: int) -> float:
         try:

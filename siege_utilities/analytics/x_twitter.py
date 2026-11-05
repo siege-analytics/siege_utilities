@@ -374,6 +374,13 @@ class XTwitterConnector:
             raise ValueError(f"Invalid X {kind} format.")
         return text
 
+    def _within_wait_budget(self, waited: float, delay: float) -> bool:
+        """Whether sleeping ``delay`` more keeps this request within max_retry_wait.
+
+        Written as ``<=`` so a NaN delay fails closed.
+        """
+        return waited + delay <= self._max_retry_wait
+
     def _backoff_delay(self, attempt: int) -> float:
         try:
             return min(self._retry_backoff ** attempt, self._max_retry_wait)
@@ -406,8 +413,12 @@ class XTwitterConnector:
         url = f"{BASE_URL}/{path.lstrip('/')}"
         req_params = dict(params) if params else {}
         last_exc: BaseException | None = None
+        # max_retry_wait bounds the total sleep across this request's retries.
+        waited = 0.0
+        attempts_made = 0
 
         for attempt in range(1, self._retry_attempts + 1):
+            attempts_made = attempt
             try:
                 resp = self._session.request(
                     method, url,
@@ -421,7 +432,11 @@ class XTwitterConnector:
                     method, url, attempt, self._retry_attempts, exc,
                 )
                 if attempt < self._retry_attempts:
-                    time.sleep(self._backoff_delay(attempt))
+                    delay = self._backoff_delay(attempt)
+                    if not self._within_wait_budget(waited, delay):
+                        break
+                    waited += delay
+                    time.sleep(delay)
                 continue
 
             self._estimated_cost += COST_PER_READ
@@ -443,6 +458,9 @@ class XTwitterConnector:
                 ):
                     raise error
                 delay = retry_after if retry_after is not None else self._backoff_delay(attempt)
+                if not self._within_wait_budget(waited, delay):
+                    raise error
+                waited += delay
                 log.warning(
                     "X rate limit on %s %s attempt %d/%d; retrying in %s seconds",
                     method, path, attempt, self._retry_attempts, delay,
@@ -459,7 +477,11 @@ class XTwitterConnector:
                     method, url, resp.status_code, attempt, self._retry_attempts,
                 )
                 if attempt < self._retry_attempts:
-                    time.sleep(self._backoff_delay(attempt))
+                    delay = self._backoff_delay(attempt)
+                    if not self._within_wait_budget(waited, delay):
+                        break
+                    waited += delay
+                    time.sleep(delay)
                 continue
 
             if not (200 <= resp.status_code < 300):
@@ -492,7 +514,7 @@ class XTwitterConnector:
             return result
 
         raise SocialMediaError(
-            f"X API {method} {path} failed after {self._retry_attempts} "
+            f"X API {method} {path} failed after {attempts_made} "
             f"attempts: {last_exc}"
         )
 

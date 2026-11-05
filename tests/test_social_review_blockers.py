@@ -225,11 +225,16 @@ def test_b4_far_future_x_reset_stops_after_one_request(make_client, offline):
 @pytest.mark.parametrize("platform", ["instagram", "x"])
 @pytest.mark.parametrize("failure", ["throttle", "server", "transport"])
 def test_b4_configured_backoff_is_capped(make_client, offline, platform, failure):
+    # Each wait is capped at 900 s and so is their sum per request (#1812
+    # R-1812-4): the first capped wait spends the whole budget, so the second
+    # retry is refused instead of sleeping 900 s more.
     fail = {"throttle": response(429), "server": response(503), "transport": requests.ConnectionError("dummy")}[failure]
     client, request = make_client(platform, [fail, fail, response()], retry_attempts=3, retry_backoff=1e300)
-    assert client._request("GET", "/123") == {}
-    assert request.call_count == 3
-    assert offline.call_args_list == [call(900), call(900)]
+    expected = SocialMediaRateLimitError if failure == "throttle" else SocialMediaError
+    with pytest.raises(expected):
+        client._request("GET", "/123")
+    assert request.call_count == 2
+    assert offline.call_args_list == [call(900)]
 
 
 @pytest.mark.parametrize("platform", ["instagram", "x"])

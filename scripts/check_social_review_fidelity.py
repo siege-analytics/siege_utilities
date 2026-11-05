@@ -1,13 +1,16 @@
 """Compare offline social outputs with PR #1812's reviewed head.
 
-Run with the repository on PYTHONPATH. Requires local git object d329eef7;
-loads its three modules in memory without changing tracked files. No HTTP.
+Run with the repository on PYTHONPATH. The three baseline modules are frozen
+byte-identical copies of d329eef7 under tests/fixtures/, checked by git blob
+id, so no git history is needed (shallow CI checkouts work). Loads them in
+memory without changing tracked files. No HTTP.
 """
 
 from copy import deepcopy
 from datetime import date
+import hashlib
+import numbers
 from pathlib import Path
-import subprocess
 from types import ModuleType
 from unittest.mock import Mock, patch
 
@@ -19,14 +22,31 @@ from siege_utilities.reporting import social_media_reports
 
 BASELINE = "d329eef7a4e001a8ce30cc3fc6b7ce49c1acb4ff"
 ROOT = Path(__file__).resolve().parents[1]
+FROZEN = ROOT / "tests" / "fixtures" / "social_baseline_d329eef7"
+# Git blob ids of the three modules at BASELINE; each frozen copy must match.
+BASELINE_BLOBS = {
+    "siege_utilities/analytics/instagram.py": "7cafa6ca1291ea56465f083f16dd69bcd436f93b",
+    "siege_utilities/analytics/x_twitter.py": "da2b74e6c60e7310979dd794a1713fc70e7e0f86",
+    "siege_utilities/reporting/social_media_reports.py": "cd03465874f1f56ce35d5913b437dc47341f8ec7",
+}
 START, END = date(2026, 1, 1), date(2026, 1, 31)
+
+
+def git_blob_id(data):
+    """The id ``git hash-object`` assigns to ``data``."""
+    return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
 
 
 def old_module(module):
     path = Path(module.__file__).relative_to(ROOT).as_posix()
-    source = subprocess.check_output(
-        ["git", "show", f"{BASELINE}:{path}"], cwd=ROOT, text=True, timeout=30,
-    )
+    frozen = FROZEN / (Path(path).name + ".txt")
+    data = frozen.read_bytes()
+    if git_blob_id(data) != BASELINE_BLOBS[path]:
+        raise AssertionError(
+            f"{frozen} is not {BASELINE}:{path}: blob {git_blob_id(data)}, "
+            f"expected {BASELINE_BLOBS[path]}"
+        )
+    source = data.decode("utf-8")
     old = ModuleType("baseline_" + module.__name__.rsplit(".", 1)[-1])
     exec(compile(source, f"{BASELINE}:{path}", "exec"), old.__dict__)
     return old
@@ -40,9 +60,6 @@ def client_for(module, platform, body):
     client._authenticated = True
     client._request = Mock(side_effect=lambda *args, **kwargs: deepcopy(body))
     return client
-
-
-import numbers
 
 
 def _is_null(value):
@@ -111,7 +128,13 @@ def compare(old, new, where, hits):
         assert isinstance(old, pd.DataFrame) and isinstance(new, pd.DataFrame), (where, type(old), type(new))
         assert list(old.columns) == list(new.columns), (where, list(old.columns), list(new.columns))
         assert list(old.index) == list(new.index), (where, list(old.index), list(new.index))
-        assert old.index.name == new.index.name, (where, old.index.name, new.index.name)
+        # Axis labels compare equal across representations (0 == 0.0), so the
+        # axis type, dtype and name must match too.
+        for axis in ("index", "columns"):
+            before, after = getattr(old, axis), getattr(new, axis)
+            assert type(before) is type(after), (where, axis, type(before), type(after))
+            assert before.dtype == after.dtype, (where, axis, before.dtype, after.dtype)
+            assert before.names == after.names, (where, axis, before.names, after.names)
         allowed = 0
         for col in old.columns:
             for idx in old.index:
@@ -125,6 +148,9 @@ def compare(old, new, where, hits):
         assert type(old) is type(new) and len(old) == len(new), (where, old, new)
         return sum(compare(o, n, f"{where}[{i}]", hits) for i, (o, n) in enumerate(zip(old, new)))
     if _is_null(old) and _is_null(new):
+        # None, pd.NA, NaT and NaN are distinct missing-value representations.
+        if type(old) is not type(new):
+            raise AssertionError(f"unexpected null type change at {where}: {old!r} -> {new!r}")
         return 0
     if _is_null(old) != _is_null(new):
         if _is_zero(old) and _is_null(new) and where in _AUTHORIZED:

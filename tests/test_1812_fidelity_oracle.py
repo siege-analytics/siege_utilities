@@ -8,7 +8,8 @@ comparator false-greened the timezone relabel, the 0 -> False change, the
 index-name change, a non-count zero -> null, and the counterbalanced swap.
 
 The script is loaded by path (it is not an importable package module); the
-real `audit()` runs the baseline-vs-current comparison offline via git show.
+real `audit()` runs the baseline-vs-current comparison offline against the
+frozen d329eef7 sources in tests/fixtures/social_baseline_d329eef7/.
 """
 import importlib.util
 from pathlib import Path
@@ -108,3 +109,69 @@ def test_removed_row_is_rejected():
     new = pd.DataFrame({"like_count": [1]})
     with pytest.raises(AssertionError):
         fidelity.compare(old, new, IG_POPULATED, set())
+
+
+# The exact-head review of b7199b4e found four mutations of real current
+# output that the real audit still certified. Each test applies one of them to
+# the actual current Instagram converter output inside the complete audit;
+# the audit must now fail.
+def _mutate_current_instagram(monkeypatch, mutate):
+    from siege_utilities.analytics import instagram
+
+    real = instagram.InstagramConnector._posts_to_dataframe
+
+    def mutated(posts):
+        frame = real(posts)
+        label = "populated" if posts and "caption" in posts[0] else "omitted" if posts else "empty"
+        return mutate(label, frame.copy(deep=True))
+
+    monkeypatch.setattr(instagram.InstagramConnector, "_posts_to_dataframe", staticmethod(mutated))
+
+
+def _set_omitted_media_url_to_na(label, frame):
+    if label == "omitted":
+        frame["media_url"] = pd.Series([pd.NA], index=frame.index, dtype=object)
+    return frame
+
+
+def _set_omitted_published_at_to_none(label, frame):
+    if label == "omitted":
+        frame["published_at"] = pd.Series([None], index=frame.index, dtype=object)
+    return frame
+
+
+def _make_populated_index_float(label, frame):
+    if label == "populated":
+        frame.index = pd.Index([float(value) for value in frame.index])
+    return frame
+
+
+def _name_populated_column_axis(label, frame):
+    if label == "populated":
+        frame.columns.name = "changed_column_axis"
+    return frame
+
+
+@pytest.mark.parametrize("mutate", [
+    _set_omitted_media_url_to_na,
+    _set_omitted_published_at_to_none,
+    _make_populated_index_float,
+    _name_populated_column_axis,
+])
+def test_review_seed_is_rejected_by_the_real_audit(monkeypatch, mutate):
+    _mutate_current_instagram(monkeypatch, mutate)
+    with pytest.raises(AssertionError):
+        fidelity.audit()
+
+
+def test_seed_controls_leave_the_audit_green(monkeypatch):
+    # The wrapper alone (no mutation) keeps the real audit green, so a seed
+    # failure is caused by its mutation and not by the wrapping.
+    _mutate_current_instagram(monkeypatch, lambda label, frame: frame)
+    fidelity.audit()
+
+
+def test_frozen_baseline_matches_the_reviewed_commit():
+    for path, blob in fidelity.BASELINE_BLOBS.items():
+        frozen = fidelity.FROZEN / (Path(path).name + ".txt")
+        assert fidelity.git_blob_id(frozen.read_bytes()) == blob, path
