@@ -7,7 +7,7 @@ No credentials or network services are used: connector factories are patched.
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -16,6 +16,16 @@ import pytest
 
 
 NOTEBOOK = Path(__file__).resolve().parents[1] / "notebooks/analytics/01_connectors.ipynb"
+# The connector reads SNOWFLAKE_CONFIG_FILE with json.load; the factory is
+# patched in these tests, so the real loader is covered in
+# tests/test_1780_property_tz_and_config.py.
+SNOWFLAKE_CONFIG = '{"account": "example"}'
+
+
+@pytest.fixture(autouse=True)
+def _property_timezone(monkeypatch):
+    """The GA path needs the property time zone; tests may override or remove it."""
+    monkeypatch.setenv("GA_PROPERTY_TIMEZONE", "UTC")
 
 
 def _run_cells(*indices: int) -> dict:
@@ -35,15 +45,15 @@ def _run_cells(*indices: int) -> dict:
     ("2026-01-01", "2025-12-15", "2025-12-28"),
 ])
 def test_credentialed_branches_query_both_sources_and_derive_daily(tmp_path, monkeypatch, today, start, end):
-    class FixedDate(date):
+    class FixedDatetime(datetime):
         @classmethod
-        def today(cls):
-            return date.fromisoformat(today)
+        def now(cls, tz=None):
+            return cls.fromisoformat(f"{today}T12:00:00").replace(tzinfo=tz)
 
     creds = tmp_path / "service-account.json"
     creds.write_text('{"type": "service_account"}', encoding="utf-8")
-    config = tmp_path / "snowflake.yaml"
-    config.write_text("account: example", encoding="utf-8")
+    config = tmp_path / "snowflake.json"
+    config.write_text(SNOWFLAKE_CONFIG, encoding="utf-8")
     monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", str(creds))
     monkeypatch.setenv("GA_PROPERTY_ID", "123456789")
     monkeypatch.setenv("SNOWFLAKE_CONFIG_FILE", str(config))
@@ -53,7 +63,7 @@ def test_credentialed_branches_query_both_sources_and_derive_daily(tmp_path, mon
     sf.execute_query.return_value = [("2026-04-01", 900), ("2026-04-02", 800)]
     with patch("siege_utilities.analytics.google_analytics.create_ga_connector_with_service_account", return_value=ga), patch(
         "siege_utilities.analytics.snowflake_connector.get_snowflake_connector", return_value=sf
-    ), patch("datetime.date", FixedDate):
+    ), patch("datetime.datetime", FixedDatetime):
         ns = _run_cells(2, 4, 6, 8)
     ga.get_ga4_data.assert_called_once()
     assert ga.get_ga4_data.call_args.kwargs["property_id"] == "123456789"
@@ -72,8 +82,8 @@ def test_credentialed_branches_query_both_sources_and_derive_daily(tmp_path, mon
 
 def test_snowflake_only_result_drives_summary(tmp_path, monkeypatch):
     monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
-    config = tmp_path / "snowflake.yaml"
-    config.write_text("account: example", encoding="utf-8")
+    config = tmp_path / "snowflake.json"
+    config.write_text(SNOWFLAKE_CONFIG, encoding="utf-8")
     monkeypatch.setenv("SNOWFLAKE_CONFIG_FILE", str(config))
     sf = Mock()
     sf.execute_query.return_value = [("2026-04-01", 71), ("2026-04-02", 73)]
@@ -123,8 +133,8 @@ def test_credential_file_without_property_is_not_fake_live_result(tmp_path, monk
 @pytest.mark.parametrize("rows", [[], [("2026-10-05", 100), ("2026-10-06", None)], [("2026-10-05", 100), (None, 9)]])
 def test_null_sessions_fail(tmp_path, monkeypatch, rows):
     monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
-    config = tmp_path / "snowflake.yaml"
-    config.write_text("account: example", encoding="utf-8")
+    config = tmp_path / "snowflake.json"
+    config.write_text(SNOWFLAKE_CONFIG, encoding="utf-8")
     monkeypatch.setenv("SNOWFLAKE_CONFIG_FILE", str(config))
     sf = Mock()
     sf.execute_query.return_value = rows
@@ -172,8 +182,8 @@ def test_empty_ga_result_fails(tmp_path, monkeypatch, columns):
 @pytest.mark.parametrize("sessions", [float("nan"), float("inf"), float("-inf")])
 def test_non_finite_sessions_fail(tmp_path, monkeypatch, sessions):
     monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
-    config = tmp_path / "snowflake.yaml"
-    config.write_text("account: example", encoding="utf-8")
+    config = tmp_path / "snowflake.json"
+    config.write_text(SNOWFLAKE_CONFIG, encoding="utf-8")
     monkeypatch.setenv("SNOWFLAKE_CONFIG_FILE", str(config))
     sf = Mock()
     sf.execute_query.return_value = [("2026-10-05", 100), ("2026-10-06", sessions)]
@@ -184,8 +194,8 @@ def test_non_finite_sessions_fail(tmp_path, monkeypatch, sessions):
 
 def test_zero_sessions_are_valid(tmp_path, monkeypatch):
     monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
-    config = tmp_path / "snowflake.yaml"
-    config.write_text("account: example", encoding="utf-8")
+    config = tmp_path / "snowflake.json"
+    config.write_text(SNOWFLAKE_CONFIG, encoding="utf-8")
     monkeypatch.setenv("SNOWFLAKE_CONFIG_FILE", str(config))
     sf = Mock()
     sf.execute_query.return_value = [(day, 0) for day in pd.date_range("2026-09-28", periods=14)]
