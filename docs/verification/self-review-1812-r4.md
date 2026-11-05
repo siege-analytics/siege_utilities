@@ -116,7 +116,36 @@ evaluate-ticket structure (Problem / Evidence / Done-when headings), which is
 the Reason for each exemption; it covers ticket structure only. #1398 is the
 parent epic and context only.
 
-Revert run (observed 2026-11-05, Python 3.11.11). The three tickets were
+At-head controls (the falsifiers; observed 2026-11-05 at `6da7775f`, Python
+3.11.11, current tests). For each ticket only its surviving implementation
+lines were reversed by hand, the named node was run from `tests/` with
+`python -m pytest -o addopts="" --rootdir=.. -c ../pyproject.toml -p no:cacheprovider -q -p no:randomly test_social_connectors_cluster.py -k <node>`,
+the file was restored with `git checkout HEAD -- <file>`, the node was run
+again, and `git status --short` was empty.
+
+- **#1458.** In `get_account_insights`
+  (`siege_utilities/analytics/instagram.py:255` and `:259`), changed
+  `value_entry.get("value")` to the pre-fix `value_entry.get("value", 0)`.
+  Node `test_instagram_missing_account_metric_is_not_zero`: 1 failed,
+  `assert False` at the test's `pd.isna(...)` check (a missing daily metric
+  becomes 0). Restored: 1 passed.
+- **#1465.** In `authenticate`'s user-id branch
+  (`siege_utilities/analytics/x_twitter.py:175-178`), removed the
+  `if not user: raise SocialMediaAuthError(...)` check, matching the pre-fix
+  branch. Node `test_x_nonexistent_user_id_fails_authentication`: 3 failed,
+  two with `DID NOT RAISE SocialMediaAuthError` (an unknown user id
+  authenticates) and the `{"data": None}` case with
+  `AttributeError: 'NoneType' object has no attribute 'get'`, which is what
+  the pre-fix branch does with that body. Restored: 3 passed.
+- **#1474.** Reverted the default-metric constants
+  (`siege_utilities/analytics/instagram.py:65-66`) to the pre-fix
+  `"impressions,reach,profile_views,follower_count"` and
+  `"impressions,reach,engagement,saved,shares"`. Node
+  `test_instagram_defaults_use_current_metrics`: 2 failed (`[account]`,
+  `[post]`), each `AssertionError: assert not ({... 'impressions' ...} & DEPRECATED)`
+  (retired metrics are requested by default). Restored: 3 passed.
+
+Historical revert run (context, not the falsifier; observed 2026-11-05, Python 3.11.11). The three tickets were
 implemented together in `4eebecbd` and `6991a852`, with one regression file,
 `tests/test_social_connectors_cluster.py`, so the revert removes the shared
 implementation of all three at once: the tree of `4eebecbd^`
