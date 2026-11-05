@@ -46,17 +46,27 @@ the failure is visible in that lane, not hidden by a skip.
   `startswith('SELECT')` misroutes CTE and RETURNING). Reason: written before
   the current evaluate-ticket structure (Problems / Done when / Why p2
   headings); #1398 is the parent epic and context only. The exemption covers
-  ticket structure only. Evidence: at `38999ebe`, Python 3.11.11, duckdb
-  1.5.6, the non-live suites `tests/test_1414_spatial_transformations_writes.py`,
-  `tests/test_1818_crs_characterization.py`,
-  `tests/test_1818_extra_boundaries.py`, `tests/test_1818_r2_duckdb.py`,
-  `tests/test_1818_r2_duckdb_and_lexer.py`,
-  `tests/test_1818_r3_scs_and_astral.py` and
-  `tests/test_1818_spatial_review_regressions.py` ran as 169 passed and 31
-  skipped, every skip being the missing live-PostGIS DSN; the live cases run
-  in the hosted PostGIS lane. Falsification: a Done-when item in the PR body's
-  #1414 Done-when explanation has no mapped test, or a mapped test fails at
-  the head.
+  ticket structure only.
+  Node: `tests/test_1414_spatial_transformations_writes.py::test_row_returning_queries_return_rows[cte-postgis]`
+  (and `test_duckdb_existing_table_survives_upload[append]`).
+  Observed revert run (2026-11-05, Python 3.11.11): #1414 was implemented in
+  `b0cf3429` (its tests landed first in `db81d776`). The revert is taken at
+  the point it landed: the tree of `b0cf3429^` (`git archive b0cf3429^`) with
+  `tests/test_1414_spatial_transformations_writes.py` from `b0cf3429`
+  overlaid, run from its `tests/` directory with
+  `python -m pytest -o addopts="" --rootdir=.. -c ../pyproject.toml -p no:cacheprovider -q -p no:randomly test_1414_spatial_transformations_writes.py`.
+  Result: 25 failed / 1 passed. The CTE and RETURNING cases fail with
+  `TypeError: 'int' object is not subscriptable` (a rowcount is returned where
+  rows are expected); `test_duckdb_existing_table_survives_upload[append]`
+  fails with `RuntimeError: Failed to upload to DuckDB: Catalog Error: Table
+  with name "places" already exists!` and the `[default]` case with
+  `DID NOT RAISE RuntimeError` (the existing table is dropped);
+  `test_postgis_existing_table_survives_failed_upload[default]` and
+  `[replace]` fail. Every failure is on #1414's behavior, not an import or
+  fixture error. Head (`ba1a28f4`): the same file is 26 passed, with no live
+  database needed. Broader evidence at `38999ebe`: the non-live #1414/#1818
+  suites ran as 169 passed and 31 skipped (all for the missing live-PostGIS
+  DSN).
 
 ## Test plan
 
