@@ -17,7 +17,7 @@ def processor(crosswalk):
     return CrosswalkProcessor(pd.DataFrame(crosswalk), 2010, 2020, "tract")
 
 
-@pytest.mark.parametrize("aggregation_func, partial_value", [("sum", 5.0), ("weighted_mean", 2.5)])
+@pytest.mark.parametrize("aggregation_func, partial_value", [("sum", 5.0), ("weighted_mean", 5.0)])
 def test_extensive_sum_preserves_missing_and_sums_available_values(aggregation_func, partial_value):
     proc = processor({
         "source_geoid": ["S1", "S2", "S3", "S4", "S5"],
@@ -274,6 +274,51 @@ def test_missing_row_weight_on_merge_is_an_error_not_a_dropped_source(method):
     data = pd.DataFrame({"GEOID": ["A", "B"], "count": [100.0, 5.0]})
     with pytest.raises(ValueError, match="weight"):
         proc.transform(data, value_columns=["count"], weight_method=method)
+
+
+def test_area_missing_row_weight_is_an_error_naming_source_and_target():
+    proc = _proc({"source_geoid": ["A", "A", "B"], "target_geoid": ["X", "Y", "Y"],
+                  "area_weight": [0.5, np.nan, 1.0]})
+    data = pd.DataFrame({"GEOID": ["A", "B"], "count": [100.0, 5.0]})
+    with pytest.raises(ValueError, match="area_weight.*'source_geoid': 'A'.*'target_geoid': 'Y'"):
+        proc.transform(data, value_columns=["count"], weight_method=WeightMethod.AREA)
+    # AREA is the default method, so the default call is held to the same rule.
+    with pytest.raises(ValueError, match="area_weight"):
+        proc.transform(data, value_columns=["count"])
+
+
+def test_area_unmatched_sources_keep_their_values_and_zero_weights_are_valid():
+    proc = _proc({"source_geoid": ["A", "A"], "target_geoid": ["X", "Y"],
+                  "area_weight": [0.0, 1.0]})
+    data = pd.DataFrame({"GEOID": ["A", "unmatched"], "count": [100.0, 7.0]})
+    out = proc.transform(data, value_columns=["count"]).set_index("GEOID")
+    assert out["count"].to_dict() == pytest.approx({"X": 0.0, "Y": 100.0, "unmatched": 7.0})
+
+
+def test_weighted_mean_excludes_missing_values_from_the_denominator():
+    # Weights 0.25 / 0.75: the missing value must leave the denominator too,
+    # so the mean of the one present value is that value, not a diluted 2.0.
+    proc = _proc({"source_geoid": ["A", "B", "C", "D"], "target_geoid": ["X", "X", "Y", "Y"],
+                  "area_weight": [0.25, 0.75, 0.5, 0.5]})
+    data = pd.DataFrame({"GEOID": ["A", "B", "C", "D"],
+                         "count": [8.0, np.nan, 4.0, 6.0]})
+    out = proc.transform(data, value_columns=["count"],
+                         aggregation_func="weighted_mean").set_index("GEOID")
+    assert out.loc["X", "count"] == pytest.approx(8.0)
+    assert out.loc["X", "count_coverage"] == pytest.approx(0.25)
+    assert out.loc["Y", "count"] == pytest.approx(5.0)
+    assert out.loc["Y", "count_coverage"] == pytest.approx(1.0)
+
+
+def test_weighted_mean_all_missing_target_is_nan_with_zero_coverage():
+    proc = _proc({"source_geoid": ["A", "B", "C"], "target_geoid": ["X", "X", "Y"],
+                  "area_weight": [0.5, 0.5, 1.0]})
+    data = pd.DataFrame({"GEOID": ["A", "B", "C"], "count": [np.nan, np.nan, 3.0]})
+    out = proc.transform(data, value_columns=["count"],
+                         aggregation_func="weighted_mean").set_index("GEOID")
+    assert pd.isna(out.loc["X", "count"])
+    assert out.loc["X", "count_coverage"] == 0.0
+    assert out.loc["Y", "count"] == pytest.approx(3.0)
 
 
 def test_get_longitudinal_data_forwards_intensive_columns(monkeypatch):

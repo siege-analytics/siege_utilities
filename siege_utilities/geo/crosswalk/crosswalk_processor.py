@@ -184,11 +184,17 @@ class CrosswalkProcessor:
             df: DataFrame with data in source boundary vintage
             geoid_column: Name of the GEOID column
             value_columns: List of columns to transform. If None, all numeric columns.
-            weight_method: Allocation weights for extensive columns. POPULATION
-                and HOUSING require population_weight and housing_weight,
-                respectively. EQUAL allocates 1/N to each of a source's N targets.
-                Strings are converted with WeightMethod(value).
-            aggregation_func: How to aggregate merged data ('sum', 'mean', 'weighted_mean')
+            weight_method: Allocation weights for extensive columns. AREA,
+                POPULATION and HOUSING use area_weight, population_weight and
+                housing_weight, respectively; a missing weight on a matched
+                source/target row raises. EQUAL allocates 1/N to each of a
+                source's N targets. Strings are converted with
+                WeightMethod(value).
+            aggregation_func: How to aggregate merged data ('sum', 'mean',
+                'weighted_mean'). 'weighted_mean' divides by the weight of the
+                rows with a non-missing value, so a missing value leaves both
+                the numerator and the denominator; a target whose values are
+                all missing is NaN with coverage 0.0.
             intensive_variables: Columns that are intensive (rates, ratios,
                 medians, densities, per-capita values). These are area-weighted
                 averaged rather than disaggregated by weight, so a split
@@ -204,7 +210,7 @@ class CrosswalkProcessor:
 
         Raises:
             ValueError: If geoid_column is absent, the requested weight column
-                or a matched POPULATION/HOUSING row weight is missing, the
+                or a matched AREA/POPULATION/HOUSING row weight is missing, the
                 method string is unknown, or an intensive merge lacks valid
                 absolute areas.
             TypeError: If weight_method is neither a WeightMethod nor a string.
@@ -320,19 +326,20 @@ class CrosswalkProcessor:
             target_counts = merged.groupby(c_src, dropna=False)[c_tgt].transform('nunique')
             merged[c_weight] = 1.0 / target_counts
         elif weight_column is not None:
-            missing_weight = merged[rename_map[weight_column]].isna() & ~unmatched
-            if missing_weight.any():
-                rows = merged.loc[missing_weight, [c_src, c_tgt]].drop_duplicates()
-                rows = rows.rename(columns={c_src: 'source_geoid', c_tgt: 'target_geoid'})
-                raise ValueError(
-                    f"Missing '{weight_column}' for matched source/target rows: "
-                    f"{rows.to_dict('records')}"
-                )
+            self._reject_missing_weights(
+                merged, weight_column, merged[rename_map[weight_column]].isna() & ~unmatched,
+                c_src, c_tgt,
+            )
             # Unmatched sources retain their values; matched rows use the
             # requested allocation, including valid zero weights.
             merged[c_weight] = merged[rename_map[weight_column]].where(~unmatched, 1.0)
         else:
-            merged[c_weight] = merged[c_aw].fillna(1.0)
+            # AREA: unmatched sources were given area_weight 1.0 above, so a
+            # missing area_weight here is a matched row with no allocation.
+            self._reject_missing_weights(
+                merged, 'area_weight', merged[c_aw].isna(), c_src, c_tgt,
+            )
+            merged[c_weight] = merged[c_aw]
 
         # Split the value columns into extensive (disaggregated by weight) and
         # intensive (area-weighted averaged). They need fundamentally different
@@ -457,10 +464,14 @@ class CrosswalkProcessor:
         # Extensive weighted_mean normalization (intensive columns are never
         # touched here -- they are computed from their own numerator/denominator
         # below, so 'mean'/'weighted_mean' cannot double-divide a rate).
+        # The denominator is each column's own covered weight, so rows whose
+        # value is missing leave both the numerator and the denominator; a
+        # target with no non-missing value has a zero denominator and stays NaN.
         if aggregation_func == 'weighted_mean':
             for col in extensive_cols:
                 if col in result.columns:
-                    result[col] = result[col] / result[c_total_weight]
+                    covered_weight = result[f'{R}covered_{col}'].replace(0, np.nan)
+                    result[col] = result[col] / covered_weight
 
         # Coverage is the non-missing contribution weight / total target weight.
         drop_cols = [c_total_weight, f'{R}total_area']
@@ -486,6 +497,24 @@ class CrosswalkProcessor:
 
         log.info(f"Transformed to {len(result)} rows in target vintage")
         return result
+
+    @staticmethod
+    def _reject_missing_weights(
+        merged: pd.DataFrame,
+        weight_column: str,
+        missing_weight: pd.Series,
+        c_src: str,
+        c_tgt: str,
+    ) -> None:
+        """Raise naming each matched source/target pair that lacks a weight."""
+        if not missing_weight.any():
+            return
+        rows = merged.loc[missing_weight, [c_src, c_tgt]].drop_duplicates()
+        rows = rows.rename(columns={c_src: 'source_geoid', c_tgt: 'target_geoid'})
+        raise ValueError(
+            f"Missing '{weight_column}' for matched source/target rows: "
+            f"{rows.to_dict('records')}"
+        )
 
     @staticmethod
     def _reconstruct_overlap_area(

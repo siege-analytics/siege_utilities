@@ -825,10 +825,12 @@ changes = identify_boundary_changes(
 )
 ```
 
-`WeightMethod.POPULATION` and `WeightMethod.HOUSING` require a crosswalk
-carrying `population_weight` and `housing_weight`, respectively, with no missing
-weights on matched rows. The Census crosswalk client currently supplies area
-weights; use `WeightMethod.AREA` with that client. To use population or housing
+`WeightMethod.AREA`, `WeightMethod.POPULATION` and `WeightMethod.HOUSING` use
+`area_weight`, `population_weight` and `housing_weight`, respectively, and raise
+`ValueError` naming the source and target for any missing weight on a matched
+row; POPULATION and HOUSING also require their column to be present. Sources
+absent from the crosswalk keep their values. The Census crosswalk client
+currently supplies area weights; use `WeightMethod.AREA` with that client. To use population or housing
 weights, supply an enriched crosswalk to `CrosswalkProcessor`. Valid strings
 such as `"population"` are converted through `WeightMethod`; unknown values raise
 an error.
@@ -840,7 +842,9 @@ crosswalk outputs include `<col>_coverage`, the fraction of a target's
 contribution weight with non-missing values for that column. Coverage uses the
 selected allocation weights for extensive columns and overlap areas for
 intensive columns. All-missing targets and targets with no contribution weight
-have coverage `0.0`.
+have coverage `0.0`. With `aggregation_func='weighted_mean'`, rows whose value is
+missing are excluded from both the numerator and the denominator, so an
+all-missing target is NaN with coverage `0.0`.
 
 ---
 
