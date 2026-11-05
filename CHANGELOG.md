@@ -112,6 +112,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- GEOID utilities accept uppercase alphanumeric SLD and congressional district
+  codes, including undefined districts and Alaska senate letters. Numeric
+  levels reject non-digit input; normalization converts integral floats and
+  checks state FIPS prefixes, preventing extra zero-padding from creating
+  state `00`. Float columns with missing values now retain valid join keys.
+  `slug_to_geoid` returns CD and SLD district codes in canonical uppercase,
+  so alphanumeric districts such as `06ZZZ` round trip through
+  `geoid_to_slug`. **Behavior change:** `can_normalize_geoid` now reports
+  whether `normalize_geoid` succeeds, so for VTD levels it follows the
+  existing padding-only VTD normalization and accepts non-digit values it
+  previously rejected; VTD normalization and `validate_geoid` are unchanged
+  (#1486).
 - Sanitize CRM upsert payloads for Salesforce, HubSpot, Zoho, and Dynamics:
   omit top-level missing fields to preserve existing values, serialize dates and
   timestamps as ISO 8601 strings, and convert numpy scalars to native types.

@@ -6,9 +6,11 @@ import pytest
 from siege_utilities.geo.geoid_utils import (
     GEOIDValidator,
     can_normalize_geoid,
+    geoid_to_slug,
     normalize_geoid,
     normalize_geoid_column,
     prepare_geoid_for_join,
+    slug_to_geoid,
     validate_geoid,
 )
 
@@ -110,3 +112,29 @@ def test_can_normalize_matches_normalization(value, level):
     else:
         normalizable = True
     assert can_normalize_geoid(value, level) is normalizable
+
+
+@pytest.mark.parametrize("geoid,level", [
+    *DISTRICT_GEOIDS,
+    ("061A", "cd"),
+    ("06A1B", "sldl"),
+    ("4801", "cd"),
+    ("48001", "sldu"),
+    ("48150", "sldl"),
+])
+def test_district_slug_round_trip_preserves_geoid(geoid, level):
+    slug = geoid_to_slug(geoid, level)
+    round_tripped = slug_to_geoid(slug)
+
+    assert round_tripped == geoid
+    assert validate_geoid(round_tripped, level) is True
+
+
+@pytest.mark.parametrize("slug,expected", [
+    ("ca-sldu-zzz", "06ZZZ"),
+    ("CA-SLDL-ZzZ", "06ZZZ"),
+    ("ak-sldu-00a", "0200A"),
+    ("ca-cd-zz", "06ZZ"),
+])
+def test_district_slug_tail_canonicalizes_to_uppercase(slug, expected):
+    assert slug_to_geoid(slug) == expected

@@ -796,7 +796,8 @@ def slug_to_geoid(slug: str) -> str:
     Convert a slug back to a GEOID.
 
     Inverse of geoid_to_slug(). Parses the state abbreviation and
-    component parts from the slug.
+    component parts from the slug. Slugs are case-insensitive; CD and
+    SLD district codes are returned in canonical uppercase.
 
     Args:
         slug: URL-friendly slug string
@@ -870,7 +871,9 @@ def slug_to_geoid(slug: str) -> str:
             place = parts[level_idx + 1]
             return state_fips + place
         elif geography_lower in ('cd', 'sldu', 'sldl'):
-            district = parts[level_idx + 1]
+            # The slug was lowercased above; district codes are canonical
+            # uppercase, so alphanumeric districts such as 06ZZZ round trip.
+            district = parts[level_idx + 1].upper()
             return state_fips + district
         elif geography_lower == 'vtd':
             county = parts[level_idx - 1]
