@@ -66,3 +66,12 @@ a markdown cell of `foundations/01_configuration.ipynb`.
 
 ## Findings
 F1 fixed and the legacy tests aligned. No new findings.
+
+## Ticket-fitness exemption
+
+Governing ticket: #1490. The #1398 epic is context only.
+
+### #1490
+Reason: #1490 predates the canonical ticket template. Its body uses Problem / Evidence / Failure scenario / Done when / Assumptions / Falsifier / Related instead of Context / Goal / Acceptance, and it links no /think design note.
+Evidence: https://github.com/siege-analytics/siege_utilities/issues/1490 states the rejected-credential, IPv6 and file-path defects under "## Problem", the citations under "## Evidence" (`config/models/database_connection.py`, `siege_utilities/configs/`), and the done-when criteria under "## Done when". The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1490#issuecomment-6259731280.
+Falsification: revert the implementation; `tests/test_1490_database_connection_validation.py::test_shipped_default_connections_construct` goes red because the shipped `default_postgres` password `password` and the `default_duckdb` file connection are rejected, and `::test_rejected_server_assignment_leaves_connection_unchanged` goes red because a rejected `host=''` stays on the object.
