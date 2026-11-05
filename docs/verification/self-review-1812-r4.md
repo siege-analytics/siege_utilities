@@ -44,6 +44,19 @@ below.
   (`datetime64[ns, UTC]` on 2.3.3, `datetime64[s, UTC]` on 3.1.0).
 - A pre-existing mid-file `import numbers` (ruff E402) moved to the top.
 
+## Focused verification of the cumulative wait budget
+
+`tests/test_1812_wait_budget_grid.py` enumerates every sequence of three
+`Retry-After` hints drawn from {0, 1, 15, 450, 600, 899, 900} (343 sequences)
+for Instagram and X, with `max_retry_wait` 900 and 20, and compares the real
+sleep schedule with a reference model: a wait is taken only while the
+running total stays within the cap, and the first wait that would exceed it
+ends the request with `SocialMediaRateLimitError`. It also asserts the total
+slept never exceeds the cap. On the pre-fix connectors (tree of `b7199b4e`
+with this test added) all 4 cases fail with
+`DID NOT RAISE SocialMediaRateLimitError` (the old code keeps sleeping past
+the cap); at this head all 4 pass (1,372 schedules checked).
+
 ## Deviation from R-1812-4 (b)
 
 R-1812-4 (b) asked for the baseline *outputs* to be committed as a frozen
