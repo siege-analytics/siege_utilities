@@ -27,6 +27,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the #1483 entry under `[4.1.0]` Security exactly once.
 - Request a fresh exact-head review: any earlier result is void once the head moves, and the code diff against develop is unchanged.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1483 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1483 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (`create_spark_session_with_databases` selecting vulnerable pgjdbc, MySQL and Oracle JDBC driver versions and adding the PostgreSQL driver without database names), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1483, and in the PR description, https://github.com/siege-analytics/siege_utilities/pull/1804. The reviewer verdicts are recorded on the ticket thread and the PR conversation.
+- **Falsification:** revert the implementation (the `siege_utilities/config/databases.py` changes of this PR); `tests/test_1483_spark_jdbc_cve.py::test_default_drivers_are_patched` goes red because the default coordinates return to the vulnerable versions. The latest commit of this PR is process-only; that existing regression test guards the accepted fix.
+
 ## Lead review
 
 The change is additive and reverts with one commit. No behavior change. No claim in this artifact exceeds what was observed.
