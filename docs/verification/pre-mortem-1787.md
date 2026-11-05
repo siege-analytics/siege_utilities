@@ -12,7 +12,7 @@ Use counts throughout, derive growth once, state the unbranded PDF frame, add re
 
 ## Risks
 ### R1: overlap with #1782 in the first cell
-Severity: medium. Both PRs edit that cell. The Next bullet wording and the punctuation style of the bullets and the "Why it matters" sentence now match #1782. The "What this shows" sentence differs while #1782 still calls the PDF branded; that conflict is a decision for #1782.
+Severity: low after reconciliation. Both PRs edit that cell and the step 3 cell. They now carry byte-identical text in both (unbranded PDF frame, the #1789 link, the offline fixed-date `analytics/02` bullet, ASCII punctuation), so a later merge of either does not conflict there.
 ### R2: a false skip hides a renderer regression
 Severity: low. The guard skips only when the reportlab package is absent and fails when the package is present but its Table is unavailable.
 ### R3: punctuation regressions
