@@ -54,7 +54,11 @@ headings), which is the Reason for each exemption; it covers ticket structure
 only. #1398 is the parent epic and #1463 is develop-sync context; neither is
 governing, so neither has a revert run.
 
-Revert runs (observed 2026-11-05, Python 3.11.11). Each ticket landed in one
+The falsifier for each ticket is the at-head control in the next section.
+The entries below are historical context: they show each defect existed
+before its fix, not that the current code still depends on the fix.
+
+Historical revert runs (observed 2026-11-05, Python 3.11.11). Each ticket landed in one
 implementation commit. Where reverting that commit at the head conflicts with
 later rounds, the revert is taken at the point it landed: the tree of
 `<impl>^` (`git archive <impl>^`) with the ticket's own test file from `<impl>`
@@ -113,6 +117,74 @@ import or fixture error.
   `assert datetime(...) is None`, 32 cases with
   `AssertionError: Token clocks must use UTC`, and
   `test_dynamics_401_renews_delegated_credentials` fails. Head: 84 passed.
+
+## At-head controls (red on revert at 5edb9691)
+
+Method, per ticket, in a clean worktree at `5edb9691` with the current tests:
+hand-edit only that ticket's surviving implementation lines (no checkout of
+pre-fix files, no archive), run the named node from `tests/` with
+`python -m pytest -o addopts="" --rootdir=.. -c ../pyproject.toml -p no:cacheprovider -q -p no:randomly <file> -k <node>`,
+restore with `git checkout HEAD -- <file>`, run the node again, and confirm
+`git status --short` is empty. Observed 2026-11-05, Python 3.11.11.
+
+- **#1417.** Reversed `siege_utilities/connectors/_retry.py:34` from
+  `return max(1, configured) if method.upper() in {"GET", "PUT", "DELETE"} else 1`
+  to `return max(1, configured)`. Node
+  `tests/test_1417_crm_retry_idempotency.py::test_non_idempotent_requests_are_sent_once`:
+  16 failed, all `AssertionError: assert 3 == 1` (the POST/PATCH is sent three
+  times). Restored: 16 passed. Tree clean.
+- **#1425.** Removed the branch
+  `elif pd.api.types.is_scalar(value) and pd.isna(value): value = None` from
+  `_normalize_crm_record` (`siege_utilities/connectors/_models.py:47-48`), which
+  every connector's `to_crm_*` calls. Node
+  `tests/test_1425_crm_missing_values.py::test_missing_numeric_field_preserves_other_rows_and_zero`:
+  40 failed / 20 passed, including `AssertionError: assert nan is None` (9) and
+  `ValueError: cannot convert float NaN to integer` (9), plus `int()` /
+  `float()` `TypeError` on `NAType`; each is the conversion of a missing value.
+  Restored: 60 passed. Tree clean.
+- **#1426.** Reversed the body of `_lookup_id`
+  (`siege_utilities/connectors/zoho.py:126-129`; reads `<field>_id`, else the
+  raw lookup dict's `id`) to `value = record.get(field)`, the display value.
+  Node `tests/test_1426_crm_canonical_mapping.py::test_zoho_get_objects_maps_lookup_ids`:
+  6 failed (`assert 'Owner Display Name' == 'owner-123'` x2,
+  `assert 'Account Display Name' == 'account-456'` x4). Restored: 6 passed.
+  Tree clean.
+- **#1427.** In the 204 branch of the Dynamics request path
+  (`siege_utilities/connectors/dynamics.py:979-983`), removed the three lines
+  that return `{"OData-EntityId": entity_id}`, so a 204 returns `{}` as before
+  the fix. Node
+  `tests/test_1427_dynamics_create_record_id.py::test_create_record_returns_id_from_204_header`:
+  4 failed, each `ConnectorError: Dynamics create <entity> succeeded but
+  returned no record id.` raised by `create_record` (the id is not read from
+  the 204 header). Restored: 4 passed. Tree clean.
+- **#1428.** In `_resolve_field`
+  (`siege_utilities/connectors/salesforce.py:1182-1189`), replaced the
+  exact-then-case-insensitive segment lookup with `value = value.get(segment)`.
+  Node
+  `tests/test_1428_salesforce_getobjects_casing.py::test_clean_records_matches_each_segment_case_insensitively`:
+  5 failed, e.g. `assert [{'name': None}] == [{'name': 'Acme'}]` and
+  `assert [{'account.Name': None}] == [{'account.Name': 'Parent'}]`.
+  Restored: 5 passed. Tree clean.
+- **#1429.** Replaced
+  `if page_token: params["page_token"] = page_token else: params["page"] = page`
+  (`siege_utilities/connectors/zoho.py:579-582`) with `params["page"] = page`.
+  Node
+  `tests/test_1429_crm_pagination.py::test_zoho_list_uses_page_token_after_2000_records`:
+  1 failed, `KeyError: 'page_token'` raised by the test's own assertion
+  (`tests/test_1429_crm_pagination.py:69`) because the request after record
+  2000 carries no `page_token`. Restored: 1 passed. Tree clean.
+- **#1431.** The head revert recorded above (`git revert --no-commit 4ab25f3b`,
+  then `git revert --abort`): 3 failed, then 3 passed.
+- **#1436.** Reversed `siege_utilities/connectors/salesforce.py:1274` from
+  `self._token_expires_at = None` to
+  `self._token_expires_at = datetime.now(timezone.utc) + timedelta(hours=2)`,
+  the invented lifetime the fix removed. Node
+  `tests/test_1436_crm_token_lifecycle.py::test_salesforce_does_not_invent_expiry`:
+  3 failed, each `assert datetime.datetime(2026, 11, 5, ..., tzinfo=utc) is None`.
+  Restored: 3 passed. Tree clean.
+
+No fix needed isolation work beyond these lines; each surviving implementation
+was present at head and reversible on its own.
 
 ## Scanner dispositions (14 findings in this PR's diff hunks)
 
