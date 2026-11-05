@@ -35,6 +35,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING (#1416):** `crm_dedup_pipeline` no longer merges people by name
+  alone, and `canonical_id` now identifies an identifier-corroborated person
+  or a single source record, never a name. Records share a `canonical_id` only
+  when the normalized name and every available strong identifier
+  (`identifier_columns`, default `["email"]`, stripped and lowercased) agree,
+  so namesakes with different or missing emails stay distinct. A record
+  without a corroborating identifier gets a canonical ID seeded from its own
+  `source_system` and `source_id` (frame and row position when either is null
+  or blank). Name matches without identifier evidence appear only in the new
+  trailing, review-only `name_candidate_id` column, with `match_confidence`
+  `0.5` for full names and `0.25` when any configured name part is missing;
+  `1.0` requires identifier evidence. Textual null identifiers (`nan`, `none`,
+  `null`, `<na>`, `nat`) are not corroboration. Frames missing a required
+  source column are skipped whole, and null name parts no longer become text.
+  **Migration:** all canonical IDs differ from 4.0.0, so regenerate persisted
+  merge tables. `name_candidate_id` equals the 4.0.0 name-only
+  `canonical_id`, so it can join old tables during migration; never merge on
+  it without review. `identifier_columns=[]` now disables identifier merging
+  instead of selecting name-only merging.
 - New *file* names now get the same check as new directory names. The
   `siege_utilities.files` helpers that create a file refuse a name containing
   a C0, DEL or C1 control character, or a lone surrogate: they raise
@@ -118,27 +137,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `crm_dedup_pipeline` no longer merges people by name alone. Records share a
-  `canonical_id` only when the normalized name and every available strong
-  identifier (`identifier_columns`, default `["email"]`, stripped and
-  lowercased) agree, so namesakes with different or missing emails stay
-  distinct. A record without a corroborating identifier gets a canonical ID
-  seeded from its own `source_system` and `source_id` (frame and row position
-  when either is null or blank). Name matches without identifier
-  evidence appear only in the new review-only `name_candidate_id` column, with
-  `match_confidence` `0.5` for full names and `0.25` when any configured name
-  part is missing; `1.0` requires identifier evidence. Textual null
-  identifiers (`nan`, `none`, `null`, `<na>`, `nat`) are not corroboration.
-  Frames missing a required source column are skipped whole, and null name
-  parts no longer become text (#1416).
-  **Behavior change (canonical_id semantics):** `canonical_id` now identifies
-  an identifier-corroborated person or a single source record, never a name;
-  the merge table gains a trailing `name_candidate_id` column.
-  **Migration:** all canonical IDs differ from 4.0.0, so regenerate persisted
-  merge tables. `name_candidate_id` equals the 4.0.0 name-only
-  `canonical_id`, so it can join old tables during migration; never merge on
-  it without review. `identifier_columns=[]` now disables identifier merging
-  instead of selecting name-only merging.
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0

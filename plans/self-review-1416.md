@@ -56,6 +56,7 @@ Verified 2026-11-05: with `siege_utilities/connectors/_dedup.py` checked out fro
 - Log accuracy: the corroborated-match count excludes repeated source rows, and a test asserts it.
 - Migration: every canonical ID differs from 4.0.0 (identifier IDs already changed earlier in this PR). The note says to regenerate and names `name_candidate_id` as the old-key join.
 - Post-mortem: not applicable. The defect was caught by exact-head review before merge, so no shipped implementation contradicts the ticket and no release carried it.
+- Release classification: BREAKING for 4.1.0 by operator sign-off (2026-11-05). The CHANGELOG entry is a `**BREAKING (#1416):**` bullet under `[4.1.0]` → `### Changed` with its Migration paragraph; no code changed for the classification.
 - Residual: callers that relied on name-only merging lose it on purpose. The library offers no opt-in, matching the architecture note that heavy entity resolution belongs downstream.
 
 ## Quantified claims
