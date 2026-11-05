@@ -26,6 +26,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the two #1526 entries under `[4.1.0]` and none under `[Unreleased]`.
 - Re-review at the new head: the reviewer PASS at 4b818c06 is void once the head moves, so re-confirmation is requested. The code diff is unchanged between the two heads.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1526 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1526 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (ZIP 02134 sent as "2134.0", NaN fields crashing the whole Nominatim and TAMU batch), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1526, and in the PR description. The reviewer verdicts are the exact-head approval https://github.com/siege-analytics/siege_utilities/issues/1526#issuecomment-6256156745 and the merge preflight https://github.com/siege-analytics/siege_utilities/issues/1526#issuecomment-6257263824.
+- **Falsification:** revert the implementation (the geocoder commits of this PR); `tests/test_batch_geocoder_normalization.py::test_numeric_zip_restores_leading_zero` goes red because a numeric ZIP such as 2134 is no longer restored to "02134". The latest commit of this PR is process-only; that existing regression test guards the accepted fix.
+
 ## Lead review
 
 The change is additive and reversible by reverting one commit. No behavior change. No claim in this artifact exceeds what was observed.
