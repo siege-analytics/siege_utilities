@@ -25,6 +25,10 @@ def test_notebook_merges_only_identifier_corroborated_contacts() -> None:
     grace = namespace["merge_table"].query("normalized_name == 'grace hopper'")
     assert grace["canonical_id"].nunique() == 2
     assert grace["name_candidate_id"].nunique() == 1
+    # No email conflict between them, so both are review candidates.
+    assert grace["match_confidence"].eq(0.75).all()
+    ada = namespace["merge_table"].query("normalized_name == 'ada lovelace'")
+    assert ada["match_confidence"].eq(1.0).all()
 
 
 def test_notebook_markdown_describes_review_gated_name_matches() -> None:

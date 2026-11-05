@@ -45,19 +45,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `address_state` and `address_postal_code`; a street line is required, unit
   designators are unified and ZIPs are zero-padded to five digits). Links
   chain transitively, so an email match and a phone match can join three
-  records. A link is refused, logged and left for review when the records
-  hold different values for any shared identifier column, so namesakes with
-  conflicting emails stay apart even if they share a household phone; the
-  same person recorded with a different phone or a partial address in
-  another CRM is also split. Each group's ID comes from its smallest member
-  seed, independent of row order, and can change when a smaller-seed record
-  joins.
+  records. Only two different emails refuse a link (logged, left for
+  review); phone and address link but never block, so an equal email still
+  merges despite a different phone or a partial address. Each group's ID
+  comes from its smallest member seed, independent of row order.
+  `match_confidence` is 1.0 for an identified record, 0.75 when a same-name
+  record stays in another group without an email conflict (a review
+  candidate), and 0.5 or 0.25 for name-only rows; groups kept apart by an
+  email conflict keep 1.0. **Residual risks:** same-name people with no
+  email who share a phone or address merge; one person with two emails is
+  split, the safe direction.
   A record without a corroborating identifier gets a canonical ID seeded
   from its own `source_system` and `source_id` (frame and row position when
   either is null or blank). Name matches without identifier evidence appear
-  only in the new trailing, review-only `name_candidate_id` column, with
-  `match_confidence` `0.5` for full names and `0.25` when any configured name
-  part is missing; `1.0` requires identifier evidence. Textual null
+  only in the new trailing, review-only `name_candidate_id` column. Textual null
   identifiers (`nan`, `none`, `null`, `<na>`, `nat`) are not corroboration.
   Frames missing a required source column are skipped whole, and null name
   parts no longer become text. New parameters `identifier_normalizers`
@@ -69,8 +70,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `["address_street", "address_city", "address_state",
   "address_postal_code"]`, so phone and address now corroborate merges by
   default.
-  **Migration:** all canonical IDs differ from 4.0.0, so regenerate persisted
-  merge tables. `name_candidate_id` equals the 4.0.0 name-only
+  **Migration:** all canonical IDs differ from 4.0.0, and an ID can change
+  when a later run adds a group member with a smaller seed, so regenerate
+  persisted merge tables rather than appending. `name_candidate_id` equals the 4.0.0 name-only
   `canonical_id`, so it can join old tables during migration; never merge on
   it without review. For the previous email-only corroboration pass
   `identifier_columns=["email"], address_columns=[]`. Pass

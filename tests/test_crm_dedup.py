@@ -70,10 +70,21 @@ def test_same_name_and_normalized_email_match_with_full_confidence():
     result = crm_dedup_pipeline(frames).set_index("source_id")
 
     assert result.loc["a", "canonical_id"] == result.loc["b", "canonical_id"]
-    assert result.loc[["a", "b"], "match_confidence"].eq(1.0).all()
     # An uncorroborated namesake must not join the identifier-backed match.
     assert result.loc["a", "canonical_id"] != result.loc["name-only", "canonical_id"]
     assert result.loc["name-only", "match_confidence"] == 0.5
+    # Nothing conflicts with the name-only namesake, so the identified group
+    # is a review candidate rather than a certain identity.
+    assert result.loc[["a", "b"], "match_confidence"].eq(0.75).all()
+
+
+def test_identified_group_without_unmerged_namesakes_keeps_full_confidence():
+    frame = pd.DataFrame([
+        _contact("a", email=" Maria@Example.COM "),
+        _contact("b", source_system="crm_b", email="maria@example.com"),
+    ])
+
+    assert crm_dedup_pipeline([frame])["match_confidence"].eq(1.0).all()
 
 
 def test_name_only_match_is_review_candidate_with_legacy_key():
@@ -143,7 +154,9 @@ def test_custom_identifier_columns_replace_default_email():
 
     assert result.loc["a", "canonical_id"] == result.loc["b", "canonical_id"]
     assert result.loc["a", "canonical_id"] != result.loc["c", "canonical_id"]
-    assert result["match_confidence"].eq(1.0).all()
+    # Email is not a configured column here, so nothing conflicts and the two
+    # same-name groups are review candidates.
+    assert result["match_confidence"].eq(0.75).all()
 
 
 def test_empty_identifier_columns_disables_identifier_merging():
@@ -169,7 +182,12 @@ def test_multiple_identifiers_use_available_columns_and_unambiguous_values():
     result = crm_dedup_pipeline([frame], identifier_columns=["absent", "email", "member_id"])
     reordered = crm_dedup_pipeline([frame], identifier_columns=["member_id", "email"])
 
-    assert result["canonical_id"].nunique() == 3
+    # a and c share the email "a|b" and link (member_id differs but only email
+    # blocks); b's email "a" is not confused with "a|b" and conflicts, so b
+    # stays apart at full confidence.
+    by_id = result.set_index("source_id")["canonical_id"]
+    assert by_id["a"] == by_id["c"]
+    assert by_id["b"] != by_id["a"]
     assert result["match_confidence"].eq(1.0).all()
     pd.testing.assert_frame_equal(result, reordered)
 
@@ -425,36 +443,39 @@ def test_namesakes_with_conflicting_emails_sharing_a_phone_stay_split(caplog):
 
     assert result["canonical_id"].nunique() == 2
     assert result["name_candidate_id"].nunique() == 1
-    assert "1 identifier links not merged because identifiers conflict" in caplog.text
+    # Kept apart by an email conflict: probably different people, full confidence.
+    assert result["match_confidence"].eq(1.0).all()
+    assert "1 identifier links not merged because emails conflict" in caplog.text
 
 
-def test_chain_through_a_conflict_is_cut():
-    # a-b share an email, b-c share a phone, but a and c have conflicting phones.
+def test_chain_through_an_email_conflict_is_cut():
+    # a-b share a phone, b-c share an address, but a and c hold different emails.
     frame = pd.DataFrame([
-        _contact("a", email="maria@example.com", phone="512-555-0199"),
-        _contact("b", source_system="crm_b", email="maria@example.com"),
-        _contact("c", source_system="crm_c", email="maria@example.com", phone="512-555-0100"),
+        _contact("a", email="maria.a@example.com", phone="512-555-0100"),
+        _contact("b", source_system="crm_b", phone="512-555-0100", address_street="9 Oak St"),
+        _contact("c", source_system="crm_c", email="maria.c@example.com", address_street="9 Oak Street"),
     ])
 
     ids = _ids(frame)
 
     assert ids["a"] != ids["c"]
+    assert ids.nunique() == 2
 
 
-def test_conflicting_member_does_not_block_two_compatible_members():
-    # y sorts first for the shared email but conflicts with both a and b;
-    # a and b share the email and conflict on nothing, so they still link.
+def test_record_linking_two_conflicting_groups_joins_exactly_one():
+    # b shares a phone with y and with a, whose emails conflict: b can join
+    # only one of them, y and a stay apart, and all three remain reviewable.
     frame = pd.DataFrame([
-        _contact("y", email="maria@example.com", phone="512-555-0001",
-                 address_street="9 Oak St"),
-        _contact("a", source_system="crm_b", email="maria@example.com", phone="512-555-0002"),
-        _contact("b", source_system="crm_c", email="maria@example.com", address_street="1 Elm St"),
+        _contact("y", email="maria.y@example.com", phone="512-555-0100"),
+        _contact("a", source_system="crm_b", email="maria.a@example.com", phone="512-555-0100"),
+        _contact("b", source_system="crm_c", phone="512-555-0100"),
     ])
 
-    ids = _ids(frame)
+    result = crm_dedup_pipeline([frame]).set_index("source_id")
 
-    assert ids["a"] == ids["b"]
-    assert ids["y"] != ids["a"]
+    assert result.loc["y", "canonical_id"] != result.loc["a", "canonical_id"]
+    assert result.loc["b", "canonical_id"] in {result.loc["y", "canonical_id"], result.loc["a", "canonical_id"]}
+    assert result["name_candidate_id"].nunique() == 1
 
 
 @pytest.mark.parametrize("kwargs, message", [
@@ -482,18 +503,53 @@ def test_custom_normalizer_is_added_to_the_phone_default():
     assert ids.nunique() == 1
 
 
-def test_email_only_migration_setting_restores_email_corroboration():
-    # Same email, different phone and a partial vs full address: the default
-    # conflict guard splits them; the documented email-only setting merges them.
+@pytest.mark.parametrize("left, right", [
+    ({"phone": "512-555-0100"}, {"phone": "512-555-0199"}),
+    ({"address_street": "100 Main St"},
+     {"address_street": "100 Main St", "address_city": "Austin", "address_state": "TX"}),
+    ({"address_street": "1 Main St", "address_postal_code": "02134"},
+     {"address_street": "1 Main St", "address_postal_code": 2134}),
+    ({"address_street": "100 Main St #2"}, {"address_street": "100 Main St Apt 2"}),
+    ({"phone": "512-555-0100", "address_street": "9 Oak St"},
+     {"phone": "512-555-0199", "address_street": "100 Main St"}),
+])
+def test_equal_email_still_merges_when_phone_or_address_differ(left, right):
+    # Every pair that merged at f71e3cd9 on an equal email must still merge:
+    # phone and address link but never block.
     frame = pd.DataFrame([
-        _contact("a", email="maria@example.com", phone="512-555-0100",
-                 address_street="100 Main St"),
-        _contact("b", source_system="crm_b", email="maria@example.com", phone="512-555-0199",
-                 address_street="100 Main St", address_city="Austin", address_state="TX"),
+        _contact("a", email="maria@example.com", **left),
+        _contact("b", source_system="crm_b", email="maria@example.com", **right),
     ])
 
-    assert _ids(frame).nunique() == 2
-    assert _ids(frame, identifier_columns=["email"], address_columns=[]).nunique() == 1
+    result = crm_dedup_pipeline([frame])
+
+    assert result["canonical_id"].nunique() == 1
+    assert result["match_confidence"].eq(1.0).all()
+
+
+def test_email_only_migration_setting_ignores_phone_and_address():
+    frame = pd.DataFrame([
+        _contact("a", phone="512-555-0100"),
+        _contact("b", source_system="crm_b", phone="(512) 555-0100"),
+    ])
+
+    assert _ids(frame).nunique() == 1
+    assert _ids(frame, identifier_columns=["email"], address_columns=[]).nunique() == 2
+
+
+def test_unmerged_namesakes_without_email_conflict_are_review_candidates():
+    # Only an email on one side and only an address on the other: no shared
+    # identifier and no conflict, so they could be one person.
+    frame = pd.DataFrame([
+        _contact("a", email="grace@example.com"),
+        _contact("b", source_system="crm_b", address_street="300 Elm St"),
+    ])
+
+    result = crm_dedup_pipeline([frame])
+
+    assert result["canonical_id"].nunique() == 2
+    assert result["name_candidate_id"].nunique() == 1
+    assert result["match_confidence"].eq(0.75).all()
 
 
 def test_namesakes_sharing_nothing_stay_split():

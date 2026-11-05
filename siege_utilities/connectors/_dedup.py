@@ -7,7 +7,7 @@ of canonical IDs across CRM systems.
 
 Match strategy: exact normalized name plus at least one equal strong
 identifier (email, normalized phone or normalized address), chained
-transitively, with conflicting identifier values refusing a merge. A name
+transitively, with only differing emails refusing a merge. A name
 match without a corroborating identifier is never merged; it is exposed only
 as a review candidate through ``name_candidate_id``.
 Fuzzy matching is future work — the ``normalizer`` parameter allows
@@ -39,6 +39,11 @@ _DEFAULT_IDENTIFIER_NORMALIZERS: dict[str, Callable[[str], str]] = {"phone": nor
 # CRMContact.to_dataframe flattens CRMAddress fields with an ``address_`` prefix.
 _DEFAULT_ADDRESS_COLUMNS = ["address_street", "address_city", "address_state", "address_postal_code"]
 _ADDRESS_KEY = "address"
+# Only a differing value in this column refuses a link (operator ruling, #1416).
+_CONFLICT_COLUMN = "email"
+# Identifier-backed record left apart from a same-name record without an email
+# conflict: possibly the same person, so a review candidate.
+_REVIEW_CANDIDATE_CONFIDENCE = 0.75
 
 __all__ = ["crm_dedup_pipeline"]
 
@@ -66,21 +71,25 @@ def _identifier_text(value: Any) -> str:
     return "" if text.casefold() in _NULL_IDENTIFIER_TOKENS else text
 
 
-def _group_corroborated(records: list[dict[str, Any]]) -> tuple[dict[int, str], int]:
-    """Union records that share a name and one identifier, refusing conflicts.
+def _group_corroborated(
+    records: list[dict[str, Any]],
+) -> tuple[dict[int, str], dict[int, str | None], int]:
+    """Union records that share a name and one identifier, refusing email conflicts.
 
-    Returns the winning seed per record index and the number of refused links.
-    Keys and members are visited in sorted order so the result does not depend
-    on row order.
+    Returns, per record index with identifiers, the group's smallest seed and
+    the group's email (or None), plus the number of refused links. Only a
+    differing email refuses a link: people legitimately hold several phones
+    and addresses, so those keys link but never block. Keys and members are
+    visited in sorted order so the result does not depend on row order.
     """
     parent: dict[int, int] = {}
-    values: dict[int, dict[str, str]] = {}
+    email: dict[int, str | None] = {}
     members_by_key: dict[tuple[str, str, str], list[int]] = {}
     for index, record in enumerate(records):
         if not record["identifiers"]:
             continue
         parent[index] = index
-        values[index] = dict(record["identifiers"])
+        email[index] = record["identifiers"].get(_CONFLICT_COLUMN)
         for column, value in record["identifiers"].items():
             members_by_key.setdefault((record["normalized"], column, value), []).append(index)
 
@@ -100,20 +109,23 @@ def _group_corroborated(records: list[dict[str, Any]]) -> tuple[dict[int, str], 
                 root, other = find(earlier), find(member)
                 if root == other:
                     continue
-                mine, theirs = values[root], values[other]
-                if any(column in mine and mine[column] != value for column, value in theirs.items()):
-                    # Conflicting evidence (for example two different emails)
-                    # means distinct people, even when another key is shared.
+                if email[root] and email[other] and email[root] != email[other]:
+                    # Two different emails mean distinct people, even when a
+                    # phone or address is shared (for example a household).
                     refused += 1
                     continue
                 parent[other] = root
-                mine.update(theirs)
+                email[root] = email[root] or email[other]
 
     smallest_seed: dict[int, str] = {}
     for index in parent:
         root, seed = find(index), records[index]["seed"]
         smallest_seed[root] = min(smallest_seed.get(root, seed), seed)
-    return {index: smallest_seed[find(index)] for index in parent}, refused
+    return (
+        {index: smallest_seed[find(index)] for index in parent},
+        {index: email[find(index)] for index in parent},
+        refused,
+    )
 
 
 def crm_dedup_pipeline(
@@ -177,27 +189,23 @@ def crm_dedup_pipeline(
         ``canonical_id`` is the merge key. Records with identifiers are
         linked when their normalized names are equal and at least one
         identifier value is equal, and links chain transitively (a shares an
-        email with b, b shares a phone with c). A link is refused when the
-        two groups hold different values for any identifier column (for
-        example two different emails), because conflicting evidence means
-        distinct people; refused links are logged and the records stay
-        separate, sharing only ``name_candidate_id``. Each group's
+        email with b, b shares a phone with c). A link is refused only when
+        the two groups hold different normalized emails, because two emails
+        suggest two people; refused links are logged and the records stay
+        separate, sharing only ``name_candidate_id``. Phone and address link
+        but never block, since one person often has several. Each group's
         ``canonical_id`` comes from the smallest member seed
         (``json([normalized_name, identifiers])``), so it does not depend on
         row order. It can change between runs when a new record with a
         smaller seed joins a group, so regenerate persisted merge tables
         rather than appending to them.
 
-        Residual risk: two distinct people with the same normalized name
-        who share one identifier (for example a parent and child recorded
-        without a suffix, sharing a household email, phone or address) and
-        hold no conflicting identifier will merge. This is the same evidence
-        standard as name plus an equal email; the name guard and conflict
-        guard stop it from spreading to anyone with a different name or
-        conflicting evidence. Because the conflict guard covers every
-        identifier column, the same person recorded with a different phone,
-        or with a fuller or partial address, in another CRM is split rather
-        than merged, and surfaces for review through ``name_candidate_id``.
+        Residual risks: same-name people with no email (or the same email)
+        who share a phone or address merge, for example a parent and child
+        recorded without a suffix at one household. One person recorded
+        with two different emails is split, which is the safe direction, and
+        surfaces through ``name_candidate_id``. The name guard keeps people
+        with different names apart even through a chain.
 
         A record without a corroborating identifier gets a canonical ID seeded
         from its own source record (``source_system`` and ``source_id``), so
@@ -214,11 +222,14 @@ def crm_dedup_pipeline(
         joins merge tables persisted by earlier versions, whose name-only
         ``canonical_id`` values equal it.
 
-        ``match_confidence`` is 1.0 when the seed includes a strong
-        identifier. Without one it rates the name candidate: 0.5 when all
-        configured name parts are present and 0.25 when any name part is
-        missing (such as surname-only rows). These values are not
-        calibrated probabilities.
+        ``match_confidence`` for a record with a strong identifier is 1.0,
+        or 0.75 when a same-name record sits in another group without an
+        email conflict (it may be the same person, so the pair is a review
+        candidate). Groups kept apart by differing emails stay at 1.0, still
+        sharing ``name_candidate_id``. Without an identifier it rates the
+        name candidate: 0.5 when all configured name parts are present and
+        0.25 when any name part is missing (such as surname-only rows).
+        These values are not calibrated probabilities.
         Frames missing either required source column and rows with no
         non-empty normalized name are skipped. Null name parts are ignored.
     """
@@ -315,27 +326,46 @@ def crm_dedup_pipeline(
     if not records:
         return _empty_result(source_system_column, source_id_column)
 
-    group_seed, refused = _group_corroborated(records)
+    group_seed, group_email, refused = _group_corroborated(records)
     if refused:
         log.warning(
-            "%d identifier links not merged because identifiers conflict; "
+            "%d identifier links not merged because emails conflict; "
             "review them through name_candidate_id",
             refused,
         )
+    seeds = [group_seed.get(index, record["seed"]) for index, record in enumerate(records)]
+    emails = [group_email.get(index) for index in range(len(records))]
+
+    # An identifier-backed group is a review candidate when a same-name record
+    # sits in another group without an email conflict: it could be the same
+    # person. Groups kept apart by differing emails are probably different
+    # people and keep full confidence.
+    groups_by_name: dict[str, dict[str, str | None]] = {}
+    for index, record in enumerate(records):
+        groups_by_name.setdefault(record["normalized"], {})[seeds[index]] = emails[index]
+    confidences = []
+    for index, record in enumerate(records):
+        confidence = record["match_confidence"]
+        if record["identifiers"]:
+            others = [e for s, e in groups_by_name[record["normalized"]].items() if s != seeds[index]]
+            if any(not (emails[index] and other and emails[index] != other) for other in others):
+                confidence = _REVIEW_CANDIDATE_CONFIDENCE
+        confidences.append(confidence)
+
     result = pd.DataFrame([
         {
-            "canonical_id": str(uuid5_from_seed(namespace, group_seed.get(index, record["seed"]))),
+            "canonical_id": str(uuid5_from_seed(namespace, seeds[index])),
             "normalized_name": record["normalized"],
             source_system_column: record["source_system"],
             source_id_column: record["source_id"],
-            "match_confidence": record["match_confidence"],
+            "match_confidence": confidences[index],
             "name_candidate_id": str(uuid5_from_seed(namespace, record["normalized"])),
         }
         for index, record in enumerate(records)
     ])
 
-    corroborated = result[result["match_confidence"].eq(1.0)]
-    dup_count = corroborated.duplicated(subset=["canonical_id"], keep=False).sum()
+    has_identifiers = pd.Series([bool(record["identifiers"]) for record in records])
+    dup_count = result[has_identifiers].duplicated(subset=["canonical_id"], keep=False).sum()
     unique_count = result["canonical_id"].nunique()
     review_groups = (result.groupby("name_candidate_id")["canonical_id"].nunique() > 1).sum()
     log.info(

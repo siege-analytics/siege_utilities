@@ -51,18 +51,25 @@ Row order does not change the result, and a singleton or a fully agreeing group 
 The risk the operator named is a shared household email, or a reused phone, chaining distinct people.
 
 1. **Name guard (per edge).** Records only connect when their normalized names are equal, so `Maria Garcia` and `Jose Garcia` sharing a household email never connect, directly or through a chain. `normalize_name_v1` keeps generational suffixes (`john smith jr` ≠ `john smith`), so a father and son are kept apart when the suffix is present.
-2. **Conflict guard (per component).** Each component keeps one value per identifier column. A union is refused when the two components hold different values for any column they both have. Two same-name people with different emails who share a household phone therefore stay apart, because their emails conflict. This also blocks chains: if A–B and B–C are each compatible but A and C would conflict, the edge processed later is refused. The order is the deterministic edge order above.
+2. **Conflict guard: email only (operator ruling 2026-11-05, final).** Each component keeps at most one normalized email. A union is refused only when both components hold an email and the emails differ. Two same-name people with different emails who share a household phone therefore stay apart, and A–B–C chains whose ends hold different emails are cut. Phone and address link but never block, because one person often has several. The draft guard covered every column; the hostile review showed it split real equal-email matches (a different phone, a partial address, a numeric ZIP, `#2` vs `Apt 2`), so the operator chose email-only.
 3. **Address key requires a street.** City, state or ZIP alone never links records.
 
 Refused unions are counted and logged as a warning. The records keep separate `canonical_id` values and still share `name_candidate_id`, so they surface for human review.
 
-### Cost of the conflict guard (stated, operator ruling 2026-11-05)
+### Review candidates and confidence (operator ruling 2026-11-05)
 
-The guard covers every identifier column, so the same person can be split. Two records that share an email are split when they also carry a different phone, or a fuller or partial address (the composite key differs when a city or ZIP is blank on one side). That is the safe direction, and both records stay visible through `name_candidate_id`. Callers who want the previous email-only corroboration pass `identifier_columns=["email"], address_columns=[]`. The CHANGELOG Migration line says so, and a test pins it.
+- An identifier-backed record gets `match_confidence` 1.0 when it has no unresolved namesake.
+- It gets 0.75 when a same-name record sits in another group *without* an email conflict. It could be the same person, so the pair is a review candidate; an example is Grace Hopper with only an email and Grace Hopper with only an address.
+- Groups kept apart *by* an email conflict are probably different people, so they keep 1.0. They still share `name_candidate_id` so a reviewer can see them.
+- Name-only rows keep 0.5 or 0.25.
 
 ### Residual risk (stated, not hidden)
 
-Two distinct people with the same normalized name who share an identifier and have no conflicting identifier will merge. An example is a father and son both recorded as `John Smith`, with no suffix, sharing a household email and no other identifiers. This is the same evidence standard the PR already accepts for name plus identical email. The guards above stop it from spreading to anyone with a different name or with conflicting evidence. No cap is added: a component-size cap would be an arbitrary threshold, and the conflict guard already bounds chaining by evidence rather than by count. If the operator wants a cap or a stricter household rule, that is a ruling, not something to guess here.
+- Same-name people with no email (or the same email) who share a phone or address merge. An example is a father and son both recorded as `John Smith` with no suffix at one household. `CRMContact` has no suffix field.
+- One person recorded with two different emails is split. That is the safe direction, and the records surface through `name_candidate_id`.
+- The name guard keeps people with different names apart even through chains.
+- No component-size cap is added, because any threshold would be arbitrary.
+- Callers who want the previous email-only corroboration pass `identifier_columns=["email"], address_columns=[]`, which is tested.
 
 ## Tests
 
@@ -70,7 +77,9 @@ The red-first set fails at `f71e3cd9`. Controls such as row-order stability, dis
 
 - A–B by email plus B–C by phone (same name) gives one `canonical_id`.
 - `A{email, phone}` with `B{email}` merges.
-- Same-name people sharing nothing stay split. Different-name people sharing an email stay split. Same-name people with conflicting emails who share a phone stay split, and the refusal is logged.
+- Same-name people sharing nothing stay split. Different-name people sharing an email stay split. Same-name people with conflicting emails who share a phone stay split, the refusal is logged, and both keep 1.0. An A–B–C chain whose ends hold different emails is cut.
+- An equal email still merges with a different phone, a partial address, a text vs numeric ZIP, or `#2` vs `Apt 2` (all merged at `f71e3cd9`).
+- Unmerged namesakes without an email conflict are both 0.75.
 - IDs are identical across a shuffled row order.
 - Phone: `(512) 555-0100` == `512-555-0100` == `+1 512 555 0100`; short fragments are ignored.
 - Address variants match (`100 Congress Avenue, Austin, Texas 78701-1234` vs `100 congress ave austin tx 78701`). Distinct addresses do not (`101 ...`, `N` vs `S Main St`). City/state/ZIP without a street is not an identifier.
