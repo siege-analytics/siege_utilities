@@ -14,6 +14,14 @@ Investigate-artifact: https://github.com/siege-analytics/siege_utilities/issues/
 Pre-mortem-artifact: https://github.com/siege-analytics/siege_utilities/issues/1405#issuecomment-6651437360
 Hostile-review-artifact: plans/hostile-review-1405-catalog-cache.md
 
+## Ticket-fitness exemption
+
+### #1405
+
+Reason: #1405 predates the canonical ticket template. Its body carries Problem, Evidence, Failure scenario, Done when and Falsifier sections, but not the canonical Assumptions section.
+Evidence: those sections live in https://github.com/siege-analytics/siege_utilities/issues/1405; the reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1405#issuecomment-6259568906.
+Falsification: revert the implementation; `tests/test_1405_census_catalog_cache_disk.py::test_clear_removes_only_the_named_entry` goes red because `clear('eits/resconst', None)` removes all 3 cached files, and `tests/test_1405_census_catalog_cache_disk.py::test_catalog_survives_disk_round_trip` goes red because `clear()` cannot see the nested entry and returns 0 instead of 1.
+
 ## Assumptions
 
 1. The allowlist fingerprints identify the same reviewed `get` and `put` handlers; only their hashes changed with the key rewrite, so swapping the keys keeps the guard's intent.
