@@ -21,6 +21,7 @@ Hostile-review-artifact: plans/hostile-review-1574-staging-paths.md
 Reason: #1574 predates the canonical ticket template; it was filed before `evaluate-ticket.sh` gating.
 Evidence: Problem, Evidence, Failure scenario, Done when, Assumptions and Falsifier sections live in https://github.com/siege-analytics/siege_utilities/issues/1574; the reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1574#issuecomment-6256250477.
 Falsification: revert the implementation; `tests/test_atomic_write_with_staging_hadoop_fs.py::test_promotes_output_on_spark_filesystem` goes red because promotion inspects the driver's local disk and the real destination stays empty, and `tests/test_atomic_write_with_staging_hadoop_fs.py::test_unique_staging_directory_authority_less_uri_creates_no_local_tree` goes red because a local `dbfs:` tree appears under the test cwd.
+Verified 2026-11-05: with `siege_utilities/distributed/spark_utils.py` checked out from `origin/develop`, `pytest tests/test_atomic_write_with_staging_hadoop_fs.py -k "test_promotes_output_on_spark_filesystem or test_unique_staging_directory_authority_less_uri_creates_no_local_tree"` -> 11 failed (8 promotion cases: `FileNotFoundError` for `final/part-00000.csv` on the fake remote filesystem; 3 authority-less cases: `:282 assert not True`, a local scheme tree exists); after `git checkout HEAD --` -> 11 passed, worktree clean.
 
 ## Assumptions
 
