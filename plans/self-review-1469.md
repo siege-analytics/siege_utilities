@@ -70,3 +70,17 @@ notebook edit is needed.
 
 ## Findings
 The ruling is applied. Integration follow-ups for the second merger are listed in the Lead review.
+
+## Ticket-fitness exemption
+
+Governing tickets: #1469 and #1461. The #1398 epic is context only.
+
+### #1469
+Reason: #1469 predates the canonical ticket template. Its body uses Problem / Evidence / Failure scenario / Done when / Assumptions / Falsifier / Related instead of Context / Goal / Acceptance, and it links no /think design note.
+Evidence: https://github.com/siege-analytics/siege_utilities/issues/1469 states the capped-total, silent-zero and None-crash defects under "## Problem", the citations under "## Evidence" (`reporting/social_media_reports.py`), and the done-when criteria under "## Done when". The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1469#issuecomment-6260721218.
+Falsification: revert the implementation; `tests/test_1469_social_media_report_totals.py::test_connector_failure_raises_with_platform_and_cause` goes red because a connector failure becomes an empty frame instead of `SocialMediaError`, `::test_post_counts_and_engagement_are_labeled_as_samples` goes red because 120 posts are reported as window totals, and `::test_missing_counts_render_unavailable_never_zero` goes red because an unavailable follower count renders as "0".
+
+### #1461
+Reason: #1461 predates the canonical ticket template (Problem / Evidence / Failure scenario / Done when / Assumptions / Falsifier / Related; no Context / Goal / Acceptance, no /think link). This PR does not implement it: `create_social_media_report` still calls `create_analytics_report(report_data, title)` unchanged, and the #1469 tests mock that writer.
+Evidence: https://github.com/siege-analytics/siege_utilities/issues/1461 (OPEN) states the swapped `ReportGenerator` signature under "## Problem" and cites `reporting/social_media_reports.py:92-96` and `reporting/report_generator.py:94-183` under "## Evidence". `git diff origin/develop...HEAD -- siege_utilities/reporting/social_media_reports.py` shows no change to the `create_analytics_report` call.
+Falsification: there is no test in this PR that goes red for #1461, because the PR leaves its defect in place. This exemption is wrong if reverting this PR changes the report writer call, or if a #1807 test asserts that a PDF is written.
