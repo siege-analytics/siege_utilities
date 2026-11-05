@@ -67,3 +67,17 @@ the remaining command tests still run system checks. Scope stays test-only.
   the CI Django settings: with the stand-in warning fixture and without
   `--skip-checks`, the three CA/HI/OR cases fail (3 failed, 7 passed, the CI
   shape); with `--skip-checks`, 10 passed.
+
+## Addendum: #1868 controls
+
+#1868 tracks the `gis.W001` failure. Two control tests make its acceptance
+falsifiable: `test_system_check_warning_reaches_stderr_without_skip_checks`
+shows the stand-in warning does reach stderr when checks run, and
+`test_skip_checks_still_surfaces_genuine_command_errors` shows a genuine
+command error ("1 errors" for an invalid GEOID) still reaches stderr under
+`--skip-checks` while the warning does not. The fix and the pin share this PR
+because each CI blocker keeps the other's run red. With the controls,
+`tests/test_population_service_resilience.py` is 12 passed locally (Django
+5.2.14, CI Django settings, Homebrew GDAL); removing `--skip-checks` from the
+unpublished-VTD test turns its three cases red. A CHANGELOG `[4.1.0]` Fixed
+line refs #1868.

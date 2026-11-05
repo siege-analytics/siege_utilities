@@ -231,3 +231,44 @@ def test_command_skips_unpublished_vtd_without_error(
     assert error.getvalue() == ""
     assert f"VTD 2020 not published for {abbreviation} by Census" in output.getvalue()
     assert "0 created, 0 updated, 1 skipped, 0 errors" in output.getvalue()
+
+
+def test_system_check_warning_reaches_stderr_without_skip_checks(service, monkeypatch, system_check_warning):
+    # Control for #1868: without --skip-checks the stand-in warning does reach
+    # the command's stderr, so the fixture reproduces the hosted gis.W001 case.
+    from io import StringIO
+    from unittest.mock import patch
+    from siege_utilities.geo.django.management.commands import populate_boundaries
+
+    monkeypatch.setattr(populate_boundaries, "BoundaryPopulationService", lambda: service)
+    output, error = StringIO(), StringIO()
+    command = populate_boundaries.Command(stdout=output, stderr=error)
+    with patch("requests.sessions.Session.request", side_effect=AssertionError("unexpected network")):
+        command.run_from_argv([
+            "manage.py", "populate_boundaries", "--year", "2020",
+            "--type", "vtd", "--state", "06",
+        ])
+    assert "tests.W001" in error.getvalue()
+
+
+def test_skip_checks_still_surfaces_genuine_command_errors(
+    service, boundary_table, monkeypatch, system_check_warning
+):
+    # Control for #1868: --skip-checks removes only system-check output. A
+    # genuine command error still reaches stderr, so an empty-stderr assertion
+    # would fail on it.
+    from io import StringIO
+    from siege_utilities.geo.django.management.commands import populate_boundaries
+
+    _supply_rows(service, monkeypatch, ["27001", "bad"])
+    monkeypatch.setattr(populate_boundaries, "BoundaryPopulationService", lambda: service)
+    output, error = StringIO(), StringIO()
+    command = populate_boundaries.Command(stdout=output, stderr=error)
+    with pytest.raises(SystemExit) as exc:
+        command.run_from_argv([
+            "manage.py", "populate_boundaries", "--year", "2024",
+            "--type", "sldl", "--state", "27", "--skip-checks",
+        ])
+    assert exc.value.code == 1
+    assert "1 errors" in error.getvalue()
+    assert "tests.W001" not in error.getvalue()
