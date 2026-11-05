@@ -10,6 +10,10 @@ from siege_utilities.engines.dataframe_engine import DuckDBEngine
 pytest.importorskip("duckdb")
 
 META='siege_geometry_crs'
+def require_typed_geometry():
+    import duckdb
+    if tuple(map(int, duckdb.__version__.split(".")[:2])) < (1, 5):
+        pytest.skip("requires duckdb>=1.5 for CRS-qualified geometry types; install siege-utilities[performance]")
 @pytest.fixture
 def e():
     engine=DuckDBEngine();yield engine;engine._connection.close()
@@ -127,6 +131,8 @@ def test_empty_allnull_nondefault_geometry(e,kind,name,how):
     unchanged(left,sl);unchanged(right,sr)
 
 def raw(e,crs,name='geometry'):
+    if crs is not None:
+        require_typed_geometry()
     cast='' if crs is None else f"::GEOMETRY('EPSG:{crs}')"
     out=e.query(f'SELECT 7 AS pid, ST_Point(1,1){cast} AS {name}')
     out[name]=out[name].map(bytes)

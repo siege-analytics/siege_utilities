@@ -11,7 +11,14 @@ def e():
     yield e
     e._connection.close()
 
+def require_typed_geometry():
+    import duckdb
+    if tuple(map(int, duckdb.__version__.split(".")[:2])) < (1, 5):
+        pytest.skip("requires duckdb>=1.5 for CRS-qualified geometry types; install siege-utilities[performance]")
+
 def frame(e,crs,name='geometry',as_gdf=False):
+    if crs is not None:
+        require_typed_geometry()
     cast='' if crs is None else f"::GEOMETRY('EPSG:{crs}')"
     out=e.query(f'SELECT 7 AS pid, ST_Point(1,1){cast} AS {name}')
     return e.to_geodataframe(out,name) if as_gdf else out

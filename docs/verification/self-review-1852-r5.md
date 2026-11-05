@@ -106,3 +106,18 @@ body, diff against develop and branch commits do not reference it).
 
 - Under duckdb 1.4.4 (default_31111, within #1862's pinned range): `pytest tests/test_1852_conversion_siblings.py` -> 8 passed. Without duckdb the module now skips via importorskip instead of producing 8 setup errors.
 - At `7cac3e01` under duckdb 1.5.6 (Python 3.11.11): `tests/test_1412_duckdb_query_wkb_crs.py`, `tests/test_1479_spark_join_collisions.py`, `tests/test_1497_engine_crs_preservation.py` and `tests/test_1852_conversion_siblings.py` -> 105 passed, 0 skipped.
+
+## duckdb 1.4.x support (after the develop sync at `695c4b92`)
+
+`pyproject.toml` allows `duckdb>=0.7.0,<2.0`, so duckdb 1.4.x is a supported install. Under the SZSH duckdb 1.4.4, the named and touched #1852 files failed 30 cases, every one with `Binder Error: Type 'GEOMETRY' does not take any type modifiers`.
+
+Which case applies: **tests only (2b)**. The production code never builds a CRS-qualified geometry type. In `siege_utilities/`, `GEOMETRY('` appears only in docstrings. `_geometry_column_positions` (`siege_utilities/engines/dataframe_engine.py:1430-1435`) accepts the bare `GEOMETRY` that 1.4.x reports as well as the qualified `GEOMETRY('EPSG:…')` that 1.5.x reports. `_materialize_geometry_wkb` (`:1496-1504`) runs `ST_CRS(NULL::<type>)` only when the reported type is qualified, which only 1.5.x produces, and maps a bare `GEOMETRY` to unknown CRS (`None`). The 30 failures come from the test helpers `frame` (`tests/test_1852_extra_crs.py`), `_frame` (`tests/test_1852_mixed_crs_inputs.py`) and `raw` (`tests/test_1852_geometry_aware_boundaries.py`), which cast `ST_Point(1,1)::GEOMETRY('EPSG:<n>')` in SQL. duckdb 1.4.x rejects that cast at bind time.
+
+Change: each of the three helpers calls a version gate before a CRS-qualified cast. The gate is identical to `typed_engine` in `tests/test_1412_duckdb_query_wkb_crs.py:21-23`: same `tuple(map(int, duckdb.__version__.split(".")[:2])) < (1, 5)` check and same reason string. Bare-geometry (`crs=None`) cases still run on 1.4.x. No assertion and no library code changed. ruff on the three files: 30 findings before and after (26 E702, 4 E701, all in the existing compact style), none new.
+
+Counts for the 7 files (test_1412, test_1479, test_1497, test_1852_conversion_siblings, test_1852_extra_crs, test_1852_geometry_aware_boundaries, test_1852_mixed_crs_inputs), Python 3.11.11:
+
+| duckdb | before (`695c4b92`) | after |
+|---|---|---|
+| 1.4.4 (SZSH default) | 30 failed, 136 passed, 32 skipped | 0 failed, 136 passed, 62 skipped |
+| 1.5.6 | 198 passed | 198 passed (0 skipped) |
