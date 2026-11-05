@@ -26,6 +26,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the #1665 entry under `[4.1.0]` and none under `[Unreleased]`.
 - Request a fresh exact-head review: any earlier result is void once the head moves, and the code diff against develop is unchanged.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1665 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1665 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (the bridge notebook buffering EPSG:4326 geometry by 0.01 degrees without saying so, and collecting an unbounded Spark frame to the driver), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1665, and in the PR description, https://github.com/siege-analytics/siege_utilities/pull/1785. The reviewer verdicts are recorded on the ticket thread and the PR conversation.
+- **Falsification:** revert the implementation (the notebook edit of this PR); `tests/test_1665_databricks_bridge_notebook_truth.py::test_driver_collection_requires_a_caller_bound` goes red because the notebook no longer warns that driver collection needs a caller bound. The latest commit of this PR is process-only; that existing regression test guards the accepted fix.
+
 ## Lead review
 
 The change is additive and reverts with one commit. No behavior change. No claim in this artifact exceeds what was observed.
