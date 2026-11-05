@@ -140,3 +140,52 @@ def test_yearless_cache_logging(tmp_path, caplog, entry_state):
     else:
         assert restored is None
         assert "Failed to read cache for eits/resconst/None" in caplog.text
+
+
+def _populated_cache(tmp_path):
+    cache = CatalogCache(cache_dir=tmp_path)
+    keys = [("eits/resconst", None), ("eits/resconst", 2020), ("dec/pl", 2020)]
+    for dataset, year in keys:
+        catalog = CensusCatalog()
+        catalog.add_dataset(CensusCatalogDataset(
+            dataset_id=dataset, survey_type=dataset, year=year,
+        ))
+        cache.put(dataset, year, catalog)
+    return cache
+
+
+@pytest.mark.parametrize(("dataset", "year"), [("eits/resconst", None), ("eits/resconst", 2020)])
+def test_clear_removes_only_the_named_entry(tmp_path, dataset, year):
+    cache = _populated_cache(tmp_path)
+
+    assert cache.clear(dataset, year) == 1
+
+    assert cache.get(dataset, year) is None
+    remaining = {("eits/resconst", None), ("eits/resconst", 2020), ("dec/pl", 2020)} - {(dataset, year)}
+    for other_dataset, other_year in remaining:
+        assert cache.get(other_dataset, other_year) is not None
+    assert cache.clear(dataset, year) == 0
+
+
+@pytest.mark.parametrize("kwargs", [{"dataset": "eits/resconst"}, {"year": 2020}, {"year": None}])
+def test_clear_with_a_partial_key_raises_and_removes_nothing(tmp_path, kwargs):
+    cache = _populated_cache(tmp_path)
+
+    with pytest.raises(ValueError, match="both dataset and year"):
+        cache.clear(**kwargs)
+
+    assert len(list(tmp_path.glob("*.json"))) == 3
+
+
+def test_clear_with_a_partial_key_raises_even_without_a_cache_directory(tmp_path):
+    cache = CatalogCache(cache_dir=tmp_path / "absent")
+
+    with pytest.raises(ValueError, match="both dataset and year"):
+        cache.clear("eits/resconst")
+
+
+def test_clear_without_arguments_still_removes_every_entry(tmp_path):
+    cache = _populated_cache(tmp_path)
+
+    assert cache.clear() == 3
+    assert list(tmp_path.glob("*.json")) == []

@@ -10,6 +10,7 @@ The loader orchestrates: **cache hit → API fetch → cache write**.
 
 from __future__ import annotations
 
+import enum
 import json
 import logging
 from datetime import datetime, timedelta
@@ -40,6 +41,15 @@ _DEFAULT_CACHE_DIR = (
     Path.home() / ".siege_utilities" / "cache" / "census_catalog"
 )
 _DEFAULT_TTL_DAYS = 30
+
+
+class _Unset(enum.Enum):
+    """Sentinel for an omitted argument where ``None`` is a valid value."""
+
+    TOKEN = enum.auto()
+
+
+_UNSET = _Unset.TOKEN
 
 
 def _catalog_to_dict(catalog: CensusCatalog) -> dict:
@@ -184,7 +194,8 @@ class CatalogCache:
     Dataset ids are percent-encoded into a single filename component, with
     the year (or ``none`` for yearless datasets) appended to keep keys
     distinct.
-    Legacy nested entries are ignored and refreshed on the next cache miss.
+    Legacy nested entries are ignored: the next cache miss writes a fresh
+    top-level entry, and ``clear()`` does not remove the old nested files.
     """
 
     def __init__(
@@ -240,10 +251,26 @@ class CatalogCache:
                 "Failed to cache catalog for %s/%s: %s", dataset, year, e,
             )
 
-    def clear(self, dataset: str = "", year: int = 0) -> int:
+    def clear(
+        self, dataset: str = "", year: Optional[int] | _Unset = _UNSET,
+    ) -> int:
+        """Remove cached catalogs and return how many files were deleted.
+
+        ``clear()`` removes every entry. ``clear(dataset, year)`` removes the
+        one entry for that key; pass ``year=None`` for a yearless dataset.
+
+        Raises:
+            ValueError: If only one of ``dataset`` and ``year`` is given,
+                which would otherwise be ambiguous between one entry and all.
+        """
+        if bool(dataset) != (year is not _UNSET):
+            raise ValueError(
+                "CatalogCache.clear needs both dataset and year (year=None for a "
+                "yearless dataset) to remove one entry, or neither to remove all"
+            )
         if not self.cache_dir.exists():
             return 0
-        if dataset and year:
+        if dataset:
             path = self._cache_path(dataset, year)
             try:
                 path.unlink()

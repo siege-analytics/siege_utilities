@@ -118,6 +118,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Census catalog cache filenames percent-encode dataset ids, keeping slash-based
+  ids such as `eits/resconst` and `dec/pl` in the cache directory and visible to
+  cache clearing. Yearless keys use a distinct `none` suffix, and cache logging
+  accepts `year=None`, including write failures. Entries in the old nested
+  layout are no longer read or cleared: the next load fetches and caches a
+  fresh copy at the new key, and the old nested files can be deleted by hand.
+  `CatalogCache.clear(dataset, year)` removes only
+  that entry, including a yearless one with `year=None`; `clear()` still
+  removes every entry. **Behavior change:** passing only a dataset or only a
+  year now raises `ValueError` instead of deleting the whole cache (#1405).
 - `SparkEngine.nearest` ranks candidates by a per-point row identity,
   preserving co-located points and points with no target within `max_distance`.
   Results keep one point geometry and expose `distance` and `index_right`
