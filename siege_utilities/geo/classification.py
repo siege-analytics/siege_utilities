@@ -108,37 +108,36 @@ def _classify_natural_breaks(values: np.ndarray, k: int) -> tuple[np.ndarray, in
     ssm = np.full((n, k), np.inf, dtype=np.float64)
     bp = np.zeros((n, k), dtype=np.int64)
 
-    # Translation preserves SSE and avoids cancellation from a large offset.
-    centered = sorted_vals - sorted_vals[0]
-    cumsum = np.cumsum(centered)
-    cumsum2 = np.cumsum(centered ** 2)
-
-    def _ss(i: int, j: int) -> float:
-        if i == 0:
-            s = cumsum[j]
-            s2 = cumsum2[j]
-            cnt = j + 1
-        else:
-            s = cumsum[j] - cumsum[i - 1]
-            s2 = cumsum2[j] - cumsum2[i - 1]
-            cnt = j - i + 1
-        return max(0.0, s2 - (s * s) / cnt)
-
+    # Segment SSE uses Welford's running mean and M2, accumulated over the
+    # segment itself. Prefix sums (s2 - s1**2 / n) cancel catastrophically for
+    # a tight cluster far from the data minimum, e.g. [0, 1e9, 1e9+1, ...].
+    count, mean, m2 = 0, 0.0, 0.0
     for i in range(n):
-        ssm[i, 0] = _ss(0, i)
+        count += 1
+        delta = sorted_vals[i] - mean
+        mean += delta / count
+        m2 += delta * (sorted_vals[i] - mean)
+        ssm[i, 0] = m2
         bp[i, 0] = 0
 
     for j in range(1, k):
         for i in range(j, n):
             best_cost = np.inf
             best_bp = j
-            for m in range(j - 1, i):
-                if sorted_vals[m] == sorted_vals[m + 1]:
+            # Grow the last class backward from i: its start s runs i..j.
+            count, mean, m2 = 0, 0.0, 0.0
+            for s in range(i, j - 1, -1):
+                count += 1
+                delta = sorted_vals[s] - mean
+                mean += delta / count
+                m2 += delta * (sorted_vals[s] - mean)
+                if sorted_vals[s - 1] == sorted_vals[s]:
                     continue
-                cost = ssm[m, j - 1] + _ss(m + 1, i)
-                if cost < best_cost:
+                cost = ssm[s - 1, j - 1] + m2
+                # <= keeps the smallest start among equal finite costs.
+                if cost < np.inf and cost <= best_cost:
                     best_cost = cost
-                    best_bp = m + 1
+                    best_bp = s
             ssm[i, j] = best_cost
             bp[i, j] = best_bp
 

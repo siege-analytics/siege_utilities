@@ -135,3 +135,59 @@ def test_nonfinite_mask_handles_constant_and_all_missing_inputs(monkeypatch, bac
     np.testing.assert_array_equal(result.bins, [-1, 0, -1, 0, -1])
     with pytest.raises(ValueError, match="empty"):
         classification.classify_series([np.nan, np.inf, -np.inf])
+
+
+@pytest.mark.parametrize("values,k", [
+    # A tight cluster far from the minimum: prefix sums of about 3e18 cancel
+    # the cluster's within-class SSE of 2.0 (exact-head review of 9b96ef2f).
+    ([0, 1e9, 1e9 + 1, 1e9 + 2, 1e9 + 10], 3),
+    ([1e9 + 10, 0, 1e9 + 2, 1e9, 1e9 + 1], 3),
+    ([-1e12, 0, 1, 2, 10, 11], 3),
+    ([0, 1e15, 1e15 + 2, 1e15 + 4, 1e15 + 64, 1e15 + 66], 3),
+    ([5e8, 5e8 + 1, 5e8 + 3, 2e9, 2e9 + 1, 2e9 + 50], 4),
+])
+def test_numpy_jenks_is_optimal_for_clusters_far_from_minimum(monkeypatch, values, k):
+    monkeypatch.setattr(classification, "_MAPCLASSIFY_AVAILABLE", False)
+    _assert_optimal(values, k)
+
+
+def test_numpy_jenks_reviewer_case_finds_sse_two(monkeypatch):
+    monkeypatch.setattr(classification, "_MAPCLASSIFY_AVAILABLE", False)
+    result = _assert_optimal([0, 1e9, 1e9 + 1, 1e9 + 2, 1e9 + 10], 3)
+    np.testing.assert_array_equal(result.bins, [0, 1, 1, 1, 2])
+
+
+@pytest.mark.parametrize("scheme,values,k", [
+    # Natural-breaks edges are class maxima, so every internal edge is a value.
+    ("natural_breaks", [1, 2, 3, 10, 11, 12, 20, 21, 22], 3),
+    ("equal_interval", [0, 2, 5, 7, 10], 2),
+    ("quantiles", [1, 2, 3, 4, 5, 6, 7, 8], 4),
+])
+def test_choropleth_fallback_colours_edge_values_with_their_class(
+    monkeypatch, scheme, values, k,
+):
+    gpd = pytest.importorskip("geopandas")
+    plt = pytest.importorskip("matplotlib.pyplot")
+    shapely_geometry = pytest.importorskip("shapely.geometry")
+    from siege_utilities.geo import choropleth
+
+    monkeypatch.setattr(choropleth, "HAS_MAPCLASSIFY", False)
+    monkeypatch.setattr(classification, "_MAPCLASSIFY_AVAILABLE", False)
+    captured = {}
+    monkeypatch.setattr(
+        gpd.GeoDataFrame, "plot", lambda self, **kwargs: captured.update(kwargs),
+    )
+    gdf = gpd.GeoDataFrame(
+        {"value": values},
+        geometry=[shapely_geometry.Point(i, 0) for i in range(len(values))],
+    )
+
+    fig, _ = choropleth.create_choropleth(gdf, "value", scheme=scheme, k=k)
+    plt.close(fig)
+
+    bins = classification.classify_series(gdf["value"], scheme, k).bins
+    colours = plt.get_cmap("YlOrRd")(captured["norm"](np.asarray(values, dtype=float)))
+    for a in range(len(values)):
+        for b in range(len(values)):
+            same_colour = np.array_equal(colours[a], colours[b])
+            assert same_colour == (bins[a] == bins[b]), (values[a], values[b])
