@@ -52,7 +52,7 @@ Phase B verification: red-first on base, green on head; the existing #1439 cross
 |----|----------|-------------|------------|
 | F1 | P1 | Bearer token follows untrusted paging.next (reviewer F1) | fixed in `_request_url` |
 | F2 | P3 | Cyclic paging.next can loop (reviewer non-blocking) | deferred, disclosed in PR body |
-| F3 | P3 | The #1749 convention commit 46ab1703 removed the #1439 CHANGELOG.md entry | release note carried in the PR body CHANGELOG [4.1.0] block |
+| F3 | P3 | The #1749 convention commit 46ab1703 removed the #1439 CHANGELOG.md entry, but #1749 is an open proposal and CHANGELOG.md remains the adopted location | entry restored under [4.1.0] Fixed with the security note, mirrored in the PR body block; tests/test_release_process.py and tests/test_user_config_export_changelog.py -> 25 passed |
 
 ## Test plan / Quantified claims
 Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11), run from the worktree root.
