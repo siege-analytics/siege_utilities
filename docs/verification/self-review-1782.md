@@ -26,6 +26,14 @@ Project-contribution: keeps the GA end-to-end notebook and every reference to it
 - Scope: nine changed files listed above plus these documents; no library code changed.
 - Gate evidence: pytest -> 26 passed as above.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1662 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1662 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (the GA end-to-end notebook presenting a fixed April fixture as a live or weekly client digest, repeated by inbound references), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1662, and in the PR description. The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1662#issuecomment-6298384540.
+- **Falsification:** revert the implementation (the notebook, guide and inbound-reference edits of this PR); `tests/test_1662_ga_notebook_truth.py::test_inbound_references_describe_analytics_02_as_offline` goes red because an inbound line again calls `analytics/02` weekly, live or a full pipeline. The latest commit of this PR is process-only; that existing regression test guards the accepted fix.
+
 ## Lead review (adversarial)
 Phase A coherence: the reviewer findings (release-note placement, stale description, punctuation, narrow self-review) map to the `[4.1.0]` entry, the refreshed description, ASCII documents and this whole-PR artifact; no drift.
 Phase B verification: did it fix or move the problem? Fixed for the offline framing and the credential row. Not fixed, and said so: the branded-PDF sentence in reports/01, which overlaps #1787.
