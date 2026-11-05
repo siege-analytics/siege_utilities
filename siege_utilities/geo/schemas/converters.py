@@ -138,7 +138,9 @@ def schemas_to_orm(
     """
     Convert a list of Pydantic schemas to Django ORM model instances.
 
-    Does NOT call save() — returns unsaved instances for bulk_create.
+    Does NOT call save() — returns unsaved instances for bulk_create. Each
+    instance has been passed through ``prepare_for_bulk()`` when the model
+    defines one, so fields ``save()`` would derive are already set (#1539).
 
     Args:
         schemas: List of Pydantic schema instances
@@ -162,7 +164,9 @@ def schemas_to_orm(
         if geometry_wkts and i < len(geometry_wkts) and geometry_wkts[i]:
             kwargs["geometry"] = GEOSGeometry(geometry_wkts[i], srid=srid)
 
-        instances.append(model_class(**kwargs))
+        instance = model_class(**kwargs)
+        prepare = getattr(instance, "prepare_for_bulk", None)
+        instances.append(prepare() if callable(prepare) else instance)
 
     return instances
 

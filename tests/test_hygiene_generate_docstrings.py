@@ -207,11 +207,11 @@ class TestProcessPythonFile:
 
     def test_adds_missing_docstring(self, tmp_path, monkeypatch):
         # The primary contract: a function lacking a docstring gains one.
-        # Rewriting uses stdlib ast.unparse (no astor), so no importorskip.
+        # Explicit writes insert docstring lines without reformatting the body.
         monkeypatch.chdir(tmp_path)
         f = tmp_path / "needs.py"
         f.write_text("def undocumented(value):\n    return value + 1\n")
-        process_python_file(f)
+        process_python_file(f, dry_run=False)
         rewritten = f.read_text()
         assert '"""' in rewritten
         assert "Undocumented." in rewritten
@@ -219,12 +219,11 @@ class TestProcessPythonFile:
     def test_rewrites_function_with_fstring_body(self, tmp_path, monkeypatch):
         # Regression (#1365): the old astor serializer touched the removed
         # ast.Str when rendering f-strings and raised AttributeError on 3.14.
-        # ast.unparse renders f-strings correctly; processing must succeed and
-        # preserve the f-string.
+        # Line-based insertion must leave the f-string source untouched.
         monkeypatch.chdir(tmp_path)
         f = tmp_path / "fstr.py"
         f.write_text('def greet(name):\n    return f"hi {name}"\n')
-        process_python_file(f)
+        process_python_file(f, dry_run=False)
         rewritten = f.read_text()
         assert '"""' in rewritten
         assert 'f"hi {name}"' in rewritten or "f'hi {name}'" in rewritten

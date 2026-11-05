@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import zipfile
 from dataclasses import dataclass, field
 from enum import Enum
@@ -75,8 +76,27 @@ log = logging.getLogger(__name__)
 RDH_BASE_URL = "https://redistrictingdatahub.org/wp-json/download/list"
 RDH_SITE_URL = "https://redistrictingdatahub.org"
 
-# Maximum datasets returned per request (WordPress API limit)
+# Maximum datasets returned per request (WordPress API limit). A response of
+# this size may be truncated; ``_fetch_datasets`` warns when it is reached.
 RDH_MAX_RESULTS = 1000
+
+# Geography levels recognised in RDH dataset titles, as token phrases. Matched
+# longest first so "block group" is never read as "block". (#1571)
+_GEOGRAPHY_PHRASES = (
+    "block group",
+    "block",
+    "tract",
+    "county",
+    "place",
+    "precinct",
+    "vtd",
+    "state",
+)
+
+# Columns that hold FIPS/GEOID codes and must keep their leading zeros:
+# GEOID*, *FP / *CE / *NS (Census FIPS, code, and ANSI fields, optionally
+# with a vintage suffix such as STATEFP20). (#1571)
+_GEOID_LIKE_COLUMN = re.compile(r"^GEOID|^GEO_ID|^[A-Z]*(FP|CE|NS)\d*$")
 
 # US state abbreviations for iteration
 US_STATES = [
@@ -147,6 +167,86 @@ class CompactnessScores:
     reock: float = 0.0
     convex_hull_ratio: float = 0.0
     schwartzberg: float = 0.0
+
+
+# ---------------------------------------------------------------------------
+# Selection helpers
+# ---------------------------------------------------------------------------
+
+def _tokens(text: str) -> List[str]:
+    """Lower-case word tokens, splitting on whitespace and underscores."""
+    return [t for t in re.split(r"[\s_]+", text.lower()) if t]
+
+
+def _title_geography(title: str, phrases: tuple = _GEOGRAPHY_PHRASES) -> Optional[str]:
+    """Return the geography level a dataset title names, or None.
+
+    Titles are tokenised on spaces and underscores, and phrases are tried
+    longest first at each position, so ``"VA PL 94-171 2020 Block Group"``
+    and ``"VA_CVAP_block_group"`` are both ``"block group"``, never
+    ``"block"``. Returns None when the title names no level, or names more
+    than one distinct level (ambiguous). (#1571)
+    """
+    tokens = _tokens(title)
+    ordered = sorted({tuple(_tokens(p)) for p in phrases}, key=len, reverse=True)
+    found = set()
+    i = 0
+    while i < len(tokens):
+        for phrase in ordered:
+            if tuple(tokens[i:i + len(phrase)]) == phrase:
+                found.add(" ".join(phrase))
+                i += len(phrase)
+                break
+        else:
+            i += 1
+    return found.pop() if len(found) == 1 else None
+
+
+def _select_by_geography(
+    datasets: List["RDHDataset"],
+    geography: Optional[str],
+    label: str,
+    state: str,
+    year: Optional[str],
+) -> List["RDHDataset"]:
+    """Keep the datasets whose geography equals ``geography``.
+
+    Uses the dataset's explicit ``geography`` metadata when present, otherwise
+    the level named in its title. Applies even to a single dataset, and raises
+    instead of falling back to an unfiltered list. (#1571)
+    """
+    where = f"{state}" + (f" year={year}" if year else "")
+    if not datasets:
+        raise FileNotFoundError(f"No {label} data found for {where}")
+    if not geography:
+        return datasets
+    wanted = " ".join(_tokens(geography))
+    phrases = _GEOGRAPHY_PHRASES + (wanted,)
+    matched = [
+        ds for ds in datasets
+        if _title_geography(ds.geography or ds.title, phrases) == wanted
+    ]
+    if not matched:
+        available = sorted(ds.title for ds in datasets)
+        raise FileNotFoundError(
+            f"No {label} data found for {where} at geography={geography!r}; "
+            f"available datasets: {available}"
+        )
+    return matched
+
+
+def _single_member(directory: Path, pattern: str, kind: str) -> Path:
+    """Return the one file in ``directory`` matching ``pattern``; raise otherwise."""
+    members = sorted(directory.glob(pattern))
+    if not members:
+        raise FileNotFoundError(f"No {kind} files found in {directory}")
+    if len(members) > 1:
+        names = [str(m.relative_to(directory)) for m in members]
+        raise ValueError(
+            f"Ambiguous {kind} selection in {directory}: {len(members)} candidates "
+            f"{names}; load the intended file by path."
+        )
+    return members[0]
 
 
 # ---------------------------------------------------------------------------
@@ -352,6 +452,15 @@ class RDHClient:
         if not isinstance(raw_data, list):
             raw_data = raw_data.get("data", []) if isinstance(raw_data, dict) else []
 
+        if len(raw_data) >= RDH_MAX_RESULTS:
+            # This client does not page; a full response means the listing may be
+            # silently truncated. (#1571)
+            log_warning(
+                f"RDH: listing returned {len(raw_data)} entries, the per-request "
+                f"cap (RDH_MAX_RESULTS={RDH_MAX_RESULTS}); results may be truncated. "
+                f"Narrow the query (states={states!r}, format={format!r}, year={year!r})."
+            )
+
         datasets = []
         for entry in raw_data:
             ds = self._parse_dataset_entry(entry)
@@ -451,6 +560,10 @@ class RDHClient:
 
         if use_cache and dest.exists():
             log_info(redact_url_secrets(f"RDH: Using cached {filename}"))
+            # Same return kind as a first download: the extracted directory
+            # for a ZIP, not the archive itself. (#1571)
+            if dest.suffix.lower() == ".zip":
+                return self._extract_zip(dest, output_dir)
             return dest
 
         log_info(redact_url_secrets(f"RDH: Downloading {filename}..."))
@@ -503,9 +616,19 @@ class RDHClient:
         Parameters
         ----------
         dataset : RDHDataset, str, or Path
-            Dataset to load.
+            Dataset to load. A directory must contain exactly one ``.csv``.
         **kwargs
-            Passed to ``pd.read_csv()``.
+            Passed to ``pd.read_csv()``. Unless ``dtype`` is given, GEOID-like
+            columns (``GEOID*``, ``*FP``, ``*CE``, ``*NS``) are read as ``str``
+            so leading zeros survive.
+
+        Raises
+        ------
+        FileNotFoundError
+            The directory contains no CSV.
+        ValueError
+            The directory contains more than one CSV, so the choice would be
+            arbitrary.
         """
         if not HAS_PANDAS:
             raise ImportError("pandas is required to load CSV data")
@@ -518,11 +641,20 @@ class RDHClient:
             path = Path(dataset)
 
         if path.is_dir():
-            # Find CSV in extracted directory
-            csvs = list(path.glob("*.csv"))
-            if not csvs:
-                raise FileNotFoundError(f"No CSV files found in {path}")
-            path = csvs[0]
+            path = _single_member(path, "*.csv", "CSV")
+
+        if "dtype" not in kwargs:
+            header_kwargs = {
+                k: v for k, v in kwargs.items()
+                if k in ("sep", "delimiter", "encoding", "header", "skiprows", "compression")
+            }
+            header = pd.read_csv(path, nrows=0, **header_kwargs).columns
+            geoid_cols = {
+                c: str for c in header
+                if isinstance(c, str) and _GEOID_LIKE_COLUMN.match(c.upper())
+            }
+            if geoid_cols:
+                kwargs["dtype"] = geoid_cols
 
         return pd.read_csv(path, **kwargs)
 
@@ -536,9 +668,18 @@ class RDHClient:
         Parameters
         ----------
         dataset : RDHDataset, str, or Path
-            Dataset to load.
+            Dataset to load. A directory must contain exactly one ``.shp``
+            (searched recursively).
         **kwargs
             Passed to ``gpd.read_file()``.
+
+        Raises
+        ------
+        FileNotFoundError
+            The directory contains no shapefile.
+        ValueError
+            The directory contains more than one shapefile, so the choice
+            would be arbitrary.
         """
         if not HAS_GEOPANDAS:
             raise ImportError(
@@ -554,11 +695,7 @@ class RDHClient:
             path = Path(dataset)
 
         if path.is_dir():
-            # Find .shp in extracted directory
-            shps = list(path.glob("**/*.shp"))
-            if not shps:
-                raise FileNotFoundError(f"No .shp files found in {path}")
-            path = shps[0]
+            path = _single_member(path, "**/*.shp", ".shp")
 
         return gpd.read_file(path, **kwargs)
 
@@ -1047,31 +1184,28 @@ def fetch_cvap(
     year : str, optional
         Data year filter.
     geography : str
-        Geographic level hint for filtering (e.g. ``"tract"``, ``"block_group"``).
+        Geographic level (e.g. ``"tract"``, ``"block_group"``). Only datasets
+        at exactly this level are eligible; ``None`` or ``""`` disables the
+        filter.
     client : RDHClient, optional
         Existing client instance.
 
     Returns
     -------
     DataFrame with CVAP estimates.
+
+    Raises
+    ------
+    FileNotFoundError
+        No CVAP dataset exists, or none at the requested geography (the
+        message lists the available titles).
     """
     if not HAS_PANDAS:
         raise ImportError("pandas is required to load CVAP data")
     c = client or RDHClient()
-    datasets = c.get_cvap_data(state, year=year)
-    # Filter by geography keyword if multiple results
-    if geography and len(datasets) > 1:
-        filtered = [
-            ds for ds in datasets
-            if geography.lower() in ds.title.lower()
-        ]
-        if filtered:
-            datasets = filtered
-    if not datasets:
-        raise FileNotFoundError(
-            f"No CVAP data found for {state}"
-            + (f" year={year}" if year else "")
-        )
+    datasets = _select_by_geography(
+        c.get_cvap_data(state, year=year), geography, "CVAP", state, year,
+    )
     return c.load_csv(datasets[0])
 
 
@@ -1090,30 +1224,28 @@ def fetch_pl94171(
     year : str, optional
         Decennial year filter.
     geography : str
-        Geographic level hint (e.g. ``"block"``, ``"tract"``).
+        Geographic level (e.g. ``"block"``, ``"tract"``). Only datasets at
+        exactly this level are eligible (``"block"`` never matches
+        "Block Group"); ``None`` or ``""`` disables the filter.
     client : RDHClient, optional
         Existing client instance.
 
     Returns
     -------
     DataFrame with PL 94-171 population data.
+
+    Raises
+    ------
+    FileNotFoundError
+        No PL 94-171 dataset exists, or none at the requested geography (the
+        message lists the available titles).
     """
     if not HAS_PANDAS:
         raise ImportError("pandas is required to load PL 94-171 data")
     c = client or RDHClient()
-    datasets = c.get_pl94171_data(state, year=year)
-    if geography and len(datasets) > 1:
-        filtered = [
-            ds for ds in datasets
-            if geography.lower() in ds.title.lower()
-        ]
-        if filtered:
-            datasets = filtered
-    if not datasets:
-        raise FileNotFoundError(
-            f"No PL 94-171 data found for {state}"
-            + (f" year={year}" if year else "")
-        )
+    datasets = _select_by_geography(
+        c.get_pl94171_data(state, year=year), geography, "PL 94-171", state, year,
+    )
     return c.load_csv(datasets[0])
 
 

@@ -55,17 +55,17 @@ class NLRBRegion(TemporalBoundary):
             models.Index(fields=["vintage_year"]),
         ]
 
-    def save(self, *args, **kwargs):
-        """Persist the model, auto-populating feature_id and source.
+    def prepare_for_bulk(self):
+        """Auto-populate feature_id and source (also applied by ``save()``).
 
-        *args/**kwargs: Forwarded to ``super().save()``.
+        ``bulk_create`` skips ``save()``; bulk loaders call this instead (#1539).
         """
         if self.region_number and not self.feature_id:
             self.feature_id = f"NLRB-{self.region_number:02d}"
             self.boundary_id = self.feature_id
         if not self.source:
             self.source = "NLRB"
-        super().save(*args, **kwargs)
+        return super().prepare_for_bulk()
 
     def __str__(self):
         return f"NLRB Region {self.region_number} ({self.region_office})"
@@ -113,17 +113,17 @@ class FederalJudicialDistrict(TemporalBoundary):
             models.Index(fields=["vintage_year"]),
         ]
 
-    def save(self, *args, **kwargs):
-        """Persist the model, auto-populating feature_id and source.
+    def prepare_for_bulk(self):
+        """Auto-populate feature_id and source (also applied by ``save()``).
 
-        *args/**kwargs: Forwarded to ``super().save()``.
+        ``bulk_create`` skips ``save()``; bulk loaders call this instead (#1539).
         """
         if self.district_code and not self.feature_id:
             self.feature_id = self.district_code
             self.boundary_id = self.district_code
         if not self.source:
             self.source = "USCOURTS"
-        super().save(*args, **kwargs)
+        return super().prepare_for_bulk()
 
     def __str__(self):
         return f"{self.district_name} ({self.district_code})"

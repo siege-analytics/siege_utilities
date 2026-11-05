@@ -46,14 +46,14 @@ class GADMBoundary(TemporalBoundary):
     def __str__(self):
         return f"{self.name} ({self.gid})"
 
-    def save(self, *args, **kwargs):
-        """Sync feature_id from gid; default source to GADM."""
+    def prepare_for_bulk(self):
+        """Sync feature_id from gid; default source to GADM (also applied by ``save()``)."""
         if self.gid:
             self.feature_id = self.gid
             self.boundary_id = self.gid
         if not self.source:
             self.source = "GADM"
-        super().save(*args, **kwargs)
+        return super().prepare_for_bulk()
 
 
 class GADMCountry(GADMBoundary):

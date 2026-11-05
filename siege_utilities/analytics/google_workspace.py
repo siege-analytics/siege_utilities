@@ -616,5 +616,5 @@ class GoogleWorkspaceClient:
             fileId=file_id,
             body={"type": "anyone", "role": "reader"},
         ).execute()
-        log.info("Published %s with anyone-reader access", file_id)
+        log.debug("Published %s with anyone-reader access", file_id)
         return f"https://drive.google.com/uc?export=view&id={file_id}"

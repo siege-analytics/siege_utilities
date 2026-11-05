@@ -1,20 +1,86 @@
 name: Publish Tag to PyPI
 
+# The only path to PyPI (#1419). See RELEASING.md.
+#
+# Pushing a v* tag runs, in order:
+#   verify-tag  tag name == "v" + pyproject version, tagged commit is on main
+#   ci          the full CI workflow (ci.yml) against the tagged commit
+#   build       sdist + wheel from the tag, twine check, wheel-contents check
+#   publish     pypa/gh-action-pypi-publish from the `pypi` environment, using
+#               the PYPI_API_TOKEN secret (trusted publishing + PEP 740
+#               attestations once configured; see RELEASING.md)
+# Nothing is uploaded unless every earlier job succeeded.
+#
+# workflow_dispatch exists only to re-run an existing tag (pick the tag in
+# "Use workflow from"); a dispatch from a branch fails verify-tag.
+
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Git tag to build and publish (e.g. v3.22.1)'
-        required: true
-        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  publish:
+  verify-tag:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Require a v* tag ref
+      env:
+        REF: ${{ github.ref }}
+      run: |
+        case "$REF" in
+          refs/tags/v*) echo "Publishing from $REF" ;;
+          *) echo "ERROR: publish runs only from a v* tag, got $REF"; exit 1 ;;
+        esac
+
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Tag must equal pyproject version
+      env:
+        TAG: ${{ github.ref_name }}
+      run: |
+        PKG_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+        if [ "${TAG}" != "v${PKG_VERSION}" ]; then
+          echo "ERROR: tag ${TAG} does not match pyproject version ${PKG_VERSION} (expected v${PKG_VERSION})"
+          exit 1
+        fi
+        echo "Tag ${TAG} matches pyproject version ${PKG_VERSION}"
+
+    - name: Version strings agree across the package
+      run: python scripts/release_manager.py --check
+
+    - name: Tagged commit must be on main
+      run: |
+        git fetch --no-tags origin main
+        if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+          echo "ERROR: ${GITHUB_SHA} is not on main. Release tags point at a commit already merged to main (RELEASING.md)."
+          exit 1
+        fi
+        echo "${GITHUB_SHA} is on main"
+
+  ci:
+    needs: verify-tag
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: [verify-tag, ci]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-      with:
-        ref: ${{ inputs.tag }}
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -26,25 +92,46 @@ jobs:
         python -m pip install --upgrade pip
         pip install build twine
 
-    - name: Verify tag matches package version
-      run: |
-        TAG_VERSION="${{ inputs.tag }}"
-        TAG_VERSION="${TAG_VERSION#v}"
-        PKG_VERSION=$(python -c "import re; print(re.search(r'version\s*=\s*\"([^\"]+)\"', open('pyproject.toml').read()).group(1))")
-        if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-          echo "ERROR: Tag ${TAG_VERSION} does not match package version ${PKG_VERSION}"
-          exit 1
-        fi
-        echo "Tag v${TAG_VERSION} matches package version ${PKG_VERSION}"
-
     - name: Build package
       run: python -m build
 
-    - name: Check package
+    - name: Check package metadata
       run: twine check dist/*
 
+    - name: Check wheel contents (#1420)
+      run: python scripts/check_wheel_contents.py dist/*.whl
+
+    - name: Upload distributions
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-dist
+        path: dist/
+        if-no-files-found: error
+        retention-days: 30
+
+  publish:
+    needs: [verify-tag, ci, build]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/siege-utilities/
+    permissions:
+      contents: read
+      id-token: write  # used once trusted publishing replaces the token
+    steps:
+    - name: Download distributions
+      uses: actions/download-artifact@v4
+      with:
+        name: release-dist
+        path: dist/
+
     - name: Publish to PyPI
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-      run: twine upload dist/*
+      # Authenticates with the existing PYPI_API_TOKEN repository secret, the
+      # credential earlier releases used. With a token the action skips
+      # attestations (it logs a warning). Once a PyPI trusted publisher is
+      # configured for this workflow (RELEASING.md), delete the `password:`
+      # line: the action then uses OIDC and uploads attestations.
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
+        attestations: true

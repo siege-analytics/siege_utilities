@@ -11,7 +11,7 @@ from typing import Union
 
 from siege_utilities.core._http import redact_url_secrets
 
-from siege_utilities.files.operations import atomic_write_path
+from siege_utilities.files.operations import _create_parent_directory, atomic_write_path
 
 try:
     import requests
@@ -181,7 +181,7 @@ def download_file(url: str, local_filename: FilePath,
     except ImportError:
         local_path = Path(local_filename)
 
-    local_path.parent.mkdir(parents=True, exist_ok=True)
+    _create_parent_directory(local_path)
 
     ssl_verify = _get_ssl_verify_path() if verify_ssl else False
     headers = {'User-Agent': 'siege_utilities/1.0 (Census/GIS data client)'}
@@ -243,8 +243,9 @@ def download_file(url: str, local_filename: FilePath,
     if retry_without_ssl:
         pending_error = None
         try:
+            # Known bandit B501 finding, suppressed here and tracked in #1754.
             with requests.get(url, stream=True, allow_redirects=True,
-                              timeout=timeout, verify=False,
+                              timeout=timeout, verify=False,  # nosec B501
                               headers=headers) as response:
                 if not response.ok:
                     raise ConnectionError(redact_url_secrets(

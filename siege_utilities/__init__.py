@@ -30,7 +30,7 @@ try:
     from importlib.metadata import version as _meta_version
     __version__ = _meta_version("siege-utilities")
 except (ImportError, ValueError, ModuleNotFoundError):
-    __version__ = "4.0.0"  # fallback for editable installs without metadata
+    __version__ = "4.1.0"  # fallback for editable installs without metadata
 __author__ = "Siege Analytics"
 __description__ = "Comprehensive utilities for data engineering, analytics, and distributed computing"
 

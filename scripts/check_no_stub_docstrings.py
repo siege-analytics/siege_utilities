@@ -31,13 +31,8 @@ _BAD_PHRASES = (
 # audience.
 _ROOTS = ("siege_utilities",)
 
-# Files exempt from the check:
-# - hygiene/generate_docstrings.py *creates* placeholder docstrings as
-#   a feature; its source quotes them as examples. Banning the strings
-#   inside this file would defeat its own job.
-_EXEMPT_FILES = frozenset({
-    "siege_utilities/hygiene/generate_docstrings.py",
-})
+# Generators must also stay free of rejected markers so their output passes CI.
+_EXEMPT_FILES = frozenset()
 
 # Per-file count cap: how many occurrences of each marker we tolerate
 # in a baselined file. Line-based baselines drifted on every commit

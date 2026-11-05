@@ -66,7 +66,8 @@ class IsochroneResult(TemporalBoundary):
             models.Index(fields=["computed_at"]),
         ]
 
-    def save(self, *args, **kwargs):
+    def prepare_for_bulk(self):
+        """Derive feature_id, boundary_id, source and name (also applied by ``save()``)."""
         if not self.feature_id:
             lat = self.origin_point.y
             lon = self.origin_point.x
@@ -77,7 +78,7 @@ class IsochroneResult(TemporalBoundary):
             self.source = self.provider
         if not self.name:
             self.name = f"{self.travel_minutes}min {self.profile} isochrone"
-        super().save(*args, **kwargs)
+        return super().prepare_for_bulk()
 
     def __str__(self):
         lat = self.origin_point.y if self.origin_point else "?"
