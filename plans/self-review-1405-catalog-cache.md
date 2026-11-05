@@ -20,7 +20,8 @@ Hostile-review-artifact: plans/hostile-review-1405-catalog-cache.md
 
 Reason: #1405 predates the canonical ticket template. Its body carries Problem, Evidence, Failure scenario, Done when and Falsifier sections, but not the canonical Assumptions section.
 Evidence: those sections live in https://github.com/siege-analytics/siege_utilities/issues/1405; the reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1405#issuecomment-6259568906.
-Falsification: revert the implementation; `tests/test_1405_census_catalog_cache_disk.py::test_clear_removes_only_the_named_entry` goes red because `clear('eits/resconst', None)` removes all 3 cached files, and `tests/test_1405_census_catalog_cache_disk.py::test_catalog_survives_disk_round_trip` goes red because `clear()` cannot see the nested entry and returns 0 instead of 1.
+Falsification: revert the implementation; `tests/test_1405_census_catalog_cache_disk.py::test_clear_removes_only_the_named_entry` goes red because `clear('eits/resconst', None)` does not remove exactly that one entry (on develop it returns 0 because the entry is nested out of sight; at the previous PR head `46f2447f` it removed all 3 files), and `tests/test_1405_census_catalog_cache_disk.py::test_catalog_survives_disk_round_trip` goes red because `clear()` cannot see the nested entry and returns 0 instead of 1.
+Verified 2026-11-05: with `siege_utilities/geo/census/catalog_cache.py` checked out from `origin/develop`, `pytest tests/test_1405_census_catalog_cache_disk.py -k "test_clear_removes_only_the_named_entry or test_catalog_survives_disk_round_trip"` -> 4 failed, 1 passed (`:70 assert 0 == 1` for the 3 round-trip cases; `:161 assert 0 == 1` for the yearless clear; the yearful clear case passes on develop); after `git checkout HEAD --` -> 5 passed, worktree clean.
 
 ## Assumptions
 
