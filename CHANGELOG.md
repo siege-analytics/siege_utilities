@@ -35,8 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Social media reports now raise `SocialMediaError` with the platform and
-  underlying cause when connector retrieval fails. Post counts, engagement
+- Social media reports now raise `SocialMediaError` naming the platform, the
+  failed operation and the error type when connector retrieval fails. The
+  connector's error text and cause are not included or chained, because they
+  can carry access tokens in request URLs or headers. Post counts, engagement
   charts, tables and insights describe the analyzed sample, with a configurable
   `posts_limit` that defaults to the most recent 50 posts per platform (#1469).
 

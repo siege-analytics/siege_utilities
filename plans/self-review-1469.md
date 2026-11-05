@@ -64,9 +64,37 @@ diffs in `scripts/check_social_review_fidelity.py`. This PR does not touch
 payload from complete fixture metrics; its contract is unchanged, so no
 notebook edit is needed.
 
+## Security: connector error text and causes (reviewer finding at 3cd937ba)
+Finding: `_collect_platform_data` wrapped connector failures as
+`SocialMediaError(f"...: {exc}") from exc`. A connector error carrying
+`?access_token=...` in a request URL exposed the token in `str(error)` and in
+the formatted traceback. The previous code swallowed the error, so this PR
+introduced the disclosure.
+
+Fix (0f301a56): `_retrieval_error(operation, platform, exc)` builds
+`Failed to get <operation> from <platform> (<ExceptionType>)` with no
+exception text, and each site raises it `from None`, so `__cause__` is None and
+`__suppress_context__` is True. URL redaction alone was not used, because it
+does not cover header or body tokens such as `Authorization: Bearer ...`.
+The error path has no logging call; the only log line names the platform.
+
+Tests: `test_1469_social_media_report_totals.py::test_connector_failure_raises_with_platform_and_category`
+(replaces the old `__cause__ is cause` contract) and
+`::test_connector_failure_never_exposes_secrets` (dummy secret in a URL and in
+a bearer header, for account info, insights and posts; asserts absence from
+str, repr, `traceback.format_exception` and caplog after `log.exception`).
+`test_social_media_reports_errors.py::test_collect_platform_data_raises_on_connector_failures`
+gets the same contract.
+
+Observed red/green (2026-11-05). Command:
+`git checkout db3eaa4d -- siege_utilities/reporting/social_media_reports.py && (cd tests && python -m pytest -o addopts="" -p no:cacheprovider --rootdir=.. -q test_1469_social_media_report_totals.py::test_connector_failure_raises_with_platform_and_category test_1469_social_media_report_totals.py::test_connector_failure_never_exposes_secrets test_social_media_reports_errors.py); git checkout HEAD -- siege_utilities/reporting/social_media_reports.py`
+- At `db3eaa4d`: 13 failed, 0 passed.
+- At the fix head: 13 passed. The wider selection (test_1469, report errors, smoke, runtime guard, sql safety) gave 150 passed. Exception contracts: 202 flagged / 0 unlisted / 0 stale. `check_secret_literals.py`: 0 violations.
+
 ## Rework ledger
 - a15ae436/5a0d8626: unknown counts rendered as 0. Fixed in aa501053 per the ruling.
 - The 4.1.0 Changed and Fixed notes are restored to CHANGELOG.md, and the Fixed note states the policy.
+- 3cd937ba/db3eaa4d: connector text and causes leaked into the error. Fixed in 0f301a56; the CHANGELOG Changed note is reworded.
 
 ## Findings
 The ruling is applied. Integration follow-ups for the second merger are listed in the Lead review.
