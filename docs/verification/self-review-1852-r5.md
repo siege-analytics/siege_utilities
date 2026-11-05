@@ -58,8 +58,10 @@ assertion or missing-raise on the ticket's behavior.
 
 Context only, not governing (no revert run): #1398 (parent epic); #1463
 (`SparkEngine.nearest`, landed on develop through #1793; the PR body calls its
-behavior existing baseline); #1749 (cited only for the CHANGELOG convention
-the PR body used); #1667 (named in the ticket-fitness review, but this PR's
+behavior existing baseline); #1749 (an open proposal for per-PR CHANGELOG
+fragments, not a ticket this PR implements; it was cited only for the
+body-only CHANGELOG convention, and the `[4.1.0]` notes are now in
+`CHANGELOG.md`); #1667 (named in the ticket-fitness review, but this PR's
 body, diff against develop and branch commits do not reference it).
 
 ## Test plan

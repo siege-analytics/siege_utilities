@@ -118,6 +118,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Documented behavior change: `DuckDBEngine.join` applies the coalesced
+  geometry-key CRS rule to GeoDataFrame inputs (resolving from the live
+  GeoSeries CRS), not only raw-WKB frames: conflicting known CRSes are rejected
+  in every mode, a right join carries the right side's CRS, and outer
+  known-vs-unknown is rejected. Previously a GeoDataFrame join bypassed the rule
+  and mislabelled the result (#1852).
+- Documented behavior change from v4.0.0: DuckDB `query` binds `parameters`
+  (or `params`) and rejects unknown keywords and parameterized multi-statement
+  SQL before execution. WKB materialization retains per-column CRS in pandas
+  attrs, including empty results; unknown CRS remains `None`. `read_spatial`
+  preserves file CRS and coordinates by default and reprojects only when a
+  target is requested, rejecting reprojection when the source CRS is unknown
+  (#1412).
+- Documented behavior change from v4.0.0: Pandas, DuckDB, and PostGIS
+  `to_geodataframe` preserve an existing GeoDataFrame's CRS when no target is
+  supplied. Base nearest, apportion, and dissolve retain projected inputs;
+  their new `crs` argument reprojects on request. Nearest distances and
+  apportion area shares use projected units, and geographic, unknown, or
+  mismatched measurement CRSes raise `ValueError`. WKT text retains default-CRS
+  normalization (#1497).
+- Documented behavior change from v4.0.0: Spark spatial joins and boundary
+  assignments keep one left geometry and suffix shared attributes with
+  `_left`/`_right`, matching the join invariant and nearest contract. Multi-layer
+  assignment prefixes polygon attributes before joining, preserves point names,
+  drops the generated right index, and keeps Spark frames native between layers
+  without collecting to the driver (#1479).
+- Documented behavior change: `DuckDBEngine.join` resolves a coalesced geometry
+  join key by source (the left frame's CRS for inner and left joins, the right
+  frame's for a right join), rejects two conflicting known CRSes before the
+  merge in every join mode with a `ValueError` naming both, and rejects a
+  known-vs-unknown key CRS for outer joins. None/None stays None and non-key
+  geometry keeps its own CRS under its suffix. CRS is compared semantically
+  (EPSG/WKT/PROJJSON/proj4 canonicalized). Previously mixed CRS was accepted and
+  the result mislabelled EPSG:4326 (#1852).
 - `SparkEngine.nearest` ranks candidates by a per-point row identity,
   preserving co-located points and points with no target within `max_distance`.
   Results keep one point geometry and expose `distance` and `index_right`
