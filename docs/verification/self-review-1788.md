@@ -49,5 +49,8 @@ Post-mortem applicability: N/A. This is a forward content fix, not a revert or r
 ## Quantified claims
 - "5 passed, 6 deselected" and "6 passed, 5 deselected in 133.04s" are the two pytest runs above.
 
+## Restoration note
+The three `docs/verification` documents for this PR were removed by commit ac74e3f9 and are restored from its parent, a326d9d0233ca28f0f43368e8c3436cda7e57d72. They were not restored byte for byte: they were rewritten to cover the whole PR at the current head, and internal session names, absolute local paths, client names and non-ASCII punctuation were removed so that nothing internal is published.
+
 ## Evidence-predates-work
 This artifact is committed in the PR branch at `docs/verification/self-review-1788.md`. The test results above were produced in the same work cycle that restored it, after the implementation commits.
