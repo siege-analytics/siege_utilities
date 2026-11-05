@@ -35,6 +35,23 @@ parent epic and context only. The exemption covers ticket structure only.
   duckdb 1.5.6 (under duckdb 1.4.4, 32 of its cases skip because they need
   CRS-qualified geometry types from duckdb 1.5). Falsification: as above, or a
   case skips under duckdb 1.5.
+- **#1463** (`SparkEngine.nearest` row identity; shared with #1846). Reason:
+  legacy Problem / Evidence shape, and this PR does not implement it: #1463
+  landed on develop through #1793, and the PR body describes its behavior as
+  existing baseline, not new work. Evidence: the PR body's #1463 paragraph and
+  the Spark nearest baseline row of its output-diff table. Falsification: this
+  PR's diff against develop changes the #1463 regression tests or claims to
+  close #1463.
+- **#1749** (proposal for per-PR CHANGELOG fragments). Reason: legacy shape;
+  #1749 is cited only for the CHANGELOG convention the PR body used, not for
+  implemented behavior. Evidence: the body's CHANGELOG paragraph. Falsification:
+  this PR adds `changelog.d/` tooling or claims to implement #1749.
+- **#1667** (geocoding notebook cache honesty). Reason: legacy shape. It is
+  listed for this PR in the ticket-fitness review, but this PR's body, its
+  diff against develop and its branch commit messages do not reference it
+  (checked at `3ab83dc8`), so no #1667 behavior is claimed here.
+  Falsification: this PR's diff touches the geocoding notebook or cache, or
+  the PR claims #1667.
 
 ## Test plan
 
