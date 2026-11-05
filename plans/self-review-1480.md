@@ -77,3 +77,7 @@ Governing ticket: #1480. The #1398 epic is context only.
 Reason: #1480 predates the canonical ticket template. Its body uses Problem / Evidence / Failure scenario / Done when / Assumptions / Falsifier instead of Context / Goal / Acceptance, and it links no /think design note.
 Evidence: https://github.com/siege-analytics/siege_utilities/issues/1480 states the swapped SLDL/SLDU mapping under "## Problem", the code citation under "## Evidence" (`geo/providers/redistricting_data_hub.py`), and the done-when criteria under "## Done when". The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1480#issuecomment-6259598610.
 Falsification: revert the implementation; `tests/test_1480_rdh_chamber_sldu_sldl.py::test_census_chamber_codes` goes red because `state_senate` again selects `va_sldl_2021_adopted_plan`, and `::test_provider_wraps_ambiguous_plan_in_boundary_fetch_error` goes red because an ambiguous plan escapes the provider as a bare `ValueError`.
+Falsification verified 2026-11-05 for `boundary_providers.py` and `redistricting_data_hub.py`:
+- From develop `dc7d3f76`, the two named tests gave 5 failed / 0 passed (2 chamber cases, 3 provider cases).
+- From the pre-F1 head `cee57289`, the 3 provider cases failed and the 2 chamber cases passed.
+- With both files restored from the PR head, the whole file gave 69 passed, and the worktree was clean.
