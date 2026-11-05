@@ -27,6 +27,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the #1408 entry under `[4.1.0]` and none under `[Unreleased]`.
 - Request a fresh exact-head review: the earlier result is void once the head moves, and the code diff is unchanged.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1408 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1408 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (the longitudinal aligner catching every crosswalk exception and silently falling back to areal interpolation), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1408, and in the PR description. The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1408#issuecomment-6257020991.
+- **Falsification:** revert the implementation (`siege_utilities/geo/timeseries/longitudinal_data.py` and the crosswalk client changes of this PR); `tests/test_longitudinal_aligner.py::TestAlign::test_crosswalk_error_propagates_without_areal` goes red because a crosswalk processing error is swallowed into an areal fallback instead of propagating. The latest commit of this PR is process-only; that existing regression test guards the accepted fix.
+
 ## Lead review
 
 The change is additive and reverts with one commit. No behavior change. No claim in this artifact exceeds what was observed.
