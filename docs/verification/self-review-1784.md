@@ -27,6 +27,14 @@ Project-contribution: keeps `docs/NOTEBOOKS.md` and the Spark notebook truthful 
 - Scope: documentation, notebook prose and the test file; no library code and no executable notebook cell changed beyond the import smoke cell that already existed.
 - Gate evidence: pytest -> 9 passed; the test file parses because pytest collected and ran it.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1664 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1664 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (the Spark notebook promising cluster-attached execution it cannot deliver, and the notebook guide claiming `spatial/06` runs an import smoke cell), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1664, and in the PR description. The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1664#issuecomment-6298384585.
+- **Falsification:** revert the implementation (the notebook guide and notebook edits of this PR); `tests/test_1664_spark_notebook_truth.py::test_notebooks_doc_marks_spatial_06_markdown_only` goes red because the guide again says an import smoke cell executes for `spatial/06`. The latest commit of this PR is process-only; that existing regression test guards the accepted fix.
+
 ## Lead review (adversarial)
 Phase A coherence: the reviewer findings (false `spatial/06` import-smoke claim, release-note placement, stale description) map to the corrected guide lines, the `[4.1.0]` entry and the refreshed description; no drift.
 Phase B verification: did it fix or move the problem? Fixed: the red-first tests prove the false claims fail, and the green run proves the corrected text passes while the legitimate `engines/02` import-smoke claim stays intact. The overlap with #1786 is documented as risk R1 in the pre-mortem.
