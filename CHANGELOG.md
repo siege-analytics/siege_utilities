@@ -139,6 +139,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   discarding content. `ContentPageTemplate.add_bullet_list` now renders each
   item as a wrapped, paginating flowable rather than a fixed-height canvas line
   that dropped items past the page bottom (#1485).
+- Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
+  DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
+  changes tokenizer byte offsets and prepared-statement result metadata; 2.0
+  adaptation is tracked separately (#1861, #1862).
+- The population-service resilience test for unpublished VTDs runs the
+  command with `--skip-checks`, so Django's `gis.W001` system-check warning on
+  runners with GDAL older than 3.9 no longer fails its empty-stderr assertion.
+  Control cases confirm the warning reaches stderr without the flag and that a
+  genuine command error still does with it (#1868).
 - `SparkEngine.nearest` ranks candidates by a per-point row identity,
   preserving co-located points and points with no target within `max_distance`.
   Results keep one point geometry and expose `distance` and `index_right`
