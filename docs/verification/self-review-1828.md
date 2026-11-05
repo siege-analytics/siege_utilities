@@ -50,5 +50,14 @@ Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11), merged
 - `python -m pytest tests/test_1449_msal_extra.py tests/test_package_metadata_contract.py tests/test_wheel_contents.py tests/test_connectors_errors.py tests/test_lazy_import_recovery.py tests/test_lazy_introspection_contracts.py tests/test_connectors_dynamics_errors.py tests/test_connector_filter_escaping.py tests/test_connector_identifiers.py tests/test_connector_upsert_sanitization.py tests/test_connector_record_sanitizer.py tests/test_smoke.py tests/test_runtime_guard.py tests/test_sql_safety.py tests/test_release_process.py tests/test_user_config_export_changelog.py --no-cov -rs` -> 455 passed, 2 skipped.
 - `git diff --stat origin/develop` -> the 4 PR files (98 insertions, 3 deletions).
 
+## Ticket-fitness exemption
+
+writing-rules:4 exemption for the governing ticket. The #1398 epic is context only.
+
+### #1449
+- **Reason:** #1449 predates the canonical ticket template. It uses Problem / Evidence / Failure scenario / Done when / Assumptions / Falsifier sections, so `evaluate-ticket.sh` does not accept it as written.
+- **Evidence:** the problem (no extra declares `msal`), the evidence (`## Evidence (v4.0.0) — CONFIRMED by trace`) and the done-when criteria live in the #1449 body. The PR #1828 body quotes the Done-when and Falsifier. No public reviewer verdict for this PR exists yet; the earlier local PASS on code is recorded by the coordinator, not on GitHub. Investigation, pre-mortem and Junior/Senior records are on the ticket at issuecomment-6651155668 and issuecomment-6651205395.
+- **Falsification:** revert the implementation (restore `pyproject.toml` and `siege_utilities/connectors/dynamics.py` from develop) and `tests/test_1449_msal_extra.py::test_msal_is_declared_in_an_extra_with_a_lower_bound` goes red with "msal is missing from every pyproject.toml extra". `test_dynamics_missing_dependency_names_crm_extra[MSAL_AVAILABLE]` goes red because the error no longer names `siege-utilities[crm]`. This was verified on 2026-11-05: all 5 tests fail against develop's files and pass again once they are restored.
+
 ## Rework ledger
 Empty.
