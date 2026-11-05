@@ -41,12 +41,45 @@ _CT_COUNTY_EQUIVALENTS = frozenset({
     "09190",
 })
 
+# Canonical levels whose GEOIDs embed the recoded CT county code.
+_CT_RECODED_LEVELS = frozenset({
+    "county", "tract", "block_group", "block", "tabblock20", "tabblock10",
+})
+
+
+def _is_ct_recode_exempt_level(geography_level: Optional[str]) -> bool:
+    """True only for a recognized level outside the CT county recode.
+
+    CT SLDU/SLDL GEOIDs are five digits and collide with the county codes, so
+    the level, not the GEOID shape, decides. An absent or unrecognized level
+    is not exempt and keeps the GEOID-shape check.
+    """
+    if not isinstance(geography_level, str):
+        return False
+
+    from siege_utilities.config.census_registry import resolve_geographic_level
+
+    try:
+        canonical = resolve_geographic_level(geography_level)
+    except ValueError:
+        return False
+    return canonical not in _CT_RECODED_LEVELS
+
 
 def _raise_for_ct_2022_crossing(
     geoids: Iterable[str], from_year: int, to_year: int,
+    geography_level: Optional[str] = None,
 ) -> None:
-    """Reject unsupported CT county/tract/block-group/block recode crossings."""
+    """Reject unsupported CT county/tract/block-group/block recode crossings.
+
+    A recognized ``geography_level`` outside those levels (for example
+    ``sldu`` or ``sldl``) is never checked. Without a level, a bare 5-digit CT
+    GEOID is read as a county.
+    """
     if not min(from_year, to_year) < 2022 <= max(from_year, to_year):
+        return
+
+    if _is_ct_recode_exempt_level(geography_level):
         return
 
     if any(

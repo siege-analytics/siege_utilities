@@ -116,3 +116,49 @@ def test_normalization_outside_ct_crossing_is_unchanged(
     assert result.keys() == yearly_data.keys()
     for year, frame in yearly_data.items():
         pd.testing.assert_frame_equal(result[year], frame)
+
+
+# CT SLDU/SLDL GEOIDs are five digits and collide with the county codes, but
+# legislative districts are not part of the county-to-planning-region recode.
+@pytest.mark.parametrize("geography", [
+    "sldu", "sldl", "SLDU", "state_legislative_upper", "state legislative lower",
+])
+@pytest.mark.parametrize("geoids", [
+    ["09001", "09009", "09015"],  # Collide with old county codes.
+    ["09110", "09120", "09130", "09140", "09150"],  # Collide with new codes.
+])
+@pytest.mark.parametrize("target_year", [2020, 2023])
+def test_normalization_ct_legislative_districts_pass(geography, geoids, target_year):
+    yearly_data = {2020: _frame(geoids), 2023: _frame(geoids)}
+
+    result = _normalize_boundaries_multi_year(
+        yearly_data, target_year, geography, "09",
+    )
+
+    assert result.keys() == yearly_data.keys()
+    for year, frame in yearly_data.items():
+        pd.testing.assert_frame_equal(result[year], frame)
+
+
+@pytest.mark.parametrize("geography,geoid", [
+    ("bg", "090010101001"),
+    ("blockgroup", "090010101001"),
+    ("tabblock", "090010101001001"),
+    ("tabblock20", "090010101001001"),
+    ("COUNTY", "09001"),
+    (" Tract ", "09001010100"),
+])
+def test_normalization_ct_recoded_level_aliases_raise(geography, geoid):
+    with pytest.raises(ValueError, match=CT_CROSSWALK_ERROR):
+        _normalize_boundaries_multi_year(
+            {2021: _frame([geoid]), 2022: _frame([geoid])}, 2020, geography, "09",
+        )
+
+
+@pytest.mark.parametrize("geography", ["not-a-level", "", None])
+def test_normalization_ct_unresolvable_level_fails_closed(geography):
+    # An unknown level falls back to the GEOID-shape check instead of skipping it.
+    with pytest.raises(ValueError, match=CT_CROSSWALK_ERROR):
+        _normalize_boundaries_multi_year(
+            {2021: _frame(["09001"]), 2022: _frame(["09110"])}, 2020, geography, "09",
+        )

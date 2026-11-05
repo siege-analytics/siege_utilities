@@ -251,10 +251,14 @@ def _normalize_boundaries_multi_year(
     Raises:
         ValueError: CT county-equivalent or descendant data would cross the
             unsupported 2022 planning-region recode to reach target_year.
+            Recognized levels outside that recode, such as SLDU/SLDL, are
+            not checked.
     """
     # Check before decennial-vintage equality can bypass normalization.
     for year, df in yearly_data.items():
-        _raise_for_ct_2022_crossing(df.get('GEOID', ()), year, target_year)
+        _raise_for_ct_2022_crossing(
+            df.get('GEOID', ()), year, target_year, geography_level,
+        )
 
     from ..crosswalk.crosswalk_processor import apply_crosswalk
 

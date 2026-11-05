@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   planning-region recode, including normalization to a target across 2022.
   The error names the required CT 2020->2022 crosswalk. Previously these queries
   could report unchanged lineage or merge incompatible GEOIDs silently (#1437).
+  Normalization checks only those levels, so CT SLDU/SLDL frames, whose 5-digit
+  GEOIDs collide with the county codes, pass unchanged. A nationwide frame at
+  an affected level that contains any CT row raises for the whole request.
 
 - New *file* names now get the same check as new directory names. The
   `siege_utilities.files` helpers that create a file refuse a name containing
