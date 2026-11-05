@@ -21,6 +21,7 @@ Hostile-review-artifact: plans/hostile-review-1404-client-errors.md
 Reason: #1404 predates the canonical ticket template. Its body carries Problem, Failure scenarios, Done when, Assumptions and Falsifier sections, but not the canonical Evidence section.
 Evidence: those sections live in https://github.com/siege-analytics/siege_utilities/issues/1404, with the owner scope addition at https://github.com/siege-analytics/siege_utilities/issues/1404#issuecomment-6133684640; the reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1404#issuecomment-6259574607.
 Falsification: revert the implementation; `tests/test_1404_census_dual_source_fallback.py::test_server_error_falls_back` goes red because an HTTP 503 never reaches the bulk source, and `tests/test_1404_census_dual_source_fallback.py::test_client_error_does_not_fall_back` goes red because a 404 makes 5 calls with sleeps `[1, 2, 4, 8]`.
+Verified 2026-11-05: with `siege_utilities/geo/census/api.py` and `siege_utilities/geo/census/dual_source.py` checked out from `origin/develop` (keeping `census_api_client.py` so the module imports), `pytest tests/test_1404_census_dual_source_fallback.py -k "test_server_error_falls_back or test_client_error_does_not_fall_back"` -> 9 failed (408/500/503/599 raise `CensusAPIError` at `api.py:264` with no bulk fallback; 400/401/403/404/422 `assert 5 == 1` calls); after `git checkout HEAD --` -> 9 passed, worktree clean.
 
 ## Assumptions
 
