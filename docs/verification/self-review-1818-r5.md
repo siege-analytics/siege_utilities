@@ -74,7 +74,19 @@ so the fallback assertions keep running regardless of the lane's version.
   ticket structure only.
   Node: `tests/test_1414_spatial_transformations_writes.py::test_row_returning_queries_return_rows[cte-postgis]`
   (and `test_duckdb_existing_table_survives_upload[append]`).
-  Observed revert run (2026-11-05, Python 3.11.11): #1414 was implemented in
+  At-head control (the falsifier; observed 2026-11-05 at `3ef0a621`, Python
+  3.11.11, current tests): reversed only
+  `siege_utilities/geo/spatial_transformations.py:667` from
+  `if cursor.description is not None:` to the pre-fix
+  `if query.strip().upper().startswith("SELECT"):`, ran
+  `python -m pytest -o addopts="" --rootdir=.. -c ../pyproject.toml -p no:cacheprovider -q -p no:randomly test_1414_spatial_transformations_writes.py -k "test_row_returning_queries_return_rows and postgis"`
+  from `tests/`: 2 failed (`[cte-postgis]`, `[returning-postgis]`), each
+  `TypeError: 'int' object is not subscriptable` at the test's `result["id"]`
+  (test line 129; the connector returns a rowcount instead of the rows).
+  Restored with `git checkout HEAD -- siege_utilities/geo/spatial_transformations.py`:
+  2 passed; `git status --short` empty. These cases mock the PostGIS cursor,
+  so they need no live database.
+  Historical revert run (context, not the falsifier; 2026-11-05, Python 3.11.11): #1414 was implemented in
   `b0cf3429` (its tests landed first in `db81d776`). The revert is taken at
   the point it landed: the tree of `b0cf3429^` (`git archive b0cf3429^`) with
   `tests/test_1414_spatial_transformations_writes.py` from `b0cf3429`
