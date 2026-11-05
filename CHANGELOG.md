@@ -300,6 +300,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list names `COUSUB` and `ADDRFEAT` and drops the non-existent `COUNTYSUB`,
   `SDELM`, `SDSEC` and `SDUNI`. An opt-in `-m integration` test HEADs one
   built URL per catalog type for 2010, 2019 and 2023 (#1464).
+- (Security) **Documented behavior change from v4.0.0:** config exports with
+  `exclude_sensitive=True` redact fields whose internal name or any Pydantic
+  alias names a credential, including validation/serialization aliases,
+  `AliasChoices`, and string components of `AliasPath`. The field-marker CI
+  guard uses the same classification. Credential names in UTF-8 bytes or
+  bytearray dictionary keys are now recognized; undecodable bytes and other
+  non-string keys fail closed, except for numeric and `None` keys. In a
+  sensitive position a value is kept only when it is `None`, an exact-type
+  empty `str`/`bytes`/`list`/`dict`/`tuple`/`set`/`frozenset`, an exact-type
+  zero `bool`/`int`/`float`, or an exact `SecretStr`/`SecretBytes` wrapping an
+  exact-type empty payload; subclasses and every other value are redacted, so
+  falsey containers and objects no longer leak. Key representations,
+  field-marker policies, and non-redacted exports are unchanged (#1460).
 
 ### BREAKING
 
