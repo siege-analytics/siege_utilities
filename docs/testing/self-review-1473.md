@@ -26,6 +26,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the #1473 entry under `[4.1.0]` Fixed exactly once.
 - Request a fresh exact-head review: any earlier result is void once the head moves, and the code diff against develop is unchanged.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1473 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1473 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (S2 cell IDs above INT64_MAX stored as signed values with unsigned range bounds, losing region-query matches), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1473, and in the PR description, https://github.com/siege-analytics/siege_utilities/pull/1802. The reviewer verdicts are recorded on the ticket thread and the PR conversation.
+- **Falsification:** revert the implementation (the `s2_utils.py` and `grids.py` changes of this PR); `tests/test_1473_s2_signed.py::test_kansas_signed_round_trip_without_s2sphere` goes red with `AttributeError` for the missing `s2_cell_id_to_int64`. The latest commit of this PR is process-only; that existing regression test guards the accepted fix.
+
 ## Lead review
 
 The change is additive and reverts with one commit. No behavior change. No claim in this artifact exceeds what was observed.
