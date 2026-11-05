@@ -87,7 +87,7 @@ def assert_bulk_result(result, provenance, client):
     client.secondary.fetch.assert_called_once_with(**REQUEST)
 
 
-@pytest.mark.parametrize("status", [500, 503, 599])
+@pytest.mark.parametrize("status", [408, 500, 503, 599])
 def test_server_error_falls_back(client, fake_clock, monkeypatch, status):
     get = Mock(return_value=http_response(status))
     monkeypatch.setattr("requests.get", get)
@@ -185,13 +185,18 @@ def test_transport_error_falls_back(client, fake_clock, monkeypatch, error):
 
 @pytest.mark.parametrize("status", [400, 401, 403, 404, 422])
 def test_client_error_does_not_fall_back(client, fake_clock, monkeypatch, status):
-    monkeypatch.setattr("requests.get", Mock(return_value=http_response(status)))
+    get = Mock(return_value=http_response(status))
+    monkeypatch.setattr("requests.get", get)
 
     with pytest.raises(CensusAPIError) as raised:
         client.fetch(**{**REQUEST, "variables": ["B01001_999E"]})
 
     assert type(raised.value) is CensusAPIError
+    assert str(status) in str(raised.value)
     client.secondary.fetch.assert_not_called()
+    # A permanent client error is not retried: one call, no backoff.
+    assert get.call_count == 1
+    assert fake_clock == []
 
 
 @pytest.mark.parametrize("source_budget", [None, 1, 7])

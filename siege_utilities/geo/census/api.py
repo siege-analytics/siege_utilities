@@ -254,15 +254,22 @@ class CensusAPI:
                     )
                 elif isinstance(e, requests.exceptions.RequestException):
                     log.warning(redact_url_secrets(f"Request failed: {e}"))
+                    # 408 is a server-side request timeout: treat it like a
+                    # transport timeout so it retries and can fall back.
                     is_server_error = isinstance(e, requests.exceptions.ConnectionError) or (
                         isinstance(e, requests.exceptions.HTTPError)
                         and e.response is not None
-                        and 500 <= e.response.status_code < 600
+                        and (500 <= e.response.status_code < 600 or e.response.status_code == 408)
                     )
                     error_type = CensusServerError if is_server_error else CensusAPIError
                     last_exception = error_type(
                         redact_url_secrets(f"Census API request failed: {e}")
                     )
+                    # Other 4xx (429 is handled above) are permanent client
+                    # errors: retrying cannot change the answer.
+                    status = getattr(getattr(e, "response", None), "status_code", None)
+                    if not is_server_error and status is not None and 400 <= status < 500:
+                        break
                 elif isinstance(e, ValueError):
                     log.error(redact_url_secrets(f"Failed to parse API response: {e}"))
                     last_exception = CensusAPIError(redact_url_secrets(f"Invalid API response: {e}"))

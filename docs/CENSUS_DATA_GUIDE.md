@@ -890,9 +890,11 @@ frame, provenance = client.fetch(
 ```
 
 The default policy falls back on `CensusRateLimitError`, timeouts, and
-`CensusServerError` (HTTP 5xx, connection/DNS failures, and exhausted transport
-timeouts). Other primary errors, including HTTP 400 bad-variable requests,
-propagate as `CensusAPIError` without fallback. `CensusServerError` is a subclass
+`CensusServerError` (HTTP 5xx, HTTP 408, connection/DNS failures, and exhausted
+transport timeouts). Other primary errors, including HTTP 400 bad-variable
+requests, propagate as `CensusAPIError` without fallback. Those permanent 4xx
+errors are not retried: they raise after a single request with no sleep.
+`CensusServerError` is a subclass
 of `CensusAPIError` and is available from `siege_utilities.geo`.
 
 For `ApiSource`, `CensusAPI` owns retries: the dual-source client calls it once,
