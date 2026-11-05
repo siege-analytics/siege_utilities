@@ -14,6 +14,14 @@ Investigate-artifact: https://github.com/siege-analytics/siege_utilities/issues/
 Pre-mortem-artifact: https://github.com/siege-analytics/siege_utilities/issues/1404#issuecomment-6651536041
 Hostile-review-artifact: plans/hostile-review-1404-client-errors.md
 
+## Ticket-fitness exemption
+
+### #1404
+
+Reason: #1404 predates the canonical ticket template. Its body carries Problem, Failure scenarios, Done when, Assumptions and Falsifier sections, but not the canonical Evidence section.
+Evidence: those sections live in https://github.com/siege-analytics/siege_utilities/issues/1404, with the owner scope addition at https://github.com/siege-analytics/siege_utilities/issues/1404#issuecomment-6133684640; the reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1404#issuecomment-6259574607.
+Falsification: revert the implementation; `tests/test_1404_census_dual_source_fallback.py::test_server_error_falls_back` goes red because an HTTP 503 never reaches the bulk source, and `tests/test_1404_census_dual_source_fallback.py::test_client_error_does_not_fall_back` goes red because a 404 makes 5 calls with sleeps `[1, 2, 4, 8]`.
+
 ## Assumptions
 
 1. A 4xx other than 408 and 429 is permanent for the same request; retrying cannot change the answer.
