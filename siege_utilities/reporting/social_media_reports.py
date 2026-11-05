@@ -32,7 +32,14 @@ def _known_sum(values) -> Any:
 
 
 def _format_metric(value: Any, spec: str = ",") -> str:
-    return format(value, spec) if pd.notna(value) else "unavailable"
+    if not pd.notna(value):
+        return "unavailable"
+    # A count column that also holds a missing value is float, so a known
+    # count of 7 arrives as 7.0; render integral values as integers unless
+    # the caller asked for an explicit precision.
+    if "." not in spec and isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return format(value, spec)
 
 
 class SocialMediaReportGenerator:

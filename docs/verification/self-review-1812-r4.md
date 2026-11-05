@@ -44,6 +44,17 @@ below.
   (`datetime64[ns, UTC]` on 2.3.3, `datetime64[s, UTC]` on 3.1.0).
 - A pre-existing mid-file `import numbers` (ruff E402) moved to the top.
 
+## Known integer counts render as integers
+
+The None-not-0 fix makes a count column float once any post omits the
+count, so a known 7 likes rendered `7.0` (and 1234 followers `1,234.0`).
+`_format_metric` now renders an integral float as an integer when the
+format spec has no precision; fractional values (`7.5`), explicit-precision
+specs (the `,.0f` average) and missing values (`unavailable`) are unchanged.
+`tests/test_1812_integral_count_rendering.py`: 3 failed / 6 passed at
+`54cb4348` (`'7.0' != '7'`, `['7.0', '1.0'] != ['7', '1']`,
+`'1,234.0' != '1,234'`), 9 passed with the change.
+
 ## Focused verification of the cumulative wait budget
 
 `tests/test_1812_wait_budget_grid.py` enumerates every sequence of three
@@ -100,23 +111,38 @@ separate work on this PR.
 
 ## Ticket-fitness exemption
 
-#1458, #1465 and #1474 were written before the current evaluate-ticket
-structure (Problem / Evidence / Done-when headings). #1398 is the parent epic
-and context only. The exemption covers ticket structure only.
+The governing tickets #1458, #1465 and #1474 were written before the current
+evaluate-ticket structure (Problem / Evidence / Done-when headings), which is
+the Reason for each exemption; it covers ticket structure only. #1398 is the
+parent epic and context only.
 
-- **#1458** (Instagram connector). Reason: legacy shape. Evidence:
-  `tests/test_analytics_instagram_errors.py`, `tests/test_social_review_blockers.py`,
-  `tests/test_1812_cumulative_wait_budget.py` and
-  `tests/test_social_connectors_cluster.py` pass in the run below.
-  Falsification: a #1458 Done-when item has no mapped test in the PR body, or
-  a mapped test fails at the head.
-- **#1465** (X connector). Reason: legacy shape. Evidence:
-  `tests/test_analytics_x_twitter_errors.py` and the X cases of the suites
-  above pass in the run below. Falsification: as above.
-- **#1474** (Graph insight defaults). Reason: legacy shape. Evidence:
-  `tests/test_facebook_business_connector.py` and
-  `tests/test_social_connectors_cluster.py` pass in the run below (one
-  credential-gated case skips). Falsification: as above.
+Revert run (observed 2026-11-05, Python 3.11.11). The three tickets were
+implemented together in `4eebecbd` and `6991a852`, with one regression file,
+`tests/test_social_connectors_cluster.py`, so the revert removes the shared
+implementation of all three at once: the tree of `4eebecbd^`
+(`git archive 4eebecbd^`) with that test file from `6991a852` overlaid, run
+from its `tests/` directory with
+`python -m pytest -o addopts="" --rootdir=.. -c ../pyproject.toml -p no:cacheprovider -q -p no:randomly test_social_connectors_cluster.py`.
+Result: 94 failed / 16 passed. Each entry names a node whose failure is that
+ticket's own behavior. Head: the file is 113 passed.
+
+- **#1458** (Instagram connector: missing metrics, throttling, token expiry).
+  Node: `tests/test_social_connectors_cluster.py::test_instagram_missing_account_metric_is_not_zero`.
+  In the revert run it fails with `assert False` (a missing account metric is
+  reported as a number). Head: passes.
+- **#1465** (X connector: user-id validation, page sizes, insight merge).
+  Node: `tests/test_social_connectors_cluster.py::test_x_nonexistent_user_id_fails_authentication`.
+  In the revert run two cases fail with
+  `DID NOT RAISE SocialMediaAuthError` and one with
+  `AttributeError: 'NoneType' object has no attribute 'get'` (a nonexistent
+  user id authenticates). Head: passes.
+- **#1474** (Graph insight defaults). Node:
+  `tests/test_social_connectors_cluster.py::test_instagram_defaults_use_current_metrics`
+  (and `test_facebook_page_defaults_and_metric_parameter`). In the revert run
+  the Instagram account, post and story cases fail with
+  `AssertionError: assert not ({... 'impressions' ...} & {...retired metrics...})`
+  (retired metrics are still the defaults), and the Facebook cases fail with
+  the same retired-metric overlap and `KeyError: 'metric'`. Head: passes.
 
 ## Test plan
 

@@ -147,8 +147,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Social reports render missing platform metrics as `unavailable`. Totals sum
   known values and remain unknown when none are available. Comparisons, post
   rankings and chart data handle null values without replacing them with zero.
-  The X connector-to-report fixture covers an empty `public_metrics` object
-  (#1812).
+  Known integer counts still render as integers (`7`, not `7.0`) when other
+  values in the same column are missing. The X connector-to-report fixture
+  covers an empty `public_metrics` object (#1812).
 - Graph insight defaults use supported metrics: daily Instagram account
   insights use `reach` and `follower_count`; media use `views` and
   `total_interactions`; stories use `navigation` and accept caller overrides.
