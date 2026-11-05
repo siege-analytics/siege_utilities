@@ -22,7 +22,45 @@ The governing tickets #1479, #1497 and #1412 were written before the current
 evaluate-ticket structure (Problem / Evidence / Done-when headings), which is
 the Reason for each exemption; it covers ticket structure only.
 
-Revert runs (observed 2026-11-05, Python 3.11.11, duckdb 1.5.6 for #1412).
+The falsifier for each ticket is the at-head control below. The pre-fix-tree
+runs that follow are historical context: they show each defect existed before
+its fix, not that the current code still depends on it.
+
+At-head controls (observed 2026-11-05 at `c157abff`, Python 3.11.11, duckdb
+1.5.6, current tests). For each ticket, only its surviving implementation
+lines were reversed by hand, the named node was run from `tests/` with
+`python -m pytest -o addopts="" --rootdir=.. -c ../pyproject.toml -p no:cacheprovider -q -p no:randomly <file> -k <node>`,
+the file was restored with `git checkout HEAD -- <file>`, the node was run
+again, and `git status --short` was empty.
+
+- **#1412.** Removed
+  `result.attrs[_GEOMETRY_CRS_ATTR] = {...}` from `_materialize_geometry_wkb`
+  (`siege_utilities/engines/dataframe_engine.py:1511`). Node
+  `tests/test_1412_duckdb_query_wkb_crs.py::test_typed_wkb_preserves_crs`:
+  6 failed, each `AttributeError: 'NoneType' object has no attribute 'to_epsg'`
+  at the test's assertion `result.crs.to_epsg() == 3857` (the typed CRS is
+  lost). Restored: 6 passed.
+- **#1479.** In `_spatial_join_projection`
+  (`siege_utilities/engines/dataframe_engine.py:1979-1987`), replaced the
+  `_left`/`_right` suffix mapping with plain names and removed its
+  duplicate-name guard (with the guard alone left in place the run would stop
+  on the guard's `ValueError` instead of showing the collision). Node
+  `tests/test_1479_spark_join_collisions.py::test_spark_join_has_one_geometry_and_suffixes[spatial_join]`:
+  1 failed, `AssertionError: assert 6 == 4` at
+  `len(result.columns) == len(set(result.columns))` (duplicate `GEOID` and
+  `name` columns). Restored: 1 passed.
+- **#1497.** In base `nearest`
+  (`siege_utilities/engines/dataframe_engine.py:707-709`), replaced
+  `to_geodataframe(..., crs=crs)` plus `_require_projected_crs(...)` with the
+  pre-fix `to_geodataframe(..., crs=crs or "EPSG:4326")` and no projected check
+  (the check alone would raise its `ValueError` before the distance assertion).
+  Node
+  `tests/test_1497_engine_crs_preservation.py::test_nearest_preserves_metres_and_crs`:
+  3 failed (`[pandas]`, `[duckdb]`, `[postgis]`), each
+  `assert [0.004785668397299115] == approx([500 ± 5.0e-04])` (distance in
+  degrees, not metres). Restored: 3 passed.
+
+Historical revert runs (observed 2026-11-05, Python 3.11.11, duckdb 1.5.6 for #1412).
 Each ticket landed in one implementation commit. The revert is taken at the
 point it landed: the tree of `<impl>^` (`git archive <impl>^`) with the
 ticket's own test file from `<impl>` overlaid, run with
