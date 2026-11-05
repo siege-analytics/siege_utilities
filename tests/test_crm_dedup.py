@@ -11,8 +11,9 @@ from siege_utilities.identifiers.uuid_generation import uuid5_from_seed
 
 OUTPUT_COLUMNS = [
     "canonical_id", "normalized_name", "source_system", "source_id",
-    "match_confidence",
+    "match_confidence", "name_candidate_id",
 ]
+LEGACY_NAME_ID = str(uuid5_from_seed(CRM_NAMESPACE, "maria garcia"))
 
 
 def _contact(source_id, **overrides):
@@ -74,7 +75,7 @@ def test_same_name_and_normalized_email_match_with_full_confidence():
     assert result.loc["name-only", "match_confidence"] == 0.5
 
 
-def test_name_only_match_preserves_legacy_id_with_lower_confidence():
+def test_name_only_match_is_review_candidate_with_legacy_key():
     frames = [
         pd.DataFrame([_contact("a")]),
         pd.DataFrame([_contact("b", source_system="crm_b")]),
@@ -82,7 +83,10 @@ def test_name_only_match_preserves_legacy_id_with_lower_confidence():
 
     result = crm_dedup_pipeline(frames)
 
-    assert result["canonical_id"].eq(str(uuid5_from_seed(CRM_NAMESPACE, "maria garcia"))).all()
+    assert result["canonical_id"].nunique() == 2
+    assert not result["canonical_id"].eq(LEGACY_NAME_ID).any()
+    # Merge tables persisted by earlier versions join on the legacy key.
+    assert result["name_candidate_id"].eq(LEGACY_NAME_ID).all()
     assert result["match_confidence"].eq(0.5).all()
 
 
@@ -116,12 +120,14 @@ def test_missing_name_part_is_not_converted_to_text(missing_name):
 
 
 @pytest.mark.parametrize("missing_identifier", [None, "", " \t", float("nan"), pd.NA])
-def test_missing_identifier_value_uses_name_only_fallback(missing_identifier):
+def test_missing_identifier_value_falls_back_to_source_record_identity(missing_identifier):
     frame = pd.DataFrame([_contact("a", email=missing_identifier)])
 
     result = crm_dedup_pipeline([frame])
 
-    assert result["canonical_id"].tolist() == [str(uuid5_from_seed(CRM_NAMESPACE, "maria garcia"))]
+    record_seed = '["source_record", "crm_a", "a"]'
+    assert result["canonical_id"].tolist() == [str(uuid5_from_seed(CRM_NAMESPACE, record_seed))]
+    assert result["name_candidate_id"].tolist() == [LEGACY_NAME_ID]
     assert result["match_confidence"].tolist() == [0.5]
 
 
@@ -139,15 +145,16 @@ def test_custom_identifier_columns_replace_default_email():
     assert result["match_confidence"].eq(1.0).all()
 
 
-def test_empty_identifier_columns_explicitly_selects_name_only_matching():
+def test_empty_identifier_columns_disables_identifier_merging():
     frame = pd.DataFrame([
-        _contact("a", email="a@example.com"),
-        _contact("b", email="b@example.com"),
+        _contact("a", email="same@example.com"),
+        _contact("b", email="same@example.com"),
     ])
 
     result = crm_dedup_pipeline([frame], identifier_columns=[])
 
-    assert result["canonical_id"].eq(str(uuid5_from_seed(CRM_NAMESPACE, "maria garcia"))).all()
+    assert result["canonical_id"].nunique() == 2
+    assert result["name_candidate_id"].eq(LEGACY_NAME_ID).all()
     assert result["match_confidence"].eq(0.5).all()
 
 
@@ -186,7 +193,9 @@ def test_custom_source_columns_are_required_and_preserved():
     result = crm_dedup_pipeline([invalid, frame], source_system_column="crm", source_id_column="record_id")
 
     assert result["record_id"].tolist() == ["a"]
-    assert list(result.columns) == ["canonical_id", "normalized_name", "crm", "record_id", "match_confidence"]
+    assert list(result.columns) == [
+        "canonical_id", "normalized_name", "crm", "record_id", "match_confidence", "name_candidate_id",
+    ]
 
 
 @pytest.mark.parametrize("frames", [[], [pd.DataFrame()], [pd.DataFrame([_contact("a", first_name="", last_name="")])]])
@@ -225,9 +234,9 @@ def test_textual_null_filter_matches_only_whole_normalized_tokens(identifier, co
     result = crm_dedup_pipeline([frame], identifier_columns=["member_id"])
 
     assert result["match_confidence"].eq(confidence).all()
-    assert result["canonical_id"].nunique() == 1
-    if confidence == 0.5:
-        assert result["canonical_id"].eq(str(uuid5_from_seed(CRM_NAMESPACE, "maria garcia"))).all()
+    # Textual nulls are not corroboration, so those namesakes stay unmerged.
+    assert result["canonical_id"].nunique() == (2 if confidence == 0.5 else 1)
+    assert result["name_candidate_id"].eq(LEGACY_NAME_ID).all()
 
 
 def test_textual_null_does_not_change_a_valid_identifier_match():
@@ -274,5 +283,93 @@ def test_surname_only_rows_are_weaker_than_full_name_candidates():
         _contact("d", source_system="crm_b"),
     ])
     r = crm_dedup_pipeline([frame]).set_index("source_id")
-    grouped = r.loc["a", "canonical_id"] == r.loc["b", "canonical_id"]
-    assert (not grouped) or r.loc["a", "match_confidence"] < r.loc["c", "match_confidence"]
+
+    assert r["canonical_id"].nunique() == 4
+    assert r.loc["a", "name_candidate_id"] == r.loc["b", "name_candidate_id"]
+    assert r.loc["a", "match_confidence"] < r.loc["c", "match_confidence"]
+
+
+@pytest.mark.parametrize("identifier_columns", [None, []])
+def test_uncorroborated_namesakes_stay_distinct_final_entities(identifier_columns):
+    frames = [
+        pd.DataFrame([_contact("a")]),
+        pd.DataFrame([_contact("b", source_system="crm_b")]),
+    ]
+
+    result = crm_dedup_pipeline(frames, identifier_columns=identifier_columns)
+    groups = result.groupby("canonical_id")["source_id"].apply(sorted).tolist()
+
+    # A consumer grouping by canonical_id must not coalesce the namesakes.
+    assert sorted(groups) == [["a"], ["b"]]
+    # The name match survives only as a review-only candidate key.
+    assert result["name_candidate_id"].eq(LEGACY_NAME_ID).all()
+    assert result["match_confidence"].eq(0.5).all()
+
+
+@pytest.mark.parametrize("missing_key", [None, float("nan"), pd.NA, "", " \t"])
+def test_uncorroborated_rows_with_missing_source_key_stay_distinct(missing_key):
+    frame = pd.DataFrame([
+        _contact(missing_key),
+        _contact(missing_key),
+        _contact("a", source_system=missing_key),
+    ])
+
+    result = crm_dedup_pipeline([frame])
+    rerun = crm_dedup_pipeline([frame])
+
+    assert result["canonical_id"].nunique() == 3
+    assert result["name_candidate_id"].eq(LEGACY_NAME_ID).all()
+    # Deterministic for identical input.
+    assert sorted(result["canonical_id"]) == sorted(rerun["canonical_id"])
+
+
+def test_missing_source_key_rows_with_duplicate_index_labels_stay_distinct():
+    first = pd.DataFrame([_contact(None)])
+    second = pd.DataFrame([_contact(None, first_name="John", last_name="Smith")])
+    # concat without ignore_index repeats label 0.
+    frame = pd.concat([first, second])
+
+    result = crm_dedup_pipeline([frame])
+
+    assert frame.index.tolist() == [0, 0]
+    assert result["canonical_id"].nunique() == 2
+
+
+def test_corroborated_match_and_uncorroborated_namesake_share_only_candidate_key():
+    frame = pd.DataFrame([
+        _contact("a", email="maria@example.com"),
+        _contact("b", source_system="crm_b", email="maria@example.com"),
+        _contact("c", source_system="crm_c"),
+    ])
+
+    r = crm_dedup_pipeline([frame]).set_index("source_id")
+
+    assert r.loc["a", "canonical_id"] == r.loc["b", "canonical_id"]
+    assert r.loc["c", "canonical_id"] != r.loc["a", "canonical_id"]
+    assert r["name_candidate_id"].eq(LEGACY_NAME_ID).all()
+
+
+def test_repeated_uncorroborated_source_record_keeps_one_identity():
+    frames = [pd.DataFrame([_contact("a")]), pd.DataFrame([_contact("a")])]
+
+    result = crm_dedup_pipeline(frames)
+
+    assert result["canonical_id"].nunique() == 1
+
+
+def test_log_reports_unmerged_review_candidate_groups(caplog):
+    frame = pd.DataFrame([
+        _contact("a"),
+        _contact("b", source_system="crm_b"),
+        _contact("c", first_name="Ana", email="ana@example.com"),
+        _contact("d", first_name="Ana", source_system="crm_b", email="ana@example.com"),
+        _contact("a"),
+    ])
+
+    with caplog.at_level(logging.INFO, logger="siege_utilities.connectors._dedup"):
+        crm_dedup_pipeline([frame])
+
+    # The repeated source row "a" is not an identifier-corroborated match.
+    assert "5 records → 3 canonical IDs" in caplog.text
+    assert "2 records in identifier-corroborated matches" in caplog.text
+    assert "1 name candidate groups left unmerged for review" in caplog.text

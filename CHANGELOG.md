@@ -9,16 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- CRM deduplication now skips entire frames missing a required source column
-  and ignores null name parts. Canonical IDs include normalized strong
-  identifiers (`identifier_columns`, default `["email"]`), so namesakes with
-  different emails remain distinct. Identifier-aware IDs change from the
-  previous name-only IDs; callers persisting merge tables should regenerate
-  them. Name-only matching retains its previous IDs with confidence `0.5`
-  for full names and `0.25` when any configured name part is missing, including
-  surname-only rows; full confidence requires identifier evidence. Textual
-  null identifiers (`nan`, `none`, `null`, `<na>`, `nat`) are ignored after
-  stripping and casefolding, matching whole tokens only (#1416).
 - Correct the geocoding notebook's cache-hit claim: the timed cell scans
   already-collected results in memory to select matched input IDs. Add a
   narrative regression test and offline execution coverage for the geo notebook
@@ -128,6 +118,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `crm_dedup_pipeline` no longer merges people by name alone. Records share a
+  `canonical_id` only when the normalized name and every available strong
+  identifier (`identifier_columns`, default `["email"]`, stripped and
+  lowercased) agree, so namesakes with different or missing emails stay
+  distinct. A record without a corroborating identifier gets a canonical ID
+  seeded from its own `source_system` and `source_id` (frame position and row
+  label when either is null or blank). Name matches without identifier
+  evidence appear only in the new review-only `name_candidate_id` column, with
+  `match_confidence` `0.5` for full names and `0.25` when any configured name
+  part is missing; `1.0` requires identifier evidence. Textual null
+  identifiers (`nan`, `none`, `null`, `<na>`, `nat`) are not corroboration.
+  Frames missing a required source column are skipped whole, and null name
+  parts no longer become text (#1416).
+  **Migration:** all canonical IDs differ from 4.0.0, so regenerate persisted
+  merge tables. `name_candidate_id` equals the 4.0.0 name-only
+  `canonical_id`, so it can join old tables during migration; never merge on
+  it without review. `identifier_columns=[]` now disables identifier merging
+  instead of selecting name-only merging.
 - `SparkEngine.nearest` ranks candidates by a per-point row identity,
   preserving co-located points and points with no target within `max_distance`.
   Results keep one point geometry and expose `distance` and `index_right`
