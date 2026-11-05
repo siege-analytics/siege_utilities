@@ -502,13 +502,17 @@ class PostGISConnector:
 
         Args:
             table_name: Source table name
-            crs: Optional output CRS. Omit to preserve the native SRID when
-                available; otherwise use the configured default CRS.
+            crs: Optional output CRS. Omit to keep the table's source SRID;
+                there is no reprojection to a default, so a table without an
+                SRID reads with CRS ``None``. Pass crs to reproject a known
+                source; a source without an SRID is labelled with crs, with a
+                warning, without reprojection.
             **kwargs: Additional parameters. Accepts ``geom_col``
                 (default ``'geom'``) to specify the geometry column name.
 
         Returns:
-            GeoDataFrame with spatial data.
+            GeoDataFrame with spatial data, in the source CRS unless crs is
+            given.
 
         Raises:
             SpatialQueryError: If the connection is unavailable or the
@@ -1086,9 +1090,15 @@ class DuckDBConnector:
         Row-returning statements, including CTEs and DML with RETURNING,
         produce a GeoDataFrame (without active geometry for tabular results).
         Other statements return an affected-row count, or -1 if unavailable.
-        Mutating calls own a transaction through result validation. They require
-        a connection without an active transaction; nested transactions are
-        unsupported by DuckDB. SELECT calls do not finalize transactions.
+        On an autocommit connection, a mutating call runs in a connector-owned
+        transaction that commits after the result is decoded and rolls back on
+        any error, so a failed multi-statement write leaves nothing behind.
+        When the caller has an active transaction, mutating calls join it: the
+        connector issues no BEGIN, COMMIT or ROLLBACK, and the caller decides
+        whether to commit. SELECT calls do not finalize transactions, and a
+        standalone transaction-control statement runs as written. A batch that
+        mixes a transaction-control statement with other statements is
+        rejected before anything runs.
         WKT results assume EPSG:4326, matching develop. Pass crs to reproject.
         Use download_spatial_data to attach a named table's stored CRS.
 

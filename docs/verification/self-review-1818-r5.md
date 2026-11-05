@@ -114,3 +114,7 @@ so the fallback assertions keep running regardless of the lane's version.
 - Live PostgreSQL 16.4 (hosted): run 41983741272, job 127099541616 on
   `b2951ec6`: the `[MERGE]` case PASSED on the below-17 path; lane 338 passed,
   1 skipped; job `success`.
+
+## Docstring corrections (after `c38b3b76`)
+
+Two docstrings in `siege_utilities/geo/spatial_transformations.py` contradicted the code; only docstrings changed. PostGIS `download_spatial_data` claimed a fallback to the configured default CRS, but the code returns the frame unchanged when `crs` is omitted (`return reproject_if_needed(gdf, crs) if crs is not None else gdf`), so a table without an SRID reads with CRS `None`; the docstring now says so. DuckDB `execute_spatial_query` said mutating calls require a connection without an active transaction, but the code joins the caller's transaction (`if not self._caller_owns_transaction(): BEGIN TRANSACTION`, no COMMIT or ROLLBACK otherwise); the docstring now describes the connector-owned commit-after-decode and rollback-on-error behavior, the caller-transaction join and the mixed-batch rejection, matching the CHANGELOG. Checks: the same 9 test files 274 passed, 63 skipped (duckdb 1.5.6, no live PostGIS DSN); exception contracts 0 unlisted, 0 stale; no stub docstrings; ruff clean on the module.
