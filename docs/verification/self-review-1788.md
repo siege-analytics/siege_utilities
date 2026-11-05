@@ -27,6 +27,14 @@ Project-contribution: keeps the natural-language geometry notebook truthful abou
 - Scope: one notebook, one test file, the changelog, and these documents; no library code changed.
 - Gate evidence: pytest -> 5 passed, 6 deselected (offline) and 6 passed, 5 deselected (integration) as above.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1672 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1672 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (the offline gazetteer returning one rectangle for every place name, so the Lake Geneva directional example used the wrong reference), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1672, and in the PR description. The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1672#issuecomment-6298384632.
+- **Falsification:** revert the implementation (the notebook fixture and label edits of this PR); `tests/test_1672_gazetteer_notebook_truth.py::test_demo_names_resolve_to_distinct_geometries` goes red because Lausanne and Lake Geneva resolve to equal geometries again. The latest commit of this PR is process-only; that existing regression test guards the accepted fix.
+
 ## Lead review (adversarial)
 Phase A coherence: the reviewer findings (unexecuted parameters, release-note placement, stale description, inaccurate self-review) map to the recorded run, the `[4.1.0]` entry, the refreshed description and this whole-PR artifact; no drift.
 Phase B verification: did it fix or move the problem? Fixed for evidence: all six parameters were executed and passed. Not fixed, and said so: CI still does not run them; the offline geo coverage on `develop` through #1667 is separate.
