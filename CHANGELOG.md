@@ -9,18 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Instagram account insights now use UTC request boundaries regardless of
-  the host timezone and label daily metrics with the day covered, one day
-  before the end-of-period marker. X account snapshots use the UTC date.
-  `PipelineAnalyzer` uses an aware UTC default and calculates elapsed time
-  in UTC for aware timestamps, including across daylight-saving changes;
-  naive-only inputs retain the host-local `datetime.now()` default (#1444).
-  **Migration:** naive pipeline timestamps are now interpreted as host-local,
-  not UTC. Mixed naive/aware input, including an `as_of` whose awareness
-  differs from the items, now raises `ValueError` identifying the offending
-  items. Keep naive timestamps in host-local time, or attach their actual
-  timezone and use aware timestamps throughout, including `as_of`.
-  The Facebook daily-label fix is tracked separately in #1435.
 - Correct the geocoding notebook's cache-hit claim: the timed cell scans
   already-collected results in memory to select matched input IDs. Add a
   narrative regression test and offline execution coverage for the geo notebook
@@ -130,6 +118,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Instagram account insights now use UTC request boundaries regardless of
+  the host timezone and label daily metrics with the day covered, one day
+  before the end-of-period marker. X account snapshots use the UTC date.
+  `PipelineAnalyzer` uses an aware UTC default and calculates elapsed time
+  in UTC for aware timestamps, including across daylight-saving changes;
+  naive-only inputs retain the host-local `datetime.now()` default (#1444).
+  **Migration:** naive pipeline timestamps are now interpreted as host-local,
+  not UTC. Mixed naive/aware input, including an `as_of` whose awareness
+  differs from the items, now raises `ValueError` identifying the offending
+  items. Keep naive timestamps in host-local time, or attach their actual
+  timezone and use aware timestamps throughout, including `as_of`.
+  The Facebook daily-label fix is tracked separately in #1435.
 - `SparkEngine.nearest` ranks candidates by a per-point row identity,
   preserving co-located points and points with no target within `max_distance`.
   Results keep one point geometry and expose `distance` and `index_right`
