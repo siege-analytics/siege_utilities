@@ -14,6 +14,14 @@ Investigate-artifact: https://github.com/siege-analytics/siege_utilities/issues/
 Pre-mortem-artifact: https://github.com/siege-analytics/siege_utilities/issues/1476#issuecomment-6650945239
 Hostile-review-artifact: plans/hostile-review-1476-signature.md
 
+## Ticket-fitness exemption
+
+### #1476
+
+Reason: #1476 predates the canonical ticket template; it was filed during the v4.0.0 remediation wave before `evaluate-ticket.sh` gating.
+Evidence: Problem, Evidence, Failure scenario, Done when, Assumptions and Falsifier sections live in https://github.com/siege-analytics/siege_utilities/issues/1476; the reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1476#issuecomment-6256890449.
+Falsification: revert the implementation; `tests/test_databases_config_roundtrip.py::test_password_roundtrip_uses_reported_env_var` goes red because a hyphenated config name saves a password reference that loading cannot resolve.
+
 ## Assumptions
 
 1. CI's contract job compares `str(inspect.signature(obj))` for public symbols against the latest PyPI release (4.0.0), where `create_database_config` is annotated `port: int`.
