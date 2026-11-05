@@ -28,6 +28,14 @@ Project-contribution: keeps the reports/01 notebook truthful about units, growth
 - Scope: one notebook, one test file, the changelog, and these documents; no library code changed.
 - Gate evidence: pytest -> 11 passed as above.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1673 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1673 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (the reports/01 chart, table and PDF labeling cumulative counts as percentage shares with no denominator), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1673, and in the PR description. The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1673#issuecomment-6298384604.
+- **Falsification:** revert the implementation (the notebook edits of this PR); `tests/test_1673_reports01_units_notebook_truth.py::test_signups_use_counts_in_chart_table_and_report` goes red because the chart title again labels the series as a percentage share instead of counts. The latest commit of this PR is process-only; that existing regression test guards the accepted fix.
+
 ## Lead review (adversarial)
 Phase A coherence: the reviewer findings (release-note placement, contradictory description, narrow self-review, weekly-GA wording) map to the `[4.1.0]` entry, the refreshed description, this whole-PR artifact and the one-bullet correction; no drift.
 Phase B verification: did it fix or move the problem? Fixed in this PR: units, growth, branding statement and the analytics/02 wording. Not fixed here, and said so: #1782's branded-PDF sentence, which will conflict in the same cell until that PR decides its wording.
