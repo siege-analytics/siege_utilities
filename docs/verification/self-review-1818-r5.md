@@ -44,7 +44,17 @@ shows
 `tests/test_1818_spatial_review_postgis.py::test_r2_1_mutating_cte_rows_match_durable_state_after_close[MERGE] PASSED`,
 the lane summary `338 passed, 1 skipped`, and the job concluded `success`, so
 the lane's "PostGIS database tests must not skip" assertion held. The same
-run's lanes that failed are outside this file. Locally there is no PostgreSQL
+run's main test lanes failed because they resolved `duckdb==2.0.0` (this
+branch does not yet carry the `<2.0` pin, #1861 / PR #1867): `test (3.11)`
+reports 36 failed, of which 30 are the known class-hardening failures, 3 the
+`gis.W001` case (#1868), and 3 are in this PR's DuckDB paths under 2.0:
+`test_1414_spatial_transformations_writes.py::test_duckdb_empty_and_projected_results_accept_source_crs`
+and `::test_duckdb_legacy_append_preserves_unknown_crs` ("Resource In Use
+Error: connection has an unfinished result from execute(); call complete()
+..."), and `test_1818_spatial_review_regressions.py::test_b2_empty_table_crs_survives_reconnect[download]`
+(regex mismatch). Under duckdb 1.5.6 these pass locally; they are DuckDB 2.0
+adaptation work tracked in #1862, not covered by this PR, and the pin removes
+2.0 from CI once it reaches this branch. Locally there is no PostgreSQL
 15 or 16 cluster (the local server is 14.22); a disposable PostgreSQL 17.11
 cluster ran the 17+ branch and a probe of the below-17 statements.
 
