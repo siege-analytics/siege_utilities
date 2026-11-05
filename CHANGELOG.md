@@ -123,14 +123,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   identifier (`identifier_columns`, default `["email"]`, stripped and
   lowercased) agree, so namesakes with different or missing emails stay
   distinct. A record without a corroborating identifier gets a canonical ID
-  seeded from its own `source_system` and `source_id` (frame position and row
-  label when either is null or blank). Name matches without identifier
+  seeded from its own `source_system` and `source_id` (frame and row position
+  when either is null or blank). Name matches without identifier
   evidence appear only in the new review-only `name_candidate_id` column, with
   `match_confidence` `0.5` for full names and `0.25` when any configured name
   part is missing; `1.0` requires identifier evidence. Textual null
   identifiers (`nan`, `none`, `null`, `<na>`, `nat`) are not corroboration.
   Frames missing a required source column are skipped whole, and null name
   parts no longer become text (#1416).
+  **Behavior change (canonical_id semantics):** `canonical_id` now identifies
+  an identifier-corroborated person or a single source record, never a name;
+  the merge table gains a trailing `name_candidate_id` column.
   **Migration:** all canonical IDs differ from 4.0.0, so regenerate persisted
   merge tables. `name_candidate_id` equals the 4.0.0 name-only
   `canonical_id`, so it can join old tables during migration; never merge on
