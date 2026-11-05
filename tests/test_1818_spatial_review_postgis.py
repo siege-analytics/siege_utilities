@@ -111,10 +111,26 @@ def test_b3_returning_commits_only_after_crs_validation(postgis_pair):
 @pytest.mark.parametrize("operation", ["INSERT", "DELETE", "UPDATE", "MERGE"])
 def test_r2_1_mutating_cte_rows_match_durable_state_after_close(postgis_pair, operation):
     connector, observer, table = postgis_pair
-    if operation == "MERGE" and observer.server_version < 170000:
-        pytest.skip("MERGE ... RETURNING requires PostgreSQL 17+")
     with observer.cursor() as cursor:
         cursor.execute(f"INSERT INTO {table} VALUES (7, ST_SetSRID(ST_Point(1,2),4326))")
+    if operation == "MERGE" and observer.server_version < 170000:
+        # MERGE ... RETURNING and MERGE inside WITH need PostgreSQL 17. Before
+        # 17 the same write runs without RETURNING: the connector returns the
+        # rowcount, and the write is durable after success and after close.
+        with connector:
+            result = connector.execute_spatial_query(
+                f"MERGE INTO {table} p USING (VALUES (7)) src(id) ON p.id=src.id "
+                "WHEN MATCHED THEN UPDATE SET id=8"
+            )
+            assert result == 1
+            with observer.cursor() as cursor:
+                cursor.execute(f"SELECT id FROM {table} ORDER BY id")
+                after_success = cursor.fetchall()
+        with observer.cursor() as cursor:
+            cursor.execute(f"SELECT id FROM {table} ORDER BY id")
+            after_close = cursor.fetchall()
+        assert after_success == after_close == [(8,)]
+        return
     bodies = {
         "INSERT": f"INSERT INTO {table} VALUES (8, ST_SetSRID(ST_Point(3,4),4326)) RETURNING *",
         "DELETE": f"DELETE FROM {table} WHERE id=7 RETURNING *",
