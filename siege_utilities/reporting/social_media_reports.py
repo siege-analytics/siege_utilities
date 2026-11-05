@@ -26,9 +26,19 @@ __all__ = [
 ]
 
 
-def _zero_if_missing(value: Any) -> Any:
-    """Normalize missing scalar counts for arithmetic and display."""
-    return 0 if pd.isna(value) else value
+def _known_sum(values) -> Any:
+    """Sum available values, preserving unknown when none are available."""
+    known = [value for value in values if pd.notna(value)]
+    return sum(known) if known else None
+
+
+def _format_metric(value: Any, spec: str = ",") -> str:
+    return format(value, spec) if pd.notna(value) else "unavailable"
+
+
+def _numeric_likes(posts: pd.DataFrame) -> pd.Series:
+    """Like counts as numbers; unparseable or missing counts become NaN."""
+    return pd.to_numeric(posts.get("like_count", pd.Series(dtype=float)), errors="coerce")
 
 
 class SocialMediaReportGenerator:
@@ -177,8 +187,8 @@ class SocialMediaReportGenerator:
         posts_limit: int = 50,
     ) -> str:
         platforms = [d["platform"] for d in platform_data]
-        total_followers = sum(
-            _zero_if_missing(d["account_info"].get("followers_count", 0)) for d in platform_data
+        total_followers = _known_sum(
+            d["account_info"].get("followers_count") for d in platform_data
         )
         total_posts = sum(len(d["posts"]) for d in platform_data)
 
@@ -186,7 +196,7 @@ class SocialMediaReportGenerator:
             f"Cross-platform social media report for {self.client_name} "
             f"covering {start_date} through {end_date}. "
             f"Analyzed {len(platforms)} platform(s) ({', '.join(platforms)}) "
-            f"with {total_followers:,} total followers and {total_posts:,} "
+            f"with {_format_metric(total_followers)} total followers and {total_posts:,} "
             f"posts analyzed (most recent up to {posts_limit:,} per platform "
             f"within the reporting window). Post metrics describe this sample."
         )
@@ -196,16 +206,15 @@ class SocialMediaReportGenerator:
     ) -> dict[str, Any]:
         metrics: dict[str, Any] = {}
 
-        total_followers = 0
+        total_followers = _known_sum(d["account_info"].get("followers_count") for d in platform_data)
         total_posts = 0
         for d in platform_data:
             info = d["account_info"]
             platform = d["platform"]
-            followers = _zero_if_missing(info.get("followers_count", 0))
-            total_followers += followers
+            followers = info.get("followers_count")
 
             metrics[f"{platform} — Followers"] = {
-                "value": f"{followers:,}",
+                "value": _format_metric(followers),
                 "change": "N/A",
                 "status": "stable",
             }
@@ -219,7 +228,7 @@ class SocialMediaReportGenerator:
             }
 
         metrics["Total Followers (all platforms)"] = {
-            "value": f"{total_followers:,}",
+            "value": _format_metric(total_followers),
             "change": "N/A",
             "status": "stable",
         }
@@ -238,9 +247,10 @@ class SocialMediaReportGenerator:
         # Cross-platform followers comparison
         platforms = [d["platform"] for d in platform_data]
         followers = [
-            _zero_if_missing(d["account_info"].get("followers_count", 0)) for d in platform_data
+            d["account_info"].get("followers_count") for d in platform_data
         ]
-        if any(f > 0 for f in followers):
+        followers = [f if pd.notna(f) else None for f in followers]
+        if any(f is not None and f > 0 for f in followers):
             charts.append({
                 "type": "bar",
                 "title": "Followers by Platform",
@@ -251,17 +261,16 @@ class SocialMediaReportGenerator:
             })
 
         # Cross-platform engagement comparison (posts with like_count)
-        engagement: list[int] = []
+        engagement: list[int | None] = []
         for d in platform_data:
             posts = d["posts"]
             if isinstance(posts, pd.DataFrame) and not posts.empty:
-                likes = pd.to_numeric(posts.get("like_count", pd.Series(dtype=float)), errors="coerce")
-                total = int(likes.sum(skipna=True))
-                engagement.append(total)
+                total = _known_sum(_numeric_likes(posts))
+                engagement.append(int(total) if total is not None else None)
             else:
                 engagement.append(0)
 
-        if any(e > 0 for e in engagement):
+        if any(e is not None and e > 0 for e in engagement):
             charts.append({
                 "type": "bar",
                 "title": "Likes from analyzed posts by Platform",
@@ -284,7 +293,7 @@ class SocialMediaReportGenerator:
                     for col in numeric_cols[:3]:
                         datasets.append({
                             "label": col.replace("_", " ").title(),
-                            "data": insights[col].fillna(0).tolist(),
+                            "data": [value if pd.notna(value) else None for value in insights[col]],
                         })
                     charts.append({
                         "type": "line",
@@ -308,8 +317,8 @@ class SocialMediaReportGenerator:
             info = d["account_info"]
             comparison_data.append([
                 d["platform"].replace("_", " ").title(),
-                f"{_zero_if_missing(info.get('followers_count', 0)):,}",
-                f"{_zero_if_missing(info.get('following_count', info.get('follows_count', 0))):,}",
+                _format_metric(info.get("followers_count")),
+                _format_metric(info.get("following_count", info.get("follows_count"))),
                 str(len(d["posts"])),
             ])
 
@@ -329,8 +338,12 @@ class SocialMediaReportGenerator:
             if isinstance(posts, pd.DataFrame) and not posts.empty:
                 sort_col = "like_count" if "like_count" in posts.columns else None
                 if sort_col:
-                    posts = posts.assign(like_count=pd.to_numeric(posts[sort_col], errors="coerce"))
-                    top = posts.nlargest(10, sort_col)
+                    # Rank by numeric likes; unknown likes sort last and are
+                    # still listed as "unavailable".
+                    top = posts.sort_values(
+                        sort_col, ascending=False, kind="stable", na_position="last",
+                        key=lambda s: pd.to_numeric(s, errors="coerce"),
+                    ).head(10)
                 else:
                     top = posts.head(10)
 
@@ -341,8 +354,8 @@ class SocialMediaReportGenerator:
                         text += "…"
                     post_rows.append([
                         text,
-                        str(_zero_if_missing(row.get("like_count", 0))),
-                        str(_zero_if_missing(row.get("comments_count", row.get("reply_count", 0)))),
+                        _format_metric(row.get("like_count"), ""),
+                        _format_metric(row.get("comments_count", row.get("reply_count")), ""),
                         str(row.get("published_at", ""))[:10],
                     ])
 
@@ -359,31 +372,33 @@ class SocialMediaReportGenerator:
     ) -> list[str]:
         insights: list[str] = []
 
-        if len(platform_data) > 1:
+        known_audiences = [d for d in platform_data if pd.notna(d["account_info"].get("followers_count"))]
+        if len(platform_data) > 1 and known_audiences:
             best = max(
-                platform_data,
-                key=lambda d: _zero_if_missing(d["account_info"].get("followers_count", 0)),
+                known_audiences,
+                key=lambda d: d["account_info"]["followers_count"],
             )
             insights.append(
                 f"{best['platform'].replace('_', ' ').title()} has the largest "
-                f"audience with {_zero_if_missing(best['account_info'].get('followers_count', 0)):,} followers."
+                f"audience with {_format_metric(best['account_info']['followers_count'])} followers."
             )
 
         for d in platform_data:
             posts = d["posts"]
             if isinstance(posts, pd.DataFrame) and not posts.empty:
                 if "like_count" in posts.columns:
-                    likes = pd.to_numeric(posts["like_count"], errors="coerce")
-                    avg_likes = _zero_if_missing(likes.mean())
+                    likes = _numeric_likes(posts)
+                    known_likes = likes.dropna()
+                    avg_likes = known_likes.mean() if not known_likes.empty else None
                     insights.append(
                         f"{d['platform'].replace('_', ' ').title()}: average "
-                        f"{avg_likes:,.0f} likes per post among {len(posts)} analyzed posts "
+                        f"{_format_metric(avg_likes, ',.0f')} likes per post among {len(posts)} analyzed posts "
                         "(excluding missing like counts)."
                     )
 
-                    if not likes.notna().any():
+                    if known_likes.empty:
                         continue
-                    top_index = likes.idxmax()
+                    top_index = known_likes.idxmax()
                     top = posts.loc[top_index]
                     text_preview = str(top.get("text", ""))[:60]
                     if text_preview:

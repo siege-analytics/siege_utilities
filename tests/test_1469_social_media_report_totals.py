@@ -104,9 +104,11 @@ def test_post_counts_and_engagement_are_labeled_as_samples(report, posts_limit):
 
 @pytest.mark.parametrize("missing_followers", [None, float("nan"), pd.NA])
 @pytest.mark.parametrize("missing_likes", [None, float("nan"), pd.NA])
-def test_missing_counts_and_all_missing_likes_aggregate_as_zero(
+def test_missing_counts_render_unavailable_never_zero(
     report, missing_followers, missing_likes,
 ):
+    # Hub ruling R-1807-1812-N: an unavailable metric is None/"unavailable",
+    # never a fabricated 0. Known zeros (the "other" platform) stay 0.
     generator, writer = report
     posts = pd.DataFrame({"text": ["one", "two"], "like_count": [missing_likes] * 2})
     connector = FakeConnector(followers=missing_followers, following=missing_followers, posts=posts)
@@ -117,14 +119,40 @@ def test_missing_counts_and_all_missing_likes_aggregate_as_zero(
     payload = writer.call_args.args[0]
     assert "0 total followers" in payload["executive_summary"]
     assert payload["metrics"]["Total Followers (all platforms)"]["value"] == "0"
-    assert payload["metrics"]["fakebook — Followers"]["value"] == "0"
+    assert payload["metrics"]["fakebook — Followers"]["value"] == "unavailable"
+    assert payload["metrics"]["other — Followers"]["value"] == "0"
     assert payload["charts"] == []
-    assert payload["tables"][0]["data"][0][1:3] == ["0", "0"]
-    assert all(row[1] == "0" for row in payload["tables"][1]["data"])
-    assert any("average 0 likes" in line for line in payload["insights"])
+    assert payload["tables"][0]["data"][0][1:3] == ["unavailable", "unavailable"]
+    assert payload["tables"][0]["data"][1][1:3] == ["0", "0"]
+    assert all(row[1] == "unavailable" for row in payload["tables"][1]["data"])
+    assert any("average unavailable likes" in line for line in payload["insights"])
+    assert not any("average 0 likes" in line for line in payload["insights"])
     assert not any("Top performing" in line for line in payload["insights"])
+    assert "Other has the largest audience with 0 followers." in payload["insights"]
     assert "nan" not in str(payload).lower()
     assert "<NA>" not in str(payload)
+
+
+class AbsentMetricsConnector(FakeConnector):
+    """Account info that omits the count keys entirely."""
+
+    def get_account_info(self):
+        return {}
+
+
+def test_absent_and_all_unknown_counts_render_unavailable(report):
+    generator, writer = report
+    connectors = [AbsentMetricsConnector("absent"), FakeConnector("unknown", followers=None)]
+
+    generator.create_social_media_report(connectors, START, END)
+
+    payload = writer.call_args.args[0]
+    assert "unavailable total followers" in payload["executive_summary"]
+    assert payload["metrics"]["Total Followers (all platforms)"]["value"] == "unavailable"
+    assert payload["metrics"]["absent — Followers"]["value"] == "unavailable"
+    assert payload["tables"][0]["data"][0][1:3] == ["unavailable", "unavailable"]
+    assert not any("largest audience" in line for line in payload["insights"])
+    assert payload["charts"] == []
 
 
 def test_missing_metrics_do_not_change_known_counts_or_rankings(report):
@@ -141,10 +169,16 @@ def test_missing_metrics_do_not_change_known_counts_or_rankings(report):
 
     payload = writer.call_args.args[0]
     assert payload["metrics"]["Total Followers (all platforms)"]["value"] == "12"
-    assert payload["charts"][0]["data"]["datasets"][0]["data"] == [0, 12]
-    assert payload["charts"][1]["data"]["datasets"][0]["data"] == [0, 6]
+    # Unknown values are chart gaps, not zeros.
+    assert payload["charts"][0]["data"]["datasets"][0]["data"] == [None, 12]
+    assert payload["charts"][1]["data"]["datasets"][0]["data"] == [None, 6]
     assert "Known has the largest audience with 12 followers." in payload["insights"]
     assert any('"popular…" with 6 likes' in line for line in payload["insights"])
+    assert any("Known: average 3 likes per post" in line for line in payload["insights"])
+    known_table = next(t for t in payload["tables"] if t["title"].endswith("— Known"))
+    assert [row[:3] for row in known_table["data"]] == [
+        ["popular", "6", "2"], ["quiet", "0", "0"], ["unknown", "unavailable", "unavailable"],
+    ]
     assert "<NA>" not in str(payload)
 
 
@@ -162,7 +196,7 @@ def test_numeric_insights_include_nullable_and_narrow_dtypes(report, dtype):
 
     charts = writer.call_args.args[0]["charts"]
     daily = next(chart for chart in charts if chart["type"] == "line")
-    assert daily["data"]["datasets"] == [{"label": "Reach", "data": [3, 0 if nullable else 2]}]
+    assert daily["data"]["datasets"] == [{"label": "Reach", "data": [3, None if nullable else 2]}]
 
 
 @pytest.mark.parametrize("posts_limit", [0, -1, 1.5, True, None])

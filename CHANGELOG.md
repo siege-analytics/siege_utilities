@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Social media reports now raise `SocialMediaError` with the platform and
+  underlying cause when connector retrieval fails. Post counts, engagement
+  charts, tables and insights describe the analyzed sample, with a configurable
+  `posts_limit` that defaults to the most recent 50 posts per platform (#1469).
+
 - New *file* names now get the same check as new directory names. The
   `siege_utilities.files` helpers that create a file refuse a name containing
   a C0, DEL or C1 control character, or a lone surrogate: they raise
@@ -112,6 +117,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Social media reports handle missing follower, following and engagement
+  counts without crashing or displaying NaN. An unavailable count renders as
+  `unavailable`, never as `0`: totals sum only known values and are
+  `unavailable` when none is known, charts and daily series show gaps
+  (`None`), the largest-audience insight ranks known audiences only, and
+  average likes use known counts only. Known zeros stay `0`. Daily metric
+  charts include nullable and narrower numeric dtypes (#1469).
 - Sanitize CRM upsert payloads for Salesforce, HubSpot, Zoho, and Dynamics:
   omit top-level missing fields to preserve existing values, serialize dates and
   timestamps as ISO 8601 strings, and convert numpy scalars to native types.
