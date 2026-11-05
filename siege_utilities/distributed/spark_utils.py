@@ -1025,6 +1025,10 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
         Exclusive working path on the same Hadoop filesystem. Existing contents
         are removed before writing; cleanup is attempted on success and failure.
         Supply a unique path using the same URI rules as ``df.write.save``.
+        A scheme-less path here is looked up through ``fs.defaultFS``, unlike
+        :func:`create_unique_staging_directory`, which creates scheme-less
+        paths on the driver's local disk; on a cluster, build the staging
+        path from a fully qualified URI.
     file_format : str
         Spark output format, default ``'csv'``; also accepts parquet, JSON and
         other formats supported by the Spark writer.
@@ -1138,13 +1142,20 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
 
 
 def create_unique_staging_directory(base_path, operation_name: str = 'operation') -> str:
-    """Create a unique staging directory for atomic write operations.
+    """Build a unique staging path; create it only for a driver-local base.
 
     Parameters
     ----------
     base_path : str or pathlib.Path
-        Parent directory under which the staging directory is created.
-        Must be writable.
+        Parent of the staging path. A URI (any scheme of two or more
+        characters, with or without ``//authority``: ``s3a://bucket/x``,
+        ``hdfs://nn:8020/x``, ``dbfs:/mnt/x``, ``hdfs:/x``, ``file:/x``) is
+        returned as a string and nothing is created. As in Hadoop, a leading
+        ``name:`` of two or more characters is read as a scheme, so a
+        relative ``data:2024/x`` is a URI too. Pass URIs as ``str``: a
+        ``pathlib.Path`` drops ``//authority``. A scheme-less path is a
+        directory on the **driver's local disk** and must be writable there;
+        it is not looked up through ``fs.defaultFS``.
     operation_name : str
         Human-readable label included in the directory name so concurrent
         operations remain distinguishable in logs. Defaults to
@@ -1156,21 +1167,44 @@ def create_unique_staging_directory(base_path, operation_name: str = 'operation'
         A unique staging path of the shape
         ``{base_path}/staging_{operation_name}_{uuid4hex}``.
 
+    Raises
+    ------
+    ValueError
+        If ``base_path`` is a URI with no authority or non-root path
+        (``s3a://``, ``dbfs:``, ``hdfs:/``, ``file:///``), or a URI held in a
+        ``pathlib.Path``.
+
     Notes
     -----
-    For a ``base_path`` carrying a URI scheme (``s3a://``, ``hdfs://``,
-    ``abfss://``, ...) the path string is built directly, preserving
-    ``scheme://authority``, and **no directory is created on the driver** —
-    creating it with local ``os``/``pathlib`` would materialise a literal
-    local ``s3a:/bucket/...`` tree and never touch the cluster filesystem.
-    The caller's Spark/Hadoop write is responsible for creating it on the
-    correct filesystem. For a local (scheme-less) ``base_path`` the directory
-    is created eagerly, as before.
+    For a URI ``base_path`` the path string is built directly, preserving the
+    scheme, any ``//authority`` and the original slashes, and **no directory
+    is created on the driver**. Creating it with local ``os``/``pathlib``
+    would materialise a literal local ``s3a:/bucket/...`` or ``dbfs:/...``
+    tree and never touch the cluster filesystem. The caller's Spark/Hadoop
+    write creates it on the correct filesystem.
+
+    A scheme-less ``base_path`` is created eagerly on the driver's local
+    disk. On a cluster where ``fs.defaultFS`` is HDFS or DBFS, a path such as
+    ``/warehouse/_staging`` is therefore *not* the cluster path that
+    :func:`atomic_write_with_staging` would use; pass a fully qualified URI
+    (``hdfs://...``, ``dbfs:/...``, ``s3a://...``) for cluster staging. A
+    one-letter scheme (``C:/staging``) is a Windows drive and stays local.
     """
     base = str(base_path)
     suffix = f'staging_{operation_name}_{uuid.uuid4().hex}'
-    if re.match(r'^[a-zA-Z][a-zA-Z0-9+.-]*://', base):
-        # URI path: string-join preserving scheme://authority; do not mkdir.
+    if re.match(r'^[A-Za-z][A-Za-z0-9+.-]+:', base):
+        if isinstance(base_path, pathlib.PurePath):
+            # Path() collapses 's3a://bucket' to 's3a:/bucket', losing the authority.
+            raise ValueError(
+                f"Staging base {base!r} is a URI held in a pathlib.Path, which drops "
+                "'//authority'; pass the URI as a str"
+            )
+        # URI path, with or without //authority: string-join only, no mkdir.
+        if re.fullmatch(r'[A-Za-z][A-Za-z0-9+.-]+:/*', base):
+            raise ValueError(
+                f"Staging base URI {base!r} has no authority or non-root path; "
+                "pass a base such as 's3a://bucket/_staging' or 'dbfs:/mnt/_staging'"
+            )
         return f"{base.rstrip('/')}/{suffix}"
     staging_dir = Path(base) / suffix
     staging_dir.mkdir(parents=True, exist_ok=True)

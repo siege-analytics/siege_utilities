@@ -125,10 +125,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   destination on failure, and prunes successful backups. The docstring now
   describes filesystem-dependent atomicity, recovery failures, and staging-only
   write modes accurately. `create_unique_staging_directory` no longer creates a
-  literal local directory tree for a URI `base_path` (`s3a://`, `hdfs://`,
-  `abfss://`, ...): it returns the unique path string preserving
-  `scheme://authority` and leaves creation to the cluster filesystem write;
-  local (scheme-less) base paths still create the directory eagerly (#1574).
+  literal local directory tree for a URI `base_path`: any scheme of two or more
+  characters, with or without `//authority` (`s3a://`, `hdfs://`, `abfss://`,
+  `dbfs:/`, `hdfs:/`, `file:/`), returns the unique path string with the
+  original slashes and leaves creation to the cluster filesystem write. As in
+  Hadoop, a leading `name:` of two or more characters is a scheme, so a
+  relative `data:2024/x` is treated as a URI. A URI with no authority or
+  non-root path (`s3a://`, `dbfs:`, `file:///`), or a URI passed as a
+  `pathlib.Path` (which drops `//authority`), raises `ValueError`. A
+  scheme-less `base_path` is still created eagerly on the **driver's local
+  disk** and is not looked up through `fs.defaultFS`, so cluster callers must
+  pass a fully qualified URI; one-letter drive prefixes such as `C:/` stay
+  local (#1574).
 - `SparkEngine.nearest` ranks candidates by a per-point row identity,
   preserving co-located points and points with no target within `max_distance`.
   Results keep one point geometry and expose `distance` and `index_right`

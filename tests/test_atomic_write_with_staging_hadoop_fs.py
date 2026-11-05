@@ -272,3 +272,35 @@ def test_unique_staging_directory_never_creates_a_local_tree_for_a_uri(tmp_path,
     assert not (tmp_path / "s3a:").exists()
     if path is not None:
         assert path.startswith("s3a://bucket/_staging/staging_x_")
+
+
+@pytest.mark.parametrize("base", ["dbfs:/mnt/_staging", "hdfs:/warehouse/_staging", "file:/tmp/_staging"])
+def test_unique_staging_directory_authority_less_uri_creates_no_local_tree(tmp_path, monkeypatch, base):
+    monkeypatch.chdir(tmp_path)
+    scheme = base.split(":", 1)[0]
+    path = spark_utils.create_unique_staging_directory(base, "x")
+    assert not (tmp_path / f"{scheme}:").exists()
+    assert path.startswith(base + "/staging_x_")
+
+
+@pytest.mark.parametrize("base", ["s3a://", "dbfs:", "hdfs:/", "file:///"])
+def test_unique_staging_directory_rejects_uri_without_authority_or_path(tmp_path, monkeypatch, base):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(ValueError, match="no authority or non-root path"):
+        spark_utils.create_unique_staging_directory(base, "x")
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_unique_staging_directory_rejects_a_uri_held_in_a_path(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(ValueError, match="pass the URI as a str"):
+        spark_utils.create_unique_staging_directory(Path("s3a://bucket/_staging"), "x")
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_unique_staging_directory_keeps_single_letter_drive_paths_local(monkeypatch):
+    # A one-letter "scheme" is a Windows drive, not a URI: it is created locally.
+    made = []
+    monkeypatch.setattr(spark_utils.Path, "mkdir", lambda self, **kwargs: made.append(str(self)))
+    path = spark_utils.create_unique_staging_directory("C:/staging", "x")
+    assert made == [path]
