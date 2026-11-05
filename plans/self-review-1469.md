@@ -73,7 +73,9 @@ The ruling is applied. Integration follow-ups for the second merger are listed i
 
 ## Ticket-fitness exemption
 
-Governing tickets: #1469 and #1461. The #1398 epic is context only.
+Governing ticket: #1469. The #1398 epic is context only.
+
+Refs #1461 (context; not implemented by this PR; create_social_media_report → create_analytics_report path unchanged). Per the coordinator ruling, #1461 is context for this PR and not a governing ticket, so it has no exemption block or falsifier. The PR does not close it.
 
 ### #1469
 Reason: #1469 predates the canonical ticket template. Its body uses Problem / Evidence / Failure scenario / Done when / Assumptions / Falsifier / Related instead of Context / Goal / Acceptance, and it links no /think design note.
@@ -83,8 +85,3 @@ Falsification verified 2026-11-05 on two revert targets for `siege_utilities/rep
 - From develop `dc7d3f76`, the three named tests gave 17 failed / 0 passed.
 - From the pre-ruling head `5a0d8626`, `test_missing_counts_render_unavailable_never_zero` and `test_absent_and_all_unknown_counts_render_unavailable` gave 10 failed / 0 passed.
 - With the file restored from the PR head, the whole file gave 28 passed, and the worktree was clean.
-
-### #1461
-Reason: #1461 predates the canonical ticket template (Problem / Evidence / Failure scenario / Done when / Assumptions / Falsifier / Related; no Context / Goal / Acceptance, no /think link). This PR does not implement it: `create_social_media_report` still calls `create_analytics_report(report_data, title)` unchanged, and the #1469 tests mock that writer.
-Evidence: https://github.com/siege-analytics/siege_utilities/issues/1461 (OPEN) states the swapped `ReportGenerator` signature under "## Problem" and cites `reporting/social_media_reports.py:92-96` and `reporting/report_generator.py:94-183` under "## Evidence". `git diff origin/develop...HEAD -- siege_utilities/reporting/social_media_reports.py` shows no change to the `create_analytics_report` call.
-Falsification: there is no test in this PR that goes red for #1461, because the PR leaves its defect in place. This exemption is wrong if reverting this PR changes the report writer call, or if a #1807 test asserts that a PDF is written.
