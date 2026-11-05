@@ -44,6 +44,38 @@ below.
   (`datetime64[ns, UTC]` on 2.3.3, `datetime64[s, UTC]` on 3.1.0).
 - A pre-existing mid-file `import numbers` (ruff E402) moved to the top.
 
+## Deviation from R-1812-4 (b)
+
+R-1812-4 (b) asked for the baseline *outputs* to be committed as a frozen
+fixture. This PR deliberately freezes the baseline *sources* instead (the
+three `d329eef7` modules, byte-identical, pinned by git blob id in
+`BASELINE_BLOBS` and by `test_frozen_baseline_matches_the_reviewed_commit`).
+Reason: the audit compares dtypes exactly, and output dtypes depend on the
+pandas version a lane resolves. The reviewer's own evidence for F1 shows the
+omitted Instagram `published_at` column as `datetime64[ns, UTC]` on pandas
+2.3.3 and `datetime64[s, UTC]` on pandas 3.1.0, so outputs frozen on one
+version would fail the strict audit on a lane with the other (a false red).
+Frozen sources rebuild the baseline outputs on the lane's own pandas, so old
+and new are compared on one version. Evidence: the oracle and budget tests
+pass on pandas 2.3.3 (18 + 14) and 3.1.0 (32), and 32 pass in a `--depth 1`
+clone where `d329eef7` is absent.
+
+## Combined tree with #1807 (None-not-0)
+
+Built against the latest #1807 head at the time of the run: `56e8a5fa`
+(merged without committing into a local scratch clone of `f3829edb`; never
+pushed). `siege_utilities/reporting/social_media_reports.py` conflicts in 7
+regions, and #1807's side was used. On that tree the None-not-0 checks hold:
+`tests/test_1812_null_policy_end_to_end.py` (4) and #1807's
+`tests/test_1469_social_media_report_totals.py` pass; 187 passed, 7 failed
+overall. The 7 failures are wording couplings, not null-policy violations: 5
+`StopIteration` title lookups in `tests/test_social_media_reports_nulls.py`
+(titles #1807 renames) and 2 fidelity-oracle failures on #1807's intended
+`executive_summary` rewording. Those are resolved in this PR's develop sync
+after #1807 lands. #1812 does not use #1807's `f"{exc}"` / `from exc`
+exception pattern; the one `from exc` in `x_twitter.py` (JSON decode error)
+predates this PR (#1069, on develop).
+
 ## Lead review
 
 The retry change narrows behavior on purpose: a caller that set
