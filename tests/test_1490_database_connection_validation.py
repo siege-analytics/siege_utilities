@@ -166,3 +166,66 @@ def test_hydra_loads_both_shipped_default_connections():
     ]
     assert connections[0].password.get_secret_value() == "password"
     assert connections[1].get_connection_string() == "duckdb:///siege_analytics.duckdb"
+
+
+def _state(connection):
+    return connection.model_dump(), set(connection.model_fields_set)
+
+
+# Exact-head review of 4116f50f (F1): the cross-field check runs after
+# pydantic installs an assigned value, so a rejection must restore it.
+@pytest.mark.parametrize("field,value", [
+    ("host", ""), ("port", 0), ("username", ""), ("password", ""),
+    ("database", "1starts_with_digit"), ("database", "a" * 51),
+])
+def test_rejected_server_assignment_leaves_connection_unchanged(field, value):
+    connection = DatabaseConnection(**DEFAULT_POSTGRES)
+    before = _state(connection)
+
+    with pytest.raises(ValidationError):
+        setattr(connection, field, value)
+
+    assert _state(connection) == before
+    assert isinstance(connection.password, SecretStr)
+
+
+@pytest.mark.parametrize("connection_type", ["postgresql", "mysql"])
+def test_rejected_file_to_server_switch_leaves_connection_unchanged(connection_type):
+    connection = DatabaseConnection(name="lite", connection_type="sqlite", database="/tmp/app.db")
+    before = _state(connection)
+
+    with pytest.raises(ValidationError):
+        connection.connection_type = connection_type
+
+    assert _state(connection) == before
+    assert connection.get_connection_string() == "sqlite:////tmp/app.db"
+
+
+def test_field_level_rejection_leaves_connection_unchanged():
+    connection = DatabaseConnection(**DEFAULT_POSTGRES)
+    before = _state(connection)
+
+    with pytest.raises(ValidationError):
+        connection.host = "bad host!"
+
+    assert _state(connection) == before
+
+
+def test_accepted_assignment_still_applies_and_marks_field_set():
+    connection = DatabaseConnection(name="lite", connection_type="sqlite", database="/tmp/app.db")
+
+    connection.database = "/tmp/other.db"
+
+    assert connection.database == "/tmp/other.db"
+    assert "database" in connection.model_fields_set
+
+
+def test_rejected_assignment_error_does_not_echo_the_password():
+    connection = DatabaseConnection(**dict(DEFAULT_POSTGRES, password="S3cret-Sentinel"))
+
+    with pytest.raises(ValidationError) as exc:
+        connection.host = ""
+
+    assert "S3cret-Sentinel" not in str(exc.value)
+    assert "S3cret-Sentinel" not in repr(connection)
+    assert connection.password.get_secret_value() == "S3cret-Sentinel"

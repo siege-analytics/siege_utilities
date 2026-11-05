@@ -5,9 +5,13 @@ import re
 from typing import Self
 from urllib.parse import quote_plus
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
+from pydantic import (
+    BaseModel, ConfigDict, Field, SecretStr, ValidationError, field_validator, model_validator,
+)
 
 __all__ = ["DatabaseConnection"]
+
+_UNSET = object()
 
 
 class DatabaseConnection(BaseModel):
@@ -114,6 +118,30 @@ class DatabaseConnection(BaseModel):
                 'alphanumeric characters, underscores, and hyphens'
             )
         return self
+
+    def __setattr__(self, name: str, value) -> None:
+        """Assign with validation; a rejected assignment leaves the object unchanged.
+
+        With ``validate_assignment``, pydantic installs the new value before the
+        ``mode='after'`` connection check runs, so a value that check rejects
+        would otherwise stay on the object after the ValidationError.
+        """
+        if name not in type(self).model_fields:
+            super().__setattr__(name, value)
+            return
+
+        previous = self.__dict__.get(name, _UNSET)
+        fields_set = set(self.__pydantic_fields_set__)
+        try:
+            super().__setattr__(name, value)
+        except ValidationError:
+            if previous is _UNSET:
+                self.__dict__.pop(name, None)
+            else:
+                self.__dict__[name] = previous
+            self.__pydantic_fields_set__.clear()
+            self.__pydantic_fields_set__.update(fields_set)
+            raise
 
     def get_connection_string(self) -> str:
         """Generate connection string for the database."""
