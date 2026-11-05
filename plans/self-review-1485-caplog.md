@@ -21,6 +21,7 @@ Hostile-review-artifact: plans/hostile-review-1485-caplog.md
 Reason: #1485 predates the canonical ticket template; it was filed before `evaluate-ticket.sh` gating.
 Evidence: Problem, Evidence, Failure scenario, Done when, Assumptions and Falsifier sections live in https://github.com/siege-analytics/siege_utilities/issues/1485; the reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1485#issuecomment-6256395578.
 Falsification: revert the implementation; `tests/test_report_generator_renders_sections.py::test_analytics_pdf_renders_sections` goes red because a chart list raises `AttributeError: 'list' object has no attribute 'get'` and the insight text is absent from the PDF.
+Verified 2026-11-05: with `report_generator.py`, `templates/base_template.py` and `templates/content_page_template.py` checked out from `origin/develop`, `pytest tests/test_report_generator_renders_sections.py -k test_analytics_pdf_renders_sections` -> 2 failed (`report_generator.py:703: AttributeError: 'list' object has no attribute 'get'`; `assert 'X1' in ...`); after `git checkout HEAD --` on the same files -> 2 passed, worktree clean.
 
 ## Assumptions
 
