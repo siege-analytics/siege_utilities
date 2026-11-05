@@ -15,9 +15,9 @@ from siege_utilities.connectors.zoho import ZohoConnector
 
 def connector(provider):
     if provider == "hubspot":
-        c = HubSpotConnector(access_token="token")
+        c = HubSpotConnector(access_token="dummy-access-token-1429")
     elif provider == "zoho":
-        c = ZohoConnector(client_id="id", client_secret="secret")
+        c = ZohoConnector(client_id="id", client_secret="dummy-client-secret-1429")
     else:
         c = DynamicsConnector.__new__(DynamicsConnector)
     c._authenticated = True

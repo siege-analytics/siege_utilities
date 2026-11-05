@@ -15,7 +15,7 @@ import pandas as pd
 import pytest
 import requests
 
-from tests.test_1417_crm_retry_idempotency import connector, response
+from tests.test_1417_crm_retry_idempotency import connector
 
 PROVIDERS = ["salesforce", "hubspot", "zoho", "dynamics"]
 LONG = "DUMMYCONFIGUREDSECRET7a4c"
@@ -64,7 +64,11 @@ def test_public_method_failure_never_leaks(provider, secret, name, args, caplog)
     c = configured(provider, secret)
     method = getattr(c, name, None)
     if method is None:
-        pytest.skip(f"{provider} has no {name}")
+        # Breadth (every public callable is wrapped) is proven by
+        # test_1846_r6_enumerate_boundary; this functional spot-check only drives
+        # providers that actually expose the method. Action if it gains one: add
+        # the (name, args) pair to CALLS so this failure path covers it too.
+        pytest.skip(f"{provider} does not expose {name}(); add it to CALLS when the provider gains it")
     # Upstream transport failure whose text equals the configured credential.
     c._session.request = Mock(side_effect=ValueError(secret))
     c._session.post = Mock(side_effect=ValueError(secret))

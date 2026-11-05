@@ -143,7 +143,7 @@ def test_ensure_connected_raises_when_access_token_expired_no_refresh():
 def test_authenticate_raises_in_oauth_mode():
     """authenticate() in OAuth mode (no access_token) raises ConnectorAuthError
     directing the caller to use the authorization code flow."""
-    c = HubSpotConnector(client_id="id", client_secret="secret")
+    c = HubSpotConnector(client_id="id", client_secret="dummy-client-secret-1846")
     with pytest.raises(ConnectorAuthError) as exc_info:
         c.authenticate()
     assert "get_authorization_url" in str(exc_info.value)
@@ -282,7 +282,9 @@ def test_request_204_returns_empty_dict(monkeypatch):
 
 
 def test_request_raises_on_non_json_2xx():
-    c = _connector()
+    # long-credential connector so the public-edge boundary value-redacts rather
+    # than suppressing the "non-JSON" diagnostic (#1846 R-1846-6).
+    c = _authed_connector()
     c._session = _FakeSession(response=_FakeResp(200, json_raises=True, text="<html>"))
     with pytest.raises(ConnectorError) as exc_info:
         c.request("GET", "/crm/v3/objects/contacts")
@@ -290,7 +292,9 @@ def test_request_raises_on_non_json_2xx():
 
 
 def test_request_retries_then_raises_on_request_exception():
-    c = _connector()  # retry_attempts=1 — no backoff sleep
+    # long-credential connector (retry_attempts=1, no backoff sleep) so the
+    # boundary value-redacts rather than suppressing "failed after" (#1846 R-1846-6).
+    c = _authed_connector()
     c._session = _FakeSession(raise_exc=requests.exceptions.ConnectionError("boom"))
     with pytest.raises(ConnectorError) as exc_info:
         c.request("GET", "/crm/v3/objects/contacts")

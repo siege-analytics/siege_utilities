@@ -77,7 +77,10 @@ def test_logger_context_diagnostic_redaction(provider,failure,channel,caplog):
     caplog.set_level(logging.INFO);caplog.clear()
     if channel=='extra':
         c._log.error('Trusted static template',extra={'diagnostic':LONG})
-        shown='\n'.join(logging.Formatter('%(message)s | %(diagnostic)s').format(r) for r in caplog.records)
+        # extra is dropped entirely (#1846 R-1846-6): no record carries the
+        # diagnostic field, so nothing can render it.
+        assert all(not hasattr(r,'diagnostic') for r in caplog.records)
+        shown='\n'.join(r.getMessage() for r in caplog.records)
     else:
         try:raise ValueError(LONG)
         except ValueError:c._log.error('Trusted static template',exc_info=True)

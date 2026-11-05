@@ -4,9 +4,9 @@ import logging
 import time
 from collections.abc import Callable
 
-from siege_utilities.core._http import contains_secret_value, redact_secrets
+from siege_utilities.core._http import _MIN_SECRET_VALUE_LEN, redact_secrets
 from siege_utilities.connectors._protocol import (
-    _REDACTION_UNAVAILABLE,
+    _LOG_SUPPRESSED,
     ConnectorAuthError,
     ConnectorError,
 )
@@ -28,40 +28,28 @@ class RedactingLogger(logging.LoggerAdapter):
     def log(self, level, msg, *args, **kwargs):
         if not self.isEnabledFor(level):
             return
-        # Sanitize the FINAL rendered record, not the arguments (#1846 R-1846-5).
-        # Contextual channels bypass message redaction: drop the traceback
-        # channels entirely (a connector log site carries detail in the message,
-        # which is sanitized), and redact `extra` field values while keeping the
-        # keys so downstream formatters still render them.
+        # Sanitize the FINAL rendered record (#1846 R-1846-5/6). Drop the
+        # contextual channels entirely: traceback channels and ``extra`` all
+        # bypass message redaction and can carry a configured value in a
+        # formatter-rendered field or a serialized LogRecord dict.
         kwargs.pop("exc_info", None)
         kwargs.pop("stack_info", None)
-        extra = kwargs.pop("extra", None)
+        kwargs.pop("extra", None)
         values, usable = self._configured_values()
         template = str(msg)
-        if not usable:
-            # Fail closed: collection could not be trusted, so no argument can be
-            # proven secret-free. Emit only the trusted template with a marker.
-            message = redact_secrets(template) + " [log args suppressed: secret collection unavailable]"
+        short = usable and any(len(value) < _MIN_SECRET_VALUE_LEN for value in values)
+        if not usable or short:
+            # Strict (#1846 R-1846-6): under failed collection or a short
+            # configured credential the rendered message cannot be proven
+            # secret-free (reversible encodings defeat residual scanning). Emit
+            # the trusted format template (with a suppression marker, no rendered
+            # args) only when there are %-args -- a literal format string;
+            # otherwise -- a possibly pre-rendered caller message -- emit a fixed
+            # constant, never the caller's text.
+            message = (redact_secrets(template) + " [log args suppressed]") if args else _LOG_SUPPRESSED
         else:
             rendered = template % args if args else template
-            redacted = redact_secrets(rendered, values=values)
-            if contains_secret_value(redacted, values):
-                # A configured value below the length floor is still present and
-                # cannot be removed, so emit only the trusted template.
-                message = redact_secrets(template) + " [log args suppressed: short credential]"
-            else:
-                message = redacted
-        if extra:
-            rendered_extra = {}
-            for key, value in extra.items():
-                if not usable:
-                    rendered_extra[key] = _REDACTION_UNAVAILABLE
-                    continue
-                redacted = redact_secrets(str(value), values=values)
-                rendered_extra[key] = (
-                    _REDACTION_UNAVAILABLE if contains_secret_value(redacted, values) else redacted
-                )
-            kwargs["extra"] = rendered_extra
+            message = redact_secrets(rendered, values=values)
         self.logger.log(level, message, **kwargs)
 
     def _configured_values(self):

@@ -20,12 +20,12 @@ from siege_utilities.connectors.zoho import ZohoConnector
 
 def connector(provider):
     if provider == "salesforce":
-        c = SalesforceConnector(client_id="id", client_secret="secret")
+        c = SalesforceConnector(client_id="id", client_secret="dummy-client-secret-1417")
         c._instance_url = "https://salesforce.example.test"
     elif provider == "hubspot":
-        c = HubSpotConnector(access_token="token")
+        c = HubSpotConnector(access_token="dummy-access-token-1417")
     elif provider == "zoho":
-        c = ZohoConnector(client_id="id", client_secret="secret")
+        c = ZohoConnector(client_id="id", client_secret="dummy-client-secret-1417")
     else:
         c = DynamicsConnector.__new__(DynamicsConnector)
         c._environment_url = "https://dynamics.example.test"
@@ -33,7 +33,7 @@ def connector(provider):
         c._timeout = 30
     c._authenticated = True
     c._token_expires_at = None
-    c._access_token = "token"
+    c._access_token = "dummy-access-token-1417"
     c._retry_attempts = 3
     c._retry_backoff = 0
     return c

@@ -90,7 +90,7 @@ def test_connector_constructor_wait_setting(provider, cap, monkeypatch):
     from siege_utilities.connectors import dynamics
 
     cls = type(connector(provider))
-    kwargs = {"client_id": "id", "client_secret": "secret", "max_retry_wait": cap}
+    kwargs = {"client_id": "id", "client_secret": "dummy-client-secret-1846", "max_retry_wait": cap}
     if provider == "dynamics":
         monkeypatch.setattr(dynamics, "MSAL_AVAILABLE", True)
         monkeypatch.setattr(dynamics, "msal", SimpleNamespace(ConfidentialClientApplication=Mock()), raising=False)

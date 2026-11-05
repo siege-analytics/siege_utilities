@@ -119,7 +119,7 @@ def test_ensure_connected_refreshes_when_token_expired_with_refresh_token(monkey
 
 
 def test_authenticate_raises_without_refresh_token():
-    c = ZohoConnector(client_id="id", client_secret="secret")
+    c = ZohoConnector(client_id="id", client_secret="dummy-client-secret-1846")
     with pytest.raises(ConnectorAuthError) as exc_info:
         c.authenticate()
     assert "refresh token" in str(exc_info.value).lower()

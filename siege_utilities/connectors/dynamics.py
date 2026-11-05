@@ -984,9 +984,13 @@ class DynamicsConnector(_SecretRedactionMixin):
 
             if not (200 <= resp.status_code < 300):
                 detail = self._extract_error(resp)
-                raise ConnectorError(
+                error = ConnectorError(
                     f"Dynamics {resp.status_code}" + (f": {detail}" if detail else "")
                 )
+                # Validated numeric status so the redaction boundary's trusted
+                # constant keeps it under a short credential (#1846 R-1846-6).
+                error.status_code = resp.status_code
+                raise error
 
             try:
                 return resp.json()

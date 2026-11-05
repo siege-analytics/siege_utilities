@@ -82,8 +82,8 @@ def _connector(*, authenticated=True, retry_attempts=1, retry_backoff=0.0):
     c._retry_backoff = retry_backoff
     c._authenticated = authenticated
     c._token_expires_at = None
-    c._access_token = "tok" if authenticated else None
-    c._client_secret = "secret"
+    c._access_token = "dummy-access-token-1846" if authenticated else None
+    c._client_secret = "dummy-client-secret-1846"
     c._username = None
     c._password = None
     c._scope = ["https://example.crm.dynamics.com/.default"]
