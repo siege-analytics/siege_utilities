@@ -40,6 +40,7 @@ from siege_utilities.connectors._protocol import (
     ConnectorNotFoundError,
     ConnectorRateLimitError,
     UpsertResult,
+    sanitize_record,
 )
 from siege_utilities.connectors._query_utils import _validate_identifier
 
@@ -434,7 +435,7 @@ class DynamicsConnector:
             return UpsertResult(success_count=0, failure_count=0)
 
         entity_set = STANDARD_ENTITIES.get(object_type, object_type)
-        record_dicts = records.to_dict(orient="records")
+        record_dicts = [sanitize_record(row) for row in records.to_dict(orient="records")]
         batches = [
             record_dicts[i:i + BATCH_SIZE]
             for i in range(0, len(record_dicts), BATCH_SIZE)
@@ -503,7 +504,7 @@ class DynamicsConnector:
                 f"({match_field}={match_literal})"
             )
             import json as _json
-            rec_body = _json.dumps(rec)
+            rec_body = _json.dumps(rec, allow_nan=False)
 
             body_parts.extend([
                 f"--{changeset_boundary}",
@@ -677,6 +678,10 @@ class DynamicsConnector:
                     json=json_body,
                     timeout=self._timeout,
                 )
+            except requests.exceptions.InvalidJSONError as exc:
+                raise ConnectorError(
+                    f"Dynamics JSON encoding failed for {method} {path}: {exc}"
+                ) from exc
             except requests.exceptions.RequestException as exc:
                 last_exc = exc
                 log.warning(
