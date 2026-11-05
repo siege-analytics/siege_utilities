@@ -164,6 +164,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Keeping `id: None` is serialization fidelity only and does not solve the B3b
   identity concern. Provider/field identity and control validation is a separate
   follow-up. Refs #1816.
+- **Documented behavior change from v4.0.0:** CRM transport and server-error
+  retries are limited to GET, PUT and DELETE. POST and PATCH requests are sent
+  once, avoiding duplicate creates after a lost response. HTTP 429 responses
+  wait for `Retry-After` (seconds or HTTP date), falling back to the configured
+  backoff; only idempotent methods retry. Every wait is capped by the new
+  `max_retry_wait=900.0` setting: over-cap and non-finite hints raise
+  `ConnectorRateLimitError` with `retry_after` and do not sleep, fallback waits
+  are bounded, and wait settings must be finite and nonnegative. Auth and
+  rate-limit errors stop batch upserts, and failed HubSpot token validation
+  leaves the connector disconnected. Dynamics batch upserts inspect inner
+  responses, report missing responses as failures, and mark every record in a
+  rolled-back changeset as failed (#1417). **Migration:** a POST or PATCH that
+  fails in transport now raises after one attempt; retry it yourself only after
+  checking whether the record was created. Code that relied on long
+  `Retry-After` sleeps must catch `ConnectorRateLimitError` and reschedule from
+  `retry_after`, or pass a larger `max_retry_wait`. v3.23.0 had no connector
+  implementations.
+- **Documented behavior change from v4.0.0:** Salesforce, HubSpot, Zoho and
+  Dynamics `to_crm_*` helpers map missing numeric, date and string values
+  (`None`, NaN, NaT and `pd.NA`) to `None` before conversion. Missing required
+  account and opportunity names become an empty string, so unnamed records stay
+  in the result instead of aborting the whole list. Valid values and zeros are
+  preserved (#1425). **Migration:** to drop unnamed accounts or opportunities,
+  filter on `name == ""`. v3.23.0 had no implementations of these connectors.
+- **Documented behavior change from v4.0.0:** Zoho canonical contacts and
+  opportunities take account and owner relationships from the lookup ID
+  (`Account_Name_id`, `Owner_id`, or the raw lookup's `id`) instead of display
+  names or missing IDs; in v4.0.0 `owner_id` could hold the owner's display name
+  and a flattened account lookup gave no `account_id`. `CRMOpportunity`
+  probability uses a documented 0-100 percentage scale: HubSpot's 0-1 fraction
+  is multiplied by 100, while Salesforce, Zoho and Dynamics keep their
+  percentage values. Dynamics requests formatted-value annotations on every page
+  and uses the industry label when present; without a label, industry remains
+  the option-set code as a string (#1426). **Migration:** code that read Zoho
+  `owner_id` as a name must look the owner up by ID; code that multiplied
+  HubSpot `probability` by 100 must stop; code that matched Dynamics `industry`
+  option-set codes must match labels when one is returned. v3.23.0 had no
+  implementations of these connectors.
+- **Documented behavior change from v4.0.0:**
+  `DynamicsConnector.create_record()` returns the new record ID from the
+  `OData-EntityId` header on a 204 response; in v4.0.0 it returned an empty
+  string. Representation responses keep the edit-link and primary-key
+  fallbacks, with the correct keys for all standard entities, including
+  `opportunityid` and activity `activityid`. A response without a record ID
+  raises `ConnectorError` instead of returning an empty string (#1427).
+  **Migration:** code that tested the result for `""` must catch
+  `ConnectorError` instead.
+- `SalesforceConnector.get_objects()` resolves dotted relationship fields and
+  matches each field segment case-insensitively, so requests such as
+  `Account.Name` and `name` return values instead of all-null columns. Output
+  labels keep the caller's spelling; absent fields and relationships remain
+  null, and empty results keep the requested columns (#1428).
+- **Documented behavior change from v4.0.0:** HubSpot, Zoho and Dynamics
+  return zero rows without a data request for `limit=0`; in v4.0.0 `limit=0`
+  fetched every record. `None` remains unlimited. Zoho COQL stops at the
+  requested count, and record listing uses continuation tokens past 2,000 rows.
+  Dynamics FetchXML follows paging cookies and raises on missing, invalid or
+  repeated cookies when more rows remain. HubSpot search raises a clear error
+  before paging beyond its 10,000-result cap (#1429). **Migration:** pass
+  `limit=None`, not `0`, for no limit; narrow HubSpot search filters or use
+  unfiltered listing for more than 10,000 results. v3.23.0 had no connector
+  implementations.
+- **Documented behavior change from v4.0.0:** Salesforce, HubSpot and Zoho
+  authorization URLs percent-encode OAuth parameters, preserving redirect URI
+  queries and state values containing reserved characters. HubSpot scope
+  separators use `%20` (#1431). v3.23.0 had no connector implementations.
+- **Documented behavior change from v4.0.0:** Salesforce, HubSpot, Zoho and
+  Dynamics renew credentials once after HTTP 401 and replay the rejected
+  request once when renewal is available, including Dynamics public batch
+  upserts and Salesforce CSV uploads and result downloads. Persistent
+  authentication failures raise `ConnectorAuthError`; result-download errors
+  and incomplete result IDs cannot become successful upsert results. Transport
+  and server-error retry limits remain in place. Known token lifetimes use
+  timezone-aware UTC with a 60-second refresh margin. Salesforce does not
+  report an access-token lifetime, so its expiry stays unknown and renewal
+  happens on 401; v4.0.0 assumed two hours from issue. Dynamics renewal clears
+  cached client-credential tokens before acquiring a replacement (#1436).
+  v3.23.0 had no connector implementations.
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
@@ -658,6 +736,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- CRM connectors redact sensitive URL, header, form and JSON values from
+  exceptions, tracebacks, log records and upsert result representations, and
+  keep raw transport exceptions out of displayed exception chains, including
+  Dynamics batch errors (#1846).
 - Credential files are written with mode 0600 before writing their payload,
   including existing files, with no write-then-chmod race. Missing parent
   directories are created with mode 0700. Profile defaults use per-user paths;
