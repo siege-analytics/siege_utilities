@@ -12,14 +12,14 @@ Label the notebook an offline fixed-date demo, document a separate credentialed 
 
 ## Risks
 ### R1: overlap with #1787 in the reports/01 first cell
-Severity: medium. Both PRs edit that cell. The Next bullet wording agrees with #1787. This PR still calls the PDF branded while #1787 states the frame is unbranded; that difference is an open wording decision and will conflict in the same cell until it is made.
+Severity: low after reconciliation. Both PRs edit the first markdown cell and the step 3 cell. They now carry byte-identical text there (unbranded PDF frame, the #1789 link, and the offline fixed-date `analytics/02` bullet), so a later merge of either does not conflict in those cells.
 ### R2: test over-reach
 Severity: low. The cross-notebook test checks only `analytics/02` lines and the specific credential row.
 ### R3: punctuation regressions
 Severity: low. The edited cells and these documents use ASCII punctuation only.
 
 ## Severity
-Overall: low to medium because of R1. Notebook prose, one rewritten demo notebook, tests and documentation; no library behavior change.
+Overall: low. Notebook prose, one rewritten demo notebook, tests and documentation; no library behavior change.
 
 ## Launch readiness
-The 26 cases of `tests/test_1662_ga_notebook_truth.py` pass on the synced tree. R1 is open and is reported to the maintainers. No tiger.
+The 26 cases of `tests/test_1662_ga_notebook_truth.py` pass on the synced tree, and 34 pass together with the reports/01 hygiene selection after the reconciliation. No tiger.
