@@ -22,11 +22,11 @@ Investigated at 41d5a942:
 - `instagram.py:343-352` `_request` builds first-page URLs from `BASE_URL` and also calls `_request_url`, so `_request_url` is the single request sink.
 - `vista_social.py:243` builds URLs only from its configured `base_url` and only reports `has_more`; it never follows a server-supplied URL.
 - `google_analytics.py:281,310` pages by SDK `offset`; no URL following.
-- requests 2.34.2 `sessions.py:154-176` `should_strip_auth` returns True on hostname change and `rebuild_auth` (`:309`) deletes `Authorization`, so redirects to another host do not carry the header.
+- requests 2.34.2 `sessions.py:154-176` `should_strip_auth` returns True on hostname change and `rebuild_auth` (`:309`) deletes `Authorization`, so redirects to another host do not carry the header. **Correction (exact-head review of 42c7619d/84c86703):** that protects only the header. A token in the redirect `Location` query is sent to the foreign host, and the redirect was followed by default. See "Redirect follow-up" below.
 
 ## Pre-mortem
 1. Tiger (launch-blocking). Severity: P1. Look-alike or userinfo hosts (`graph.facebook.com@evil`, `graph.facebook.com.evil`) pass a substring check. Mitigation: exact frozenset membership on the urllib-lowercased hostname, any userinfo rejected, each trick tested.
-2. Paper Tiger. Severity: P1. A redirect forwards the session header to a foreign host. Mitigation: requests strips `Authorization` on host change (cited above); no redirect change needed.
+2. Tiger (launch-blocking; misclassified at first). Severity: P1. A redirect forwards credentials to a foreign host. This was originally classified as a Paper Tiger because Requests strips `Authorization` on a host change. That reasoning missed that Requests followed the redirect by default and that a token in the `Location` query string reaches the foreign host. The exact-head review reproduced this at 42c7619d/84c86703. Mitigation (74387d04): `allow_redirects=False` on every request and a URL-free `SocialMediaError` on any 3xx, covered by the adapter-level `tests/test_1794_instagram_redirects.py`.
 3. Paper Tiger. Severity: P2. The error leaks the token embedded in the rejected URL. Mitigation: fixed URL-free message raised `from None`; tests assert the token is absent from str, repr, traceback and logs.
 4. Paper Tiger. Severity: P2. Legitimate paging with `:443` or an upper-case host breaks. Mitigation: port None/443 allowed; hostname is case-normalized; control tests.
 5. Paper Tiger. Severity: P2. Divergence from #1833, which allows only graph.facebook.com. #1439's done criterion requires following next links across hosts, its tests page through graph.instagram.com, and the reviewer's fix spec lists both hosts. Mitigation: exact two-host `GRAPH_HOSTS`, disclosed in the PR body.
@@ -73,7 +73,7 @@ Regression: `tests/test_1794_instagram_redirects.py` mounts a fake transport ada
 - A Graph-to-Graph redirect, which also raises.
 - An official two-host paging control, checking that `Authorization` stays in the header and the token stays out of URLs.
 
-Red/green: with `instagram.py` from 42c7619d, 16 failed ("DID NOT RAISE": the foreign request is sent and the call succeeds) and the paging control passed. With the fix, 17 passed. The Instagram, pagination, credential, Vista, changelog and additional-credential-leak selection gives 459 passed. The credential URL guard's reviewed entry for `InstagramConnector._request_url` in `scripts/check_credential_urls.py` is updated to the new call expression (with `allow_redirects=False`), with the redirect rationale added. The guard reports 0 unreviewed sites, and flake8 and test hygiene pass.
+Red/green: with `instagram.py` from 42c7619d (byte-identical at 84c86703; GitHub compare shows only `CHANGELOG.md` changed between them), 16 failed ("DID NOT RAISE": the foreign request is sent and the call succeeds) and the paging control passed. With the fix, 17 passed. The Instagram, pagination, credential, Vista, changelog and additional-credential-leak selection gives 459 passed. The credential URL guard's reviewed entry for `InstagramConnector._request_url` in `scripts/check_credential_urls.py` is updated to the new call expression (with `allow_redirects=False`), with the redirect rationale added. The guard reports 0 unreviewed sites, and flake8 and test hygiene pass.
 
 ## Rework ledger
 The new test initially imported the new `GRAPH_HOSTS` constant; it now spells the allowlist out so the base run is a true red rather than an import error.
