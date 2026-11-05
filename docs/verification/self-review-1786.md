@@ -27,6 +27,14 @@ Project-contribution: keeps the GeoDjango notebook, the notebook guide and the n
 - Scope: five changed files plus these documents; no library code changed.
 - Gate evidence: pytest -> 4 passed and 12 passed as above.
 
+## Ticket-fitness exemption
+
+Governing ticket: #1671 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1671 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (the GeoDjango notebook advertising a complete copy-pasteable command whose `spatial_05_unified` loader import cannot resolve), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1671, and in the PR description. The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1671#issuecomment-6298384544.
+- **Falsification:** revert the implementation (the notebook, guide and test-module edits of this PR); `tests/test_1671_geodjango_notebook_truth.py::test_unresolved_loader_is_not_advertised_as_a_runnable_recipe` goes red because the notebook again advertises a runnable recipe for an unresolved loader. The latest commit of this PR is process-only; that existing regression test guards the accepted fix.
+
 ## Lead review (adversarial)
 Phase A coherence: the reviewer findings (punctuation, release-note placement, stale description, narrow self-review) map to the ASCII rewrite, the `[4.1.0]` entry, the refreshed description and this whole-PR artifact; no drift.
 Phase B verification: did it fix or move the problem? Fixed: the contract tests prove the false recipe claim fails and the corrected text passes. The overlap with #1784 was reduced by making the shared guide paragraph textually identical in both PRs, which leaves only an adjacent-changelog resolution.
