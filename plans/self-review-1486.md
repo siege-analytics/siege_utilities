@@ -70,7 +70,8 @@ Governing ticket: #1486. The #1398 epic is context only.
 Reason: #1486 predates the canonical ticket template. Its body uses Problem / Evidence / Failure scenario / Done when / Assumptions / Falsifier / Related instead of Context / Goal / Acceptance, and it links no /think design note.
 Evidence: https://github.com/siege-analytics/siege_utilities/issues/1486 states the alphabet, padding and float defects under "## Problem", the citations under "## Evidence" (`geo/geoid_utils.py`), and the done-when criteria under "## Done when". The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1486#issuecomment-6259604009.
 Falsification: revert the implementation; `tests/test_1486_geoid_utils.py::test_district_validation_accepts_census_alphabet` goes red because `validate_geoid("06ZZZ", "sldu")` is False again, and `::test_district_slug_round_trip_preserves_geoid` goes red because `slug_to_geoid` returns `06zzz`.
-Falsification verified 2026-11-05 for `siege_utilities/geo/geoid_utils.py`:
-- From develop `dc7d3f76`, the two named tests gave 48 failed / 3 passed. The 3 passes are the numeric round-trip controls.
-- From the pre-F1 head `f23be9a5`, the 25 alphanumeric round trips failed and the alphabet-validation cases passed.
-- With the file restored from the PR head, the whole file gave 107 passed, and the worktree was clean.
+Observed revert results (2026-11-05). Command, with `REV` set to the revert target:
+`git checkout REV -- siege_utilities/geo/geoid_utils.py && (cd tests && python -m pytest -o addopts="" -p no:cacheprovider --rootdir=.. -q test_1486_geoid_utils.py::test_district_validation_accepts_census_alphabet test_1486_geoid_utils.py::test_district_slug_round_trip_preserves_geoid); git checkout HEAD -- siege_utilities/geo/geoid_utils.py`
+- `REV=dc7d3f76` (develop): 48 failed, 3 passed. The 3 passes are the numeric round-trip controls.
+- `REV=f23be9a5` (pre-F1 head): 25 failed, 26 passed. The 25 alphanumeric round trips fail; the alphabet-validation cases pass.
+- Current-head green: after the file was restored, `(cd tests && python -m pytest -o addopts="" -p no:cacheprovider --rootdir=.. -q test_1486_geoid_utils.py)` gave 107 passed. The worktree was clean.
