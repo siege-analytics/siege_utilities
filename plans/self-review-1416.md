@@ -14,6 +14,14 @@ Investigate-artifact: https://github.com/siege-analytics/siege_utilities/issues/
 Pre-mortem-artifact: https://github.com/siege-analytics/siege_utilities/issues/1416#issuecomment-6650523718
 Hostile-review-artifact: plans/hostile-review-1416.md
 
+## Ticket-fitness exemption
+
+### #1416
+
+Reason: #1416 predates the canonical ticket template. Its body carries Problem, Failure scenario, Done when and Falsifier sections, but not the canonical Evidence and Assumptions sections.
+Evidence: problem, failure scenario, done-when and falsifier live in https://github.com/siege-analytics/siege_utilities/issues/1416; the exact-head reviewer verdict with reproducer is https://github.com/siege-analytics/siege_utilities/issues/1416#issuecomment-6257104805.
+Falsification: revert the implementation; `tests/test_crm_dedup.py::test_uncorroborated_namesakes_stay_distinct_final_entities` goes red because two no-email `Maria Garcia` rows group into one `canonical_id` (`[['a', 'b']]`).
+
 ## Assumptions
 
 1. The ticket's acceptance criteria ("a merge requires at least one corroborating key, or it is emitted as a candidate pair for review with a confidence below 1.0") mean a consumer that groups by `canonical_id` must not coalesce uncorroborated namesakes. The reviewer's probe used exactly that consumer.
