@@ -9,21 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `notebooks/analytics/01_connectors.ipynb` no longer advertises live
-  Google Analytics / Snowflake queries while only initializing the
-  connectors and always returning a hardcoded fixture. The notebook now
-  has an opt-in credentialed path (GA4 when
-  `GOOGLE_APPLICATION_CREDENTIALS` and `GA_PROPERTY_ID` are set, else a
-  configured Snowflake rollup) that issues the real `get_ga4_data` /
-  `execute_query` calls over the previous two complete Monday-through-Sunday
-  weeks and fails visibly on a missing property or query error, and an offline
-  path whose output is clearly labelled an illustrative fixture. Empty or
-  malformed live results
-  fail rather than silently becoming the fixture: missing dates and null or
-  non-finite session counts raise before grouping. The offline fixture also
-  covers two full weeks, keeping week-over-week comparisons aligned. Adds
-  `tests/test_1661_notebook_connector_truth.py` asserting the promised
-  branch behavior (#1661).
 - Correct the geocoding notebook's cache-hit claim: the timed cell scans
   already-collected results in memory to select matched input IDs. Add a
   narrative regression test and offline execution coverage for the geo notebook
@@ -315,6 +300,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list names `COUSUB` and `ADDRFEAT` and drops the non-existent `COUNTYSUB`,
   `SDELM`, `SDSEC` and `SDUNI`. An opt-in `-m integration` test HEADs one
   built URL per catalog type for 2010, 2019 and 2023 (#1464).
+- `notebooks/analytics/01_connectors.ipynb` no longer advertises live
+  Google Analytics / Snowflake queries while only initializing the
+  connectors and always returning a hardcoded fixture. The notebook now
+  has an opt-in credentialed path (GA4 when
+  `GOOGLE_APPLICATION_CREDENTIALS`, `GA_PROPERTY_ID` and
+  `GA_PROPERTY_TIMEZONE` are set, else a configured Snowflake rollup) that
+  issues the real `get_ga4_data` / `execute_query` calls over the previous two
+  complete Monday-through-Sunday weeks and fails visibly on a missing property,
+  a missing or unknown time zone, or a query error. The GA4 weeks are chosen in
+  the property's time zone, matching how GA4 interprets report dates, not on the
+  host clock. `SNOWFLAKE_CONFIG_FILE` is documented as the JSON file the
+  connector loads with `json.load`, with an example of its keys. The offline
+  path's output is clearly labelled an illustrative fixture. Empty or malformed
+  live results fail rather than silently becoming the fixture: missing dates
+  and null or non-finite session counts raise before grouping, and the
+  week-over-week change is withheld unless both weeks observed all seven
+  calendar days (#1661).
 
 ### BREAKING
 
