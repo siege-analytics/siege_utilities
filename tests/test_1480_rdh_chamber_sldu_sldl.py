@@ -4,7 +4,10 @@ from unittest.mock import Mock, sentinel
 
 import pytest
 
-from siege_utilities.geo.providers.boundary_providers import RDHProvider
+from siege_utilities.geo.providers.boundary_providers import (
+    BoundaryFetchError,
+    RDHProvider,
+)
 from siege_utilities.geo.providers.redistricting_data_hub import (
     RDHClient,
     RDHDataset,
@@ -117,7 +120,7 @@ def test_loaders_use_the_requested_chamber(client, entrypoint, chamber, code):
 
 
 @pytest.mark.parametrize("entrypoint", [
-    "get_enacted_plans", "fetch_enacted_plan", "get_boundary",
+    "get_enacted_plans", "fetch_enacted_plan",
 ])
 @pytest.mark.parametrize("chamber, keyword", [
     ("state_senate", "senate"),
@@ -144,3 +147,56 @@ def test_ambiguous_chamber_is_refused_before_loading(
     for detail in ("VA", chamber, "2021", *(plan.title for plan in plans)):
         assert detail in message
     client.load_shapefile.assert_not_called()
+
+
+@pytest.mark.parametrize("chamber, keyword", [
+    ("state_senate", "senate"),
+    ("state_house", "house"),
+    ("congress", "congress"),
+])
+def test_provider_wraps_ambiguous_plan_in_boundary_fetch_error(client, chamber, keyword):
+    # Provider callers and fallback chains catch BoundaryFetchError, the
+    # provider's failure contract, not the client's bare ValueError.
+    plans = [
+        _dataset(f"va_{keyword}_2021_adopted_plan_a"),
+        _dataset(f"va_{keyword}_2021_adopted_plan_b"),
+    ]
+    client.list_datasets.return_value = plans
+
+    with pytest.raises(BoundaryFetchError, match="Ambiguous enacted") as exc:
+        _load_plan(client, "get_boundary", chamber)
+
+    assert isinstance(exc.value.__cause__, ValueError)
+    for detail in ("VA", chamber, "2021", *(plan.title for plan in plans)):
+        assert detail in str(exc.value)
+    client.load_shapefile.assert_not_called()
+
+
+@pytest.mark.parametrize("error", [
+    OSError("connection reset"), ValueError("bad catalog payload"),
+])
+@pytest.mark.parametrize("level", ["precinct", "state_house"])
+def test_provider_wraps_lookup_failures_in_boundary_fetch_error(
+    client, monkeypatch, error, level,
+):
+    lookup = "get_precinct_data" if level == "precinct" else "get_enacted_plans"
+    monkeypatch.setattr(client, lookup, Mock(side_effect=error))
+
+    with pytest.raises(BoundaryFetchError, match=f"failed to look up {level}") as exc:
+        _load_plan(client, "get_boundary", level)
+
+    assert exc.value.__cause__ is error
+    client.load_shapefile.assert_not_called()
+
+
+@pytest.mark.parametrize("level, identifier", [("county", "VA"), ("state_house", None)])
+def test_provider_argument_errors_stay_value_error(client, level, identifier):
+    # Caller misuse is not a fetch failure and must not be wrapped.
+    provider = RDHProvider()
+    provider._client = client
+
+    with pytest.raises(ValueError) as exc:
+        provider.get_boundary(level, identifier)
+
+    assert not isinstance(exc.value, BoundaryFetchError)
+    client.list_datasets.assert_not_called()

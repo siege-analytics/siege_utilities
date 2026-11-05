@@ -112,6 +112,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- RDH enacted-plan selection maps SLDU to state senate and SLDL to state
+  house, and matches chamber keywords on token boundaries so titles such as
+  `household` and `houses` no longer match. `get_enacted_plans` and
+  `fetch_enacted_plan` raise `ValueError` with the candidate titles when
+  multiple plans match; `RDHProvider.get_boundary` raises
+  `BoundaryFetchError` for that ambiguity and for other dataset-lookup
+  failures, chaining the client error. Narrow the year filter or use
+  `list_datasets` and load a chosen dataset directly (#1480).
 - Sanitize CRM upsert payloads for Salesforce, HubSpot, Zoho, and Dynamics:
   omit top-level missing fields to preserve existing values, serialize dates and
   timestamps as ISO 8601 strings, and convert numpy scalars to native types.
