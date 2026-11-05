@@ -300,6 +300,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list names `COUSUB` and `ADDRFEAT` and drops the non-existent `COUNTYSUB`,
   `SDELM`, `SDSEC` and `SDUNI`. An opt-in `-m integration` test HEADs one
   built URL per catalog type for 2010, 2019 and 2023 (#1464).
+- Place-history overlays apply the `state_fips` filter to election results and
+  redistricting assignments, including numeric FIPS codes. Reversed year
+  ranges are handled, empty half-open redistricting spans are excluded, and
+  inverted spans raise `ValueError`; the state filter runs first, so an
+  inverted span in another state no longer aborts a state-scoped provider
+  query, overlay fetch, or `place_history` result. The current-seat selection
+  keeps every row of the chosen start-year group, so split districts are
+  retained, and an ongoing seat takes priority over a newer finite one.
+  **Behavior change:** two same-office seats starting in the same
+  year, one finite and one ongoing, are both returned. Seats use inclusive
+  years; plans use half-open dates (#1466).
 
 ### BREAKING
 
