@@ -1,0 +1,46 @@
+# Self-review: #1786 GeoDjango notebook honesty (#1671)
+
+Review-Tier: B (documentation, notebook prose and tests; corrects false capability claims; no library code change).
+
+Scope: the PR as a whole at its current head. The diff against `develop` is `CHANGELOG.md`, `docs/NOTEBOOKS.md`, `notebooks/spatial/06_geodjango.ipynb`, `tests/test_1671_geodjango_notebook_truth.py` and `tests/test_notebooks.py`, plus these three verification documents.
+
+## Assumptions
+Working as: software engineer (implementing) and tech lead (adversarial review).
+Domain(s): software engineering (documentation truthfulness, notebook governance).
+Geospatial cross-cut: yes (the GeoDjango notebook is described, not executed).
+Goal source: ticket #1671 and the exact-head reviews recorded on PR #1786.
+Pre-author-inventory: NONE
+Investigate-artifact: docs/verification/investigate-1786.md
+Pre-mortem-artifact: docs/verification/pre-mortem-1786.md
+Hostile-review-artifact: the pinned review on PR #1786 and the ticket #1671 review comment for the prior head (CHANGES REQUESTED on punctuation, release-note placement, a stale description and a narrow self-review); the current head addresses those points and awaits a fresh exact-head review.
+Project-contribution: keeps the GeoDjango notebook, the notebook guide and the notebook test module truthful about a markdown-only schematic, and keeps the guide consistent with the open neighboring PR #1784.
+
+## Test plan
+- Red-first: the documentation-contract tests fail against the baseline notebook, which promised a complete copy-pasteable command.
+- Truth basis: `nbformat.read` on `notebooks/spatial/06_geodjango.ipynb` reports 0 code cells; `importlib.util.find_spec("spatial_05_unified")` returns None.
+- Green on the current tree: `python -m pytest test_1671_geodjango_notebook_truth.py` run from the `tests` directory -> 4 passed in 1.88s; together with the geodjango selection of `test_notebook_hygiene.py` -> 12 passed (Python 3.11, repository pyproject as config).
+- Hosted CI at the pushed head is recorded in the PR description once it finishes. Develop CI has known failures from the DuckDB 2.0 break (about 30) that are not attributable to this PR.
+
+## Peer review
+- writing-claims: the notebook and guide describe a schematic, markdown-only notebook; no copy-paste promise remains. The guide states that PR #1784 is a separate open PR editing the same lines; this PR does not claim it landed.
+- writing-prose: the notebook and these documents use ASCII punctuation only.
+- Scope: five changed files plus these documents; no library code changed.
+- Gate evidence: pytest -> 4 passed and 12 passed as above.
+
+## Lead review (adversarial)
+Phase A coherence: the reviewer findings (punctuation, release-note placement, stale description, narrow self-review) map to the ASCII rewrite, the `[4.1.0]` entry, the refreshed description and this whole-PR artifact; no drift.
+Phase B verification: did it fix or move the problem? Fixed: the contract tests prove the false recipe claim fails and the corrected text passes. The overlap with #1784 was reduced by making the shared guide paragraph textually identical in both PRs, which leaves only an adjacent-changelog resolution.
+
+Post-mortem applicability: N/A. This is a forward content fix, not a revert or regression-fix of shipped code.
+
+## Findings
+| ID | Priority | Description | Resolution |
+|----|----------|-------------|------------|
+| (none open) | - | - | - |
+
+## Quantified claims
+- "0 code cells" is from `nbformat.read` on the notebook.
+- "4 passed" is the full `test_1671_geodjango_notebook_truth.py` run; "12 passed" adds the geodjango hygiene selection.
+
+## Evidence-predates-work
+This artifact is committed in the PR branch at `docs/verification/self-review-1786.md`. The test results above were produced in the same work cycle that restored it, after the implementation commits.

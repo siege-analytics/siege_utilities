@@ -41,6 +41,7 @@ from siege_utilities.connectors._protocol import (
     ConnectorNotFoundError,
     ConnectorRateLimitError,
     UpsertResult,
+    sanitize_record,
 )
 from siege_utilities.connectors._query_utils import _validate_identifier
 
@@ -710,7 +711,7 @@ class SalesforceConnector:
         total_failure = 0
         total = len(records)
 
-        record_dicts = records.to_dict(orient="records")
+        record_dicts = [sanitize_record(row) for row in records.to_dict(orient="records")]
         batches = [
             record_dicts[i:i + self.COMPOSITE_BATCH_SIZE]
             for i in range(0, len(record_dicts), self.COMPOSITE_BATCH_SIZE)
@@ -797,6 +798,7 @@ class SalesforceConnector:
         progress_callback: Callable[[str, int, int], None] | None = None,
     ) -> UpsertResult:
         """Execute a complete Bulk API v2 ingest job lifecycle."""
+        csv_data = self._dataframe_to_csv(records)
         self._ensure_connected()
         total = len(records)
 
@@ -806,7 +808,6 @@ class SalesforceConnector:
         if progress_callback:
             progress_callback("uploading", 0, total)
 
-        csv_data = self._dataframe_to_csv(records)
         self._bulk_upload_data(job_id, csv_data)
         log.info("Bulk API job %s: CSV data uploaded (%d bytes)", job_id, len(csv_data))
 
@@ -982,7 +983,11 @@ class SalesforceConnector:
     def _dataframe_to_csv(df: pd.DataFrame) -> str:
         """Convert a DataFrame to CSV string for Bulk API upload."""
         buf = io.StringIO()
-        df.to_csv(buf, index=False, lineterminator="\n")
+        writer = csv.DictWriter(buf, fieldnames=df.columns, lineterminator="\n")
+        writer.writeheader()
+        # Missing fields become empty CSV cells; avoid DataFrame reconstruction,
+        # which could coerce the sanitized ISO strings back into Timestamps.
+        writer.writerows(sanitize_record(row) for row in df.to_dict(orient="records"))
         return buf.getvalue()
 
     def _composite_upsert(
@@ -1239,6 +1244,10 @@ class SalesforceConnector:
                     json=json_body,
                     timeout=self._timeout,
                 )
+            except requests.exceptions.InvalidJSONError as exc:
+                raise ConnectorError(
+                    f"Salesforce JSON encoding failed for {method} {path}: {exc}"
+                ) from exc
             except requests.exceptions.RequestException as exc:
                 last_exc = exc
                 log.warning(

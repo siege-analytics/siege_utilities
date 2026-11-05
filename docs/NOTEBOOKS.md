@@ -115,9 +115,9 @@ Local Spark inside nbconvert is fragile (JVM startup, Py4J gateway lifetime,
 serializer registration). Likewise a Django + PostGIS server spun up inside a
 notebook is unsafe to provision from CI. Both notebooks are schematic: their
 Spark/Sedona and GeoDjango sections document call shapes, not runnable copy-paste
-recipes. Only an import smoke cell executes in `engines/02`; `spatial/06` is
-markdown-only. The documented patterns require separately configured runtimes,
-data, and services.
+recipes. engines/02 executes only an import smoke cell; spatial/06 is markdown-only
+and has no code cells to execute. The documented patterns require separately
+configured runtimes, data, and services.
 
 ## Inventory, capability coverage, and CI truth checks
 
