@@ -18,40 +18,49 @@ In software engineering: the change is test-only and additive; it removes a no-D
 
 ## Ticket-fitness exemption
 
-#1479, #1497 and #1412 were written before the current evaluate-ticket
-structure (they use Problem / Evidence / Done-when headings). #1398 is the
-parent epic and context only. The exemption covers ticket structure only.
+The governing tickets #1479, #1497 and #1412 were written before the current
+evaluate-ticket structure (Problem / Evidence / Done-when headings), which is
+the Reason for each exemption; it covers ticket structure only.
 
-- **#1479** (spatial-join column collisions). Reason: legacy shape.
-  Evidence: `tests/test_1479_spark_join_collisions.py`, 14 passed at
-  `7cac3e01`. Falsification: any of those tests fails at the head, or a
-  Done-when item in the PR body's Done-when table has no mapped test.
-- **#1497** (projected inputs reprojected to EPSG:4326). Reason: legacy shape.
-  Evidence: `tests/test_1497_engine_crs_preservation.py`, 33 passed at
-  `7cac3e01`. Falsification: as above.
-- **#1412** (DuckDB `query` parameters, GEOMETRY to WKB CRS, `read_spatial`
-  labels). Reason: legacy shape. Evidence:
-  `tests/test_1412_duckdb_query_wkb_crs.py`, 50 passed at `7cac3e01` under
-  duckdb 1.5.6 (under duckdb 1.4.4, 32 of its cases skip because they need
-  CRS-qualified geometry types from duckdb 1.5). Falsification: as above, or a
-  case skips under duckdb 1.5.
-- **#1463** (`SparkEngine.nearest` row identity; shared with #1846). Reason:
-  legacy Problem / Evidence shape, and this PR does not implement it: #1463
-  landed on develop through #1793, and the PR body describes its behavior as
-  existing baseline, not new work. Evidence: the PR body's #1463 paragraph and
-  the Spark nearest baseline row of its output-diff table. Falsification: this
-  PR's diff against develop changes the #1463 regression tests or claims to
-  close #1463.
-- **#1749** (proposal for per-PR CHANGELOG fragments). Reason: legacy shape;
-  #1749 is cited only for the CHANGELOG convention the PR body used, not for
-  implemented behavior. Evidence: the body's CHANGELOG paragraph. Falsification:
-  this PR adds `changelog.d/` tooling or claims to implement #1749.
-- **#1667** (geocoding notebook cache honesty). Reason: legacy shape. It is
-  listed for this PR in the ticket-fitness review, but this PR's body, its
-  diff against develop and its branch commit messages do not reference it
-  (checked at `3ab83dc8`), so no #1667 behavior is claimed here.
-  Falsification: this PR's diff touches the geocoding notebook or cache, or
-  the PR claims #1667.
+Revert runs (observed 2026-11-05, Python 3.11.11, duckdb 1.5.6 for #1412).
+Each ticket landed in one implementation commit. The revert is taken at the
+point it landed: the tree of `<impl>^` (`git archive <impl>^`) with the
+ticket's own test file from `<impl>` overlaid, run with
+`python -m pytest -o addopts="" --rootdir=.. -c ../pyproject.toml -p no:cacheprovider -q -p no:randomly <test file>`
+from its `tests/` directory. Head counts are at `e5200588` (develop sync of
+`1c4b2793`; the sync changes no engine file). Every failure listed is an
+assertion or missing-raise on the ticket's behavior.
+
+- **#1479** (spatial-join column collisions, multi-assign on Spark).
+  Node: `tests/test_1479_spark_join_collisions.py::test_spark_join_has_one_geometry_and_suffixes[spatial_join]`.
+  Revert of `cabed715` (tree of `cabed715^`): 7 failed / 1 passed; the join
+  cases fail with `AssertionError: assert 2 == 1` (two geometry columns),
+  `test_spark_multi_assign_stays_native` fails with
+  `Failed: multi_assign must not collect to the driver`, and two collision
+  cases with `DID NOT RAISE ValueError`. Head: 14 passed.
+- **#1497** (nearest, apportion and dissolve reproject projected input to
+  EPSG:4326). Node:
+  `tests/test_1497_engine_crs_preservation.py::test_nearest_preserves_metres_and_crs[pandas]`.
+  Revert of `82369502` (tree of `82369502^`): 30 failed / 3 passed; the
+  nearest cases fail with `TypeError: DataFrameEngine.nearest() got an
+  unexpected keyword argument 'crs'`, six cases with
+  `DID NOT RAISE ValueError`, and a CRS read fails with
+  `AttributeError: 'NoneType' object has no attribute 'to_epsg'`. Head: 33
+  passed.
+- **#1412** (DuckDB `query` drops parameters, GEOMETRY to WKB relabels CRS).
+  Node: `tests/test_1412_duckdb_query_wkb_crs.py::test_typed_wkb_preserves_crs[query-value]`.
+  Revert of `2b0bd994` (tree of `2b0bd994^`): 27 failed / 0 passed; that node
+  fails with `assert 4326 == 3857` (the EPSG:3857 geometry is relabelled
+  EPSG:4326), and
+  `test_unknown_query_keyword_is_rejected_before_execution` with
+  `DID NOT RAISE TypeError`. Head: 50 passed under duckdb 1.5.6 (under duckdb
+  1.4.4, 32 cases skip because they need CRS-qualified geometry types).
+
+Context only, not governing (no revert run): #1398 (parent epic); #1463
+(`SparkEngine.nearest`, landed on develop through #1793; the PR body calls its
+behavior existing baseline); #1749 (cited only for the CHANGELOG convention
+the PR body used); #1667 (named in the ticket-fitness review, but this PR's
+body, diff against develop and branch commits do not reference it).
 
 ## Test plan
 
