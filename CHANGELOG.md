@@ -118,6 +118,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Facebook page insights now merge every metric's daily values by measured day.
+  For `period=day`, `date` is a `YYYY-MM-DD` string for the date of `end_time`
+  minus one day. Missing per-day values and metric/day pairs are NaN, not zero.
+  Each connector uses its own API session for page, ad, business, and account
+  calls, preventing token sharing while preserving any existing SDK default API
+  (#1435).
+- Facebook ad insights now request daily rows (`time_increment=1`) and include
+  `ad_id`, `ad_name`, `date_start`, and `date_stop`, including when callers supply
+  custom fields. Missing ad and business metrics are NaN instead of zero (#1435).
+- `batch_retrieve_facebook_data` documents its accepted `data_types` as
+  `ad_account`, `page`, and `business` and accepts `config_directory` to load
+  the client profiles used by all three retrieval paths (#1435).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
