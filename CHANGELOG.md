@@ -323,6 +323,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   labelled EPSG:4326, whatever CRS was uploaded. `if_exists='append'` adds
   rows by column name and refuses data in a different CRS. Arbitrary SQL
   through `execute_spatial_query` keeps the EPSG:4326 label (#1818).
+- The CI battle-test script now runs the repository-root test suite and
+  returns pytest's exit status, so the job reflects real test results.
+  It applies the main lane's selection (`-m "not integration and not
+  postgis"`, `--ignore=tests/test_notebooks.py`) on both its uv and python
+  paths. Logs, coverage reports and the summary JSON are saved in the
+  repository-root `overnight_results/` directory used by CI, including when
+  tests fail. A failed write of `overnight_results/test_output.txt` now fails
+  the run instead of reporting exit 0, and `summary.json` records the pytest
+  and tee statuses and whether the output artifact was written (#1475).
 - Instagram follows all account, post and insight pages across Graph hosts
   and versions, filters every post page by date and limit, and splits daily
   insights into at most 30-day UTC windows. GA4 retrieves every reported row
