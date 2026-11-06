@@ -118,6 +118,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Narrow the engines/01 notebook's teaching claim to result parity across
+  pandas and DuckDB using different query implementations. Keep the existing
+  queries and results comparison, with a regression test for the claim. Correct
+  the synthetic data description to 5 TX counties and test it against the
+  generator (#1663).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
