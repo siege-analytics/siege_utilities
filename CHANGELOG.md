@@ -118,6 +118,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Social-media and analytics report facades now write PDFs and return their
+  `Path`, preserving collected metrics, tables, insights and charts. Website
+  performance and custom analytics reports use the real PDF renderer instead
+  of nonexistent methods; custom DataFrame/CSV reports include their sample
+  data and summary tables. Social-media documentation now promises PDF only
+  (#1461).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0

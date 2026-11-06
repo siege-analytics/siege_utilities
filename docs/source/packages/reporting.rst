@@ -61,11 +61,29 @@ Chart Engines
 Reports and Documents
 ---------------------
 
+``SocialMediaReportGenerator`` and ``AnalyticsReportGenerator`` write PDFs
+under their ``output_dir`` and return a ``pathlib.Path`` after rendering
+succeeds. Each call uses a unique filename derived from the report title.
+The PDFs include collected metrics, tables, insights and charts.
+The social-media facade produces PDF only; PowerPoint generation is available
+separately through ``PowerPointGenerator``.
+
+``create_website_performance_report`` selects the requested metric names from
+the input dictionary (or its ``metrics`` dictionary) and includes optional
+``executive_summary``, ``charts``, ``tables`` and ``insights`` payload fields.
+``create_custom_analytics_report`` accepts a DataFrame, a dictionary, a JSON
+string, or a CSV path according to ``data_source``. Set ``report_config['title']``
+to customize its PDF title.
+
 .. automodule:: siege_utilities.reporting.report_generator
    :members:
    :show-inheritance:
 
 .. automodule:: siege_utilities.reporting.analytics_reports
+   :members:
+   :show-inheritance:
+
+.. automodule:: siege_utilities.reporting.social_media_reports
    :members:
    :show-inheritance:
 

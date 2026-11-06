@@ -11,6 +11,7 @@ import pandas as pd
 
 from .report_generator import ReportGenerator
 from .chart_generator import ChartGenerator
+from ._facade_content import _render_facade_report
 
 log = logging.getLogger(__name__)
 
@@ -60,8 +61,9 @@ class AnalyticsReportGenerator:
             report_data = self._prepare_ga_report_data(ga_data, date_range)
             
             # Generate report
-            report_path = self.report_generator.create_analytics_report(
-                report_data, report_title
+            report_path = _render_facade_report(
+                self.report_generator, report_data,
+                report_title or f"Google Analytics Report - {self.client_name}"
             )
             
             log.info(f"Google Analytics report created: {report_path}")
@@ -78,8 +80,9 @@ class AnalyticsReportGenerator:
         Create a website performance report.
         
         Args:
-            performance_data: Website performance data
-            metrics: List of performance metrics to include
+            performance_data: Metric values (top-level or under ``metrics``),
+                with optional executive_summary, charts, tables and insights
+            metrics: Names of performance metrics to include
             report_title: Custom title for the report
             
         Returns:
@@ -87,8 +90,14 @@ class AnalyticsReportGenerator:
         """
         try:
             # Generate report
-            report_path = self.report_generator.create_performance_report(
-                performance_data, metrics, report_title
+            available_metrics = performance_data.get('metrics', performance_data)
+            report_data = {
+                **performance_data,
+                'metrics': {name: available_metrics[name] for name in metrics},
+            }
+            report_path = _render_facade_report(
+                self.report_generator, report_data,
+                report_title or f"Website Performance Report - {self.client_name}"
             )
             
             log.info(f"Website performance report created: {report_path}")
@@ -126,7 +135,9 @@ class AnalyticsReportGenerator:
                 raise ValueError(f"Unsupported data source: {data_source}")
             
             # Generate custom report
-            report_path = self.report_generator.create_custom_report(processed_data)
+            report_path = _render_facade_report(
+                self.report_generator, processed_data, processed_data['title']
+            )
             
             log.info(f"Custom analytics report created: {report_path}")
             return report_path
@@ -154,8 +165,8 @@ class AnalyticsReportGenerator:
             report_data = self._prepare_monthly_report_data(monthly_data, year, month)
             
             # Generate report
-            report_path = self.report_generator.create_analytics_report(
-                report_data, f"Monthly Analytics Report - {year}-{month:02d}"
+            report_path = _render_facade_report(
+                self.report_generator, report_data, f"Monthly Analytics Report - {year}-{month:02d}"
             )
             
             log.info(f"Monthly analytics report created: {report_path}")
@@ -184,8 +195,8 @@ class AnalyticsReportGenerator:
             report_data = self._prepare_quarterly_report_data(quarterly_data, year, quarter)
             
             # Generate report
-            report_path = self.report_generator.create_analytics_report(
-                report_data, f"Q{quarter} {year} Analytics Report"
+            report_path = _render_facade_report(
+                self.report_generator, report_data, f"Q{quarter} {year} Analytics Report"
             )
             
             log.info(f"Quarterly analytics report created: {report_path}")
@@ -214,8 +225,8 @@ class AnalyticsReportGenerator:
             report_data = self._prepare_campaign_report_data(campaign_data, campaign_name, date_range)
             
             # Generate report
-            report_path = self.report_generator.create_analytics_report(
-                report_data, f"Campaign Performance: {campaign_name}"
+            report_path = _render_facade_report(
+                self.report_generator, report_data, f"Campaign Performance: {campaign_name}"
             )
             
             log.info(f"Campaign performance report created: {report_path}")
@@ -781,13 +792,30 @@ class AnalyticsReportGenerator:
             tables = []
             summary_data = []
             if not df.empty:
-                # Sample data table
-                sample_data = df.head(20).values.tolist()
-                tables.append({
-                    'title': 'Sample Data',
-                    'headers': df.columns.tolist(),
-                    'data': sample_data
-                })
+                # Sample data table. A wide frame (dozens of columns) cannot
+                # fit one ReportLab table -- it raises "negative availWidth" --
+                # so split the columns into groups of at most MAX_SAMPLE_COLS
+                # and emit one labelled table per group. All columns are kept.
+                MAX_SAMPLE_COLS = 12
+                all_cols = df.columns.tolist()
+                head_df = df.head(20)
+                col_groups = [
+                    all_cols[i:i + MAX_SAMPLE_COLS]
+                    for i in range(0, len(all_cols), MAX_SAMPLE_COLS)
+                ]
+                multi = len(col_groups) > 1
+                for gi, group in enumerate(col_groups):
+                    start = gi * MAX_SAMPLE_COLS + 1
+                    end = gi * MAX_SAMPLE_COLS + len(group)
+                    title = (
+                        f'Sample Data (columns {start}–{end} of {len(all_cols)})'
+                        if multi else 'Sample Data'
+                    )
+                    tables.append({
+                        'title': title,
+                        'headers': group,
+                        'data': head_df[group].values.tolist(),
+                    })
                 
                 # Summary statistics table
                 summary_data = []
@@ -815,18 +843,13 @@ class AnalyticsReportGenerator:
                         'title': 'Data Overview',
                         'content': f"This report analyzes a dataset with {len(df)} rows and {len(df.columns)} columns. The data includes {len(numeric_cols)} numeric columns suitable for statistical analysis."
                     },
-                    {
+                    *[{
                         'type': 'chart',
-                        'title': 'Data Distribution Charts',
-                        'chart_config': charts[0] if charts else {},
+                        'title': chart['title'],
+                        'chart_config': chart,
                         'caption': 'Distribution of key numeric variables'
-                    },
-                    {
-                        'type': 'table',
-                        'title': 'Summary Statistics',
-                        'headers': ['Column', 'Mean', 'Std', 'Min', 'Max'],
-                        'data': summary_data
-                    }
+                    } for chart in charts],
+                    *[{'type': 'table', **table} for table in tables],
                 ]
             }
             
@@ -852,6 +875,12 @@ class AnalyticsReportGenerator:
                         'type': 'text',
                         'title': key.replace('_', ' ').title(),
                         'content': f"Value: {value:,}" if isinstance(value, int) else f"Value: {value:.2f}"
+                    })
+                elif isinstance(value, str):
+                    sections.append({
+                        'type': 'text',
+                        'title': key.replace('_', ' ').title(),
+                        'content': value
                     })
                 elif isinstance(value, list) and len(value) > 0:
                     if isinstance(value[0], (int, float)):
