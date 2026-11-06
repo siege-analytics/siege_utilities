@@ -13,7 +13,7 @@ _exchange_token ConnectorAuthError paths (transport + non-200), and the
 create_record no-ID guard.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 import requests
@@ -25,6 +25,11 @@ from siege_utilities.connectors._protocol import (
     ConnectorRateLimitError,
 )
 from siege_utilities.connectors.hubspot import HubSpotConnector
+
+
+@pytest.fixture(autouse=True)
+def no_retry_sleep(monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda _: None)
 
 
 class _FakeResp:
@@ -73,7 +78,7 @@ def _authed_connector(retry_attempts=1, retry_backoff=0.0):
     """
     c = HubSpotConnector(
         client_id="id",
-        client_secret="secret",
+        client_secret="client-secret-value",
         retry_attempts=retry_attempts,
         retry_backoff=retry_backoff,
     )
@@ -123,7 +128,7 @@ def test_ensure_connected_raises_when_access_token_expired_no_refresh():
     c = HubSpotConnector(access_token="tok")
     c._authenticated = True
     c._access_token = "expired"
-    c._token_expires_at = datetime.now() - timedelta(seconds=1)
+    c._token_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
     c._refresh_token = None
     with pytest.raises(ConnectorAuthError) as exc_info:
         c._ensure_connected()
@@ -138,7 +143,7 @@ def test_ensure_connected_raises_when_access_token_expired_no_refresh():
 def test_authenticate_raises_in_oauth_mode():
     """authenticate() in OAuth mode (no access_token) raises ConnectorAuthError
     directing the caller to use the authorization code flow."""
-    c = HubSpotConnector(client_id="id", client_secret="secret")
+    c = HubSpotConnector(client_id="id", client_secret="dummy-client-secret-1846")
     with pytest.raises(ConnectorAuthError) as exc_info:
         c.authenticate()
     assert "get_authorization_url" in str(exc_info.value)
@@ -277,7 +282,9 @@ def test_request_204_returns_empty_dict(monkeypatch):
 
 
 def test_request_raises_on_non_json_2xx():
-    c = _connector()
+    # long-credential connector so the public-edge boundary value-redacts rather
+    # than suppressing the "non-JSON" diagnostic (#1846 R-1846-6).
+    c = _authed_connector()
     c._session = _FakeSession(response=_FakeResp(200, json_raises=True, text="<html>"))
     with pytest.raises(ConnectorError) as exc_info:
         c.request("GET", "/crm/v3/objects/contacts")
@@ -285,7 +292,9 @@ def test_request_raises_on_non_json_2xx():
 
 
 def test_request_retries_then_raises_on_request_exception():
-    c = _connector()  # retry_attempts=1 — no backoff sleep
+    # long-credential connector (retry_attempts=1, no backoff sleep) so the
+    # boundary value-redacts rather than suppressing "failed after" (#1846 R-1846-6).
+    c = _authed_connector()
     c._session = _FakeSession(raise_exc=requests.exceptions.ConnectionError("boom"))
     with pytest.raises(ConnectorError) as exc_info:
         c.request("GET", "/crm/v3/objects/contacts")
@@ -358,9 +367,14 @@ def test_exchange_token_raises_on_non_200(monkeypatch):
         c._exchange_token("https://api.hubapi.com/oauth/v1/token", {"grant_type": "refresh_token"})
 
 
-def test_exchange_token_non_200_falls_back_to_text_when_not_json(monkeypatch):
-    """When _exchange_token receives a non-200 response whose body is not
-    valid JSON, it falls back to resp.text[:200] in the error message."""
+def test_exchange_token_non_200_suppresses_body_with_short_credential(monkeypatch):
+    """#1846 B2 r4 D3 reversal. This test previously asserted the auth body
+    fell back to ``resp.text[:200]`` with ``assert "Unavailable" in
+    str(exc_info.value)``. D3 supersedes that on the auth/token path: the
+    fixture configures ``access_token="tok"`` (3 chars < the value-redactor
+    minimum), which cannot be removed by value replacement, so the upstream
+    503 body is dropped in full and only the trusted constant and status
+    remain."""
     c = _connector()
     monkeypatch.setattr(
         c._session, "post",
@@ -372,8 +386,10 @@ def test_exchange_token_non_200_falls_back_to_text_when_not_json(monkeypatch):
     )
     with pytest.raises(ConnectorAuthError) as exc_info:
         c._exchange_token("https://api.hubapi.com/oauth/v1/token", {"grant_type": "refresh_token"})
-    assert "503" in str(exc_info.value)
-    assert "Unavailable" in str(exc_info.value)
+    text = str(exc_info.value)
+    assert text == "HubSpot auth failed (503)"
+    assert "Unavailable" not in text
+    assert "gateway" not in text
 
 
 # ---------------------------------------------------------------------------
