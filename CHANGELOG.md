@@ -118,6 +118,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The natural-language geometry notebook resolves Lausanne and Lake Geneva to
+  distinct illustrative fixtures, rejects unknown place names, and labels
+  directional results against the queried fixture's centroid. The Lake Geneva
+  fixture joins Grand Lac and Petit Lac boxes so south-shore towns fall south of
+  its centroid (#1672).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
