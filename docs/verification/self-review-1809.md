@@ -63,3 +63,54 @@ Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11), run fr
 
 ## Rework ledger
 The guard red was demonstrated by temporarily substituting the 85b49cb3 predicate into the variant tests and then restoring the committed test file; the committed file contains only the behavioural guard.
+
+## Real pytest assertion-failure acceptance (2026-11-06)
+
+Review thread PRRT_kwDOO94Kgc6tw8-T correctly identified that status stubs
+alone did not satisfy #1475's real failing-file criterion. Two new disposable
+repository cases invoke the copied, unchanged wrapper with the actual test
+interpreter and real pytest/pytest-cov. A minimal local package and collected
+`test_real_assertion` produce an assertion failure (exit 1, `1 failed`,
+`assert 42 == 43`), with a matching passing control (exit 0, `1 passed`). Both
+verify repo-root test output, summary statuses, and actual JSON/HTML coverage
+artifacts from a caller outside the temporary repository. The child PATH
+selects the Python branch only; no pytest status stub or SU conftest is used.
+The required coverage plugin is explicitly loaded; unrelated child plugin
+autoload is disabled. Host environment and production wrapper are unchanged.
+
+- Interpreter: `/Users/dheerajchand/git/siege-analytics/siege_utilities/.venv/bin/python`
+  (Python 3.11.14, pytest 9.1.1).
+- Focused command: `python -m pytest tests/test_1475_overnight_script.py tests/test_1809_battle_selection.py -q --no-cov`
+  -> **34 passed in 24.87s** (existing 32 plus 2 real-pytest cases).
+- Surgical status red: in a private copied wrapper only, replacing final
+  `exit $TEST_EXIT_CODE` with `exit 0` gives **1 failed / 1 passed**, 8
+  deselected. The genuine failing-file case detects the false success while
+  the genuine passing control remains green.
+- Surgical cwd red: in a private copied wrapper only, replacing `cd "$REPO_ROOT"`
+  with `cd "$SCRIPT_DIR"` gives **2 failed**, 8 deselected: real pytest returns
+  usage exit 4 instead of expected 1/0 because the repository tests are absent
+  from that cwd. The final positive assertions explicitly require collected
+  case output, so a collection/preflight failure cannot satisfy acceptance.
+- Earlier fixture iterations correctly failed: a relocated interpreter symlink
+  lost venv package discovery; an overly specific assertion-error prefix did
+  not match pytest's short traceback format. The final launcher executes the
+  original interpreter directly, and the assertion checks the actual failure.
+
+Scope: real Python-fallback execution is covered here; existing controlled
+cases retain uv branch/selection/artifact coverage. This is not a full SU
+suite, CI result, or real uv integration claim. Private logs are retained in
+`instruction-refactor-evidence-20261104/su1809-real-pytest/` outside this repo.
+
+Exact v4.0.0 falsifier: also ran these two real-pytest cases against the
+**unmodified** private script extracted from commit
+`9c3463b14aa3104e4efa2cd5236659a689d13f89`, blob
+`83198210e9ccfbd42d1362094b9e44150d3cf8de`, SHA-256
+`7a61790aecbb3a69c8e1217cc4b0fc1c72ce17f1be33c529e48e299203d54ba2`.
+Result: **2 failed, 8 deselected in 0.96s**. The failing-file case observes
+wrapper exit 0 instead of expected 1; the passing control detects missing
+repo-root output (old wrapper writes beneath `scripts/`). This fulfills the
+explicit v4.0.0 falsifier separately from the surgical controls. Actual
+collection/assertion execution is required on the fixed wrapper; the old
+script's false zero is not mistaken for a successful real-test run.
+Logs and the exact historical script are retained privately in
+`su1809-real-pytest/v4-exact-red.{log,json}` and `v4-wrapper.sh`.
