@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, tzinfo
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pandas as pd
@@ -22,11 +23,11 @@ import pytest
 NOTEBOOK = Path(__file__).resolve().parents[1] / "notebooks/analytics/01_connectors.ipynb"
 
 
-def _cells():
+def _cells() -> list[dict[str, Any]]:
     return json.loads(NOTEBOOK.read_text(encoding="utf-8"))["cells"]
 
 
-def _run_cells(*indices: int) -> dict:
+def _run_cells(*indices: int) -> dict[str, Any]:
     cells = _cells()
     namespace: dict = {}
     for index in indices:
@@ -35,7 +36,7 @@ def _run_cells(*indices: int) -> dict:
     return namespace
 
 
-def _ga_env(tmp_path, monkeypatch, zone):
+def _ga_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, zone: str | None) -> None:
     creds = tmp_path / "service-account.json"
     creds.write_text('{"type": "service_account"}', encoding="utf-8")
     monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", str(creds))
@@ -47,18 +48,18 @@ def _ga_env(tmp_path, monkeypatch, zone):
         monkeypatch.setenv("GA_PROPERTY_TIMEZONE", zone)
 
 
-def _clock(instant_utc: str):
+def _clock(instant_utc: str) -> tuple[Any, Any]:
     """Patch the host clock: date.today() is the host (UTC) date of the instant."""
     instant = datetime.fromisoformat(instant_utc).replace(tzinfo=timezone.utc)
 
     class HostDate(date):
         @classmethod
-        def today(cls):
+        def today(cls) -> date:
             return instant.date()
 
     class HostDatetime(datetime):
         @classmethod
-        def now(cls, tz=None):
+        def now(cls, tz: tzinfo | None = None) -> datetime:
             moment = instant if tz is None else instant.astimezone(tz)
             return cls.fromtimestamp(moment.timestamp(), tz=moment.tzinfo)
 
@@ -74,7 +75,9 @@ def _clock(instant_utc: str):
     # Control: the property zone agrees with the host date.
     ("2026-10-14T12:00:00", "UTC", "2026-09-28", "2026-10-11"),
 ])
-def test_ga_window_uses_property_timezone_not_host_date(tmp_path, monkeypatch, instant, zone, start, end):
+def test_ga_window_uses_property_timezone_not_host_date(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, instant: str, zone: str, start: str, end: str,
+) -> None:
     _ga_env(tmp_path, monkeypatch, zone)
     ga = Mock()
     ga.get_ga4_data.return_value = pd.DataFrame({"date": ["20261001"], "sessions": [1]})
@@ -88,17 +91,18 @@ def test_ga_window_uses_property_timezone_not_host_date(tmp_path, monkeypatch, i
 
 
 @pytest.mark.parametrize("zone", [None, "Mars/Olympus_Mons"])
-def test_ga_path_requires_a_valid_property_timezone(tmp_path, monkeypatch, zone):
+def test_ga_path_requires_a_valid_property_timezone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, zone: str | None,
+) -> None:
     _ga_env(tmp_path, monkeypatch, zone)
     ga = Mock()
     with patch("siege_utilities.analytics.google_analytics.create_ga_connector_with_service_account",
-               return_value=ga):
-        with pytest.raises(ValueError, match="GA_PROPERTY_TIMEZONE"):
-            _run_cells(2, 4)
+               return_value=ga), pytest.raises(ValueError, match="GA_PROPERTY_TIMEZONE"):
+        _run_cells(2, 4)
     ga.get_ga4_data.assert_not_called()
 
 
-def _documented_snowflake_config() -> dict:
+def _documented_snowflake_config() -> dict[str, Any]:
     """The JSON example the notebook's Snowflake section documents."""
     section = next(
         "".join(cell["source"]) for cell in _cells()
@@ -109,7 +113,9 @@ def _documented_snowflake_config() -> dict:
     return json.loads(match.group(1))
 
 
-def test_documented_snowflake_config_loads_through_the_real_connector(tmp_path, monkeypatch):
+def test_documented_snowflake_config_loads_through_the_real_connector(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     # The real connector refuses to construct without the Snowflake SDK; lanes
     # that do not install it (for example geo without GDAL) skip this check.
     pytest.importorskip("snowflake.connector")
@@ -135,7 +141,7 @@ def test_documented_snowflake_config_loads_through_the_real_connector(tmp_path, 
     assert list(ns["snowflake_daily"]["sessions"]) == [5, 6]
 
 
-def test_notebook_no_longer_documents_a_yaml_snowflake_config():
+def test_notebook_no_longer_documents_a_yaml_snowflake_config() -> None:
     text = NOTEBOOK.read_text(encoding="utf-8")
     assert "a YAML config" not in text
     assert "snowflake.yaml" not in text

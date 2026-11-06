@@ -60,6 +60,12 @@ Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11), snowfl
 - `python -m pytest tests/test_1780_property_tz_and_config.py tests/test_1661_notebook_connector_truth.py tests/test_1780_calendar_coverage.py tests/test_1780_temporal_boundaries.py` -> 48 passed.
 - Adding `tests/test_notebook_hygiene.py tests/test_notebook_capability_coverage.py tests/test_release_process.py tests/test_user_config_export_changelog.py` -> 306 passed on the post-merge tree.
 
+## Review round on 5242f95b (CodeRabbit comments 4308922911 and 4423908758)
+- Malformed live results: `tests/test_1661_notebook_connector_truth.py` adds `test_malformed_ga_result_raises_in_processing` and `test_malformed_snowflake_result_raises_in_processing`. They cover GA empty rows, a missing `sessions` column, a missing `date` column, a null date and null sessions, plus Snowflake empty rows, a null date and null sessions. Each case runs the processing cell and asserts a `ValueError` whose message names the live source ("GA4 live query ..." / "Snowflake live query ..."), so neither the fixture nor incomplete totals are produced. All eight raise on the current notebook, so no notebook change was needed.
+- Ruff SIM117: nested `with` blocks in both test modules are combined.
+- Type hints: every test function and helper in both modules, including the nested `FixedDatetime.now`, `HostDate.today`, `HostDatetime.now` and `flat` helpers, now has parameter and return annotations; `ruff --select SIM117,ANN001,ANN201,ANN202,ANN206` passes.
+- Tests: 314 passed (notebook-truth, property time zone, calendar, temporal, notebook hygiene, capability coverage and changelog).
+
 ## Rework ledger
 Hosted CI at 5db3550b showed the real-loader test failing in the "geo without GDAL" lane with `ImportError: Snowflake connector not available`; that lane does not install the Snowflake SDK, and the real `SnowflakeConnector` refuses to construct without it. The test now calls `pytest.importorskip("snowflake.connector")` first, so it runs wherever the SDK is installed (all main test lanes) and skips elsewhere.
 The first draft of the YAML assertion forbade the word "YAML" anywhere, which conflicted with the new JSON guidance that says YAML fails to load; it now targets the defective phrase "a YAML config".
