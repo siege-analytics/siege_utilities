@@ -343,9 +343,8 @@ class CrosswalkProcessor:
                         "which cannot express an area-weighted mean (sources "
                         "of area 1 and 9 both get weight 1). Supply a crosswalk "
                         "with an 'overlap_area' or 'source_area' column, or "
-                        "route intensive columns through areal interpolation "
-                        "(LongitudinalAligner falls back to tobler "
-                        "automatically on a crosswalk failure)."
+                        "make an explicit areal interpolation call for the "
+                        "intensive columns."
                     )
                 areal_w = pd.Series(1.0, index=merged.index)
             else:

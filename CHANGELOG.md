@@ -118,6 +118,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `LongitudinalAligner.align` falls back to areal interpolation only when the
+  crosswalk client explicitly reports unavailable coverage. Other crosswalk
+  errors propagate unchanged. If areal interpolation also fails, alignment
+  raises with the transition and both causes instead of returning partial data;
+  callers should handle exceptions instead of checking `method="failed"` (#1408).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
