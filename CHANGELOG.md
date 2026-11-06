@@ -118,6 +118,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `atomic_write_with_staging` now promotes entire Spark output directories
+  through the path's Hadoop filesystem, fixing silent empty destinations and
+  orphaned staged data on non-local filesystems. Promotion verifies nonempty
+  data, rejects different filesystems and overlapping paths, restores the prior
+  destination on failure, and prunes successful backups. The docstring now
+  describes filesystem-dependent atomicity, recovery failures, and staging-only
+  write modes accurately. `create_unique_staging_directory` no longer creates a
+  literal local directory tree for a URI `base_path`: any scheme of two or more
+  characters, with or without `//authority` (`s3a://`, `hdfs://`, `abfss://`,
+  `dbfs:/`, `hdfs:/`, `file:/`), returns the unique path string with the
+  original slashes and leaves creation to the cluster filesystem write. As in
+  Hadoop, a leading `name:` of two or more characters is a scheme, so a
+  relative `data:2024/x` is treated as a URI. A URI with no authority or
+  non-root path (`s3a://`, `dbfs:`, `file:///`), or a URI passed as a
+  `pathlib.Path` (which drops `//authority`), raises `ValueError`. A
+  scheme-less `base_path` is still created eagerly on the **driver's local
+  disk** and is not looked up through `fs.defaultFS`, so cluster callers must
+  pass a fully qualified URI; one-letter drive prefixes such as `C:/` stay
+  local (#1574).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
