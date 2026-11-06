@@ -8,13 +8,17 @@
 # timeout cancels the job. This wrapper bounds every network wait:
 #   - apt retries each failed fetch (Acquire::Retries) and gives up on a
 #     silent connection after 30 seconds (Acquire::http(s)::Timeout);
-#   - each apt-get command is killed if it runs longer than
-#     APT_ATTEMPT_TIMEOUT seconds (default 180);
+#   - each apt-get or dpkg command is stopped if it runs longer than
+#     APT_ATTEMPT_TIMEOUT seconds (default 120), and killed 30 seconds later
+#     if it ignores the stop signal;
 #   - the whole update + install is attempted APT_INSTALL_ATTEMPTS times
-#     (default 2) before the script fails.
-# Worst case with the defaults: 2 attempts x (180 s + 180 s) + 10 s delay,
-# about 12 minutes; workflow steps set timeout-minutes above that and below
-# their job timeout.
+#     (default 2) before the script fails. Before each retry,
+#     `dpkg --configure -a` finishes any package configuration a stopped
+#     install left half done; otherwise the retry fails at once on
+#     "dpkg was interrupted" or the dpkg lock.
+# Worst case with the defaults: 5 bounded commands (update + install, then
+# dpkg --configure + update + install) x (120 s + 30 s) + 10 s delay = 760 s.
+# Workflow steps set timeout-minutes above that and below their job timeout.
 # ================================================================
 
 set -uo pipefail
@@ -25,7 +29,7 @@ if [[ $# -eq 0 ]]; then
 fi
 
 ATTEMPTS="${APT_INSTALL_ATTEMPTS:-2}"
-ATTEMPT_TIMEOUT="${APT_ATTEMPT_TIMEOUT:-180}"
+ATTEMPT_TIMEOUT="${APT_ATTEMPT_TIMEOUT:-120}"
 RETRY_DELAY="${APT_RETRY_DELAY:-10}"
 APT_OPTIONS=(
     -o Acquire::Retries=3
@@ -35,6 +39,14 @@ APT_OPTIONS=(
 
 for (( attempt = 1; attempt <= ATTEMPTS; attempt++ )); do
     echo "apt install attempt ${attempt}/${ATTEMPTS}: $*"
+    if (( attempt > 1 )); then
+        # A stopped install can leave dpkg mid-configure; repair it, bounded
+        # like the other commands. A failure here is reported, and any real
+        # problem then surfaces from apt-get below.
+        if ! sudo timeout --kill-after=30 "${ATTEMPT_TIMEOUT}" dpkg --configure -a; then
+            echo "warning: dpkg --configure -a did not complete before attempt ${attempt}" >&2
+        fi
+    fi
     if sudo timeout --kill-after=30 "${ATTEMPT_TIMEOUT}" apt-get "${APT_OPTIONS[@]}" update \
         && sudo timeout --kill-after=30 "${ATTEMPT_TIMEOUT}" apt-get "${APT_OPTIONS[@]}" \
             install -y --no-install-recommends "$@"; then

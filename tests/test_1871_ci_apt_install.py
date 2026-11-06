@@ -27,8 +27,9 @@ APT_OPTIONS = [
     "-o", "Acquire::http::Timeout=30",
     "-o", "Acquire::https::Timeout=30",
 ]
-# Script defaults: 2 attempts x (update + install) x 180 s, plus a 10 s delay.
-WORST_CASE_SECONDS = 2 * 2 * 180 + 10
+# Script defaults: 5 bounded commands (update + install, then dpkg --configure
+# + update + install), each up to 120 s plus a 30 s kill-after, and a 10 s delay.
+WORST_CASE_SECONDS = 5 * (120 + 30) + 10
 
 
 def _write_executable(path: Path, source: str) -> None:
@@ -36,7 +37,9 @@ def _write_executable(path: Path, source: str) -> None:
     path.chmod(0o755)
 
 
-def run_script(tmp_path: Path, plan: list[str], *packages: str) -> tuple[subprocess.CompletedProcess[str], list[list[str]]]:
+def run_script(
+    tmp_path: Path, plan: list[str], *packages: str, dpkg_exit: int = 0,
+) -> tuple[subprocess.CompletedProcess[str], list[list[str]]]:
     timeout_bin = shutil.which("timeout")
     if timeout_bin is None:
         pytest.skip("GNU timeout is required to exercise the stall handling")
@@ -61,10 +64,18 @@ def run_script(tmp_path: Path, plan: list[str], *packages: str) -> tuple[subproc
         "action = plan.pop(0) if plan else 'ok'\n"
         "json.dump(plan, open(plan_path, 'w'))\n"
         "with open(os.environ['APT_STUB_CALLS'], 'a') as log:\n"
-        "    log.write(json.dumps(sys.argv[1:]) + '\\n')\n"
+        "    log.write(json.dumps(['apt-get', *sys.argv[1:]]) + '\\n')\n"
         "if action == 'hang':\n"
         "    time.sleep(60)\n"
         "sys.exit(0 if action == 'ok' else 100)\n",
+    )
+    _write_executable(
+        bin_dir / "dpkg",
+        f"#!{sys.executable}\n"
+        "import json, os, sys\n"
+        "with open(os.environ['APT_STUB_CALLS'], 'a') as log:\n"
+        "    log.write(json.dumps(['dpkg', *sys.argv[1:]]) + '\\n')\n"
+        "sys.exit(int(os.environ['DPKG_STUB_EXIT']))\n",
     )
 
     result = subprocess.run(
@@ -75,6 +86,7 @@ def run_script(tmp_path: Path, plan: list[str], *packages: str) -> tuple[subproc
             "APT_STUB_CALLS": str(calls_file),
             "APT_ATTEMPT_TIMEOUT": "1",
             "APT_RETRY_DELAY": "0",
+            "DPKG_STUB_EXIT": str(dpkg_exit),
         },
         capture_output=True,
         text=True,
@@ -87,17 +99,22 @@ def run_script(tmp_path: Path, plan: list[str], *packages: str) -> tuple[subproc
 
 
 def _update() -> list[str]:
-    return [*APT_OPTIONS, "update"]
+    return ["apt-get", *APT_OPTIONS, "update"]
 
 
 def _install() -> list[str]:
-    return [*APT_OPTIONS, "install", "-y", "--no-install-recommends", *PACKAGES]
+    return ["apt-get", *APT_OPTIONS, "install", "-y", "--no-install-recommends", *PACKAGES]
+
+
+def _repair() -> list[str]:
+    return ["dpkg", "--configure", "-a"]
 
 
 def test_successful_install_uses_bounded_apt_options(tmp_path: Path) -> None:
     result, calls = run_script(tmp_path, ["ok", "ok"], *PACKAGES)
 
     assert result.returncode == 0, result.stdout + result.stderr
+    # A first attempt has nothing to repair, so dpkg is not run.
     assert calls == [_update(), _install()]
     assert "succeeded on attempt 1" in result.stdout
 
@@ -106,25 +123,36 @@ def test_stalled_update_is_cut_off_and_retried(tmp_path: Path) -> None:
     result, calls = run_script(tmp_path, ["hang", "ok", "ok"], *PACKAGES)
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert calls == [_update(), _update(), _install()]
+    assert calls == [_update(), _repair(), _update(), _install()]
     # timeout(1) reports 124 when it stopped the stalled apt-get.
     assert "attempt 1 failed or stalled (exit 124)" in result.stderr
     assert "succeeded on attempt 2" in result.stdout
 
 
-def test_stalled_install_is_cut_off_and_retried(tmp_path: Path) -> None:
+def test_killed_install_repairs_dpkg_before_the_retry(tmp_path: Path) -> None:
+    # The first install is stopped mid-run (exit 124), as it would be during
+    # dpkg unpack/configure; the retry must run `dpkg --configure -a` before
+    # `apt-get update`, or it fails at once on "dpkg was interrupted".
     result, calls = run_script(tmp_path, ["ok", "hang", "ok", "ok"], *PACKAGES)
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert calls == [_update(), _install(), _update(), _install()]
+    assert calls == [_update(), _install(), _repair(), _update(), _install()]
     assert "attempt 1 failed or stalled (exit 124)" in result.stderr
+
+
+def test_failed_dpkg_repair_is_reported_and_the_retry_still_runs(tmp_path: Path) -> None:
+    result, calls = run_script(tmp_path, ["ok", "hang", "ok", "ok"], *PACKAGES, dpkg_exit=1)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert calls == [_update(), _install(), _repair(), _update(), _install()]
+    assert "warning: dpkg --configure -a did not complete before attempt 2" in result.stderr
 
 
 def test_two_failed_attempts_fail_the_step(tmp_path: Path) -> None:
     result, calls = run_script(tmp_path, ["ok", "fail", "ok", "fail"], *PACKAGES)
 
     assert result.returncode == 1, result.stdout + result.stderr
-    assert calls == [_update(), _install(), _update(), _install()]
+    assert calls == [_update(), _install(), _repair(), _update(), _install()]
     assert "apt install failed after 2 attempts" in result.stderr
 
 

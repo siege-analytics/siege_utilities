@@ -21,7 +21,7 @@ Project-contribution: a mirror stall no longer cancels required CI jobs or deque
 
 ## Pre-mortem
 1. Tiger (launch-blocking). Severity: P1. The wrapper reports success after failing. Mitigation: the failure status is captured in an `else` branch, and the final `exit 1` is covered by `test_two_failed_attempts_fail_the_step`.
-2. Tiger (launch-blocking). Severity: P1. The step timeout is too short for two attempts, or longer than the job budget. Mitigation: worst case is 2 x (180 s + 180 s) + 10 s = 730 s. The steps use 13 minutes (780 s), which is under `test-postgis`'s 20. `test_apt_install_steps_have_a_step_timeout_inside_the_job_budget` asserts both bounds for every install step.
+2. Tiger (launch-blocking). Severity: P1. The step timeout is too short for two attempts, or longer than the job budget. Mitigation: worst case is 5 x (120 s + 30 s) + 10 s = 760 s after the dpkg-repair round below (it was 730 s in the first version). The steps use 13 minutes (780 s), which is under `test-postgis`'s 20. `test_apt_install_steps_have_a_step_timeout_inside_the_job_budget` asserts both bounds for every install step.
 3. Paper Tiger. Severity: P2. `timeout` cannot stop a hung apt under `sudo`. Mitigation: `timeout` itself runs under `sudo` with `--kill-after=30`. The stall tests show exit 124 and a retry.
 4. Paper Tiger. Severity: P2. A future job adds raw `apt-get`. Mitigation: `test_no_workflow_step_runs_apt_get_directly` covers every workflow file.
 5. Elephant. Severity: P3. There is no `.deb` cache or prebuilt image, which the ticket lists as optional. Deferred.
@@ -66,6 +66,21 @@ writing-rules:4 exemption for the governing ticket.
 Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11); GNU `timeout` from coreutils.
 - `python -m pytest tests/test_1871_ci_apt_install.py` -> 7 passed; with develop's `ci.yml`, 2 failed and 5 passed.
 - Adding `tests/test_release_process.py tests/test_user_config_export_changelog.py` -> 32 passed.
+
+## Review round on 682d5069 (hub finding: interrupted dpkg)
+Finding: if `timeout` stops `apt-get install` during the dpkg unpack/configure phase, dpkg is left interrupted, and the retry fails at once with "dpkg was interrupted, you must manually run 'sudo dpkg --configure -a'" or on the dpkg lock.
+
+Fix:
+- Before every retry attempt, the script runs `sudo timeout --kill-after=30 "${ATTEMPT_TIMEOUT}" dpkg --configure -a`, under the same bound as the apt commands. If it fails, the script prints a warning rather than discarding the failure, and any remaining problem surfaces from the following `apt-get`.
+- The extra bounded command raises the worst case. At 180 s per command it would be 5 x (180 + 30) + 10 = 1,060 s, which no longer fits the 13-minute step. The per-command default is therefore lowered to 120 s (about 3.4x the normal 35 s install). The worst case is now 5 x (120 + 30) + 10 = 760 s, below the step's 780 s and the `test-postgis` job's 20 minutes. The header comment and `WORST_CASE_SECONDS` in the guard test are updated.
+
+Tests:
+- The stubs now record the program name, and a `dpkg` stub is added.
+- `test_killed_install_repairs_dpkg_before_the_retry`: the first install is stopped (exit 124), then the calls run update, install, `dpkg --configure -a`, update, install.
+- `test_failed_dpkg_repair_is_reported_and_the_retry_still_runs`: a failing repair is reported, and the retry still runs.
+- The existing retry expectations now include the repair.
+
+Red: with the 682d5069 script, 4 failed (every retry path, because no repair runs) and 4 passed. After: 8 passed. `bash -n` and `shellcheck` are clean.
 
 ## Rework ledger
 During the red check, a blocked command left the new `ci.yml` unstaged, so the restore reverted it to develop's version. The edit was re-applied and verified (five script calls, no `apt-get`) before the red check was repeated correctly. Nothing was committed in between.
