@@ -260,6 +260,12 @@ url_or_path, attempts, degraded)` record. Every success returns the source's
 unchanged frame plus provenance; if no source succeeds, the last error propagates
 (`SU-1`, no empty-frame-on-failure).
 
+For `ApiSource`, the transport owns retries and the dual-source client makes
+one source call before fallback. The policy's source-call budget applies to
+other primary sources. Default fallback covers rate limits, timeouts, and
+`CensusServerError` for HTTP 5xx or connection/DNS failures; HTTP 4xx errors
+other than rate limits propagate without fallback (#1404).
+
 **Minimal shape.**
 ```python
 client = DualSourceCensusClient(

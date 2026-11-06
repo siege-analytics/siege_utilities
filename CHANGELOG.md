@@ -118,6 +118,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Census dual-source retrieval falls back to bulk Summary Files on HTTP 5xx,
+  HTTP 408, connection/DNS failures and timeouts via the new
+  `CensusServerError`, while other 4xx errors still propagate. Permanent
+  client errors (4xx other than 408 and 429) now raise `CensusAPIError` after
+  one request instead of five with backoff.
+  `CensusAPI` owns retries for `ApiSource`; retries no longer multiply, and no
+  delay follows the final attempt. Sustained 429s now accumulate at most 240
+  seconds of retry sleeps before bulk fallback with `degraded=True`, down from
+  900 seconds (#1404).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
