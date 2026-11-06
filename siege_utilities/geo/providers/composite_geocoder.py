@@ -93,6 +93,7 @@ class CompositeBatchGeocoder(BatchGeocoder):
             return result
 
         best: dict[int, GeocodingResult] = {}
+        errors = []
         pending = set(range(len(normalized)))
 
         for backend in available:
@@ -110,6 +111,7 @@ class CompositeBatchGeocoder(BatchGeocoder):
                 )
                 continue
 
+            errors.extend(batch_result.errors)
             for idx, gr in zip(pending_indices, batch_result.results):
                 current_rank = _quality_rank(gr.match_quality)
                 prev = best.get(idx)
@@ -135,6 +137,7 @@ class CompositeBatchGeocoder(BatchGeocoder):
         result = BatchGeocodingResult(
             results=results,
             backend=self.backend_name,
+            errors=errors,
         )
 
         log.info(

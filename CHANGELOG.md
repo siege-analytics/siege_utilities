@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Migration:** `GeocodingResult.input_id` is now always `str` for dictionary
+  inputs on Nominatim, TAMU, and composite geocoders. Callers keyed on integer
+  IDs must key on `str(id)` (#1526).
+
 - New *file* names now get the same check as new directory names. The
   `siege_utilities.files` helpers that create a file refuse a name containing
   a C0, DEL or C1 control character, or a lone surrogate: they raise
@@ -118,6 +122,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Batch geocoder normalization now restores leading zeros in numeric ZIPs,
+  preserves string ZIPs (including ZIP+4), converts dictionary fields to strings,
+  and treats NaN/None and pandas NA/NaT as empty values. Numeric ZIP+4 values
+  are padded to nine digits; invalid numeric ZIPs (negative, fractional,
+  boolean, non-finite, or over nine digits) become empty values. The public
+  Census `geocode_batch` / `geocode_batch_chunked` dictionary path uses the
+  same normalization. Mixed address lists and non-string
+  `AddressInput.one_line` components no longer crash. Nominatim and TAMU query
+  construction failures now produce one unmatched row instead of aborting the
+  whole batch and causing the composite geocoder to silently drop the backend.
+  Per-row failures are reported in `BatchGeocodingResult.errors` by input ID
+  and exception type, without address text; the composite preserves backend
+  errors. `concatenate_addresses` also skips missing components and normalizes
+  numeric postal codes. Directly constructed `AddressInput` objects normalize
+  their ZIP codes (#1526).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
