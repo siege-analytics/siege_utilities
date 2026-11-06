@@ -118,6 +118,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Precinct/VTD name matching now restricts candidates to the precinct's county,
+  using official county FIPS, spatial overlap counties, then optional provider
+  county keys. Unknown or conflicting counties skip name matching, and malformed
+  VTD GEOIDs are ignored. Direct `reconcile_names` callers must supply
+  `precinct_county`; name-only providers can supply `get_precinct_counties`.
+  Official-crosswalk mappings retain precedence (#1433).
+- Precinct/VTD reconciliation emits fewer name-only mappings: an official
+  mapping or spatial overlap of at least 95% suppresses names pointing to
+  another VTD. Name-only confidence is capped at 0.84, below HIGH; same-VTD
+  name confirmation still contributes to COMBINED confidence. Spatial overlaps
+  below 1% no longer create county conflicts that block name confirmation (#1433).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
