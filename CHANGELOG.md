@@ -318,6 +318,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tests fail. A failed write of `overnight_results/test_output.txt` now fails
   the run instead of reporting exit 0, and `summary.json` records the pytest
   and tee statuses and whether the output artifact was written (#1475).
+- `notebooks/analytics/01_connectors.ipynb` no longer advertises live
+  Google Analytics / Snowflake queries while only initializing the
+  connectors and always returning a hardcoded fixture. The notebook now
+  has an opt-in credentialed path (GA4 when
+  `GOOGLE_APPLICATION_CREDENTIALS`, `GA_PROPERTY_ID` and
+  `GA_PROPERTY_TIMEZONE` are set, else a configured Snowflake rollup) that
+  issues the real `get_ga4_data` / `execute_query` calls over the previous two
+  complete Monday-through-Sunday weeks and fails visibly on a missing property,
+  a missing or unknown time zone, or a query error. The GA4 weeks are chosen in
+  the property's time zone, matching how GA4 interprets report dates, not on the
+  host clock. `SNOWFLAKE_CONFIG_FILE` is documented as the JSON file the
+  connector loads with `json.load`, with an example of its keys. The offline
+  path's output is clearly labelled an illustrative fixture. Empty or malformed
+  live results fail rather than silently becoming the fixture: missing dates
+  and null or non-finite session counts raise before grouping, and the
+  week-over-week change is withheld unless both weeks observed all seven
+  calendar days (#1661).
 - Instagram follows all account, post and insight pages across Graph hosts
   and versions, filters every post page by date and limit, and splits daily
   insights into at most 30-day UTC windows. GA4 retrieves every reported row
