@@ -6,15 +6,19 @@ Every success returns the source's unchanged DataFrame and provenance;
 failures raise. ``BulkFileSource`` reads ACS table-based Summary Files.
 """
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import csv
 from dataclasses import dataclass, replace
+import hashlib
 import logging
 import math
 from pathlib import Path
 import re
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Any, Protocol
+from typing import Any, BinaryIO, Protocol
 
+import httpx
 import numpy as np
 import pandas as pd
 import requests
@@ -24,6 +28,7 @@ from siege_utilities.geo.census_api_client import (
     CensusAPIError,
     CensusRateLimitError,
 )
+from siege_utilities.files.operations import atomic_write_path
 from .api import CensusAPI
 from .dataset_selector import DatasetSelector
 from .variable_registry import VariableRegistry
@@ -76,8 +81,12 @@ def summary_to_api_variable(variable: str) -> str:
 class Provenance:
     """Origin and retrieval history for one returned frame.
 
-    ``source`` is ``"api"`` or ``"bulk"``. ``url_or_path`` is None when the
-    source does not expose its location. ``attempts`` counts source-level
+    ``source`` is ``"api"`` or ``"bulk"``. ``location`` lists every origin URL
+    (with API secrets redacted), even when a cache supplies the data.
+    ``cache_hit`` is True if any input was cached; ``cache_paths`` identifies
+    those inputs (filesystem paths or Django cache keys). ``url_or_path``
+    retains the first served URL/path for callers using the v4.0.0 field.
+    ``attempts`` counts source-level
     fetch calls for this request, including failed calls across both sources;
     transport retries and cache access inside a source are not counted.
     ``degraded`` indicates that the secondary source served the request.
@@ -87,6 +96,13 @@ class Provenance:
     url_or_path: str | None
     attempts: int
     degraded: bool
+    location: tuple[str, ...] = ()
+    cache_hit: bool = False
+    cache_paths: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.location and self.url_or_path is not None:
+            object.__setattr__(self, "location", (self.url_or_path,))
 
 
 class CensusDataSource(Protocol):
@@ -112,8 +128,8 @@ class ApiSource:
 
         CensusAPI wraps exhausted transport timeouts in CensusAPIError.
         Expose that Timeout cause so the default fallback policy recognizes
-        it; other API errors propagate unchanged. The API does not expose
-        the served URL/cache path, so ``url_or_path`` is None.
+        it; other API errors propagate unchanged. CensusAPI attaches retrieval
+        metadata to the returned frame, keeping concurrent requests separate.
         """
         log.debug("Fetching Census tabular data through the API source")
         try:
@@ -122,8 +138,14 @@ class ApiSource:
             if isinstance(error.__cause__, Timeout):
                 raise error.__cause__ from None
             raise
+        metadata = frame.attrs.get("census_source", {})
+        locations = tuple(metadata.get("location", ()))
+        cache_paths = tuple(metadata.get("cache_paths", ()))
+        served = cache_paths or locations
         return frame, Provenance(
-            source="api", url_or_path=None, attempts=1, degraded=False,
+            source="api", url_or_path=served[0] if served else None,
+            attempts=1, degraded=False, location=locations,
+            cache_hit=metadata.get("cache_hit", False), cache_paths=cache_paths,
         )
 
 
@@ -131,8 +153,12 @@ class BulkFileSource:
     """Read ACS detailed tables from the table-based Summary File service.
 
     Downloads are streamed to ``cache_dir`` and reused by (year, period,
-    table), with no expiry. If omitted, a source-owned temporary directory
-    lasts for this instance's lifetime. Delete cached files to refresh them.
+    table), with no expiry. Each cache reuse verifies a SHA-256 sidecar;
+    missing/mismatched checksums trigger a fresh download. This detects local
+    corruption, not changes on the server. Delete cached files to refresh them.
+    If omitted, a source-owned temporary directory lasts for this instance.
+    ``timeout`` bounds individual HTTP operations; ``total_timeout`` bounds a
+    whole table download, including redirects and a stalled response body.
     Parsing retains only requested columns and matching geography rows.
 
     ``NAME`` is an object column of missing values: downloading the separate
@@ -149,14 +175,18 @@ class BulkFileSource:
         cache_dir: str | Path | None = None,
         *,
         timeout: float = 15,
+        total_timeout: float = 300,
         chunksize: int = 50_000,
         registry: VariableRegistry | None = None,
     ) -> None:
         if not math.isfinite(timeout) or timeout <= 0:
             raise ValueError("timeout must be finite and positive")
+        if not math.isfinite(total_timeout) or total_timeout <= 0:
+            raise ValueError("total_timeout must be finite and positive")
         if isinstance(chunksize, bool) or not isinstance(chunksize, int) or chunksize < 1:
             raise ValueError("chunksize must be a positive integer")
         self.timeout = timeout
+        self.total_timeout = total_timeout
         self.chunksize = chunksize
         self._registry = registry if registry is not None else VariableRegistry()
         self._temporary_cache = (
@@ -215,11 +245,16 @@ class BulkFileSource:
         period = int(dataset[-1])
         frames = []
         urls = []
+        served = []
+        cache_paths = []
         for table, columns in tables.items():
             filename = f"acsdt{period}y{year}-{table.lower()}.dat"
             url = f"{SUMMARY_FILE_BASE_URL}/{year}/table-based-SF/data/{period}YRData/{filename}"
             urls.append(url)
-            path = self._download(url, filename)
+            path, cache_hit = self._download(url, filename)
+            served.append(str(path) if cache_hit else url)
+            if cache_hit:
+                cache_paths.append(str(path))
             frames.append(self._read_table(path, columns, geography, state_fips, county_fips))
 
         frame = pd.concat(frames, axis=1).reset_index()
@@ -251,28 +286,75 @@ class BulkFileSource:
         frame.insert(1, "NAME", None)
         frame = frame[["GEOID", "NAME", *concrete]]
         log.info("Read %s %s rows from %s Summary File tables", len(frame), geography, len(tables))
-        return frame, Provenance("bulk", urls[0], 1, False)
+        return frame, Provenance(
+            "bulk", served[0], 1, False, location=tuple(urls),
+            cache_hit=bool(cache_paths), cache_paths=tuple(cache_paths),
+        )
 
-    def _download(self, url: str, filename: str) -> Path:
+    def _download(self, url: str, filename: str) -> tuple[Path, bool]:
         path = self.cache_dir / filename
-        if path.is_file():
-            log.debug("Using cached Summary File %s", path)
-            return path
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        checksum_path = path.with_suffix(path.suffix + ".sha256")
+        try:
+            expected = checksum_path.read_text(encoding="ascii").strip()
+            with path.open("rb") as cached:
+                actual = hashlib.file_digest(cached, "sha256").hexdigest()
+            if actual == expected:
+                log.debug("Using verified cached Summary File %s", path)
+                return path, True
+            log.warning("Summary File checksum mismatch; downloading %s again", path)
+        except (FileNotFoundError, UnicodeError):
+            log.debug("Summary File cache/checksum missing or unreadable for %s", path)
         log.info("Downloading Summary File %s", url)
         with NamedTemporaryFile(dir=self.cache_dir, suffix=".part", delete=False) as output:
             temporary_path = Path(output.name)
             try:
-                with requests.get(url, stream=True, timeout=self.timeout) as response:
-                    response.raise_for_status()
-                    for chunk in response.iter_content(chunk_size=1024 * 1024):
-                        output.write(chunk)
+                # Own a separate event loop so this synchronous API also works
+                # inside notebooks/async applications. Cancellation interrupts
+                # a pending network read, not just the gaps between chunks.
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    checksum = executor.submit(
+                        asyncio.run, self._stream_download(url, output),
+                    ).result(timeout=self.total_timeout + self.timeout)
                 output.close()
                 temporary_path.replace(path)
+                with atomic_write_path(checksum_path) as temporary_checksum:
+                    temporary_checksum.write_text(checksum + "\n", encoding="ascii")
             finally:
                 temporary_path.unlink(missing_ok=True)
         log.info("Cached Summary File %s", path)
-        return path
+        return path, False
+
+    async def _stream_download(self, url: str, output: BinaryIO) -> str:
+        """Stream one table under a cancellable wall-clock deadline."""
+        checksum = hashlib.sha256()
+        size = 0
+        try:
+            async with asyncio.timeout(self.total_timeout):
+                async with httpx.AsyncClient(
+                    timeout=self.timeout, follow_redirects=True,
+                    headers={"Accept-Encoding": "identity"},
+                ) as client:
+                    async with client.stream("GET", url) as response:
+                        response.raise_for_status()
+                        async for chunk in response.aiter_bytes(1024 * 1024):
+                            output.write(chunk)
+                            checksum.update(chunk)
+                            size += len(chunk)
+                            await asyncio.sleep(0)
+                        length = response.headers.get("content-length")
+                        if length is not None and not response.headers.get("content-encoding"):
+                            if size != int(length):
+                                raise OSError(f"Incomplete Summary File {url}: expected {length} bytes, got {size}")
+        except TimeoutError:
+            raise Timeout(f"Summary File total download timeout after {self.total_timeout}s") from None
+        except httpx.TimeoutException as error:
+            raise Timeout(str(error)) from None
+        except httpx.HTTPStatusError as error:
+            raise requests.HTTPError(str(error)) from None
+        except httpx.RequestError as error:
+            raise requests.ConnectionError(str(error)) from None
+        return checksum.hexdigest()
 
     def _read_table(
         self,
