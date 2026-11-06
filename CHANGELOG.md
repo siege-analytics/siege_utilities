@@ -118,6 +118,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Numpy Fisher-Jenks classification preserves the optimal partition with
+  `min(k, n_unique)` nonempty classes, including singleton outliers and tight
+  clusters far from the data minimum, whose segment SSE is now accumulated
+  per segment instead of from cancelling prefix sums. Both classification
+  backends use upper-inclusive bins and class maxima for natural-break edges,
+  and the no-mapclassify `create_choropleth` path colours a value on an
+  internal edge with its own (lower) class. NaN and positive/negative
+  infinity receive bin `-1` and are excluded from break calculations (#1455).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
