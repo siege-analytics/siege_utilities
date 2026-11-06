@@ -26,6 +26,10 @@ from siege_utilities.config.nces_constants import (
     POPULATION_THRESHOLDS,
     validate_locale_code,
 )
+from siege_utilities.geo._geographic_crs import (
+    _geographic_geometries,
+    _geographic_polygon,
+)
 
 log = logging.getLogger(__name__)
 
@@ -505,15 +509,23 @@ class NCESLocaleClassifier:
         ``locale_subcategory`` (str), ``locale_label`` (str).
 
         Args:
-            gdf: GeoDataFrame with point geometries.
+            gdf: GeoDataFrame with point geometries. Known CRSs are reprojected
+                to ``settings.INPUT_CRS`` (EPSG:4269) for classification.
+                Without a CRS, coordinates are assumed to be in that CRS.
             geometry_col: Name of the geometry column.
 
         Returns:
-            The input GeoDataFrame with locale columns added.
+            A copy with locale columns added, retaining the input CRS and geometry.
+
+        Raises:
+            ValueError: If CRS is missing and longitude/latitude exceeds
+                +/-180 or +/-90; the error names the function and value.
         """
+        geometries = _geographic_geometries(
+            gdf[geometry_col], f"EPSG:{settings.INPUT_CRS}", "classify_points",
+        )
         results = []
-        for _, row in gdf.iterrows():
-            geom = row[geometry_col]
+        for geom in geometries:
             lc = self.classify_point(geom.x, geom.y)
             results.append(lc)
 
@@ -536,7 +548,9 @@ class NCESLocaleClassifier:
         """Classify a polygon by locale distribution.
 
         Args:
-            polygon: A Shapely polygon or multipolygon geometry.
+            polygon: A Shapely polygon/multipolygon in ``settings.INPUT_CRS``
+                (EPSG:4269), or a GeoDataFrame/GeoSeries whose polygons are
+                reprojected to that CRS and combined. Inputs are not mutated.
             method: ``"area_weighted"``, ``"majority"``, or ``"distribution"``.
 
         Returns:
@@ -545,7 +559,8 @@ class NCESLocaleClassifier:
             ``{code: fraction}`` pairs summing to ~1.0.
 
         Raises:
-            ValueError: If *method* is not one of the valid options.
+            ValueError: If *method* is invalid, or CRS is missing and coordinates
+                exceed +/-180 longitude or +/-90 latitude.
         """
         if method not in _VALID_METHODS:
             raise ValueError(
@@ -553,6 +568,9 @@ class NCESLocaleClassifier:
             )
         import geopandas as gpd
 
+        polygon = _geographic_polygon(
+            polygon, f"EPSG:{settings.INPUT_CRS}", "classify_polygon",
+        )
         self._ensure_projected()
         proj_crs = f"EPSG:{self._projection_crs}"
 
@@ -632,27 +650,33 @@ class NCESLocaleClassifier:
         ``{code: fraction}`` pairs.
 
         Args:
-            gdf: GeoDataFrame with polygon geometries.
+            gdf: GeoDataFrame with polygon geometries. Known CRSs are reprojected
+                to ``settings.INPUT_CRS`` (EPSG:4269) for classification.
+                Without a CRS, coordinates are assumed to be in that CRS.
             method: ``"majority"``, ``"distribution"``, or ``"area_weighted"``.
             geometry_col: Name of the geometry column.
 
         Returns:
-            The input GeoDataFrame with locale columns added.
+            A copy with locale columns added, retaining the input CRS and geometry.
 
         Raises:
-            ValueError: If *method* is not one of the valid options.
+            ValueError: If *method* is invalid, or CRS is missing and coordinates
+                exceed +/-180 longitude or +/-90 latitude.
         """
         if method not in _VALID_METHODS:
             raise ValueError(
                 f"Invalid method {method!r}; must be one of {sorted(_VALID_METHODS)}"
             )
+        geometries = _geographic_geometries(
+            gdf[geometry_col], f"EPSG:{settings.INPUT_CRS}", "classify_polygons",
+        )
         gdf = gdf.copy()
 
         if method == "majority":
             codes = []
             labels = []
-            for _, row in gdf.iterrows():
-                result = self.classify_polygon(row[geometry_col], method="majority")
+            for geometry in geometries:
+                result = self.classify_polygon(geometry, method="majority")
                 codes.append(result["locale_code"])
                 labels.append(result["locale_label"])
             gdf["locale_code"] = codes
@@ -665,8 +689,8 @@ class NCESLocaleClassifier:
             ]
         else:
             distributions = []
-            for _, row in gdf.iterrows():
-                dist = self.classify_polygon(row[geometry_col], method=method)
+            for geometry in geometries:
+                dist = self.classify_polygon(geometry, method=method)
                 distributions.append(dist)
             gdf["locale_distribution"] = distributions
 
