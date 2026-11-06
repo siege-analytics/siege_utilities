@@ -118,6 +118,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Bivariate choropleths with tied values use the actual quantile grid and
+  preserve the palette's low and high colors. Crosstab dimensions and legend
+  ticks match the retained breaks, and verification reports reduced class
+  counts as errors. Rendering raises a clear error if ties leave fewer than
+  two bins on an axis, unless one class was requested. The reporting map
+  engine's bivariate maps (`create_bivariate_choropleth_matplotlib` and the
+  folium `create_bivariate_choropleth`) no longer crash on tied data: they
+  spread each variable's actual classes across the 3x3 palette and raise a
+  clear error when a variable has fewer than two classes (#1462).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
