@@ -309,29 +309,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list names `COUSUB` and `ADDRFEAT` and drops the non-existent `COUNTYSUB`,
   `SDELM`, `SDSEC` and `SDUNI`. An opt-in `-m integration` test HEADs one
   built URL per catalog type for 2010, 2019 and 2023 (#1464).
-- PostGIS and DuckDB `execute_spatial_query` return rows for every
-  row-returning statement, including CTEs (`WITH ...`) and
-  `INSERT`/`UPDATE`/`DELETE ... RETURNING`. Previously only queries starting
-  with `SELECT` returned a GeoDataFrame, so a CTE or `RETURNING` write gave a
-  row count and its rows were lost. Fetched `RETURNING` rows are decoded
-  without replaying the write. Tabular results come back without an active
-  geometry; other statements still return the affected-row count, or -1 (#1414).
-- Spatial queries handle transactions predictably. On a connection the
-  connector opened, a write commits only after its result is decoded and rolls
-  back on any error, so a failed multi-statement DuckDB write leaves nothing
-  behind. Inside a caller's transaction, a failed PostGIS statement rolls back
-  to a savepoint and keeps the caller's earlier work, instead of rolling back
-  the whole transaction; read-only statements never commit, and DuckDB writes
-  join the caller's transaction instead of finalizing it. In PostGIS, a
-  standalone transaction-control statement such as `BEGIN`, `SAVEPOINT` or
-  `RELEASE` runs as written, without the connector committing it, and returns
-  -1 (#1818).
+- On a connection the connector opened, a spatial query's write commits only
+  after its result is decoded and rolls back on any error, so a failed
+  multi-statement DuckDB write leaves nothing behind (#1818).
 - A failed upload no longer destroys the existing table. PostGIS uploads run
   their drop, create and inserts in one transaction, and DuckDB uploads run in
   one transaction that rolls back on failure, so a failed `if_exists='replace'`
   keeps the original table and rows. DuckDB uploads store the active geometry
-  column whatever its name, and an input column named `geometry_wkt` (the
-  storage column) is rejected (#1818).
+  column whatever its name (#1818).
 - DuckDB tables keep their CRS. `upload_spatial_data` records the full CRS in
   the table comment, including for empty tables, and `download_spatial_data`
   restores it, also after reconnecting. Previously every DuckDB read was
@@ -351,8 +336,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PostGIS and DuckDB `upload_spatial_data` (and `upload_to_postgis` /
   `upload_to_duckdb`) default to `if_exists='fail'` instead of `'replace'`, so
   an upload no longer silently replaces an existing table. DuckDB also accepts
-  `'append'` and raises for any other value. **Migration:** pass
-  `if_exists='replace'` where replacing an existing table is intended (#1818).
+  `'append'` and raises for any other value, and rejects an input column named
+  `geometry_wkt` (its storage column), which v4.0.0 silently overwrote.
+  **Migration:** pass `if_exists='replace'` where replacing an existing table
+  is intended, and rename any `geometry_wkt` column before uploading (#1818).
+- PostGIS and DuckDB `execute_spatial_query` return rows for every
+  row-returning statement, including CTEs (`WITH ...`) and
+  `INSERT`/`UPDATE`/`DELETE ... RETURNING`. In v4.0.0 only queries starting
+  with `SELECT` returned a GeoDataFrame, so a CTE or `RETURNING` write returned
+  a row count (PostGIS) or the first value of its result (DuckDB) and its rows
+  were lost. Fetched `RETURNING` rows are decoded
+  without replaying the write. Tabular results come back without an active
+  geometry; other statements still return the affected-row count, or -1
+  (#1414). **Migration:** code that read a number from a CTE or `RETURNING`
+  query now receives a GeoDataFrame; use `len(result)` for the count or read
+  the returned rows.
+- PostGIS `execute_spatial_query` inside a caller's transaction no longer
+  rolls back or commits that transaction on the caller's behalf. A failed
+  statement rolls back to a savepoint and keeps the caller's earlier work; in
+  v4.0.0 the connector rolled back the whole transaction. Only a statement
+  that does not start with `SELECT` and contains a write keyword commits, so
+  read-only statements such as `WITH ... SELECT`, `EXPLAIN SELECT` or `SHOW`
+  no longer commit the caller's pending work; in v4.0.0 every statement not
+  starting with `SELECT` committed. A standalone transaction-control statement
+  such as `BEGIN`, `SAVEPOINT` or `RELEASE` runs as written, without the
+  connector committing it, and returns -1, so `BEGIN` now leaves a
+  transaction open (#1818). **Migration:** after a `SpatialQueryError` inside
+  your own transaction, call `connection.rollback()` if the earlier work
+  should be discarded; commit explicitly after read-only statements; finish a
+  transaction opened with `BEGIN` with `COMMIT` or `ROLLBACK`.
 - PostGIS and DuckDB reads keep the source CRS when `crs` is omitted.
   `download_spatial_data` and PostGIS `execute_spatial_query` previously
   reprojected to the configured default CRS (EPSG:4326), and DuckDB labelled
