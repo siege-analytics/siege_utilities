@@ -50,8 +50,14 @@ runs:
 
     # Saved only when the script refreshed the archive after an install that
     # exited 0, and never over an exact hit (cache keys are immutable).
+    # Caches are scoped to the saving ref: a develop push saves the copy that
+    # pull requests into develop restore. Merge-queue runs save to a temporary
+    # gh-readonly-queue ref that no later run can read, so they skip the save.
     - name: Save .deb archives
-      if: steps.restore.outputs.cache-hit != 'true' && steps.install.outputs.cache-ready == 'true'
+      if: >-
+        steps.restore.outputs.cache-hit != 'true'
+        && steps.install.outputs.cache-ready == 'true'
+        && github.event_name != 'merge_group'
       uses: actions/cache/save@v4
       with:
         path: ${{ runner.temp }}/ci-apt-archives

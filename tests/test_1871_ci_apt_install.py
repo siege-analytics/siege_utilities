@@ -428,8 +428,32 @@ def test_apt_action_restores_installs_then_saves_the_archive() -> None:
     assert restore["with"]["restore-keys"] == "${{ steps.key.outputs.prefix }}"
     assert "scripts/ci_apt_install.sh" in install["run"]
     assert save["if"] == (
-        "steps.restore.outputs.cache-hit != 'true' && steps.install.outputs.cache-ready == 'true'"
+        "steps.restore.outputs.cache-hit != 'true'"
+        " && steps.install.outputs.cache-ready == 'true'"
+        " && github.event_name != 'merge_group'"
     )
+
+
+def test_develop_pushes_run_the_install_and_save_a_shared_cache() -> None:
+    # A cache is restorable only from its own ref, the base branch of a pull
+    # request and the default branch. Pull requests into develop therefore
+    # share the copy saved by develop push runs: those runs must reach the
+    # install, and only merge-queue runs (temporary refs) may skip the save.
+    ci = yaml.safe_load((WORKFLOWS / "ci.yml").read_text(encoding="utf-8"))
+    triggers = ci.get("on", ci.get(True))
+    assert "develop" in triggers["push"]["branches"]
+    assert "develop" in triggers["pull_request"]["branches"]
+    jobs = [
+        (job_name, job)
+        for job_name, job in ci["jobs"].items()
+        if any(step.get("uses") == ACTION_REF for step in job.get("steps") or [])
+    ]
+    assert len(jobs) == 5
+    for job_name, job in jobs:
+        assert "if" not in job, f"{job_name}: a job condition could skip develop push runs"
+    save = _action_steps()["Save .deb archives"]
+    assert "github.event_name != 'merge_group'" in save["if"]
+    assert "push" not in save["if"] and "github.ref" not in save["if"]
 
 
 def _cache_key(tmp_path: Path, packages: str, **env: str) -> dict[str, str]:

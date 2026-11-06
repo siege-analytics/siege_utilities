@@ -48,13 +48,16 @@ Chosen: (a) for the final attempt, combined with a wall-clock cap on the first a
 4. Paper Tiger. Severity: P2. The mirror rewrite misses a sources layout. Mitigation: every `apt-mirrors.txt`, `sources.list`, `sources.list.d/*.list` and `*.sources` naming the primary host is rewritten, with a warning when none does. Covered by `test_stalled_primary_mirror_falls_back_on_the_retry` and `test_retry_without_a_primary_mirror_source_warns`.
 5. Paper Tiger. Severity: P2. Concurrent jobs race to save the same key. Mitigation: `actions/cache/save` logs a reservation conflict as a warning; the first save wins.
 6. Paper Tiger. Severity: P2. A future job adds raw `apt-get` or calls the script directly and bypasses the cache. Mitigation: `test_no_workflow_step_runs_apt_get_or_the_script_directly` checks every workflow.
-7. Elephant. Severity: P3. Caches are branch-scoped, so the first run on a new branch, or a merge-group run, may miss. The hit rate is measured from hosted runs, not claimed here.
+7. Elephant. Severity: P3. Caches are ref-scoped (see "Cache scope round" below):
+   - Pull requests into develop restore the copy that develop push runs save; `test_develop_pushes_run_the_install_and_save_a_shared_cache` keeps that path intact.
+   - Merge-queue runs skip the save, which would land on a temporary ref.
+   - Whether a merge-queue run can restore develop's copy is undocumented. If it cannot, that run downloads as before, with the fallback mirror. It is measured on the first merge-queue run after the merge, not claimed here.
 8. Elephant. Severity: P3. An exact hit keeps the `.deb` files as of that image version; later archive updates are downloaded until the image version, and with it the key, changes.
 
 ## Peer review (Junior: shelves, gates)
 - Shelves: separate slow from stalled using the transport's own data timeout; fall back to another mirror; cache downloads rather than raising budgets; behavioural tests with stubs over a real `timeout`.
 - Gate 1 (syntax): `bash -n` and `shellcheck` on `scripts/ci_apt_install.sh` are clean. `yaml.safe_load` parses the workflows and the action in the guard tests, and the action's key step runs under bash in `test_cache_key_follows_the_image_and_the_package_set`. flake8 on the new test is clean at the CI limit of 127 characters. `actionlint` is not installed locally.
-- Gate 2 (tests): `tests/test_1871_ci_apt_install.py` gives 16 passed; with the changelog tests, 41 passed.
+- Gate 2 (tests): `tests/test_1871_ci_apt_install.py` gives 17 passed; with the changelog tests, 42 passed.
 - Gate 3 (guards): `scripts/check_test_file_hygiene.py` passes.
 
 ## Lead review (adversarial)
@@ -97,9 +100,9 @@ writing-rules:4 exemption for the governing ticket.
 
 ## Test plan / Quantified claims
 Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11); GNU `timeout` from coreutils; macOS `/bin/bash` 3.2 runs the script in the tests, and CI runs bash 5.
-- `python -m pytest tests/test_1871_ci_apt_install.py`: 16 passed (twice in a row, about 50 s each).
+- `python -m pytest tests/test_1871_ci_apt_install.py`: 16 passed at 7a972cbd (twice in a row, about 50 s each); 17 passed after the cache scope round.
 - Against the 2e61f1fc script and `ci.yml`: 11 failed and 5 passed. The five that pass cover behaviour the old script shares (usage error, no staging on failure, capped dpkg phase) plus the two action-file checks.
-- Adding `tests/test_release_process.py tests/test_user_config_export_changelog.py`: 41 passed.
+- Adding `tests/test_release_process.py tests/test_user_config_export_changelog.py`: 41 passed at 7a972cbd; 42 after the cache scope round.
 
 ## Review round on 682d5069 (hub finding: interrupted dpkg)
 Finding: if `timeout` stops `apt-get install` during the dpkg unpack/configure phase, dpkg is left interrupted. The retry then fails at once with "dpkg was interrupted, you must manually run 'sudo dpkg --configure -a'" or on the dpkg lock.
@@ -133,6 +136,29 @@ Fix:
   - the action's structure and its cache key.
 
 Red: with the 2e61f1fc script and `ci.yml`, 11 failed and 5 passed. After the fix, 16 passed.
+
+## Hosted evidence (run 42302877291 on 7a972cbd, conclusion success)
+- **Key:** `apt-debs-ubuntu24-36253bc8d112ecb3-20261101.360.1`. ImageOS and ImageVersion are set on the hosted runner, so no placeholder was used.
+- **Miss and first save:** `django models` logged "Need to get 72.1 MB", "Fetched 72.1 MB in 38s", then "Need to get 0 B/72.1 MB" in the dpkg phase, and staged 109 `.deb` files. One save landed: 72,002,225 B on `refs/pull/1872/merge` at 22:12:50Z.
+- **Concurrent saves:** "Failed to save: Unable to reserve cache with key …, another job may be creating this cache." followed by `##[warning]Cache save failed.` The step still exited 0.
+- **Hits:** `test-postgis` and `battle-test` logged "Cache hit", "seeded 109 .deb files" and "Need to get 0 B/72.1 MB", and installed in 22 to 23 s with no save.
+- **Live fallback** (`test (3.11)`, job 128184809443):
+  - The Azure mirror was slow; attempt 1 exited 124 after 120 s.
+  - "apt sources: /etc/apt/apt-mirrors.txt now uses archive.ubuntu.com instead of azure.archive.ubuntu.com".
+  - "Need to get 69.2 MB/72.1 MB" (the earlier downloads were reused), then "Fetched 67.8 MB in 23s (3008 kB/s)".
+  - The install exited 0 on attempt 2 after 3m07s.
+- **Overall:** all 10 install steps exited 0.
+
+## Cache scope round on 7a972cbd (hub: verify cache scope)
+Rule (GitHub docs, "Restrictions for accessing a cache"): a run can restore caches from its current branch and the default branch (`main`), and pull-request runs also from the base branch. Caches saved on a pull request's merge ref "can only be restored by re-runs of the pull request". The docs say nothing about merge queues. Other projects skip saves in `merge_group` runs because those land on a temporary `gh-readonly-queue/<base>/pr-…` ref (for example, Vello's `save-if: github.event_name != 'merge_group'`).
+
+Consequences:
+- **Develop-scoped save:** after the merge, the develop push run cannot see the `refs/pull/1872/merge` cache, so it misses and saves on `refs/heads/develop`. Later pull requests into develop restore that copy. Nothing extra is needed, because `ci.yml` runs on pushes to develop and the five install jobs have no job condition. `test_develop_pushes_run_the_install_and_save_a_shared_cache` now guards this: the develop push and pull_request triggers, five action jobs with no `if:`, and a save condition that excludes only `merge_group`.
+- **Merge-queue saves:** now skipped (`github.event_name != 'merge_group'` added to the save condition), so a queue run does not store 72 MB on a ref nobody reads.
+- **Main:** caches on `main`, the default branch, are readable everywhere; main push runs save there once the action reaches main.
+- **Unverified:** whether a merge-queue run restores develop's copy.
+
+Red: with the 7a972cbd action, `test_apt_action_restores_installs_then_saves_the_archive` and the new develop-save test fail (2 failed). After the change, 17 passed.
 
 ## Rework ledger
 - During the first red check, a blocked command left the new `ci.yml` unstaged, so the restore reverted it to develop's version. The edit was re-applied and verified (five script calls, no `apt-get`) before the red check was repeated correctly. Nothing was committed in between.
