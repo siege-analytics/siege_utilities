@@ -286,7 +286,7 @@ _register([
     's2_spatial_join', 's2_cell_to_boundary',
     's2_level_for_area', 's2_level_for_admin_level',
     's2_kring', 's2_distance', 's2_parent', 's2_children',
-    's2_cell_id_to_uint64', 's2_uint64_to_cell_id',
+    's2_cell_id_to_uint64', 's2_cell_id_to_int64', 's2_uint64_to_cell_id',
     's2_cell_id_to_token', 's2_token_to_cell_id',
     's2_bbox_to_cells', 's2_cells_to_ranges',
 ], '.s2_utils')
