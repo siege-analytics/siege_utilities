@@ -146,14 +146,6 @@ class Credential(BaseModel):
             raise ValueError('API key must be at least 10 characters')
         return v
     
-    @field_validator('expires_at')
-    @classmethod
-    def validate_expires_at(cls, v):
-        """Validate expiration date."""
-        if v and v <= datetime.now():
-            raise ValueError('Expiration date must be in the future')
-        return v
-    
     def is_expired(self) -> bool:
         """Check if credential is expired."""
         if not self.expires_at:

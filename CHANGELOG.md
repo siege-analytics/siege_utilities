@@ -118,6 +118,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `Collaborator.access_expires`, `Collaboration.end_date`,
+  `Credential.expires_at`, and `OAuthIntegration.expires_at` accept past
+  datetimes, so persisted models can reload after expiry. Existing expiry
+  and active-state checks retain their behavior (#1496).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0

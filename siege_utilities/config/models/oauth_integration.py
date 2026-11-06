@@ -184,14 +184,6 @@ class OAuthIntegration(BaseModel):
             raise ValueError('OAuth credentials must be at least 10 characters')
         return v
     
-    @field_validator('expires_at')
-    @classmethod
-    def validate_expires_at(cls, v):
-        """Validate token expiration date."""
-        if v and v <= datetime.now():
-            raise ValueError('Token expiration must be in the future')
-        return v
-    
     def is_token_expired(self) -> bool:
         """Check if access token is expired."""
         if not self.expires_at:
