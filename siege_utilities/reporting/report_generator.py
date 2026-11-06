@@ -22,6 +22,7 @@ except ImportError:
 try:
     from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, PageBreak
     from reportlab.platypus import Image as RLImage
+    from reportlab.platypus.tableofcontents import TableOfContents
     from reportlab.lib import colors
     from reportlab.lib.units import inch
     REPORTLAB_AVAILABLE = True
@@ -33,6 +34,7 @@ except ImportError:
     TableStyle = None
     PageBreak = None
     RLImage = None
+    TableOfContents = None
     colors = None
     inch = None
 
@@ -287,7 +289,7 @@ class ReportGenerator:
         return report_content
 
     def add_table_section(self, report_content: Dict[str, Any], title: str,
-                          table_data: Union[List[List], pd.DataFrame],
+                          table_data: Union[List[List], List[Dict[str, Any]], pd.DataFrame],
                           headers: List[str] = None, level: int = 1,
                           table_style: str = "default",
                           sort_by: Optional[Union[int, str]] = None,
@@ -298,7 +300,7 @@ class ReportGenerator:
         Args:
             report_content: Existing report content
             title: Section title
-            table_data: Table data (list of lists or DataFrame)
+            table_data: Table data (rows, record dictionaries or DataFrame)
             headers: Column headers
             level: Section level
             table_style: Table styling
@@ -310,6 +312,13 @@ class ReportGenerator:
             Updated report content
         """
         from siege_utilities.reporting.table_utils import sort_table_data
+
+        # Record dictionaries are used by the reporting notebook and need
+        # column-aligned values, rather than iteration over dictionary keys.
+        if isinstance(table_data, list) and table_data and isinstance(table_data[0], dict):
+            if not all(isinstance(row, dict) for row in table_data):
+                raise ValueError("Table section records must all be dictionaries")
+            table_data = pd.DataFrame(table_data, columns=headers)
 
         # Convert DataFrame to list format if needed
         if hasattr(table_data, 'to_dict'):
@@ -467,21 +476,30 @@ class ReportGenerator:
             story = []
 
             metadata = report_content.get('metadata', {})
-            if metadata.get('title'):
+            sections = report_content.get('sections', [])
+            title = metadata.get('title') or report_content.get('title')
+            if title and not any(section.get('type') == 'title_page' for section in sections):
                 title_flowables = template.add_title_page(
-                    title=metadata.get('title', 'Report'),
+                    title=title,
                     subtitle=metadata.get('subtitle', ''),
                     author=metadata.get('author', ''),
-                    date=metadata.get('date', '')
+                    date=metadata.get('date', ''),
+                    client=metadata.get('client', '')
                 )
                 story.extend(title_flowables)
 
-            for section in report_content.get('sections', []):
+            for section in sections:
                 section_story = self._build_section_content(section, template)
                 story.extend(section_story)
 
                 if section.get('page_break_after', False):
                     story.append(PageBreak())
+
+            if not any(hasattr(flowable, '_toc_entry') for flowable in story):
+                for index, flowable in enumerate(story):
+                    if isinstance(flowable, TableOfContents):
+                        log.warning("Table of contents has no titled report sections")
+                        story[index] = Paragraph("No sections.", template.styles['Normal'])
 
             template.build_document(story)
 
@@ -551,6 +569,8 @@ class ReportGenerator:
                     if chart_path.exists():
                         img = RLImage(str(chart_path), width=width*inch, height=height*inch)
                         result.append(img)
+                    else:
+                        log.warning("Chart image does not exist: %s", chart_path)
                     continue
 
                 # Handle matplotlib Figure
@@ -602,6 +622,8 @@ class ReportGenerator:
                         img = RLImage(str(image_path), width=chart_width*inch,
                                      height=chart_height*inch)
                         result.append(img)
+                    else:
+                        log.warning("Chart has no existing image path: %r", chart)
                     continue
 
                 log.warning(f"Unknown chart type: {type(chart)}")
@@ -632,23 +654,52 @@ class ReportGenerator:
         story = []
         section_type = section.get('type', 'text')
         styles = template.styles
+        content = section.get('content')
+        text_types = {'text', 'executive_summary', 'methodology', 'data_summary', 'appendix'}
+        supported_types = text_types | {
+            'insights', 'recommendations', 'title_page', 'table_of_contents',
+            'appendix_header', 'table', 'chart', 'charts', 'map', 'maps',
+        }
+        if section_type not in supported_types:
+            raise ValueError(f"Unknown report section type: {section_type!r}")
+
+        def invalid_content(expected):
+            raise ValueError(f"Invalid content for {section_type!r} section: expected {expected}")
 
         # Add page break if requested
-        if section.get('page_break_before', False):
+        if section.get('page_break_before', False) or section_type == 'appendix_header':
             story.append(PageBreak())
+
+        if section_type == 'title_page':
+            fields = ('title', 'subtitle', 'author', 'client', 'date')
+            if content is not None or any(
+                section.get(field) is not None and not isinstance(section[field], str)
+                for field in fields
+            ):
+                invalid_content('title, subtitle, author, client and date strings on the section')
+            if not (section.get('title') or '').strip():
+                invalid_content('a nonempty title')
+            story.extend(template.add_title_page(**{field: section.get(field) or '' for field in fields}))
+            return story
 
         # Add section title
         title = section.get('title', '')
         level = section.get('level', 1)
         if title:
             heading_style = styles.get(f'Heading{level}', styles['Heading1'])
-            story.append(Paragraph(_escape_paragraph(title), heading_style))
+            heading = Paragraph(_escape_paragraph(title), heading_style)
+            if section_type != 'table_of_contents':
+                heading._toc_entry = (max(0, level - 1), _escape_paragraph(title))
+            story.append(heading)
             story.append(Spacer(1, 12))
 
         # Handle different section types
-        if section_type == 'text':
-            content = section.get('content', '')
-            text = content if isinstance(content, str) else content.get('text', '') if isinstance(content, dict) else ''
+        if section_type in text_types:
+            text = content.get('text') if isinstance(content, dict) else content
+            if not isinstance(text, str):
+                invalid_content('a string or a mapping with a text string')
+            if not text.strip():
+                log.warning("Empty content for %s section %r", section_type, title)
             if text:
                 # Split on newlines and create separate paragraphs to preserve formatting
                 for line in text.split('\n'):
@@ -667,20 +718,46 @@ class ReportGenerator:
                         story.append(Paragraph(_escape_paragraph(stripped), styles['Normal']))
             story.append(Spacer(1, 12))
 
+        elif section_type in {'insights', 'recommendations'}:
+            if not isinstance(content, list) or not all(isinstance(item, str) and item.strip() for item in content):
+                invalid_content('a list of nonempty strings')
+            if not content:
+                log.warning("Empty content for %s section %r", section_type, title)
+            for item in content:
+                story.append(Paragraph(_escape_paragraph(item), styles['Bullet'], bulletText='\u2022'))
+            story.append(Spacer(1, 12))
+
+        elif section_type == 'table_of_contents':
+            if content is not None:
+                invalid_content('automatically generated entries, without explicit content')
+            story.extend([TableOfContents(), PageBreak()])
+
+        elif section_type == 'appendix_header':
+            if content is not None:
+                invalid_content('an appendix divider without content')
+            if not title:
+                invalid_content('an appendix divider title')
+
         elif section_type == 'table':
-            table_data = section.get('content', {}).get('data', [])
-            headers = section.get('content', {}).get('headers')
+            if not isinstance(content, dict):
+                invalid_content('a mapping with table data')
+            table_data = content.get('data')
+            headers = content.get('headers')
+            if headers is not None and not isinstance(headers, list):
+                invalid_content('a list of column headers')
 
             if isinstance(table_data, pd.DataFrame):
                 headers = headers or table_data.columns.tolist()
                 table_data = [headers] + table_data.values.tolist()
-            elif headers and table_data and table_data[0] != headers:
-                # Only prepend headers if they aren't already the first row
-                # (add_table_section already prepends them)
-                table_data = [headers] + table_data
+            else:
+                if not isinstance(table_data, list) or not all(isinstance(row, (list, tuple)) for row in table_data):
+                    invalid_content('a list of rows or a DataFrame')
+                if headers and table_data and table_data[0] != headers:
+                    # add_table_section already prepends headers.
+                    table_data = [headers] + table_data
 
             if table_data:
-                table = Table(table_data)
+                table = Table(table_data, repeatRows=1 if headers else 0)
                 table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -697,53 +774,35 @@ class ReportGenerator:
                 ]))
                 story.append(table)
                 story.append(Spacer(1, 12))
+            else:
+                log.warning("Empty content for table section %r", title)
 
-        elif section_type == 'chart' or section_type == 'charts':
-            content = section.get('content', {})
-            charts = content.get('charts', [])
-            image_path = content.get('image_path')
-            description = content.get('description', '')
+        elif section_type in {'chart', 'charts', 'map', 'maps'}:
+            key = 'maps' if section_type in {'map', 'maps'} else 'charts'
+            description = ''
+            if key == 'charts' and isinstance(content, list):
+                charts = content
+            elif isinstance(content, dict):
+                charts = content.get(key, [])
+                description = content.get('description', '')
+                if not isinstance(charts, list):
+                    invalid_content(f'a list under {key!r}')
+                if key == 'charts' and content.get('image_path'):
+                    charts = [content['image_path']] + charts
+            else:
+                invalid_content('a chart list or an image mapping' if key == 'charts' else 'a maps mapping')
+            if not isinstance(description, str):
+                invalid_content('a string description')
 
-            # Add description if provided
             if description:
                 story.append(Paragraph(_escape_paragraph(description), styles['Normal']))
                 story.append(Spacer(1, 8))
 
-            # Handle single image path (legacy support)
-            if image_path and Path(image_path).exists():
-                img = RLImage(str(image_path), width=6*inch, height=4*inch)
-                story.append(img)
+            chart_images = self._process_chart_list(charts)
+            if not chart_images:
+                log.warning("No renderable images for %s section %r", section_type, title)
+            for chart_img in chart_images:
+                story.append(chart_img)
                 story.append(Spacer(1, 12))
-
-            # Handle list of charts (new enhanced support)
-            if charts:
-                chart_images = self._process_chart_list(charts)
-                for chart_img in chart_images:
-                    story.append(chart_img)
-                    story.append(Spacer(1, 12))
-
-        elif section_type == 'maps' or section_type == 'map':
-            content = section.get('content', {})
-            maps = content.get('maps', [])
-            description = content.get('description', '')
-
-            if description:
-                story.append(Paragraph(_escape_paragraph(description), styles['Normal']))
-                story.append(Spacer(1, 8))
-
-            if maps:
-                map_images = self._process_chart_list(maps)
-                for map_img in map_images:
-                    story.append(map_img)
-                    story.append(Spacer(1, 12))
-
-        else:
-            # Default: treat as text
-            content = section.get('content', '')
-            if isinstance(content, str):
-                story.append(Paragraph(_escape_paragraph(content), styles['Normal']))
-            elif isinstance(content, dict) and 'text' in content:
-                story.append(Paragraph(_escape_paragraph(content['text']), styles['Normal']))
-            story.append(Spacer(1, 12))
 
         return story

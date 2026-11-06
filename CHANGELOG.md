@@ -116,8 +116,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   how undecodable (non-UTF-8) bytes reach Python, are refused as well. The
   check is public as `reject_unsafe_new_directory_names` (#1716).
 
+- `generate_pdf_report` now raises `ValueError` for a section `type` outside
+  the supported set (`executive_summary`, `methodology`, `data_summary`,
+  `text`, `insights`, `recommendations`, `charts`, `title_page`,
+  `table_of_contents`, `table`, `appendix`), and for non-string content in the
+  `text`/`executive_summary`/`methodology`/`data_summary`/`appendix` sections.
+  Callers that relied on a custom `add_section` type, a DataFrame
+  `add_appendix`, or `None` text must change: put custom prose in a `text`
+  section and tabular appendices in a `table` section through
+  `add_table_section`. A report with a top-level `title` and no `title_page`
+  section now gets a title page (#1485).
+
 ### Fixed
 
+- Render analytics and comprehensive PDF report sections, including chart lists,
+  insight and recommendation bullets, title-page details, a table of contents
+  with page numbers, and appendix dividers. Normalize table record dictionaries
+  into column-aligned values. Reject unsupported section shapes
+  and warn about empty content or missing chart images. Continue content-page
+  paragraphs, tables and bullet lists across page breaks, repeating table
+  headers and raising when a fragment cannot fit, instead of silently
+  discarding content. `ContentPageTemplate.add_bullet_list` now renders each
+  item as a wrapped, paginating flowable rather than a fixed-height canvas line
+  that dropped items past the page bottom (#1485).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
