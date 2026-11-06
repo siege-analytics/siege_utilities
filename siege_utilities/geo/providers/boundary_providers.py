@@ -403,11 +403,14 @@ class RDHProvider(BoundaryProvider):
 
         Returns:
             GeoDataFrame (default) or engine-native DataFrame when engine is provided.
-            None if no matching datasets found.
 
         Raises:
             ValueError: If *level* is not recognised or *state* is missing.
             ImportError: If geopandas is not installed.
+            BoundaryFetchError: If the dataset lookup fails or is ambiguous
+                (more than one enacted plan matches), no dataset matches, or
+                the shapefile cannot be loaded. The client error is chained
+                as ``__cause__``.
         """
         engine = kwargs.pop('engine', None)
         if level not in self._LEVELS:
@@ -439,17 +442,25 @@ class RDHProvider(BoundaryProvider):
 
         client = self._get_client()
 
-        if level == 'precinct':
-            datasets = client.get_precinct_data(state, year=year, format=fmt)
-        else:
-            chamber_map = {
-                'congress': 'congress',
-                'state_senate': 'state_senate',
-                'state_house': 'state_house',
-            }
-            datasets = client.get_enacted_plans(
-                state, chamber=chamber_map[level], year=year, format=fmt,
-            )
+        # Lookup failures, including an ambiguous enacted-plan match, use the
+        # provider's BoundaryFetchError contract like the load failures below.
+        try:
+            if level == 'precinct':
+                datasets = client.get_precinct_data(state, year=year, format=fmt)
+            else:
+                chamber_map = {
+                    'congress': 'congress',
+                    'state_senate': 'state_senate',
+                    'state_house': 'state_house',
+                }
+                datasets = client.get_enacted_plans(
+                    state, chamber=chamber_map[level], year=year, format=fmt,
+                )
+        except (OSError, ValueError) as exc:
+            raise BoundaryFetchError(
+                f"RDHProvider: failed to look up {level} datasets for "
+                f"state={state}, year={year}, format={fmt}: {exc}"
+            ) from exc
 
         if not datasets:
             raise BoundaryFetchError(

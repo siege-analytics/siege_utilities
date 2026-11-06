@@ -118,6 +118,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- RDH enacted-plan selection maps SLDU to state senate and SLDL to state
+  house, and matches chamber keywords on token boundaries so titles such as
+  `household` and `houses` no longer match. `get_enacted_plans` and
+  `fetch_enacted_plan` raise `ValueError` with the candidate titles when
+  multiple plans match; `RDHProvider.get_boundary` raises
+  `BoundaryFetchError` for that ambiguity and for other dataset-lookup
+  failures, chaining the client error. Narrow the year filter or use
+  `list_datasets` and load a chosen dataset directly (#1480).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
