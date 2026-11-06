@@ -110,7 +110,7 @@ _register([
 ], '.forecast')
 
 _register([
-    'PipelineItem', 'StageMetrics', 'ConversionRate',
+    'PipelineItem', 'StageMetrics', 'StageRatio',
     'VelocityMetrics', 'ConcentrationAlert',
     'PipelineReport', 'PipelineAnalyzer',
 ], '.pipeline')

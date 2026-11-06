@@ -58,7 +58,7 @@ class ThresholdConfig:
 
 @dataclass(frozen=True)
 class EntityScore:
-    """Result of scoring an entity."""
+    """Entity score with its tier classified from the reported two-decimal score."""
 
     entity_id: str
     composite_score: float
@@ -166,7 +166,8 @@ class HealthScorer:
             segment, self._default_thresholds
         ) if segment else self._default_thresholds
 
-        tier = thresholds.classify(composite)
+        reported_composite = round(composite, 2)
+        tier = thresholds.classify(reported_composite)
 
         trend = None
         trend_direction = None
@@ -183,7 +184,7 @@ class HealthScorer:
 
         result = EntityScore(
             entity_id=entity_id,
-            composite_score=round(composite, 2),
+            composite_score=reported_composite,
             tier=tier,
             dimension_scores=dimension_scores,
             segment=segment,
