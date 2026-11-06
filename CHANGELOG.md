@@ -319,6 +319,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- DuckDB `query` binds `parameters` (or `params`) and rejects unknown keywords
+  and parameterized multi-statement SQL before execution; in v4.0.0 keywords
+  other than `table` and `df` were silently ignored. WKB materialization
+  retains per-column CRS in pandas attrs, including empty results; unknown CRS
+  remains `None`. `read_spatial` preserves file CRS and coordinates by default
+  and reprojects only when a target is requested, rejecting reprojection when
+  the source CRS is unknown; in v4.0.0 it returned EPSG:4326 by default
+  (#1412). **Migration:** pass only `parameters`/`params` (plus `table`/`df`)
+  to `query` and run parameterized statements one at a time; pass
+  `crs="EPSG:4326"` to `read_spatial` to keep the previous output CRS.
+- Pandas, DuckDB and PostGIS `to_geodataframe` preserve an existing
+  GeoDataFrame's CRS when no target is supplied; in v4.0.0 they reprojected to
+  EPSG:4326. Base nearest, apportion and dissolve retain projected inputs;
+  their new `crs` argument reprojects on request. Nearest distances and
+  apportion area shares use projected units, and geographic, unknown or
+  mismatched measurement CRSes raise `ValueError`. WKT text retains
+  default-CRS normalization (#1497). **Migration:** pass `crs="EPSG:4326"` to
+  `to_geodataframe` for the previous output CRS; give nearest and apportion
+  inputs in one projected CRS, or pass a projected `crs=`, and read distances
+  in that CRS's units.
+- Spark spatial joins and boundary assignments keep one left geometry and
+  suffix shared attributes with `_left`/`_right`, matching the join invariant
+  and nearest contract; in v4.0.0 the join returned every left and right
+  column (`l.*, r.*`), including both geometries and duplicate names.
+  Multi-layer assignment prefixes polygon attributes before joining, preserves
+  point names, drops the generated right index, and keeps Spark frames native
+  between layers without collecting to the driver (#1479). **Migration:** read
+  shared attributes by their `_left`/`_right` names; select a right-side
+  geometry under another name before joining if you need it.
+- `DuckDBEngine.join` resolves a coalesced geometry join key by source (the
+  left frame's CRS for inner and left joins, the right frame's for a right
+  join), rejects two conflicting known CRSes before the merge in every join
+  mode with a `ValueError` naming both, and rejects a known-vs-unknown key CRS
+  for outer joins. The rule applies to GeoDataFrame inputs as well as raw-WKB
+  frames, resolving each key from the live GeoSeries CRS. None/None stays None
+  and non-key geometry keeps its own CRS under its suffix. CRS is compared
+  semantically (EPSG/WKT/PROJJSON/proj4 canonicalized). Previously mixed CRS
+  was accepted, a GeoDataFrame join bypassed the rule, and the result was
+  mislabelled EPSG:4326 (#1852). **Migration:** reproject both inputs to one
+  CRS before joining on a geometry key.
+
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,
