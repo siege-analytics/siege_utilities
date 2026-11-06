@@ -118,6 +118,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Make the Databricks bridge notebook's schematic example project to a metric
+  CRS, buffer with a radius in meters, and transform back to EPSG:4326. Keep
+  the angular-degree caveat and document caller-side filtering and row bounds
+  before collection to driver memory. Remove the persistent-table overwrite
+  from the capped sample and document the bridge's CRS column parameters and
+  output (#1665).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
