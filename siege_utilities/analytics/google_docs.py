@@ -66,7 +66,7 @@ def get_document(
     client,
     document_id: str,
 ) -> Dict[str, Any]:
-    """Fetch full document metadata and content structure.
+    """Fetch document metadata and the first tab's content structure.
 
     Returns:
         The document resource dict.
@@ -97,13 +97,41 @@ def copy_document(
     return client.copy_file(document_id, title)
 
 
+def _read_structural_elements(content: List[Dict[str, Any]]) -> str:
+    """Collect text runs in order, including nested tables and contents lists."""
+    parts: List[str] = []
+    pending = list(reversed(content))
+    while pending:
+        element = pending.pop()
+        if "paragraph" in element:
+            for paragraph_element in element["paragraph"].get("elements", []):
+                parts.append(paragraph_element.get("textRun", {}).get("content", ""))
+        elif "table" in element:
+            children = [
+                child
+                for row in element["table"].get("tableRows", [])
+                for cell in row.get("tableCells", [])
+                for child in cell.get("content", [])
+            ]
+            pending.extend(reversed(children))
+        elif "tableOfContents" in element:
+            pending.extend(reversed(element["tableOfContents"].get("content", [])))
+    return "".join(parts)
+
+
 def read_document_text(
     client,
     document_id: str,
 ) -> str:
-    """Read the full plain-text content of a document.
+    """Read plain-text runs from all document tabs and text segments.
 
-    Extracts text from all structural elements (paragraphs, tables, etc.).
+    Visits tabs depth-first, including child tabs. Within each tab, reads
+    the body followed by headers, footers, and footnotes in API response
+    order. Traverses paragraphs, nested tables, and tables of contents in
+    every segment. Footnote text is included once in the footnotes section,
+    not at each reference. Preserves text-run whitespace without adding
+    separators, generated reference markers, or text from embedded objects.
+    Legacy responses without tabs use the same traversal at document level.
 
     Args:
         client: Authenticated GoogleWorkspaceClient.
@@ -112,26 +140,24 @@ def read_document_text(
     Returns:
         The document text as a single string.
     """
-    doc = get_document(client, document_id)
-    body = doc.get("body", {})
-    content = body.get("content", [])
-
+    doc = (
+        client.docs_service()
+        .documents()
+        .get(documentId=document_id, includeTabsContent=True)
+        .execute()
+    )
     parts: List[str] = []
-    for element in content:
-        if "paragraph" in element:
-            for pe in element["paragraph"].get("elements", []):
-                text_run = pe.get("textRun", {})
-                if "content" in text_run:
-                    parts.append(text_run["content"])
-        elif "table" in element:
-            for row in element["table"].get("tableRows", []):
-                for cell in row.get("tableCells", []):
-                    for cell_content in cell.get("content", []):
-                        if "paragraph" in cell_content:
-                            for pe in cell_content["paragraph"].get("elements", []):
-                                text_run = pe.get("textRun", {})
-                                if "content" in text_run:
-                                    parts.append(text_run["content"])
+    pending = list(reversed(doc.get("tabs", [])))
+    if not pending:
+        pending = [{"documentTab": doc}]
+    while pending:
+        tab = pending.pop()
+        document_tab = tab.get("documentTab", {})
+        parts.append(_read_structural_elements(document_tab.get("body", {}).get("content", [])))
+        for segment_type in ("headers", "footers", "footnotes"):
+            for segment in document_tab.get(segment_type, {}).values():
+                parts.append(_read_structural_elements(segment.get("content", [])))
+        pending.extend(reversed(tab.get("childTabs", [])))
 
     return "".join(parts)
 
@@ -151,7 +177,7 @@ def insert_text(
         client: Authenticated GoogleWorkspaceClient.
         document_id: Target document ID.
         text: Text to insert.
-        index: Character index (1-based; 1 = start of document body).
+        index: UTF-16 code-unit index (1 = start of document body).
         bold: Apply bold formatting.
         italic: Apply italic formatting.
         font_size: Font size in points (``None`` = default).
@@ -186,7 +212,7 @@ def insert_text(
             "updateTextStyle": {
                 "range": {
                     "startIndex": index,
-                    "endIndex": index + len(text),
+                    "endIndex": index + len(text.encode("utf-16-le")) // 2,
                 },
                 "textStyle": style,
                 "fields": ",".join(fields),
@@ -209,7 +235,7 @@ def insert_paragraph(
         client: Authenticated GoogleWorkspaceClient.
         document_id: Target document ID.
         text: Paragraph text (newline is appended automatically).
-        index: Character index (1-based).
+        index: UTF-16 code-unit index (1 = start of document body).
         heading: Named style (``"HEADING_1"`` through ``"HEADING_6"``,
             ``"TITLE"``, ``"SUBTITLE"``, or ``None`` for normal text).
 
@@ -232,7 +258,7 @@ def insert_paragraph(
             "updateParagraphStyle": {
                 "range": {
                     "startIndex": index,
-                    "endIndex": index + len(full_text),
+                    "endIndex": index + len(full_text.encode("utf-16-le")) // 2,
                 },
                 "paragraphStyle": {"namedStyleType": heading},
                 "fields": "namedStyleType",
