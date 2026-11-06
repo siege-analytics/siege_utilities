@@ -1,5 +1,7 @@
 """Tests for siege_utilities.geo.providers.census_geocoder module."""
 
+import csv
+
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -203,7 +205,7 @@ class TestGeocodeBatch:
         is a boolean, the matched address is ``parsed``, and lat/lon are
         already floats after the library's own parsing step."""
         mock_cg = MagicMock()
-        mock_cg.addressbatch.return_value = [
+        response_rows = [
             {
                 "id": "1",
                 "match": True,
@@ -235,6 +237,13 @@ class TestGeocodeBatch:
                 "lon": None,
             },
         ]
+
+        def respond(path, **kwargs):
+            with open(path, newline="") as stream:
+                submitted = list(csv.reader(stream))
+            return [dict(response_rows[i], id=row[0]) for i, row in enumerate(submitted)]
+
+        mock_cg.addressbatch.side_effect = respond
         mock_get_geocoder.return_value = mock_cg
 
         addresses = [
