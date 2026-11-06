@@ -118,6 +118,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- RDH compactness scores now use the true minimum bounding circle for Reock
+  and a per-district local AEQD projection for Polsby-Popper, Reock and
+  Schwartzberg. **Behavior change:** these scores correct the previous
+  rectangle-based Reock estimate and Mollweide shape distortion.
+  `compare_plans` uses the same scoring as `compute_compactness` and adds
+  mean Reock and Schwartzberg fields (#1467).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
