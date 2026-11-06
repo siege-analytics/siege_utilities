@@ -316,15 +316,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   raises. Vista Social account/profile lists document their first-page limit
   and expose `has_more` (including unknown completeness) and pagination
   metadata on a list-compatible result (#1439).
-- CI installs the GDAL/PostGIS system packages through
-  `scripts/ci_apt_install.sh`, which runs apt with bounded retries and 30-second
-  connection timeouts, stops any `apt-get` command that runs longer than two
-  minutes, and retries the whole update and install once, first running
-  `dpkg --configure -a` (also bounded) so a stopped install's half-configured
-  packages do not block the retry. Each install step
-  has its own 13-minute timeout, below the `test-postgis` job's 20 minutes, so
-  a stalled Ubuntu mirror fails fast and retries instead of cancelling a
-  required job and dequeuing the merge queue. Job timeouts are unchanged (#1871).
+- CI installs the GDAL/PostGIS system packages through a local
+  `.github/actions/apt-install` action, so a slow or stalled Ubuntu mirror no
+  longer cancels a required job or dequeues the merge queue (#1871):
+  - The downloaded `.deb` archives are cached with `actions/cache`, keyed on
+    the runner image and the package list, so most runs download nothing.
+  - apt drops a connection that sends no data for 30 seconds and retries it.
+  - The first attempt stops downloading from the primary mirror after two
+    minutes. Before the retry, `dpkg --configure -a` repairs any interrupted
+    install and apt switches from `azure.archive.ubuntu.com` to
+    `archive.ubuntu.com`.
+  - The final attempt lets a slow but live download finish, while the install
+    from the downloaded files stays bounded.
+  - Install steps have no step timeout, because a 38-minute install on
+    `develop` exited 0. Job timeouts are unchanged.
 
 ### BREAKING
 
