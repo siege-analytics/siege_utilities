@@ -335,12 +335,12 @@ class TestAlignerTransitionChain:
         assert chain == [(2010, 2020)]
 
     def test_chained_2000_to_2020(self):
-        chain = LongitudinalAligner._transition_chain(2000, 2020)
-        assert chain == [(2000, 2010), (2010, 2020)]
+        with pytest.raises(ValueError, match="No supported crosswalk path from 2000 to 2020"):
+            LongitudinalAligner._transition_chain(2000, 2020)
 
     def test_reverse_chained_2020_to_2000(self):
-        chain = LongitudinalAligner._transition_chain(2020, 2000)
-        assert chain == [(2020, 2010), (2010, 2000)]
+        with pytest.raises(ValueError, match="No supported crosswalk path from 2020 to 2000"):
+            LongitudinalAligner._transition_chain(2020, 2000)
 
     def test_unsupported_vintage_raises(self):
         with pytest.raises(ValueError, match="No supported crosswalk path"):

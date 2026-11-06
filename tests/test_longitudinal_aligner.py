@@ -94,15 +94,16 @@ class TestTransitionChain:
         assert LongitudinalAligner._transition_chain(2010, 2020) == [(2010, 2020)]
 
     def test_single_step_backward(self):
-        assert LongitudinalAligner._transition_chain(2020, 2010) == [(2020, 2010)]
+        with pytest.raises(ValueError, match="No supported crosswalk path from 2020 to 2010"):
+            LongitudinalAligner._transition_chain(2020, 2010)
 
     def test_chained_2000_to_2020(self):
-        chain = LongitudinalAligner._transition_chain(2000, 2020)
-        assert chain == [(2000, 2010), (2010, 2020)]
+        with pytest.raises(ValueError, match="No supported crosswalk path from 2000 to 2020"):
+            LongitudinalAligner._transition_chain(2000, 2020)
 
     def test_chained_2020_to_2000(self):
-        chain = LongitudinalAligner._transition_chain(2020, 2000)
-        assert chain == [(2020, 2010), (2010, 2000)]
+        with pytest.raises(ValueError, match="No supported crosswalk path from 2020 to 2000"):
+            LongitudinalAligner._transition_chain(2020, 2000)
 
     def test_unsupported_raises(self):
         with pytest.raises(ValueError, match="No supported crosswalk"):
@@ -185,25 +186,18 @@ class TestAlign:
         assert result.method == "failed"
         assert len(result.warnings) >= 1
 
-    def test_chained_crosswalk(self, sample_df):
-        """2000→2020 should invoke two crosswalk steps."""
+    def test_unavailable_chain_rejected(self, sample_df):
+        """2000->2020 has no supported crosswalk path."""
         aligner = LongitudinalAligner(target_vintage=2020, geography="tract")
-
-        call_count = 0
-        def mock_step(df, src, tgt, geo, sfips, geoid_col, intensive_columns=None):
-            nonlocal call_count
-            call_count += 1
-            return df.copy()
 
         with patch(
             "siege_utilities.geo.timeseries.longitudinal_data."
             "LongitudinalAligner._apply_crosswalk_step",
-            side_effect=mock_step,
-        ):
-            result = aligner.align(sample_df, source_vintage=2000)
+        ) as mock_step:
+            with pytest.raises(ValueError, match="No supported crosswalk path from 2000 to 2020"):
+                aligner.align(sample_df, source_vintage=2000)
 
-        assert call_count == 2
-        assert result.method == "crosswalk"
+        mock_step.assert_not_called()
 
     def test_override_geography_and_state(self, sample_df):
         aligner = LongitudinalAligner(target_vintage=2020, geography="tract")

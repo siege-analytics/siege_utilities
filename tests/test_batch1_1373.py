@@ -270,7 +270,7 @@ def test_backend_failure_still_propagates_control(monkeypatch, backend):
 @pytest.mark.parametrize("source_vintage", [2000, 2010])
 @pytest.mark.parametrize("geoid_column", ["GEOID", "tract_id"])
 def test_align_areal_carries_only_requested_variables(monkeypatch, source_vintage, geoid_column):
-    """Boundary metadata must not become variables in a three-vintage chain."""
+    """Boundary metadata must not become variables in a synthetic multi-step chain."""
     areal = import_module("siege_utilities.geo.interpolation.areal")
     longitudinal = import_module("siege_utilities.geo.timeseries.longitudinal_data")
     crosswalk = import_module("siege_utilities.geo.crosswalk.crosswalk_processor")
@@ -314,7 +314,13 @@ def test_align_areal_carries_only_requested_variables(monkeypatch, source_vintag
         if source_vintage == 2000 else
         {geoid_column: ["M1"], "pop": [400.0], "rate": [0.5]}
     )
-    result = longitudinal.LongitudinalAligner(target_vintage=2020).align(
+    aligner = longitudinal.LongitudinalAligner(target_vintage=2020)
+    if source_vintage == 2000:
+        # Exercise repeated fallback independently of Census file availability.
+        monkeypatch.setattr(
+            aligner, "_transition_chain", lambda *args: [(2000, 2010), (2010, 2020)],
+        )
+    result = aligner.align(
         data, source_vintage=source_vintage, geoid_column=geoid_column,
         intensive_columns=["rate"],
     )
