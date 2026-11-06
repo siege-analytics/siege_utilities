@@ -118,6 +118,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `DatabaseConnection` validates settings by database type so the shipped
+  PostgreSQL and DuckDB defaults load through Hydra. Accept IPv6 hosts and
+  file database paths, allow file connections without server credentials,
+  and load stored passwords without a strength or length policy. A rejected
+  assignment raises `ValidationError` and leaves the connection unchanged
+  (#1490).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0

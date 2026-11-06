@@ -250,25 +250,22 @@ class TestDatabaseConnectionValidation:
         with pytest.raises(ValidationError, match="Database name must start with a letter"):
             DatabaseConnection(**_db_kw(database="1badname"))
 
-    def test_password_too_short_raises_error(self):
-        with pytest.raises(ValidationError, match="at least 8 characters"):
-            DatabaseConnection(**_db_kw(password="Sh0rt"))
+    # #1490: stored credentials are loaded, not policed for strength. Each
+    # former policy case now loads, stays wrapped, and stays redacted.
+    @pytest.mark.parametrize("password", [
+        "Sh0rt", "password", "alllowercase1", "ALLUPPERCASE1", "NoNumbersHere",
+    ])
+    def test_stored_password_of_any_strength_loads_and_stays_secret(self, password):
+        connection = DatabaseConnection(**_db_kw(password=password))
+        assert connection.password.get_secret_value() == password
+        # Quote the value: the bare word "password" is also the field name.
+        assert f"'{password}'" not in repr(connection)
+        assert f"'{password}'" not in str(connection)
+        assert repr(connection.password) == "SecretStr('**********')"
 
-    def test_password_common_raises_error(self):
-        with pytest.raises(ValidationError, match="too common"):
-            DatabaseConnection(**_db_kw(password="password"))
-
-    def test_password_missing_uppercase_raises_error(self):
-        with pytest.raises(ValidationError, match="uppercase"):
-            DatabaseConnection(**_db_kw(password="alllowercase1"))
-
-    def test_password_missing_lowercase_raises_error(self):
-        with pytest.raises(ValidationError, match="lowercase"):
-            DatabaseConnection(**_db_kw(password="ALLUPPERCASE1"))
-
-    def test_password_missing_number_raises_error(self):
-        with pytest.raises(ValidationError, match="number"):
-            DatabaseConnection(**_db_kw(password="NoNumbersHere"))
+    def test_empty_server_password_raises_error(self):
+        with pytest.raises(ValidationError, match="Server password must not be empty"):
+            DatabaseConnection(**_db_kw(password=""))
 
     def test_empty_username_raises_error(self):
         with pytest.raises(ValidationError, match="String should have at least 1 character"):
