@@ -187,33 +187,33 @@ def start_feature_workflow(
     auto_push: bool = True
 ) -> Dict[str, Union[str, bool, Dict[str, str]]]:
     """Start a feature workflow; reject invalid base branch names."""
-    base_branch = validate_branch_name(base_branch)
+    base_branch = validate_branch_name(base_branch, repo_path=repo_path)
 
     # Validate feature name
     validation = validate_branch_naming(f"feature/{feature_name}")
     if not validation["is_valid"]:
         raise ValueError(f"Invalid feature name: {validation['issues']}")
 
-    branch_name = f"feature/{feature_name}"
+    branch_name = validate_branch_name(f"feature/{feature_name}", repo_path=repo_path)
 
     try:
         # Ensure we're on base branch
         current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
         if current_branch != base_branch:
-            run_git_command("checkout", base_branch, repo_path=repo_path)
+            run_git_command("switch", "--", base_branch, repo_path=repo_path)
             log_info(f"Switched to base branch: {base_branch}")
 
         # Pull latest changes
-        run_git_command("pull", "origin", base_branch, repo_path=repo_path)
+        run_git_command("pull", "--", "origin", f"refs/heads/{base_branch}", repo_path=repo_path)
         log_info(f"Pulled latest changes from {base_branch}")
 
         # Create feature branch
-        run_git_command("checkout", "-b", branch_name, repo_path=repo_path)
+        run_git_command("switch", "-c", branch_name, "--", repo_path=repo_path)
         log_info(f"Created feature branch: {branch_name}")
 
         # Push to remote if requested
         if auto_push:
-            run_git_command("push", "-u", "origin", branch_name, repo_path=repo_path)
+            run_git_command("push", "-u", "--", "origin", f"refs/heads/{branch_name}", repo_path=repo_path)
             log_info(f"Pushed feature branch to remote: origin/{branch_name}")
 
         return {
@@ -240,18 +240,18 @@ def complete_feature_workflow(
     delete_branch: bool = True
 ) -> Dict[str, Union[str, bool, Dict[str, str]]]:
     """Complete a feature workflow; reject invalid feature/target branch names."""
-    feature_branch = validate_branch_name(feature_branch)
-    target_branch = validate_branch_name(target_branch)
+    feature_branch = validate_branch_name(feature_branch, repo_path=repo_path)
+    target_branch = validate_branch_name(target_branch, repo_path=repo_path)
 
     try:
         # Ensure we're on target branch
         current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
         if current_branch != target_branch:
-            run_git_command("checkout", target_branch, repo_path=repo_path)
+            run_git_command("switch", "--", target_branch, repo_path=repo_path)
             log_info(f"Switched to target branch: {target_branch}")
 
         # Pull latest changes
-        run_git_command("pull", "origin", target_branch, repo_path=repo_path)
+        run_git_command("pull", "--", "origin", f"refs/heads/{target_branch}", repo_path=repo_path)
         log_info(f"Pulled latest changes from {target_branch}")
 
         # Merge feature branch
@@ -259,28 +259,28 @@ def complete_feature_workflow(
         if squash:
             merge_args.append("--squash")
 
-        merge_args.append(feature_branch)
+        merge_args.extend(["--", f"refs/heads/{feature_branch}"])
         run_git_command(*merge_args, repo_path=repo_path)
 
         if squash:
             # Commit the squashed changes
-            run_git_command("commit", "-m", f"feat: {feature_branch.replace('feature/', '')}")
+            run_git_command("commit", "-m", f"feat: {feature_branch.replace('feature/', '')}", repo_path=repo_path)
 
         log_info(f"Successfully merged {feature_branch} into {target_branch}")
 
         # Push changes
-        run_git_command("push", "origin", target_branch, repo_path=repo_path)
+        run_git_command("push", "--", "origin", f"refs/heads/{target_branch}", repo_path=repo_path)
         log_info(f"Pushed changes to {target_branch}")
 
         # Delete feature branch if requested
         if delete_branch:
             # Delete local branch
-            run_git_command("branch", "-d", feature_branch, repo_path=repo_path)
+            run_git_command("branch", "-d", "--", feature_branch, repo_path=repo_path)
             log_info(f"Deleted local branch: {feature_branch}")
 
             # Delete remote branch
             try:
-                run_git_command("push", "origin", "--delete", feature_branch, repo_path=repo_path)
+                run_git_command("push", "--delete", "--", "origin", f"refs/heads/{feature_branch}", repo_path=repo_path)
                 log_info(f"Deleted remote branch: origin/{feature_branch}")
             except (GitError, RuntimeError) as exc:
                 log_warning(f"Could not delete remote branch: origin/{feature_branch}: {exc}")
@@ -309,33 +309,33 @@ def hotfix_workflow(
     auto_push: bool = True
 ) -> Dict[str, Union[str, bool, Dict[str, str]]]:
     """Start a hotfix workflow; reject invalid base branch names."""
-    base_branch = validate_branch_name(base_branch)
+    base_branch = validate_branch_name(base_branch, repo_path=repo_path)
 
     # Validate hotfix name
     validation = validate_branch_naming(f"hotfix/{hotfix_name}")
     if not validation["is_valid"]:
         raise ValueError(f"Invalid hotfix name: {validation['issues']}")
 
-    branch_name = f"hotfix/{hotfix_name}"
+    branch_name = validate_branch_name(f"hotfix/{hotfix_name}", repo_path=repo_path)
 
     try:
         # Ensure we're on base branch
         current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
         if current_branch != base_branch:
-            run_git_command("checkout", base_branch, repo_path=repo_path)
+            run_git_command("switch", "--", base_branch, repo_path=repo_path)
             log_info(f"Switched to base branch: {base_branch}")
 
         # Pull latest changes
-        run_git_command("pull", "origin", base_branch, repo_path=repo_path)
+        run_git_command("pull", "--", "origin", f"refs/heads/{base_branch}", repo_path=repo_path)
         log_info(f"Pulled latest changes from {base_branch}")
 
         # Create hotfix branch
-        run_git_command("checkout", "-b", branch_name, repo_path=repo_path)
+        run_git_command("switch", "-c", branch_name, "--", repo_path=repo_path)
         log_info(f"Created hotfix branch: {branch_name}")
 
         # Push to remote if requested
         if auto_push:
-            run_git_command("push", "-u", "origin", branch_name, repo_path=repo_path)
+            run_git_command("push", "-u", "--", "origin", f"refs/heads/{branch_name}", repo_path=repo_path)
             log_info(f"Pushed hotfix branch to remote: origin/{branch_name}")
 
         return {
@@ -361,27 +361,27 @@ def release_workflow(
     auto_push: bool = True
 ) -> Dict[str, Union[str, bool, Dict[str, str]]]:
     """Start a release workflow; reject invalid base branch names."""
-    base_branch = validate_branch_name(base_branch)
+    base_branch = validate_branch_name(base_branch, repo_path=repo_path)
 
     # Validate version format (semantic versioning, with optional v prefix and pre-release)
     if not re.match(r'^v?\d+\.\d+\.\d+(-rc\.\d+)?$', version):
         raise ValueError("Invalid version format. Use semantic versioning (e.g., 1.0.0 or v2.0.0-rc.1)")
 
-    branch_name = f"release/{version}"
+    branch_name = validate_branch_name(f"release/{version}", repo_path=repo_path)
 
     try:
         # Ensure we're on base branch
         current_branch = run_git_command("branch", "--show-current", repo_path=repo_path)
         if current_branch != base_branch:
-            run_git_command("checkout", base_branch, repo_path=repo_path)
+            run_git_command("switch", "--", base_branch, repo_path=repo_path)
             log_info(f"Switched to base branch: {base_branch}")
 
         # Pull latest changes
-        run_git_command("pull", "origin", base_branch, repo_path=repo_path)
+        run_git_command("pull", "--", "origin", f"refs/heads/{base_branch}", repo_path=repo_path)
         log_info(f"Pulled latest changes from {base_branch}")
 
         # Create release branch
-        run_git_command("checkout", "-b", branch_name, repo_path=repo_path)
+        run_git_command("switch", "-c", branch_name, "--", repo_path=repo_path)
         log_info(f"Created release branch: {branch_name}")
 
         # Update version files if they exist
@@ -394,7 +394,7 @@ def release_workflow(
 
         # Push to remote if requested
         if auto_push:
-            run_git_command("push", "-u", "origin", branch_name, repo_path=repo_path)
+            run_git_command("push", "-u", "--", "origin", f"refs/heads/{branch_name}", repo_path=repo_path)
             log_info(f"Pushed release branch to remote: origin/{branch_name}")
 
         return {
@@ -483,7 +483,7 @@ def get_workflow_status(repo_path: str = ".") -> Dict[str, Union[str, List[str],
         if workflow_type in ["feature_development", "hotfix", "release"]:
             # Get ahead/behind info
             try:
-                ahead_behind = run_git_command("rev-list", "--count", "--left-right", "main...HEAD", repo_path=repo_path)
+                ahead_behind = run_git_command("rev-list", "--count", "--left-right", "refs/heads/main...HEAD", "--", repo_path=repo_path)
                 behind, ahead = ahead_behind.split()
                 workflow_info.update({
                     "commits_ahead": int(ahead),
