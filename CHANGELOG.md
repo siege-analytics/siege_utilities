@@ -316,6 +316,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   raises. Vista Social account/profile lists document their first-page limit
   and expose `has_more` (including unknown completeness) and pagination
   metadata on a list-compatible result (#1439).
+- CI installs the GDAL/PostGIS system packages through
+  `scripts/ci_apt_install.sh`, which runs apt with bounded retries and 30-second
+  connection timeouts, stops any `apt-get` command that runs longer than three
+  minutes, and retries the whole update and install once. Each install step
+  has its own 13-minute timeout, below the `test-postgis` job's 20 minutes, so
+  a stalled Ubuntu mirror fails fast and retries instead of cancelling a
+  required job and dequeuing the merge queue. Job timeouts are unchanged (#1871).
 
 ### BREAKING
 
