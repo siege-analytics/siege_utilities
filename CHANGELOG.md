@@ -118,6 +118,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Resolve configuration paths on first access so imports survive an unset
+  `HOME` and a uid without a passwd entry. Use a temporary per-uid home
+  substitute when lookup fails, and check environment overrides before
+  resolving defaults. Guard default downloads and defer Census catalog,
+  inventory, and PL cache paths too. `SIEGE_AUTO_INIT_DIRS=true` now creates
+  directories on first path access rather than import (#1448).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
