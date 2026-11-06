@@ -8,6 +8,7 @@ retry logic, and DataFrame post-processing.
 import hashlib
 import logging
 import os
+import re
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -23,7 +24,7 @@ from siege_utilities.config import (
 )
 from siege_utilities.config.user_config import get_user_config
 from siege_utilities.core._http import redact_url_secrets
-from .variable_registry import VariableRegistry
+from .variable_registry import ACS_SENTINELS, ACS_SENTINEL_STRINGS, VariableRegistry
 from .dataset_selector import DatasetSelector
 
 from siege_utilities.files.operations import atomic_write_path
@@ -321,13 +322,16 @@ class CensusAPI:
 
     @staticmethod
     def _convert_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
+        """Normalize ACS estimates/MOEs, preserving identifiers and annotations."""
         df = df.copy()
         skip_cols = {'GEOID', 'NAME'}
         for col in df.columns:
-            if col in skip_cols:
+            if col in skip_cols or re.fullmatch(r'[BC][0-9]{5}[A-Z]*_[0-9]{3}[EM]', col) is None:
                 continue
             try:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+                raw = df[col]
+                is_sentinel = raw.isin(ACS_SENTINEL_STRINGS) | raw.isin(ACS_SENTINELS)
+                df[col] = pd.to_numeric(raw.where(~is_sentinel), errors='coerce')
             except (ValueError, TypeError) as exc:
                 log.warning(
                     "Could not convert column %s to numeric: %s",

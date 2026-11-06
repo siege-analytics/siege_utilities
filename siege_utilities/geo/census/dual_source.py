@@ -26,7 +26,7 @@ from siege_utilities.geo.census_api_client import (
 )
 from .api import CensusAPI
 from .dataset_selector import DatasetSelector
-from .variable_registry import VariableRegistry
+from .variable_registry import ACS_SENTINELS, ACS_SENTINEL_STRINGS, VariableRegistry
 
 __all__ = [
     "Provenance",
@@ -50,8 +50,8 @@ _SUMMARY_LEVELS = {
     "block_group": ("150", 12),
     "place": ("160", 7),
 }
-_SENTINELS = frozenset(-int(str(digit) * 9) for digit in range(1, 10))
-_SENTINEL_STRINGS = frozenset(str(value) for value in _SENTINELS)
+_SENTINELS = ACS_SENTINELS
+_SENTINEL_STRINGS = ACS_SENTINEL_STRINGS
 
 
 def api_to_summary_variable(variable: str) -> str:

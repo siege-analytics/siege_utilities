@@ -11,12 +11,18 @@ from typing import Dict, List, Optional, Union, Any
 import pandas as pd
 
 __all__ = [
+    'ACS_SENTINELS',
+    'ACS_SENTINEL_STRINGS',
     'VARIABLE_GROUPS',
     'VARIABLE_DESCRIPTIONS',
     'VariableRegistry',
 ]
 
 log = logging.getLogger(__name__)
+
+# ACS jam values represent missing or annotated estimates/MOEs in both sources.
+ACS_SENTINELS = frozenset(-int(str(digit) * 9) for digit in range(1, 10))
+ACS_SENTINEL_STRINGS = frozenset(str(value) for value in ACS_SENTINELS)
 
 
 class _DeprecatedDict(dict):
