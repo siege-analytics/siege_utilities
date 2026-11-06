@@ -35,6 +35,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING (#1409):** AREA, POPULATION and HOUSING crosswalk transformations
+  use `area_weight`, `population_weight` and `housing_weight`, respectively, and
+  raise `ValueError` naming the source and target for a missing weight on a
+  matched source/target row. AREA no longer treats a missing `area_weight` as
+  1.0, which silently counted the full value toward that target; fix or drop
+  such crosswalk rows before calling. The check applies to every AREA call,
+  including calls that name only `intensive_variables`. Sources absent from the
+  crosswalk still keep their values. POPULATION and HOUSING also raise for a
+  missing weight column. The Census crosswalk client currently supplies only
+  area weights.
+  **Migration:** pass `WeightMethod.AREA` explicitly when using that client, or
+  supply an enriched crosswalk to `CrosswalkProcessor` for population/housing
+  weighting. String methods are converted through `WeightMethod(value)`; invalid
+  methods raise instead of falling back to AREA.
+  `aggregation_func='weighted_mean'` divides by the weight of the rows with a
+  non-missing value, so a missing value no longer lowers the mean; a target
+  whose values are all missing is NaN with coverage 0.0. Previously every row's
+  weight stayed in the denominator.
+  EQUAL now divides each source among its targets, so split outputs change and
+  conserve totals. All-missing extensive sums now return NaN instead of zero.
+  Name rates, ratios, medians, and densities in `intensive_variables` when using
+  `transform`, `apply_crosswalk`, or `normalize_to_year` to avoid summing them.
+  `get_longitudinal_data` accepts the same names as `intensive_columns` and warns
+  when they are omitted during boundary normalization.
+  Each transformed crosswalk value column gains `<col>_coverage`: the share of
+  target contribution weight with non-missing values, using allocation weights
+  for extensive columns and overlap areas for intensive columns. All-missing
+  targets and targets with no contribution weight have coverage 0.0. Update
+  downstream column selections and missing-value handling for these outputs.
+
 - New *file* names now get the same check as new directory names. The
   `siege_utilities.files` helpers that create a file refuse a name containing
   a C0, DEL or C1 control character, or a lone surrogate: they raise
@@ -118,6 +148,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Crosswalk extensive sums preserve NaN when every contributing value is
+  missing. AREA, POPULATION and HOUSING use their respective crosswalk weight
+  columns and raise `ValueError` for a missing weight on a matched row (and, for
+  POPULATION and HOUSING, for an absent column). `weighted_mean` excludes
+  missing values from both its numerator and its denominator. EQUAL divides a
+  source's value among its targets, conserving totals through splits and merges.
+  `normalize_to_year` now accepts `weight_method` and `intensive_variables`, so
+  callers can preserve rates with the existing area-weighted averaging path
+  while allocating and summing extensive counts (#1409).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
