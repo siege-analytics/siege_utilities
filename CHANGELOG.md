@@ -118,6 +118,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Label the spatial/06 GeoDjango notebook's management command as a schematic
+  and remove the complete, copy-pasteable recipe claim. Document that
+  `spatial_05_unified` refers to the spatial/05 notebook, not an importable
+  module, and requires a real ingestion loader and Django project setup.
+  Add a regression test for the documentation contract and clarify that
+  notebook validation does not exercise the loader, ORM, or PostGIS. Track
+  markdown-only schematics separately from execution groups and require code
+  cells in every execution notebook. Align the notebook-system documentation
+  with the schematic execution scope (#1671).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0

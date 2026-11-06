@@ -25,6 +25,8 @@ Adding a notebook: put it under the appropriate subdirectory and add
 its path (relative to ``notebooks/``) to the matching group below. New
 groups (e.g., ``advocacy`` for Parsons wrappers) go in
 ``NOTEBOOK_GROUPS`` with the mark set that captures its prereqs.
+Markdown-only schematics go in ``SCHEMATIC_MARKDOWN_ONLY`` instead and
+remain covered by structural hygiene and documentation contract tests.
 """
 
 from __future__ import annotations
@@ -93,9 +95,7 @@ NOTEBOOK_GROUPS: dict[str, list[str]] = {
         "spatial/07_natural_language_to_geometry.ipynb",
     ],
     # Django/PostGIS — require Django DB + GDAL.
-    "django": [
-        "spatial/06_geodjango.ipynb",
-    ],
+    "django": [],
     # Analytics with credentials — external service tokens required.
     "analytics_integration": [
         "analytics/02_ga_end_to_end.ipynb",
@@ -118,6 +118,33 @@ NOTEBOOK_GROUPS: dict[str, list[str]] = {
     # Empty until N-4..N-9 tickets populate.
     "advocacy": [],
 }
+
+
+# Documented schematics with no code cells; these are not execution targets.
+SCHEMATIC_MARKDOWN_ONLY: list[str] = [
+    "spatial/06_geodjango.ipynb",
+]
+
+
+@pytest.mark.parametrize(
+    "nb_rel",
+    [rel for notebooks in NOTEBOOK_GROUPS.values() for rel in notebooks],
+)
+def test_execution_notebook_has_code_cells(nb_rel: str) -> None:
+    notebook = json.loads((NOTEBOOKS_DIR / nb_rel).read_text(encoding="utf-8"))
+    assert any(cell["cell_type"] == "code" for cell in notebook["cells"]), (
+        f"{nb_rel}: execution groups require a code cell; move markdown-only "
+        "schematics to SCHEMATIC_MARKDOWN_ONLY"
+    )
+
+
+@pytest.mark.parametrize("nb_rel", SCHEMATIC_MARKDOWN_ONLY)
+def test_schematic_notebook_is_markdown_only(nb_rel: str) -> None:
+    notebook = json.loads((NOTEBOOKS_DIR / nb_rel).read_text(encoding="utf-8"))
+    assert notebook["cells"], f"{nb_rel}: schematic notebook is empty"
+    assert all(cell["cell_type"] == "markdown" for cell in notebook["cells"]), (
+        f"{nb_rel}: add executable notebooks to NOTEBOOK_GROUPS"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -429,10 +456,8 @@ def test_geo_notebook(nb_rel: str) -> None:
 @pytest.mark.requires_gdal
 @pytest.mark.parametrize("nb_rel", NOTEBOOK_GROUPS["django"], ids=_ids("django"))
 def test_django_notebook(nb_rel: str) -> None:
-    # The current GeoDjango notebook is conceptual/docs-only. Do not let
-    # pytest-django create a local Postgres database before notebook execution;
-    # a future operational PostGIS notebook should add its own explicit fixture
-    # or environment-gated integration test.
+    # Operational PostGIS notebooks should supply a database fixture or an
+    # environment-gated integration test before executing database operations.
     _run_notebook(_resolve(nb_rel))
 
 
