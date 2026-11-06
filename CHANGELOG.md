@@ -118,6 +118,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Place history reverse lineage uses `CrosswalkRecord.reverse_weight`, also
+  accepted by `DictCrosswalkProvider.add`, for step weights, cumulative target
+  shares, and `min_weight` pruning. Steps pair GEOIDs with their correct vintage
+  years, and `Lineage.terminal_weights` sums paths reaching the same terminal
+  GEOID while preserving `terminal_geoids`. If any retained reverse terminal
+  path lacks a reverse share, the entire `terminal_weights` dictionary is empty;
+  ancestry and the legacy forward allocation on those steps remain available.
+  Forward traversal now skips nonpositive and nonfinite record weights, and
+  terminal totals contain only finite, positive values (#1434).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
