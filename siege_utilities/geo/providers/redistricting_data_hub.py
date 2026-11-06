@@ -1294,8 +1294,9 @@ def demographic_profile(
 ) -> "pd.DataFrame":
     """Overlay Census ACS data onto a redistricting plan.
 
-    Performs a spatial join between district geometries and Census
-    block/tract geometries, then aggregates demographics per district.
+    Assigns each Census block/tract wholly to the district containing its
+    representative (interior) point, then aggregates demographics per district.
+    Units whose interior point falls outside the plan are excluded.
 
     Parameters
     ----------
@@ -1334,7 +1335,15 @@ def demographic_profile(
     if plan_gdf.crs != census_gdf.crs:
         census_gdf = census_gdf.to_crs(plan_gdf.crs)
 
-    joined = gpd.sjoin(census_gdf, plan_gdf[[district_id_col, "geometry"]], predicate="within")
+    # Assign straddling units once via their interior points, without dropping
+    # them with polygon 'within' or double-counting them with 'intersects'.
+    census_points = census_gdf.copy()
+    census_points["geometry"] = census_gdf.representative_point()
+    joined = gpd.sjoin(
+        census_points,
+        plan_gdf[[district_id_col, "geometry"]],
+        predicate="within",
+    )
 
     result = joined.groupby(district_id_col)[population_cols].sum().reset_index()
     return result
