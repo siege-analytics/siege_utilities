@@ -263,6 +263,9 @@ def test_deferred_instagram_graph_expiry_without_metadata(monkeypatch):
 @pytest.mark.parametrize("kind", ["account", "post", "story"])
 def test_instagram_defaults_use_current_metrics(kind, monkeypatch):
     responses = [response(body={"data": []})]
+    if kind == "account":
+        # START..END spans 31 days: one request per 30-day UTC window (#1439).
+        responses.append(response(body={"data": []}))
     if kind == "story":
         responses.insert(0, response(body={"data": [{"id": "story-1"}]}))
     client, request = connector("instagram", monkeypatch, responses)
@@ -280,6 +283,9 @@ def test_instagram_defaults_use_current_metrics(kind, monkeypatch):
 @pytest.mark.parametrize("kind", ["account", "post", "story"])
 def test_instagram_metrics_remain_overridable(kind, monkeypatch):
     responses = [response(body={"data": []})]
+    if kind == "account":
+        # START..END spans 31 days: one request per 30-day UTC window (#1439).
+        responses.append(response(body={"data": []}))
     if kind == "story":
         responses.insert(0, response(body={"data": [{"id": "story-1"}]}))
     client, request = connector("instagram", monkeypatch, responses)
@@ -456,7 +462,8 @@ def test_non_throttle_failure_after_first_page_is_not_swallowed(monkeypatch, pla
 
 
 def test_instagram_absolute_paging_url_preserves_partial_results(monkeypatch, caplog):
-    first = {"data": [{"id": "first"}], "paging": {
+    # get_posts keeps only posts with a valid in-range timestamp (#1439).
+    first = {"data": [{"id": "first", "timestamp": "2026-01-15T00:00:00+0000"}], "paging": {
         "next": "https://graph.facebook.com/v23.0/123/media?after=cursor",
     }}
     client, _ = connector("instagram", monkeypatch, [response(body=first), response(429)])
@@ -468,7 +475,7 @@ def test_instagram_missing_account_metric_is_not_zero(monkeypatch):
     client, _ = connector("instagram", monkeypatch, [response(body={"data": [
         {"name": "reach", "values": [{"end_time": "2026-01-15", "value": 0}, {"end_time": "2026-01-16"}]},
         {"name": "follower_count", "values": [{"end_time": "2026-01-15"}, {"end_time": "2026-01-16", "value": 0}]},
-    ]})])
+    ]}), response(body={"data": []})])  # second 30-day UTC window (#1439)
     result = client.get_account_insights(START, END).set_index("date")
     assert result.loc["2026-01-15", "reach"] == 0
     assert result.loc["2026-01-16", "follower_count"] == 0

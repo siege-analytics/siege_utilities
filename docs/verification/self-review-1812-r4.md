@@ -212,3 +212,63 @@ ticket's own behavior. Head: the file is 113 passed.
 - Same commit with pandas 3.1.0: `test_1812_fidelity_oracle` and
   `test_1812_cumulative_wait_budget` are 32 passed.
 - `ruff check` on every changed Python file passes.
+
+## Develop sync with #1794 (merge of `560a858e`)
+
+develop's #1794 (#1439, #1833) rewrote the same Instagram request, paging and
+post code. The merge conflicted in 9 regions of
+`siege_utilities/analytics/instagram.py` and 1 in
+`scripts/check_credential_urls.py`. The rule applied: #1794's Graph-origin
+check, redirect refusal and pagination contract stay intact, and #1812's retry
+budget, null policy and post-frame schema are layered on top. Where the two
+disagree, #1794's security boundary wins.
+
+Resolution, by region:
+
+- `_request_url`. #1794's HTTPS `GRAPH_HOSTS` origin check runs first, before
+  #1812's expired-token check, so no request (and no expiry state change)
+  happens for an untrusted URL. The session call passes both
+  `allow_redirects=False` (#1794) and the token-exchange
+  `Authorization: None` header (#1812). The 3xx refusal runs before #1812
+  reads the body for Graph codes 190/463, rate limits and token-exchange
+  rejection, so a redirect body is never interpreted. #1812's retry budget
+  (`_within_wait_budget`) and `_is_rate_limited` are unchanged.
+- `get_account_insights`. #1794's 30-day UTC chunking and `_iter_pages` are
+  kept. The auto-merged line `value_entry.get("value", 0)` from develop is
+  changed to `value_entry.get("value")`: #1812's null policy (a missing
+  metric is `None`, not `0`). Git reported no conflict on that line, so
+  without this edit the null policy would have been silently lost.
+- `get_posts`. #1794's `_iter_pages` loop, per-page date window, total limit
+  and stop-when-a-page-predates-the-window are kept. #1812's
+  partial-results rule wraps the loop: a `SocialMediaRateLimitError` on a
+  later page returns the posts collected so far with a warning; with nothing
+  collected it propagates. Docstrings combine both contracts.
+- Imports: the union of both sides.
+- `scripts/check_credential_urls.py`: the reviewed-site key is the merged call's
+  `ast.unparse` text, and the reason now states both the origin and redirect
+  restriction (#1794) and the token-exchange header removal (#1812). The guard
+  reports 0 unreviewed sites.
+
+Disagreement, resolved for #1794: develop's `get_posts` keeps only posts with
+a valid in-range timestamp. Three #1812 test fixtures assumed the pre-#1794
+shape. `test_instagram_absolute_paging_url_preserves_partial_results` used a
+post with no timestamp, and two account-insight tests and
+`test_instagram_missing_account_metric_is_not_zero` mocked one response for a
+31-day range that #1794 now splits into two 30-day windows. The fixtures were
+adapted (an in-range timestamp; a second window response); no assertion
+changed and no library code was relaxed.
+
+Controls on the merged tree. Changing the account-insight line back to
+`.get("value", 0)` makes `test_instagram_missing_account_metric_is_not_zero`
+fail; disabling the partial-results branch makes
+`test_rate_limit_after_first_page_returns_partial_results[instagram]` and
+`test_instagram_absolute_paging_url_preserves_partial_results` fail. Both
+were restored.
+
+Merged-tree verification (Python 3.11.11): the changelog tests, the named
+social suites, the frozen-source fidelity oracle, `test_1439_*`, `test_1794_*`
+and `tests/guard/test_exception_contract_guard.py` are 904 passed, 1 skipped.
+`check_exception_contracts.py --list`: 205 flagged, 0 unlisted, 0 stale (no
+handler fingerprint moved, so none was refreshed).
+`check_credential_urls.py`: 0 unreviewed sites. The static-guard scripts and
+`ruff check` on the three changed files pass.
