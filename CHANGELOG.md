@@ -118,42 +118,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Instagram and X retry rate limits within the configured attempt budget,
-  honor `Retry-After` up to `max_retry_wait` (900 seconds by default), and retain
-  collected posts with a warning when a later page remains throttled. Larger
+- Instagram and X retry rate limits within the configured attempt budget and
+  honor `Retry-After` up to `max_retry_wait` (900 seconds by default). Larger
   hints raise `SocialMediaRateLimitError` without sleeping and retain the hint
   in `retry_after`; configured backoff uses the same cap. `max_retry_wait` also
   bounds the total sleep across one request's retries: a wait that would push
   the total past it is not taken, so a rate limit raises
   `SocialMediaRateLimitError` and a transport or 5xx failure stops retrying and
   reports the attempts made. This covers HTTP dates and X reset epochs.
-  Instagram classifies Graph error codes before using usage telemetry, so code
-  190 remains an authentication error and subcode 463 records expiry on first
-  pages, later pages and exchanges of the current token. Missing account
-  metrics remain null instead of becoming zero. Post frames retain existing
-  columns and add a metrics dictionary with UTC-aware publication times,
-  including a stable schema for empty results. Instagram detects supplied
-  token expiry before requests and Graph code 190 authentication failures,
-  documents the roughly 60-day lifetime, and offers token exchange with stored
-  expiry and a fresh-login path for expired tokens (#1458).
-- X validates user ID lookups during authentication, requests at least five
-  tweets per page while honoring smaller result limits, and combines public,
-  non-public and organic insights with that precedence. A zero post limit
-  returns an empty frame without requests. Request path identifiers are
-  validated before percent-encoding: user/post IDs accept 1 to 19 ASCII digits
-  and usernames accept 1 to 15 ASCII letters, digits or underscores. Invalid
-  values raise `ValueError` before requests. Non-public/organic insight fields
-  require the `user_context=True` opt-in for OAuth user tokens (#1465).
-- Social reports render missing platform metrics as `unavailable`. Totals sum
-  known values and remain unknown when none are available. Comparisons, post
-  rankings and chart data handle null values without replacing them with zero.
-  Known integer counts still render as integers (`7`, not `7.0`) when other
-  values in the same column are missing. The X connector-to-report fixture
-  covers an empty `public_metrics` object (#1812).
+  Instagram documents the roughly 60-day token lifetime and offers token
+  exchange with stored expiry and a fresh-login path for expired tokens
+  (#1458).
 - Graph insight defaults use supported metrics: daily Instagram account
   insights use `reach` and `follower_count`; media use `views` and
   `total_interactions`; stories use `navigation` and accept caller overrides.
-  Media insights read `total_value` and retain missing values. Facebook Page
+  Media insights read `total_value`. Facebook Page
   Insights pass metrics through the SDK's `metric` parameter and use
   `page_media_view`, `page_follows` and `page_post_engagements` in place of
   retired impression, fan and engaged-user defaults. These replacements count
@@ -351,6 +330,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   built URL per catalog type for 2010, 2019 and 2023 (#1464).
 
 ### BREAKING
+
+- Instagram and X return missing account, post and insight metrics as `None`
+  instead of `0`; in v4.0.0 an omitted follower, like, comment or impression
+  count, and an Instagram media or story insight without a value, became 0.
+  Instagram media insights read `total_value` and keep a missing value as
+  `None` (#1474). Post frames keep their existing columns, add a `metrics`
+  dictionary and return `published_at` as a UTC-aware timestamp (NaT if
+  unavailable) instead of the API's string, with a stable schema for empty
+  results. When a later page stays throttled, the posts collected so far are
+  returned with a warning instead of raising `SocialMediaRateLimitError`.
+  Instagram classifies Graph error codes before usage telemetry, so code 190
+  raises `SocialMediaAuthError` instead of being treated as a rate limit when
+  usage was high, and subcode 463 records expiry on first pages, later pages
+  and exchanges of the current token; a supplied token that has already
+  expired raises `SocialMediaAuthError` before any request (#1458).
+  **Migration:** treat `None` as unavailable and fill zeros only where zero is
+  meant; compare `published_at` with timezone-aware datetimes; check for the
+  throttling warning, or the number of posts returned, where completeness
+  matters; catch `SocialMediaAuthError` for expired or rejected tokens.
+- X validates user ID lookups during authentication, so `authenticate()`
+  raises for an unknown user ID. Non-public and organic insight fields are
+  requested only with the `user_context=True` opt-in for OAuth user tokens; in
+  v4.0.0 the post-insights request always asked for them. A zero post limit returns an empty
+  frame without requests; in v4.0.0 `limit=0` meant no limit. Requests ask for
+  at least five tweets per page while honoring smaller result limits, and
+  public, non-public and organic insights combine with that precedence.
+  Request path identifiers are validated before percent-encoding: user/post
+  IDs accept 1 to 19 ASCII digits and usernames accept 1 to 15 ASCII letters,
+  digits or underscores. Invalid values raise `ValueError` before requests
+  (#1465). **Migration:** pass `user_context=True` with an OAuth user token to
+  keep non-public and organic metrics; pass `limit=None` for no limit; check
+  user IDs and usernames before calling.
+- Social reports render missing platform metrics as `unavailable` instead of
+  0. Totals sum known values and remain unknown when none are available.
+  Comparisons, post rankings and chart data keep null values instead of
+  replacing them with zero. Known integer counts still render as integers
+  (`7`, not `7.0`) when other values in the same column are missing. The X
+  connector-to-report fixture covers an empty `public_metrics` object
+  (#1812). **Migration:** code that reads report chart, comparison or ranking
+  data must handle `None` for unavailable metrics.
 
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
