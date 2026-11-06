@@ -118,6 +118,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Use cumulative volunteer sign-up counts throughout `notebooks/reports/01_charts_and_pdf.ipynb`.
+  Derive the chart, table, and report's +37.8% growth from 37 baseline sign-ups to 51 Q1 sign-ups,
+  replacing the unsupported percentage-share labels (#1673).
+  Pass the DataFrame directly to the PDF table builder so the rendered table shows
+  51, 37, and `+14 (+37.8%)`, with a regression test on the rendered table cells.
+  Clarify that only the chart image uses ElectInfo's primary color; the PDF frame
+  has no ElectInfo header, footer, or page numbering. The library's
+  `generate_pdf_report` ignoring `self.branding_config` is tracked separately (#1789).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
