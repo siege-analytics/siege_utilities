@@ -243,6 +243,9 @@ def test_pipeline_velocity_measures_elapsed_time_across_dst():
 
 @pytest.fixture
 def host_tz(monkeypatch):
+    if not hasattr(time, "tzset"):
+        pytest.skip("Changing the host timezone requires time.tzset")
+
     def _set(name):
         monkeypatch.setenv("TZ", name)
         time.tzset()
