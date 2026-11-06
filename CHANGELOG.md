@@ -118,6 +118,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Pandas geocode validation uses world ranges for geographic CRSs, retaining
+  NAD83/EPSG:4269 coordinates on both sides of the antimeridian and in Guam,
+  American Samoa and Saipan. Projected bounds use densified area-of-use edges
+  in CRS units, retaining southern CONUS points in EPSG:5070 and EPSG:5069.
+  Both filtering and validity marking reject the exact geographic `(0, 0)`
+  failed-geocode sentinel while accepting single-zero coordinates and valid
+  projected origins. Failed projected-bound transformations log a warning
+  and accept finite coordinates instead of comparing them to degrees (#1459).
+- Spark `validate_geocode_data` and `mark_valid_geocode_data` now reject the
+  exact geographic `(0, 0)` sentinel, matching pandas; single-zero coordinates
+  within world ranges remain valid. To retain sentinel rows for inspection,
+  use the marking function instead of the filtering function (#1459).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
