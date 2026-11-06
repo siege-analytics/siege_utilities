@@ -118,6 +118,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Label the Spark notebook's Sedona SQL as schematic and document the required
+  donor and precinct views, geometry inputs, and runtime prerequisites. Clarify
+  that notebook execution checks imports, with cluster-free CI regression
+  coverage for the documented contract and import smoke test. Describe both
+  the Spark/Sedona and GeoDjango notebooks as schematic in the notebook guide;
+  the Spark/Sedona notebook executes only an import smoke cell, while the
+  GeoDjango spatial/06 notebook is markdown-only with no code cells (#1664).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
