@@ -118,6 +118,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- GEOID utilities accept uppercase alphanumeric SLD and congressional district
+  codes, including undefined districts and Alaska senate letters. Numeric
+  levels reject non-digit input; normalization converts integral floats and
+  checks state FIPS prefixes, preventing extra zero-padding from creating
+  state `00`. Float columns with missing values now retain valid join keys.
+  `slug_to_geoid` returns CD and SLD district codes in canonical uppercase,
+  so alphanumeric districts such as `06ZZZ` round trip through
+  `geoid_to_slug`. **Behavior change:** `can_normalize_geoid` now reports
+  whether `normalize_geoid` succeeds, so for VTD levels it follows the
+  existing padding-only VTD normalization and accepts non-digit values it
+  previously rejected; VTD normalization and `validate_geoid` are unchanged
+  (#1486).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
