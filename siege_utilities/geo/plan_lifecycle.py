@@ -1,9 +1,12 @@
 """Redistricting plan lifecycle tracking.
 
 Models the lifecycle of redistricting plans: proposed -> adopted ->
-enacted -> challenged -> stayed/struck -> superseded. Supports
+enacted -> challenged -> stayed -> struck -> superseded -> expired. Supports
 court-order branching and temporal queries ("what plan was in effect
 for TX congress on 2023-09-15?").
+
+Same-date events resolve to the most advanced lifecycle stage. Challenged
+plans remain in effect; stayed plans do not.
 """
 
 from __future__ import annotations
@@ -46,6 +49,19 @@ class PlanLifecycleStatus(str, Enum):
     EXPIRED = "expired"
 
 
+# Only breaks ties between events with the same effective date.
+_LIFECYCLE_STAGE_ORDINAL = {
+    PlanLifecycleStatus.PROPOSED: 0,
+    PlanLifecycleStatus.ADOPTED: 1,
+    PlanLifecycleStatus.ENACTED: 2,
+    PlanLifecycleStatus.CHALLENGED: 3,
+    PlanLifecycleStatus.STAYED: 4,
+    PlanLifecycleStatus.STRUCK: 5,
+    PlanLifecycleStatus.SUPERSEDED: 6,
+    PlanLifecycleStatus.EXPIRED: 7,
+}
+
+
 class PlanType(str, Enum):
     """Type of redistricting plan."""
 
@@ -72,7 +88,6 @@ TERMINAL_STATUSES = frozenset({
 ACTIVE_STATUSES = frozenset({
     PlanLifecycleStatus.ENACTED,
     PlanLifecycleStatus.CHALLENGED,
-    PlanLifecycleStatus.STAYED,
 })
 
 
@@ -136,7 +151,10 @@ class RedistrictingPlan:
         dated = [e for e in self.events if e.effective_date is not None]
         if not dated:
             return self.events[-1]
-        return max(dated, key=lambda e: e.effective_date)
+        return max(
+            dated,
+            key=lambda e: (e.effective_date, _LIFECYCLE_STAGE_ORDINAL[e.status]),
+        )
 
     @property
     def is_terminal(self) -> bool:
@@ -155,7 +173,10 @@ class RedistrictingPlan:
         ]
         if not applicable:
             return None
-        return max(applicable, key=lambda e: e.effective_date).status
+        return max(
+            applicable,
+            key=lambda e: (e.effective_date, _LIFECYCLE_STAGE_ORDINAL[e.status]),
+        ).status
 
     def was_active_at(self, when: date) -> bool:
         status = self.status_at(when)
@@ -290,6 +311,8 @@ def resolve_plan_at(
 
     Queries the provider for all plans of the given state and type,
     then finds the one that was active at the specified date.
+    A stayed plan is excluded; an older plan is returned only if its own
+    lifecycle still marks it as enacted or challenged at that date.
 
     Args:
         provider: Source for plan lifecycle data.
