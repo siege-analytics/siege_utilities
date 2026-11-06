@@ -28,9 +28,11 @@ Usage::
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import re
+import tempfile
 import zipfile
 from dataclasses import dataclass, field
 from enum import Enum
@@ -529,7 +531,11 @@ class RDHClient:
         output_dir: Optional[Union[str, Path]] = None,
         use_cache: bool = True,
     ) -> Path:
-        """Download a dataset file.
+        """Download a dataset file and publish it to the cache atomically.
+
+        New downloads must match Content-Length when the server supplies it.
+        Failed downloads remove their temporary file and preserve any existing
+        cache entry. Existing cache entries are reused without a network check.
 
         Parameters
         ----------
@@ -543,6 +549,11 @@ class RDHClient:
         Returns
         -------
         Path to the downloaded file (or extracted directory for ZIPs).
+
+        Raises
+        ------
+        requests.RequestException
+            The request fails or the downloaded size differs from Content-Length.
         """
         if isinstance(dataset, str):
             url = dataset
@@ -568,19 +579,38 @@ class RDHClient:
 
         log_info(redact_url_secrets(f"RDH: Downloading {filename}..."))
         error = None
+        temporary_path = None
         try:
-            resp = self._session.get(
-                url, params=self._auth_params(url), timeout=300, stream=True
-            )
-            resp.raise_for_status()
-
-            with open(dest, "wb") as f:
-                for chunk in resp.iter_content(chunk_size=8192):
-                    f.write(chunk)
+            with tempfile.NamedTemporaryFile(
+                dir=dest.parent, suffix=".part", delete=False,
+            ) as output:
+                temporary_path = Path(output.name)
+                with contextlib.closing(self._session.get(
+                    url, params=self._auth_params(url), timeout=300, stream=True,
+                    # Compare the stored bytes to the unencoded response length.
+                    headers={"Accept-Encoding": "identity"},
+                )) as resp:
+                    resp.raise_for_status()
+                    expected_size = (
+                        int(resp.headers["Content-Length"])
+                        if "Content-Length" in resp.headers else None
+                    )
+                    written_size = 0
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        written_size += output.write(chunk)
+                    if expected_size is not None and written_size != expected_size:
+                        raise requests.RequestException(
+                            f"Content-Length mismatch: expected {expected_size} "
+                            f"bytes, received {written_size}"
+                        )
+            os.replace(temporary_path, dest)
         except requests.RequestException as e:
             message = redact_url_secrets(f"RDH download failed: {e}")
             log_error(message)
             error = type(e)(message)
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
         if error is not None:
             # A fresh exception drops request/response URLs and suppressed context.
             raise error from None
