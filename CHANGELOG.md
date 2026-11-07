@@ -118,6 +118,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Social media reports no longer crash or display `nan` when follower,
+  following or like counts are NaN or unparseable. Daily metric charts include
+  nullable and narrower numeric dtypes (#1469).
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
@@ -327,6 +330,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   metadata on a list-compatible result (#1439).
 
 ### BREAKING
+
+- `SocialMediaReportGenerator.create_social_media_report` raises
+  `SocialMediaError` naming the platform, the failed operation and the error
+  type when a connector's account info, insights or posts call fails. In 4.0.0
+  it logged a warning and built the PDF from empty data. The connector's error
+  text and cause are not included or chained, because they can carry access
+  tokens in request URLs or headers. **Migration:** catch `SocialMediaError`
+  around `create_social_media_report`, or drop the failing connector from
+  `connectors` and regenerate, if a partial report is acceptable (#1469).
+- Social media reports show an unavailable count as `unavailable` (metrics,
+  comparison table, insights) or `None` (chart and daily-series data) instead
+  of `0`. This covers a missing `followers_count` or `following_count` and a
+  missing `like_count` column. Totals sum only known values and are
+  `unavailable` when none is known; the largest-audience insight ranks known
+  audiences only; average likes use known counts only. Known zeros stay `0`.
+  Post metrics describe the analyzed sample: `create_social_media_report`
+  takes a keyword-only `posts_limit` (default 50, the 4.0.0 fixed limit), and the
+  posts metric keys, table headers and chart and table titles now say
+  "analyzed" and name the limit. **Migration:** treat `None` and
+  `unavailable` as unknown rather than zero; if a zero is required, have the
+  connector return an explicit `0`. Code that reads the private report
+  builders' metric keys or titles must use the new labels (#1469).
 
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
