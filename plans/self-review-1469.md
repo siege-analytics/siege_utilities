@@ -95,6 +95,7 @@ Observed red/green (2026-11-05). Command:
 - a15ae436/5a0d8626: unknown counts rendered as 0. Fixed in aa501053 per the ruling.
 - The 4.1.0 Changed and Fixed notes are restored to CHANGELOG.md, and the Fixed note states the policy.
 - 3cd937ba/db3eaa4d: connector text and causes leaked into the error. Fixed in 0f301a56; the CHANGELOG Changed note is reworded.
+- Classification (operator rule 2026-11-06: if a change alters v4.0.0 caller behaviour, it is BREAKING). Two #1469 changes do: `generate_report` raises `SocialMediaError` where 4.0.0 logged and built a PDF from empty data, and missing counts render `unavailable`/`None` where 4.0.0 rendered `0`. Both move to 4.1.0 BREAKING with Migration lines, together with the "analyzed" label renames. The NaN-crash and `nan`-display fix stays under Fixed, because no caller could rely on it. `posts_limit=50` matches the 4.0.0 fixed limit and is additive. No code changed.
 
 ## Findings
 The ruling is applied. Integration follow-ups for the second merger are listed in the Lead review.
