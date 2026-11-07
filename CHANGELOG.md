@@ -323,6 +323,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list names `COUSUB` and `ADDRFEAT` and drops the non-existent `COUNTYSUB`,
   `SDELM`, `SDSEC` and `SDUNI`. An opt-in `-m integration` test HEADs one
   built URL per catalog type for 2010, 2019 and 2023 (#1464).
+- The CI battle-test script now runs the repository-root test suite and
+  returns pytest's exit status, so the job reflects real test results.
+  It applies the main lane's selection (`-m "not integration and not
+  postgis"`, `--ignore=tests/test_notebooks.py`) on both its uv and python
+  paths. Logs, coverage reports and the summary JSON are saved in the
+  repository-root `overnight_results/` directory used by CI, including when
+  tests fail. A failed write of `overnight_results/test_output.txt` now fails
+  the run instead of reporting exit 0, and `summary.json` records the pytest
+  and tee statuses and whether the output artifact was written (#1475).
+- Instagram follows all account, post and insight pages across Graph hosts
+  and versions, filters every post page by date and limit, and splits daily
+  insights into at most 30-day UTC windows. GA4 retrieves every reported row
+  using offsets; `row_limit` now controls page size, and an incomplete report
+  raises. Vista Social account/profile lists document their first-page limit
+  and expose `has_more` (including unknown completeness) and pagination
+  metadata on a list-compatible result (#1439).
 
 ### BREAKING
 
@@ -756,6 +772,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sensitive files still blocked. Without a trusted `base_directory`, the
   blocklist is a guardrail, not a sandbox; filesystem changes after validation
   remain outside this check. (#1528)
+- Instagram checks every request URL, including `paging.next`, before
+  sending credentials. URLs must use HTTPS, the exact `graph.facebook.com` or
+  `graph.instagram.com` host, port 443 (or the default), and no user
+  information. **Behavior change from v4.0.0:** non-HTTPS, foreign-origin and
+  malformed URLs now raise `SocialMediaError` before a request is sent, and the
+  rejected URL is omitted from the error to protect embedded tokens.
+  Redirects are never followed: any 3xx response raises `SocialMediaError`
+  without echoing its `Location`, so a Graph response cannot forward the
+  request, or a token in the redirect target, to another host. (#1439,
+  #1833)
 
 ## [4.0.0] - 2026-10-11
 
