@@ -1,0 +1,64 @@
+name: Install apt packages with a .deb cache
+description: >-
+  Restore cached .deb archives, install Ubuntu packages through
+  scripts/ci_apt_install.sh (fallback mirror, stall detection, dpkg repair),
+  and save the archives after a fresh install (#1871). Requires a checkout.
+inputs:
+  packages:
+    description: Space-separated Ubuntu package names.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Compute the apt archive cache key
+      id: key
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        # The runner image decides what is preinstalled and the package list
+        # decides what is downloaded. ImageVersion rotates the key with each
+        # image; the prefix lets a new image reuse the previous archive.
+        if [[ -z "${ImageOS:-}" || -z "${ImageVersion:-}" ]]; then
+          echo "::warning::ImageOS or ImageVersion is not set; the apt cache key uses placeholders"
+        fi
+        # shellcheck disable=SC2086  # one line per package
+        digest="$(printf '%s\n' ${PACKAGES} | sort -u | sha256sum | cut -c1-16)"
+        prefix="apt-debs-${ImageOS:-unknown-image}-${digest}-"
+        key="${prefix}${ImageVersion:-unknown-version}"
+        echo "apt archive cache key: ${key}"
+        echo "prefix=${prefix}" >> "${GITHUB_OUTPUT}"
+        echo "key=${key}" >> "${GITHUB_OUTPUT}"
+
+    - name: Restore cached .deb archives
+      id: restore
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ runner.temp }}/ci-apt-archives
+        key: ${{ steps.key.outputs.key }}
+        restore-keys: ${{ steps.key.outputs.prefix }}
+
+    - name: Install packages
+      id: install
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+        APT_ARCHIVE_CACHE_DIR: ${{ runner.temp }}/ci-apt-archives
+      run: |
+        # shellcheck disable=SC2086  # one argument per package
+        "${GITHUB_WORKSPACE}/scripts/ci_apt_install.sh" ${PACKAGES}
+
+    # Saved only when the script refreshed the archive after an install that
+    # exited 0, and never over an exact hit (cache keys are immutable).
+    # Caches are scoped to the saving ref: a develop push saves the copy that
+    # pull requests into develop restore. Merge-queue runs save to a temporary
+    # gh-readonly-queue ref that no later run can read, so they skip the save.
+    - name: Save .deb archives
+      if: >-
+        steps.restore.outputs.cache-hit != 'true'
+        && steps.install.outputs.cache-ready == 'true'
+        && github.event_name != 'merge_group'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ runner.temp }}/ci-apt-archives
+        key: ${{ steps.key.outputs.key }}
