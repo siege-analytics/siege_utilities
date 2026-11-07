@@ -326,10 +326,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     minutes. Before the retry, `dpkg --configure -a` repairs any interrupted
     install and apt switches from `azure.archive.ubuntu.com` to
     `archive.ubuntu.com`.
-  - The final attempt lets a slow but live download finish, while the install
-    from the downloaded files stays bounded.
-  - Install steps have no step timeout, because a 38-minute install on
-    `develop` exited 0. Job timeouts are unchanged.
+  - The final attempt gives downloads a 45-minute budget, above the slowest
+    install seen to finish (38 minutes on `develop`), so a slow but live
+    download completes and a trickle cannot hold the runner. The install from
+    the downloaded files stays bounded.
+  - Install steps without a tighter job timeout have an 80-minute step
+    timeout, above the script's own bounded worst case. Job timeouts are
+    unchanged.
 
 ### BREAKING
 

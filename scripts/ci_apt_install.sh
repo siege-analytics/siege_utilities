@@ -20,8 +20,12 @@
 #   - Before each retry, `dpkg --configure -a` finishes anything a stopped
 #     install left half configured, and APT_PRIMARY_MIRROR_HOST is replaced by
 #     APT_FALLBACK_MIRROR_HOST in the mirror list and the sources files.
-#   - The final attempt's network phases have no wall-clock cap; only a stall
-#     (above) stops them.
+#   - The final attempt's network phases share one wall-clock budget of
+#     APT_FINAL_NETWORK_TIMEOUT seconds (default 2700, 45 minutes). That is
+#     above the slowest install seen to finish (38m36s, whole step, on
+#     develop), so a slow but live download completes, while a trickle that
+#     never trips the stall detector cannot hold the runner for the six-hour
+#     job default.
 #   - Installing from the downloaded files (the dpkg phase), the dpkg repair
 #     and autoclean stop after APT_DPKG_TIMEOUT seconds (default 300) on every
 #     attempt, so a hang that is not a download stays bounded.
@@ -44,6 +48,7 @@ fi
 
 ATTEMPTS="${APT_INSTALL_ATTEMPTS:-2}"
 ATTEMPT_TIMEOUT="${APT_ATTEMPT_TIMEOUT:-120}"
+FINAL_NETWORK_TIMEOUT="${APT_FINAL_NETWORK_TIMEOUT:-2700}"
 DPKG_TIMEOUT="${APT_DPKG_TIMEOUT:-300}"
 RETRY_DELAY="${APT_RETRY_DELAY:-10}"
 PRIMARY_MIRROR_HOST="${APT_PRIMARY_MIRROR_HOST:-azure.archive.ubuntu.com}"
@@ -58,16 +63,22 @@ APT_OPTIONS=(
     -o APT::Keep-Downloaded-Packages=true
 )
 
-# run_apt CAP ARGS...: apt-get with the shared options. CAP is the wall-clock
-# limit in seconds; 0 leaves only apt's own stall detection.
+# run_apt CAP ARGS...: apt-get with the shared options, stopped after CAP
+# seconds (and killed 30 seconds later if it ignores the stop signal).
 run_apt() {
     local cap=$1
     shift
-    if (( cap > 0 )); then
-        sudo timeout --kill-after=30 "${cap}" apt-get "${APT_OPTIONS[@]}" "$@"
-    else
-        sudo apt-get "${APT_OPTIONS[@]}" "$@"
+    sudo timeout --kill-after=30 "${cap}" apt-get "${APT_OPTIONS[@]}" "$@"
+}
+
+# Seconds left before NETWORK_DEADLINE, at least 1 so an exhausted budget
+# still runs (and stops) the command rather than skipping it silently.
+network_budget_left() {
+    local left=$(( NETWORK_DEADLINE - SECONDS ))
+    if (( left < 1 )); then
+        left=1
     fi
+    echo "${left}"
 }
 
 seed_archive_cache() {
@@ -145,14 +156,25 @@ switch_to_fallback_mirror() {
 
 seed_archive_cache
 
+# Wall-clock cap for the next network phase: ATTEMPT_TIMEOUT per command
+# before the final attempt, then whatever is left of the final budget.
+network_cap() {
+    if (( final )); then
+        network_budget_left
+    else
+        echo "${ATTEMPT_TIMEOUT}"
+    fi
+}
+
 mirror_switched=0
 for (( attempt = 1; attempt <= ATTEMPTS; attempt++ )); do
-    network_cap="${ATTEMPT_TIMEOUT}"
+    final=0
     if (( attempt == ATTEMPTS )); then
-        network_cap=0
-        echo "apt install attempt ${attempt}/${ATTEMPTS}: $* (final: downloads stop only on a 30 s stall)"
+        final=1
+        echo "apt install attempt ${attempt}/${ATTEMPTS}: $* (final: downloads stop on a 30 s stall" \
+            "or after ${FINAL_NETWORK_TIMEOUT} s in total)"
     else
-        echo "apt install attempt ${attempt}/${ATTEMPTS}: $* (downloads stop after ${network_cap} s)"
+        echo "apt install attempt ${attempt}/${ATTEMPTS}: $* (downloads stop after ${ATTEMPT_TIMEOUT} s)"
     fi
     if (( attempt > 1 )); then
         # A stopped install can leave dpkg mid-configure; repair it, bounded.
@@ -166,8 +188,10 @@ for (( attempt = 1; attempt <= ATTEMPTS; attempt++ )); do
             mirror_switched=1
         fi
     fi
-    if run_apt "${network_cap}" update \
-        && run_apt "${network_cap}" install -y --no-install-recommends --download-only "$@" \
+    # The final budget starts after the repair and the mirror switch.
+    NETWORK_DEADLINE=$(( SECONDS + FINAL_NETWORK_TIMEOUT ))
+    if run_apt "$(network_cap)" update \
+        && run_apt "$(network_cap)" install -y --no-install-recommends --download-only "$@" \
         && run_apt "${DPKG_TIMEOUT}" install -y --no-install-recommends "$@"; then
         echo "apt install succeeded on attempt ${attempt}"
         refresh_archive_cache

@@ -30,12 +30,12 @@ Project-contribution: a slow or stalled mirror no longer cancels required CI job
 ## Design decision: slow vs stalled
 Two options were offered: (a) catch only a true stall (no bytes for N seconds) with apt's own limits, or (b) keep a wall-clock cap but leave the final attempt uncapped within the step timeout.
 
-Chosen: (a) for the final attempt, combined with a wall-clock cap on the first attempt.
-- **Final attempt:** network phases (`update`, `install --download-only`) have no wall-clock cap. apt's data timeout (30 s without bytes) and `Acquire::Retries=3` are the stall detector, which is the "no bytes for N seconds" rule.
-- **Why not (b):** any fixed step timeout either kills the evidenced slow installs that exit 0 (38m36s, 34 min) or is too long to bound anything.
+Chosen: (a) for the final attempt, combined with a wall-clock cap on the first attempt, plus a generous final budget (added in the CodeRabbit round below).
+- **Final attempt:** apt's data timeout (30 s without bytes) and `Acquire::Retries=3` are the stall detector, the "no bytes for N seconds" rule. The network phases (`update`, `install --download-only`) also share one 2700 s (45 min) wall-clock budget. That is above the whole slowest install that exited 0 (2316 s), so a slow but live download completes, and a trickle that never trips the stall detector still ends.
+- **Correction:** the 7a972cbd version argued that any fixed cap either kills the evidenced successes or bounds nothing. That was wrong. A cap above the evidence still bounds the six-hour tail (CodeRabbit comment 4498224208; hub).
 - **First attempt:** the network phases keep a 120 s wall-clock cap. On a slow primary mirror this costs nothing: the downloaded `.deb` files stay in `/var/cache/apt/archives` and the retry reuses them (evidence above). The retry also runs against the fallback mirror.
 - **dpkg phase:** installing from the downloaded files, the `dpkg --configure -a` repair and `autoclean` stay capped (300 s) on every attempt. A hang that is not a download is therefore still bounded.
-- **Install steps:** they carry no `timeout-minutes`. The job timeout still applies where one is set (`test-postgis`, 20 min).
+- **Install steps:** in the four jobs without a job timeout, `timeout-minutes: 80` sits above the script's own bounded worst case (4391 s, about 73 min), so the script reports first and the six-hour default never applies. `test-postgis` keeps no step timeout, because its 20-minute job timeout is tighter.
 
 ## Pre-mortem
 1. Tiger (launch-blocking). Severity: P1. The wrapper reports success after failing. Mitigation: the failure status is captured in an `else` branch, the script ends with `exit 1`, and `test_two_failed_attempts_fail_the_step` covers it.
@@ -44,7 +44,10 @@ Chosen: (a) for the final attempt, combined with a wall-clock cap on the first a
    - it never runs over an exact hit;
    - apt checks every cached `.deb` against the package index and downloads anything stale.
    Covered by `test_failed_install_does_not_stage_the_cache` and `test_apt_action_restores_installs_then_saves_the_archive`.
-3. Tiger (launch-blocking). Severity: P1. The final attempt hangs with no step timeout. Mitigation: network phases end after 30 s without data (apt, 3 retries); the dpkg phase is capped (`test_dpkg_phase_stays_bounded_on_the_final_attempt`); the job timeout applies where set.
+3. Tiger (launch-blocking). Severity: P1. The final attempt holds the runner. Mitigation:
+   - network phases end after 30 s without data (apt, 3 retries) and within a shared 45-minute budget (`test_final_download_stops_when_its_budget_runs_out`);
+   - the dpkg phase is capped (`test_dpkg_phase_stays_bounded_on_the_final_attempt`);
+   - `timeout-minutes: 80` covers steps whose job has no timeout, and the 20-minute job timeout covers `test-postgis` (`test_install_steps_are_bounded_above_the_slowest_evidenced_install`).
 4. Paper Tiger. Severity: P2. The mirror rewrite misses a sources layout. Mitigation: every `apt-mirrors.txt`, `sources.list`, `sources.list.d/*.list` and `*.sources` naming the primary host is rewritten, with a warning when none does. Covered by `test_stalled_primary_mirror_falls_back_on_the_retry` and `test_retry_without_a_primary_mirror_source_warns`.
 5. Paper Tiger. Severity: P2. Concurrent jobs race to save the same key. Mitigation: `actions/cache/save` logs a reservation conflict as a warning; the first save wins.
 6. Paper Tiger. Severity: P2. A future job adds raw `apt-get` or calls the script directly and bypasses the cache. Mitigation: `test_no_workflow_step_runs_apt_get_or_the_script_directly` checks every workflow.
@@ -57,7 +60,7 @@ Chosen: (a) for the final attempt, combined with a wall-clock cap on the first a
 ## Peer review (Junior: shelves, gates)
 - Shelves: separate slow from stalled using the transport's own data timeout; fall back to another mirror; cache downloads rather than raising budgets; behavioural tests with stubs over a real `timeout`.
 - Gate 1 (syntax): `bash -n` and `shellcheck` on `scripts/ci_apt_install.sh` are clean. `yaml.safe_load` parses the workflows and the action in the guard tests, and the action's key step runs under bash in `test_cache_key_follows_the_image_and_the_package_set`. flake8 on the new test is clean at the CI limit of 127 characters. `actionlint` is not installed locally.
-- Gate 2 (tests): `tests/test_1871_ci_apt_install.py` gives 17 passed; with the changelog tests, 42 passed.
+- Gate 2 (tests): `tests/test_1871_ci_apt_install.py` gives 19 passed; with the changelog tests, 44 passed.
 - Gate 3 (guards): `scripts/check_test_file_hygiene.py` passes.
 
 ## Lead review (adversarial)
@@ -84,6 +87,8 @@ Phase B verification: stubs drive the real script through each case.
 | F1 | P1 | An unbounded apt install can consume a required job's whole budget | stall detection, mirror fallback, `.deb` cache, bounded dpkg phase |
 | F2 | P1 | A wall-clock kill on every attempt fails slow but live installs (2e61f1fc CI) | final attempt network phases have no wall-clock cap; no step timeout |
 | F3 | P2 | No package cache | `.deb` cache through `actions/cache` |
+| F4 | P1 | Final attempt unbounded against a trickle; six-hour job default (CodeRabbit 4498224208) | 45-minute final network budget; 80-minute step timeout where no job timeout applies |
+| F5 | P2 | Test assertions depended on capped stubs starting within the cap (CodeRabbit 4498224221) | logging and decisions moved to the uncapped `sudo` stub |
 
 ## Ticket-fitness exemption
 
@@ -94,15 +99,15 @@ writing-rules:4 exemption for the governing ticket.
 - **Evidence:** the #1871 body holds the symptom (run 42282238657, job 128113913494, silent from 19:47:29Z until the 20:04:34Z cancellation), the impact (a required check dequeues the merge-queue group) and the fix direction. This change's task records are https://github.com/siege-analytics/siege_utilities/issues/1871#issuecomment-6694687820 and, for the redesign, https://github.com/siege-analytics/siege_utilities/issues/1871#issuecomment-6696387959.
 - **Falsification:** revert the implementation by restoring `.github/workflows/ci.yml` from develop `560a858e`. Then:
   - `test_no_workflow_step_runs_apt_get_or_the_script_directly` goes red, naming all five jobs that call `apt-get` directly;
-  - `test_install_steps_use_the_cached_action_without_a_step_timeout` goes red because no step uses the action.
+  - `test_install_steps_are_bounded_above_the_slowest_evidenced_install` (named `test_install_steps_use_the_cached_action_without_a_step_timeout` before the CodeRabbit round) goes red because no step uses the action.
 
   Verified on 2026-11-06: 2 failed against develop's `ci.yml`; 16 passed after.
 
 ## Test plan / Quantified claims
 Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11); GNU `timeout` from coreutils; macOS `/bin/bash` 3.2 runs the script in the tests, and CI runs bash 5.
-- `python -m pytest tests/test_1871_ci_apt_install.py`: 16 passed at 7a972cbd (twice in a row, about 50 s each); 17 passed after the cache scope round.
+- `python -m pytest tests/test_1871_ci_apt_install.py`: 16 passed at 7a972cbd (twice in a row, about 50 s each); 17 passed after the cache scope round; 19 passed after the CodeRabbit round.
 - Against the 2e61f1fc script and `ci.yml`: 11 failed and 5 passed. The five that pass cover behaviour the old script shares (usage error, no staging on failure, capped dpkg phase) plus the two action-file checks.
-- Adding `tests/test_release_process.py tests/test_user_config_export_changelog.py`: 41 passed at 7a972cbd; 42 after the cache scope round.
+- Adding `tests/test_release_process.py tests/test_user_config_export_changelog.py`: 41 passed at 7a972cbd; 42 after the cache scope round; 44 after the CodeRabbit round.
 
 ## Review round on 682d5069 (hub finding: interrupted dpkg)
 Finding: if `timeout` stops `apt-get install` during the dpkg unpack/configure phase, dpkg is left interrupted. The retry then fails at once with "dpkg was interrupted, you must manually run 'sudo dpkg --configure -a'" or on the dpkg lock.
@@ -159,6 +164,37 @@ Consequences:
 - **Unverified:** whether a merge-queue run restores develop's copy.
 
 Red: with the 7a972cbd action, `test_apt_action_restores_installs_then_saves_the_archive` and the new develop-save test fail (2 failed). After the change, 17 passed.
+
+## CodeRabbit round on 6c500ea5 (comments 4498224208 and 4498224221)
+**4498224208 (Major): bound the final network attempt.** Valid. A mirror that delivers a byte at least every 30 s never trips `Acquire::http::Timeout`. With no step timeout, the four jobs without a job timeout could hold a runner for the six-hour default.
+
+Fix:
+- `APT_FINAL_NETWORK_TIMEOUT` (default 2700 s) is one wall-clock budget shared by the final attempt's `update` and `install --download-only`. It starts after the repair and the mirror switch. Each phase's cap is what is left of the budget, with a floor of 1 s, so an exhausted budget still runs and stops the command rather than skipping it.
+- **Why 2700 s:** the slowest install that exited 0 took 2316 s for the whole step (develop run 42112634904, `test (3.11)`); 2700 s is 17% above it. In the evidenced slow-mirror case on this design (`test (3.11)` in run 42302877291), attempt 1 used about 2 minutes and the fallback mirror delivered 67.8 MB in 23 s.
+- **Bounded worst case** with the defaults, at 4391 s (about 73 min):
+  - attempt 1: 2 x (120 + 30) + (300 + 30);
+  - repair and delay: (300 + 30) + 10;
+  - final network: 2700 + 1 + 2 x 30;
+  - final dpkg phase and autoclean: 2 x (300 + 30).
+- **Step timeout:** `timeout-minutes: 80` (4800 s) on the four install steps whose job has no timeout. It is above the script's own bound, so the script's diagnostics appear first, and well under 360 minutes. `test-postgis` keeps no step timeout, because its 20-minute job timeout is tighter.
+- **Tests:**
+  - `test_final_download_stops_when_its_budget_runs_out`: a download that outlasts a 7 s budget ends with exit 124 on attempt 2 and the step exits 1;
+  - `test_slow_download_finishes_within_the_final_budget`: an 8 s slow download completes within a 30 s budget, and the caps come from it;
+  - `test_script_defaults_bound_the_final_attempt_above_the_evidence`: the script defaults match `WORST_CASE_SECONDS`, and the final budget exceeds 2316 s;
+  - `test_install_steps_are_bounded_above_the_slowest_evidenced_install`: replaces the no-step-timeout guard.
+
+**4498224221 (Minor): remove the stub start-up timing dependency.** Valid, and the same class as the hang in the rework ledger.
+
+Fix:
+- The script runs `sudo timeout --kill-after=30 CAP apt-get …`, so the `sudo` stub runs before `timeout` starts its clock and is never capped. It now does all the bookkeeping:
+  - it logs each `apt-get` and `dpkg` call with its cap, the mirror at call time and the files still to fetch;
+  - it decides the call's behaviour from the rules;
+  - it records a `dpkg --configure -a` that will exit 0;
+  - it then `exec`s the original command line.
+- The `apt-get` stub only carries out the behaviour it is given. The command lists, mirrors, fetch lists and caps that the tests assert are therefore fixed before any capped process starts. The stalled-mirror test now asserts the full list, including the stopped call on the primary mirror.
+- **Remaining timing, and why it is safe:** a stub that is not told to hang or run slow must exit within its cap (5 s network, 6 s dpkg). Measured locally, a whole non-hanging scenario (`test_successful_install_uses_bounded_apt_options`, six Python process starts, a `sudo` and an `apt-get` stub per call, plus bash) takes 0.71 s, about 0.12 s per start, so the caps are about 40 times the per-process cost. The earlier flake came from a 1 s cap combined with logging inside the capped process. Both are gone.
+
+Red: with the 6c500ea5 script and `ci.yml`, 4 failed and 15 passed (the two final-budget tests, the defaults check and the step-timeout guard). After the fix, 19 passed.
 
 ## Rework ledger
 - During the first red check, a blocked command left the new `ci.yml` unstaged, so the restore reverted it to develop's version. The edit was re-applied and verified (five script calls, no `apt-get`) before the red check was repeated correctly. Nothing was committed in between.

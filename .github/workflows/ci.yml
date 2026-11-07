@@ -119,9 +119,11 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install system geospatial libraries
-      # Cached .deb archives, a fallback mirror on retry and stall-only network
-      # limits on the final attempt (#1871). No step timeout: a slow mirror can
-      # still finish (a 38-minute install on develop exited 0).
+      # Cached .deb archives, a fallback mirror on retry and a 45-minute budget
+      # for the final download (#1871); a 38-minute install on develop exited 0.
+      # The step timeout sits above the script's own bounded worst case (about
+      # 73 minutes), so the script reports first and the 6-hour default never applies.
+      timeout-minutes: 80
       uses: ./.github/actions/apt-install
       with:
         packages: gdal-bin libgdal-dev libgeos-dev libproj-dev
@@ -229,9 +231,11 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Install system geospatial libraries
-      # Cached .deb archives, a fallback mirror on retry and stall-only network
-      # limits on the final attempt (#1871). No step timeout: a slow mirror can
-      # still finish (a 38-minute install on develop exited 0).
+      # Cached .deb archives, a fallback mirror on retry and a 45-minute budget
+      # for the final download (#1871); a 38-minute install on develop exited 0.
+      # The step timeout sits above the script's own bounded worst case (about
+      # 73 minutes), so the script reports first and the 6-hour default never applies.
+      timeout-minutes: 80
       uses: ./.github/actions/apt-install
       with:
         packages: gdal-bin libgdal-dev libgeos-dev libproj-dev
@@ -347,9 +351,9 @@ jobs:
         python-version: "3.11"
 
     - name: Install system geospatial libraries
-      # Cached .deb archives, a fallback mirror on retry and stall-only network
-      # limits on the final attempt (#1871). No step timeout: a slow mirror can
-      # still finish (a 38-minute install on develop exited 0).
+      # Cached .deb archives, a fallback mirror on retry and a bounded final
+      # download (#1871). No step timeout here: this job's 20-minute timeout
+      # is tighter than the script's own bounded worst case.
       uses: ./.github/actions/apt-install
       with:
         packages: gdal-bin libgdal-dev libgeos-dev libproj-dev
@@ -624,9 +628,11 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Install system geospatial libraries
-      # Cached .deb archives, a fallback mirror on retry and stall-only network
-      # limits on the final attempt (#1871). No step timeout: a slow mirror can
-      # still finish (a 38-minute install on develop exited 0).
+      # Cached .deb archives, a fallback mirror on retry and a 45-minute budget
+      # for the final download (#1871); a 38-minute install on develop exited 0.
+      # The step timeout sits above the script's own bounded worst case (about
+      # 73 minutes), so the script reports first and the 6-hour default never applies.
+      timeout-minutes: 80
       uses: ./.github/actions/apt-install
       with:
         packages: gdal-bin libgdal-dev libgeos-dev libproj-dev
@@ -711,9 +717,11 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Install system geospatial libraries
-      # Cached .deb archives, a fallback mirror on retry and stall-only network
-      # limits on the final attempt (#1871). No step timeout: a slow mirror can
-      # still finish (a 38-minute install on develop exited 0).
+      # Cached .deb archives, a fallback mirror on retry and a 45-minute budget
+      # for the final download (#1871); a 38-minute install on develop exited 0.
+      # The step timeout sits above the script's own bounded worst case (about
+      # 73 minutes), so the script reports first and the 6-hour default never applies.
+      timeout-minutes: 80
       uses: ./.github/actions/apt-install
       with:
         packages: gdal-bin libgdal-dev libgeos-dev libproj-dev

@@ -1,18 +1,23 @@
 """CI package installs must survive a slow or stalled apt mirror (#1871).
 
 ``scripts/ci_apt_install.sh`` is run with stub ``sudo``, ``apt-get`` and
-``dpkg`` on an allow-listed PATH and the real ``timeout``. The ``apt-get`` stub
-reads the mirror the runner would use from a fixture ``apt-mirrors.txt`` and
-"downloads" by creating ``<package>.deb`` in a fixture archive directory.
-Behaviour is set by rules, not by call order, so a stub that ``timeout``
-stops before it starts cannot shift the scenario:
+``dpkg`` on an allow-listed PATH and the real ``timeout``. The script calls
+``sudo timeout --kill-after=30 CAP apt-get ...``, so the ``sudo`` stub runs
+before ``timeout`` starts its clock and is never capped. It therefore does all
+the bookkeeping: it logs each ``apt-get`` and ``dpkg`` call with its cap, reads
+the mirror the runner would use from a fixture ``apt-mirrors.txt``, decides the
+call's behaviour, records the dpkg repair, then ``exec``s the real command
+line. The ``apt-get`` stub only carries out the behaviour it was handed. What
+the tests assert therefore does not depend on how fast a capped stub starts.
+
+Behaviour is set by rules, not by call order:
 
 - ``APT_STUB_HANG_MIRROR``: ``update`` and ``download`` hang on this mirror;
 - ``APT_STUB_SLOW``: these commands make steady progress for
   ``APT_STUB_SLOW_SECONDS``, longer than the first-attempt cap;
 - ``APT_STUB_FAIL``: these commands exit 100;
 - ``APT_STUB_BEFORE_REPAIR`` (``command:action``): applies until
-  ``dpkg --configure -a`` has exited 0, that is, on the first attempt.
+  ``dpkg --configure -a`` has run with exit 0, that is, on the first attempt.
 
 Guards then check every workflow step and the ``apt-install`` action.
 """
@@ -20,6 +25,7 @@ Guards then check every workflow step and the ``apt-install`` action.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -43,10 +49,32 @@ APT_OPTIONS = [
 ]
 PRIMARY = "azure.archive.ubuntu.com"
 FALLBACK = "archive.ubuntu.com"
-# Caps used by the tests. They sit well above stub start-up time, so only
-# the hanging or slow stubs reach them.
-CAP_SECONDS = "5"
-SLOW_SECONDS = "8"
+# Caps used by the tests. Only a stub told to hang or run slow reaches them;
+# the others exit well within the cap (see the self-review).
+ATTEMPT_CAP = 5
+DPKG_CAP = 6
+FINAL_BUDGET = 30
+SLOW_SECONDS = 8
+# Script defaults (checked against the script below) and the bounded worst
+# case they give: attempt 1 (update, download, dpkg phase), the dpkg repair and
+# retry delay, the final network budget with its 1 s floor and two kill-after
+# windows, then the final dpkg phase and autoclean.
+DEFAULTS = {
+    "APT_INSTALL_ATTEMPTS": 2,
+    "APT_ATTEMPT_TIMEOUT": 120,
+    "APT_FINAL_NETWORK_TIMEOUT": 2700,
+    "APT_DPKG_TIMEOUT": 300,
+    "APT_RETRY_DELAY": 10,
+}
+KILL_AFTER = 30
+WORST_CASE_SECONDS = (
+    2 * (DEFAULTS["APT_ATTEMPT_TIMEOUT"] + KILL_AFTER) + DEFAULTS["APT_DPKG_TIMEOUT"] + KILL_AFTER
+    + DEFAULTS["APT_DPKG_TIMEOUT"] + KILL_AFTER + DEFAULTS["APT_RETRY_DELAY"]
+    + DEFAULTS["APT_FINAL_NETWORK_TIMEOUT"] + 1 + 2 * KILL_AFTER
+    + 2 * (DEFAULTS["APT_DPKG_TIMEOUT"] + KILL_AFTER)
+)
+# Develop run 42112634904: the test (3.11) install step took 38m36s and exited 0.
+SLOWEST_EVIDENCED_INSTALL_SECONDS = 38 * 60 + 36
 # /etc/apt/apt-mirrors.txt as actions/runner-images writes it (144 bytes).
 RUNNER_MIRRORS = (
     "http://azure.archive.ubuntu.com/ubuntu/\tpriority:1\n"
@@ -62,37 +90,58 @@ UBUNTU_SOURCES = (
 MICROSOFT_LIST = "deb [arch=amd64,arm64] https://packages.microsoft.com/ubuntu/24.04/prod noble main\n"
 DIRECT_LIST = "deb http://azure.archive.ubuntu.com/ubuntu/ noble main universe\n"
 
+SUDO_STUB = """\
+import json, os, sys
+
+argv = sys.argv[1:]
+cap, command_line = None, argv
+if os.path.basename(argv[0]) == 'timeout':
+    # timeout --kill-after=30 CAP PROGRAM ARGS...
+    cap, command_line = int(argv[2]), argv[3:]
+program, args = os.path.basename(command_line[0]), command_line[1:]
+env = dict(os.environ)
+if program in ('apt-get', 'dpkg'):
+    entry = {'cmd': program, 'argv': args, 'cap': cap}
+    if program == 'dpkg':
+        if os.environ['DPKG_STUB_EXIT'] == '0' and args == ['--configure', '-a']:
+            open(os.environ['APT_STUB_REPAIRED'], 'w').close()
+    else:
+        words = [a for i, a in enumerate(args) if a != '-o' and (i == 0 or args[i - 1] != '-o')]
+        command = words[0]
+        if command == 'install' and '--download-only' in words:
+            command = 'download'
+        packages = [w for w in words[1:] if not w.startswith('-')]
+        archives = os.environ['APT_ARCHIVES_DIR']
+        entry['cmd'] = command
+        if command in ('update', 'download'):
+            with open(os.path.join(os.environ['APT_CONFIG_DIR'], 'apt-mirrors.txt')) as handle:
+                entry['mirror'] = handle.readline().split('//', 1)[1].split('/', 1)[0]
+        if command == 'download':
+            entry['fetch'] = [p for p in packages if not os.path.exists(os.path.join(archives, p + '.deb'))]
+        action = 'ok'
+        if command in os.environ.get('APT_STUB_FAIL', '').split(','):
+            action = 'fail'
+        if command in os.environ.get('APT_STUB_SLOW', '').split(','):
+            action = 'slow'
+        if entry.get('mirror') and entry['mirror'] == os.environ.get('APT_STUB_HANG_MIRROR'):
+            action = 'hang'
+        rule = os.environ.get('APT_STUB_BEFORE_REPAIR', '')
+        if rule and rule.split(':')[0] == command and not os.path.exists(os.environ['APT_STUB_REPAIRED']):
+            action = rule.split(':')[1]
+        entry['action'] = action
+        env['APT_STUB_COMMAND'] = command
+        env['APT_STUB_ACTION'] = action
+        env['APT_STUB_PACKAGES'] = json.dumps(packages)
+        env['APT_STUB_FETCH'] = json.dumps(entry.get('fetch', []))
+    with open(os.environ['APT_STUB_CALLS'], 'a') as log:
+        log.write(json.dumps(entry) + '\\n')
+os.execvpe(argv[0], argv, env)
+"""
+
 APT_STUB = """\
 import json, os, sys, time
 
-args = sys.argv[1:]
-words = [a for i, a in enumerate(args) if a != '-o' and (i == 0 or args[i - 1] != '-o')]
-command = words[0]
-if command == 'install' and '--download-only' in words:
-    command = 'download'
-packages = [w for w in words[1:] if not w.startswith('-')]
-archives = os.environ['APT_ARCHIVES_DIR']
-entry = {'cmd': command, 'argv': args}
-if command in ('update', 'download'):
-    with open(os.path.join(os.environ['APT_CONFIG_DIR'], 'apt-mirrors.txt')) as handle:
-        entry['mirror'] = handle.readline().split('//', 1)[1].split('/', 1)[0]
-if command == 'download':
-    entry['fetch'] = [p for p in packages if not os.path.exists(os.path.join(archives, p + '.deb'))]
-
-action = 'ok'
-if command in os.environ.get('APT_STUB_FAIL', '').split(','):
-    action = 'fail'
-if command in os.environ.get('APT_STUB_SLOW', '').split(','):
-    action = 'slow'
-if entry.get('mirror') and entry['mirror'] == os.environ.get('APT_STUB_HANG_MIRROR'):
-    action = 'hang'
-rule = os.environ.get('APT_STUB_BEFORE_REPAIR', '')
-if rule and rule.split(':')[0] == command and not os.path.exists(os.environ['APT_STUB_REPAIRED']):
-    action = rule.split(':')[1]
-entry['action'] = action
-with open(os.environ['APT_STUB_CALLS'], 'a') as log:
-    log.write(json.dumps(entry) + '\\n')
-
+action = os.environ['APT_STUB_ACTION']
 if action == 'hang':
     time.sleep(60)
 elif action == 'slow':
@@ -103,23 +152,21 @@ elif action == 'slow':
         time.sleep(0.2)
 if action == 'fail':
     sys.exit(100)
+archives = os.environ['APT_ARCHIVES_DIR']
+command = os.environ['APT_STUB_COMMAND']
 if command == 'download':
-    for package in entry['fetch']:
+    for package in json.loads(os.environ['APT_STUB_FETCH']):
         with open(os.path.join(archives, package + '.deb'), 'w') as handle:
             handle.write(package)
 if command == 'install':
+    packages = json.loads(os.environ['APT_STUB_PACKAGES'])
     absent = [p for p in packages if not os.path.exists(os.path.join(archives, p + '.deb'))]
     sys.exit(100 if absent else 0)
 """
 
 DPKG_STUB = """\
-import json, os, sys
-with open(os.environ['APT_STUB_CALLS'], 'a') as log:
-    log.write(json.dumps({'cmd': 'dpkg', 'argv': sys.argv[1:]}) + '\\n')
-status = int(os.environ['DPKG_STUB_EXIT'])
-if status == 0 and sys.argv[1:] == ['--configure', '-a']:
-    open(os.environ['APT_STUB_REPAIRED'], 'w').close()
-sys.exit(status)
+import os, sys
+sys.exit(int(os.environ['DPKG_STUB_EXIT']))
 """
 
 
@@ -143,7 +190,7 @@ class Runner:
             executable = shutil.which(tool)
             assert executable is not None, tool
             (self.bin / tool).symlink_to(executable)
-        _write_executable(self.bin / "sudo", '#!/bin/bash\nexec "$@"\n')
+        _write_executable(self.bin / "sudo", f"#!{sys.executable}\n{SUDO_STUB}")
         _write_executable(self.bin / "apt-get", f"#!{sys.executable}\n{APT_STUB}")
         _write_executable(self.bin / "dpkg", f"#!{sys.executable}\n{DPKG_STUB}")
 
@@ -170,11 +217,12 @@ class Runner:
             "PATH": str(self.bin),
             "APT_STUB_CALLS": str(self.calls_file),
             "APT_STUB_REPAIRED": str(self.tmp / "repaired"),
-            "APT_STUB_SLOW_SECONDS": SLOW_SECONDS,
+            "APT_STUB_SLOW_SECONDS": str(SLOW_SECONDS),
             "APT_CONFIG_DIR": str(self.config),
             "APT_ARCHIVES_DIR": str(self.archives),
-            "APT_ATTEMPT_TIMEOUT": CAP_SECONDS,
-            "APT_DPKG_TIMEOUT": CAP_SECONDS,
+            "APT_ATTEMPT_TIMEOUT": str(ATTEMPT_CAP),
+            "APT_DPKG_TIMEOUT": str(DPKG_CAP),
+            "APT_FINAL_NETWORK_TIMEOUT": str(FINAL_BUDGET),
             "APT_RETRY_DELAY": "0",
             "DPKG_STUB_EXIT": str(dpkg_exit),
             "GITHUB_OUTPUT": str(self.output),
@@ -187,7 +235,7 @@ class Runner:
             env=environment,
             capture_output=True,
             text=True,
-            timeout=90,
+            timeout=120,
         )
 
     @property
@@ -218,11 +266,13 @@ def test_successful_install_uses_bounded_apt_options(tmp_path: Path) -> None:
     assert runner.commands == ["update", "download", "install"]
     for call in runner.calls:
         assert call["argv"][: len(APT_OPTIONS)] == APT_OPTIONS
-    download, install = runner.calls[1], runner.calls[2]
+    update, download, install = runner.calls
     assert download["argv"][len(APT_OPTIONS):] == [
         "install", "-y", "--no-install-recommends", "--download-only", *PACKAGES,
     ]
     assert install["argv"][len(APT_OPTIONS):] == ["install", "-y", "--no-install-recommends", *PACKAGES]
+    # Network phases use the first-attempt cap; the dpkg phase its own cap.
+    assert [update["cap"], download["cap"], install["cap"]] == [ATTEMPT_CAP, ATTEMPT_CAP, DPKG_CAP]
     assert runner.mirrors() == [PRIMARY, PRIMARY]
     assert "succeeded on attempt 1" in result.stdout
     # Without a cache directory nothing is staged for saving.
@@ -256,6 +306,7 @@ def test_cache_miss_downloads_and_stages_the_archive_for_saving(tmp_path: Path) 
     assert runner.calls[1]["fetch"] == PACKAGES
     # Obsolete archives are cleaned before the cache directory is refreshed.
     assert runner.commands == ["update", "download", "install", "autoclean"]
+    assert runner.calls[3]["cap"] == DPKG_CAP
     assert _debs(runner.cache) == sorted(PACKAGES)
     assert runner.output.read_text(encoding="utf-8") == "cache-ready=true\n"
 
@@ -279,10 +330,11 @@ def test_stalled_primary_mirror_falls_back_on_the_retry(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "attempt 1 failed or stalled (exit 124)" in result.stderr
-    # The stalled primary is the only call on it; the repair runs first.
-    assert runner.commands[-5:] == ["dpkg", "update", "download", "install", "autoclean"]
-    assert runner.mirrors()[-2:] == [FALLBACK, FALLBACK]
-    assert runner.calls[-5]["argv"] == ["--configure", "-a"]
+    # The stalled update on the primary is the only call there; the repair
+    # runs before the retry, which uses the fallback mirror.
+    assert runner.commands == ["update", "dpkg", "update", "download", "install", "autoclean"]
+    assert runner.calls[1]["argv"] == ["--configure", "-a"]
+    assert runner.mirrors() == [PRIMARY, FALLBACK, FALLBACK]
     # The runner's mirror list and any directly named source move to the
     # fallback; unrelated sources are untouched.
     mirrors = (runner.config / "apt-mirrors.txt").read_text(encoding="utf-8")
@@ -294,10 +346,11 @@ def test_stalled_primary_mirror_falls_back_on_the_retry(tmp_path: Path) -> None:
     assert "succeeded on attempt 2" in result.stdout
 
 
-def test_slow_download_is_not_cut_off_on_the_final_attempt(tmp_path: Path) -> None:
+def test_slow_download_finishes_within_the_final_budget(tmp_path: Path) -> None:
     runner = Runner(tmp_path)
 
-    # Every download is slow: 8 s of steady progress against a 5 s cap.
+    # Every download is slow: 8 s of steady progress against a 5 s first cap
+    # and a 30 s final budget.
     result = runner.run(*PACKAGES, APT_STUB_SLOW="download")
 
     assert result.returncode == 0, result.stdout + result.stderr
@@ -308,6 +361,25 @@ def test_slow_download_is_not_cut_off_on_the_final_attempt(tmp_path: Path) -> No
     assert "succeeded on attempt 2" in result.stdout
     assert runner.commands == ["update", "download", "dpkg", "update", "download", "install", "autoclean"]
     assert runner.mirrors() == [PRIMARY, PRIMARY, FALLBACK, FALLBACK]
+    final_update, final_download = runner.calls[3], runner.calls[4]
+    # The final network phases draw on one budget, which covers the transfer.
+    assert SLOW_SECONDS < final_download["cap"] <= final_update["cap"] <= FINAL_BUDGET
+
+
+def test_final_download_stops_when_its_budget_runs_out(tmp_path: Path) -> None:
+    # A trickle that never trips apt's 30 s data timeout must still end:
+    # here the download outlasts both the first cap and the final budget.
+    runner = Runner(tmp_path)
+
+    result = runner.run(
+        *PACKAGES, APT_STUB_SLOW="download", APT_STUB_SLOW_SECONDS="60", APT_FINAL_NETWORK_TIMEOUT="7",
+    )
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "attempt 2 failed or stalled (exit 124)" in result.stderr
+    assert "apt install failed after 2 attempts" in result.stderr
+    assert runner.commands == ["update", "download", "dpkg", "update", "download"]
+    assert all(call["cap"] is not None and call["cap"] <= 7 for call in runner.calls[3:])
 
 
 def test_killed_install_repairs_dpkg_before_the_retry(tmp_path: Path) -> None:
@@ -334,6 +406,7 @@ def test_dpkg_phase_stays_bounded_on_the_final_attempt(tmp_path: Path) -> None:
 
     assert result.returncode == 1, result.stdout + result.stderr
     assert "attempt 1 failed or stalled (exit 124)" in result.stderr
+    assert runner.calls[-1]["cap"] == DPKG_CAP
 
 
 def test_failed_dpkg_repair_is_reported_and_the_retry_still_runs(tmp_path: Path) -> None:
@@ -377,6 +450,14 @@ def test_missing_packages_is_a_usage_error(tmp_path: Path) -> None:
     assert runner.calls == []
 
 
+def test_script_defaults_bound_the_final_attempt_above_the_evidence() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
+    for name, value in DEFAULTS.items():
+        assert re.search(rf'"\$\{{{name}:-{value}\}}"', source), f"{name} default is not {value}"
+    # The final budget alone exceeds the whole slowest install that exited 0.
+    assert DEFAULTS["APT_FINAL_NETWORK_TIMEOUT"] > SLOWEST_EVIDENCED_INSTALL_SECONDS
+
+
 def _workflow_steps() -> list[tuple[str, str, dict[str, Any], dict[str, Any]]]:
     steps = []
     for workflow in sorted(WORKFLOWS.glob("*.yml")):
@@ -402,18 +483,30 @@ def test_no_workflow_step_runs_apt_get_or_the_script_directly() -> None:
     assert direct == [], f"install packages through {ACTION_REF} so the .deb cache applies: {direct}"
 
 
-def test_install_steps_use_the_cached_action_without_a_step_timeout() -> None:
+def test_install_steps_are_bounded_above_the_slowest_evidenced_install() -> None:
     install_steps = [
-        (f"{workflow}:{job_name}", step)
-        for workflow, job_name, _, step in _workflow_steps()
+        (f"{workflow}:{job_name}", job, step)
+        for workflow, job_name, job, step in _workflow_steps()
         if step.get("uses") == ACTION_REF
     ]
-    assert len(install_steps) == 5, [where for where, _ in install_steps]
-    for where, step in install_steps:
+    assert len(install_steps) == 5, [where for where, _, _ in install_steps]
+    for where, job, step in install_steps:
         assert step["with"]["packages"].split() == PACKAGES, where
-        # A fixed step timeout cannot tell a slow mirror from a stuck one; a
-        # 38-minute install on develop exited 0. Stalls are caught by apt.
-        assert "timeout-minutes" not in step, f"{where}: install step must not set timeout-minutes"
+        job_timeout = job.get("timeout-minutes")
+        if job_timeout is not None:
+            # A tighter job timeout (test-postgis, 20 min) already bounds the
+            # step; a step timeout there would only cut the final attempt.
+            assert job_timeout * 60 < WORST_CASE_SECONDS, where
+            assert "timeout-minutes" not in step, f"{where}: the job timeout already bounds this step"
+        else:
+            # Without one, the 6-hour default would apply. The step timeout
+            # sits above the script's own bounded worst case (so the script
+            # reports first), which is itself above the slowest install that
+            # exited 0.
+            step_timeout = step.get("timeout-minutes")
+            assert isinstance(step_timeout, int), f"{where}: install step needs timeout-minutes"
+            assert step_timeout * 60 > WORST_CASE_SECONDS > SLOWEST_EVIDENCED_INSTALL_SECONDS, where
+            assert step_timeout < 360, where
 
 
 def test_apt_action_restores_installs_then_saves_the_archive() -> None:
