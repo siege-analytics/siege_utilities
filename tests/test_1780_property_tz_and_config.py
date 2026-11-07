@@ -19,21 +19,22 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 
+from tests.notebook_cells import run_cells
+
 
 NOTEBOOK = Path(__file__).resolve().parents[1] / "notebooks/analytics/01_connectors.ipynb"
+# Code cells by nbformat id: c1 imports the connectors, c2 is the GA query and
+# c3 the Snowflake query.
+GA_CELLS = ("c1", "c2")
+SNOWFLAKE_CELLS = ("c1", "c2", "c3")
 
 
 def _cells() -> list[dict[str, Any]]:
     return json.loads(NOTEBOOK.read_text(encoding="utf-8"))["cells"]
 
 
-def _run_cells(*indices: int) -> dict[str, Any]:
-    cells = _cells()
-    namespace: dict = {}
-    for index in indices:
-        assert cells[index]["cell_type"] == "code", index
-        exec(compile("".join(cells[index]["source"]), f"{NOTEBOOK.name}:cell-{index}", "exec"), namespace)
-    return namespace
+def _run_cells(*cell_ids: str) -> dict[str, Any]:
+    return run_cells(NOTEBOOK, *cell_ids)
 
 
 def _ga_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, zone: str | None) -> None:
@@ -84,7 +85,7 @@ def test_ga_window_uses_property_timezone_not_host_date(
     date_patch, datetime_patch = _clock(instant)
     with patch("siege_utilities.analytics.google_analytics.create_ga_connector_with_service_account",
                return_value=ga), date_patch, datetime_patch:
-        _run_cells(2, 4)
+        _run_cells(*GA_CELLS)
 
     kwargs = ga.get_ga4_data.call_args.kwargs
     assert (kwargs["start_date"], kwargs["end_date"]) == (start, end)
@@ -98,7 +99,7 @@ def test_ga_path_requires_a_valid_property_timezone(
     ga = Mock()
     with patch("siege_utilities.analytics.google_analytics.create_ga_connector_with_service_account",
                return_value=ga), pytest.raises(ValueError, match="GA_PROPERTY_TIMEZONE"):
-        _run_cells(2, 4)
+        _run_cells(*GA_CELLS)
     ga.get_ga4_data.assert_not_called()
 
 
@@ -127,17 +128,20 @@ def test_documented_snowflake_config_loads_through_the_real_connector(
     monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
     monkeypatch.setenv("SNOWFLAKE_CONFIG_FILE", str(config))
     rows = [("2026-10-05", 5), ("2026-10-06", 6)]
-    # Only the network calls are replaced; get_snowflake_connector and
-    # _load_config are the real ones.
+    # Only the network calls are replaced; get_snowflake_connector,
+    # _load_config and disconnect are the real ones (disconnect is spied on).
+    real_disconnect = SnowflakeConnector.disconnect
     with patch.object(SnowflakeConnector, "execute_ddl", autospec=True) as ddl, \
-            patch.object(SnowflakeConnector, "execute_query", autospec=True, return_value=rows) as query:
-        ns = _run_cells(2, 4, 6)
+            patch.object(SnowflakeConnector, "execute_query", autospec=True, return_value=rows) as query, \
+            patch.object(SnowflakeConnector, "disconnect", autospec=True, side_effect=real_disconnect) as disconnect:
+        ns = _run_cells(*SNOWFLAKE_CELLS)
 
     connector = query.call_args.args[0]
     assert isinstance(connector, SnowflakeConnector)
     for key in ("account", "user", "warehouse", "database", "schema", "role"):
         assert getattr(connector, key) == documented[key], key
     ddl.assert_called_once_with(connector, "ALTER SESSION SET WEEK_START = 1")
+    disconnect.assert_called_once_with(connector)
     assert list(ns["snowflake_daily"]["sessions"]) == [5, 6]
 
 

@@ -6,7 +6,6 @@ No credentials or network services are used: connector factories are patched.
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, tzinfo
 from pathlib import Path
 from typing import Any
@@ -15,8 +14,14 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 
+from tests.notebook_cells import run_cells
+
 
 NOTEBOOK = Path(__file__).resolve().parents[1] / "notebooks/analytics/01_connectors.ipynb"
+# Code cells by nbformat id: c1 imports the connectors, c2 is the GA query,
+# c3 the Snowflake query and c5 the shared post-processing.
+GA_CELLS = ("c1", "c2")
+ALL_CELLS = ("c1", "c2", "c3", "c5")
 GA_FACTORY = "siege_utilities.analytics.google_analytics.create_ga_connector_with_service_account"
 SNOWFLAKE_FACTORY = "siege_utilities.analytics.snowflake_connector.get_snowflake_connector"
 # The connector reads SNOWFLAKE_CONFIG_FILE with json.load; the factory is
@@ -31,14 +36,8 @@ def _property_timezone(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GA_PROPERTY_TIMEZONE", "UTC")
 
 
-def _run_cells(*indices: int) -> dict[str, Any]:
-    cells = json.loads(NOTEBOOK.read_text(encoding="utf-8"))["cells"]
-    namespace: dict[str, Any] = {}
-    for index in indices:
-        source = "".join(cells[index]["source"])
-        assert cells[index]["cell_type"] == "code", index
-        exec(compile(source, f"{NOTEBOOK.name}:cell-{index}", "exec"), namespace)
-    return namespace
+def _run_cells(*cell_ids: str) -> dict[str, Any]:
+    return run_cells(NOTEBOOK, *cell_ids)
 
 
 def _ga_configured(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, property_id: str = "1") -> None:
@@ -83,7 +82,7 @@ def test_credentialed_branches_query_both_sources_and_derive_daily(
     sf.execute_query.return_value = [("2026-04-01", 900), ("2026-04-02", 800)]
     with patch(GA_FACTORY, return_value=ga), patch(SNOWFLAKE_FACTORY, return_value=sf), \
             patch("datetime.datetime", FixedDatetime):
-        ns = _run_cells(2, 4, 6, 8)
+        ns = _run_cells(*ALL_CELLS)
     ga.get_ga4_data.assert_called_once()
     assert ga.get_ga4_data.call_args.kwargs["property_id"] == "123456789"
     assert ga.get_ga4_data.call_args.kwargs["start_date"] == start
@@ -104,7 +103,7 @@ def test_snowflake_only_result_drives_summary(tmp_path: Path, monkeypatch: pytes
     sf = Mock()
     sf.execute_query.return_value = [("2026-04-01", 71), ("2026-04-02", 73)]
     with patch(SNOWFLAKE_FACTORY, return_value=sf):
-        ns = _run_cells(2, 4, 6, 8)
+        ns = _run_cells(*ALL_CELLS)
     sf.execute_query.assert_called_once()
     assert list(ns["daily"]["sessions"]) == [71, 73]
     assert ns["summary"]["weekly_sessions"].sum() == 144
@@ -116,7 +115,7 @@ def test_no_credentials_is_explicitly_offline_fixture(
     monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
     monkeypatch.delenv("GA_PROPERTY_ID", raising=False)
     monkeypatch.delenv("SNOWFLAKE_CONFIG_FILE", raising=False)
-    ns = _run_cells(2, 4, 6, 8)
+    ns = _run_cells(*ALL_CELLS)
     assert "illustrative offline fixture" in capsys.readouterr().out.lower()
     assert ns["data_source"] == "illustrative offline fixture"
     assert ns["summary"]["weekly_sessions"].sum() == sum(ns["daily"]["sessions"])
@@ -129,7 +128,7 @@ def test_live_query_error_does_not_silently_fall_back(tmp_path: Path, monkeypatc
     ga = Mock()
     ga.get_ga4_data.side_effect = RuntimeError("synthetic GA outage")
     with patch(GA_FACTORY, return_value=ga), pytest.raises(RuntimeError, match="synthetic GA outage"):
-        _run_cells(2, 4, 6, 8)
+        _run_cells(*ALL_CELLS)
     ga.get_ga4_data.assert_called_once()
 
 
@@ -139,16 +138,32 @@ def test_credential_file_without_property_is_not_fake_live_result(
     _ga_configured(tmp_path, monkeypatch)
     monkeypatch.delenv("GA_PROPERTY_ID", raising=False)
     with pytest.raises(ValueError, match="GA_PROPERTY_ID"):
-        _run_cells(2, 4)
+        _run_cells(*GA_CELLS)
 
 
-@pytest.mark.parametrize("rows", [[], [("2026-10-05", 100), ("2026-10-06", None)], [("2026-10-05", 100), (None, 9)]])
-def test_null_sessions_fail(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, rows: list[tuple[Any, Any]]) -> None:
+def test_snowflake_connection_closes_after_the_query(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _snowflake_configured(tmp_path, monkeypatch)
     sf = Mock()
-    sf.execute_query.return_value = rows
-    with patch(SNOWFLAKE_FACTORY, return_value=sf), pytest.raises(ValueError):
-        _run_cells(2, 4, 6, 8)
+    sf.execute_query.return_value = [("2026-04-01", 71), ("2026-04-02", 73)]
+    with patch(SNOWFLAKE_FACTORY, return_value=sf):
+        ns = _run_cells(*ALL_CELLS)
+    sf.disconnect.assert_called_once_with()
+    # The connection closes only after the query has returned its rows.
+    assert [call[0] for call in sf.method_calls] == ["execute_ddl", "execute_query", "disconnect"]
+    assert list(ns["snowflake_daily"]["sessions"]) == [71, 73]
+
+
+@pytest.mark.parametrize("failing", ["execute_ddl", "execute_query"])
+def test_snowflake_connection_closes_when_the_query_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failing: str,
+) -> None:
+    _snowflake_configured(tmp_path, monkeypatch)
+    sf = Mock()
+    getattr(sf, failing).side_effect = RuntimeError(f"synthetic Snowflake {failing} failure")
+    with patch(SNOWFLAKE_FACTORY, return_value=sf), \
+            pytest.raises(RuntimeError, match=f"synthetic Snowflake {failing} failure"):
+        _run_cells(*ALL_CELLS)
+    sf.disconnect.assert_called_once_with()
 
 
 # Every malformed live result must raise in the processing cell, naming the
@@ -180,7 +195,7 @@ def test_malformed_ga_result_raises_in_processing(
     ga = Mock()
     ga.get_ga4_data.return_value = frame
     with patch(GA_FACTORY, return_value=ga), pytest.raises(ValueError, match=message):
-        _run_cells(2, 4, 6, 8)
+        _run_cells(*ALL_CELLS)
     ga.get_ga4_data.assert_called_once()
 
 
@@ -193,7 +208,7 @@ def test_malformed_snowflake_result_raises_in_processing(
     sf = Mock()
     sf.execute_query.return_value = rows
     with patch(SNOWFLAKE_FACTORY, return_value=sf), pytest.raises(ValueError, match=message):
-        _run_cells(2, 4, 6, 8)
+        _run_cells(*ALL_CELLS)
     sf.execute_query.assert_called_once()
 
 
@@ -214,8 +229,11 @@ def test_flat_live_traffic_reports_no_wow_change(tmp_path: Path, monkeypatch: py
     ga = Mock()
     ga.get_ga4_data.side_effect = flat
     with patch(GA_FACTORY, return_value=ga):
-        ns = _run_cells(2, 4, 6, 8)
+        ns = _run_cells(*ALL_CELLS)
     wow = ns["summary"]["WoW change %"].dropna()
+    # Two complete weeks give one comparison; without this, an all-NaN WoW
+    # would pass the zero check vacuously.
+    assert len(wow) == 1, ns["summary"]
     assert (wow == 0).all(), ns["summary"]
 
 
@@ -225,7 +243,7 @@ def test_empty_ga_result_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, 
     ga = Mock()
     ga.get_ga4_data.return_value = pd.DataFrame(columns=columns)
     with patch(GA_FACTORY, return_value=ga), pytest.raises(ValueError, match="GA4 live query has no dated sessions"):
-        _run_cells(2, 4, 6, 8)
+        _run_cells(*ALL_CELLS)
 
 
 @pytest.mark.parametrize("sessions", [float("nan"), float("inf"), float("-inf")])
@@ -234,7 +252,7 @@ def test_non_finite_sessions_fail(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     sf = Mock()
     sf.execute_query.return_value = [("2026-10-05", 100), ("2026-10-06", sessions)]
     with patch(SNOWFLAKE_FACTORY, return_value=sf), pytest.raises(ValueError, match="null or non-finite sessions"):
-        _run_cells(2, 4, 6, 8)
+        _run_cells(*ALL_CELLS)
 
 
 def test_zero_sessions_are_valid(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -242,7 +260,7 @@ def test_zero_sessions_are_valid(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     sf = Mock()
     sf.execute_query.return_value = [(day, 0) for day in pd.date_range("2026-09-28", periods=14)]
     with patch(SNOWFLAKE_FACTORY, return_value=sf):
-        ns = _run_cells(2, 4, 6, 8)
+        ns = _run_cells(*ALL_CELLS)
     assert ns["daily"]["sessions"].tolist() == [0] * 14
     assert ns["summary"]["weekly_sessions"].tolist() == [0, 0]
     assert ns["summary"]["WoW change %"].isna().all()
@@ -258,7 +276,7 @@ def test_sparse_live_weeks_withhold_wow(tmp_path: Path, monkeypatch: pytest.Monk
         {"date": ["20260928", "20261005"], "sessions": [100, 200]}
     )
     with patch(GA_FACTORY, return_value=ga):
-        ns = _run_cells(2, 4, 6, 8)
+        ns = _run_cells(*ALL_CELLS)
     summary = ns["summary"]
     assert not (pd.to_numeric(summary["WoW change %"], errors="coerce") == 100.0).any(), summary
     assert (pd.to_numeric(summary["WoW change %"], errors="coerce").isna()).all(), summary

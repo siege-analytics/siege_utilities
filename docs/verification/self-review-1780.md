@@ -44,6 +44,10 @@ Phase B verification: against the 77d59159 notebook, `tests/test_1780_property_t
 | F1 | P2 | Notebook documents YAML; connector loads JSON | JSON documented with example; real-loader test |
 | F2 | P2 | GA4 window uses host date | `GA_PROPERTY_TIMEZONE` required; window computed in that zone |
 | F3 | P3 | Branch CONFLICTING with develop | additive merge, both CHANGELOG sides kept; #1661 entry under `[4.1.0]` |
+| F4 | P2 | Notebook leaves the Snowflake connection open (CodeRabbit 4498717759) | `try`/`finally: sf.disconnect()`; close tests on success and failure |
+| F5 | P2 | Flat-traffic WoW test passes vacuously when every WoW is NaN (CodeRabbit 4498717788) | assert one WoW value before the zero check |
+| F6 | P3 | Index-based cell helpers break when cells move (CodeRabbit 4498717770) | shared ID-based `tests/notebook_cells.py`, run in notebook order |
+| F7 | P3 | `test_null_sessions_fail` duplicates the malformed test with a bare `ValueError` (CodeRabbit 4498717778) | removed |
 
 ## Ticket-fitness exemption
 
@@ -66,6 +70,28 @@ Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11), snowfl
 - Type hints: every test function and helper in both modules, including the nested `FixedDatetime.now`, `HostDate.today`, `HostDatetime.now` and `flat` helpers, now has parameter and return annotations; `ruff --select SIM117,ANN001,ANN201,ANN202,ANN206` passes.
 - Tests: 314 passed (notebook-truth, property time zone, calendar, temporal, notebook hygiene, capability coverage and changelog).
 
+## Review round on 599c1b96 (CodeRabbit comments 4498717759, 4498717788, 4498717770, 4498717778)
+- **4498717759, Snowflake connection left open:**
+  - Fix: cell `c3` wraps `execute_ddl` and `execute_query` in `try`/`finally: sf.disconnect()`, and section 3 says the connection is closed, also on failure.
+  - `test_snowflake_connection_closes_after_the_query` asserts the call order `execute_ddl`, `execute_query`, `disconnect`.
+  - `test_snowflake_connection_closes_when_the_query_fails` covers a failing `execute_ddl` and a failing `execute_query`. The error propagates and `disconnect` is called once.
+  - The real-connector test spies on the real `disconnect` and asserts it was called with that connector.
+  - Red: 4 failed against the 599c1b96 notebook.
+- **4498717788, vacuous WoW assertion:**
+  - Fix: `test_flat_live_traffic_reports_no_wow_change` asserts `len(wow) == 1` before the zero check.
+  - Red: with flat traffic of 0 sessions, both weeks total 0 and the WoW is all NaN. The 599c1b96 test passed on it (vacuously); the new test fails at the length assertion.
+- **4498717770, index-based cell helper:**
+  - Fix: `tests/notebook_cells.py::run_cells` selects cells by nbformat `id` (`c1`, `c2`, `c3`, `c5`) and runs them in notebook order whatever order they are named in. It refuses unknown IDs (with the IDs named), non-code cells, and repeated IDs. Both test modules use it.
+  - `tests/test_1780_notebook_cells_helper.py` covers the helper and that the four IDs stay code cells.
+  - Red: with one markdown cell inserted at the top of the notebook, the 599c1b96 index-based tests gave 33 failed, 1 passed; the ID-based tests gave 34 passed.
+  - The `exec` the reviewer's tools flag (S102) is the point of these tests: they execute the committed notebook's own source. The helper says so.
+- **4498717778, duplicate malformed test:** `test_null_sessions_fail` is removed. Its three cases (empty rows, a null session, a null date) are covered by `test_malformed_snowflake_result_raises_in_processing`, which matches the message naming the live source.
+- **Tests:**
+  - #1661/#1780 tests, notebook hygiene, capability coverage and changelog: 319 passed.
+  - The analytics/01 notebook still executes in the pure lane.
+  - flake8 (127) and test hygiene are clean.
+
 ## Rework ledger
+During the reorder check, the first cell insert was refused because the notebook had changed on disk since it was read (after a restore). The run that followed tested the unmodified notebook, so it was discarded. The insert was redone after re-reading the notebook, and the reorder results above come from the redone run.
 Hosted CI at 5db3550b showed the real-loader test failing in the "geo without GDAL" lane with `ImportError: Snowflake connector not available`; that lane does not install the Snowflake SDK, and the real `SnowflakeConnector` refuses to construct without it. The test now calls `pytest.importorskip("snowflake.connector")` first, so it runs wherever the SDK is installed (all main test lanes) and skips elsewhere.
 The first draft of the YAML assertion forbade the word "YAML" anywhere, which conflicted with the new JSON guidance that says YAML fails to load; it now targets the defective phrase "a YAML config".

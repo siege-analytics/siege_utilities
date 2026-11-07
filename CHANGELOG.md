@@ -329,7 +329,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a missing or unknown time zone, or a query error. The GA4 weeks are chosen in
   the property's time zone, matching how GA4 interprets report dates, not on the
   host clock. `SNOWFLAKE_CONFIG_FILE` is documented as the JSON file the
-  connector loads with `json.load`, with an example of its keys. The offline
+  connector loads with `json.load`, with an example of its keys, and the
+  Snowflake connection is closed after the query, also when it fails. The offline
   path's output is clearly labelled an illustrative fixture. Empty or malformed
   live results fail rather than silently becoming the fixture: missing dates
   and null or non-finite session counts raise before grouping, and the
