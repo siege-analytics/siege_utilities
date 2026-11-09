@@ -35,7 +35,7 @@ Chosen: (a) for the final attempt, combined with a wall-clock cap on the first a
 - **Correction:** the 7a972cbd version argued that any fixed cap either kills the evidenced successes or bounds nothing. That was wrong. A cap above the evidence still bounds the six-hour tail (CodeRabbit comment 4498224208; hub).
 - **First attempt:** the network phases keep a 120 s wall-clock cap. On a slow primary mirror this costs nothing: the downloaded `.deb` files stay in `/var/cache/apt/archives` and the retry reuses them (evidence above). The retry also runs against the fallback mirror.
 - **dpkg phase:** installing from the downloaded files, the `dpkg --configure -a` repair and `autoclean` stay capped (300 s) on every attempt. A hang that is not a download is therefore still bounded.
-- **Install steps:** in the four jobs without a job timeout, `timeout-minutes: 80` sits above the script's own bounded worst case (4391 s, about 73 min), so the script reports first and the six-hour default never applies. `test-postgis` keeps no step timeout, because its 20-minute job timeout is tighter.
+- **Install steps:** in the four jobs without a job timeout, `timeout-minutes: 80` sits above the script's own bounded worst case (4391 s, about 73 min), so the script reports first and the six-hour default never applies. `test-postgis` uses shorter limits (worst case 851 s) under `timeout-minutes: 15`, leaving 5 minutes of its 20-minute job for the other steps (see "CodeRabbit round on e4679b66").
 
 ## Pre-mortem
 1. Tiger (launch-blocking). Severity: P1. The wrapper reports success after failing. Mitigation: the failure status is captured in an `else` branch, the script ends with `exit 1`, and `test_two_failed_attempts_fail_the_step` covers it.
@@ -47,7 +47,7 @@ Chosen: (a) for the final attempt, combined with a wall-clock cap on the first a
 3. Tiger (launch-blocking). Severity: P1. The final attempt holds the runner. Mitigation:
    - network phases end after 30 s without data (apt, 3 retries) and within a shared 45-minute budget (`test_final_download_stops_when_its_budget_runs_out`);
    - the dpkg phase is capped (`test_dpkg_phase_stays_bounded_on_the_final_attempt`);
-   - `timeout-minutes: 80` covers steps whose job has no timeout, and the 20-minute job timeout covers `test-postgis` (`test_install_steps_are_bounded_above_the_slowest_evidenced_install`).
+   - every install step has a step timeout above the script's worst case for its limits: 80 minutes where the job has no timeout, 15 minutes in `test-postgis`, inside its 20-minute job (`test_install_steps_are_bounded_above_the_slowest_evidenced_install`, `test_test_postgis_limits_fit_its_job_with_room_for_the_tests`).
 4. Paper Tiger. Severity: P2. The mirror rewrite misses a sources layout. Mitigation: every `apt-mirrors.txt`, `sources.list`, `sources.list.d/*.list` and `*.sources` naming the primary host is rewritten, with a warning when none does. Covered by `test_stalled_primary_mirror_falls_back_on_the_retry` and `test_retry_without_a_primary_mirror_source_warns`.
 5. Paper Tiger. Severity: P2. Concurrent jobs race to save the same key. Mitigation: `actions/cache/save` logs a reservation conflict as a warning; the first save wins.
 6. Paper Tiger. Severity: P2. A future job adds raw `apt-get` or calls the script directly and bypasses the cache. Mitigation: `test_no_workflow_step_runs_apt_get_or_the_script_directly` checks every workflow.
@@ -60,7 +60,7 @@ Chosen: (a) for the final attempt, combined with a wall-clock cap on the first a
 ## Peer review (Junior: shelves, gates)
 - Shelves: separate slow from stalled using the transport's own data timeout; fall back to another mirror; cache downloads rather than raising budgets; behavioural tests with stubs over a real `timeout`.
 - Gate 1 (syntax): `bash -n` and `shellcheck` on `scripts/ci_apt_install.sh` are clean. `yaml.safe_load` parses the workflows and the action in the guard tests, and the action's key step runs under bash in `test_cache_key_follows_the_image_and_the_package_set`. flake8 on the new test is clean at the CI limit of 127 characters. `actionlint` is not installed locally.
-- Gate 2 (tests): `tests/test_1871_ci_apt_install.py` gives 19 passed; with the changelog tests, 44 passed.
+- Gate 2 (tests): `tests/test_1871_ci_apt_install.py` gives 21 passed; with the changelog tests, 46 passed.
 - Gate 3 (guards): `scripts/check_test_file_hygiene.py` passes.
 
 ## Lead review (adversarial)
@@ -89,6 +89,7 @@ Phase B verification: stubs drive the real script through each case.
 | F3 | P2 | No package cache | `.deb` cache through `actions/cache` |
 | F4 | P1 | Final attempt unbounded against a trickle; six-hour job default (CodeRabbit 4498224208) | 45-minute final network budget; 80-minute step timeout where no job timeout applies |
 | F5 | P2 | Test assertions depended on capped stubs starting within the cap (CodeRabbit 4498224221) | logging and decisions moved to the uncapped `sudo` stub |
+| F6 | P1 | `test-postgis` install bounded only by its 20-minute job timeout, so a slow mirror cancels the job (CodeRabbit 4499528288) | shorter limits (worst case 851 s) under a 15-minute step timeout |
 
 ## Ticket-fitness exemption
 
@@ -105,9 +106,9 @@ writing-rules:4 exemption for the governing ticket.
 
 ## Test plan / Quantified claims
 Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11); GNU `timeout` from coreutils; macOS `/bin/bash` 3.2 runs the script in the tests, and CI runs bash 5.
-- `python -m pytest tests/test_1871_ci_apt_install.py`: 16 passed at 7a972cbd (twice in a row, about 50 s each); 17 passed after the cache scope round; 19 passed after the CodeRabbit round.
+- `python -m pytest tests/test_1871_ci_apt_install.py`: 16 passed at 7a972cbd (twice in a row, about 50 s each); 17 passed after the cache scope round; 19 passed after the CodeRabbit round; 21 after the test-postgis round.
 - Against the 2e61f1fc script and `ci.yml`: 11 failed and 5 passed. The five that pass cover behaviour the old script shares (usage error, no staging on failure, capped dpkg phase) plus the two action-file checks.
-- Adding `tests/test_release_process.py tests/test_user_config_export_changelog.py`: 41 passed at 7a972cbd; 42 after the cache scope round; 44 after the CodeRabbit round.
+- Adding `tests/test_release_process.py tests/test_user_config_export_changelog.py`: 41 passed at 7a972cbd; 42 after the cache scope round; 44 after the CodeRabbit round; 46 after the test-postgis round.
 
 ## Review round on 682d5069 (hub finding: interrupted dpkg)
 Finding: if `timeout` stops `apt-get install` during the dpkg unpack/configure phase, dpkg is left interrupted. The retry then fails at once with "dpkg was interrupted, you must manually run 'sudo dpkg --configure -a'" or on the dpkg lock.
@@ -195,6 +196,39 @@ Fix:
 - **Remaining timing, and why it is safe:** a stub that is not told to hang or run slow must exit within its cap (5 s network, 6 s dpkg). Measured locally, a whole non-hanging scenario (`test_successful_install_uses_bounded_apt_options`, six Python process starts, a `sudo` and an `apt-get` stub per call, plus bash) takes 0.71 s, about 0.12 s per start, so the caps are about 40 times the per-process cost. The earlier flake came from a 1 s cap combined with logging inside the capped process. Both are gone.
 
 Red: with the 6c500ea5 script and `ci.yml`, 4 failed and 15 passed (the two final-budget tests, the defaults check and the step-timeout guard). After the fix, 19 passed.
+
+## CodeRabbit round on e4679b66 (comment 4499528288)
+**Bound the apt install step in `test-postgis`.** Valid. With the default limits the script's bounded worst case is 4391 s, but `test-postgis` has a 20-minute (1200 s) job timeout and no step timeout. A slow but live final download would therefore run until GitHub cancels the job. That cancels the required check and dequeues the merge group with no step failure and no script message.
+
+Evidence (`test-postgis`, all exited 0):
+
+| Run | Before install (s) | Install (s) | After install (s) | Not install (s) |
+|---|---|---|---|---|
+| 42327200169 | 27 | 19 | 109 | 136 |
+| 42302877291 | 29 | 22 | 127 | 156 |
+| develop 42112634904 | 26 | 22 | 109 | 135 |
+| develop 42007861238 | 27 | 43 | 154 | **181** |
+
+Healthy phases elsewhere:
+- a cold 72 MB download took 38 s;
+- the dpkg phase took 13 to 22 s;
+- the fallback mirror delivered 67.8 MB in 23 s.
+
+Fix:
+- The action takes optional `attempt-timeout`, `final-network-timeout` and `dpkg-timeout` inputs, passed to the script as `APT_ATTEMPT_TIMEOUT`, `APT_FINAL_NETWORK_TIMEOUT` and `APT_DPKG_TIMEOUT`. Blank inputs keep the script defaults (`${VAR:-default}`), so the other four jobs are unchanged.
+- `test-postgis`:
+  - step: `timeout-minutes: 15` (900 s), leaving 300 s of the 1200 s job for the other steps, 1.66 times the longest seen (181 s);
+  - limits: attempt 60 s (cold download 38 s), dpkg 60 s (13 to 22 s), final network 240 s (the fallback needed 23 s for 67.8 MB);
+  - worst case: 2 x (60 + 30) + (60 + 30) + (60 + 30) + 10 + 240 + 1 + 2 x 30 + 2 x (60 + 30) = 851 s, under 900 s.
+  - A trickling mirror therefore ends this step with the script's own message, and the job reports a step failure, not a cancellation.
+- `test-postgis` cannot finish a 72 MB download at about 40 KB/s within 20 minutes under any limits. The `.deb` cache is what makes that job fast: it hit the cache in runs 42302877291 and 42313335868.
+- Tests:
+  - `test_install_steps_are_bounded_above_the_slowest_evidenced_install` now requires, for every install step: script worst case (for that step's limits) < step timeout. Where the job has a timeout, the step must also leave at least 1.5 times 181 s; otherwise the step keeps the default limits and stays under 360 minutes.
+  - `test_test_postgis_limits_fit_its_job_with_room_for_the_tests` pins 851 s < 900 s < 1200 s, plus each limit against its evidence.
+  - `test_blank_limits_from_the_action_keep_the_script_defaults` runs the script with blank values and asserts the default caps.
+  - The action test asserts the input-to-variable wiring.
+
+Red: with the e4679b66 `ci.yml` and action, 3 failed and 1 passed. The blank-limits test passes on both, because the script already treated blanks as unset; it pins that guarantee for the action. After the fix, 21 passed.
 
 ## Rework ledger
 - During the first red check, a blocked command left the new `ci.yml` unstaged, so the restore reverted it to develop's version. The edit was re-applied and verified (five script calls, no `apt-get`) before the red check was repeated correctly. Nothing was committed in between.

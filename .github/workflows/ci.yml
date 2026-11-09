@@ -352,11 +352,17 @@ jobs:
 
     - name: Install system geospatial libraries
       # Cached .deb archives, a fallback mirror on retry and a bounded final
-      # download (#1871). No step timeout here: this job's 20-minute timeout
-      # is tighter than the script's own bounded worst case.
+      # download (#1871). Sized to this job's 20 minutes: the shorter limits
+      # bound the script at 851 s, under the 15-minute step, which leaves 5
+      # minutes for the other steps (they have taken at most 181 s), so a slow
+      # mirror fails this step cleanly instead of cancelling the job.
+      timeout-minutes: 15
       uses: ./.github/actions/apt-install
       with:
         packages: gdal-bin libgdal-dev libgeos-dev libproj-dev
+        attempt-timeout: "60"
+        final-network-timeout: "240"
+        dpkg-timeout: "60"
 
     - name: Install UV
       run: |

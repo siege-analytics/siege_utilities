@@ -7,6 +7,20 @@ inputs:
   packages:
     description: Space-separated Ubuntu package names.
     required: true
+  # Optional limits, in seconds, for jobs whose own timeout is tighter than the
+  # script's default worst case (about 73 minutes). Blank keeps the defaults.
+  attempt-timeout:
+    description: Wall-clock cap for each network phase before the final attempt (default 120).
+    required: false
+    default: ""
+  final-network-timeout:
+    description: Shared wall-clock budget for the final attempt's network phases (default 2700).
+    required: false
+    default: ""
+  dpkg-timeout:
+    description: Cap for installing from the downloaded files, the dpkg repair and autoclean (default 300).
+    required: false
+    default: ""
 runs:
   using: composite
   steps:
@@ -44,6 +58,10 @@ runs:
       env:
         PACKAGES: ${{ inputs.packages }}
         APT_ARCHIVE_CACHE_DIR: ${{ runner.temp }}/ci-apt-archives
+        # Blank values fall back to the script defaults (${VAR:-default}).
+        APT_ATTEMPT_TIMEOUT: ${{ inputs.attempt-timeout }}
+        APT_FINAL_NETWORK_TIMEOUT: ${{ inputs.final-network-timeout }}
+        APT_DPKG_TIMEOUT: ${{ inputs.dpkg-timeout }}
       run: |
         # shellcheck disable=SC2086  # one argument per package
         "${GITHUB_WORKSPACE}/scripts/ci_apt_install.sh" ${PACKAGES}

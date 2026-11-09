@@ -67,14 +67,33 @@ DEFAULTS = {
     "APT_RETRY_DELAY": 10,
 }
 KILL_AFTER = 30
-WORST_CASE_SECONDS = (
-    2 * (DEFAULTS["APT_ATTEMPT_TIMEOUT"] + KILL_AFTER) + DEFAULTS["APT_DPKG_TIMEOUT"] + KILL_AFTER
-    + DEFAULTS["APT_DPKG_TIMEOUT"] + KILL_AFTER + DEFAULTS["APT_RETRY_DELAY"]
-    + DEFAULTS["APT_FINAL_NETWORK_TIMEOUT"] + 1 + 2 * KILL_AFTER
-    + 2 * (DEFAULTS["APT_DPKG_TIMEOUT"] + KILL_AFTER)
+
+
+def worst_case_seconds(attempt: int, final_network: int, dpkg: int) -> int:
+    """The script's bounded worst case with two attempts and a 10 s retry delay."""
+    return (
+        2 * (attempt + KILL_AFTER) + dpkg + KILL_AFTER       # attempt 1: update, download, dpkg phase
+        + dpkg + KILL_AFTER + DEFAULTS["APT_RETRY_DELAY"]     # dpkg repair, retry delay
+        + final_network + 1 + 2 * KILL_AFTER                  # final network budget, 1 s floor
+        + 2 * (dpkg + KILL_AFTER)                             # final dpkg phase, autoclean
+    )
+
+
+WORST_CASE_SECONDS = worst_case_seconds(
+    DEFAULTS["APT_ATTEMPT_TIMEOUT"], DEFAULTS["APT_FINAL_NETWORK_TIMEOUT"], DEFAULTS["APT_DPKG_TIMEOUT"],
 )
 # Develop run 42112634904: the test (3.11) install step took 38m36s and exited 0.
 SLOWEST_EVIDENCED_INSTALL_SECONDS = 38 * 60 + 36
+# test-postgis steps other than the install, longest seen (develop run
+# 42007861238: 27 s before it and 154 s after it). A job with its own timeout
+# must leave at least 1.5 times this after the install step's timeout.
+SLOWEST_TEST_POSTGIS_OTHER_STEPS_SECONDS = 27 + 154
+# Action input -> script variable, for steps that size the limits to their job.
+LIMIT_INPUTS = {
+    "attempt-timeout": "APT_ATTEMPT_TIMEOUT",
+    "final-network-timeout": "APT_FINAL_NETWORK_TIMEOUT",
+    "dpkg-timeout": "APT_DPKG_TIMEOUT",
+}
 # /etc/apt/apt-mirrors.txt as actions/runner-images writes it (144 bytes).
 RUNNER_MIRRORS = (
     "http://azure.archive.ubuntu.com/ubuntu/\tpriority:1\n"
@@ -277,6 +296,19 @@ def test_successful_install_uses_bounded_apt_options(tmp_path: Path) -> None:
     assert "succeeded on attempt 1" in result.stdout
     # Without a cache directory nothing is staged for saving.
     assert runner.output.read_text(encoding="utf-8") == ""
+
+
+def test_blank_limits_from_the_action_keep_the_script_defaults(tmp_path: Path) -> None:
+    # The action passes unset inputs as empty strings.
+    runner = Runner(tmp_path)
+    result = runner.run(
+        *PACKAGES, use_cache=False, APT_ATTEMPT_TIMEOUT="", APT_FINAL_NETWORK_TIMEOUT="", APT_DPKG_TIMEOUT="",
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert [call["cap"] for call in runner.calls] == [
+        DEFAULTS["APT_ATTEMPT_TIMEOUT"], DEFAULTS["APT_ATTEMPT_TIMEOUT"], DEFAULTS["APT_DPKG_TIMEOUT"],
+    ]
 
 
 def test_cache_hit_installs_without_downloading(tmp_path: Path) -> None:
@@ -483,6 +515,15 @@ def test_no_workflow_step_runs_apt_get_or_the_script_directly() -> None:
     assert direct == [], f"install packages through {ACTION_REF} so the .deb cache applies: {direct}"
 
 
+def _step_limits(step: dict[str, Any]) -> dict[str, int]:
+    """The script limits a workflow step runs with: its inputs, else the defaults."""
+    inputs = step.get("with") or {}
+    return {
+        variable: int(inputs.get(name) or DEFAULTS[variable])
+        for name, variable in LIMIT_INPUTS.items()
+    }
+
+
 def test_install_steps_are_bounded_above_the_slowest_evidenced_install() -> None:
     install_steps = [
         (f"{workflow}:{job_name}", job, step)
@@ -492,21 +533,49 @@ def test_install_steps_are_bounded_above_the_slowest_evidenced_install() -> None
     assert len(install_steps) == 5, [where for where, _, _ in install_steps]
     for where, job, step in install_steps:
         assert step["with"]["packages"].split() == PACKAGES, where
+        limits = _step_limits(step)
+        worst_case = worst_case_seconds(
+            limits["APT_ATTEMPT_TIMEOUT"], limits["APT_FINAL_NETWORK_TIMEOUT"], limits["APT_DPKG_TIMEOUT"],
+        )
+        # Every install step has its own timeout above the script's bounded
+        # worst case for the limits it runs with, so the script reports first.
+        step_timeout = step.get("timeout-minutes")
+        assert isinstance(step_timeout, int), f"{where}: install step needs timeout-minutes"
+        assert worst_case < step_timeout * 60, f"{where}: worst case {worst_case} s exceeds the step timeout"
         job_timeout = job.get("timeout-minutes")
         if job_timeout is not None:
-            # A tighter job timeout (test-postgis, 20 min) already bounds the
-            # step; a step timeout there would only cut the final attempt.
-            assert job_timeout * 60 < WORST_CASE_SECONDS, where
-            assert "timeout-minutes" not in step, f"{where}: the job timeout already bounds this step"
+            # A job with its own timeout (test-postgis, 20 min) must end the
+            # install step cleanly and keep room for the remaining steps, so a
+            # slow mirror is a step failure, not a job cancellation.
+            spare = (job_timeout - step_timeout) * 60
+            assert spare >= 1.5 * SLOWEST_TEST_POSTGIS_OTHER_STEPS_SECONDS, f"{where}: {spare} s left for other steps"
         else:
-            # Without one, the 6-hour default would apply. The step timeout
-            # sits above the script's own bounded worst case (so the script
-            # reports first), which is itself above the slowest install that
-            # exited 0.
-            step_timeout = step.get("timeout-minutes")
-            assert isinstance(step_timeout, int), f"{where}: install step needs timeout-minutes"
-            assert step_timeout * 60 > WORST_CASE_SECONDS > SLOWEST_EVIDENCED_INSTALL_SECONDS, where
+            # Without one, the 6-hour default would apply. These steps keep the
+            # default limits, whose final budget alone exceeds the slowest
+            # install that exited 0.
+            assert limits == {variable: DEFAULTS[variable] for variable in LIMIT_INPUTS.values()}, where
+            assert worst_case > SLOWEST_EVIDENCED_INSTALL_SECONDS, where
             assert step_timeout < 360, where
+
+
+def test_test_postgis_limits_fit_its_job_with_room_for_the_tests() -> None:
+    ci = yaml.safe_load((WORKFLOWS / "ci.yml").read_text(encoding="utf-8"))
+    job = ci["jobs"]["test-postgis"]
+    step = next(step for step in job["steps"] if step.get("uses") == ACTION_REF)
+    limits = _step_limits(step)
+    worst_case = worst_case_seconds(
+        limits["APT_ATTEMPT_TIMEOUT"], limits["APT_FINAL_NETWORK_TIMEOUT"], limits["APT_DPKG_TIMEOUT"],
+    )
+    # script worst case < step timeout < job timeout, with room for the rest.
+    assert worst_case == 851
+    assert worst_case < step["timeout-minutes"] * 60 < job["timeout-minutes"] * 60
+    assert (job["timeout-minutes"] - step["timeout-minutes"]) * 60 >= 1.5 * SLOWEST_TEST_POSTGIS_OTHER_STEPS_SECONDS
+    # Each tighter limit still covers what a healthy run takes: a cold 72 MB
+    # download took 38 s, the dpkg phase 13 to 22 s, and the fallback mirror
+    # delivered 67.8 MB in 23 s.
+    assert limits["APT_ATTEMPT_TIMEOUT"] > 38
+    assert limits["APT_DPKG_TIMEOUT"] > 22
+    assert limits["APT_FINAL_NETWORK_TIMEOUT"] > 38
 
 
 def test_apt_action_restores_installs_then_saves_the_archive() -> None:
@@ -520,6 +589,12 @@ def test_apt_action_restores_installs_then_saves_the_archive() -> None:
     assert restore["with"]["key"] == save["with"]["key"] == "${{ steps.key.outputs.key }}"
     assert restore["with"]["restore-keys"] == "${{ steps.key.outputs.prefix }}"
     assert "scripts/ci_apt_install.sh" in install["run"]
+    # Each optional limit input reaches the script as its variable, blank by
+    # default so the script's own default applies.
+    action = yaml.safe_load(ACTION.read_text(encoding="utf-8"))
+    for name, variable in LIMIT_INPUTS.items():
+        assert install["env"][variable] == "${{ inputs." + name + " }}", name
+        assert action["inputs"][name]["default"] == "", name
     assert save["if"] == (
         "steps.restore.outputs.cache-hit != 'true'"
         " && steps.install.outputs.cache-ready == 'true'"

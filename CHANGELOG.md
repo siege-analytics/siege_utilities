@@ -330,9 +330,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     install seen to finish (38 minutes on `develop`), so a slow but live
     download completes and a trickle cannot hold the runner. The install from
     the downloaded files stays bounded.
-  - Install steps without a tighter job timeout have an 80-minute step
-    timeout, above the script's own bounded worst case. Job timeouts are
-    unchanged.
+  - Every install step has a step timeout above the script's own bounded
+    worst case: 80 minutes where the job has no timeout, and 15 minutes in
+    `test-postgis`, whose install uses shorter limits (worst case 851 seconds)
+    so a slow mirror fails the step and leaves 5 minutes of the 20-minute job
+    instead of cancelling it. Job timeouts are unchanged.
 
 ### BREAKING
 
