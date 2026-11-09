@@ -140,7 +140,9 @@ def test_instagram_insights_follow_paging_and_combine_metrics(monkeypatch, insta
     )
 
     assert [url for url, _ in calls] == [f"{BASE_URL}/1/insights", next_page, last_page]
-    assert result["date"].tolist() == ["2026-01-01", "2026-01-02"]
+    # end_time marks the end of the measured day, so rows carry the covered
+    # day, one day before the marker (#1444).
+    assert result["date"].tolist() == ["2025-12-31", "2026-01-01"]
     assert result["reach"].tolist() == [1, 2]
     assert result.iloc[1]["impressions"] == 3
 
@@ -177,7 +179,8 @@ def test_instagram_insights_chunk_90_days_and_page_each_chunk(monkeypatch, insta
     assert chunks[0]["since"] == int(datetime(2026, 1, 1, tzinfo=timezone.utc).timestamp())
     assert chunks[-1]["until"] == int(datetime(2026, 3, 31, 23, 59, 59, tzinfo=timezone.utc).timestamp())
     assert all(right["since"] == left["until"] + 1 for left, right in zip(chunks, chunks[1:]))
-    assert result["date"].tolist() == ["2026-01-01", "2026-01-31", "2026-03-02"]
+    # Covered-day labels: one day before each end_time marker (#1444).
+    assert result["date"].tolist() == ["2025-12-31", "2026-01-30", "2026-03-01"]
     assert result["reach"].tolist() == [10, 10, 10]
     assert result["impressions"].tolist() == [20, 20, 20]
 
