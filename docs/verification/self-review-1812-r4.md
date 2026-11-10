@@ -92,7 +92,7 @@ the cap); at this head all 4 pass (1,372 schedules checked).
 ## Deviation from R-1812-4 (b)
 
 R-1812-4 (b) asked for the baseline *outputs* to be committed as a frozen
-fixture. This PR deliberately freezes the baseline *sources* instead (the
+fixture. This PR freezes the baseline *sources* instead (the
 three `d329eef7` modules, byte-identical, pinned by git blob id in
 `BASELINE_BLOBS` and by `test_frozen_baseline_matches_the_reviewed_commit`).
 Reason: the audit compares dtypes exactly, and output dtypes depend on the
@@ -388,7 +388,7 @@ oracle tests.
 
 ## Review threads at `006fc895` (6 threads)
 
-- **urllib3 DEBUG logging (Security, Major): fixed, not just documented.**
+- **urllib3 DEBUG logging (Security, Major): fixed in code, not only in documentation.**
   - urllib3 2.6.3 logs each request's path and query string at DEBUG: the
     request line, `Retry: <url>` and `Redirecting <url>`. The token exchange
     is a GET with `client_secret` and `fb_exchange_token` in that query, so
@@ -528,3 +528,61 @@ clean.
     the 1 throwaway preparation test;
   - against the pre-fix `instagram.py` from `006fc895`, the native test
     still fails on the leaked `client_secret` in urllib3's own request line.
+
+## X budget checked before every attempt (#1835)
+
+At `5f973138`, `XTwitterConnector._request` checked `_check_budget()` once,
+before the retry loop. The new 429 retry, and the existing 5xx retry, could
+therefore send another request after the estimated cost had reached
+`budget_limit`.
+
+Fix: the existing `_check_budget()` policy now runs at the top of every
+attempt inside the retry loop. There is no new billing rule and no change to
+the other connectors. A transport failure still adds no estimated cost, so
+its retry remains allowed within the cap.
+
+Tests (`tests/test_x_budget_enforced_per_attempt.py`) use only the public
+`authenticate()` -> `get_posts()` path, with `requests.Session.request` as the
+only stub. The budget is 0.010 and authentication costs 0.005.
+
+- `test_retry_stops_once_the_budget_is_reached[429]` and `[503]`: 2 calls,
+  cost 0.010, budget `SocialMediaError`. Red on the `5f973138` `x_twitter.py`
+  (did not raise: 3 calls, 0.015, success); green now.
+- Controls, passing on both:
+  - `test_zero_budget_sends_no_request`: 0 requests.
+  - `test_retry_succeeds_when_the_budget_allows_it[429]` and `[503]`: with
+    budget 1.0 the retry succeeds, 3 calls.
+  - `test_unbilled_transport_failure_may_retry_within_budget`: the retry
+    after an unbilled transport failure is allowed.
+- Red command (with `x_twitter.py` checked out from `5f973138`):
+  `python -m pytest tests/test_x_budget_enforced_per_attempt.py` gave 2
+  failed, 4 passed. Green command, the same at this commit: 6 passed.
+
+v4.0.0 probe: the same public path, with each version's `x_twitter.py`
+loaded from git.
+
+| case (budget 0.010 unless noted) | v4.0.0 | `5f973138` | this commit |
+|---|---|---|---|
+| auth, 429, 200 | 2 calls, 0.010, `SocialMediaRateLimitError` | 3 calls, 0.015, success | 2 calls, 0.010, budget error |
+| auth, 503, 200 | 3 calls, 0.015, success | 3 calls, 0.015, success | 2 calls, 0.010, budget error |
+| zero budget | 0 calls, budget error | 0 calls, budget error | 0 calls, budget error |
+| auth, 429, 200, budget 1.0 | 2 calls, `SocialMediaRateLimitError` | 3 calls, success | 3 calls, success |
+| auth, 503, 200, budget 1.0 | 3 calls, success | 3 calls, success | 3 calls, success |
+
+Classification:
+
+- The 503-at-the-cap case succeeded on v4.0.0 and now raises the budget
+  error. The 429-at-the-cap case raised `SocialMediaRateLimitError` on v4.0.0
+  and now raises the budget error.
+- Both change v4.0.0 caller behaviour, so the existing X BREAKING entry
+  (#1465) now states them with a Migration line (raise `budget_limit` or call
+  `reset_cost_tracking()`, and catch `SocialMediaError` for the budget stop).
+- The other cases are unchanged, or are the already-documented 429 retry.
+
+Also in this round:
+
+- The held causal-wording commit `b2b3c438` (the disabled urllib3 logger,
+  not the CRITICAL root; 4 committed tests plus 1 preparation test).
+- The adverb "deliberately" removed from the R-1812-4 (b) deviation note.
+- The native urllib3 cardinality, raw-args and filter-state tests are
+  untouched. So are the frozen baseline hashes and the second-merger patches.

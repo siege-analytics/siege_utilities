@@ -410,9 +410,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Request path identifiers are validated before percent-encoding: user/post
   IDs accept 1 to 19 ASCII digits and usernames accept 1 to 15 ASCII letters,
   digits or underscores. Invalid values raise `ValueError` before requests
-  (#1465). **Migration:** pass `user_context=True` with an OAuth user token to
-  keep non-public and organic metrics; pass `limit=None` for no limit; check
-  user IDs and usernames before calling.
+  (#1465). X checks `budget_limit` before every attempt, including retries:
+  once the estimated cost has reached the limit, a retry after a 5xx or 429 is
+  not sent and `SocialMediaError` ("API budget limit reached") is raised. In
+  v4.0.0 the cap was checked once per request, so a 5xx retry could still be
+  sent past the cap and succeed. A 429, which v4.0.0 never retried and raised
+  as `SocialMediaRateLimitError`, now raises the budget error when the cap is
+  reached before the retry. A transport failure adds no estimated cost, so
+  its retry is still allowed within the cap (#1835). **Migration:** pass
+  `user_context=True` with an OAuth user token to keep non-public and organic
+  metrics; pass `limit=None` for no limit; check user IDs and usernames before
+  calling; raise `budget_limit` or call `reset_cost_tracking()` where a retry
+  must be allowed to exceed the previous cap, and catch `SocialMediaError` for
+  the budget stop.
 - Social reports render missing platform metrics as `unavailable` instead of
   0. Totals sum known values and remain unknown when none are available.
   Comparisons, post rankings and chart data keep null values instead of

@@ -409,8 +409,12 @@ class XTwitterConnector:
         *,
         params: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Send an authenticated request to the X API v2."""
-        self._check_budget()
+        """Send an authenticated request to the X API v2.
+
+        The budget cap is checked before every attempt, including retries after
+        a 429, 5xx or transport error, so no request is sent once the estimated
+        cost has reached ``budget_limit``.
+        """
         url = f"{BASE_URL}/{path.lstrip('/')}"
         req_params = dict(params) if params else {}
         last_exc: BaseException | None = None
@@ -419,6 +423,7 @@ class XTwitterConnector:
         attempts_made = 0
 
         for attempt in range(1, self._retry_attempts + 1):
+            self._check_budget()
             attempts_made = attempt
             try:
                 resp = self._session.request(
