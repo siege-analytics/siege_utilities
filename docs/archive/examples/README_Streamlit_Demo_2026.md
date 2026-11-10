@@ -9,5 +9,4 @@ Current policy:
 
 For active examples, start with:
 - `siege_utilities/examples/enhanced_features_demo.py`
-- `siege_utilities/reporting/examples/comprehensive_mapping_example.py`
 - `siege_utilities/reporting/examples/bivariate_choropleth_example.py`
