@@ -1,8 +1,12 @@
-import geopandas as gpd,pandas as pd,pytest
-from shapely.geometry import Point
-from siege_utilities.engines.dataframe_engine import DuckDBEngine
+import pytest
 
+gpd=pytest.importorskip("geopandas")
 pytest.importorskip("duckdb")
+
+import pandas as pd  # noqa: E402 - after the optional-dependency skips
+from shapely.geometry import Point  # noqa: E402
+from siege_utilities.engines.dataframe_engine import DuckDBEngine  # noqa: E402
+
 META='siege_geometry_crs'
 @pytest.fixture
 def engine():

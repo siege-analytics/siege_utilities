@@ -7,6 +7,8 @@ the GeoSeries wins.
 import pytest
 
 pytest.importorskip("duckdb")
+# Every case converts at least one side with to_geodataframe.
+pytest.importorskip("geopandas")
 
 from siege_utilities.engines.dataframe_engine import DuckDBEngine
 

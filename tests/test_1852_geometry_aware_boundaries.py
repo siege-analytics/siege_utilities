@@ -25,7 +25,6 @@ def geo(crs,name='geometry',kind='point'):
 
 def epsg(value):return None if value is None else CRS.from_user_input(value).to_epsg()
 SNAPSHOTS=[]
-AUDIT={'cases':0,'frames':0}
 def saved(frame):
     state=frame.copy(deep=True),copy.deepcopy(frame.attrs)
     SNAPSHOTS.append((frame,state))
@@ -36,7 +35,6 @@ def all_captured_inputs_unchanged():
     SNAPSHOTS.clear()
     yield
     for frame,state in SNAPSHOTS:unchanged(frame,state)
-    AUDIT['cases']+=1;AUDIT['frames']+=len(SNAPSHOTS)
 
 def unchanged(frame,before):
     pd.testing.assert_frame_equal(frame,before[0]);assert frame.attrs==before[1]

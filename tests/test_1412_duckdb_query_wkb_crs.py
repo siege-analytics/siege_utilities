@@ -43,6 +43,20 @@ def test_parameterized_multi_statement_is_rejected_before_execution(engine):
     assert engine.query("SHOW TABLES").empty
 
 
+@pytest.mark.parametrize("keyword", ["table", "df"])
+def test_table_and_df_must_be_supplied_together(engine, keyword):
+    value = "source" if keyword == "table" else pd.DataFrame({"i": [1]})
+    with pytest.raises(ValueError, match="table and df must be supplied together"):
+        engine.query("CREATE TABLE should_not_exist(i INT)", **{keyword: value})
+    assert engine.query("SHOW TABLES").empty
+
+
+@pytest.mark.parametrize("sql", ["", "-- no statement"])
+def test_parameters_without_a_statement_are_rejected(engine, sql):
+    with pytest.raises(ValueError, match="single statement"):
+        engine.query(sql, parameters=[1])
+
+
 def test_query_rejects_two_parameter_arguments(engine):
     with pytest.raises(TypeError, match="parameters.*params"):
         engine.query("SELECT ?", parameters=[1], params=[2])
