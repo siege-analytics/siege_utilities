@@ -36,6 +36,8 @@ The new mapping uses `pandas.api.types` predicates instead of name matching:
 
 Timedelta stays `VARCHAR`, as in v4.0.0, because Snowflake has no `INTERVAL` column type. There is no claim of a native interval type or of a proven duration round-trip. The mapper only chooses the column type; it does not serialize values. Callers who need durations in a usable form serialize them before upload (for example `.dt.total_seconds()`) or pre-create the table and pass `auto_create_table=False`. How `write_pandas` loads durations is part of the deferred logical-type work (#1884).
 
+Datetime scope (claim qualification after review). The tested datetime families are pandas `DatetimeTZDtype`, which maps to `TIMESTAMP_TZ`, and naive NumPy `datetime64`, which maps to `TIMESTAMP_NTZ`. Arrow-backed timestamp dtypes are not recognised by either the v4.0.0 mapper or this one: `Series.convert_dtypes(dtype_backend="pyarrow")` gives `timestamp[<unit>, tz=UTC][pyarrow]` or `timestamp[<unit>][pyarrow]`, with the unit following the source column (`us` under pandas 3.0.5), and both fall back to `VARCHAR(16777216)`, checked at this head. This is an unchanged, unsupported shape, not a new regression. No native Arrow loading or round-trip is claimed. The mapper's code is unchanged by this qualification: only the docstring changed, and a hash of the function's AST without its docstring is identical before and after.
+
 | Dtype | v4.0.0 | Now | Test |
 |---|---|---|---|
 | `Int64`, `UInt8` (nullable) | `VARCHAR` | `NUMBER(38,0)` | `test_mapping_corrects_v400_misclassified_dtypes` |

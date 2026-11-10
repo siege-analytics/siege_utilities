@@ -382,14 +382,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   predicates instead of matching the dtype name (#1484):
   - Nullable `Int64`/`UInt8`-style integers now get `NUMBER(38,0)`, and
     nullable `Float64` gets `FLOAT`; v4.0.0 created `VARCHAR`.
-  - Timezone-aware datetimes now get `TIMESTAMP_TZ`; v4.0.0 created
-    `TIMESTAMP_NTZ`.
+  - Timezone-aware datetimes (pandas `DatetimeTZDtype`) now get
+    `TIMESTAMP_TZ`; v4.0.0 created `TIMESTAMP_NTZ`.
   - Categoricals take the type of their categories, so integer, float or
     datetime categories are no longer `VARCHAR`.
   - Interval dtypes now get `VARCHAR`; v4.0.0 created `NUMBER(38,0)`.
-  - NumPy integer, float, bool and naive datetime columns, nullable
+  - NumPy integer, float, bool and naive `datetime64` columns, nullable
     `boolean`, strings, objects, string categories, periods and timedeltas
-    keep their v4.0.0 types.
+    keep their v4.0.0 types. Arrow-backed timestamp dtypes (for example from
+    `convert_dtypes(dtype_backend="pyarrow")`) are not recognised and stay
+    `VARCHAR`, as in v4.0.0; no native Arrow loading or round-trip is claimed.
 
   Existing tables are not altered. Logical-type loading in `write_pandas`
   and restoring the session database/schema after a per-call override are

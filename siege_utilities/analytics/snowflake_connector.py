@@ -342,8 +342,12 @@ class SnowflakeConnector:
         * integers, signed or unsigned, including nullable ``Int64`` ->
           ``NUMBER(38,0)``;
         * floats, including nullable ``Float64`` -> ``FLOAT``;
-        * timezone-aware datetimes -> ``TIMESTAMP_TZ``, naive datetimes ->
-          ``TIMESTAMP_NTZ``;
+        * timezone-aware datetimes (pandas ``DatetimeTZDtype``) ->
+          ``TIMESTAMP_TZ``, naive NumPy ``datetime64`` -> ``TIMESTAMP_NTZ``.
+          These are the tested datetime families. Arrow-backed timestamp
+          dtypes (for example from ``convert_dtypes(dtype_backend="pyarrow")``)
+          are not recognised and fall back to ``VARCHAR(16777216)``, as in
+          v4.0.0; no native Arrow loading or round-trip is claimed;
         * categoricals -> the type of their categories (integer categories ->
           ``NUMBER(38,0)``, string categories -> ``VARCHAR``).
 
