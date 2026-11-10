@@ -31,7 +31,7 @@ Project-contribution: suppressed ACS cells become NaN in both sources, identifie
 - Shelves: SU-2 (the docstring now states which columns convert, which are preserved and where jam values are masked; the PR body's "intentional" claim is corrected against the #1403 wording); data trust: no silent change to the meaning of a value beyond the ticket.
 - Gate 1 (syntax/lint): flake8 on `api.py` is clean; the ratchet rule set on the test file is clean; `scripts/check_test_file_hygiene.py`: PASS.
 - Gate 2 (tests): census-related files (`test_geo_alignment`, `test_census_api_key_warning`, `test_census_api_integration`, `test_census_api_client`, `test_credential_url_guard`, `test_round5_class_hardening`, `test_final_hardening_consensus`, `test_credential_url_leak`, `test_review_fixes`, `test_census_cache_backend`, `test_summary_file_1385`, `test_dual_source_1375`) plus smoke/runtime-guard/SQL-safety, `--no-cov -p no:randomly`: 806 passed, 29 deselected. `test_census_cache_django_roundtrip.py` needs the database and was not run locally.
-- Gate 3 (docs): `_convert_numeric_columns` docstring; PR body CHANGELOG block.
+- Gate 3 (docs): `_convert_numeric_columns` docstring; the #1403 entry in `CHANGELOG.md` `[4.1.0]` `### BREAKING` (with Migration), mirrored exactly in the PR body block.
 - Notebook impact (SU-4a): `notebooks/archive/15_Census_Demographics_Integration.ipynb` fetches `acs5` variables, which stay numeric with masking. `notebooks/spatial/01_boundaries.ipynb` uses `CensusAPIClient`, a different module.
 
 ## Lead review (adversarial)
