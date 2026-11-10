@@ -59,6 +59,7 @@ a break may change colour in the no-mapclassify path, which is the intended fix.
 ## Rework ledger
 - 9b96ef2f/f384d3d0: prefix-sum cancellation and the BoundaryNorm edge mismatch. Both F1 and F2 are fixed in this round.
 - The 4.1.0 note is restored to CHANGELOG.md and covers both.
+- Pre-flight (2026-11-10). Develop sync: `7f6f0e6e` merges develop `71f02b0b` for a positional CHANGELOG conflict (the #1444 and #1455 Fixed entries). Both are kept, a diff against develop deletes 0 develop lines, and no merged develop behaviour disagrees with this PR. Classification follows the operator rule (2026-11-06): a change that alters v4.0.0 caller behaviour is BREAKING. On the v4.0.0 tag, the numpy path of `classify_series` uses `np.searchsorted(breaks[1:-1], clean, side="right")` and masks only `np.isnan`. The mapclassify path already used `side="left"`. So numpy-backend bins for values on an internal break move down one class, infinities move to bin `-1`, and natural breaks for clustered or outlier data change. The entry moves from 4.1.0 Fixed to BREAKING with a **Migration:** line scoped to the numpy backend. No code changed.
 
 ## Findings
 F1 and F2 fixed. No new findings.
