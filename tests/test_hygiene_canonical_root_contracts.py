@@ -35,7 +35,7 @@ def test_process_python_file_adds_missing_docstring(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     target = tmp_path / "needs.py"
     target.write_text("def undocumented(value):\n    return value + 1\n")
-    process_python_file(Path("needs.py"))
+    process_python_file(Path("needs.py"), dry_run=False)
     rewritten = target.read_text()
     assert '"""' in rewritten
     assert "Undocumented." in rewritten

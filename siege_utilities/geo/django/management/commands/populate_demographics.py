@@ -91,7 +91,10 @@ class Command(BaseCommand):
         parser.add_argument(
             "--update",
             action="store_true",
-            help="Update existing records instead of skipping",
+            help=(
+                "Overwrite variables existing snapshots already hold; without it, "
+                "new variables are still merged into existing snapshots"
+            ),
         )
         parser.add_argument(
             "--batch-size",

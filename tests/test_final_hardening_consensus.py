@@ -18,11 +18,13 @@ def test_slides_report_raises_when_a_figure_upload_fails(monkeypatch):
     monkeypatch.setattr(gs, "create_textbox", lambda *a, **k: None)
     monkeypatch.setattr(gs, "insert_image", lambda *a, **k: None)
 
-    def _boom(client, fig, name):
+    def _boom(client, fig, name, folder_id=None):
         raise RuntimeError("drive 500")
 
     # Keep create_argument_slide REAL so the figure-upload catch is exercised.
-    monkeypatch.setattr(gs, "upload_figure_to_drive", _boom)
+    # Since #1450 the slide path uploads through temporary_public_figure, which
+    # calls _upload_figure_file, so the upload failure is injected there.
+    monkeypatch.setattr(gs, "_upload_figure_file", _boom)
 
     argument = types.SimpleNamespace(
         layout="full_width", headline="Turnout map", narrative="N",
