@@ -1,8 +1,9 @@
 """Offline contracts for the dual-source Census framework (#1375)."""
 
 from dataclasses import FrozenInstanceError, dataclass
-from unittest.mock import Mock, call
+from unittest.mock import AsyncMock, Mock, call
 
+import httpx
 import pandas as pd
 import pytest
 from requests.exceptions import Timeout
@@ -69,10 +70,11 @@ def primary(frame):
 
 
 @pytest.fixture
-def secondary(frame):
+def secondary():
     return FakeSource(
         "bulk", Mock(return_value=(
-            frame.copy(), Provenance("bulk", "summary-file.csv", 1, False),
+            pd.DataFrame({"GEOID": ["01001", "01003"], "B01001_001E": [300, 400]}),
+            Provenance("bulk", "summary-file.csv", 1, False),
         )),
     )
 
@@ -133,7 +135,7 @@ def test_both_fail_reraises_last_error(
 
 
 @pytest.mark.parametrize("use_secondary", [False, True])
-def test_consistent_shape_and_provenance_on_every_return(
+def test_preserves_source_frame_and_provenance_on_every_return(
     primary, secondary, request_kwargs, use_secondary,
 ):
     if use_secondary:
@@ -287,18 +289,20 @@ def test_wrapped_transport_timeout_triggers_default_fallback(
 
 def test_bulk_source_propagates_transport_error(request_kwargs, monkeypatch):
     source: CensusDataSource = BulkFileSource()
-    error = Timeout("Summary File timeout")
-    monkeypatch.setattr("requests.get", Mock(side_effect=error))
+    error = httpx.ReadTimeout("Summary File timeout")
+    monkeypatch.setattr(httpx.AsyncClient, "send", AsyncMock(side_effect=error))
 
     assert source.name == "bulk"
     with pytest.raises(Timeout, match="Summary File timeout") as raised:
         source.fetch(**request_kwargs)
-    assert raised.value is error
+    assert str(raised.value) == str(error)
 
 
 def test_bulk_transport_error_propagates(primary, request_kwargs, monkeypatch):
     primary.fetch.side_effect = CensusRateLimitError("API exhausted")
-    monkeypatch.setattr("requests.get", Mock(side_effect=Timeout("Summary File timeout")))
+    monkeypatch.setattr(
+        httpx.AsyncClient, "send", AsyncMock(side_effect=httpx.ReadTimeout("Summary File timeout")),
+    )
 
     with pytest.raises(Timeout, match="Summary File timeout"):
         DualSourceCensusClient(primary, BulkFileSource()).fetch(

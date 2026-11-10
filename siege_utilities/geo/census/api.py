@@ -142,11 +142,16 @@ class CensusAPI:
             variables: Variable name(s) to fetch (resolved via VariableRegistry).
             year: Census data year.
             dataset: Census dataset identifier (e.g., 'acs5', 'dec/sf1').
-            geography: Geographic level (e.g., 'county', 'tract', 'zcta').
+            geography: Geographic level (e.g., 'nation', 'county', 'tract', 'zcta').
             state_fips: State FIPS filter (required for sub-state geographies).
             county_fips: County FIPS filter.
             include_moe: If True and dataset is ACS, append margin-of-error
                 variables. Silently ignored for non-ACS datasets.
+
+        Returns:
+            DataFrame with per-return retrieval metadata in
+            ``attrs['census_source']``: redacted origin URLs in ``location``,
+            a ``cache_hit`` boolean, and served cache paths/keys in ``cache_paths``.
         """
         # Resolve variables via registry
         var_list = self._registry.resolve_variables(variables)
@@ -162,13 +167,19 @@ class CensusAPI:
 
         # Check cache
         cache_key = self._generate_cache_key(var_list, year, dataset, geography, state_fips, county_fips)
+        url = self._build_url(var_list, year, dataset, geography, state_fips, county_fips)
         cached_df = self._get_from_cache(cache_key)
         if cached_df is not None:
+            cache_location = (
+                f"django:census_api:{cache_key}" if self.cache_backend == 'django'
+                else str(self.cache_dir / f"{cache_key}.parquet")
+            )
+            cached_df.attrs['census_source'] = {
+                'location': (redact_url_secrets(url),),
+                'cache_hit': True, 'cache_paths': (cache_location,),
+            }
             log.info(f"Returning cached data for {geography} ({len(cached_df)} rows)")
             return cached_df
-
-        # Build URL
-        url = self._build_url(var_list, year, dataset, geography, state_fips, county_fips)
 
         # Request with retry
         df = self._make_request_with_retry(url)
@@ -178,6 +189,12 @@ class CensusAPI:
 
         # Cache
         self._save_to_cache(cache_key, df)
+        # Metadata belongs to this return, not to mutable client-wide state or
+        # the cached frame. A later cache hit supplies its own retrieval origin.
+        df.attrs['census_source'] = {
+            'location': (redact_url_secrets(url),),
+            'cache_hit': False, 'cache_paths': (),
+        }
 
         log.info(f"Fetched {len(df)} rows of {geography}-level data for year {year}")
         return df
@@ -215,6 +232,7 @@ class CensusAPI:
             CensusRateLimitError, CensusAPIError,
         )
         last_exception = None
+        timeout_cause = None
 
         for attempt in range(CENSUS_RETRY_ATTEMPTS):
             try:
@@ -235,6 +253,7 @@ class CensusAPI:
                 return df
 
             except (CensusAPIError, requests.exceptions.RequestException, ValueError) as e:
+                timeout_cause = None
                 if isinstance(e, CensusRateLimitError):
                     log.warning(f"Rate limit hit, waiting {CENSUS_API_RATE_LIMIT_RETRY_DELAY}s...")
                     time.sleep(CENSUS_API_RATE_LIMIT_RETRY_DELAY)
@@ -246,6 +265,9 @@ class CensusAPI:
                     last_exception = CensusAPIError(
                         f"Census API request timed out after {attempt + 1} attempts"
                     )
+                    # Retain the timeout classification for dual-source fallback
+                    # without retaining a transport exception containing keys.
+                    timeout_cause = requests.exceptions.Timeout("Census API transport timed out")
                     time.sleep(2 ** attempt)
                 elif isinstance(e, requests.exceptions.RequestException):
                     log.warning(redact_url_secrets(f"Request failed: {e}"))
@@ -261,7 +283,7 @@ class CensusAPI:
                     raise
 
         if last_exception:
-            raise last_exception from None
+            raise last_exception from timeout_cause
         raise CensusAPIError("Census API request failed after all retries")
 
     # ------------------------------------------------------------------
@@ -289,7 +311,10 @@ class CensusAPI:
     @staticmethod
     def _construct_geoid(df: pd.DataFrame, geography: str) -> pd.DataFrame:
         df = df.copy()
-        if geography == 'state':
+        if geography == 'nation':
+            # Match the empty FIPS tail of Summary File 0100000US records.
+            df['GEOID'] = ''
+        elif geography == 'state':
             df['GEOID'] = df['state']
         elif geography == 'county':
             df['GEOID'] = df['state'] + df['county']
@@ -313,7 +338,7 @@ class CensusAPI:
                     f"'zip' or 'zcta' found in response columns {list(df.columns)}"
                 )
 
-        cols_to_drop = ['state', 'county', 'tract', 'block group', 'place']
+        cols_to_drop = ['us', 'state', 'county', 'tract', 'block group', 'place']
         cols_to_drop = [c for c in cols_to_drop if c in df.columns]
         df = df.drop(columns=cols_to_drop, errors='ignore')
 
@@ -372,13 +397,14 @@ class CensusAPI:
 
     def _parquet_cache_get(self, cache_key: str) -> Optional[pd.DataFrame]:
         cache_file = self.cache_dir / f"{cache_key}.parquet"
-        if not cache_file.exists():
-            return None
-
-        file_mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
-        if datetime.now() - file_mtime > timedelta(seconds=self.cache_ttl):
-            log.debug(f"Cache expired for {cache_key}")
-            cache_file.unlink()
+        try:
+            file_mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
+            if datetime.now() - file_mtime > timedelta(seconds=self.cache_ttl):
+                log.debug(f"Cache expired for {cache_key}")
+                cache_file.unlink(missing_ok=True)
+                return None
+        except FileNotFoundError:
+            # Another worker may remove the key before stat or during expiry.
             return None
 
         try:
