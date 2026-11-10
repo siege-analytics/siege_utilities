@@ -13,7 +13,7 @@ Base: additive commit on fix/engine-cluster @ `46f7b249`.
 |---|---|---|
 | 4478425316 | Spark projection keeps only the left geometry under right/outer joins | FIX: `_spatial_join_projection` takes `how` and rejects anything but `inner`/`left` before any temp view is registered; both callers pass `how`. `tests/test_1852_spark_join_types.py`. |
 | 4478425304 | Base operations relabel plain WKT instead of reprojecting it | FIX: base `_operation_frame` reads at the source CRS (plain WKT at EPSG:4326), then reprojects a known CRS or assigns an unknown one; used by base `dissolve`, `apportion` and `nearest`. Spark overrides it to assign, because Spark stores no source CRS. `tests/test_1852_plain_wkt_operations.py`. |
-| 4420609855 | Spark apportion `crs=` cannot reproject | KEEP assign semantics (operator ruling B), documented. v4.0.0 apportion had no `crs` and no projected-CRS requirement, and ran on Spark in the stored coordinates. 4.1.0 requires a projected measurement CRS, and a Spark frame without `crs` is labelled EPSG:4326, so passing `crs` is the only working path. Rejecting it would make every Spark apportion call raise. v4.0.0 `SparkEngine.to_geodataframe` already defines `crs` as assign ("pass the crs the coordinates are actually in"). The base `apportion` docstring and the CHANGELOG now state that on Spark `crs` declares the stored CRS and point to `read_spatial(crs=...)` or `to_pandas` plus `to_crs` for reprojection. `tests/test_1852_spark_apportion_crs.py`: with the declared projected CRS, Spark matches the pandas engine. No lon/lat-bounds heuristic (false positives on small projected extents). Left for the reviewer's explicit accept. |
+| 4420609855 | Spark apportion `crs=` cannot reproject | KEEP assign semantics (operator ruling B, refined by the reviewer on 2026-11-09), documented as a truthful shared contract. v4.0.0 apportion had no `crs` and no projected-CRS requirement, and ran on Spark in the stored coordinates. 4.1.0 requires a projected measurement CRS, and a Spark frame without `crs` is labelled EPSG:4326, so passing `crs` is the only working path; rejecting it would make every Spark apportion call raise. v4.0.0 `SparkEngine.to_geodataframe` already defines `crs` as assign ("pass the crs the coordinates are actually in"). The base `apportion` docstring no longer promises that `crs` reprojects both inputs. It states per input: a known CRS (GeoDataFrame, DuckDB WKB with an attrs CRS) is transformed; plain WKT on Pandas/DuckDB/PostGIS is read as EPSG:4326 and transformed; no-CRS geometry and every Spark frame are declared, not transformed, so the coordinates must already be in that projected CRS, and degrees must never be declared as projected. `dissolve` and `nearest` point to that contract. `tests/test_1852_spark_apportion_crs.py`: a declared projected CRS matches pandas (300/700) and keeps the stored coordinates (250/750); a declared EPSG:4326 and no declaration are refused; a no-CRS GeoDataFrame is refused without `crs` and declared with it. No lon/lat-bounds heuristic (false positives on small projected extents). Left for the reviewer's explicit accept. |
 | 4424699771 | `_column_crs` falls back to stale attrs for a live unknown GeoSeries | ADDRESSED in `f24ff5c8` (a real GeoSeries is authoritative even when its CRS is None). Added the requested outer-join regression `test_mixed_outer_live_unknown_geoseries_ignores_stale_known_attrs`. |
 | 4463189134 | No test for a plain DataFrame with a `crs` column in Spark `from_geodataframe` | FIX: `tests/test_1852_spark_from_geodataframe.py` (warning fires; the column stays data). |
 | 4420609863 | Type hints on four helpers | FIX: `_require_projected_crs`, `_boundary_column_names`, `_bind_spatial_if_needed`, `_spatial_join_projection`. |
@@ -32,6 +32,7 @@ Each behavioural fix was reverted in memory (a patched method, nothing on disk) 
 - `_column_crs` reverted to the attrs fallback: the new outer-join case fails (`DID NOT RAISE ValueError`); the other 11 pass.
 - `from_geodataframe` with attribute access in place of the `isinstance` check: the new test fails on the warning assertion.
 - Spark's `_operation_frame` override removed, so Spark falls back to the base read-then-reproject: `test_1852_spark_apportion_crs.py` fails (the stored metres are reprojected as degrees, and GEOS raises on NaN/Inf).
+- Refinement round: Spark `_operation_frame` patched to the base read-then-reproject: the 300/700 and 250/750 tests fail and the 3 rejection controls pass. `_require_projected_crs` patched to a no-op: the 3 rejection controls fail and the 2 valid cases pass.
 - `geopandas` made unimportable: `test_1852_geometry_aware_boundaries.py` reports 1 skipped instead of a collection error.
 
 ## CHANGELOG
@@ -39,6 +40,7 @@ Each behavioural fix was reverted in memory (a patched method, nothing on disk) 
 - The #1479 BREAKING entry now states that Spark `spatial_join` and `assign_boundaries` reject `right`/`outer`/`full`. v4.0.0 ran them (checked against the `v4.0.0` source), so this is BREAKING; the Migration line says to swap the inputs and use `how="left"`.
 - The #1497 BREAKING entry now says explicitly that v4.0.0 imposed no projected-CRS requirement on apportion or nearest (it measured in the EPSG:4326 frame `to_geodataframe` returned), so a v4.0.0 call with geographic input now raises on every engine; its Migration line already covers this.
 - The #1497 entry spells out that plain WKT is read at EPSG:4326 and reprojected to a requested `crs`, and that on Spark `crs` on `apportion` and `dissolve` declares the stored CRS (Spark `nearest` takes no `crs`). `crs` on dissolve, apportion and nearest is new in 4.1.0 (absent at `v4.0.0`), so this changes no v4.0.0 caller.
+- Refinement round: no new BREAKING classification. The #1497 Migration line now says that `crs=` transforms only known-CRS inputs (plain WKT included) and only declares on Spark frames and no-CRS geometry, and that a call without `crs` on Spark frames or plain WKT, which v4.0.0 ran on the stored coordinates (checked at the `v4.0.0` tag), now raises under the default EPSG:4326.
 
 ## Lead review
 
@@ -50,5 +52,7 @@ In software engineering: the library changes are confined to `siege_utilities/en
 
 | duckdb | result |
 |---|---|
-| 1.4.4 | 593 passed, 71 skipped |
-| 1.5.6 | 656 passed, 8 skipped |
+| 1.4.4 | 597 passed, 71 skipped |
+| 1.5.6 | 660 passed, 8 skipped |
+
+Counts are after the refinement round, which adds 4 tests to `test_1852_spark_apportion_crs.py` (593 and 656 passed before it).

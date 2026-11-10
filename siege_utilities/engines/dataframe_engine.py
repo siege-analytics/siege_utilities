@@ -408,7 +408,10 @@ class DataFrameEngine(ABC):
 
         Default converts to GeoDataFrame and uses ``gdf.dissolve()``.
         Engines may override for native performance.
-        Preserve the input CRS unless a target ``crs`` is supplied.
+        Preserve the input CRS unless a target ``crs`` is supplied; ``crs``
+        transforms or declares the input exactly as described in
+        :meth:`apportion` (on :class:`SparkEngine` it declares the stored
+        coordinates' CRS and never reprojects).
         """
         gdf = self._operation_frame(df, geometry_col, crs)
         return gdf.dissolve(by=by, **agg_kwargs).reset_index()
@@ -644,18 +647,31 @@ class DataFrameEngine(ABC):
         Default: intersect, compute area ratios via GeoPandas, aggregate.
         Engines may override for native area computation (Sedona ST_Area,
         PostGIS ST_Area, etc.).
-        Areas use the input's projected CRS. For geographic inputs, supply
-        a projected ``crs`` (preferably equal-area) to reproject both inputs.
-        Without a target CRS, inputs must have the same projected CRS.
-        The result is a table of target attributes and apportioned values.
+        Areas are measured in a projected CRS (preferably equal-area); a
+        geographic, unknown or mismatched measurement CRS raises
+        ``ValueError``.
 
-        On :class:`SparkEngine`, ``crs`` declares the CRS the stored
-        coordinates are already in and does not reproject: Spark stores no
-        source CRS, matching :meth:`SparkEngine.to_geodataframe`. Pass the
-        projected CRS the data were written in (for example the ``crs`` given
-        to ``read_spatial``). To reproject, read with
-        ``read_spatial(crs=<projected>)`` or convert with ``to_pandas`` and
-        ``to_crs`` first.
+        What ``crs`` does depends on what the input carries:
+
+        * Geometry with a known CRS (a GeoDataFrame, or DuckDB WKB with a
+          CRS in pandas attrs) is transformed to ``crs``.
+        * Plain WKT text on the Pandas, DuckDB and PostGIS engines is read
+          as EPSG:4326 lon/lat and transformed to ``crs``.
+        * Geometry with no CRS (a GeoDataFrame whose CRS is None, or DuckDB
+          WKB without attrs metadata) and every :class:`SparkEngine` frame,
+          since Spark stores no source CRS, are not transformed: ``crs``
+          declares the CRS the coordinates are already in, matching
+          :meth:`SparkEngine.to_geodataframe`. Nothing is inferred, so the
+          coordinates must already be in that projected CRS. Never declare
+          lon/lat degrees as projected: reproject upstream, for example with
+          ``read_spatial(crs=<projected>)``, or with
+          ``to_geodataframe(crs=<actual CRS>)`` then ``to_crs`` and the
+          Pandas engine.
+
+        Without ``crs``, both inputs must already share one projected CRS.
+        Spark frames and plain WKT are taken as EPSG:4326 and no-CRS
+        geometry stays unknown, so calling without ``crs`` on them raises.
+        The result is a table of target attributes and apportioned values.
         """
         import geopandas as gpd
 
@@ -709,9 +725,10 @@ class DataFrameEngine(ABC):
         Engines should override for native spatial indexing (Sedona KNN,
         PostGIS ST_DWithin + ORDER BY distance, DuckDB spatial) and k>1.
         Distances and ``max_distance`` use the input's projected CRS units.
-        Preserve that CRS unless a target ``crs`` is supplied to reproject
-        both inputs. Geographic or unknown CRS inputs require a projected CRS;
-        different input CRSes require a shared target CRS.
+        Preserve that CRS unless a target ``crs`` is supplied; ``crs``
+        transforms or declares each input exactly as described in
+        :meth:`apportion`. Geographic or unknown CRS inputs require a
+        projected CRS; different input CRSes require a shared target CRS.
 
         Raises
         ------

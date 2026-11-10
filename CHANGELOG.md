@@ -347,7 +347,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **Migration:** pass `crs="EPSG:4326"` to
   `to_geodataframe` for the previous output CRS; give nearest and apportion
   inputs in one projected CRS, or pass a projected `crs=`, and read distances
-  in that CRS's units.
+  in that CRS's units. `crs=` transforms only inputs whose CRS is known
+  (including plain WKT, read as EPSG:4326); on `SparkEngine` frames and
+  no-CRS geometry it declares the CRS the stored coordinates are already in
+  and does not reproject, so never declare lon/lat degrees as projected. A
+  call without `crs` on Spark frames or plain WKT, which v4.0.0 ran on the
+  stored coordinates, now raises under the default EPSG:4326: reproject
+  upstream (for example `read_spatial(crs=<projected>)`), or pass the
+  projected CRS the stored coordinates are truly in.
 - Spark spatial joins and boundary assignments keep one left geometry and
   suffix shared attributes with `_left`/`_right`, matching the join invariant
   and nearest contract; in v4.0.0 the join returned every left and right
