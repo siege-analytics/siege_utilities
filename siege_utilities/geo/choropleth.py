@@ -700,10 +700,16 @@ def create_bivariate_companion_maps(
     edgecolor: str = 'black',
     linewidth: float = 0.3,
 ) -> Tuple[matplotlib.figure.Figure, np.ndarray]:
-    """Create two side-by-side monovariate choropleths using the same quantile bins.
+    """Create two side-by-side monovariate quantile choropleths.
 
     Useful as companion maps alongside a bivariate choropleth to let readers
-    see each variable independently with the same classification.
+    see each variable independently. Each map is classified independently by
+    ``create_choropleth(scheme='quantiles', k=n_classes)`` (mapclassify when
+    installed, otherwise ``classify_series``), not by the ``pandas.qcut``
+    classes used by the bivariate map, crosstab and verification, so the
+    bins are not guaranteed to match. For example, with a tied minimum
+    (``[0] * 6 + [1, 2, 3, 4]``, ``n_classes=3``) the bivariate classes have
+    two bins while the companion map, classified by mapclassify, has three.
 
     Args:
         gdf: GeoDataFrame with geometry and two numeric columns.
@@ -881,7 +887,9 @@ def create_bivariate_analysis(
 
     Ties may reduce the map, legend, and crosstab dimensions. The reduced
     grid preserves the palette endpoints, while verification reports the
-    reduced class count as an error.
+    reduced class count as an error. The companion maps classify each
+    variable independently (see ``create_bivariate_companion_maps``), so
+    with ties their bins can differ from the bivariate map and crosstab.
 
     Args:
         gdf: GeoDataFrame with geometry and two numeric columns.

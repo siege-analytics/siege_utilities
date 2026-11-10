@@ -331,7 +331,13 @@ class MapChartMixin:
 
     @staticmethod
     def _bivariate_matrix_levels(values: 'pd.Series', column: str) -> 'np.ndarray':
-        """Map quantile classes after ties onto the 3 matrix levels, low to high."""
+        """Map quantile classes after ties onto the 3 matrix levels, low to high.
+
+        ``values`` must be NaN-free: ``pd.qcut`` gives NaN codes for NaN
+        inputs, and the integer cast below cannot represent them.
+        ``_apply_bivariate_colors`` passes only rows where both variables
+        are present.
+        """
         codes, edges = pd.qcut(values, 3, labels=False, duplicates='drop', retbins=True)
         class_count = len(edges) - 1
         if class_count < 2:

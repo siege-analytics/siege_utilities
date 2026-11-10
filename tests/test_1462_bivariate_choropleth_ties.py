@@ -137,6 +137,44 @@ def test_degenerate_axes_report_clear_errors(values, count, render_artifact):
     assert set(plt.get_fignums()) <= figs_before
 
 
+def test_missing_values_stay_unclassified_with_tied_data():
+    tied = [0, 0, 0, 0, 0, 0, 1, 2, 3, 4]
+    gdf = gpd.GeoDataFrame(
+        {
+            'a': tied + [np.nan, 1.0],
+            'b': list(range(10)) + [3.0, np.nan],
+        },
+        geometry=[box(i, 0, i + 1, 1) for i in range(12)],
+        crs='EPSG:3857',
+    )
+
+    classified, x_breaks, y_breaks = _compute_bivariate_classes(gdf, 'a', 'b', 3)
+    x_count, y_count = len(x_breaks) - 1, len(y_breaks) - 1
+    assert x_count == 2  # the tie still reduces the var1 axis
+    # A row missing either value has no combined class.
+    assert classified['_bivar_class'].iloc[-2:].isna().all()
+    # Complete rows keep the row-major index on the reduced grid.
+    complete = classified.iloc[:10]
+    np.testing.assert_array_equal(
+        complete['_bivar_class'],
+        complete['_var1_class'] + complete['_var2_class'] * x_count,
+    )
+    assert complete['_bivar_class'].iloc[-1] == x_count * y_count - 1
+
+    result = verify_bivariate_classification(gdf, 'a', 'b', n_classes=3)
+    assert result['classified_units'] == 10
+    assert 'Unclassified units: 2 of 12' in result['errors']
+    assert result['crosstab'].to_numpy().sum() == 10
+
+    fig, (map_ax, _) = create_bivariate_choropleth(gdf, 'a', 'b', n_classes=3)
+    fig.canvas.draw()
+    facecolors = map_ax.collections[0].get_facecolors()
+    assert len(facecolors) == 10
+    np.testing.assert_allclose(
+        facecolors[-1], to_rgba(BIVARIATE_COLOR_SCHEMES['purple_blue'][-1]),
+    )
+
+
 def test_verification_reports_unpopulated_bins():
     gdf = gpd.GeoDataFrame({'a': [0, 1], 'b': [0, 1]})
     result = verify_bivariate_classification(gdf, 'a', 'b', n_classes=3)

@@ -87,6 +87,20 @@ def test_constant_axis_raises_value_error(engine, constant):
         engine._apply_bivariate_colors(gdf, 'a', 'b', matrix)
 
 
+@pytest.mark.parametrize('single', ['a', 'b'])
+def test_single_class_axis_raises_value_error(engine, single):
+    # Ties that leave exactly one class are below the 2-class minimum too;
+    # the all-constant case above leaves zero.
+    matrix = engine._create_bivariate_color_matrix('default')
+    gdf = pd.DataFrame({
+        'a': [0] * 9 + [1] if single == 'a' else list(range(10)),
+        'b': [0] * 9 + [1] if single == 'b' else list(range(10)),
+    })
+
+    with pytest.raises(ValueError, match=f"'{single}': ties leave 1 of 3 requested classes"):
+        engine._apply_bivariate_colors(gdf, 'a', 'b', matrix)
+
+
 def _tied_geodataframe(var1):
     gpd = pytest.importorskip('geopandas')
     pytest.importorskip('reportlab')
