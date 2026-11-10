@@ -13,10 +13,12 @@ no CDC, no conflict resolution beyond dedup.
 
 from __future__ import annotations
 
+import copy
 import json
 import math
 import threading
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
+from dataclasses import fields as _dataclass_fields
 from datetime import date, datetime
 from collections.abc import Callable
 from typing import Any, Protocol, runtime_checkable
@@ -653,13 +655,23 @@ class UpsertResult:
     errors: list[UpsertError] = field(default_factory=list)
     # Connector-supplied value-aware redactor (#1846 D1 render-only). Applied
     # ONLY inside __repr__ over a copy; the stored id lists stay byte-identical.
-    # Excluded from equality and from the rendered repr itself.
-    redact: "Callable[[object], object] | None" = field(
-        default=None, repr=False, compare=False,
-    )
+    # An init-only argument kept as a private attribute, not a field, so
+    # equality, asdict and deepcopy never copy the bound connector it carries.
+    redact: InitVar["Callable[[object], object] | None"] = None
+
+    def __post_init__(self, redact: "Callable[[object], object] | None") -> None:
+        self._redact = redact
+
+    def __deepcopy__(self, memo: dict) -> "UpsertResult":
+        """Copy the result data deeply but share the redactor callable."""
+        clone = copy.copy(self)
+        memo[id(self)] = clone
+        for data_field in _dataclass_fields(self):
+            setattr(clone, data_field.name, copy.deepcopy(getattr(self, data_field.name), memo))
+        return clone
 
     def __repr__(self) -> str:
-        render = self.redact if self.redact is not None else (lambda value: redact_secrets(str(value)))
+        render = self._redact if self._redact is not None else (lambda value: redact_secrets(str(value)))
         created = [render(value) for value in self.created_ids]
         updated = [render(value) for value in self.updated_ids]
         return (

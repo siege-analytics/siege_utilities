@@ -30,7 +30,7 @@ from siege_utilities.connectors.salesforce import (
 
 
 @pytest.fixture(autouse=True)
-def no_retry_sleep(monkeypatch):
+def no_retry_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("time.sleep", lambda _: None)
 
 
@@ -268,7 +268,7 @@ def test_request_4xx_other_raises_connector_error_with_extracted_message(
     assert "MALFORMED_QUERY" in str(exc_info.value)
 
 
-def test_short_credential_suppresses_general_path_detail(monkeypatch):
+def test_short_credential_suppresses_general_path_detail(monkeypatch: pytest.MonkeyPatch) -> None:
     """#1846 R-1846 reversal. The hub's 10-20 ruling narrowed D3 to the auth
     path; R-1846 overrides it: D3 applies to ALL credential-bearing diagnostics.
     With a short configured credential (len < the value-redactor minimum) a

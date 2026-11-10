@@ -9,7 +9,7 @@ from unittest.mock import Mock
 import pytest
 
 from siege_utilities.connectors._protocol import _SECRET_COLLECTION_FAILED, _SecretRedactionMixin as M
-from tests.test_1417_crm_retry_idempotency import connector
+from tests.crm_connector_factories import connector
 
 PROVIDERS = ['salesforce', 'hubspot', 'zoho', 'dynamics']
 SHORT = 'Z7q9xA'

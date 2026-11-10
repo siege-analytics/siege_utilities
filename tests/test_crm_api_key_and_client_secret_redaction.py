@@ -1,7 +1,9 @@
-"""Independent security regressions. Synthetic values; every send is intercepted.
+"""CRM connectors hide API keys and configured client secrets.
 
-Adopted verbatim from the lively-thunder r2 hostile review of PR #1846
-(sessions/261019-lively-thunder/data/test_review_1846_b2_gaps.py). Reviewer-authored.
+An ``X-Api-Key`` header value echoed in a JSON or form-encoded error body, a
+client secret echoed by a token endpoint, and an ``api_key=`` value in an
+upsert error must all stay out of the raised error and the UpsertResult repr.
+Synthetic values; every send is intercepted.
 """
 import json
 from types import SimpleNamespace
@@ -9,14 +11,14 @@ from unittest.mock import Mock
 import pandas as pd
 import pytest
 from siege_utilities.connectors._protocol import ConnectorError
-from tests.test_1417_crm_retry_idempotency import connector, response, batch_response
+from tests.crm_connector_factories import connector, response, batch_response
 
 SENTINEL = 'REVIEW_SYNTHETIC_ONLY_c2f7a6'
 PROVIDERS = ['salesforce', 'hubspot', 'zoho', 'dynamics']
 
 @pytest.mark.parametrize('provider', PROVIDERS)
 @pytest.mark.parametrize('surface', ['api_key_json', 'api_key_form'])
-def test_api_key_diagnostics_absent(provider, surface):
+def test_api_key_diagnostics_absent(provider: str, surface: str) -> None:
     c = connector(provider)
     c._client_secret = None
     c._username = c._password = None
@@ -29,7 +31,7 @@ def test_api_key_diagnostics_absent(provider, surface):
     assert SENTINEL not in str(caught.value)
 
 @pytest.mark.parametrize('provider', PROVIDERS)
-def test_configured_client_secret_absent_after_extraction(provider):
+def test_configured_client_secret_absent_after_extraction(provider: str) -> None:
     c = connector(provider)
     c._client_secret = SENTINEL
     body = {'error': SENTINEL, 'error_description': SENTINEL, 'message': SENTINEL}
@@ -45,7 +47,7 @@ def test_configured_client_secret_absent_after_extraction(provider):
     assert SENTINEL not in str(caught.value)
 
 @pytest.mark.parametrize('provider', PROVIDERS)
-def test_public_upsert_result_api_key_absent(provider):
+def test_public_upsert_result_api_key_absent(provider: str) -> None:
     c = connector(provider)
     error = {'message': 'api_key='+SENTINEL, 'code': 'bad', 'statusCode': 'bad', 'category': 'bad'}
     if provider == 'dynamics':

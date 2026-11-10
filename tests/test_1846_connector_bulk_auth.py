@@ -7,7 +7,7 @@ import pytest
 import requests
 
 from siege_utilities.connectors._protocol import ConnectorAuthError, ConnectorError, ConnectorRateLimitError
-from tests.test_1417_crm_retry_idempotency import batch_response, connector, response
+from tests.crm_connector_factories import batch_response, connector, response
 
 
 def renewable(provider):

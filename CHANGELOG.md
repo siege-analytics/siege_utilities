@@ -369,7 +369,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lookup's `id`) instead of display names or missing IDs; in v4.0.0 `owner_id`
   could hold the owner's display name and a flattened account lookup gave no
   `account_id`. `CRMOpportunity` probability uses a documented 0-100
-  percentage scale: HubSpot's 0-1 fraction is multiplied by 100, while
+  percentage scale: HubSpot's 0-1 fraction is multiplied by 100 in decimal
+  arithmetic, so `0.29` becomes exactly `29.0`, while
   Salesforce, Zoho and Dynamics keep their percentage values. Dynamics requests
   formatted-value annotations on every page and uses the industry label when
   present; without a label, industry remains the option-set code as a string
@@ -744,7 +745,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CRM connectors redact sensitive URL, header, form and JSON values from
   exceptions, tracebacks, log records and upsert result representations, and
   keep raw transport exceptions out of displayed exception chains, including
-  Dynamics batch errors (#1846).
+  Dynamics batch errors. Redacted connector log records keep the real
+  caller's file, line and function, and a log template that does not match
+  its arguments logs a marked fallback instead of raising into the caller.
+  Quoted JSON secret redaction runs in linear time, so a long run of
+  backslashes in an error body cannot stall it. HubSpot and Zoho token
+  failures whose JSON body is not an object raise `ConnectorAuthError`
+  instead of `AttributeError` (#1846).
 - Credential files are written with mode 0600 before writing their payload,
   including existing files, with no write-then-chmod race. Missing parent
   directories are created with mode 0700. Profile defaults use per-user paths;

@@ -28,7 +28,7 @@ from siege_utilities.connectors.hubspot import HubSpotConnector
 
 
 @pytest.fixture(autouse=True)
-def no_retry_sleep(monkeypatch):
+def no_retry_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("time.sleep", lambda _: None)
 
 
@@ -367,7 +367,7 @@ def test_exchange_token_raises_on_non_200(monkeypatch):
         c._exchange_token("https://api.hubapi.com/oauth/v1/token", {"grant_type": "refresh_token"})
 
 
-def test_exchange_token_non_200_suppresses_body_with_short_credential(monkeypatch):
+def test_exchange_token_non_200_suppresses_body_with_short_credential(monkeypatch: pytest.MonkeyPatch) -> None:
     """#1846 B2 r4 D3 reversal. This test previously asserted the auth body
     fell back to ``resp.text[:200]`` with ``assert "Unavailable" in
     str(exc_info.value)``. D3 supersedes that on the auth/token path: the

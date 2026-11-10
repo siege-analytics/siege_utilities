@@ -1,6 +1,5 @@
 """Regression tests for safe CRM retries and batch outcomes (#1417)."""
 
-import json
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime
 from unittest.mock import Mock
@@ -12,39 +11,7 @@ import requests
 from siege_utilities.connectors._protocol import (
     ConnectorAuthError, ConnectorError, ConnectorRateLimitError,
 )
-from siege_utilities.connectors.dynamics import DynamicsConnector
-from siege_utilities.connectors.hubspot import HubSpotConnector
-from siege_utilities.connectors.salesforce import SalesforceConnector
-from siege_utilities.connectors.zoho import ZohoConnector
-
-
-def connector(provider):
-    if provider == "salesforce":
-        c = SalesforceConnector(client_id="id", client_secret="dummy-client-secret-1417")
-        c._instance_url = "https://salesforce.example.test"
-    elif provider == "hubspot":
-        c = HubSpotConnector(access_token="dummy-access-token-1417")
-    elif provider == "zoho":
-        c = ZohoConnector(client_id="id", client_secret="dummy-client-secret-1417")
-    else:
-        c = DynamicsConnector.__new__(DynamicsConnector)
-        c._environment_url = "https://dynamics.example.test"
-        c._session = requests.Session()
-        c._timeout = 30
-    c._authenticated = True
-    c._token_expires_at = None
-    c._access_token = "dummy-access-token-1417"
-    c._retry_attempts = 3
-    c._retry_backoff = 0
-    return c
-
-
-def response(status=200, body=None, headers=None):
-    resp = requests.Response()
-    resp.status_code = status
-    resp._content = json.dumps(body or {}).encode()
-    resp.headers.update(headers or {})
-    return resp
+from tests.crm_connector_factories import batch_response, connector, response
 
 
 @pytest.fixture(autouse=True)
@@ -125,27 +92,6 @@ def test_retry_after_values_remain_typed_rate_limit_errors(retry_after, sleep):
     else:
         assert sleep.call_count == 1
         assert 0 <= sleep.call_args.args[0] <= 30
-
-
-def batch_response(parts, *, nested=True):
-    body = ["--batch_response"]
-    if nested:
-        body += ["Content-Type: multipart/mixed; boundary=changeset_response", ""]
-    for i, (content_id, status, payload) in enumerate(parts):
-        if nested:
-            body.append("--changeset_response")
-        elif i:
-            body.append("--batch_response")
-        body += ["Content-Type: application/http", "Content-Transfer-Encoding: binary"]
-        if content_id is not None:
-            body.append(f"Content-ID: {content_id}")
-        body += ["", f"HTTP/1.1 {status} Result", "Content-Type: application/json", "", json.dumps(payload)]
-    if nested:
-        body.append("--changeset_response--")
-    body.append("--batch_response--")
-    resp = response(headers={"Content-Type": "multipart/mixed; boundary=batch_response"})
-    resp._content = "\r\n".join(body).encode()
-    return resp
 
 
 @pytest.mark.parametrize("nested", [True, False])

@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import pandas as pd
 import pytest,requests
 from siege_utilities.connectors._protocol import ConnectorError,_SECRET_COLLECTION_FAILED
-from tests.test_1417_crm_retry_idempotency import connector,response
+from tests.crm_connector_factories import connector,response
 LONG='DUMMYCONFIGUREDSECRET7a4c'
 SHORT='Z7q9xA'
 @pytest.fixture(autouse=True)

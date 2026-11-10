@@ -11,16 +11,20 @@ import pytest
 import requests
 
 from siege_utilities.connectors._http import request_raw
-from siege_utilities.connectors._protocol import ConnectorAuthError, ConnectorError
+from siege_utilities.connectors._protocol import (
+    ConnectorAuthError,
+    ConnectorError,
+    ConnectorRateLimitError,
+)
 
 
 class _Response:
-    def __init__(self, status_code, headers=None):
+    def __init__(self, status_code: int, headers: dict[str, str] | None = None) -> None:
         self.status_code = status_code
         self.headers = headers or {}
 
 
-def _connector(attempts=3):
+def _connector(attempts: int = 3) -> types.SimpleNamespace:
     # _retry_backoff / _max_retry_wait at 0 keep backoff_wait() -> 0.0 so the
     # retry loop never sleeps for real.
     return types.SimpleNamespace(
@@ -30,31 +34,38 @@ def _connector(attempts=3):
     )
 
 
-def test_request_raw_raises_connector_auth_error_on_401():
+def test_request_raw_raises_connector_auth_error_on_401() -> None:
     with pytest.raises(ConnectorAuthError):
         request_raw(_connector(), "GET", lambda: _Response(401), None)
 
 
-def test_request_raw_raises_connector_auth_error_on_403():
+def test_request_raw_raises_connector_auth_error_on_403() -> None:
     with pytest.raises(ConnectorAuthError):
         request_raw(_connector(), "POST", lambda: _Response(403), None)
 
 
-def test_request_raw_raises_connector_error_after_persistent_5xx():
+def test_request_raw_raises_connector_error_after_persistent_5xx() -> None:
     with pytest.raises(ConnectorError) as exc:
         request_raw(_connector(attempts=3), "GET", lambda: _Response(500), None)
     assert "after 3 attempts" in str(exc.value)
 
 
-def test_request_raw_raises_on_rate_limit_that_never_clears():
-    # 429 with no Retry-After: retries with zero backoff, then raises on the
-    # final attempt. ConnectorRateLimitError is a ConnectorError subclass.
-    with pytest.raises(ConnectorError):
-        request_raw(_connector(attempts=2), "GET", lambda: _Response(429, {}), None)
+def test_request_raw_raises_on_rate_limit_that_never_clears() -> None:
+    # 429 with no Retry-After: retries with zero backoff, then raises the typed
+    # rate-limit error on the final attempt, after exactly ``attempts`` sends.
+    sends: list[int] = []
+
+    def send() -> _Response:
+        sends.append(1)
+        return _Response(429, {})
+
+    with pytest.raises(ConnectorRateLimitError):
+        request_raw(_connector(attempts=2), "GET", send, None)
+    assert len(sends) == 2
 
 
-def test_request_raw_raises_connector_error_on_repeated_transport_errors():
-    def send():
+def test_request_raw_raises_connector_error_on_repeated_transport_errors() -> None:
+    def send() -> _Response:
         raise requests.ConnectionError("boom")
 
     with pytest.raises(ConnectorError):

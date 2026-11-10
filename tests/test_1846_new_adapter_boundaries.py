@@ -6,7 +6,7 @@ import pytest
 import requests
 from siege_utilities.connectors._protocol import ConnectorError, _SECRET_COLLECTION_FAILED
 from siege_utilities.connectors.salesforce import SalesforceConnector
-from tests.test_1417_crm_retry_idempotency import connector, response
+from tests.crm_connector_factories import connector, response
 
 LONG='REVIEW_ONLY_LONG_CONFIGURED_SECRET_7a4c'
 SHORT='Z7q!9xA'

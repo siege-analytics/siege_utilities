@@ -2,7 +2,7 @@
 
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 
 from siege_utilities.core._http import _MIN_SECRET_VALUE_LEN, redact_secrets
 from siege_utilities.connectors._protocol import (
@@ -48,9 +48,29 @@ class RedactingLogger(logging.LoggerAdapter):
             # the "suppressed" marker the test_1846_siblings oracle checks.
             message = _LOG_SUPPRESSED
         else:
-            rendered = template % args if args else template
-            message = redact_secrets(rendered, values=values)
+            message = redact_secrets(self._render(template, args), values=values)
+        # This frame sits outside the logging package, so the record's caller
+        # attribution (pathname/lineno/funcName) must skip it explicitly.
+        kwargs["stacklevel"] = kwargs.get("stacklevel", 1) + 1
         self.logger.log(level, message, **kwargs)
+
+    @staticmethod
+    def _render(template: str, args: tuple) -> str:
+        """Render ``template % args`` as logging does, without raising.
+
+        A mismatched template must not turn a log call into a caller-visible
+        exception (stdlib logging reports such errors through ``handleError``
+        and carries on). The fallback keeps the template, never the
+        unrendered arguments, and is still redacted by the caller.
+        """
+        if not args:
+            return template
+        # Same single-mapping rule as logging.LogRecord: log("%(k)s", {"k": v}).
+        values: object = args[0] if len(args) == 1 and isinstance(args[0], Mapping) and args[0] else args
+        try:
+            return template % values
+        except (TypeError, ValueError, KeyError):
+            return f"{template} [log arguments could not be formatted: {len(args)} given]"
 
     def _configured_values(self):
         """Return ``(values, usable)``. ``usable`` is False only when a bound

@@ -233,3 +233,72 @@ line-specific reason below; none is a reachable credential leak.
   disposition in the PR body.
 - This commit adds one Markdown file, so syntax, import and notebook gates are
   N/A.
+
+## Review-thread round (19 unresolved threads at 83217c36)
+
+No develop resync: the PR was MERGEABLE against develop 71f02b0b, and the
+brief merges develop only for a real conflict.
+
+Fixed in this commit (red at 83217c36, green here):
+
+- `RedactingLogger.log` passes `stacklevel + 1`, so records keep the real
+  caller's path, line and function. `_render` mirrors stdlib logging: a
+  single mapping argument formats `%(name)s` templates, and a mismatched
+  template logs the template plus a "could not be formatted" marker instead
+  of raising into the caller. The unrendered arguments are never emitted.
+  The new handler is allow-listed with its rationale.
+- HubSpot `hs_deal_stage_probability` scales in `Decimal`
+  (`float(Decimal(str(float(p))) * 100)`): `0.29` gives `29.0`, not
+  `28.999999999999996`. The inner `float()` keeps the existing `ValueError`
+  for non-numeric input.
+- `_QUOTED_SECRET` body is `(?:\\.|(?!(?P=quote))[^\\])*`, so a backslash
+  can only be consumed as an escape. 60 backslashes in an unterminated value
+  previously never returned (the subprocess control times out at 20 s); now
+  they return at once. Escaped quotes are still redacted in full.
+- HubSpot and Zoho token errors with a non-object JSON body (list, string,
+  number) raise `ConnectorAuthError`; before, `body.get` raised
+  `AttributeError`.
+- `UpsertResult.redact` is an `InitVar` kept as `_redact`, not a dataclass
+  field, so `fields()`, `asdict()`, equality and `deepcopy` never carry the
+  bound connector. `__deepcopy__` deep-copies the data and shares the
+  redactor. The 11 constructor call sites are unchanged.
+- The shared CRM factories moved to `tests/crm_connector_factories.py`
+  (typed; an unknown provider now raises instead of building Dynamics). The
+  14 importing suites were repointed. Three round-named files were renamed to
+  behaviour names, and their docstrings no longer name review rounds or
+  internal paths:
+  `test_crm_short_credential_and_result_redaction.py`,
+  `test_crm_configured_secret_echo_redaction.py`,
+  `test_crm_api_key_and_client_secret_redaction.py`. Network and sleep
+  controls stay local to each suite.
+- Test annotations were added on every function the threads named. The
+  `request_raw` rate-limit test now asserts `ConnectorRateLimitError` and
+  exactly two sends.
+
+Red control: the five source files were reverted to 83217c36 with the new
+tests kept, giving 19 failed and 4 passed. The 4 that passed are guards that
+must hold on both sides: escaped-quote redaction (2), probability `"1"`, and
+the non-numeric `ValueError`. The fixes were then restored.
+
+Already addressed (no change): the four CHANGELOG `SparkEngine.nearest`
+threads were raised against superseded text. The entry is now develop's own
+#1463 text (73b74f80), and its claims match
+`siege_utilities/engines/dataframe_engine.py`: `index_right` rejected (:1866),
+duplicate output names rejected (:1889), per-point row identity with no
+checkpoint (:1902-1904). `tests/test_1463_sparkengine_nearest_rowid.py`
+covers each claim. `docs/verification/crm-1846-r2.txt` was deleted at
+2be5861e.
+
+BREAKING classification: none of these changes alters working v4.0.0 caller
+code. The non-object token-error path crashed with `AttributeError` in
+v4.0.0. `RedactingLogger`, `_QUOTED_SECRET` and `UpsertResult.redact` do not
+exist in v4.0.0. HubSpot probability scaling is already under BREAKING
+(#1426); its entry now states the exact decimal result.
+
+Verification at this commit (Python 3.11.11): 37 #1846 test files plus
+`tests/guard` gave 2369 passed. The suite-wide sweep
+`-k "connector or crm or redact or secret or http or credential"`, excluding
+the two GeoDjango-only collection files, gave 4968 passed and 33 skipped. The
+exception-contract guard reports 0 unlisted and 0 stale. Credential-URL guard
+0; secret-literal and secret-repr guards 0; test-file hygiene PASS; ruff clean
+on the new and rewritten files.

@@ -109,7 +109,10 @@ _SECRET_FIELDS = (
 _QUOTED_SECRET = re.compile(
     r"(?P<prefix>(?<![\w-])(?P<key_quote>[\"'])"
     rf"(?:{_SECRET_HEADERS}|{_SECRET_FIELDS})(?P=key_quote)\s*:\s*)"
-    r"(?P<quote>[\"'])(?:\\.|(?!(?P=quote)).)*(?P=quote)",
+    # The body excludes a bare backslash, so an escape can only match via
+    # ``\\.`` -- one parse per input, no exponential backtracking on long
+    # runs of backslashes in an unterminated value.
+    r"(?P<quote>[\"'])(?:\\.|(?!(?P=quote))[^\\])*(?P=quote)",
     re.IGNORECASE | re.DOTALL,
 )
 _HEADER_SECRET = re.compile(

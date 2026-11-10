@@ -403,7 +403,13 @@ class HubSpotConnector(_SecretRedactionMixin):
                 stage=props.get("dealstage"),
                 amount=Decimal(str(amount)) if amount is not None else None,
                 close_date=close_date,
-                probability=float(probability) * 100 if probability is not None else None,
+                # Scale in Decimal: float(0.29) * 100 == 28.999999999999996. The
+                # inner float() keeps the ValueError for non-numeric input, and
+                # str() of a float is its shortest round-trip decimal ("0.29").
+                probability=(
+                    float(Decimal(str(float(probability))) * 100)
+                    if probability is not None else None
+                ),
                 owner_id=props.get("hubspot_owner_id"),
                 source_system="hubspot",
                 source_id=str(r.get("id", props.get("hs_object_id", ""))),
@@ -740,9 +746,9 @@ class HubSpotConnector(_SecretRedactionMixin):
         if resp.status_code != 200:
             try:
                 body = resp.json()
-                raw = body.get("message", resp.text)
             except ValueError:
-                raw = resp.text
+                body = None
+            raw = body.get("message", resp.text) if isinstance(body, dict) else resp.text
             detail = self._safe_upstream_detail(raw)
             raise ConnectorAuthError(
                 f"HubSpot auth failed ({resp.status_code})"

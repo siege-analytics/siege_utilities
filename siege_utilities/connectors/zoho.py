@@ -740,9 +740,9 @@ class ZohoConnector(_SecretRedactionMixin):
         if resp.status_code != 200:
             try:
                 body = resp.json()
-                raw = body.get("error", resp.text)
             except ValueError:
-                raw = resp.text
+                body = None
+            raw = body.get("error", resp.text) if isinstance(body, dict) else resp.text
             detail = self._safe_upstream_detail(raw)
             raise ConnectorAuthError(
                 f"Zoho auth failed ({resp.status_code})"

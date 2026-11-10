@@ -10,7 +10,7 @@ import pytest
 import requests
 
 from siege_utilities.connectors._protocol import ConnectorError, UpsertError, UpsertResult
-from tests.test_1417_crm_retry_idempotency import batch_response, connector, response
+from tests.crm_connector_factories import batch_response, connector, response
 
 
 SENTINEL = "crm-r2-secret-7e8b41"

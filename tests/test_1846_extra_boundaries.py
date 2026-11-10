@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 import requests
 from siege_utilities.connectors._protocol import ConnectorError
-from tests.test_1417_crm_retry_idempotency import connector, response
+from tests.crm_connector_factories import connector, response
 
 SECRET = 'HOSTILE_SYNTHETIC_ONLY_9a7f'
 

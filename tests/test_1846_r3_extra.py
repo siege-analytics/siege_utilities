@@ -8,7 +8,7 @@ import pytest
 import requests
 
 from siege_utilities.connectors._protocol import _SECRET_COLLECTION_FAILED
-from tests.test_1417_crm_retry_idempotency import connector
+from tests.crm_connector_factories import connector
 
 LEAK = "REVIEW_ONLY_LEAK_SENTINEL_LONG_9d4f"
 
