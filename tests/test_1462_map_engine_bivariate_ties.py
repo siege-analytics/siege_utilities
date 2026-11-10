@@ -112,6 +112,7 @@ def _tied_geodataframe(var1):
 
 
 def test_matplotlib_bivariate_map_renders_tied_data():
+    pytest.importorskip('reportlab', reason='install reportlab to run the bivariate image rendering test')
     from reportlab.platypus import Image
     from siege_utilities.reporting.chart_generator import ChartGenerator
 
