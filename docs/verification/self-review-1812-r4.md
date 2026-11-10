@@ -408,9 +408,12 @@ oracle tests.
       urllib3's HTTPS connection pool for the real
       `https://graph.facebook.com/v22.0/oauth/access_token` URL, with DEBUG
       enabled on `urllib3.connectionpool`. It captures urllib3's own records.
-    - Only the socket is redirected: the pool's `ConnectionCls` dials a local
-      plain-HTTP Graph stand-in. The stand-in confirms it received both
-      sentinel credentials in the query string.
+    - The real `HTTPSConnectionPool` and its native DEBUG logging run, but the
+      pool's `ConnectionCls` is replaced with a plain-HTTP `HTTPConnection` to
+      a local Graph stand-in. There is no TLS handshake: the test proves the
+      native DEBUG sink and its redaction, not TLS or provider acceptance.
+      The stand-in confirms it received both sentinel credentials in the
+      query string.
     - With the `006fc895` `instagram.py` (red), urllib3's own record from
       `connectionpool.py:544` contained
       `client_secret=SYNTHETIC_APP_SECRET_6d1e&fb_exchange_token=SYNTHETIC_LOGIN_TOKEN_93ab`.

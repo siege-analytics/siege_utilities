@@ -6,9 +6,11 @@ full path and query at DEBUG. These tests run the real call path:
 ``refresh_access_token`` -> ``requests`` -> urllib3's HTTPS connection pool,
 including urllib3's own ``log.debug`` calls, for the real
 ``https://graph.facebook.com/...`` URL. They capture the native
-``urllib3.connectionpool`` records. Only the socket is redirected: the pool's
-connection class dials a local plain-HTTP server instead of the network.
-Synthetic sentinel credentials; no external network.
+``urllib3.connectionpool`` records. The real ``HTTPSConnectionPool`` runs, but
+its ``ConnectionCls`` is replaced with a plain-HTTP ``HTTPConnection`` to a
+local Graph stand-in. There is no TLS handshake: these tests prove the native
+DEBUG sink and its redaction, not TLS or provider acceptance. Synthetic
+sentinel credentials; no external network.
 """
 from __future__ import annotations
 
