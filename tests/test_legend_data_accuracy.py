@@ -177,3 +177,96 @@ def test_advanced_choropleth_legend_shows_data_ranges(
     for value, facecolor in zip(values, facecolors):
         class_index = next(i for i, upper in enumerate(expected_edges[1:]) if value <= upper)
         np.testing.assert_allclose(facecolor, swatches[class_index])
+
+
+def _render_advanced_choropleth(monkeypatch, tmp_path, values, classification, bins):
+    import geopandas as gpd
+    from shapely.geometry import box
+
+    pytest.importorskip("reportlab.platypus")
+    from siege_utilities.reporting.chart_generator import ChartGenerator
+
+    geodata = gpd.GeoDataFrame(
+        {"geoid": range(len(values)), "value": values},
+        geometry=[box(i, 0, i + 0.8, 0.8) for i in range(len(values))],
+        crs="EPSG:3857",
+    )
+    generator = ChartGenerator(output_dir=tmp_path)
+    captured = []
+    convert = generator._matplotlib_to_reportlab_image
+
+    def capture_figure(fig, width, height):
+        captured.append(fig)
+        return convert(fig, width, height)
+
+    monkeypatch.setattr(generator, "_matplotlib_to_reportlab_image", capture_figure)
+    generator.create_advanced_choropleth(
+        geodata, geodata, "geoid", "value", classification=classification, bins=bins,
+    )
+    return captured[0].axes[0]
+
+
+def test_natural_breaks_uses_fisher_jenks_not_quantiles(map_engine, monkeypatch, tmp_path):
+    """#1535: natural_breaks was silently computed as quantiles."""
+    import pandas as pd
+    from siege_utilities.geo.classification import classify_series
+
+    values = [1, 2, 3, 4, 5, 6, 7, 8, 100, 200]
+    jenks = classify_series(values, "natural_breaks", k=3)
+    _, quantile_edges = pd.qcut(values, 3, labels=False, retbins=True)
+    assert not np.allclose(jenks.breaks, quantile_edges), "fixture must separate the two schemes"
+
+    ax = _render_advanced_choropleth(monkeypatch, tmp_path, values, "natural_breaks", bins=3)
+
+    labels = [text.get_text() for text in ax.get_legend().get_texts()]
+    bounds = [tuple(float(edge.replace(",", "")) for edge in label.split(" – ")) for label in labels]
+    np.testing.assert_allclose(bounds, list(zip(jenks.breaks[:-1], jenks.breaks[1:])))
+
+    # Polygons and legend come from the same classification.
+    swatches = [patch.get_facecolor() for patch in ax.get_legend().get_patches()]
+    facecolors = ax.collections[0].get_facecolors()
+    for class_index, facecolor in zip(jenks.bins, facecolors):
+        np.testing.assert_allclose(facecolor, swatches[class_index])
+
+
+def test_natural_breaks_leaves_missing_values_unclassified(map_engine, monkeypatch, tmp_path):
+    values = [1, 2, 3, float("nan"), 50, 51, 52, 100, 101, 102]
+
+    ax = _render_advanced_choropleth(monkeypatch, tmp_path, values, "natural_breaks", bins=3)
+
+    labels = [text.get_text() for text in ax.get_legend().get_texts()]
+    assert len(labels) == 3
+    assert not any("nan" in label.lower() for label in labels)
+
+
+@pytest.mark.parametrize("columns", ["pivot", "correlation"])
+def test_heatmap_does_not_center_sequential_colormap(monkeypatch, tmp_path, columns):
+    """#1535: center=0 with YlOrRd compressed all-positive data into half the ramp."""
+    import pandas as pd
+
+    pytest.importorskip("seaborn")
+    pytest.importorskip("reportlab.platypus")
+    from siege_utilities.reporting.chart_generator import ChartGenerator
+    from siege_utilities.reporting.engines import stats_engine
+
+    calls = []
+    real_heatmap = stats_engine.sns.heatmap
+
+    def spy(data, **kwargs):
+        calls.append(kwargs)
+        return real_heatmap(data, **kwargs)
+
+    monkeypatch.setattr(stats_engine.sns, "heatmap", spy)
+    data = pd.DataFrame({
+        "x": ["a", "a", "b", "b"], "y": ["p", "q", "p", "q"],
+        "count": [5, 12, 40, 75], "share": [0.1, 0.2, 0.6, 0.9],
+    })
+    generator = ChartGenerator(output_dir=tmp_path)
+    if columns == "pivot":
+        generator.create_heatmap(data, x_column="x", y_column="y", value_column="count")
+    else:
+        generator.create_heatmap(data[["count", "share"]])
+
+    assert len(calls) == 1
+    assert calls[0]["cmap"] == "YlOrRd"
+    assert "center" not in calls[0]

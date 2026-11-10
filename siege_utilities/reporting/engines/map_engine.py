@@ -422,10 +422,16 @@ class MapChartMixin:
                     merged[value_column], bins, labels=False, duplicates='drop', retbins=True,
                 )
             elif classification == "natural_breaks":
-                # Simple natural breaks using quantiles as approximation
-                classified, bin_edges = pd.qcut(
-                    merged[value_column], bins, labels=False, duplicates='drop', retbins=True,
+                # Real Fisher-Jenks breaks (numpy, or mapclassify when installed).
+                # Class indices and edges come from one result so the polygons
+                # and the legend agree; NaN inputs (bin -1) stay unclassified.
+                from siege_utilities.geo.classification import classify_series
+
+                result = classify_series(merged[value_column], "natural_breaks", k=bins)
+                classified = pd.Series(result.bins, index=merged.index, dtype=float).where(
+                    result.bins >= 0
                 )
+                bin_edges = np.asarray(result.breaks, dtype=float)
             else:
                 classified, bin_edges = pd.qcut(
                     merged[value_column], bins, labels=False, duplicates='drop', retbins=True,
