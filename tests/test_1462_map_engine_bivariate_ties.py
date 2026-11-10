@@ -103,7 +103,6 @@ def test_single_class_axis_raises_value_error(engine, single):
 
 def _tied_geodataframe(var1):
     gpd = pytest.importorskip('geopandas')
-    pytest.importorskip('reportlab')
     box = pytest.importorskip('shapely.geometry').box
     return gpd.GeoDataFrame(
         {'id': list(range(10)), 'a': var1, 'b': list(range(10))},
@@ -111,14 +110,23 @@ def _tied_geodataframe(var1):
     )
 
 
-def test_matplotlib_bivariate_map_renders_tied_data():
+def test_matplotlib_bivariate_map_renders_tied_data(monkeypatch):
     pytest.importorskip('reportlab', reason='install reportlab to run the bivariate image rendering test')
+    pytest.importorskip('seaborn')
     from reportlab.platypus import Image
     from siege_utilities.reporting.chart_generator import ChartGenerator
 
     gdf = _tied_geodataframe(TIED)
+    generator = ChartGenerator()
 
-    image = ChartGenerator().create_bivariate_choropleth_matplotlib(
+    def fail_on_placeholder(*args, **kwargs):
+        pytest.fail('the bivariate map fell back to _create_placeholder_chart instead of rendering')
+
+    # A placeholder is also a ReportLab Image, so the isinstance check alone
+    # cannot tell a rendered map from the fallback.
+    monkeypatch.setattr(generator, '_create_placeholder_chart', fail_on_placeholder)
+
+    image = generator.create_bivariate_choropleth_matplotlib(
         gdf, gdf, 'id', 'a', 'b',
     )
 
@@ -126,6 +134,7 @@ def test_matplotlib_bivariate_map_renders_tied_data():
 
 
 def test_matplotlib_bivariate_map_reports_constant_axis():
+    pytest.importorskip('seaborn')
     from siege_utilities.reporting.chart_generator import ChartGenerator
 
     gdf = _tied_geodataframe([7] * 10)

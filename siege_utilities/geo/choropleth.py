@@ -14,7 +14,7 @@ Functions:
     create_classified_comparison     -- Same variable, different classification schemes
     create_bivariate_choropleth      -- Two-variable bivariate map with legend
     create_bivariate_crosstab        -- Count table for actual bivariate bins
-    create_bivariate_companion_maps  -- Side-by-side monovariate maps with same bins
+    create_bivariate_companion_maps  -- Side-by-side monovariate maps classified per variable
     verify_bivariate_classification  -- Data-level verification of classification
     create_bivariate_analysis        -- Orchestrator returning all artifacts
     save_map                         -- Save figure to file with sensible defaults
