@@ -30,7 +30,7 @@ Project-contribution: PL GEOIDs, tables and labels are correct, and a state is f
 - Shelves: SU-1 (the missing segment raises instead of returning an empty frame); SU-2 (docstrings list the `ValueError` cases; 2010 is rejected with the error type the ticket names).
 - Gate 1 (syntax/lint): flake8 on the module and test file is clean; `scripts/check_test_file_hygiene.py`: PASS.
 - Gate 2 (tests): `tests/test_pl_downloader_parsing.py tests/test_pl_downloader.py tests/test_geo_census_files_pl_downloader_errors.py tests/test_geo_alignment.py tests/test_1539_1550_bulk_sites.py tests/test_atomic_write_failures.py tests/test_smoke.py tests/test_runtime_guard.py tests/test_sql_safety.py`, `--no-cov -p no:randomly`: 230 passed, 1 skipped.
-- Gate 3 (docs): `get_data` and `get_pl_data` docstrings; PR body CHANGELOG block.
+- Gate 3 (docs): `get_data` and `get_pl_data` docstrings; the #1488 entry in `CHANGELOG.md` `[4.1.0]` `### BREAKING` (with Migration), mirrored exactly in the PR body block.
 - Notebook impact (SU-4a): no notebook calls `get_pl_data`, `get_pl_tracts`, `get_pl_blocks` or `PLFileDownloader`.
 
 ## Lead review (adversarial)
