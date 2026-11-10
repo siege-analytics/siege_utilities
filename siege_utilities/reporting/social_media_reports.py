@@ -53,6 +53,26 @@ def _numeric_likes(posts: pd.DataFrame) -> pd.Series:
     return pd.to_numeric(posts.get("like_count", pd.Series(dtype=float)), errors="coerce")
 
 
+def _numeric_count(value: Any) -> int | float | None:
+    """An account count as a number; missing or unparseable counts become None.
+
+    Connectors may return counts as text (``"1200"``), so every report section
+    reads counts through this helper instead of the raw value.
+    """
+    number = pd.to_numeric(pd.Series([value], dtype=object), errors="coerce").iloc[0]
+    if pd.isna(number):
+        return None
+    return int(number) if float(number).is_integer() else float(number)
+
+
+def _followers(info: dict[str, Any]) -> int | float | None:
+    return _numeric_count(info.get("followers_count"))
+
+
+def _following(info: dict[str, Any]) -> int | float | None:
+    return _numeric_count(info.get("following_count", info.get("follows_count")))
+
+
 class SocialMediaReportGenerator:
     """Cross-platform social media report builder.
 
@@ -199,9 +219,7 @@ class SocialMediaReportGenerator:
         posts_limit: int = 50,
     ) -> str:
         platforms = [d["platform"] for d in platform_data]
-        total_followers = _known_sum(
-            d["account_info"].get("followers_count") for d in platform_data
-        )
+        total_followers = _known_sum(_followers(d["account_info"]) for d in platform_data)
         total_posts = sum(len(d["posts"]) for d in platform_data)
 
         return (
@@ -218,12 +236,12 @@ class SocialMediaReportGenerator:
     ) -> dict[str, Any]:
         metrics: dict[str, Any] = {}
 
-        total_followers = _known_sum(d["account_info"].get("followers_count") for d in platform_data)
+        total_followers = _known_sum(_followers(d["account_info"]) for d in platform_data)
         total_posts = 0
         for d in platform_data:
             info = d["account_info"]
             platform = d["platform"]
-            followers = info.get("followers_count")
+            followers = _followers(info)
 
             metrics[f"{platform} — Followers"] = {
                 "value": _format_metric(followers),
@@ -258,10 +276,7 @@ class SocialMediaReportGenerator:
 
         # Cross-platform followers comparison
         platforms = [d["platform"] for d in platform_data]
-        followers = [
-            d["account_info"].get("followers_count") for d in platform_data
-        ]
-        followers = [f if pd.notna(f) else None for f in followers]
+        followers = [_followers(d["account_info"]) for d in platform_data]
         if any(f is not None and f > 0 for f in followers):
             charts.append({
                 "type": "bar",
@@ -329,8 +344,8 @@ class SocialMediaReportGenerator:
             info = d["account_info"]
             comparison_data.append([
                 d["platform"].replace("_", " ").title(),
-                _format_metric(info.get("followers_count")),
-                _format_metric(info.get("following_count", info.get("follows_count"))),
+                _format_metric(_followers(info)),
+                _format_metric(_following(info)),
                 str(len(d["posts"])),
             ])
 
@@ -384,15 +399,15 @@ class SocialMediaReportGenerator:
     ) -> list[str]:
         insights: list[str] = []
 
-        known_audiences = [d for d in platform_data if pd.notna(d["account_info"].get("followers_count"))]
+        known_audiences = [
+            (d, followers) for d in platform_data
+            if (followers := _followers(d["account_info"])) is not None
+        ]
         if len(platform_data) > 1 and known_audiences:
-            best = max(
-                known_audiences,
-                key=lambda d: d["account_info"]["followers_count"],
-            )
+            best, best_followers = max(known_audiences, key=lambda pair: pair[1])
             insights.append(
                 f"{best['platform'].replace('_', ' ').title()} has the largest "
-                f"audience with {_format_metric(best['account_info']['followers_count'])} followers."
+                f"audience with {_format_metric(best_followers)} followers."
             )
 
         for d in platform_data:
@@ -410,13 +425,16 @@ class SocialMediaReportGenerator:
 
                     if known_likes.empty:
                         continue
-                    top_index = known_likes.idxmax()
-                    top = posts.loc[top_index]
+                    # Select by position: connector frames may repeat index
+                    # labels, and a label lookup would return several rows.
+                    likes_by_position = likes.reset_index(drop=True)
+                    top_position = likes_by_position.idxmax()
+                    top = posts.iloc[top_position]
                     text_preview = str(top.get("text", ""))[:60]
                     if text_preview:
                         insights.append(
                             f"Top performing {d['platform']} post among analyzed posts: "
-                            f'"{text_preview}…" with {int(likes.loc[top_index]):,} likes.'
+                            f'"{text_preview}…" with {int(likes_by_position.iloc[top_position]):,} likes.'
                         )
 
         return insights

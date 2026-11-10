@@ -251,3 +251,41 @@ def test_invalid_posts_limit_fails_before_retrieval(report, posts_limit):
 
     assert connector.mock_calls == []
     writer.assert_not_called()
+
+
+@pytest.mark.parametrize("text_count", ["1200", "1200.0"])
+def test_string_account_counts_are_normalized_in_every_section(report, text_count):
+    # CodeRabbit 4499070041: the protocol allows string counts. Numeric text
+    # counts as a number; unparseable text is unavailable, never a crash or 0.
+    generator, writer = report
+    connectors = [
+        FakeConnector("text", followers=text_count, following="34"),
+        FakeConnector("garbled", followers="not a number", following="n/a"),
+        FakeConnector("known", followers=5, following=7),
+    ]
+
+    generator.create_social_media_report(connectors, START, END)
+
+    payload = writer.call_args.args[0]
+    assert "1,205 total followers" in payload["executive_summary"]
+    assert payload["metrics"]["Total Followers (all platforms)"]["value"] == "1,205"
+    assert payload["metrics"]["text — Followers"]["value"] == "1,200"
+    assert payload["metrics"]["garbled — Followers"]["value"] == "unavailable"
+    assert payload["charts"][0]["data"]["datasets"][0]["data"] == [1200, None, 5]
+    assert [row[1:3] for row in payload["tables"][0]["data"]] == [
+        ["1,200", "34"], ["unavailable", "unavailable"], ["5", "7"],
+    ]
+    assert "Text has the largest audience with 1,200 followers." in payload["insights"]
+
+
+def test_top_post_is_selected_by_position_with_duplicate_index_labels(report):
+    # CodeRabbit 4499070047: a connector frame can repeat index labels; a label
+    # lookup then returns several rows and int() of them raises TypeError.
+    generator, writer = report
+    posts = pd.DataFrame({"text": ["first", "second"], "like_count": [1, 5]}, index=[0, 0])
+
+    generator.create_social_media_report([FakeConnector(posts=posts)], START, END)
+
+    insights = writer.call_args.args[0]["insights"]
+    assert any('"second…" with 5 likes' in line for line in insights)
+    assert any("Fakebook: average 3 likes per post" in line for line in insights)
