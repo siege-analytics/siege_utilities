@@ -27,6 +27,14 @@ Project-contribution: keeps the GeoDjango notebook, the notebook guide and the n
 - Scope: five changed files plus these documents; no library code changed.
 - Gate evidence: pytest -> 4 passed and 12 passed as above.
 
+## Pre-flight (develop 71f02b0b)
+
+Develop was merged additively. The only conflict was `CHANGELOG.md`; every develop line was kept. Develop wins on any disagreement, and none exists: no develop change touches `notebooks/spatial/`, `docs/NOTEBOOKS.md` or `tests/test_notebooks.py`.
+
+Classification: this PR changes a notebook, the notebook guide and tests only, so no caller code that worked on v4.0.0 behaves differently; it is not BREAKING and the entry stays under `### Fixed` in `[4.1.0]`, now at its own position in that list so the other open PRs do not conflict with it in the merge queue.
+
+Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_1671_geodjango_notebook_truth.py test_notebook_hygiene.py -k "1671 or geodjango" -q` -> 12 passed, 224 deselected in 1.80s. The notebook, guide and tests are unchanged since the red/green run in the Falsification entry below, which still applies to this head.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1671 (the #1398 epic is context only and is not a governing ticket).
