@@ -26,6 +26,14 @@ Project-contribution: keeps the GA end-to-end notebook and every reference to it
 - Scope: nine changed files listed above plus these documents; no library code changed.
 - Gate evidence: pytest -> 26 passed as above.
 
+## Pre-flight (develop 71f02b0b)
+
+Develop was merged additively. Two files conflicted: `CHANGELOG.md` (every develop line kept) and `notebooks/analytics/01_connectors.ipynb`, which develop rewrote in #1661 / #1780. Develop wins where it genuinely disagrees, so the notebook is develop's version with only the two cells this PR owns re-applied: the title cell's `analytics/02` bullet and the Related cell's `analytics/02` line. The disagreement is one phrase: develop's title cell calls `analytics/02` "a separate weekly PDF example; check its source labels before treating the result as live data", while `analytics/02` is an offline fixed-date demo and `test_inbound_references_describe_analytics_02_as_offline` forbids "weekly" and "live" on those lines. The bullet now says "an offline fixed-date GA fixture rendered into a branded PDF digest"; the rest of develop's cell is untouched. `git diff origin/develop --stat -- notebooks/analytics/01_connectors.ipynb` shows only those two cells changing (the Related cell moves from a list source to a string source, as in the previous head).
+
+Classification: this PR changes notebooks, a doc table and tests only, so no caller code that worked on v4.0.0 behaves differently; it is not BREAKING and its entry stays under `### Fixed` in `[4.1.0]`, now at its own position in that list so the other open PRs do not conflict with it in the merge queue.
+
+Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_1662_ga_notebook_truth.py test_1661_notebook_connector_truth.py -q` -> 53 passed, 3 warnings in 32.71s (26 from this PR plus develop's 27 for the same notebook, so the merged notebook satisfies both). The notebooks and library are otherwise unchanged since the red/green run in the Falsification entry below.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1662 (the #1398 epic is context only and is not a governing ticket).
