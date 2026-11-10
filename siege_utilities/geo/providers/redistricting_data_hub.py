@@ -31,6 +31,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import warnings
 import zipfile
 from dataclasses import dataclass, field
 from enum import Enum
@@ -1296,7 +1297,12 @@ def demographic_profile(
 
     Assigns each Census block/tract wholly to the district containing its
     representative (interior) point, then aggregates demographics per district.
-    Units whose interior point falls outside the plan are excluded.
+    A point on a shared district edge goes to the first matching district in
+    ``plan_gdf`` row order, so each unit is counted exactly once. Units whose
+    interior point falls outside every district are excluded, and a
+    ``UserWarning`` (also logged) reports how many were excluded and their
+    summed population per column. Every district in ``plan_gdf`` appears in
+    the result, with zeros where no unit is assigned.
 
     Parameters
     ----------
@@ -1311,7 +1317,8 @@ def demographic_profile(
 
     Returns
     -------
-    DataFrame with one row per district and summed demographic columns.
+    DataFrame with one row per district in ``plan_gdf`` and summed
+    demographic columns.
     """
     if not HAS_GEOPANDAS:
         raise ImportError("geopandas is required for spatial overlay")
@@ -1335,18 +1342,42 @@ def demographic_profile(
     if plan_gdf.crs != census_gdf.crs:
         census_gdf = census_gdf.to_crs(plan_gdf.crs)
 
-    # Assign straddling units once via their interior points, without dropping
-    # them with polygon 'within' or double-counting them with 'intersects'.
-    census_points = census_gdf.copy()
-    census_points["geometry"] = census_gdf.representative_point()
-    joined = gpd.sjoin(
-        census_points,
-        plan_gdf[[district_id_col, "geometry"]],
-        predicate="within",
+    # Assign each unit to exactly one district via its interior point. A point
+    # on a shared district edge intersects both districts, so keep the first
+    # matching plan row: the unit is neither dropped nor counted twice.
+    census_points = gpd.GeoDataFrame(
+        census_gdf[population_cols].copy(),
+        geometry=census_gdf.representative_point(),
+        crs=census_gdf.crs,
+    )
+    census_points["_unit_row"] = range(len(census_points))
+    plan_keys = plan_gdf[[district_id_col, "geometry"]].copy()
+    plan_keys["_plan_row"] = range(len(plan_keys))
+    joined = gpd.sjoin(census_points, plan_keys, predicate="intersects")
+    joined = joined.sort_values(["_unit_row", "_plan_row"]).drop_duplicates(
+        "_unit_row", keep="first"
     )
 
-    result = joined.groupby(district_id_col)[population_cols].sum().reset_index()
-    return result
+    unmatched = ~census_points["_unit_row"].isin(joined["_unit_row"])
+    if unmatched.any():
+        excluded = {
+            col: census_points.loc[unmatched, col].sum().item()
+            for col in population_cols
+        }
+        message = (
+            f"demographic_profile: {int(unmatched.sum())} census unit(s) have "
+            f"interior points outside every district and are excluded; "
+            f"excluded totals: {excluded}"
+        )
+        log.warning(message)
+        warnings.warn(message, UserWarning, stacklevel=2)
+
+    # Every plan district appears, with zeros where no unit is assigned.
+    districts = pd.unique(plan_gdf[district_id_col].dropna())
+    sums = joined.groupby(district_id_col)[population_cols].sum()
+    result = sums.reindex(districts, fill_value=0)
+    result.index.name = district_id_col
+    return result.reset_index()
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,7 @@
 """Regression tests for representative-point demographic assignment (#1562)."""
 
+import warnings
+
 import pandas as pd
 import pytest
 
@@ -45,7 +47,8 @@ def test_straddling_unit_assigned_once_to_interior_point_district(census_crs, co
     assert result["TOTPOP"].sum() == census["TOTPOP"].sum()
     assert result["VAP"].sum() == census["VAP"].sum()
     pd.testing.assert_frame_equal(
-        result, pd.DataFrame({"GEOID": ["A"], "TOTPOP": [400], "VAP": [320]})
+        result,
+        pd.DataFrame({"GEOID": ["A", "B"], "TOTPOP": [400, 0], "VAP": [320, 0]}),
     )
     assert_geodataframe_equal(census, original_census)
 
@@ -66,10 +69,82 @@ def test_units_with_interior_points_outside_plan_are_excluded():
     assert outside.intersects(plan.geometry.iloc[0])
     assert not outside.representative_point().within(plan.geometry.iloc[0])
 
-    result = demographic_profile(
-        plan, census, district_id_col="district", population_cols=["residents"]
-    )
+    with pytest.warns(UserWarning, match=r"1 census unit\(s\).*'residents': 300"):
+        result = demographic_profile(
+            plan, census, district_id_col="district", population_cols=["residents"]
+        )
 
     pd.testing.assert_frame_equal(
         result, pd.DataFrame({"district": ["A"], "residents": [100]})
+    )
+
+
+@pytest.mark.geo
+def test_issue_probe_conserves_input_population():
+    """#1562's exact probe: the straddling unit's interior point lies on the D1/D2 edge."""
+    plan = gpd.GeoDataFrame(
+        {"GEOID": ["D1", "D2"]},
+        geometry=[box(0, 0, 10, 10), box(10, 0, 20, 10)],
+        crs=5070,
+    )
+    census = gpd.GeoDataFrame(
+        {"TOTPOP": [100, 200, 300]},
+        geometry=[box(1, 1, 2, 2), box(11, 1, 12, 2), box(9, 1, 11, 2)],
+        crs=5070,
+    )
+    point = census.geometry.iloc[2].representative_point()
+    # The interior point sits exactly on the shared edge, within neither district.
+    assert point.wkt == "POINT (10 1.5)"
+    assert not point.within(plan.geometry.iloc[0])
+    assert not point.within(plan.geometry.iloc[1])
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        result = demographic_profile(plan, census)
+
+    # Conserved, counted once, and assigned to the first matching plan row.
+    pd.testing.assert_frame_equal(
+        result, pd.DataFrame({"GEOID": ["D1", "D2"], "TOTPOP": [400, 200]})
+    )
+
+
+@pytest.mark.geo
+def test_districts_without_units_appear_with_zeros():
+    plan = gpd.GeoDataFrame(
+        {"GEOID": ["D1", "D2", "D3"]},
+        geometry=[box(0, 0, 10, 10), box(10, 0, 20, 10), box(20, 0, 30, 10)],
+        crs=5070,
+    )
+    census = gpd.GeoDataFrame(
+        {"TOTPOP": [100, 200], "VAP": [70, 150]},
+        geometry=[box(1, 1, 2, 2), box(21, 1, 22, 2)],
+        crs=5070,
+    )
+
+    result = demographic_profile(plan, census)
+
+    pd.testing.assert_frame_equal(
+        result,
+        pd.DataFrame({"GEOID": ["D1", "D2", "D3"], "TOTPOP": [100, 0, 200], "VAP": [70, 0, 150]}),
+    )
+
+
+@pytest.mark.geo
+def test_census_layer_carrying_its_own_district_id_column():
+    """Census tracts usually carry GEOID; it must not collide with the plan's GEOID."""
+    plan = gpd.GeoDataFrame(
+        {"GEOID": ["D1", "D2"]},
+        geometry=[box(0, 0, 10, 10), box(10, 0, 20, 10)],
+        crs=5070,
+    )
+    census = gpd.GeoDataFrame(
+        {"GEOID": ["48001000100", "48001000200"], "TOTPOP": [100, 200]},
+        geometry=[box(1, 1, 2, 2), box(11, 1, 12, 2)],
+        crs=5070,
+    )
+
+    result = demographic_profile(plan, census)
+
+    pd.testing.assert_frame_equal(
+        result, pd.DataFrame({"GEOID": ["D1", "D2"], "TOTPOP": [100, 200]})
     )
