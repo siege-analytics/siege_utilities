@@ -50,6 +50,32 @@ def test_social_media_report_produces_pdf(tmp_path):
         assert expected in text
 
 
+def _embedded_image_count(path: Path) -> int:
+    """Count /Image XObjects across the pages of a PDF."""
+    count = 0
+    for page in PdfReader(path).pages:
+        resources = page.get("/Resources")
+        xobjects = resources.get_object().get("/XObject") if resources else None
+        if xobjects is None:
+            continue
+        count += sum(
+            1 for item in xobjects.get_object().values()
+            if item.get_object().get("/Subtype") == "/Image"
+        )
+    return count
+
+
+def test_chart_bearing_facade_pdf_embeds_an_image_and_a_chartless_one_does_not(tmp_path):
+    gen = AnalyticsReportGenerator("Acme", output_dir=tmp_path)
+    charted = gen.create_monthly_analytics_report({
+        "visits": 1234, "performance_score": 93,
+        "daily_data": {"dates": ["2026-01-01"], "values": [42]},
+    }, 2026, 1)
+    chartless = gen.create_website_performance_report({"load_time": 1.25}, ["load_time"])
+    assert _embedded_image_count(charted) >= 1, "chart-bearing PDF has no embedded image"
+    assert _embedded_image_count(chartless) == 0, "control: a chartless PDF must embed none"
+
+
 @pytest.mark.parametrize("report", ["google", "monthly", "quarterly", "campaign", "website"])
 def test_analytics_facade_produces_pdf(report, tmp_path):
     gen = AnalyticsReportGenerator("Acme", output_dir=tmp_path)

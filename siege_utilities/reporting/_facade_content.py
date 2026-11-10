@@ -9,16 +9,22 @@ from .report_generator import ReportGenerator
 
 __all__ = []
 
+_SUPPORTED_CHART_TYPES = ("bar", "line", "pie")
+
 
 def _chart_images(config: dict[str, Any], generator: ReportGenerator) -> list[Any]:
     """Render the bar, line and pie configurations collected by the facades."""
+    # Validate the type before the empty-labels shortcut so an unsupported
+    # configuration is reported even when it has nothing to draw.
+    kind = config["type"]
+    if kind not in _SUPPORTED_CHART_TYPES:
+        raise ValueError(f"Unsupported facade chart type: {kind}")
     data = config["data"]
     labels = data.get("labels", [])
     if not labels:
         return []
     charts = generator.chart_generator
     title = config.get("title", "")
-    kind = config["type"]
     if kind == "pie":
         return [charts.create_pie_chart(
             {"Label": labels, "Value": data["data"]},
@@ -35,14 +41,12 @@ def _chart_images(config: dict[str, Any], generator: ReportGenerator) -> list[An
             {"Label": labels, **columns}, x_column="Label",
             y_columns=list(columns), title=title,
         )] if datasets else []
-    if kind == "bar":
-        return [charts.create_bar_chart(
-            {"Label": labels, "Value": item["data"]},
-            x_column="Label", y_column="Value",
-            title=f"{title} - {item['label']}" if item.get("label") else title,
-            show_legend=False,
-        ) for item in datasets]
-    raise ValueError(f"Unsupported facade chart type: {kind}")
+    return [charts.create_bar_chart(
+        {"Label": labels, "Value": item["data"]},
+        x_column="Label", y_column="Value",
+        title=f"{title} - {item['label']}" if item.get("label") else title,
+        show_legend=False,
+    ) for item in datasets]
 
 
 def _table_section(title: str, headers: list[Any], rows: list[list[Any]]) -> dict[str, Any]:

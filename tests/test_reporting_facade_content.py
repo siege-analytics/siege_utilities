@@ -22,6 +22,19 @@ def test_unsupported_chart_type_raises(tmp_path):
         _chart_images({"type": "doughnut", "data": {"labels": ["a"]}}, gen)
 
 
+@pytest.mark.parametrize("data", [{"labels": []}, {}])
+def test_unsupported_chart_type_raises_even_without_labels(tmp_path, data):
+    gen = ReportGenerator("Acme", output_dir=tmp_path)
+    with pytest.raises(ValueError, match="Unsupported facade chart type: doughnut"):
+        _chart_images({"type": "doughnut", "data": data}, gen)
+
+
+@pytest.mark.parametrize("kind", ["bar", "line", "pie"])
+def test_supported_chart_type_without_labels_draws_nothing(tmp_path, kind):
+    gen = ReportGenerator("Acme", output_dir=tmp_path)
+    assert _chart_images({"type": kind, "data": {"labels": []}}, gen) == []
+
+
 def test_custom_report_with_wide_dataframe_still_writes_pdf(tmp_path):
     gen = AnalyticsReportGenerator("Acme", output_dir=tmp_path)
     df = pd.DataFrame({f"c{i}": range(5) for i in range(40)})
