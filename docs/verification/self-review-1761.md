@@ -68,5 +68,10 @@ Interpreter: local Python 3.11.11, run from the repository root.
 - Focused run as in Gate 2: 249 passed, 5 skipped.
 - `tests/test_demographic_profile.py`: 8 failed on `v4.0.0`, 8 failed on `3b0488e7`, 8 passed after.
 
+## Review follow-up (tie-break rule)
+- `test_edge_unit_follows_plan_row_order`: the #1562 probe with plan rows reversed (`D2`, `D1`) gives D2 = 500, D1 = 100 with no warning, so the whole edge unit follows the first matching plan row.
+- `test_result_is_stable_under_census_unit_order` (all 6 permutations of the three probe units): always D1 = 400, D2 = 200.
+- Against `3b0488e7`'s module: all 7 cases fail (the edge unit is dropped, so totals are 100/200 in every order); at the tip: 7 passed. `tests/test_demographic_profile.py`: 15 passed.
+
 ## Rework ledger
 - Pre-flight round, 2026-11-10: edge-point assignment, unmatched-population warning, zero rows, census `GEOID` collision; body classification and acceptance map corrected.

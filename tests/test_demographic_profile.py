@@ -1,5 +1,6 @@
 """Regression tests for representative-point demographic assignment (#1562)."""
 
+import itertools
 import warnings
 
 import pandas as pd
@@ -103,6 +104,48 @@ def test_issue_probe_conserves_input_population():
         result = demographic_profile(plan, census)
 
     # Conserved, counted once, and assigned to the first matching plan row.
+    pd.testing.assert_frame_equal(
+        result, pd.DataFrame({"GEOID": ["D1", "D2"], "TOTPOP": [400, 200]})
+    )
+
+
+def _issue_probe(plan_order=("D1", "D2"), unit_order=(0, 1, 2)):
+    boxes = {"D1": box(0, 0, 10, 10), "D2": box(10, 0, 20, 10)}
+    plan = gpd.GeoDataFrame(
+        {"GEOID": list(plan_order)}, geometry=[boxes[d] for d in plan_order], crs=5070,
+    )
+    units = [(100, box(1, 1, 2, 2)), (200, box(11, 1, 12, 2)), (300, box(9, 1, 11, 2))]
+    census = gpd.GeoDataFrame(
+        {"TOTPOP": [units[i][0] for i in unit_order]},
+        geometry=[units[i][1] for i in unit_order],
+        crs=5070,
+    )
+    return plan, census
+
+
+@pytest.mark.geo
+def test_edge_unit_follows_plan_row_order():
+    """Tie-break rule: the whole edge unit goes to the first matching plan row."""
+    plan, census = _issue_probe(plan_order=("D2", "D1"))
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        result = demographic_profile(plan, census)
+
+    pd.testing.assert_frame_equal(
+        result, pd.DataFrame({"GEOID": ["D2", "D1"], "TOTPOP": [500, 100]})
+    )
+
+
+@pytest.mark.geo
+@pytest.mark.parametrize(
+    "unit_order", list(itertools.permutations(range(3))), ids=lambda order: "".join(map(str, order)),
+)
+def test_result_is_stable_under_census_unit_order(unit_order):
+    plan, census = _issue_probe(unit_order=unit_order)
+
+    result = demographic_profile(plan, census)
+
     pd.testing.assert_frame_equal(
         result, pd.DataFrame({"GEOID": ["D1", "D2"], "TOTPOP": [400, 200]})
     )
