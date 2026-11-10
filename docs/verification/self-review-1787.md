@@ -38,6 +38,8 @@ Green: `python -m pytest test_1673_reports01_units_notebook_truth.py -q`, run fr
 
 Red: the same ruff command on the previous version of the file (restored with `git checkout HEAD --` before the fix was committed) reported 6 errors: ANN201 and ANN001 on `test_pdf_table_renders_counts`, and ANN204, ANN001, ANN002, ANN003 on `Spy.__init__`. The fixed file was then restored and passed. This is a typing-only change, so the behavioral tests are unchanged and are not a red-on-revert subject for this thread.
 
+The #1673 entry sits at its own position in `### Fixed`, not at the top, so the other open PRs do not conflict with it in the merge queue, and its sentence about the PDF frame says "client template" and "client header" instead of naming the client.
+
 CHANGELOG classification: a notebook and test change with no library behavior difference for callers, so it stays under Fixed without a Migration line. The library's `generate_pdf_report` ignoring `branding_config` is tracked separately in #1789.
 
 ## Ticket-fitness exemption
