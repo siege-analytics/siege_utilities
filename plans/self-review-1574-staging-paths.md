@@ -28,6 +28,7 @@ Verified 2026-11-05: with `siege_utilities/distributed/spark_utils.py` checked o
 1. Hadoop reads a leading `name:` (two or more characters) as a scheme, so the helper should treat the same strings as URIs and never create them on the driver.
 2. Reviewer option (b) keeps local callers working: `TestCreateUniqueStagingDirectory` builds staging dirs in local temp paths and expects them to exist.
 3. A URI with no authority or non-root path has no sensible staging parent; raising is better than returning `s3a:/staging_...`.
+4. 4.1.0 is held and untagged, so the #1574 note belongs in `[4.1.0]`. Under the operator's standing rule (2026-11-06: an entry is BREAKING when code that worked on 4.0.0 now behaves differently), it sits under `### BREAKING` with a Migration line. At v4.0.0, promotion copied files through the driver's local `shutil`, accepted empty output and kept `_backup_<timestamp>` directories. Now cross-filesystem or overlapping paths raise, empty output raises, backups are pruned, and URI-like or Path-held URI staging bases return strings or raise. The develop `71f02b0b` merge kept both `[4.1.0]` Fixed entries (a union); develop's lines are unchanged.
 
 ## Test plan
 
@@ -53,6 +54,7 @@ Verified 2026-11-05: with `siege_utilities/distributed/spark_utils.py` checked o
 ## Quantified claims
 
 - 7 red at `245969d6`; 415 passed after (plus 2 pre-existing macOS-only failures).
+- After merging develop `71f02b0b`: the staging, review-regression, canonical-contract, distributed and public-API modules gave 433 passed, with the same 2 pre-existing macOS-only failures.
 
 ## Rework ledger
 
