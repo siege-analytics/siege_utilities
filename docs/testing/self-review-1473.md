@@ -26,6 +26,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the #1473 entry under `[4.1.0]` Fixed exactly once.
 - Request a fresh exact-head review: any earlier result is void once the head moves, and the code diff against develop is unchanged.
 
+## Pre-flight (develop 71f02b0b)
+
+Develop was merged additively. The only conflict was `CHANGELOG.md`; every develop line was kept. Develop wins on any disagreement, and none exists: no develop change touches `siege_utilities/geo/s2_utils.py`, `grids.py` or `siege_utilities/engines/dataframe_engine.py`.
+
+Classification: not BREAKING. The additions are opt-in (`as_signed` defaults to `False` in every function that gained it, so existing return values and dtypes are unchanged) and the rest is documentation; the only runtime text change is the `NotImplementedError` message of `PostGISEngine.index_points`. The entry stays under `### Fixed` in `[4.1.0]`, now saying so explicitly, at its own position in that list so the other open PRs do not conflict with it in the merge queue.
+
+Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_1473_s2_signed.py test_s2_utils.py test_grids.py -q` -> 98 passed in 1.51s. The library code is unchanged since the red/green run recorded in the Falsification entry below, which still applies to this head.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1473 (the #1398 epic is context only and is not a governing ticket).
