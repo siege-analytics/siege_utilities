@@ -27,6 +27,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the three #1435 entries under `[4.1.0]` and none under `[Unreleased]`.
 - Request a fresh exact-head review: the earlier result is void once the head moves, and the code diff is unchanged.
 
+## Pre-flight (develop 71f02b0b)
+
+Develop was merged additively. The only conflict was `CHANGELOG.md`; every develop line was kept, including develop's #1444 entry, which already states that "the Facebook daily-label fix is tracked separately in #1435". Develop wins on any disagreement, and none exists: the analytics files changed by the merge are Google Analytics, Instagram, Vista Social, X and the pipeline analyzer, and none is the Facebook connector.
+
+Classification: caller code that worked on v4.0.0 now sees different results (page-insight `date` is a `YYYY-MM-DD` string for the day before `end_time`, absent values are NaN instead of zero, ad insights are daily rows with added columns). The three #1435 entries are now one entry under `### BREAKING` in `[4.1.0]` with a Migration line, at its own position in the BREAKING list so it does not conflict with the other open PRs. `git diff origin/develop -- CHANGELOG.md` shows 16 added lines and 0 removed lines. The PR body classification is updated to match.
+
+Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_facebook_business_insights.py test_facebook_business_connector.py -m "not integration and not requires_api_key" -q` -> 29 passed, 1 deselected in 0.79s. The library code is unchanged since the red/green run recorded in the Falsification entry below, which still applies to this head.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1435 (the #1398 epic is context only and is not a governing ticket).
