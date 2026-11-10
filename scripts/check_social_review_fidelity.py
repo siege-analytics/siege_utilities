@@ -12,6 +12,7 @@ import hashlib
 import numbers
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pandas as pd
@@ -32,12 +33,12 @@ BASELINE_BLOBS = {
 START, END = date(2026, 1, 1), date(2026, 1, 31)
 
 
-def git_blob_id(data):
+def git_blob_id(data: bytes) -> str:
     """The id ``git hash-object`` assigns to ``data``."""
     return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
 
 
-def old_module(module):
+def old_module(module: ModuleType) -> ModuleType:
     path = Path(module.__file__).relative_to(ROOT).as_posix()
     frozen = FROZEN / (Path(path).name + ".txt")
     data = frozen.read_bytes()
@@ -52,7 +53,7 @@ def old_module(module):
     return old
 
 
-def client_for(module, platform, body):
+def client_for(module: ModuleType, platform: str, body: object) -> Any:
     if platform == "instagram":
         client = module.InstagramConnector("DUMMY_OLD_TOKEN", ig_user_id="123")
     else:
@@ -62,7 +63,7 @@ def client_for(module, platform, body):
     return client
 
 
-def _is_null(value):
+def _is_null(value: object) -> bool:
     if value is None:
         return True
     try:
@@ -71,7 +72,7 @@ def _is_null(value):
         return False
 
 
-def _is_zero(value):
+def _is_zero(value: object) -> bool:
     return (
         isinstance(value, numbers.Number)
         and not isinstance(value, bool)
@@ -98,7 +99,7 @@ _AUTHORIZED = frozenset({
 })
 
 
-def _strict_equal(old, new):
+def _strict_equal(old: object, new: object) -> bool:
     """Type-exact and timezone-exact leaf equality.
 
     Ordinary ``==`` certifies a same-instant timezone relabel (UTC vs local), a
@@ -119,10 +120,10 @@ def _strict_equal(old, new):
 # row carries the day its value covers, one day before Graph's end_time marker,
 # and an X snapshot carries the UTC date. Only these 'date' cells may differ from
 # the frozen baseline, and only by exactly that rule (#1812).
-_RELABELED = set()
+_RELABELED: set[str] = set()
 
 
-def _is_1444_relabel(old, new, where):
+def _is_1444_relabel(old: object, new: object, where: str) -> bool:
     if not (isinstance(old, str) and isinstance(new, str)):
         return False
     if where.startswith("instagram.get_account_insights[") and where.endswith(",'date']"):
@@ -135,14 +136,15 @@ def _is_1444_relabel(old, new, where):
     return False
 
 
-def compare(old, new, where, hits):
+def compare(old: object, new: object, where: str, hits: set[str]) -> int:
     """Count ONLY the authorized baseline-zero -> current-null cells.
 
     ``hits`` accumulates the authorized locations actually seen, so the caller
     asserts every intended null occurred and a compensating difference cannot
-    mask a lost null. EVERY other value, row, column, index key/name, type and
-    timestamp must match exactly; any other difference raises, so a new
-    unexplained removal, relabel or type change fails the audit.
+    mask a lost null. EVERY other value, row, column, index key/name, column
+    dtype, type and timestamp must match exactly; any other difference raises,
+    so a new unexplained removal, relabel or type change fails the audit. A
+    column dtype may change only where an authorized null landed in it.
     """
     if isinstance(old, pd.DataFrame) or isinstance(new, pd.DataFrame):
         assert isinstance(old, pd.DataFrame) and isinstance(new, pd.DataFrame), (where, type(old), type(new))
@@ -156,9 +158,21 @@ def compare(old, new, where, hits):
             assert before.dtype == after.dtype, (where, axis, before.dtype, after.dtype)
             assert before.names == after.names, (where, axis, before.names, after.names)
         allowed = 0
+        before = set(hits)
         for col in old.columns:
             for idx in old.index:
                 allowed += compare(old.at[idx, col], new.at[idx, col], f"{where}[{idx!r},{col!r}]", hits)
+        # Equal cells can hide a column dtype change (e.g. tz-aware datetime to
+        # object). Only a column holding an authorized null may change dtype.
+        new_hits = hits - before
+        for col in old.columns:
+            if old[col].dtype == new[col].dtype:
+                continue
+            if any(hit.startswith(f"{where}[") and hit.endswith(f",{col!r}]") for hit in new_hits):
+                continue
+            raise AssertionError(
+                f"unexpected dtype change at {where}[{col!r}]: {old[col].dtype} -> {new[col].dtype}"
+            )
         return allowed
     if isinstance(old, dict) or isinstance(new, dict):
         assert isinstance(old, dict) and isinstance(new, dict), (where, type(old), type(new))
@@ -185,7 +199,7 @@ def compare(old, new, where, hits):
     raise AssertionError(f"unexpected value diff at {where}: {old!r} -> {new!r}")
 
 
-def audit():
+def audit() -> None:
     count = 0
     allowed = 0
     hits = set()

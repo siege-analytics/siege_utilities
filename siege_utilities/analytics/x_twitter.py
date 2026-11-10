@@ -540,7 +540,14 @@ class XTwitterConnector:
                 delay = float(header)
             except ValueError:
                 try:
-                    delay = parsedate_to_datetime(header).timestamp() - time.time()
+                    retry_at = parsedate_to_datetime(header)
+                    # A "-0000" zone parses as naive; HTTP dates are UTC.
+                    if retry_at.tzinfo is None:
+                        retry_at = retry_at.replace(tzinfo=timezone.utc)
+                    delay = retry_at.timestamp() - time.time()
+                    # A date already past gives no wait hint; use the backoff.
+                    if delay <= 0:
+                        delay = None
                 except (ValueError, TypeError, OverflowError):
                     delay = None
             if delay is not None and isfinite(delay):

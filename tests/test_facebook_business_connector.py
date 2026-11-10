@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pandas as pd
 import pytest
 
 
@@ -127,3 +128,41 @@ def test_get_page_insights_keys_by_metric_name_across_every_date(_patch_fb, monk
     assert list(df["date"]) == ["2026-01-01", "2026-01-02"]
     assert list(df["page_views_total"]) == [100, 200]
     assert list(df["page_follows"]) == [7, 8]
+
+
+def test_get_page_insights_missing_value_stays_unavailable(_patch_fb, monkeypatch):
+    """A daily entry without ``value`` is unavailable (None), never 0."""
+    from siege_utilities.analytics import facebook_business as mod
+
+    fake_page = MagicMock()
+    fake_page.get_insights.return_value = [
+        {"name": "page_follows", "values": [
+            {"end_time": "2026-01-01", "value": 0},
+            {"end_time": "2026-01-02"},
+        ]},
+    ]
+    monkeypatch.setattr(mod, "Page", lambda *a, **k: fake_page, raising=False)
+
+    df = mod.FacebookBusinessConnector(access_token="tok").get_page_insights(
+        "page-1", "2026-01-01", "2026-01-02", metrics=["page_follows"],
+    )
+
+    assert df.loc[0, "page_follows"] == 0
+    assert df.loc[1, "page_follows"] is None or pd.isna(df.loc[1, "page_follows"])
+
+
+def test_get_page_insights_rejects_insight_without_metric_name(_patch_fb, monkeypatch):
+    """Values that cannot be attributed to a metric raise instead of being dropped."""
+    from siege_utilities.analytics import facebook_business as mod
+
+    fake_page = MagicMock()
+    fake_page.get_insights.return_value = [
+        {"name": "page_follows", "values": [{"end_time": "2026-01-01", "value": 7}]},
+        {"values": [{"end_time": "2026-01-01", "value": 9}]},
+    ]
+    monkeypatch.setattr(mod, "Page", lambda *a, **k: fake_page, raising=False)
+
+    with pytest.raises(ValueError, match="without a metric name"):
+        mod.FacebookBusinessConnector(access_token="tok").get_page_insights(
+            "page-1", "2026-01-01", "2026-01-01", metrics=["page_follows"],
+        )

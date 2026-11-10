@@ -310,3 +310,29 @@ suites, the fidelity oracle, `test_1439_*` (which holds #1444's Instagram checks
 `test_1780_*`, `test_1661_*` and the exception-contract guard test are 1028 passed,
 1 skipped. `check_exception_contracts.py --list`: 205 flagged, 0 unlisted, 0 stale.
 `check_credential_urls.py`: 0 unreviewed sites. ruff passes on the changed files.
+
+## Open review threads at `e5ee2d5c` (13 threads)
+
+Each thread was checked against the code at `e5ee2d5c`. Outcome by thread:
+
+- Fixed in this commit:
+  - The notebook `instagram_insights` fixture now uses `reach` and `follower_count`.
+  - Both connectors' `_parse_retry_after` read a zone-less HTTP date as UTC, and treat a date already past as no hint, so the configured backoff applies.
+  - Facebook Page Insights send comma-separated `metric` names, keep a missing daily value as `None`, and raise `ValueError` for an insight with no metric name.
+  - The fidelity oracle has type hints and compares column dtypes; a dtype may change only in a column that received an authorized null.
+  - `refresh_access_token` documents intermediary-log redaction for the GET token exchange.
+- Already addressed:
+  - The rate-limit cap: `max_retry_wait` (default 900 s) raises without sleeping above the cap, and the cumulative budget bounds total sleep.
+  - The review-response record: the file was deleted at `b0eacc57`, and this record holds no local paths.
+  - Paging-URL origin: #1794's `GRAPH_HOSTS` check in `_request_url`, now merged here.
+- Proposed as tracked deferrals:
+  - The known-likes count in the average-likes insight. #1807 rewrites that sentence, and the follow-up is prepared with the #1807 patches.
+  - Renaming and consolidating the review-round test files. This is broad churn mid-review and would invalidate cited evidence.
+
+Red checks: the eight new or changed tests fail on the `e5ee2d5c` library code (past and naive HTTP dates for both platforms, the comma-separated metric for both parameter cases, the Facebook missing value, and the nameless insight). Both dtype tests fail on the `e5ee2d5c` oracle. All pass after the fix.
+
+Verification (Python 3.11.11):
+- The full #1812 set plus `test_notebook_hygiene` and `test_notebooks` is 1301 passed, 2 skipped.
+- `check_exception_contracts.py --list`: 205 flagged, 0 unlisted, 0 stale.
+- `check_credential_urls.py`: 0 unreviewed sites.
+- The static guards and ruff pass.

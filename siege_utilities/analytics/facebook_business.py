@@ -207,7 +207,9 @@ class FacebookBusinessConnector:
             page = Page(page_id)
             insights = page.get_insights(
                 params={
-                    'metric': metrics,
+                    # Page Insights expects comma-separated metric names; the
+                    # SDK would JSON-encode a Python list.
+                    'metric': ','.join(metrics),
                     'period': 'day',
                     'since': start_date,
                     'until': end_date
@@ -224,13 +226,19 @@ class FacebookBusinessConnector:
             for insight in insights:
                 metric_name = insight.get('name')
                 if not metric_name:
-                    continue
+                    # Values without a metric name cannot be attributed; a
+                    # partial frame would silently drop them.
+                    raise ValueError(
+                        f"Facebook Page Insights for page {page_id} returned an "
+                        "insight without a metric name; its values cannot be attributed."
+                    )
                 for entry in insight.get('values', []):
                     date = entry.get('end_time', '')
                     if date not in rows_by_date:
                         rows_by_date[date] = {'date': date}
                         date_order.append(date)
-                    rows_by_date[date][metric_name] = entry.get('value', 0)
+                    # A missing value stays unavailable (None), never 0.
+                    rows_by_date[date][metric_name] = entry.get('value')
 
             data = [rows_by_date[date] for date in date_order]
             df = pd.DataFrame(data)

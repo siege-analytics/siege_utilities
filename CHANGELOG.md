@@ -125,7 +125,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bounds the total sleep across one request's retries: a wait that would push
   the total past it is not taken, so a rate limit raises
   `SocialMediaRateLimitError` and a transport or 5xx failure stops retrying and
-  reports the attempts made. This covers HTTP dates and X reset epochs.
+  reports the attempts made. This covers HTTP dates and X reset epochs. An
+  HTTP date without a zone is read as UTC, and a date already past falls back
+  to the configured backoff instead of retrying at once.
   Instagram documents the roughly 60-day token lifetime and offers token
   exchange with stored expiry and a fresh-login path for expired tokens
   (#1458).
@@ -133,10 +135,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   insights use `reach` and `follower_count`; media use `views` and
   `total_interactions`; stories use `navigation` and accept caller overrides.
   Media insights read `total_value`. Facebook Page
-  Insights pass metrics through the SDK's `metric` parameter and use
+  Insights pass metrics as a comma-separated `metric` parameter and use
   `page_media_view`, `page_follows` and `page_post_engagements` in place of
   retired impression, fan and engaged-user defaults. These replacements count
-  views, followers and interactions, respectively (#1474).
+  views, followers and interactions, respectively. A Page Insights response
+  with an insight that has no metric name raises `ValueError` instead of
+  silently dropping its values (#1474).
 - Instagram account insights now use UTC request boundaries regardless of
   the host timezone and label daily metrics with the day covered, one day
   before the end-of-period marker. X account snapshots use the UTC date.
@@ -381,7 +385,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of `0`; in v4.0.0 an omitted follower, like, comment or impression
   count, and an Instagram media or story insight without a value, became 0.
   Instagram media insights read `total_value` and keep a missing value as
-  `None` (#1474). Post frames keep their existing columns, add a `metrics`
+  `None`, and Facebook Page Insights keep a missing daily value as `None`
+  instead of `0` (#1474). Post frames keep their existing columns, add a `metrics`
   dictionary and return `published_at` as a UTC-aware timestamp (NaT if
   unavailable) instead of the API's string, with a stable schema for empty
   results. When a later page stays throttled, the posts collected so far are

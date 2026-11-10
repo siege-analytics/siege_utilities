@@ -310,10 +310,13 @@ def test_facebook_page_defaults_and_metric_parameter(monkeypatch, custom):
     metrics = ["page_follows"] if custom else None
     client.get_page_insights("123", str(START), str(END), metrics=metrics)
     kwargs = page.return_value.get_insights.call_args.kwargs
-    sent = set(kwargs.get("params", {}).get("metric", kwargs.get("fields", [])))
+    # Page Insights takes comma-separated metric names, not a JSON-encoded list.
+    metric_param = kwargs["params"]["metric"]
+    assert isinstance(metric_param, str)
+    sent = set(metric_param.split(","))
     assert not sent & DEPRECATED
     assert sent == (set(metrics) if custom else CURRENT_DEFAULTS["page"])
-    assert set(kwargs["params"]["metric"]) == sent
+    assert "fields" not in kwargs
 
 
 @pytest.mark.parametrize("body", [{"data": {}}, {"errors": [{"detail": "User not found"}]}, {"data": None}])
@@ -357,6 +360,30 @@ def test_rate_limit_retries_then_succeeds(monkeypatch, offline, platform, retry_
     assert request.call_count == 2
     expected = float(retry_after) if retry_after in ("7", "0") else client._retry_backoff
     offline.assert_called_once_with(expected)
+
+
+@pytest.mark.parametrize("platform", ["instagram", "x"])
+def test_retry_after_past_http_date_uses_backoff(monkeypatch, offline, platform):
+    # A date already past is not a wait hint; the configured backoff applies.
+    monkeypatch.setattr(instagram.time, "time", lambda: 1767225600.0)
+    client, _ = connector(platform, monkeypatch, [
+        response(429, headers={"Retry-After": "Wed, 31 Dec 2025 23:59:00 GMT"}),
+        response(body={"data": []}),
+    ], attempts=2)
+    assert client._request("GET", "/123") == {"data": []}
+    offline.assert_called_once_with(client._retry_backoff)
+
+
+@pytest.mark.parametrize("platform", ["instagram", "x"])
+def test_retry_after_naive_http_date_is_utc(monkeypatch, offline, platform):
+    # parsedate_to_datetime returns a naive datetime for "-0000"; read it as UTC.
+    monkeypatch.setattr(instagram.time, "time", lambda: 1767225600.0)
+    client, _ = connector(platform, monkeypatch, [
+        response(429, headers={"Retry-After": "Thu, 01 Jan 2026 00:00:07 -0000"}),
+        response(body={"data": []}),
+    ], attempts=2)
+    assert client._request("GET", "/123") == {"data": []}
+    offline.assert_called_once_with(7.0)
 
 
 @pytest.mark.parametrize("platform", ["instagram", "x"])

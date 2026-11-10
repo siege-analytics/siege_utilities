@@ -164,6 +164,35 @@ def test_review_seed_is_rejected_by_the_real_audit(monkeypatch, mutate):
         fidelity.audit()
 
 
+def _make_populated_published_at_object(label, frame):
+    # Same Timestamp values, but the column loses its tz-aware datetime dtype.
+    if label == "populated":
+        frame["published_at"] = frame["published_at"].astype(object)
+    return frame
+
+
+def test_column_dtype_change_with_equal_cells_is_rejected(monkeypatch):
+    _mutate_current_instagram(monkeypatch, _make_populated_published_at_object)
+    with pytest.raises(AssertionError, match="unexpected dtype change"):
+        fidelity.audit()
+
+
+def test_dtype_change_is_allowed_only_in_an_authorized_null_column():
+    where = IG_OMITTED
+    old = pd.DataFrame({"like_count": [0], "id": ["1"]})
+    new = pd.DataFrame({"like_count": [None], "id": ["1"]})
+    hits = set()
+    assert fidelity.compare(old, new, where, hits) == 1
+    assert old["like_count"].dtype != new["like_count"].dtype
+    stamps = pd.Series(pd.to_datetime(["2026-01-02"], utc=True))
+    with pytest.raises(AssertionError, match="unexpected dtype change"):
+        fidelity.compare(
+            pd.DataFrame({"published_at": stamps}),
+            pd.DataFrame({"published_at": stamps.astype(object)}),
+            IG_POPULATED, set(),
+        )
+
+
 def test_seed_controls_leave_the_audit_green(monkeypatch):
     # The wrapper alone (no mutation) keeps the real audit green, so a seed
     # failure is caused by its mutation and not by the wrapping.
