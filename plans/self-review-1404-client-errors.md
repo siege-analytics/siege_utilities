@@ -59,3 +59,24 @@ Verified 2026-11-05: with `siege_utilities/geo/census/api.py` and `siege_utiliti
 ## Rework ledger
 
 2 hostile-review follow-ups applied (408 classification, guide text).
+
+## Develop integration (83d3032e, 2026-11-10)
+
+Reason for the merge: CI run 42766691710 at `7795a2bb` failed the required `test (3.13)` lane (seed 2859228993) and cancelled 3.11, 3.12 and 3.14. The 7 failures were all in `tests/test_development_runtime_introspection_contracts.py` (`ImproperlyConfigured`, STATIC_URL).
+
+- The cause is #1882, not this PR's code. Package introspection followed a file-path check that matches every installed package on CI and evaluated Django lazy objects. This PR's `client` fixture changes a Django setting, which loads `django.contrib.staticfiles.storage`.
+- The fix landed in develop as #1883 (`8d740a9a`). This merge brings it in, so fresh PR CI runs with it.
+- The earlier "never attributed to this PR" note (Lead review) stands for the code: the trigger is this PR's settings-changing fixture, the defect is in `architecture.py`.
+
+Merge: `7795a2bb772e11a5b7144ae59d409b348a6c638c` (first parent) + develop `83d3032e1e67de9d43dd7b3c8a95f52e28dadcab`. No conflicts, no manual resolution. The pure merge tree is `20b1c7cd8861fd88e4d82ff2576e1b2ccbaca285`; this section is the only addition on top of it.
+
+- Inventory vs `83d3032e`: only this PR's 13 files differ. Every imported develop file equals landed develop.
+- Inventory vs `7795a2bb`: only develop's 16 files differ, including `siege_utilities/development/architecture.py` and `tests/test_1882_architecture_module_walk.py`.
+- CHANGELOG: develop's #1885 renamed the held section to `[5.0.0]`. The #1404 entry, with its Migration paragraph, now sits under `## [5.0.0]` `### BREAKING`, unchanged. The `[4.1.0]` references in Assumptions 3 and 4 above are historical.
+- No feature code, test, retry/fallback taxonomy or BREAKING/Migration text changed.
+
+Tests in the merged tree, one invocation: Python 3.11.11, pytest 8.4.2, pytest-randomly 5.0.0, Django 5.2.14, pandas 2.3.3, duckdb 1.4.4, pyproj 3.7.2.
+
+- `pytest -p randomly --randomly-seed=2859228993` over `tests/test_1404_census_dual_source_fallback.py tests/test_census_api_client.py tests/test_dual_source_1375.py tests/test_summary_file_1385.py tests/test_credential_url_leak.py tests/test_1882_architecture_module_walk.py tests/test_architecture.py tests/guard/test_exception_contract_guard.py` -> 551 passed. The same set with a random seed also gave 551 passed.
+- `scripts/check_exception_contracts.py --list` -> 0 unlisted, 0 stale.
+- Boundary: the local virtualenv path does not contain `siege_utilities`, so this run does not reproduce CI's path condition. Fresh hosted CI on the merge head is the evidence for the 3.13 lane. No live Census calls; HTTP and sleep are faked, as before.
