@@ -377,6 +377,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `databricks.dataframe_bridge.spark_to_geopandas` raises `ValueError` when the
+  CRS metadata column mixes null and non-null values, even when `crs=` is
+  supplied, where v4.0.0 let unknown-CRS rows inherit another row's CRS. When
+  the stored CRS is known and `crs=` names a different CRS, coordinates are
+  reprojected to `crs=` instead of being relabelled without transformation
+  (stored EPSG:4326 `POINT (1 1)` with `crs="EPSG:3857"` now has x ≈ 111319.49,
+  where v4.0.0 returned x = 1.0 labelled EPSG:3857). An
+  invalid stored CRS definition raises `pyproj.exceptions.CRSError` even when
+  `crs=` is supplied, where v4.0.0 hid it behind the requested CRS. When the
+  metadata column is absent or entirely null, `crs=` declares the input CRS
+  without transforming, and omitting it leaves the CRS unknown (#1413).
+  **Migration:** fill missing CRS metadata or split rows by CRS before
+  conversion; fix invalid stored CRS values; if you used `crs=` to relabel data
+  whose stored CRS was wrong, fix the stored CRS column instead.
+
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,
