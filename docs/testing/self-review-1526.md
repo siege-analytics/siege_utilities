@@ -26,6 +26,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the two #1526 entries under `[4.1.0]` and none under `[Unreleased]`.
 - Re-review at the new head: the reviewer PASS at 4b818c06 is void once the head moves, so re-confirmation is requested. The code diff is unchanged between the two heads.
 
+## Pre-flight (develop 71f02b0b)
+
+Develop was merged additively. The only conflict was `CHANGELOG.md`; every develop line was kept. Develop wins on any disagreement, and none exists: no develop change touches the geocoding providers.
+
+Classification: caller code that worked on v4.0.0 now behaves differently (numeric ZIPs gain their leading zero, invalid numeric ZIPs become empty, per-row failures become unmatched rows with an entry in `errors`, and `GeocodingResult.input_id` is `str`). The PR had a `### Changed` migration note for the `input_id` type and a `### Fixed` note for the normalization. They are now one entry under `### BREAKING` in `[4.1.0]` with a Migration line, at its own position in the BREAKING list so it does not conflict with the other open PRs. `git diff origin/develop -- CHANGELOG.md` shows added lines only. The PR body classification is updated to match.
+
+Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_batch_geocoder_normalization.py test_batch_geocoder_review_regressions.py -q` -> 77 passed in 0.54s. The library code is unchanged since the red/green run recorded in the Falsification entry below, which still applies to this head.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1526 (the #1398 epic is context only and is not a governing ticket).
