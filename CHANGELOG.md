@@ -288,6 +288,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- Census dual-source retrieval: `BulkFileSource` downloads now have a total
+  deadline, `total_timeout=300` seconds by default (finite and positive, else
+  `ValueError`), in addition to the per-request `timeout`; a download that
+  exceeds it raises `Timeout` where v4.0.0 kept going. Cached tables are
+  SHA-256 checked before reuse, so caches without a valid sidecar, including
+  every cache written by v4.0.0, are downloaded again once. `Provenance` gains
+  `location` (every redacted origin URL, so a two-table bulk request reports
+  both, where v4.0.0 kept only the first), `cache_hit` and `cache_paths`;
+  `CensusAPI.fetch_data` reports the same in `attrs['census_source']`.
+  `url_or_path` remains and reports the first served URL or cache path (for
+  API results it was `None` on v4.0.0); for
+  mixed cached/live table requests `cache_hit=True` means at least one table
+  was cached. Nation-level API requests now work, using `for=us:1` and matching
+  the bulk source's empty FIPS tail (v4.0.0 rejected the `nation` geography);
+  a nation request with state or county filters raises `ValueError`.
+  Concurrent deletion during parquet cache expiry is a cache miss instead of a
+  `FileNotFoundError`, and exhausted API timeout retries reach the bulk
+  fallback with a redacted timeout cause (#1406). **Migration:** pass a larger
+  `total_timeout` to `BulkFileSource` on slow links; expect one re-download of
+  v4.0.0-era cached tables; read `location`/`cache_paths` rather than
+  `url_or_path` when more than one source was used.
+
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,
@@ -761,8 +783,9 @@ on Nexus (#1401).
   year; a `_TIMESERIES_PATHS` alias registry maps names like `eits/resconst`.
   `CensusCatalogDataset.year` becomes `int` or `None` and gains
   `timeseries_variables` and `timeseries_groups`, retained through the disk-cache
-  round trip. Year-based discovery is unchanged and builds byte-identical URLs.
-  (#1374.)
+  round trip. Year-based discovery retains the corrected `/data/{year}/...`
+  URLs introduced by #1373 in v4.0.0; v3.23.0 built the incorrect
+  `/data/data/{year}/...` URLs. (#1374, #1406.)
 - Python 3.13 is now a blocking CI gate (previously allowed to fail). The full
   Linux suite passes on 3.13. Python 3.14 is tested as a non-blocking CI gate
   while its recently released native stack stabilizes. (#1365.)
