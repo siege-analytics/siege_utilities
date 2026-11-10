@@ -303,3 +303,72 @@ def mock_spark_session():
     mock_spark.conf = Mock()
     mock_spark.conf.set = Mock()
     return mock_spark
+
+
+# ----------------------------------------------------------------
+# Spatial connector fixtures shared by the #1414 / #1818 modules.
+# Imports stay inside the fixtures so collecting unrelated tests never
+# needs DuckDB, psycopg2 or GeoPandas.
+# ----------------------------------------------------------------
+
+
+@pytest.fixture
+def duck_connector():
+    """An in-memory DuckDBConnector, closed at teardown."""
+    duckdb = pytest.importorskip("duckdb")
+    from siege_utilities.geo.spatial_transformations import DuckDBConnector
+
+    connector = DuckDBConnector.__new__(DuckDBConnector)
+    connector.connection = duckdb.connect(":memory:")
+    yield connector
+    connector.close()
+
+
+@pytest.fixture
+def postgis_pair():
+    """Connector, autocommit observer and a fresh table in a disposable database.
+
+    Skips unless ``SIEGE_TEST_POSTGIS_DSN`` (or ``SIEGE_UTILITIES_TEST_PG_DSN``)
+    names a disposable PostGIS database. Yields ``(connector, observer, table)``
+    where *table* is a schema-qualified ``places (id INTEGER, geometry geometry)``
+    table; the schema is dropped at teardown.
+    """
+    from uuid import uuid4
+
+    psycopg2 = pytest.importorskip("psycopg2")
+    dsn = os.environ.get("SIEGE_TEST_POSTGIS_DSN") or os.environ.get("SIEGE_UTILITIES_TEST_PG_DSN")
+    if not dsn:
+        pytest.skip("Set SIEGE_TEST_POSTGIS_DSN to a disposable PostGIS database")
+    from siege_utilities.geo.spatial_transformations import PostGISConnector
+
+    observer = psycopg2.connect(dsn)
+    observer.autocommit = True
+    connector = PostGISConnector(dsn)
+    schema = "review_1818_" + uuid4().hex
+    with observer.cursor() as cursor:
+        cursor.execute(f'CREATE SCHEMA "{schema}"')
+        cursor.execute(f'CREATE TABLE "{schema}".places (id INTEGER, geometry geometry)')
+    try:
+        yield connector, observer, f'"{schema}".places'
+    finally:
+        connector.close()
+        with observer.cursor() as cursor:
+            cursor.execute(f'DROP SCHEMA "{schema}" CASCADE')
+        observer.close()
+
+
+@pytest.fixture
+def volatile_insert(postgis_pair):
+    """A volatile SELECT that inserts a row as a side effect.
+
+    Yields ``(connector, observer, table, query)``.
+    """
+    connector, observer, table = postgis_pair
+    function = table.rsplit(".", 1)[0] + ".record_point"
+    with observer.cursor() as cursor:
+        cursor.execute(
+            f"CREATE FUNCTION {function}() RETURNS geometry LANGUAGE plpgsql VOLATILE AS $$ "
+            f"BEGIN INSERT INTO {table} VALUES (8, ST_SetSRID(ST_Point(3,4),4326)); "
+            "RETURN ST_SetSRID(ST_Point(3,4),4326); END $$"
+        )
+    return connector, observer, table, f"SELECT 8 AS id, {function}() AS geometry"
