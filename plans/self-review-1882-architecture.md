@@ -112,7 +112,17 @@ Source: the reviewer's full `--pr` scan of `c603a0fd` (log `pr1883-c603-full-sca
 - `scan.sh --pr 1883`: "Cannot resolve mutation targets: opaque inline execution has unbounded mutation targets";
 - `scan_ast.py` on the changed files: "Unscoped mutation ... expected target repo=.../claude-configs-public".
 
-The scan of the tip commit message exits 0.
+Commit-message scans:
+
+| Tip | Full-message scan (`--commit-message-file`) | Source |
+|---|---|---|
+| `c603a0fd` | exit 0, no leads | reviewer's run |
+| `d2bb3337` | exit 1, one lead: `writing-claims-rule-citation-no-rule-executed(writing-rules:4)` on body line 3 ("Adds the writing-rules:4 exemption..."). The message cited the rule without a `Rule-executed` trailer | reviewer's run |
+| the corrective commit after `d2bb3337` | adds `Rule-executed: writing-rules:4 plans/self-review-1882-architecture.md` | see below |
+
+An earlier note here said the tip message scan "exits 0". That referred to a trailer-only check, not a full-message scan, and was wrong for `d2bb3337`.
+
+The scanner itself cannot be run from this task: `scan.sh --commit-message-file` is refused by the mutation gate ("Cannot resolve mutation targets: opaque inline execution has unbounded mutation targets"). Before committing, the corrective commit's complete message was checked locally against the message regexes copied from `scan.sh` (rule-ID citations against `Rule-executed`, adverbs, countable claims against `Verified-by`, structured-rationale blocks, bullets and headers, non-ASCII characters). That check found 0 leads. It is an emulation, not the scanner; the reviewer's scan of the pushed tip is the authoritative result.
 
 Every flagged handler body at `c603a0fd` is byte-identical to its develop `2deb6a1f` body (`git show 2deb6a1f:...` vs `c603a0fd:...`). Only the line numbers moved, by the added helpers. This PR changes no `except` clause, error return or log call.
 
@@ -136,7 +146,7 @@ Totals: 3 writing-code-7 + 30 writing-tests-5 + 1 writing-code-9 = 34.
 
 Note on the three `generate_*` handlers:
 - On develop, their docstrings document `Returns: bool ... False if there was an error`, which matches the `log_error` + `return False` body. The same docstrings also list `Raises: FileNotFoundError` and `SyntaxError`, which the bodies never raise; those cases are logged and return `False`.
-- That docstring/behaviour mismatch is pre-existing and unchanged here. It is outside #1882's scope and not fixed in this PR. Whether to ticket it is the reviewer's call; no ticket has been filed.
+- That docstring/behaviour mismatch is pre-existing and unchanged here. It is already tracked as item 5 of open #1594 ("The docstrings for 1-3 promise `Raises: FileNotFoundError` and `SyntaxError`, but the code catches those and returns `False`"). This PR neither fixes nor closes #1594.
 
 ## Quantified claims
 
