@@ -31,7 +31,7 @@ Project-contribution: `resolve_plan_at` returns the plan actually in force, so a
 - Shelves: SU-2 (does it do what it says: the module docstring and `resolve_plan_at` docstring now state stayed/challenged semantics and same-date ordering); SU-1 (no empty-on-error paths touched).
 - Gate 1 (syntax): no Python changed in this commit.
 - Gate 2 (tests): `tests/test_plan_lifecycle.py tests/test_smoke.py tests/test_runtime_guard.py tests/test_sql_safety.py` with `--no-cov -p no:randomly`: 189 passed.
-- Gate 3 (docs): this record; the PR body CHANGELOG block (repository convention, no `CHANGELOG.md` edit).
+- Gate 3 (docs): this record; the #1442 entry in `CHANGELOG.md` `[4.1.0]` under `### BREAKING` (with the Migration line), mirrored exactly in the PR body. The entry was added at the end of the last `[4.1.0]` `### BREAKING` list, a region develop has not changed; `git merge-tree` with develop is recorded in the PR body.
 - Notebook impact (SU-4a): `grep -rln "plan_lifecycle|resolve_plan_at|ACTIVE_STATUSES|was_active_at" notebooks/` finds no notebook. No notebook update is needed; the absence of a lifecycle demonstration is a pre-existing documentation gap.
 
 ## Lead review (adversarial)
@@ -64,3 +64,4 @@ Interpreter: local Python 3.11.11, run from the repository root.
 
 ## Rework ledger
 - Pre-flight round, 2026-11-10: no code change; classification corrected to BREAKING; body hygiene and exemption block; this record.
+- Same round, second commit: the release notes carried no #1442 entry, because an earlier convention commit had moved it out of `CHANGELOG.md` into the PR body only. The BREAKING entry is now in `CHANGELOG.md`; `tests/test_release_process.py`, `tests/test_user_config_export_changelog.py` and `tests/test_plan_lifecycle.py`: 99 passed.
