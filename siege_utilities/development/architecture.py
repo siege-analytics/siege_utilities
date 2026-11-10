@@ -42,7 +42,7 @@ _PACKAGE = "siege_utilities"
 
 
 def _attribute_kind(item: Any) -> Optional[str]:
-    """Classify a module attribute without evaluating lazy objects (#1882).
+    """Classify a module attribute without evaluating lazy objects.
 
     ``inspect.isfunction``/``isclass``/``ismodule`` are ``isinstance`` checks,
     which read ``item.__class__`` when it differs from ``type(item)``. Django's
@@ -61,10 +61,13 @@ def _attribute_kind(item: Any) -> Optional[str]:
 
 
 def _is_package_module(module: types.ModuleType) -> bool:
-    """True for ``siege_utilities`` and its submodules, decided by name (#1882).
+    """True for ``siege_utilities`` and its submodules, decided by name.
 
-    A file-path test matched every installed package on CI, where the
-    virtualenv lives under ``.../siege_utilities/siege_utilities/.venv``.
+    Governs recursion only: ``_analyze_module`` descends into a submodule
+    attribute only when this is true. A file-path test matched every installed
+    package on CI, where the virtualenv lives under
+    ``.../siege_utilities/siege_utilities/.venv``. Module attributes of the
+    top-level package are still analyzed by ``analyze_package_structure``.
     """
     name = getattr(module, "__name__", "")
     return name == _PACKAGE or name.startswith(_PACKAGE + ".")
@@ -234,7 +237,7 @@ def analyze_class(cls, class_name: str) -> Dict[str, Any]:
                 method = getattr(cls, method_name)
                 # Classify by actual type, as _attribute_kind does: the
                 # isinstance-based inspect checks read a lazy class
-                # attribute's __class__ and set it up (#1882).
+                # attribute's __class__ and set it up.
                 method_type = type(method)
                 if issubclass(method_type, (types.FunctionType, types.MethodType)):
                     methods[method_name] = analyze_function(method, method_name)
