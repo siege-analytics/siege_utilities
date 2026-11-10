@@ -123,6 +123,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `create_bivariate_choropleth`) no longer crash on tied data: they spread
   each variable's actual classes across the 3x3 palette and raise a clear
   error when a variable has fewer than two classes (#1462).
+- Package introspection (`analyze_package_structure`, `analyze_module` and
+  `generate_architecture_diagram`) now recurses only into `siege_utilities`
+  submodules, chosen by module name instead of a file-path substring, and
+  classifies module attributes and class members without evaluating lazy
+  objects. Module attributes of the top-level package are still analyzed as
+  before. Previously, a virtualenv whose
+  path contained `siege_utilities` (as on CI runners) made it walk every
+  installed package, and an `isinstance` check set up Django's lazy
+  `staticfiles_storage`, raising `ImproperlyConfigured` when `STATIC_URL` is
+  unset. Output for package modules is unchanged (#1882).
 - Instagram account insights now use UTC request boundaries regardless of
   the host timezone and label daily metrics with the day covered, one day
   before the end-of-period marker. X account snapshots use the UTC date.
@@ -360,6 +370,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   raises. Vista Social account/profile lists document their first-page limit
   and expose `has_more` (including unknown completeness) and pagination
   metadata on a list-compatible result (#1439).
+- CI installs the GDAL/PostGIS system packages through a local
+  `.github/actions/apt-install` action, so a slow or stalled Ubuntu mirror no
+  longer cancels a required job or dequeues the merge queue (#1871):
+  - The downloaded `.deb` archives are cached with `actions/cache`, keyed on
+    the runner image and the package list, so most runs download nothing.
+  - apt drops a connection that sends no data for 30 seconds and retries it.
+  - The first attempt stops downloading from the primary mirror after two
+    minutes. Before the retry, `dpkg --configure -a` repairs any interrupted
+    install and apt switches from `azure.archive.ubuntu.com` to
+    `archive.ubuntu.com`.
+  - The final attempt gives downloads a 45-minute budget, above the slowest
+    install seen to finish (38 minutes on `develop`), so a slow but live
+    download completes and a trickle cannot hold the runner. The install from
+    the downloaded files stays bounded.
+  - Every install step has a step timeout above the script's own bounded
+    worst case: 80 minutes where the job has no timeout, and 15 minutes in
+    `test-postgis`, whose install uses shorter limits (worst case 851 seconds)
+    so a slow mirror fails the step and leaves 5 minutes of the 20-minute job
+    instead of cancelling it. Job timeouts are unchanged.
 
 ### BREAKING
 
