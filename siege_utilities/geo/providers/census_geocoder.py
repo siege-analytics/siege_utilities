@@ -30,6 +30,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, TYPE_CHECKING
 
+from ._batch_ids import _assign_batch_ids
+
 if TYPE_CHECKING:
     import pandas as pd
 
@@ -164,7 +166,7 @@ class CensusGeocodeResult:
         county_fips: 3-digit county FIPS code.
         tract: 6-digit tract code.
         block: 4-digit block code.
-        match_type: "Exact", "Non_Exact", or "No_Match".
+        match_type: "Exact", "Non_Exact", "No_Match", or "Error" for a missing row.
         side: Street side ("L" or "R", from TIGER).
         tiger_line_id: TIGER/Line feature ID.
     """
@@ -180,7 +182,7 @@ class CensusGeocodeResult:
     match_type: str = "No_Match"
     side: str = ""
     tiger_line_id: str = ""
-    # Populated by id if provided in batch input
+    # Caller metadata on public output; library ID between provider layers.
     input_id: str = ""
 
     @property
@@ -324,9 +326,13 @@ def geocode_batch(
 
     Returns:
         List of CensusGeocodeResult, one per input address (order preserved).
+        Caller IDs are passthrough metadata, including missing or duplicate
+        IDs. Submission and response alignment use library-assigned IDs.
+        A missing response row has match_type="Error", not "No_Match".
 
     Raises:
         ValueError: If batch exceeds 10,000 addresses.
+        CensusGeocodeError: On API failure or ambiguous response IDs.
     """
     if len(addresses) > 10_000:
         raise ValueError(
@@ -338,13 +344,15 @@ def geocode_batch(
         return []
 
     cg = _get_geocoder(vintage)
+    batch_ids = _assign_batch_ids([addr.get("id", "") for addr in addresses])
+    inputs = {batch_ids[i]: addr for i, addr in enumerate(addresses)}
 
     # Build CSV for batch submission
     csv_buffer = io.StringIO()
     writer = csv.writer(csv_buffer)
-    for addr in addresses:
+    for batch_id, addr in inputs.items():
         writer.writerow([
-            addr.get("id", ""),
+            batch_id,
             addr.get("street", ""),
             addr.get("city", ""),
             addr.get("state", ""),
@@ -372,44 +380,54 @@ def geocode_batch(
     #   id, address, match (bool), matchtype, parsed (matched address),
     #   tigerlineid, side, statefp, countyfp, tract, block, lat (float),
     #   lon (float)
+    if not isinstance(result, list):
+        raise CensusGeocodeError("Census batch returned a non-list response")
     results_by_id = {}
-    if isinstance(result, list):
-        for row in result:
-            row_id = str(row.get("id", ""))
-            matched = bool(row.get("match", False))
-            if matched:
-                parsed = CensusGeocodeResult(
-                    matched=True,
-                    input_id=row_id,
-                    input_address=row.get("address", ""),
-                    matched_address=row.get("parsed", ""),
-                    lat=_safe_float(row.get("lat")),
-                    lon=_safe_float(row.get("lon")),
-                    state_fips=row.get("statefp", "") or "",
-                    county_fips=row.get("countyfp", "") or "",
-                    tract=row.get("tract", "") or "",
-                    block=row.get("block", "") or "",
-                    match_type=row.get("matchtype", "") or "",
-                    tiger_line_id=row.get("tigerlineid", "") or "",
-                    side=row.get("side", "") or "",
-                )
-            else:
-                parsed = CensusGeocodeResult(
-                    input_id=row_id,
-                    input_address=row.get("address", ""),
-                )
-            results_by_id[row_id] = parsed
+    for row in result:
+        if not isinstance(row, dict):
+            raise CensusGeocodeError("Census batch returned a non-dict row")
+        row_id = str(row.get("id", ""))
+        if row_id not in inputs or row_id in results_by_id:
+            raise CensusGeocodeError(f"Census batch returned unknown or duplicate input_id {row_id!r}")
+        matched = bool(row.get("match", False))
+        if matched:
+            parsed = CensusGeocodeResult(
+                matched=True,
+                input_id=row_id,
+                input_address=row.get("address", ""),
+                matched_address=row.get("parsed", ""),
+                lat=_safe_float(row.get("lat")),
+                lon=_safe_float(row.get("lon")),
+                state_fips=row.get("statefp", "") or "",
+                county_fips=row.get("countyfp", "") or "",
+                tract=row.get("tract", "") or "",
+                block=row.get("block", "") or "",
+                match_type=row.get("matchtype", "") or "",
+                tiger_line_id=row.get("tigerlineid", "") or "",
+                side=row.get("side", "") or "",
+            )
+        else:
+            parsed = CensusGeocodeResult(
+                input_id=row_id,
+                input_address=row.get("address", ""),
+            )
+        results_by_id[row_id] = parsed
 
     # Return in input order
     output = []
-    for addr in addresses:
-        addr_id = str(addr.get("id", ""))
-        if addr_id in results_by_id:
-            output.append(results_by_id[addr_id])
+    for batch_id, addr in inputs.items():
+        if batch_id in results_by_id:
+            parsed = results_by_id[batch_id]
+            parsed.input_id = addr.get("id", "")
+            output.append(parsed)
         else:
             output.append(CensusGeocodeResult(
-                input_id=addr_id,
-                input_address=f"{addr.get('street', '')}, {addr.get('city', '')}, {addr.get('state', '')} {addr.get('zipcode', '')}",
+                input_id=addr.get("id", ""),
+                match_type="Error",
+                input_address=(
+                    f"{addr.get('street', '')}, {addr.get('city', '')}, "
+                    f"{addr.get('state', '')} {addr.get('zipcode', '')}"
+                ),
             ))
 
     matched_count = sum(1 for r in output if r.matched)
@@ -434,6 +452,8 @@ def geocode_batch_chunked(
     Returns:
         List of CensusGeocodeResult, one per input address.
     """
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be positive")
     chunk_size = min(chunk_size, 10_000)
     results = []
     total = len(addresses)

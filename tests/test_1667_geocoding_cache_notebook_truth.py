@@ -97,23 +97,36 @@ def _install_offline_services() -> tuple[list[str], object]:
 
     CensusTIGERProvider.get_boundary = get_boundary
     geocoder = Mock(spec=["addressbatch"])
-    geocoder.addressbatch.return_value = [
-        {
-            "id": str(i),
-            "match": True,
-            "statefp": "48",
-            "countyfp": county,
-            "tract": "000100",
-            "block": "1000",
-            "lat": lat,
-            "lon": lon,
-        }
-        for i, county, lat, lon in [
-            (1, "453", 30.26, -97.75),
-            (2, "113", 32.78, -96.77),
-            (3, "201", 29.76, -95.37),
-        ]
-    ] + [{"id": "4", "match": False}, {"id": "5", "match": False}]
+
+    def addressbatch(csv_path, returntype="geographies"):
+        # Answer with the IDs actually submitted (CSV column 0, input order),
+        # as the Census batch API does (#1410).
+        import csv as _csv
+
+        with open(csv_path, newline="") as fh:
+            submitted = [row[0] for row in _csv.reader(fh)]
+        rows = [
+            {
+                "id": str(i),
+                "match": True,
+                "statefp": "48",
+                "countyfp": county,
+                "tract": "000100",
+                "block": "1000",
+                "lat": lat,
+                "lon": lon,
+            }
+            for i, county, lat, lon in [
+                (1, "453", 30.26, -97.75),
+                (2, "113", 32.78, -96.77),
+                (3, "201", 29.76, -95.37),
+            ]
+        ] + [{"id": "4", "match": False}, {"id": "5", "match": False}]
+        for row, batch_id in zip(rows, submitted):
+            row["id"] = batch_id
+        return rows
+
+    geocoder.addressbatch.side_effect = addressbatch
     census_geocoder._get_geocoder = Mock(return_value=geocoder)
     return network_attempts, geocoder
 
