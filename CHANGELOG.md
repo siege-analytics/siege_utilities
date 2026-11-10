@@ -118,6 +118,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Instagram account insights now use UTC request boundaries regardless of
+  the host timezone and label daily metrics with the day covered, one day
+  before the end-of-period marker. X account snapshots use the UTC date.
+  `PipelineAnalyzer` uses an aware UTC default and calculates elapsed time
+  in UTC for aware timestamps, including across daylight-saving changes;
+  naive-only inputs retain the host-local `datetime.now()` default (#1444).
+  **Migration:** naive pipeline timestamps are now interpreted as host-local,
+  not UTC. Mixed naive/aware input, including an `as_of` whose awareness
+  differs from the items, now raises `ValueError` identifying the offending
+  items. Keep naive timestamps in host-local time, or attach their actual
+  timezone and use aware timestamps throughout, including `as_of`.
+  The Facebook daily-label fix is tracked separately in #1435.
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
@@ -309,6 +321,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list names `COUSUB` and `ADDRFEAT` and drops the non-existent `COUNTYSUB`,
   `SDELM`, `SDSEC` and `SDUNI`. An opt-in `-m integration` test HEADs one
   built URL per catalog type for 2010, 2019 and 2023 (#1464).
+- The CI battle-test script now runs the repository-root test suite and
+  returns pytest's exit status, so the job reflects real test results.
+  It applies the main lane's selection (`-m "not integration and not
+  postgis"`, `--ignore=tests/test_notebooks.py`) on both its uv and python
+  paths. Logs, coverage reports and the summary JSON are saved in the
+  repository-root `overnight_results/` directory used by CI, including when
+  tests fail. A failed write of `overnight_results/test_output.txt` now fails
+  the run instead of reporting exit 0, and `summary.json` records the pytest
+  and tee statuses and whether the output artifact was written (#1475).
 - Instagram follows all account, post and insight pages across Graph hosts
   and versions, filters every post page by date and limit, and splits daily
   insights into at most 30-day UTC windows. GA4 retrieves every reported row
