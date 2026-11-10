@@ -122,6 +122,52 @@ def _strict_equal(old: object, new: object) -> bool:
 # the frozen baseline, and only by exactly that rule (#1812).
 _RELABELED: set[str] = set()
 
+# The X snapshot date depends on the clock: the baseline labels it with the
+# host-local date.today(), the fix with the UTC date. Under a real clock the two
+# are usually equal, so a host-local regression matched the baseline and passed,
+# and the oracle's own later clock read could disagree with the connector's
+# across UTC midnight (#1879). The X snapshot is therefore produced only under
+# these fixed clocks: one UTC instant seen from a host whose local date is ahead
+# of UTC, then behind it. The expected date comes from the same instant the
+# connector saw, never from a second clock read.
+X_CLOCKS: tuple[tuple[datetime, timezone], ...] = (
+    (datetime(2026, 1, 31, 23, 59, 59, tzinfo=timezone.utc), timezone(timedelta(hours=6))),
+    (datetime(2026, 2, 1, 0, 0, 1, tzinfo=timezone.utc), timezone(timedelta(hours=-6))),
+)
+# UTC date of the active X clock; None outside one, so no X date relabel is
+# authorized without a fixed clock.
+_X_SNAPSHOT_UTC_DATE: date | None = None
+
+
+def _frozen_clock(instant: datetime, host_tz: timezone) -> tuple[type, type]:
+    """``date``/``datetime`` stand-ins for one instant on a host in ``host_tz``.
+
+    ``date.today()`` and naive ``datetime.now()`` give the host-local wall clock;
+    ``datetime.now(tz)`` gives the same instant in ``tz``.
+    """
+
+    class FrozenDate(date):
+        @classmethod
+        def today(cls) -> date:
+            return instant.astimezone(host_tz).date()
+
+    class FrozenDateTime(datetime):
+        @classmethod
+        def now(cls, tz: Any = None) -> datetime:
+            if tz is None:
+                return instant.astimezone(host_tz).replace(tzinfo=None)
+            return instant.astimezone(tz)
+
+        @classmethod
+        def today(cls) -> datetime:
+            return cls.now()
+
+        @classmethod
+        def utcnow(cls) -> datetime:
+            return instant.replace(tzinfo=None)
+
+    return FrozenDate, FrozenDateTime
+
 
 def _is_1444_relabel(old: object, new: object, where: str) -> bool:
     if not (isinstance(old, str) and isinstance(new, str)):
@@ -132,8 +178,40 @@ def _is_1444_relabel(old: object, new: object, where: str) -> bool:
         except ValueError:
             return False
     if where == "x.get_account_insights[0,'date']":
-        return new == datetime.now(timezone.utc).date().isoformat()
+        return _X_SNAPSHOT_UTC_DATE is not None and new == _X_SNAPSHOT_UTC_DATE.isoformat()
     return False
+
+
+def _compare_x_snapshot_under_fixed_clocks(old: ModuleType, body: object, hits: set[str]) -> int:
+    """Compare X ``get_account_insights`` under each of ``X_CLOCKS``.
+
+    Each clock puts the host-local and UTC dates on different days, so the
+    baseline (host-local) and a correct current snapshot (UTC) must differ, and
+    the UTC relabel must be what reconciles them. A current snapshot that equals
+    the baseline is a host-local regression and fails here.
+    """
+    global _X_SNAPSHOT_UTC_DATE
+    allowed = 0
+    for instant, host_tz in X_CLOCKS:
+        frozen_date, frozen_datetime = _frozen_clock(instant, host_tz)
+        assert instant.astimezone(host_tz).date() != instant.date(), (instant, host_tz)
+        _RELABELED.discard("x.get_account_insights")
+        clock = {"date": frozen_date, "datetime": frozen_datetime}
+        with patch.dict(old.__dict__, clock), patch.multiple(x_twitter, **clock):
+            with client_for(old, "x", body) as previous, client_for(x_twitter, "x", body) as new:
+                before = previous.get_account_insights(START, END)
+                after = new.get_account_insights(START, END)
+        _X_SNAPSHOT_UTC_DATE = instant.date()
+        try:
+            allowed += compare(before, after, "x.get_account_insights", hits)
+        finally:
+            _X_SNAPSHOT_UTC_DATE = None
+        assert "x.get_account_insights" in _RELABELED, (
+            f"X snapshot at {instant.isoformat()} on a {host_tz} host was not "
+            f"relabelled to the UTC date: baseline {before.at[0, 'date']!r}, current "
+            f"{after.at[0, 'date']!r}, expected {instant.date().isoformat()!r}"
+        )
+    return allowed
 
 
 def compare(old: object, new: object, where: str, hits: set[str]) -> int:
@@ -244,6 +322,10 @@ def audit() -> None:
             ("get_post_insights", ("123",), (post_insights, post_empty)),
         ):
             for body in bodies:
+                if platform == "x" and method == "get_account_insights":
+                    allowed += _compare_x_snapshot_under_fixed_clocks(old, body, hits)
+                    count += 1
+                    continue
                 with client_for(old, platform, body) as previous, client_for(current, platform, body) as new:
                     before = getattr(previous, method)(*args)
                     after = getattr(new, method)(*args)
@@ -280,6 +362,10 @@ def audit() -> None:
         count += 1
     assert "instagram.get_account_insights" in _RELABELED, (
         "#1444 covered-day relabel of Instagram account insights was not exercised"
+    )
+    # Each X clock already asserted its own relabel; this guards the wiring.
+    assert "x.get_account_insights" in _RELABELED, (
+        "#1444 UTC-date relabel of the X snapshot was not exercised"
     )
     assert hits == _AUTHORIZED, (
         "authorized zero -> null locations differ from those observed; "

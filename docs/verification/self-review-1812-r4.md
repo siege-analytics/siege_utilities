@@ -336,3 +336,52 @@ Verification (Python 3.11.11):
 - `check_exception_contracts.py --list`: 205 flagged, 0 unlisted, 0 stale.
 - `check_credential_urls.py`: 0 unreviewed sites.
 - The static guards and ruff pass.
+
+## X snapshot date in the fidelity oracle (#1879)
+
+At `09ed493c` the oracle compared the X snapshot under the real clock. The
+baseline labels it with host-local `date.today()`, the fix with the UTC date,
+and the two are usually equal. As a result:
+
+- (a) A current producer that regressed to the host-local date matched the
+  baseline exactly, skipped the UTC rule, and the audit stayed green. Only the
+  Instagram relabel was required to fire.
+- (b) The oracle read the clock a second time, so a correct Jan 31 23:59:59Z
+  snapshot compared at Feb 1 00:00:01Z was rejected.
+
+The fix is a bounded clock contract inside the oracle, not a clock subsystem.
+The X `get_account_insights` comparison runs only under `X_CLOCKS`: one UTC
+instant on a host whose local date is ahead of UTC (+06:00 at Jan 31
+23:59:59Z), then behind it (-06:00 at Feb 1 00:00:01Z). Each clock patches
+`date`/`datetime` in the baseline module and the current connector, for that
+call only. The expected date is that same instant's UTC date, with no second
+clock read. Outside a fixed clock no X date difference is authorized. Each
+clock must produce the UTC relabel, so a snapshot equal to the host-local
+baseline fails. A clock without a date divergence is refused. Instagram's exact
+one-day rule and the strict field, dtype and null checks are unchanged.
+
+Tests in `tests/test_1812_fidelity_oracle.py` set the clocks from outside the
+helper. With the `09ed493c` helper, 11 of the 32 fail:
+
+- The five behavioural reds:
+  - the wrong host-local snapshot, issue steps 1-2: did not raise, the false
+    green;
+  - the correct snapshot across UTC midnight, issue step 3: "unexpected value
+    diff '2026-02-01' -> '2026-01-31'", the false red;
+  - the host-local producer through `date.today()` and through naive
+    `datetime.now()`: did not raise;
+  - an X date difference outside a fixed clock: did not raise.
+- Six tests configure `X_CLOCKS` (five divergent-host greens, and the refusal
+  of a non-divergent clock). They fail on the old helper only because it has
+  no such hook.
+
+The 21 that pass on both helpers include the Instagram two-day-shift
+rejection and every earlier strict-comparison control. All 32 pass at this
+commit.
+
+Verification (Python 3.11.11): the social/oracle sweep gave 1054 passed and 31
+skipped. `check_exception_contracts.py`: 205 flagged, 0 unlisted, 0 stale.
+`check_credential_urls.py`: 0. Test-file hygiene PASS; ruff clean on both
+changed files. Running the script directly was blocked by a local shell guard
+(environment-variable prefix). The same `audit()` runs in full through the
+oracle tests.
