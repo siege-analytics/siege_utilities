@@ -119,8 +119,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Social media reports no longer crash or display `nan` when follower,
-  following or like counts are NaN or unparseable. Daily metric charts include
-  nullable and narrower numeric dtypes (#1469).
+  following or like counts are NaN, text or unparseable: numeric text such as
+  `"1200"` counts as a number, and other text renders as `unavailable`. The
+  top-post insight no longer crashes when a connector's posts frame repeats
+  index labels. Daily metric charts include nullable and narrower numeric
+  dtypes (#1469).
 - Instagram account insights now use UTC request boundaries regardless of
   the host timezone and label daily metrics with the day covered, one day
   before the end-of-period marker. X account snapshots use the UTC date.
