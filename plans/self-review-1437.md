@@ -74,6 +74,8 @@ Blast radius: one private helper plus one call site.
 - PR body: rewritten so it no longer claims non-CT rows keep their behavior inside a
   nationwide frame. Such a frame raises for the whole request.
 
+- Pre-flight (2026-11-10). Classification follows the operator rule (2026-11-06): a change that alters v4.0.0 caller behaviour is BREAKING. Neither the v4.0.0 tag nor develop `71f02b0b` has a CT 2022 guard; both `place_history.py` copies contain no `_raise_for_ct`/`_CT_RECODED` symbol. A CT county/tract/block-group/block query across 2022 returned a result on v4.0.0 and now raises `ValueError`, so the entry moves from 4.1.0 Changed to BREAKING with a **Migration:** line. No code changed. A trial `merge-tree` against develop `71f02b0b` reports no conflict, so there is no resync; the merge queue handles the behind count.
+
 ## Findings
 F1 fixed. No new findings.
 
