@@ -118,6 +118,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Social-media and analytics report facades now write PDFs and return their
+  `Path`, preserving collected metrics, tables, insights and charts. Website
+  performance and custom analytics reports use the real PDF renderer instead
+  of nonexistent methods; custom DataFrame/CSV reports include their sample
+  data and summary tables. Social-media documentation now promises PDF only
+  (#1461).
 - Instagram account insights now use UTC request boundaries regardless of
   the host timezone and label daily metrics with the day covered, one day
   before the end-of-period marker. X account snapshots use the UTC date.
@@ -442,6 +448,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when nothing new arrived. A group load that used to report `N skipped`
   now reports `N updated`. Variables a snapshot already holds are still
   overwritten only with `update_existing=True` (#1550).
+- The `SocialMediaReportGenerator` and `AnalyticsReportGenerator` report
+  methods now write a PDF into the generator's output directory and return its
+  `Path`. On v4.0.0 they called `ReportGenerator` methods with a different
+  signature (`create_analytics_report`) or methods that do not exist
+  (`create_performance_report`, `create_custom_report`), wrote no PDF, and
+  either raised or returned a report-content dictionary, so the annotated
+  `Path` was never a real file. The file name is the report title reduced to
+  `[A-Za-z0-9_-]`, plus a unique suffix, and a repeated title never overwrites
+  an earlier report. A facade chart configuration with an unsupported `type`
+  raises `ValueError` even when it has no labels. **Migration:** use the
+  returned `Path` as the PDF; code that handled the old exception or read the
+  returned dictionary must be removed or updated, and code that expected a
+  fixed file name must read the returned path instead. The social-media
+  generator produces PDF only (its PPTX wording was removed); build any PPTX
+  separately (#1461).
 - `DemographicSnapshot.total_population`, `median_household_income` and
   `median_age` are NULL when the source estimate is a negative Census
   sentinel or not numeric. Fractional estimates (for example rollup
