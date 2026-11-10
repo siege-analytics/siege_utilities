@@ -141,6 +141,8 @@ class TestPipelineAnalyzer:
         assert prospect_v.stage == "prospect"
         assert prospect_v.avg_days > 0
         assert "i3" in prospect_v.aging_items
+        assert "i1" not in prospect_v.aging_items
+        assert "i2" not in prospect_v.aging_items
 
     def test_concentration_alert(self, simple_analyzer):
         items = [
