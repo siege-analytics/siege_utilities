@@ -27,6 +27,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the #1483 entry under `[4.1.0]` Security exactly once.
 - Request a fresh exact-head review: any earlier result is void once the head moves, and the code diff against develop is unchanged.
 
+## Pre-flight (develop 71f02b0b)
+
+Develop was merged additively with no conflicts. Develop wins on any disagreement, and none exists: no develop change touches `siege_utilities/distributed/` or `siege_utilities/config/`.
+
+Classification: caller code that worked on v4.0.0 now behaves differently (with no override, empty or None `database_names` adds no JDBC driver where v4.0.0 added the PostgreSQL driver; the MySQL coordinate moved; the new MySQL default needs Server 8.4+). The entry already carried migration text under `### Security`; it now sits under `### BREAKING` in `[4.1.0]` with an explicit Migration line, at its own position in the BREAKING list so it does not conflict with the other open PRs. `git diff origin/develop -- CHANGELOG.md` shows 12 added lines and 0 removed lines. The PR body classification is updated to match.
+
+Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_1483_spark_jdbc_cve.py test_database_config.py -q` -> 27 passed in 0.17s. The library code is unchanged since the red/green run recorded in the Falsification entry below, which still applies to this head.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1483 (the #1398 epic is context only and is not a governing ticket).
