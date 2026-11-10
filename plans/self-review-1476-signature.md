@@ -27,7 +27,7 @@ Verified 2026-11-05: with `siege_utilities/config/databases.py` checked out from
 
 1. CI's contract job compares `str(inspect.signature(obj))` for public symbols against the latest PyPI release (4.0.0), where `create_database_config` is annotated `port: int`.
 2. Narrowing only the annotation leaves runtime behavior identical: `_validate_port` still accepts integers and 1 to 5 ASCII digit strings and rejects everything else.
-3. 4.1.0 is held and untagged, so the #1476 note belongs in `[4.1.0]` per the reviewer's correction.
+3. 4.1.0 is held and untagged, so the #1476 note belongs in `[4.1.0]` per the reviewer's correction. Under the operator's standing rule (2026-11-06, an entry is BREAKING when code that worked on 4.0.0 now behaves differently), it sits under `### BREAKING` with a Migration line. Unsafe hosts, invalid ports, conflicting TLS aliases, a non-PostgreSQL `ssl_mode` and an unset password reference now raise.
 
 ## Test plan
 
