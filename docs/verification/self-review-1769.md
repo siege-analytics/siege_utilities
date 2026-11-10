@@ -31,7 +31,7 @@ Project-contribution: identifier columns survive a Sheets round trip, and sheets
 - Shelves: SU-2 (enumerated parameter validated at the top with `ValueError`; docstrings state RAW default, opt-in and padding rules); SU-1 (the empty-sheet `pd.DataFrame()` return is the documented "no values" result, not an error path, and is unchanged).
 - Gate 1 (syntax/lint): `flake8 --max-line-length=127` on the three touched Python files: clean. `scripts/check_test_file_hygiene.py`: PASS.
 - Gate 2 (tests): `tests/test_google_sheets_write_dataframe.py tests/test_google_sheets_read_dataframe.py tests/test_google_workspace.py tests/test_smoke.py tests/test_runtime_guard.py tests/test_sql_safety.py` with `--no-cov -p no:randomly`: 209 passed.
-- Gate 3 (docs): docstrings for `read_dataframe` and `write_dataframe`; PR body CHANGELOG block.
+- Gate 3 (docs): docstrings for `read_dataframe` and `write_dataframe`; the three #1432 entries in `CHANGELOG.md` `[4.1.0]` `### BREAKING` (each with Migration), mirrored exactly in the PR body block.
 - Notebook impact (SU-4a): only `notebooks/archive/18_Google_Workspace.ipynb` calls these functions (`write_dataframe(..., sheet_name=...)`, `read_dataframe(client, spreadsheet_id, "'DataFrame Tab'")`). Both calls are compatible: the new parameter is a trailing keyword with the existing RAW default, and the tab it reads is rectangular.
 
 ## Lead review (adversarial)
