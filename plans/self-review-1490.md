@@ -63,6 +63,7 @@ a markdown cell of `foundations/01_configuration.ipynb`.
 ## Rework ledger
 - 4116f50f/f5f84c71: rejected assignments mutated the object, and the legacy policy tests were left red. Both are fixed in this round.
 - The 4.1.0 note is restored to CHANGELOG.md and mentions the assignment guarantee.
+- Pre-flight (2026-11-10). Develop sync: `08c190b4` merges develop `71f02b0b` for a positional CHANGELOG conflict (the #1444 and #1490 Fixed entries). Both are kept, a diff against develop deletes 0 develop lines, and no merged develop behaviour disagrees with this PR. Classification follows the operator rule (2026-11-06): a change that alters v4.0.0 caller behaviour is BREAKING. On the v4.0.0 tag, `validate_password` required at least 8 characters, an uppercase letter, a lowercase letter and a digit, and rejected common passwords, with `validate_assignment=True`. Removing that policy means code that relied on the rejection now behaves differently. That part moves to 4.1.0 BREAKING with a **Migration:** line. The coordinator withdrew its 11-06 "not BREAKING" ruling for this reason. IPv6 hosts, file paths and credential-free file connections stay under Fixed, because they only accept inputs v4.0.0 wrongly rejected. No code changed.
 
 ## Findings
 F1 fixed and the legacy tests aligned. No new findings.

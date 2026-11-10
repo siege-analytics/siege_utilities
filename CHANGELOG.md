@@ -120,9 +120,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `DatabaseConnection` validates settings by database type so the shipped
   PostgreSQL and DuckDB defaults load through Hydra. Accept IPv6 hosts and
-  file database paths, allow file connections without server credentials,
-  and load stored passwords without a strength or length policy. A rejected
-  assignment raises `ValidationError` and leaves the connection unchanged
+  file database paths, and allow file connections without server credentials.
+  A rejected assignment raises `ValidationError` and leaves the connection
+  unchanged. The stored-password policy change is listed under BREAKING
   (#1490).
 - Instagram account insights now use UTC request boundaries regardless of
   the host timezone and label daily metrics with the day covered, one day
@@ -363,6 +363,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   metadata on a list-compatible result (#1439).
 
 ### BREAKING
+
+- `DatabaseConnection` no longer enforces a password-strength or length
+  policy. Server connections still require a non-empty password, and stored
+  passwords load as given. In 4.0.0 the model required at least 8
+  characters, an uppercase letter, a lowercase letter and a digit, and
+  rejected common passwords, on construction and on assignment
+  (`validate_assignment=True`); such a password now loads without
+  `ValidationError`. **Migration:** callers that relied on
+  `DatabaseConnection` to enforce password strength must validate passwords
+  themselves before constructing it (#1490).
 
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
