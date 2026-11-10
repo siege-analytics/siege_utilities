@@ -18,7 +18,7 @@ import json
 import logging
 import pathlib
 import time
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Iterator, Mapping
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -186,6 +186,8 @@ class InstagramConnector:
 
         Fetch every page in each window of at most 30 days. UTC boundaries
         keep chunk lengths independent of the caller's timezone and DST.
+        Rows are labelled with the calendar day covered by each daily
+        insight, one day before its end-of-period ``end_time`` date.
         """
         self._ensure_connected()
         metric_str = ",".join(metrics) if metrics else DEFAULT_ACCOUNT_METRICS
@@ -205,7 +207,14 @@ class InstagramConnector:
                     metric_name = metric_block["name"]
                     for value_entry in metric_block.get("values", []):
                         end_time = value_entry.get("end_time", "")
-                        dt = end_time[:10] if end_time else ""
+                        # For period=day, end_time marks the following
+                        # midnight, ending the measured day. Keep the
+                        # marker's calendar date (without host/UTC
+                        # conversion) and label the preceding day.
+                        dt = ""
+                        if end_time:
+                            covered_day = date.fromisoformat(end_time[:10]) - timedelta(days=1)
+                            dt = covered_day.isoformat()
                         row = rows_by_date.setdefault(dt, {"date": dt})
                         row[metric_name] = value_entry.get("value", 0)
             since_ts = chunk_until + 1
