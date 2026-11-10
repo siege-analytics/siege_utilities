@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   zeros. The parser docstring now describes all preserved source columns
   plus these flags (#1507).
 
-## [4.1.0] - 2026-10-18
+## [5.0.0]
 
 ### Changed
 
