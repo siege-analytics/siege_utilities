@@ -4,9 +4,8 @@ Snowflake data warehouse connector for Siege Utilities.
 Provides seamless integration with Snowflake for data warehousing and analytics.
 """
 
-import inspect
 import logging
-from typing import Optional, Dict, List, Any, Tuple, Union
+from typing import Optional, Dict, List, Any, Union
 from pathlib import Path
 import json
 import os
@@ -38,22 +37,6 @@ except ImportError:
     PANDAS_AVAILABLE = False
 
 log = logging.getLogger(__name__)
-
-_CONTEXT_QUERY = "SELECT CURRENT_DATABASE(), CURRENT_SCHEMA()"
-
-
-def _quote_reported_name(name: str) -> str:
-    """Quote a name Snowflake reported, so it resolves to that exact object."""
-    return '"' + name.replace('"', '""') + '"'
-
-
-def _write_pandas_accepts_logical_type() -> bool:
-    """Whether the installed write_pandas accepts ``use_logical_type``."""
-    try:
-        parameters = inspect.signature(write_pandas).parameters.values()
-    except (TypeError, ValueError):
-        return False
-    return any(p.name == "use_logical_type" or p.kind is p.VAR_KEYWORD for p in parameters)
 
 
 class SnowflakeConnector:
@@ -243,17 +226,10 @@ class SnowflakeConnector:
             auto_create_table: Whether to automatically create table if it doesn't exist
             overwrite: Whether to overwrite existing table
 
-        A ``database`` or ``schema`` override applies to this call only; the
-        session's previous database and schema are restored afterwards, even
-        on failure. Rows load with Parquet logical types so timestamps keep
-        their values and time zones.
-
         Raises:
             ImportError: If pandas is not available.
             ConnectionError: If not connected and connection fails.
-            RuntimeError: If the upload fails, if the session context cannot
-                be restored, or if the frame has datetime columns and the
-                installed SDK's write_pandas lacks ``use_logical_type``.
+            RuntimeError: If the upload fails.
         """
         if not PANDAS_AVAILABLE:
             raise ImportError("Pandas not available for DataFrame operations. Install with: pip install pandas")
@@ -263,16 +239,6 @@ class SnowflakeConnector:
 
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
         validate_identifier(table_name, label="table name")
-        write_options: Dict[str, Any] = {}
-        if _write_pandas_accepts_logical_type():
-            write_options["use_logical_type"] = True
-        elif any(pd.api.types.is_datetime64_any_dtype(dtype) for dtype in df.dtypes):
-            raise RuntimeError(
-                "The installed snowflake-connector-python write_pandas does not accept "
-                "use_logical_type, so datetime columns would load incorrectly. "
-                "Upgrade snowflake-connector-python to upload datetime columns."
-            )
-        previous_context = self._snapshot_context(database, schema)
         try:
             if database:
                 validate_identifier(database, label="database name")
@@ -295,7 +261,6 @@ class SnowflakeConnector:
                 table_name,
                 auto_create_table=False,
                 overwrite=overwrite,
-                **write_options,
             )
 
             if not success:
@@ -305,8 +270,6 @@ class SnowflakeConnector:
 
         except (*_SF_QUERY_ERRORS, ValueError) as e:
             raise RuntimeError(f"DataFrame upload failed: {e}") from e
-        finally:
-            self._restore_context(previous_context)
 
     def download_dataframe(self,
                           query: str,
@@ -370,21 +333,40 @@ class SnowflakeConnector:
         log.info(f"Created table {table_name} with {len(columns)} columns")
 
     def _map_pandas_to_snowflake_type(self, pandas_dtype) -> str:
-        """Map pandas data types to Snowflake data types."""
-        dtype_str = str(pandas_dtype).lower()
+        """Map a pandas dtype to the Snowflake column type used by auto-create.
 
-        if 'int' in dtype_str:
-            return 'NUMBER(38,0)'
-        elif 'float' in dtype_str:
-            return 'FLOAT'
-        elif 'bool' in dtype_str:
+        Uses ``pandas.api.types`` predicates rather than matching the dtype's
+        name, so pandas nullable dtypes map like their NumPy counterparts:
+
+        * booleans (``bool``, ``boolean``) -> ``BOOLEAN``;
+        * integers, signed or unsigned, including nullable ``Int64`` ->
+          ``NUMBER(38,0)``;
+        * floats, including nullable ``Float64`` -> ``FLOAT``;
+        * timezone-aware datetimes -> ``TIMESTAMP_TZ``, naive datetimes ->
+          ``TIMESTAMP_NTZ``;
+        * categoricals -> the type of their categories (integer categories ->
+          ``NUMBER(38,0)``, string categories -> ``VARCHAR``).
+
+        Timedeltas map to ``VARCHAR(16777216)`` on purpose: Snowflake has no
+        interval column type, and how ``write_pandas`` loads durations depends on
+        logical-type loading, which this mapping does not change. Everything
+        else (strings, objects, intervals, periods) maps to ``VARCHAR(16777216)``.
+        """
+        if isinstance(pandas_dtype, pd.CategoricalDtype):
+            return self._map_pandas_to_snowflake_type(pandas_dtype.categories.dtype)
+        if pd.api.types.is_bool_dtype(pandas_dtype):
             return 'BOOLEAN'
-        elif 'datetime' in dtype_str:
-            return 'TIMESTAMP_TZ' if ',' in dtype_str else 'TIMESTAMP_NTZ'
-        elif 'object' in dtype_str:
+        if pd.api.types.is_integer_dtype(pandas_dtype):
+            return 'NUMBER(38,0)'
+        if pd.api.types.is_float_dtype(pandas_dtype):
+            return 'FLOAT'
+        if isinstance(pandas_dtype, pd.DatetimeTZDtype):
+            return 'TIMESTAMP_TZ'
+        if pd.api.types.is_datetime64_dtype(pandas_dtype):
+            return 'TIMESTAMP_NTZ'
+        if pd.api.types.is_timedelta64_dtype(pandas_dtype):
             return 'VARCHAR(16777216)'
-        else:
-            return 'VARCHAR(16777216)'
+        return 'VARCHAR(16777216)'
 
     def get_table_info(self, table_name: str, database: Optional[str] = None, schema: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -407,7 +389,6 @@ class SnowflakeConnector:
 
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
         validate_identifier(table_name, label="table name")
-        previous_context = self._snapshot_context(database, schema)
         try:
             if database:
                 validate_identifier(database, label="database name")
@@ -450,8 +431,6 @@ class SnowflakeConnector:
 
         except (*_SF_QUERY_ERRORS, ValueError, IndexError) as e:
             raise RuntimeError(f"Failed to get table info for {table_name}: {e}") from e
-        finally:
-            self._restore_context(previous_context)
 
     def list_tables(self, database: Optional[str] = None, schema: Optional[str] = None) -> List[str]:
         """
@@ -472,7 +451,6 @@ class SnowflakeConnector:
             self.connect()
 
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
-        previous_context = self._snapshot_context(database, schema)
         try:
             if database:
                 validate_identifier(database, label="database name")
@@ -488,53 +466,6 @@ class SnowflakeConnector:
 
         except (*_SF_QUERY_ERRORS, ValueError, IndexError) as e:
             raise RuntimeError(f"Failed to list tables: {e}") from e
-        finally:
-            self._restore_context(previous_context)
-
-    def _snapshot_context(self, database: Optional[str], schema: Optional[str]) -> Optional[Tuple[Any, Any]]:
-        """Record the session database and schema before a per-call USE override.
-
-        Returns None when the call has no override, so nothing is restored.
-        """
-        if not (database or schema):
-            return None
-        try:
-            self.cursor.execute(_CONTEXT_QUERY)
-            row = self.cursor.fetchone()
-        except (*_SF_QUERY_ERRORS, ValueError) as e:
-            raise RuntimeError(f"Could not read the Snowflake session context: {e}") from e
-        if not row or len(row) < 2:
-            raise RuntimeError("Could not read the Snowflake session context: no row returned")
-        return row[0], row[1]
-
-    def _restore_context(self, previous: Optional[Tuple[Any, Any]]) -> None:
-        """Return the shared session to the database and schema it had before an override.
-
-        A restore failure raises RuntimeError; if the call itself also failed,
-        that error stays attached as the context of this one.
-        """
-        if previous is None:
-            return
-        database, schema = previous
-        if database is None:
-            # Snowflake has no statement that unsets the current database.
-            log.warning("Snowflake session had no current database before the override; "
-                        "it remains on the override database")
-            return
-        try:
-            self.cursor.execute(f"USE DATABASE {_quote_reported_name(database)}")
-            if schema is None:
-                log.warning("Snowflake session had no current schema before the override; "
-                            "restored database %s with its default schema", database)
-                return
-            self.cursor.execute(
-                f"USE SCHEMA {_quote_reported_name(database)}.{_quote_reported_name(schema)}"
-            )
-        except (*_SF_QUERY_ERRORS, ValueError) as e:
-            raise RuntimeError(
-                f"Could not restore the Snowflake session context to {database}.{schema}: {e}"
-            ) from e
-        log.debug("Restored Snowflake session context to %s.%s", database, schema)
 
     def __enter__(self):
         """Context manager entry."""

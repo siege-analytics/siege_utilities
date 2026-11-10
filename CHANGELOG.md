@@ -321,18 +321,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list names `COUSUB` and `ADDRFEAT` and drops the non-existent `COUNTYSUB`,
   `SDELM`, `SDSEC` and `SDUNI`. An opt-in `-m integration` test HEADs one
   built URL per catalog type for 2010, 2019 and 2023 (#1464).
-- Snowflake table creation maps nullable pandas integers, floats, and booleans
-  to numeric/boolean columns and timezone-aware datetimes to `TIMESTAMP_TZ`
-  rather than falling through to `VARCHAR` or `TIMESTAMP_NTZ`.
-  `upload_dataframe` loads rows with `write_pandas(use_logical_type=True)` so
-  timestamps keep their values and zones; with an older SDK whose
-  `write_pandas` lacks that option, frames with datetime columns raise
-  `RuntimeError` before any statement runs. A `database=`/`schema=` override
-  on `upload_dataframe`, `get_table_info`, or `list_tables` now applies to that
-  call only: the session's previous database and schema are restored
-  afterwards, including after a failure, and a failed restore raises
-  `RuntimeError`. **Behavior change from v4.0.0:** later calls no longer
-  inherit an earlier call's override (#1484).
 - The CI battle-test script now runs the repository-root test suite and
   returns pytest's exit status, so the job reflects real test results.
   It applies the main lane's selection (`-m "not integration and not
@@ -389,6 +377,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `SnowflakeConnector` auto-create (`upload_dataframe(...,
+  auto_create_table=True)`) chooses column types with `pandas.api.types`
+  predicates instead of matching the dtype name (#1484):
+  - Nullable `Int64`/`UInt8`-style integers now get `NUMBER(38,0)`, and
+    nullable `Float64` gets `FLOAT`; v4.0.0 created `VARCHAR`.
+  - Timezone-aware datetimes now get `TIMESTAMP_TZ`; v4.0.0 created
+    `TIMESTAMP_NTZ`.
+  - Categoricals take the type of their categories, so integer, float or
+    datetime categories are no longer `VARCHAR`.
+  - Interval dtypes now get `VARCHAR`; v4.0.0 created `NUMBER(38,0)`.
+  - NumPy integer, float, bool and naive datetime columns, nullable
+    `boolean`, strings, objects, string categories, periods and timedeltas
+    keep their v4.0.0 types.
+
+  Existing tables are not altered. Logical-type loading in `write_pandas`
+  and restoring the session database/schema after a per-call override are
+  not part of this change (#1484 remaining items; the latter rides with
+  #1421). **Migration:** tables auto-created from such frames now have
+  numeric or `TIMESTAMP_TZ` columns where v4.0.0 created `VARCHAR` or
+  `TIMESTAMP_NTZ`. Drop casts that compensated for `VARCHAR`. To keep the
+  v4.0.0 column types, create the table yourself and pass
+  `auto_create_table=False`.
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,
