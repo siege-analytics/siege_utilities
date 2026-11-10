@@ -59,5 +59,11 @@ writing-rules:4 exemption for the governing ticket. The #1398 epic is context on
 - **Evidence:** the problem (no extra declares `msal`), the evidence (`## Evidence (v4.0.0) — CONFIRMED by trace`) and the done-when criteria live in the #1449 body. The PR #1828 body quotes the Done-when and Falsifier. No public reviewer verdict for this PR exists yet; the earlier local PASS on code is recorded by the coordinator, not on GitHub. Investigation, pre-mortem and Junior/Senior records are on the ticket at issuecomment-6651155668 and issuecomment-6651205395.
 - **Falsification:** revert the implementation (restore `pyproject.toml` and `siege_utilities/connectors/dynamics.py` from develop) and `tests/test_1449_msal_extra.py::test_msal_is_declared_in_an_extra_with_a_lower_bound` goes red with "msal is missing from every pyproject.toml extra". `test_dynamics_missing_dependency_names_crm_extra[MSAL_AVAILABLE]` goes red because the error no longer names `siege-utilities[crm]`. This was verified on 2026-11-05: all 5 tests fail against develop's files and pass again once they are restored.
 
+## Pre-flight round on 723de64d (develop 71f02b0b)
+- **Develop merge (df7653c0).** The PR was CONFLICTING. The only conflict was the CHANGELOG 4.1.0 Fixed position against the #1475, #1661 and #1439 entries from develop; every develop line is kept, with the #1449 entry after them. `pyproject.toml` and `.github/workflows/ci.yml` merged cleanly: against develop they differ only by this PR's own additions (the `crm` extra, `msal` in `[all]`, and the CI `--extra crm` install with its `import msal` check). The merged tree changes only the six PR files.
+- **Review threads:** none unresolved for this PR (pre-flight list of 2026-11-10 03:25Z).
+- **CHANGELOG classification:** the #1449 entry stays under Fixed. It adds a dependency to the `[crm]` and `[all]` extras and changes an error message's install hint; caller code that worked on 4.0.0 behaves the same, so the BREAKING rule does not apply.
+- **Tests on the merged tree:** `tests/test_1449_msal_extra.py` with the changelog tests gives 30 passed.
+
 ## Rework ledger
 Empty.
