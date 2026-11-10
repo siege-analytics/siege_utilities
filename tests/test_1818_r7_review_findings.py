@@ -312,6 +312,47 @@ def test_append_with_different_crs_is_still_rejected(duck_connector):
         duck_connector.upload_spatial_data(_frame("EPSG:3857"), "places", if_exists="append")
 
 
+# --- DuckDB standalone transaction control (thread 4312759702) ----------------
+
+
+def _duck_rows(connector):
+    return connector.connection.execute("SELECT id FROM pending ORDER BY id").fetchall()
+
+
+@pytest.mark.parametrize("finalizer, expected", [("COMMIT", [(1,)]), ("ROLLBACK", [])])
+def test_duckdb_standalone_control_statements_run_unwrapped(duck_connector, finalizer, expected):
+    # A standalone BEGIN/COMMIT/ROLLBACK runs as written: no connector-owned
+    # BEGIN around it (which DuckDB would reject as a nested transaction) and no
+    # connector COMMIT after it, so the caller's transaction spans the calls.
+    duck_connector.connection.execute("CREATE TABLE pending(id INT)")
+    assert duck_connector.execute_spatial_query("BEGIN") == -1
+    duck_connector.execute_spatial_query("INSERT INTO pending VALUES (1)")
+    assert duck_connector.execute_spatial_query(finalizer) == -1
+    assert _duck_rows(duck_connector) == expected
+
+
+def test_duckdb_standalone_begin_leaves_transaction_open(duck_connector):
+    duck_connector.connection.execute("CREATE TABLE pending(id INT)")
+    duck_connector.execute_spatial_query("BEGIN")
+    duck_connector.execute_spatial_query("INSERT INTO pending VALUES (1)")
+    assert duck_connector._caller_owns_transaction()
+    duck_connector.connection.execute("ROLLBACK")
+    assert _duck_rows(duck_connector) == []
+
+
+@pytest.mark.parametrize("query", [
+    "BEGIN; INSERT INTO pending VALUES (1); COMMIT",
+    "INSERT INTO pending VALUES (1); COMMIT",
+    "BEGIN; INSERT INTO pending VALUES (1)",
+])
+def test_duckdb_mixed_control_batch_is_rejected_with_no_side_effects(duck_connector, query):
+    duck_connector.connection.execute("CREATE TABLE pending(id INT)")
+    with pytest.raises(module.SpatialQueryError, match="multi-statement batch"):
+        duck_connector.execute_spatial_query(query)
+    assert _duck_rows(duck_connector) == []
+    assert not duck_connector._caller_owns_transaction()
+
+
 # --- DuckDB floor for COMMENT ON TABLE ----------------------------------------
 
 
