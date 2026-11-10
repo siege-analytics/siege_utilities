@@ -13,11 +13,21 @@ Pre-mortem-artifact: https://github.com/siege-analytics/siege_utilities/issues/1
 Project-contribution: geocoded coordinates always belong to the address that was submitted, and one failed Census chunk no longer discards the others.
 
 ## Investigation
-- GitHub reported PR #1824 MERGEABLE/CLEAN against develop. A read-only trial merge (`git merge-tree --write-tree`) of `0a38d40f` against develop `2deb6a1f` reported no conflicted files (tree `b7926c4b`), so no develop merge was needed.
+- GitHub reported PR #1824 MERGEABLE/CLEAN against develop. A read-only trial merge (`git merge-tree --write-tree`) of `0a38d40f` against develop `2deb6a1f` reported no conflicted files (tree `b7926c4b`). A temporary merged-tree test run then showed a semantic conflict with develop's #1667 notebook test (1 failed, 8 passed; the same file on develop alone: 9 passed), so develop was merged (`51cfbc10`) as approved for a demonstrated semantic conflict; see "Develop test modified".
 - Commit `27e050d1` and its predecessor moved the entry into the PR body under the #1749 convention; #1749 is an open proposal and develop pull requests record entries in `CHANGELOG.md`, so the entry is restored there.
 - `census_geocoder.py` changed between v4.0.0 and this branch's merge base (#1400 URL redaction, #1709 fail-loudly). The v4.0.0 red run below confirms the alignment defects exist at the tag itself.
 - `GeocodingResult.matched` (`batch_geocoder.py:74`) and `MatchQuality.ERROR = "error"` (`batch_geocoder.py:40`) are the names the CHANGELOG entry cites.
 - REST: 0 inline review comments and 0 reviews on PR #1824.
+
+## Develop test modified
+- File and helper: `tests/test_1667_geocoding_cache_notebook_truth.py`, `_install_offline_services()` (landed on develop for #1667 via #1783), used by `test_geo_notebook_group_runs_offline[spatial/02_geocoding.ipynb]`.
+- Change: only the `addressbatch` stub. `return_value` (rows hard-coded with the caller IDs "1".."5") becomes a `side_effect` that reads the submitted CSV (column 0, no header, input order; `census_geocoder.py:347-360`) and echoes those IDs positionally onto the same five rows. The notebook and every assertion (`addressbatch.assert_called_once()`, `len(results) == 5`, `matched_ids == ['1', '2', '3']`, `unmatched['id'] == ['4', '5']`) are unchanged; no other develop test changes.
+- Reason: #1410 submits library-assigned batch IDs and rejects unknown or duplicate response IDs; caller IDs are restored on output. A stub that answers with caller IDs is the kind of backend the documented BREAKING contract rejects ("custom backends must echo the submitted input_id"), so the notebook fell into its `CensusGeocodeError` path and collected no results. Echoing the submitted IDs is what the Census batch API does.
+- Evidence on the merged tree (`51cfbc10` plus the stub change):
+  - (a) old stub: `test_geo_notebook_group_runs_offline[spatial/02_geocoding.ipynb]` fails at `assert len(results) == 5` (1 failed, 8 passed for the file);
+  - (b) echo stub: the file gives 9 passed;
+  - (c) mutation control on what #1667 protects (the timed cell is an in-memory scan, not a second geocoder run): cell `c5` temporarily re-runs `geocode_batch(...)` before the scan; with the echo stub in place the test fails, `Expected 'addressbatch' to have been called once. Called 2 times.` (1 failed, 8 passed). The notebook was then restored from HEAD and `git status` shows only the test file modified;
+  - (d) contract control: `tests/test_1410_batch_geocode_alignment.py::test_census_rejects_ambiguous_response_ids[unknown]` raises `CensusGeocodeError` ("unknown or duplicate"), and the composite variant `test_composite_rejects_ambiguous_response_ids[unknown]` marks the row `error`; both pass on the merged tree.
 
 ## Pre-mortem
 1. Tiger. Severity: P2. The entry under-describes the `"error"` quality and the `input_id` contract. Mitigation: the entry names `MatchQuality.ERROR`, `matched`, `CensusGeocodeError`, the `chunk_size` `ValueError` and the echo requirement, with a Migration line.
@@ -40,3 +50,4 @@ Phase B verification (red/green): `tests/test_1410_batch_geocode_alignment.py` c
 | F1 | P2 | No CHANGELOG entry in `CHANGELOG.md` (moved to PR body) | entry restored under `[4.1.0] ### BREAKING` with Migration |
 | F2 | P2 | PR body labels caller-visible changes as Fixed | body addendum states BREAKING |
 | F3 | P3 | Tip lacked review trailers | this commit carries them |
+| F4 | P1 | Semantic conflict with develop's #1667 notebook stub (caller IDs) | develop merged `51cfbc10`; stub echoes submitted IDs, with (a)-(d) evidence; merged-tree suites 426 passed |

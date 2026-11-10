@@ -395,8 +395,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (#1410). **Migration:** add `"error"` to any exhaustive `match_quality`
   mapping; treat `matched == False` as "no coordinates" and inspect
   `match_quality` to tell errors from genuine no-match; custom `BatchGeocoder`
-  backends must return each result with the `input_id` they were given; read
-  per-row status separately from the attempt history in `errors`.
+  backends and Census `addressbatch` stand-ins must echo the `input_id` they
+  were given (rows with unknown or duplicate IDs are rejected); read per-row
+  status separately from the attempt history in `errors`. The #1667 notebook
+  test's `addressbatch` stub now echoes the submitted IDs for this reason.
 
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
