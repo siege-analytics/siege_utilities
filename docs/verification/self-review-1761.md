@@ -33,7 +33,7 @@ Project-contribution: district demographic totals conserve the input population,
 - Shelves: SU-1 (silent exclusion replaced by a warning that states what was dropped); SU-2 (the docstring states edge tie-breaking, the warning, and zero rows); geospatial: assignment is decided by point-in-polygon on interior points, and CRS alignment precedes the join.
 - Gate 1 (syntax/lint): flake8 on the module is clean; the test file's E402 hits are pre-existing (imports after `pytest.importorskip`), outside the ratchet's rule set. `scripts/check_test_file_hygiene.py`: PASS.
 - Gate 2 (tests): `tests/test_demographic_profile.py tests/test_redistricting_data_hub.py tests/test_rdh_silent_wrong_data_1571.py tests/test_rdh_selection_1571.py tests/test_smoke.py tests/test_runtime_guard.py tests/test_sql_safety.py` with `--no-cov -p no:randomly`: 249 passed, 5 skipped. `tests/test_rdh_precinct_loader.py` cannot be collected locally (Django GIS needs the GDAL library, which is not installed here); CI provides GDAL.
-- Gate 3 (docs): `demographic_profile` docstring; PR body CHANGELOG block.
+- Gate 3 (docs): `demographic_profile` docstring; the #1562 entry in `CHANGELOG.md` `[4.1.0]` `### BREAKING` (with Migration), mirrored exactly in the PR body block.
 - Notebook impact (SU-4a): no notebook calls `demographic_profile`.
 
 ## Lead review (adversarial)
