@@ -18,6 +18,7 @@ import json
 import logging
 import threading
 from collections.abc import Iterator
+from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from unittest.mock import Mock
@@ -97,15 +98,56 @@ def connector() -> Iterator[instagram.InstagramConnector]:
     client.close()
 
 
-def _native_pool_records(caplog: pytest.LogCaptureFixture) -> list[str]:
-    return [r.getMessage() for r in caplog.records if r.name == POOL.name]
+class _PoolRecords(logging.Handler):
+    """Collects urllib3.connectionpool records on that logger itself."""
+
+    def __init__(self) -> None:
+        super().__init__(logging.DEBUG)
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(record)
+
+    def messages(self) -> list[str]:
+        return [r.getMessage() for r in self.records]
+
+
+@contextmanager
+def _capture_pool_records() -> Iterator[_PoolRecords]:
+    """Capture urllib3.connectionpool DEBUG records whatever earlier tests did to logging.
+
+    In a full run, configuring the test Django project applies
+    ``disable_existing_loggers=True`` (disabling this logger) and a CRITICAL root
+    with a null handler, so a root-level capture such as caplog sees nothing.
+    This re-enables the logger and attaches its own handler to it, and restores
+    every setting it changed on exit.
+    """
+    previous_disable = logging.root.manager.disable
+    previous_disabled, previous_level = POOL.disabled, POOL.level
+    logging.disable(logging.NOTSET)
+    POOL.disabled = False
+    POOL.setLevel(logging.DEBUG)
+    collector = _PoolRecords()
+    POOL.addHandler(collector)
+    try:
+        yield collector
+    finally:
+        POOL.removeHandler(collector)
+        POOL.setLevel(previous_level)
+        POOL.disabled = previous_disabled
+        logging.disable(previous_disable)
+
+
+@pytest.fixture
+def pool_records() -> Iterator[_PoolRecords]:
+    with _capture_pool_records() as collector:
+        yield collector
 
 
 def test_native_urllib3_debug_records_omit_exchange_credentials(
     graph_socket: type[_GraphStandIn], connector: instagram.InstagramConnector,
-    caplog: pytest.LogCaptureFixture,
+    pool_records: _PoolRecords,
 ) -> None:
-    caplog.set_level(logging.DEBUG, logger=POOL.name)
     graph_socket.statuses = [503]  # one connector retry, so two native request lines
     assert connector.refresh_access_token() == NEW_TOKEN
 
@@ -113,14 +155,30 @@ def test_native_urllib3_debug_records_omit_exchange_credentials(
     assert len(graph_socket.seen_paths) == 2
     assert all(APP_SECRET in path and OLD_TOKEN in path for path in graph_socket.seen_paths)
     # ... and urllib3 itself logged both requests for the real Graph origin.
-    lines = [m for m in _native_pool_records(caplog) if '"GET /' in m]
-    assert len(lines) == 2, _native_pool_records(caplog)
+    lines = [m for m in pool_records.messages() if '"GET /' in m]
+    assert len(lines) == 2, pool_records.messages()
     assert all(m.startswith("https://graph.facebook.com:443 ") and "/oauth/access_token?" in m for m in lines)
-    # No native record carries either credential.
+    # No native record carries either credential, in its message or raw args.
     for secret in (APP_SECRET, OLD_TOKEN):
-        assert secret not in caplog.text
-        assert all(secret not in m for m in _native_pool_records(caplog))
+        assert all(secret not in m for m in pool_records.messages())
+        assert all(secret not in repr(r.args) for r in pool_records.records)
     assert all("client_secret=[REDACTED]" in m and "fb_exchange_token=[REDACTED]" in m for m in lines)
+
+
+def test_capture_works_after_logging_was_disabled_by_earlier_setup(
+    monkeypatch: pytest.MonkeyPatch, graph_socket: type[_GraphStandIn],
+    connector: instagram.InstagramConnector,
+) -> None:
+    # The state the test Django project leaves behind in a full run: the
+    # urllib3 logger disabled and its parent no longer propagating.
+    monkeypatch.setattr(POOL, "disabled", True)
+    monkeypatch.setattr(logging.getLogger("urllib3"), "propagate", False)
+    with _capture_pool_records() as collector:
+        connector.refresh_access_token()
+    lines = [m for m in collector.messages() if '"GET /' in m]
+    assert len(lines) == 1 and "client_secret=[REDACTED]" in lines[0]
+    assert APP_SECRET not in lines[0] and OLD_TOKEN not in lines[0]
+    assert POOL.disabled is True  # the capture restored the prior state
 
 
 def test_redaction_is_removed_after_the_exchange_even_on_failure(
@@ -135,9 +193,8 @@ def test_redaction_is_removed_after_the_exchange_even_on_failure(
     assert POOL.filters == before
 
 
-def test_unrenderable_urllib3_record_is_suppressed_not_raised(caplog: pytest.LogCaptureFixture) -> None:
-    caplog.set_level(logging.DEBUG, logger=POOL.name)
+def test_unrenderable_urllib3_record_is_suppressed_not_raised(pool_records: _PoolRecords) -> None:
     with instagram._urllib3_url_secrets_redacted():
         POOL.debug("%s %s", "/oauth/access_token?client_secret=" + APP_SECRET)  # one arg short
-    assert APP_SECRET not in caplog.text
-    assert instagram._URLLIB3_UNRENDERABLE in _native_pool_records(caplog)
+    assert pool_records.messages() == [instagram._URLLIB3_UNRENDERABLE]
+    assert all(APP_SECRET not in repr(r.args) for r in pool_records.records)

@@ -496,3 +496,28 @@ Tests in `tests/test_1812_fidelity_oracle.py`:
 Verification (Python 3.11.11): social/oracle/notebook-hygiene sweep 1298
 passed, 31 skipped. Exception contracts 205 flagged, 0 unlisted, 0 stale; ruff
 clean.
+
+## Native urllib3 capture in a full run (CI 42760542058)
+
+`geo without GDAL` failed both capture tests in
+`tests/test_instagram_token_exchange_logging.py` with zero captured
+`urllib3.connectionpool` records.
+
+- Cause: `tests/django_project/settings.py` `LOGGING` uses
+  `disable_existing_loggers=True` and a CRITICAL root with a null handler.
+  Once that configuration is applied in the same process, the urllib3 logger
+  is disabled and a root-level `caplog` capture sees nothing. This is a test
+  isolation gap. Redaction did not fail: nothing was captured at all.
+- Fix (tests only):
+  - The capture attaches its own handler to `urllib3.connectionpool`,
+    re-enables that logger and clears `logging.disable` for the duration,
+    then restores every setting.
+  - `test_capture_works_after_logging_was_disabled_by_earlier_setup` starts
+    from the disabled, non-propagating state.
+- Evidence (pytest-django cannot load the project here without the GIS
+  stack, so the same `LOGGING` dict was applied with `dictConfig` in a
+  throwaway first test):
+  - the committed tests failed exactly as in CI (2 failed, empty capture);
+  - the reworked tests pass (5 passed);
+  - against the pre-fix `instagram.py` from `006fc895`, the native test
+    still fails on the leaked `client_secret` in urllib3's own request line.
