@@ -261,18 +261,11 @@ class GeographyChange:
         return len(self.target_geoids)
 
 
-# Supported crosswalk years
+# Supported directions and geographies with a nonempty CROSSWALK_FILE_PATTERNS entry.
 SUPPORTED_CROSSWALK_YEARS = {
     (2010, 2020): {
         'tract': True,
         'block_group': True,
-        'block': True,
-        'county': True,
-    },
-    (2000, 2010): {
-        'tract': True,
-        'block_group': True,
-        'block': True,
         'county': True,
     },
 }

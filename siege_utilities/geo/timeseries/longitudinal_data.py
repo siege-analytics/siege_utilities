@@ -37,6 +37,8 @@ from typing import Dict, List, Optional, Union, TYPE_CHECKING
 
 import pandas as pd
 
+from ..crosswalk.relationship_types import SUPPORTED_CROSSWALK_YEARS as _SUPPORTED_CROSSWALK_YEARS
+
 if TYPE_CHECKING:
     import geopandas as gpd
 
@@ -599,12 +601,8 @@ def inflation_factor(from_year: int, to_year: int) -> float:
 # LONGITUDINAL ALIGNER
 # =============================================================================
 
-# Supported vintage transitions (Census crosswalk availability)
-_SUPPORTED_TRANSITIONS = {
-    (2000, 2010),
-    (2010, 2020),
-    (2000, 2020),  # chained: 2000→2010→2020
-}
+# Directed vintage transitions backed by the crosswalk client.
+_SUPPORTED_TRANSITIONS = set(_SUPPORTED_CROSSWALK_YEARS)
 
 
 @dataclass
@@ -633,8 +631,10 @@ class AlignmentResult:
 class LongitudinalAligner:
     """Align Census data across vintage years with optional inflation adjustment.
 
-    Chains crosswalks for multi-decade transitions (e.g. 2000→2010→2020) and
-    falls back to areal interpolation when crosswalk data is unavailable.
+    Supports 2010->2020 crosswalks for tract, block_group, and county, or an
+    identity copy for equal vintages. Other transitions and geographies raise
+    ValueError before alignment. For supported transitions, crosswalk failures
+    still fall back to areal interpolation.
 
     Parameters
     ----------
@@ -702,6 +702,12 @@ class LongitudinalAligner:
         Returns
         -------
         AlignmentResult
+
+        Raises
+        ------
+        ValueError
+            If no crosswalk path supports the requested direction and geography.
+            Unavailable paths are rejected before crosswalk or areal interpolation.
         """
         geo = geography or self.geography
         sfips = state_fips or self.state_fips
@@ -718,7 +724,7 @@ class LongitudinalAligner:
             )
 
         # Determine chain of transitions needed
-        chain = self._transition_chain(source_vintage, self.target_vintage)
+        chain = self._transition_chain(source_vintage, self.target_vintage, geo)
         log.info(
             "Aligning %d rows from %d→%d via chain %s",
             rows_before, source_vintage, self.target_vintage, chain,
@@ -829,25 +835,25 @@ class LongitudinalAligner:
 
     @staticmethod
     def _transition_chain(
-        source: int, target: int,
+        source: int, target: int, geography_level: str = "tract",
     ) -> List[tuple]:
-        """Return list of (src, tgt) steps to get from *source* to *target*."""
+        """Return supported directed steps, or reject an unavailable crosswalk path."""
         if source == target:
             return []
 
-        direct = (min(source, target), max(source, target))
-        if direct in {(2000, 2010), (2010, 2020)}:
+        geo = geography_level.lower().replace(" ", "_").replace("-", "_")
+        if geo == "blockgroup":
+            geo = "block_group"
+        supported = [
+            pair for pair in sorted(_SUPPORTED_TRANSITIONS)
+            if _SUPPORTED_CROSSWALK_YEARS[pair].get(geo, False)
+        ]
+        if (source, target) in supported:
             return [(source, target)]
-
-        # Chain: 2000→2020 via 2010
-        if direct == (2000, 2020):
-            if source < target:
-                return [(2000, 2010), (2010, 2020)]
-            return [(2020, 2010), (2010, 2000)]
 
         raise ValueError(
             f"No supported crosswalk path from {source} to {target}. "
-            f"Supported vintages: 2000, 2010, 2020."
+            f"Supported transitions for {geo}: {supported}."
         )
 
     @staticmethod
