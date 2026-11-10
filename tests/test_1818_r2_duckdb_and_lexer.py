@@ -3,15 +3,11 @@
 Covers F1 (upload joins a caller DuckDB transaction with no BEGIN/COMMIT/ROLLBACK
 of its own), F2 (``--`` comments end at CR and CRLF; a comment-terminated control
 batch is rejected before execution) and F3 (Unicode dollar-quote tags). DuckDB
-and pure-lexer only; no external services.
+and pure-lexer only; no external services. DuckDB, GeoPandas and Shapely load
+inside the helpers that use them, so a missing optional package skips only the
+tests that need it and the pure-lexer tests still run.
 """
 import pytest
-
-pytest.importorskip("duckdb")
-
-import duckdb
-import geopandas as gpd
-from shapely.geometry import Point
 
 from siege_utilities.geo import spatial_transformations as module
 from siege_utilities.geo.spatial_transformations import (
@@ -21,13 +17,16 @@ from siege_utilities.geo.spatial_transformations import (
 
 
 def _connector():
+    duckdb = pytest.importorskip("duckdb")
     client = module.DuckDBConnector.__new__(module.DuckDBConnector)
     client.connection = duckdb.connect(":memory:")
     return client
 
 
 def _frame():
-    return gpd.GeoDataFrame({"id": [1]}, geometry=[Point(1, 2)], crs="EPSG:4326")
+    gpd = pytest.importorskip("geopandas")
+    point = pytest.importorskip("shapely.geometry").Point
+    return gpd.GeoDataFrame({"id": [1]}, geometry=[point(1, 2)], crs="EPSG:4326")
 
 
 @pytest.mark.parametrize("mode", ["fail", "append", "replace"])
@@ -81,9 +80,10 @@ def test_comment_terminated_control_batch_rejected(newline):
             f"INSERT INTO places VALUES(8,'POINT (1 2)'); -- review{newline}"
             f"COMMIT;{newline}SELECT 'not geometry' AS geometry_wkt"
         )
-        with pytest.raises(module.SpatialQueryError):
+        with pytest.raises(module.SpatialQueryError) as caught:
             client.execute_spatial_query(query)
         assert client.connection.execute("SELECT id FROM places").fetchall() == []
+        assert "multi-statement batch" in str(caught.value)
     finally:
         client.close()
 

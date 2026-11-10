@@ -19,7 +19,7 @@ except ImportError:
     _ShapelyError = ValueError
     _CRSError = ValueError
     _GEOPANDAS_AVAILABLE = False
-from typing import Optional, Union
+from typing import Iterator, Optional, Union
 
 # Import existing library functions
 from ..config.user_config import get_user_config
@@ -41,32 +41,39 @@ class SpatialQueryError(RuntimeError):
     """
 
 
-_SQL_TOKEN = re.compile(
-    r"(?P<space>\s+|--[^\n\r]*(?:\r\n|[\n\r]|$))|(?P<comment>/\*)|"
-    r"(?P<string>[eE]'(?:[^'\\]|\\.|'')*'|'(?:[^']|'')*')|"
-    r'(?P<identifier>"(?:[^"]|"")*")|'
-    r"(?P<dollar>\$(?:[A-Za-z_\u0080-￿][A-Za-z_0-9\u0080-￿]*)?\$)|"
-    r"(?P<word>[A-Za-z_\u0080-\uffff][A-Za-z_0-9$\u0080-\uffff]*)|(?P<symbol>.)",
-    re.DOTALL,
-)
+# SQL lexer fragments shared by the standard and backslash-aware lexers.
+# PostgreSQL treats every byte >= 0x80 as an identifier character, so any
+# non-ASCII code point -- including astral ones beyond U+FFFF -- continues an
+# unquoted word or dollar-quote tag (F2). These are real characters in a plain
+# string, not regex escape text, so the range covers U+0080..U+10FFFF.
+_SQL_NON_ASCII = "\u0080-\U0010ffff"
+_SQL_WORD_START = "A-Za-z_" + _SQL_NON_ASCII
+_SQL_TAG_CHAR = "A-Za-z_0-9" + _SQL_NON_ASCII
+_SQL_WORD_CHAR = "A-Za-z_0-9$" + _SQL_NON_ASCII
+_SQL_E_STRING = r"[eE]'(?:[^'\\]|\\.|'')*'"
+# F1: with standard_conforming_strings off, PostgreSQL honours backslash escapes
+# inside a plain '...' string, so a \' can hide a statement boundary.
+_SQL_PLAIN_STRING = r"'(?:[^']|'')*'"
+_SQL_PLAIN_STRING_BACKSLASH = r"'(?:[^'\\]|\\.|'')*'"
 
 
-# F2: extend the identifier and dollar-tag ranges past the BMP to the full
-# Unicode space, so astral letters in a tag or word lex as one token on both
-# backends (the source range char is U+FFFF; swap it for U+10FFFF).
-_SQL_TOKEN = re.compile(_SQL_TOKEN.pattern.replace("￿", "\U0010ffff"), re.DOTALL)
-
-# F1: PostgreSQL with standard_conforming_strings off honours backslash escapes
-# inside a plain '...' string, so a \' can hide a statement boundary. Derive a
-# backslash-aware lexer from the standard one so the two stay in sync; E'' already
-# honours backslash in both.
-_SQL_TOKEN_BACKSLASH = re.compile(
-    _SQL_TOKEN.pattern.replace(r"|'(?:[^']|'')*')", r"|'(?:[^'\\]|\\.|'')*')"),
-    re.DOTALL,
-)
+def _sql_token_pattern(plain_string: str) -> re.Pattern[str]:
+    """Build the SQL lexer; the two variants differ only in plain-string escapes."""
+    return re.compile(
+        r"(?P<space>\s+|--[^\n\r]*(?:\r\n|[\n\r]|$))|(?P<comment>/\*)|"
+        f"(?P<string>{_SQL_E_STRING}|{plain_string})|"
+        r'(?P<identifier>"(?:[^"]|"")*")|'
+        f"(?P<dollar>\\$(?:[{_SQL_WORD_START}][{_SQL_TAG_CHAR}]*)?\\$)|"
+        f"(?P<word>[{_SQL_WORD_START}][{_SQL_WORD_CHAR}]*)|(?P<symbol>.)",
+        re.DOTALL,
+    )
 
 
-def _sql_tokens(query, backslash_escapes=False):
+_SQL_TOKEN = _sql_token_pattern(_SQL_PLAIN_STRING)
+_SQL_TOKEN_BACKSLASH = _sql_token_pattern(_SQL_PLAIN_STRING_BACKSLASH)
+
+
+def _sql_tokens(query: str, backslash_escapes: bool = False) -> Iterator[tuple[str, str]]:
     """Yield actual lexemes, excluding whitespace and nested SQL comments.
 
     With *backslash_escapes* (PostgreSQL standard_conforming_strings off), a
@@ -95,12 +102,28 @@ def _sql_tokens(query, backslash_escapes=False):
             yield kind, value
 
 
-def _postgis_has_dml(query, backslash_escapes=False):
+SqlLexeme = tuple[str, str]
+
+
+def _postgis_has_dml(query: str, backslash_escapes: bool = False) -> bool:
     """Flag write keywords at any depth outside literals."""
     keywords = {'INSERT', 'UPDATE', 'DELETE', 'MERGE', 'CREATE', 'DROP', 'ALTER',
                 'TRUNCATE', 'COPY', 'CALL', 'DO', 'GRANT', 'REVOKE'}
     return any(kind == 'word' and value.upper() in keywords
                for kind, value in _sql_tokens(query, backslash_escapes))
+
+
+def _leading_word(query: str, backslash_escapes: bool = False) -> Optional[str]:
+    """Return the query's first word lexeme, upper-cased, or ``None``.
+
+    Comments, whitespace and symbols such as a leading ``(`` are skipped, so
+    ``-- note`` + newline + ``SELECT`` and ``(SELECT ...)`` both classify as
+    ``SELECT``.
+    """
+    for kind, value in _sql_tokens(query, backslash_escapes):
+        if kind == 'word':
+            return value.upper()
+    return None
 
 
 # Leading keywords that make a standalone statement a transaction-control
@@ -111,28 +134,105 @@ _TRANSACTION_CONTROL_HEADS = {
 }
 
 
-def _sql_statement_list(query, backslash_escapes=False):
+def _sql_statement_list(
+    query: str,
+    backslash_escapes: bool = False,
+    postgres_atomic: bool = False,
+) -> list[list[SqlLexeme]]:
     """Split a SQL string into non-empty statements on top-level ``;``.
 
     Uses :func:`_sql_tokens` so a ``;`` inside a string literal, quoted
     identifier, dollar-quoted body or comment does not split a statement.
     *backslash_escapes* selects the PostgreSQL standard_conforming_strings-off
     lexer. Each element is the statement's list of ``(kind, value)`` lexemes.
+
+    With *postgres_atomic* (PostgreSQL only), a SQL-standard function body
+    ``BEGIN ATOMIC ... END`` stays inside its ``CREATE [OR REPLACE]
+    FUNCTION``/``PROCEDURE`` statement: its inner ``;`` do not split, and an
+    ``END`` closes an open ``CASE`` expression before it closes the body. A body
+    opens only in such a statement, outside parentheses, on ``BEGIN``
+    immediately followed by ``ATOMIC``. Elsewhere ``begin atomic`` can be an
+    ordinary column and alias (``SELECT begin atomic FROM t``), and treating it
+    as a body would hide a following ``COMMIT`` from the batch guard.
     """
     statements, current = [], []
+    words = []  # upper-cased words of the current statement
+    paren_depth = 0
+    atomic_depth = 0  # open BEGIN ATOMIC bodies
+    case_depth = 0  # open CASE expressions inside a body
+    previous = None  # previous lexeme of the current statement
     for kind, value in _sql_tokens(query, backslash_escapes):
-        if kind == 'symbol' and value == ';':
+        if kind == 'symbol' and value == ';' and not atomic_depth:
             if current:
                 statements.append(current)
-            current = []
-        else:
-            current.append((kind, value))
+            current, words, paren_depth, previous = [], [], 0, None
+            continue
+        current.append((kind, value))
+        if postgres_atomic:
+            if kind == 'symbol' and value in '()':
+                paren_depth += 1 if value == '(' else -1
+            elif kind == 'word':
+                word = value.upper()
+                words.append(word)
+                if (word == 'ATOMIC' and previous == ('word', 'BEGIN')
+                        and not paren_depth and not atomic_depth
+                        and _is_create_routine(words)):
+                    atomic_depth = 1
+                elif atomic_depth and word == 'CASE':
+                    case_depth += 1
+                elif atomic_depth and word == 'END':
+                    if case_depth:
+                        case_depth -= 1
+                    else:
+                        atomic_depth = 0
+        previous = (kind, value.upper() if kind == 'word' else value)
     if current:
         statements.append(current)
     return statements
 
 
-def _transaction_control_kind(tokens):
+def _is_create_routine(words: list[str]) -> bool:
+    """True if a statement's words start ``CREATE [OR REPLACE] FUNCTION|PROCEDURE``."""
+    head = words[1:2] if words[:1] == ['CREATE'] else []
+    if words[:3] == ['CREATE', 'OR', 'REPLACE']:
+        head = words[3:4]
+    return head in (['FUNCTION'], ['PROCEDURE'])
+
+
+def _requires_no_transaction_block(statements: list[list[SqlLexeme]]) -> bool:
+    """True for one PostgreSQL statement that cannot run in a transaction block.
+
+    Covers ``VACUUM``, ``ALTER SYSTEM``, ``CREATE``/``DROP DATABASE``,
+    ``CREATE``/``DROP TABLESPACE``, ``REINDEX DATABASE``/``SYSTEM`` and the
+    concurrent forms ``CREATE [UNIQUE] INDEX CONCURRENTLY``, ``DROP INDEX
+    CONCURRENTLY`` and ``REINDEX ... CONCURRENTLY``. A multi-statement batch never
+    qualifies.
+    """
+    if len(statements) != 1:
+        return False
+    words = [value.upper() for kind, value in statements[0] if kind == 'word']
+    if not words:
+        return False
+    prefixes = (
+        ('VACUUM',), ('ALTER', 'SYSTEM'),
+        ('CREATE', 'DATABASE'), ('DROP', 'DATABASE'),
+        ('CREATE', 'TABLESPACE'), ('DROP', 'TABLESPACE'),
+        ('REINDEX', 'DATABASE'), ('REINDEX', 'SYSTEM'),
+        ('DROP', 'INDEX', 'CONCURRENTLY'),
+        ('CREATE', 'INDEX', 'CONCURRENTLY'),
+        ('CREATE', 'UNIQUE', 'INDEX', 'CONCURRENTLY'),
+    )
+    if any(tuple(words[:len(prefix)]) == prefix for prefix in prefixes):
+        return True
+    if words[0] == 'REINDEX':
+        # REINDEX [ ( options ) ] { INDEX | TABLE | SCHEMA } CONCURRENTLY name
+        for position, word in enumerate(words[1:], start=1):
+            if word in {'INDEX', 'TABLE', 'SCHEMA'}:
+                return words[position + 1:position + 2] == ['CONCURRENTLY']
+    return False
+
+
+def _transaction_control_kind(tokens: list[SqlLexeme]) -> Optional[str]:
     """Classify a single statement's leading keywords as transaction control.
 
     Returns the control label (``BEGIN``, ``END``, ``ABORT``, ``SAVEPOINT``,
@@ -154,7 +254,9 @@ def _transaction_control_kind(tokens):
     return None
 
 
-def _is_standalone_recovery(statements, controls):
+def _is_standalone_recovery(
+    statements: list[list[SqlLexeme]], controls: list[Optional[str]],
+) -> bool:
     """True if the input is a single standalone recovery statement (#1818 R5).
 
     Recovery accepted in a failed (INERROR) transaction is a precisely
@@ -172,7 +274,7 @@ def _is_standalone_recovery(statements, controls):
     return False
 
 
-def _validate_output_crs(crs):
+def _validate_output_crs(crs: object) -> None:
     """Reject an invalid output CRS before executing anything (#1818 R4a).
 
     A bad ``crs=`` must raise with zero side effects in every mode, rather than
@@ -554,10 +656,22 @@ class PostGISConnector:
 
         When this connector opened the connection and no caller transaction is
         active, every statement commits after decoding succeeds and rolls back
-        on error. In a caller transaction, read-only statements never commit;
-        statements containing write tokens commit, while volatile-function SELECT
-        calls without write tokens leave the transaction open. Savepoints isolate
-        failures without rolling back the caller's transaction.
+        on error. Under ``autocommit=True`` a single statement that PostgreSQL
+        forbids inside a transaction block (``VACUUM``, ``CREATE INDEX
+        CONCURRENTLY``, ``CREATE DATABASE`` and similar) runs directly instead.
+
+        In a caller transaction, a statement whose first word is ``SELECT``
+        never commits, even when it contains write tokens (``SELECT ... FOR
+        UPDATE``, a volatile function call); leading comments and parentheses
+        are skipped when finding that word. Any other statement containing write
+        tokens commits the caller's transaction (4.0.0 behaviour). Savepoints
+        isolate failures without rolling back the caller's transaction.
+
+        With ``autocommit=True``, an explicit SQL ``BEGIN`` makes the
+        transaction caller-owned: the connector never commits it, so issue your
+        own ``COMMIT`` or ``ROLLBACK``. A standalone transaction-control
+        statement runs as written; a batch mixing one with other statements is
+        rejected before anything runs.
 
         Args:
             query: SQL query string
@@ -607,7 +721,9 @@ class PostGISConnector:
         # R6: classify statements before executing anything. A multi-statement
         # batch that mixes a transaction-control statement with other statements
         # is non-atomic on the normal path, so reject it with zero side effects.
-        statements = _sql_statement_list(query, backslash_escapes=backslash_escapes)
+        statements = _sql_statement_list(
+            query, backslash_escapes=backslash_escapes, postgres_atomic=True,
+        )
         controls = [_transaction_control_kind(statement) for statement in statements]
         if len(statements) > 1 and any(controls):
             raise SpatialQueryError(
@@ -651,8 +767,12 @@ class PostGISConnector:
         #     SQL BEGIN/COMMIT/ROLLBACK (connection.commit()/rollback() do not end
         #     an explicit SQL transaction under autocommit).
         #   IDLE + autocommit=False: connector-owned via connection.commit()/rollback().
+        #   IDLE + autocommit=True + one statement PostgreSQL forbids inside a
+        #     transaction block (VACUUM, CREATE INDEX CONCURRENTLY, ...): runs
+        #     directly, autocommitted by the server, as on 4.0.0.
         caller_owned = caller_intrans
-        sql_owned = (not caller_intrans) and autocommit
+        direct = (not caller_intrans) and autocommit and _requires_no_transaction_block(statements)
+        sql_owned = (not caller_intrans) and autocommit and not direct
         conn_owned = (not caller_intrans) and (not autocommit)
 
         cursor = None
@@ -709,10 +829,12 @@ class PostGISConnector:
             if caller_owned:
                 # R1 Design A: on a caller-owned transaction, commit only a
                 # non-SELECT statement that carries write tokens (develop parity).
-                # A SELECT-prefixed statement (including FOR UPDATE / FOR SHARE and
-                # volatile-function SELECT) is never committed here, so the caller
-                # keeps its transaction and row locks.
-                if not query.strip().upper().startswith('SELECT') and _postgis_has_dml(query, backslash_escapes):
+                # A statement whose first word is SELECT (including FOR UPDATE /
+                # FOR SHARE and volatile-function SELECT, after any leading comment
+                # or parenthesis) is never committed here, so the caller keeps its
+                # transaction and row locks.
+                if (_leading_word(query, backslash_escapes) != 'SELECT'
+                        and _postgis_has_dml(query, backslash_escapes)):
                     self.connection.commit()
             elif sql_owned:
                 # Autocommit + connector-established BEGIN: end with SQL COMMIT;
@@ -835,7 +957,14 @@ def _duckdb_result_frame(df, *, source_crs=None, crs=None, stored_crs=()):
     if 'geometry_wkt' not in df.columns and 'geometry' not in df.columns:
         return gpd.GeoDataFrame(df)
     source = CRS.from_user_input(source_crs) if source_crs is not None else None
-    known = {CRS.from_user_input(value) for value in stored_crs if value is not None}
+    # Deduplicate by CRS equality, not by hash: pyproj hashes the canonical WKT,
+    # so equal CRSs that differ only in names or metadata hash differently.
+    known = []
+    for value in stored_crs:
+        if value is not None:
+            parsed = CRS.from_user_input(value)
+            if not any(parsed == seen for seen in known):
+                known.append(parsed)
     if len(known) > 1 or (source is not None and any(value != source for value in known)):
         raise ValueError("Result contains conflicting source CRSs")
     if source is None and known:
@@ -997,7 +1126,19 @@ class DuckDBConnector:
                         if any(value is not None and CRS.from_user_input(value) != gdf.crs
                                for value in (stored or [])):
                             raise ValueError("Cannot append data with a different source CRS")
-                        metadata = list(dict.fromkeys((stored or []) + [incoming_crs]))
+                        # Keep one spelling per CRS: when a stored value already
+                        # equals the incoming CRS (even with different WKT text),
+                        # retain the stored spelling rather than adding a second.
+                        metadata = list(dict.fromkeys(stored or []))
+                        if gdf.crs is None:
+                            already_recorded = None in metadata
+                        else:
+                            already_recorded = any(
+                                value is not None and CRS.from_user_input(value) == gdf.crs
+                                for value in metadata
+                            )
+                        if not already_recorded:
+                            metadata.append(incoming_crs)
                         self.connection.execute(
                             f"INSERT INTO {table_name} BY NAME SELECT * FROM siege_upload_df"
                         )

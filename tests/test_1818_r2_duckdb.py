@@ -5,7 +5,7 @@ import pytest
 gpd = pytest.importorskip("geopandas")
 from shapely.geometry import Point
 
-from siege_utilities.geo.spatial_transformations import DuckDBConnector
+from siege_utilities.geo.spatial_transformations import DuckDBConnector, SpatialQueryError
 
 
 @pytest.fixture
@@ -120,10 +120,9 @@ def test_r2_2_prepared_read_keeps_rows_columns_and_crs(places):
     assert result.crs.to_epsg() == 4326
 
 
-@pytest.mark.parametrize("helper", ["_duckdb_table_metadata", "_duckdb_select_metadata", "_duckdb_parsed_metadata"])
 @pytest.mark.parametrize("error", [RuntimeError, KeyError])
 @pytest.mark.parametrize("crs", [None, "EPSG:4326"])
-def test_r2_2_arbitrary_queries_never_call_metadata_helpers(places, monkeypatch, caplog, helper, error, crs):
+def test_r2_2_arbitrary_queries_never_call_metadata_helpers(places, monkeypatch, caplog, error, crs):
     import pandas as pd
     import siege_utilities.geo.spatial_transformations as module
 
@@ -135,7 +134,9 @@ def test_r2_2_arbitrary_queries_never_call_metadata_helpers(places, monkeypatch,
     def fail(*args, **kwargs):
         raise error("discovery probe failure")
 
-    monkeypatch.setattr(module, helper, fail, raising=False)
+    # _duckdb_table_metadata is the only table-metadata reader; without
+    # raising=False a renamed helper fails this test instead of passing vacuously.
+    monkeypatch.setattr(module, "_duckdb_table_metadata", fail)
     with caplog.at_level("WARNING", logger=module.__name__):
         result = connector.execute_spatial_query(query, crs=crs)
     assert result.id.tolist() == driver.id.tolist()
@@ -150,7 +151,8 @@ def test_r2_2_arbitrary_queries_never_call_metadata_helpers(places, monkeypatch,
 @pytest.mark.parametrize("metadata, reason", [
     ('["EPSG:3857", "EPSG:4326"]', "conflicting source CRSs"),
     ('["EPSG:3857", null]', "known and unknown CRSs"),
-    ('[null]', "unknown"),
+    # Unknown-only metadata is usable: the stored-CRS path returns CRS None.
+    ('[null]', None),
     ('["invalid:crs"]', "Invalid"),
     ('not json', "Expecting value"),
 ])
@@ -165,6 +167,12 @@ def test_r2_2_unusable_metadata_does_not_affect_arbitrary_sql(places, caplog, me
     assert result.geometry.to_wkt().tolist() == driver.geometry_wkt.tolist()
     assert result.crs.to_epsg() == 4326
     assert "assuming EPSG:4326" in caplog.text
+    # The stored-CRS path does read the metadata, and reports why it is unusable.
+    if reason is None:
+        assert connector.download_spatial_data("places").crs is None
+    else:
+        with pytest.raises(SpatialQueryError, match=reason):
+            connector.download_spatial_data("places")
 
 
 @pytest.mark.parametrize("other", ["same", "conflicting", "unknown", "external"])

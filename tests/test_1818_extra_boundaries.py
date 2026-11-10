@@ -3,17 +3,15 @@
 Adopted from the R-1818-2 review harness. The only adaptation is the pg_pair
 fixture skipping when SIEGE_TEST_POSTGIS_DSN is unset, so the PostGIS cases run
 in CI (which provides a cluster) and skip on a workstation without one; no
-assertion changed. The DuckDB boundary behavior is also covered without a
-cluster by test_1818_r2_duckdb_and_lexer.py.
+assertion changed. The DuckDB boundary behavior is covered without a cluster
+by test_1818_r2_duckdb_and_lexer.py, including the "multi-statement batch"
+message assertion this module used to repeat for DuckDB.
 """
 import os
 from uuid import uuid4
 
 import pytest
 
-pytest.importorskip("duckdb")
-
-import duckdb
 from siege_utilities.geo import spatial_transformations as module
 
 @pytest.fixture
@@ -32,25 +30,14 @@ def pg_pair():
         with observer.cursor() as cursor:cursor.execute(f'DROP TABLE {table}')
         observer.close()
 
-@pytest.mark.parametrize('backend',['duckdb','postgis'])
 @pytest.mark.parametrize('newline',['\n','\r\n','\r'],ids=['LF','CRLF','CR'])
-def test_embedded_commit_in_comment_terminated_batch_is_rejected(backend,newline,pg_pair):
-    if backend=='postgis':
-        client,observer,table=pg_pair
-        query=f"INSERT INTO {table} VALUES(8,ST_SetSRID(ST_Point(1,2),4326)); -- review{newline}COMMIT;{newline}SELECT 'not WKB'::text AS geometry"
-    else:
-        client=module.DuckDBConnector.__new__(module.DuckDBConnector);client.connection=duckdb.connect(':memory:')
-        client.connection.execute('CREATE TABLE places(id INT,geometry_wkt VARCHAR)')
-        query=f"INSERT INTO places VALUES(8,'POINT (1 2)'); -- review{newline}COMMIT;{newline}SELECT 'not geometry' AS geometry_wkt"
-    try:
-        with pytest.raises(module.SpatialQueryError) as caught:client.execute_spatial_query(query)
-        if backend=='postgis':
-            with observer.cursor() as cursor:cursor.execute(f'SELECT id FROM {table}');rows=cursor.fetchall()
-        else:rows=client.connection.execute('SELECT id FROM places').fetchall()
-        assert rows==[],f'Guard bypass; committed rows after failed API call: {rows}; {caught.value}'
-        assert 'multi-statement batch' in str(caught.value)
-    finally:
-        if backend=='duckdb':client.close()
+def test_embedded_commit_in_comment_terminated_batch_is_rejected(newline,pg_pair):
+    client,observer,table=pg_pair
+    query=f"INSERT INTO {table} VALUES(8,ST_SetSRID(ST_Point(1,2),4326)); -- review{newline}COMMIT;{newline}SELECT 'not WKB'::text AS geometry"
+    with pytest.raises(module.SpatialQueryError) as caught:client.execute_spatial_query(query)
+    with observer.cursor() as cursor:cursor.execute(f'SELECT id FROM {table}');rows=cursor.fetchall()
+    assert rows==[],f'Guard bypass; committed rows after failed API call: {rows}; {caught.value}'
+    assert 'multi-statement batch' in str(caught.value)
 
 @pytest.mark.parametrize('tag',['review','é','分析'])
 def test_valid_dollar_quote_with_control_text_is_not_rejected(pg_pair,tag):
@@ -98,6 +85,7 @@ def test_real_postgis_owned_success_is_durable(pg_pair,autocommit):
 
 @pytest.mark.parametrize('finalizer',['COMMIT','ROLLBACK'])
 def test_real_duckdb_caller_query_joins(finalizer):
+    duckdb=pytest.importorskip('duckdb')
     client=module.DuckDBConnector.__new__(module.DuckDBConnector);client.connection=duckdb.connect(':memory:')
     conn=client.connection
     try:

@@ -96,9 +96,16 @@ def test_real_pg_backslash_commit_is_rejected_on_both_settings(pg_pair, scs, aut
         with conn.cursor() as cursor:
             cursor.execute("BEGIN")
             cursor.execute(f"INSERT INTO {table} VALUES(99, ST_SetSRID(ST_Point(1,2),4326))")
+    # Both forms are valid SQL on their setting, so PostgreSQL itself would run
+    # every statement and only the guard can stop the COMMIT. With scs=on the
+    # quote run is one literal (INSERT; SELECT '...' AS geometry). With scs=off
+    # \' escapes, so the batch is INSERT; a SELECT of the literal a'; COMMIT; then
+    # a complete trailing SELECT (the scs=on tail would be an unterminated
+    # literal here, and PostgreSQL would reject the batch before running it).
+    tail = "' AS geometry" if scs == "on" else "SELECT 'not WKB'::text AS geometry"
     payload = (
         f"INSERT INTO {table} VALUES(8, ST_SetSRID(ST_Point(1,2),4326)); "
-        "SELECT 'a\\''; COMMIT; ' AS geometry"
+        "SELECT 'a\\''; COMMIT; " + tail
     )
     with pytest.raises(module.SpatialQueryError):
         client.execute_spatial_query(payload, crs="EPSG:4326")

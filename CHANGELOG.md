@@ -321,7 +321,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the table comment, including for empty tables, and `download_spatial_data`
   restores it, also after reconnecting. Previously every DuckDB read was
   labelled EPSG:4326, whatever CRS was uploaded. `if_exists='append'` adds
-  rows by column name and refuses data in a different CRS. Arbitrary SQL
+  rows by column name and refuses data in a different CRS; an equal CRS whose
+  WKT is spelled differently is recorded once and reads back. Arbitrary SQL
   through `execute_spatial_query` keeps the EPSG:4326 label (#1818).
 - The CI battle-test script now runs the repository-root test suite and
   returns pytest's exit status, so the job reflects real test results.
@@ -364,10 +365,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rolls back or commits that transaction on the caller's behalf. A failed
   statement rolls back to a savepoint and keeps the caller's earlier work; in
   v4.0.0 the connector rolled back the whole transaction. Only a statement
-  that does not start with `SELECT` and contains a write keyword commits, so
-  read-only statements such as `WITH ... SELECT`, `EXPLAIN SELECT` or `SHOW`
-  no longer commit the caller's pending work; in v4.0.0 every statement not
-  starting with `SELECT` committed. A standalone transaction-control statement
+  whose first word is not `SELECT` and that contains a write keyword commits,
+  so read-only statements such as `WITH ... SELECT`, `EXPLAIN SELECT` or
+  `SHOW` no longer commit the caller's pending work; in v4.0.0 every statement
+  not starting with `SELECT` committed. Leading comments and parentheses are
+  skipped when finding that first word, so a `SELECT ... FOR UPDATE` behind a
+  comment keeps the caller's transaction and row locks; v4.0.0 committed it. A standalone transaction-control statement
   such as `BEGIN`, `SAVEPOINT` or `RELEASE` runs as written, without the
   connector committing it, and returns -1, so `BEGIN` now leaves a
   transaction open (#1818). **Migration:** after a `SpatialQueryError` inside
@@ -381,15 +384,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   example EPSG:3857), a PostGIS table without an SRID reads with CRS `None`,
   and a DuckDB table read uses the CRS stored at upload. DuckDB tables written
   before this release have no stored CRS and read with CRS `None`; asking such
-  a read to reproject with `crs=` raises `SpatialQueryError`. An invalid `crs=`
+  a read to reproject with `crs=` raises `SpatialQueryError`. DuckDB stores the
+  CRS with `COMMENT ON TABLE`, so the `performance` and `all` extras now
+  require `duckdb>=0.10.0` (previously 0.7.0). An invalid `crs=`
   passed to `execute_spatial_query` now raises before the query runs, and a
   query batch that mixes a
   transaction-control statement (`BEGIN`, `COMMIT`, `SAVEPOINT` and similar)
   with other statements is rejected before anything executes. **Migration:**
   pass `crs="EPSG:4326"` (or your target) to keep reprojected output; for a
   DuckDB table written by an earlier version, pass `source_crs=` with the CRS
-  it was written in (EPSG:4326 if unsure, as before), or upload it again; run
-  transaction-control statements on their own (#1818).
+  it was written in (EPSG:4326 if unsure, as before), or upload it again;
+  upgrade DuckDB to 0.10.0 or later; run transaction-control statements on
+  their own (#1818).
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,

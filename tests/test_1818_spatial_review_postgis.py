@@ -1,7 +1,8 @@
-"""Live PostGIS authority and transaction regressions for PR #1818."""
+"""Live PostGIS authority and transaction regressions for PR #1818.
 
-import os
-from uuid import uuid4
+The ``postgis_pair`` and ``volatile_insert`` fixtures live in
+``tests/conftest.py`` so other #1818 modules share them.
+"""
 
 import pytest
 from pyproj import CRS
@@ -10,29 +11,6 @@ from shapely.geometry import Point
 from siege_utilities.geo.spatial_transformations import PostGISConnector, SpatialQueryError
 
 pytestmark = pytest.mark.postgis
-
-
-@pytest.fixture
-def postgis_pair():
-    """Use only the disposable database named by the test run."""
-    psycopg2 = pytest.importorskip("psycopg2")
-    dsn = os.environ.get("SIEGE_TEST_POSTGIS_DSN") or os.environ.get("SIEGE_UTILITIES_TEST_PG_DSN")
-    if not dsn:
-        pytest.skip("Set SIEGE_TEST_POSTGIS_DSN to a disposable PostGIS database")
-    observer = psycopg2.connect(dsn)
-    observer.autocommit = True
-    connector = PostGISConnector(dsn)
-    schema = "review_1818_" + uuid4().hex
-    with observer.cursor() as cursor:
-        cursor.execute(f'CREATE SCHEMA "{schema}"')
-        cursor.execute(f'CREATE TABLE "{schema}".places (id INTEGER, geometry geometry)')
-    try:
-        yield connector, observer, f'"{schema}".places'
-    finally:
-        connector.close()
-        with observer.cursor() as cursor:
-            cursor.execute(f'DROP SCHEMA "{schema}" CASCADE')
-        observer.close()
 
 
 
@@ -150,19 +128,6 @@ def test_r2_1_mutating_cte_rows_match_durable_state_after_close(postgis_pair, op
         cursor.execute(f"SELECT id FROM {table} ORDER BY id")
         after_close = cursor.fetchall()
     assert after_success == after_close == expected
-
-
-@pytest.fixture
-def volatile_insert(postgis_pair):
-    connector, observer, table = postgis_pair
-    function = table.rsplit(".", 1)[0] + ".record_point"
-    with observer.cursor() as cursor:
-        cursor.execute(
-            f"CREATE FUNCTION {function}() RETURNS geometry LANGUAGE plpgsql VOLATILE AS $$ "
-            f"BEGIN INSERT INTO {table} VALUES (8, ST_SetSRID(ST_Point(3,4),4326)); "
-            "RETURN ST_SetSRID(ST_Point(3,4),4326); END $$"
-        )
-    return connector, observer, table, f"SELECT 8 AS id, {function}() AS geometry"
 
 
 def test_r2_1_owned_volatile_select_is_durable_after_close(volatile_insert, record_property):

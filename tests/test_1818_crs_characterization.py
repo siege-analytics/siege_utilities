@@ -4,8 +4,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tests.test_1818_spatial_review_postgis import postgis_pair, volatile_insert  # noqa: F401
-
 pytestmark = pytest.mark.postgis
 
 

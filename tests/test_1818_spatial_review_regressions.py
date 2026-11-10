@@ -64,15 +64,6 @@ def test_characterization_caller_owned_close_delegates_to_driver(connector_type)
     assert connector.connection is None
 
 
-@pytest.fixture
-def duck_connector():
-    duckdb = pytest.importorskip("duckdb")
-    connector = DuckDBConnector.__new__(DuckDBConnector)
-    connector.connection = duckdb.connect(":memory:")
-    yield connector
-    connector.close()
-
-
 def test_b2_legacy_caller_metadata_is_preserved(duck_connector):
     duck_connector.connection.execute(
         "CREATE TABLE places (name VARCHAR, geometry_wkt VARCHAR, _siege_crs VARCHAR)"

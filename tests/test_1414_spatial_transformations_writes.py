@@ -26,15 +26,6 @@ def projected_gdf():
     )
 
 
-@pytest.fixture
-def duck_connector():
-    duckdb = pytest.importorskip("duckdb")
-    connector = DuckDBConnector.__new__(DuckDBConnector)
-    connector.connection = duckdb.connect(":memory:")
-    yield connector
-    connector.close()
-
-
 @pytest.mark.parametrize("mode", ["default", "replace"])
 def test_postgis_existing_table_survives_failed_upload(monkeypatch, projected_gdf, mode):
     """Default refuses an existing table; failed replacement restores its state."""
