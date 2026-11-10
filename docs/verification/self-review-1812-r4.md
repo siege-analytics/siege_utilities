@@ -456,3 +456,40 @@ Verification (Python 3.11.11): the social/oracle/notebook-hygiene sweep gave
 1292 passed and 31 skipped. Exception contracts: 205 flagged, 0 unlisted, 0
 stale. Credential-URL guard: 0. Test-file hygiene PASS; ruff clean on all
 changed files.
+
+## Temporal missing values in count slots (#1880)
+
+At `006fc895`/`a6343d63` the audit authorized any baseline-zero -> missing
+change at the eight omitted-count cells, including a temporal `pd.NaT`. It
+then exempted the column's dtype change because an authorized null landed
+there. So a converter emitting `like_count` as `datetime64[ns]` NaT passed,
+even though numeric `+ 1` on that column raises `TypeError`.
+
+Bounded repair in `compare()`, with no new validation framework:
+
+- The authorized zero -> missing branch rejects temporal values and markers
+  (`pd.NaT`, `datetime64`/`timedelta64`, date/time objects).
+- The dtype exemption for an authorized-null column now requires a count
+  domain: numeric (not bool) or object. A datetime or timedelta column is
+  never exempt.
+- None, float NaN and nullable `Int64` `pd.NA` stay authorized. Non-null text
+  still fails as a value difference.
+
+Tests in `tests/test_1812_fidelity_oracle.py`:
+
+- `test_temporal_missing_like_count_is_rejected_by_the_real_audit` runs the
+  real full audit with only the omitted-post converter mutated, `like_count`
+  set to a `pd.Series([pd.NaT])`. On the `a6343d63` helper it did not raise,
+  the false green; now it raises.
+- `test_temporal_dtype_is_not_exempt_in_an_authorized_null_column` is the same
+  at the `compare()` level: red before, green now.
+- Controls green on both helpers: `test_numeric_unknown_like_count_stays_authorized`
+  (float NaN, nullable Int64 NA, object None) and
+  `test_text_like_count_is_still_rejected`.
+- The fixed-clock X, wrong-host-local, UTC-midnight, Instagram two-day and
+  dtype checks are unchanged and pass: 40 oracle tests in all.
+- No product connector, frozen baseline or report code changed.
+
+Verification (Python 3.11.11): social/oracle/notebook-hygiene sweep 1298
+passed, 31 skipped. Exception contracts 205 flagged, 0 unlisted, 0 stale; ruff
+clean.

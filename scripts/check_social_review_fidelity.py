@@ -15,6 +15,7 @@ from types import ModuleType
 from typing import Any
 from unittest.mock import Mock, patch
 
+import numpy as np
 import pandas as pd
 import requests
 
@@ -70,6 +71,24 @@ def _is_null(value: object) -> bool:
         return bool(pd.isna(value))
     except (TypeError, ValueError):
         return False
+
+
+def _is_temporal(value: object) -> bool:
+    """Whether ``value`` is a date/time value or a date/time missing marker (NaT)."""
+    return value is pd.NaT or isinstance(
+        value, (np.datetime64, np.timedelta64, date, datetime, timedelta, pd.Timestamp, pd.Timedelta)
+    )
+
+
+def _is_count_null_dtype(dtype: object) -> bool:
+    """Whether a column dtype can hold an unknown count: numeric (not bool) or object.
+
+    A datetime or timedelta column also holds a missing value (NaT) but is not
+    a count domain; numeric arithmetic on it raises (#1880).
+    """
+    return (pd.api.types.is_numeric_dtype(dtype) and not pd.api.types.is_bool_dtype(dtype)) or (
+        pd.api.types.is_object_dtype(dtype)
+    )
 
 
 def _is_zero(value: object) -> bool:
@@ -246,7 +265,9 @@ def compare(old: object, new: object, where: str, hits: set[str]) -> int:
         for col in old.columns:
             if old[col].dtype == new[col].dtype:
                 continue
-            if any(hit.startswith(f"{where}[") and hit.endswith(f",{col!r}]") for hit in new_hits):
+            if _is_count_null_dtype(new[col].dtype) and any(
+                hit.startswith(f"{where}[") and hit.endswith(f",{col!r}]") for hit in new_hits
+            ):
                 continue
             raise AssertionError(
                 f"unexpected dtype change at {where}[{col!r}]: {old[col].dtype} -> {new[col].dtype}"
@@ -265,7 +286,9 @@ def compare(old: object, new: object, where: str, hits: set[str]) -> int:
             raise AssertionError(f"unexpected null type change at {where}: {old!r} -> {new!r}")
         return 0
     if _is_null(old) != _is_null(new):
-        if _is_zero(old) and _is_null(new) and where in _AUTHORIZED:
+        # An unknown count is None, numeric NaN or pd.NA; a temporal NaT is a
+        # date/time value's missing marker, not a count (#1880).
+        if _is_zero(old) and _is_null(new) and not _is_temporal(new) and where in _AUTHORIZED:
             hits.add(where)
             return 1
         raise AssertionError(f"unexpected null/non-null diff at {where}: {old!r} -> {new!r}")

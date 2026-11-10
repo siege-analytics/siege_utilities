@@ -367,6 +367,49 @@ def test_new_type_error_in_current_report_surfaces_unmasked(
         fidelity.audit()
 
 
+# #1880: an authorized unknown count must stay in a numeric/null domain.
+def _set_omitted_like_count(series_factory: Callable[[pd.Index], pd.Series]) -> Callable[[str, pd.DataFrame], pd.DataFrame]:
+    def mutate(label: str, frame: pd.DataFrame) -> pd.DataFrame:
+        if label == "omitted":
+            frame["like_count"] = series_factory(frame.index)
+        return frame
+    return mutate
+
+
+def test_temporal_missing_like_count_is_rejected_by_the_real_audit(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Only the omitted-post converter output changes: like_count becomes a
+    # datetime64[ns] NaT, which is missing but not a count (numeric +1 raises).
+    _mutate_current_instagram(monkeypatch, _set_omitted_like_count(lambda index: pd.Series([pd.NaT], index=index)))
+    with pytest.raises(AssertionError):
+        fidelity.audit()
+
+
+@pytest.mark.parametrize("series_factory", [
+    lambda index: pd.Series([float("nan")], index=index),
+    lambda index: pd.Series([pd.NA], index=index, dtype="Int64"),
+    lambda index: pd.Series([None], index=index, dtype=object),
+], ids=["float-nan", "nullable-Int64-NA", "object-None"])
+def test_numeric_unknown_like_count_stays_authorized(
+    monkeypatch: pytest.MonkeyPatch, series_factory: Callable[[pd.Index], pd.Series],
+) -> None:
+    _mutate_current_instagram(monkeypatch, _set_omitted_like_count(series_factory))
+    fidelity.audit()
+
+
+def test_text_like_count_is_still_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mutate_current_instagram(monkeypatch, _set_omitted_like_count(lambda index: pd.Series(["unknown"], index=index)))
+    with pytest.raises(AssertionError):
+        fidelity.audit()
+
+
+def test_temporal_dtype_is_not_exempt_in_an_authorized_null_column() -> None:
+    old = pd.DataFrame({"like_count": [0]})
+    hits: set[str] = set()
+    with pytest.raises(AssertionError):
+        fidelity.compare(old, pd.DataFrame({"like_count": pd.Series([pd.NaT])}), IG_OMITTED, hits)
+    assert fidelity.compare(old, pd.DataFrame({"like_count": pd.Series([pd.NA], dtype="Int64")}), IG_OMITTED, set()) == 1
+
+
 def test_instagram_two_day_shift_is_still_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     # Only the exact one-day covered-day relabel is authorized for Instagram.
     from siege_utilities.analytics import instagram
