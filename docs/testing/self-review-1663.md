@@ -26,6 +26,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the #1663 entry under `[4.1.0]` and none under `[Unreleased]`.
 - Request a fresh exact-head review: any earlier result is void once the head moves, and the code diff against develop is unchanged.
 
+## Pre-flight (develop 71f02b0b)
+
+Develop was merged additively. The only conflict was `CHANGELOG.md`; every develop line was kept. Develop wins on any disagreement, and none exists: no develop change touches `notebooks/engines/`.
+
+Classification: this PR changes a notebook's prose and its test only, so no caller code that worked on v4.0.0 behaves differently; it is not BREAKING and the entry stays under `### Fixed` in `[4.1.0]`. The entry now sits at its own position in that list, not at the top, so that the other open PRs do not conflict with it in the merge queue.
+
+Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_1663_engines_notebook_truth.py -q` -> 3 passed in 2.00s. The notebook is unchanged since the red/green run recorded in the Falsification entry below, which still applies to this head.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1663 (the #1398 epic is context only and is not a governing ticket).
