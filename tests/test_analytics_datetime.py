@@ -169,7 +169,7 @@ def test_pipeline_aware_timestamps_are_normalized_to_utc(utc_now, as_of_kind):
         PipelineItem("missing", "lead", 100),
     ]
 
-    report = PipelineAnalyzer(["lead"]).analyze(items, as_of=as_of)
+    report = PipelineAnalyzer(["lead"], aging_threshold=14.0).analyze(items, as_of=as_of)
 
     assert len(report.velocity) == 1
     velocity = report.velocity[0]

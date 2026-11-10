@@ -6,6 +6,45 @@ Facebook Business API, Google Analytics, and Google Workspace write APIs (Sheets
 
 For Google Workspace (Sheets, Docs, Slides, Drive), see :doc:`google_workspace`.
 
+Statistical analytics behavior in 4.1.0
+--------------------------------------
+
+The following contracts change the behavior shipped in 4.0.0:
+
+* Pipeline inputs describe current stages, without transition history. Read
+  ``report.stage_ratios`` and each ``StageRatio.ratio`` instead of
+  ``report.conversions`` and ``ConversionRate.rate``. The ratio is the next
+  stage's count divided by this stage's independent count. It can exceed 1.0;
+  an empty denominator gives ``None``. It does not measure cohort conversion.
+* ``PipelineAnalyzer(aging_threshold=30)`` alerts when an item has spent more
+  than 30 days in its stage. The threshold is now a positive, finite day limit,
+  with 30 as the default, replacing the multiplier of the stage average. Choose
+  a day limit when migrating callers that supplied the old multiplier.
+* Forecast inputs containing ``None``, NaN, or infinity yield an
+  ``Insufficient data`` grade, ``insufficient-data`` bias direction, and
+  ``None`` MAPE and bias for the overall series and affected groups. Valid
+  subsets are not used to grade an incomplete group. ``n_observations`` counts
+  all pairs; ``n_excluded`` counts pairs with zero actuals or missing/non-finite
+  values. An all-zero group with no missing values still raises ``ValueError``.
+* Trend analysis sorts labels lexicographically; use chronologically sortable
+  labels such as ``2026-Q1`` or ISO dates. OLS fits all valid period MAPEs with
+  equally spaced periods. The fitted change over the whole span determines
+  direction: below -1 percentage point is improving, above +1 is degrading,
+  and the inclusive interval between them is stable. Periods with all-zero
+  actuals or insufficient data are skipped; fewer than two valid periods gives
+  ``None`` for direction.
+* Health and risk tiers classify the reported two-decimal composite score.
+  A raw score of 69.999 reported as 70.0 receives the tier for 70.0, including
+  any corresponding risk intervention.
+* Comparative weights must be finite, non-negative, cover the dimensions,
+  and have a positive sum. They are normalized to sum to one, keeping weighted
+  totals on the 1-5 scale regardless of the scale of the input weights.
+* Price sensitivity inputs must align respondents across all four sequences.
+  Every respondent must satisfy
+  ``too_cheap <= cheap <= expensive <= too_expensive``; ties are allowed.
+  Inconsistent ordering raises ``ValueError`` with the zero-based response
+  index before curve computation. No responses are reordered or dropped.
+
 Module Overview
 --------------
 

@@ -377,6 +377,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `ConversionRate` is replaced by `StageRatio` (the `siege_utilities.analytics`
+  export is renamed), `PipelineReport.conversions` by
+  `PipelineReport.stage_ratios`, and `ConversionRate.rate` by
+  `StageRatio.ratio`. The value is next-stage count / current-stage count of
+  independent snapshots, not a cohort conversion rate: it may exceed 1.0 and
+  is `None` when the earlier stage is empty (v4.0.0 returned 0.0) (#1422).
+  **Migration:** import `StageRatio`; read `report.stage_ratios[i].ratio`;
+  handle `None`.
+- `PipelineAnalyzer(aging_threshold=...)` is now an absolute number of days,
+  default `30.0`, instead of a multiplier of the stage's average age (default
+  `2.0`); non-finite or non-positive values raise `ValueError`. Items older
+  than the limit are flagged even in stages with one or two timed items
+  (#1422). **Migration:** callers relying on the old default 2.0× stage-average
+  multiplier must pass `aging_threshold` explicitly, in days; a v4.0.0 call
+  such as `aging_threshold=2` now means two days. The #1444 test
+  `test_pipeline_aware_timestamps_are_normalized_to_utc` now passes
+  `aging_threshold=14.0` for this reason.
+- `ForecastAnalyzer.analyze` reports `grade="Insufficient data"`,
+  `bias_direction="insufficient-data"` and `None` MAPE/bias for groups with
+  missing (`None`) or non-finite inputs, where v4.0.0 returned a Poor/neutral
+  result for NaN or raised `TypeError` for `None`; such periods are left out of
+  trend fitting. Trends sort period labels lexicographically and fit OLS
+  across every valid period's MAPE as equally spaced periods, with a
+  one-percentage-point stable band, instead of comparing the first and last
+  periods in input order (#1422). **Migration:** handle the insufficient-data
+  grade and `None` metrics; use sortable period labels (for example `2026-01`,
+  not `Jan 2026`).
+- `HealthScorer.score`/`score_batch` and `RiskAnalyzer.assess`/`assess_batch`
+  assign tiers (and risk interventions) from the reported two-decimal
+  composite score, so 69.999 reported as 70.0 gets the 70.0 tier (#1422).
+  **Migration:** none for callers that read `tier`; boundary results can
+  differ from v4.0.0.
+- `ComparativeAnalyzer.compare` rejects negative, non-finite and zero-sum
+  weights with `ValueError` and normalizes valid weights to sum to one, so
+  scaled weights give the same totals (#1422). **Migration:** pass
+  non-negative finite weights; totals computed from unnormalized v4.0.0
+  weights change.
+- `analyze_price_sensitivity` raises `ValueError` naming the zero-based
+  response index when a respondent's answers violate
+  `too_cheap <= cheap <= expensive <= too_expensive` (ties allowed), instead
+  of building curves from inconsistent answers (#1422). **Migration:** clean or
+  drop inconsistent survey responses before calling.
+
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,
