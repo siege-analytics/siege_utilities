@@ -504,10 +504,16 @@ clean.
 `urllib3.connectionpool` records.
 
 - Cause: `tests/django_project/settings.py` `LOGGING` uses
-  `disable_existing_loggers=True` and a CRITICAL root with a null handler.
-  Once that configuration is applied in the same process, the urllib3 logger
-  is disabled and a root-level `caplog` capture sees nothing. This is a test
-  isolation gap. Redaction did not fail: nothing was captured at all.
+  `disable_existing_loggers=True`. Once that configuration is applied in the
+  same process, it disables the origin logger, `urllib3.connectionpool`, so
+  that logger emits no records and `caplog` sees nothing.
+  - An independent reproduction showed that setting only
+    `urllib3.connectionpool.disabled = False` after the same configuration
+    makes the old tests pass.
+  - The configuration's CRITICAL root level is not the cause; it does not by
+    itself block propagated child records.
+  - This is a test isolation gap. Redaction did not fail: nothing was
+    captured at all.
 - Fix (tests only):
   - The capture attaches its own handler to `urllib3.connectionpool`,
     re-enables that logger and clears `logging.disable` for the duration,
@@ -518,6 +524,7 @@ clean.
   stack, so the same `LOGGING` dict was applied with `dictConfig` in a
   throwaway first test):
   - the committed tests failed exactly as in CI (2 failed, empty capture);
-  - the reworked tests pass (5 passed);
+  - the reworked tests pass: 5 passed, which is the 4 committed tests plus
+    the 1 throwaway preparation test;
   - against the pre-fix `instagram.py` from `006fc895`, the native test
     still fails on the leaked `client_secret` in urllib3's own request line.

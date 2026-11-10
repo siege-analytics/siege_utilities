@@ -117,10 +117,10 @@ def _capture_pool_records() -> Iterator[_PoolRecords]:
     """Capture urllib3.connectionpool DEBUG records whatever earlier tests did to logging.
 
     In a full run, configuring the test Django project applies
-    ``disable_existing_loggers=True`` (disabling this logger) and a CRITICAL root
-    with a null handler, so a root-level capture such as caplog sees nothing.
-    This re-enables the logger and attaches its own handler to it, and restores
-    every setting it changed on exit.
+    ``disable_existing_loggers=True``, which disables this origin logger, so it
+    emits no records and caplog sees nothing. This re-enables the logger and
+    attaches its own handler to it, and restores every setting it changed on
+    exit.
     """
     previous_disable = logging.root.manager.disable
     previous_disabled, previous_level = POOL.disabled, POOL.level
