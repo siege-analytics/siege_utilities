@@ -118,6 +118,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Precinct/VTD name matching now restricts candidates to the precinct's county,
+  using official county FIPS, spatial overlap counties, then optional provider
+  county keys. Unknown or conflicting counties skip name matching, and malformed
+  VTD GEOIDs are ignored. Direct `reconcile_names` callers must supply
+  `precinct_county`; name-only providers can supply `get_precinct_counties`.
+  Official-crosswalk mappings retain precedence (#1433).
+- Precinct/VTD reconciliation emits fewer name-only mappings: an official
+  mapping or spatial overlap of at least 95% suppresses names pointing to
+  another VTD. Name-only confidence is capped at 0.84, below HIGH; same-VTD
+  name confirmation still contributes to COMBINED confidence. Spatial overlaps
+  below 1% no longer create county conflicts that block name confirmation (#1433).
 - Instagram account insights now use UTC request boundaries regardless of
   the host timezone and label daily metrics with the day covered, one day
   before the end-of-period marker. X account snapshots use the UTC date.
@@ -416,6 +427,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `reconcile_names(precinct_names, vtd_names)` called without `precinct_county`
+  used to return name matches against every VTD; it now returns `[]` and emits a
+  `UserWarning`. `PrecinctVTDReconciler.reconcile` likewise compares names only
+  inside the precinct's own county (official crosswalk county, then spatial
+  overlaps of at least `MIN_OVERLAP_PCT`, then the provider's county) and skips
+  name matching, with no mapping, when that county is missing or conflicting.
+  Skipped precincts are listed in the new `ReconciliationResult.name_matching_skipped`
+  (also in `to_dict()`) and logged as a warning. Name-only mappings are also
+  fewer and weaker: an official mapping or a spatial overlap of at least 95%
+  suppresses names pointing to another VTD, and a name-only mapping is capped at
+  confidence 0.84, so it can no longer reach HIGH. **Migration:** pass
+  `precinct_county` (precinct ID to five-digit state+county FIPS) to
+  `reconcile_names`; for `reconcile`, give name providers county data through
+  `get_precinct_counties` or `DictNameMatchProvider.add_precinct(..., county=...)`,
+  or supply an official crosswalk or spatial overlaps. Code that relied on a
+  HIGH name-only mapping must read `confidence_level` and `method` (COMBINED
+  still reaches HIGH) instead of assuming a name match is HIGH. A precinct
+  without a name match can now be told apart from one whose name matching never
+  ran by checking `name_matching_skipped` (#1433).
 - `DemographicPopulationService.populate` (and `populate_demographics`,
   `populate_all_groups`) no longer skips an existing snapshot. Without
   `update_existing`/`--update` it merges in only the variables the snapshot
