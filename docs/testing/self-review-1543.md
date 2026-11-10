@@ -26,6 +26,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has both #1543 entries under `[4.1.0]` and none under `[Unreleased]`.
 - Request a fresh exact-head review: any earlier result is void once the head moves, and the code diff against develop is unchanged.
 
+## Pre-flight (develop 71f02b0b)
+
+Develop was merged additively. The only conflict was `CHANGELOG.md`; every develop line was kept. Develop wins on any disagreement, and none exists: no develop change touches `siege_utilities/git/`.
+
+Classification: caller code that worked on v4.0.0 now fails (a bare dotted name such as `v1.2`, a name equal to a top-level file or directory, option-like refs and reserved aliases now raise; Git 2.23 or newer is required; `switch_branch` no longer matches a partial name). The PR had two notes, a `### Changed` note about those inputs and a `### Fixed` note about the validation. They are now one entry under `### BREAKING` in `[4.1.0]` with a Migration line, at its own position in the BREAKING list so it does not conflict with the other open PRs. `git diff origin/develop -- CHANGELOG.md` shows 19 added lines and 0 removed lines. The PR body classification is updated to match.
+
+Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_git_operations.py test_git_option_injection.py -q` -> 112 passed in 0.29s. The library code is unchanged since the red/green run recorded in the Falsification entry below, which still applies to this head.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1543 (the #1398 epic is context only and is not a governing ticket).
