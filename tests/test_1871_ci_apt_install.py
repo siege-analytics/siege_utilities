@@ -222,7 +222,10 @@ class Runner:
     def __init__(self, tmp_path: Path) -> None:
         timeout_bin = shutil.which("timeout")
         if timeout_bin is None:
-            pytest.skip("GNU timeout is required to exercise the stall handling")
+            pytest.skip(
+                "GNU timeout is not on PATH, so the stall handling cannot run. Install GNU coreutils "
+                "(macOS: `brew install coreutils`; Debian/Ubuntu: the `coreutils` package) so `timeout` resolves."
+            )
         self.tmp = tmp_path
         self.bin = tmp_path / "bin"
         self.bin.mkdir()
@@ -665,7 +668,11 @@ def test_develop_pushes_run_the_install_and_save_a_shared_cache() -> None:
 def _cache_key(tmp_path: Path, packages: str, **env: str) -> dict[str, str]:
     bash = shutil.which("bash")
     if shutil.which("sha256sum") is None or bash is None:
-        pytest.skip("sha256sum and bash are required to run the cache-key step")
+        pytest.skip(
+            "sha256sum or bash is not on PATH, so the cache-key step cannot run. Install GNU coreutils and bash "
+            "(macOS: `brew install coreutils bash`; Debian/Ubuntu: the `coreutils` and `bash` packages) "
+            "so `sha256sum` and `bash` resolve."
+        )
     output = tmp_path / f"output-{len(list(tmp_path.iterdir()))}"
     result = subprocess.run(
         [bash, "-c", _action_steps()["key"]["run"]],
