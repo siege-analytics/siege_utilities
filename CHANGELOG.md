@@ -641,7 +641,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Migration: district totals change wherever units straddle boundaries; filter
   `result[result[population_col] > 0]` to recover v4.0.0's omission of empty
   districts, and treat the warning as the signal that census coverage exceeds
-  the plan.
+  the plan. `RDHLoaderService` (`geo/django/services/rdh_loader.py`) stores one
+  `DistrictDemographics` row per returned district, so it now writes
+  zero-valued rows for districts with no census units instead of no row;
+  consumers that treated a missing row as "no data" should check for zeros.
 
 ### Security
 
