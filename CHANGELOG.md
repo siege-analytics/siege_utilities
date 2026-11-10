@@ -334,7 +334,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   EPSG:4326. Base nearest, apportion and dissolve retain projected inputs;
   their new `crs` argument reprojects on request. Nearest distances and
   apportion area shares use projected units, and geographic, unknown or
-  mismatched measurement CRSes raise `ValueError`. WKT text retains
+  mismatched measurement CRSes raise `ValueError` on every engine; v4.0.0
+  imposed no CRS requirement and measured in the EPSG:4326 frame that
+  `to_geodataframe` returned (on Spark, the stored coordinates labelled
+  EPSG:4326), so a v4.0.0 call with geographic input now raises. WKT text retains
   default-CRS normalization: plain WKT is read at EPSG:4326 and a requested
   `crs` reprojects it, rather than relabelling lon/lat values (#1497, #1852).
   On `SparkEngine`, which stores no source CRS, `crs` on `apportion` and
