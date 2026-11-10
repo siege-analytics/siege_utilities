@@ -27,6 +27,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the #1434 entry under `[4.1.0]` and none under `[Unreleased]`.
 - Request a fresh exact-head review: the earlier result is void once the head moves, and the code diff is unchanged.
 
+## Pre-flight (develop 71f02b0b)
+
+Develop was merged additively. The only conflict was `CHANGELOG.md`; every develop line was kept. Develop wins on any disagreement, and none exists: no develop change touches `siege_utilities/geo/place_history.py`.
+
+Classification: caller code that worked on v4.0.0 now sees different results (reverse-lineage steps and vintage years, `terminal_weights` totals and an empty `terminal_weights` when a reverse share is missing, forward traversal skipping nonpositive and nonfinite weights). The #1434 entry moved from `### Fixed` to `### BREAKING` in `[4.1.0]` with a Migration line, at its own position in the BREAKING list so it does not conflict with the other open PRs. `git diff origin/develop -- CHANGELOG.md` shows 15 added lines and 0 removed lines. The PR body classification is updated to match.
+
+Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_place_history_lineage.py test_place_history.py -q` -> 72 passed, 1 failed in 0.37s. The one failure is `test_place_history.py::TestPlaceHistory::test_no_provider_returns_error`, which needs the GDAL library that this machine lacks, as recorded above; it is outside this PR's diff. The library code is unchanged since the red/green run in the Falsification entry below, which still applies to this head.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1434 (the #1398 epic is context only and is not a governing ticket).
