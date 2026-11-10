@@ -645,6 +645,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the tobler backend, which no longer warns about a geographic CRS; callers
   that need another equal-area projection pass `area_crs`, and callers that
   relied on the library-default output CRS pass `crs` explicitly.
+  `ArealInterpolationResult` is a plain dataclass that gains a trailing
+  `area_crs` field with a default: keyword and positional construction keep
+  working, but `dataclasses.astuple()` / `asdict()` output gains one element /
+  key and equality now also compares `area_crs`.
 
 ### Security
 

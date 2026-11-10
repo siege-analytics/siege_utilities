@@ -17,6 +17,7 @@ Project-contribution: interpolated values no longer depend on the input CRS or o
 - At PR head `fae0534d`: Shapely and DuckDB measure areas in a hard-coded `"ESRI:54009"`; tobler, the first backend in dispatch order, measured geographic input in degrees and warned, and `test_tobler_keeps_geographic_crs_warning` asserted that warning. `ArealInterpolationResult` recorded no area CRS, and the PR body said "Fixes #1407". `CHANGELOG.md` was not in the diff.
 - Values from every backend are assigned back to `target.copy()` by position, so reprojecting the backend inputs does not change output geometry, columns, order or CRS.
 - Callers: `geo/crosswalk/crosswalk_processor.py` and `geo/timeseries/longitudinal_data.py` call `interpolate_areal`; no notebook does.
+- `ArealInterpolationResult` is a plain `@dataclass` (not frozen, not a NamedTuple, not iterable). The only constructions are in `areal.py` and `tests/test_areal_interpolation.py`, both by keyword; no code unpacks it, and no caller uses `astuple`/`asdict` on it. A trailing defaulted field keeps keyword and positional construction working; `astuple`/`asdict` gain one element/key and equality includes it, as stated in the Migration line.
 - Locally installed: tobler 0.13.0 and DuckDB 1.4.4 with the spatial extension (the DuckDB cases ran, none skipped).
 - Develop `2deb6a1f` changed none of the PR's files since merge-base `7f534f6c`.
 
@@ -40,7 +41,7 @@ Phase B verification (`tests/test_areal_equal_area.py`, 33 tests, tobler added t
 - Against PR head `fae0534d`'s `areal.py`: 19 failed / 14 passed (all tobler equal-area cases and all `area_crs` cases fail; the Shapely/DuckDB equal-area and output-CRS cases pass).
 - Against `v4.0.0`'s `areal.py`: 33 failed / 0 passed.
 - After: 33 passed.
-- Test changes: `test_tobler_keeps_geographic_crs_warning` asserted the remaining defect and is replaced by `test_tobler_measures_in_area_crs_not_degrees`. Shapely/DuckDB keep the `rtol=1e-8` comparison; tobler cases use `1e-6` (its own intersection pipeline differs by ~1e-7 relative; #1407 requires 0.1%). The configurability test uses Mercator (`EPSG:3857`) as a deliberately non-equal-area CRS and asserts that its shares differ from Mollweide's by more than 5, so the test proves the parameter drives the areas.
+- Test changes: `test_tobler_keeps_geographic_crs_warning` asserted the remaining defect and is replaced by `test_tobler_measures_in_area_crs_not_degrees`. Run verbatim against this change, the old test fails with "DID NOT WARN" (checked with a temporary copy, then deleted). Shapely/DuckDB keep the `rtol=1e-8` comparison; tobler cases use `1e-6` (its own intersection pipeline differs by ~1e-7 relative; #1407 requires 0.1%). The configurability test uses Mercator (`EPSG:3857`) as a deliberately non-equal-area CRS and asserts that its shares differ from Mollweide's by more than 5, so the test proves the parameter drives the areas.
 
 ## Findings
 | ID | Priority | Description | Resolution |
