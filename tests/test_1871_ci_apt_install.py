@@ -224,7 +224,8 @@ class Runner:
         if timeout_bin is None:
             pytest.skip(
                 "GNU timeout is not on PATH, so the stall handling cannot run. Install GNU coreutils "
-                "(macOS: `brew install coreutils`; Debian/Ubuntu: the `coreutils` package) so `timeout` resolves."
+                "(macOS: `brew install coreutils`; Debian/Ubuntu: the `coreutils` package) so `timeout` resolves. "
+                "If only the g-prefixed `gtimeout` is installed, put `$(brew --prefix coreutils)/libexec/gnubin` on PATH."
             )
         self.tmp = tmp_path
         self.bin = tmp_path / "bin"
@@ -671,7 +672,8 @@ def _cache_key(tmp_path: Path, packages: str, **env: str) -> dict[str, str]:
         pytest.skip(
             "sha256sum or bash is not on PATH, so the cache-key step cannot run. Install GNU coreutils and bash "
             "(macOS: `brew install coreutils bash`; Debian/Ubuntu: the `coreutils` and `bash` packages) "
-            "so `sha256sum` and `bash` resolve."
+            "so `sha256sum` and `bash` resolve. If only the g-prefixed `gsha256sum` is installed, "
+            "put `$(brew --prefix coreutils)/libexec/gnubin` on PATH."
         )
     output = tmp_path / f"output-{len(list(tmp_path.iterdir()))}"
     result = subprocess.run(
