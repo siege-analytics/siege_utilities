@@ -288,6 +288,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `NCESLocaleClassifier.classify_points`, `classify_polygon` and
+  `classify_polygons` reproject GeoDataFrame/GeoSeries inputs that carry a CRS
+  to EPSG:4269 before reading coordinates; on v4.0.0 projected metres were read
+  as degrees, so a point classified 11 in EPSG:4269 classified 43 after
+  `to_crs(3857)`. `h3_spatial_join` and `s2_spatial_join` reproject polygon
+  frames to EPSG:4326 instead of joining on projected metres, and
+  `h3_index_polygon` and `s2_index_polygon` now accept GeoDataFrame/GeoSeries
+  polygon inputs (v4.0.0 raised `TypeError` for them) and reproject them the
+  same way. Inputs without a CRS, including bare Shapely or GeoJSON polygons,
+  whose coordinates exceed ±180 longitude or ±90 latitude now raise
+  `ValueError` naming the function, axis and value, where v4.0.0 passed them
+  on as degrees. Caller frames are not mutated; bulk locale results keep the
+  caller's original geometry, CRS, index and attributes. Valid geographic
+  inputs, with or without CRS metadata, behave as before; point columns passed
+  to the cell-based joins remain latitude/longitude degrees (#1451).
+  **Migration:** set the true source CRS on projected data (`gdf.set_crs(...)`)
+  before calling these functions; bare Shapely or GeoJSON geometries must be
+  longitude/latitude degrees; expect `ValueError` where v4.0.0 silently
+  returned codes, cells or join rows for out-of-range coordinates.
+
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,
