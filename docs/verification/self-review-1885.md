@@ -27,18 +27,25 @@ exists, so no published artifact changes.
   is cut. Develop's tests do not require a dated heading for this section
   (`tests/test_release_process.py` checks dates only for the 3.18-3.23
   headings). `release_manager.py`'s section parser (`^## \[X.Y.Z\].*$`)
-  accepts the undated heading. Every entry and every BREAKING and Migration
-  line is byte-identical: the CHANGELOG diff against develop is this single
-  heading line.
+  accepts the undated heading. Every BREAKING and Migration line is
+  byte-identical. The CHANGELOG diff against develop is this heading line plus
+  the reviewer-authorized line-763 wording change described below.
 - `RELEASING.md:92`: "4.1.0 is the first release through this workflow"
   becomes 5.0.0.
 
+## Follow-up: `CHANGELOG.md:763`
+
+The first commit kept every entry byte-identical, including the entry at
+`CHANGELOG.md:763`, "For the planned 4.1.0 release, SSL failures now
+raise...". The reviewer then ruled that this sentence is prospective
+unreleased text about the pending release, not frozen history, and
+authorized one targeted correction. The follow-up commit changes only
+"planned 4.1.0 release" to "planned 5.0.0 release" on that line. The rest of
+the entry, and every other entry and BREAKING or Migration line, is unchanged.
+No other `4.1.0` reference is replaced.
+
 ## `4.1.0` references kept on purpose
 
-- `CHANGELOG.md:763`, inside an existing entry: "For the planned 4.1.0
-  release, SSL failures now raise...". Entries stay byte-identical in this
-  change. If that wording should follow the renumber, it needs a separate
-  entry edit.
 - Historical records (`docs/verification/self-review-1780.md`, `-1794`,
   `-1809`, `-1861-duckdb-pin.md`, `plans/self-review-1444-metadata.md`) describe
   past work filed under `[4.1.0]` at the time.
