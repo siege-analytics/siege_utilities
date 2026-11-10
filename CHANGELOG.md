@@ -387,6 +387,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `fetch_real_ga4_data` in `reporting/examples/google_analytics_report_example`
+  converts each GA4 `bounceRate` ratio to a 0–100 percentage at its API read
+  site, so `bounce_rate`, `avg_bounce_rate` and the report cards are no longer
+  about 100 times too small; period bounce rates are weighted by sessions. A
+  ratio outside 0–1 (including NaN or infinity) raises `RuntimeError` instead of
+  being scaled again. An empty prior query yields an empty `prior_period` and
+  `None` in `changes` (rendered as N/A in PDF, CSV and Markdown, null in
+  metadata) instead of fabricated comparisons; a zero prior denominator also
+  yields `None`. `top_pages` rows no longer contain the invented
+  `unique_views`, and `exit_rate` is present only when GA4 returns `exitRate`.
+  Prior queries cover the same inclusive number of days as the current period
+  (#1579). **Migration:** remove any `* 100` applied to `bounce_rate`; treat a
+  `None` change and an empty `prior_period` as "no comparison"; read
+  `unique_views` and `exit_rate` with `.get()`; a GA4 property that returns
+  percentages instead of ratios now fails loudly.
+
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,
