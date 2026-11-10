@@ -11,7 +11,7 @@ Plan reference: docs/verification/self-review-1871.md#pre-mortem
 Pre-author-inventory: docs/verification/self-review-1871.md#investigation
 Investigate-artifact: docs/verification/self-review-1871.md
 Pre-mortem-artifact: docs/verification/self-review-1871.md
-Hostile-review-artifact: docs/verification/self-review-1871.md (Lead review below). Independent review of the PR head is pending; this is NOT a pass.
+Hostile-review-artifact: docs/verification/self-review-1871.md (Lead review below). This file is the author's record and is NOT a pass: independent review and the merge decision are made outside it, on the exact PR head.
 Project-contribution: a slow or stalled mirror no longer cancels required CI jobs or dequeues merge-queue entries, and most runs download no packages.
 
 ## Investigation
@@ -60,7 +60,7 @@ Chosen: (a) for the final attempt, combined with a wall-clock cap on the first a
 ## Peer review (Junior: shelves, gates)
 - Shelves: separate slow from stalled using the transport's own data timeout; fall back to another mirror; cache downloads rather than raising budgets; behavioural tests with stubs over a real `timeout`.
 - Gate 1 (syntax): `bash -n` and `shellcheck` on `scripts/ci_apt_install.sh` are clean. `yaml.safe_load` parses the workflows and the action in the guard tests, and the action's key step runs under bash in `test_cache_key_follows_the_image_and_the_package_set`. flake8 on the new test is clean at the CI limit of 127 characters. `actionlint` is not installed locally.
-- Gate 2 (tests): `tests/test_1871_ci_apt_install.py` gives 22 passed; with the changelog tests, 47 passed.
+- Gate 2 (tests): `tests/test_1871_ci_apt_install.py` gives 26 passed; with the changelog tests, 51 passed.
 - Gate 3 (guards): `scripts/check_test_file_hygiene.py` passes.
 
 ## Lead review (adversarial)
@@ -85,12 +85,13 @@ Phase B verification: stubs drive the real script through each case.
 | ID | Priority | Description | Resolution |
 |----|----------|-------------|------------|
 | F1 | P1 | An unbounded apt install can consume a required job's whole budget | stall detection, mirror fallback, `.deb` cache, bounded dpkg phase |
-| F2 | P1 | A wall-clock kill on every attempt fails slow but live installs (2e61f1fc CI) | final attempt network phases have no wall-clock cap; no step timeout |
+| F2 | P1 | A wall-clock kill on every attempt fails slow but live installs (2e61f1fc CI) | final attempt network phases have no wall-clock cap; no step timeout (superseded by F4 and F6: 45-minute final budget and step timeouts) |
 | F3 | P2 | No package cache | `.deb` cache through `actions/cache` |
 | F4 | P1 | Final attempt unbounded against a trickle; six-hour job default (CodeRabbit 4498224208) | 45-minute final network budget; 80-minute step timeout where no job timeout applies |
 | F5 | P2 | Test assertions depended on capped stubs starting within the cap (CodeRabbit 4498224221) | logging and decisions moved to the uncapped `sudo` stub |
 | F6 | P1 | `test-postgis` install bounded only by its 20-minute job timeout, so a slow mirror cancels the job (CodeRabbit 4499528288) | shorter limits (worst case 851 s) under a 15-minute step timeout |
 | F7 | P2 | Budget guards hardcoded `kill-after 30` instead of reading the script (CodeRabbit 4519208528) | kill-after derived from the script; every bounded call checked in behaviour |
+| F8 | P3 | The kill-after reader matched comments and echoed text containing `sudo timeout` (CodeRabbit 4520348420) | real invocations only, parsed as shell words |
 
 ## Ticket-fitness exemption
 
@@ -107,9 +108,11 @@ writing-rules:4 exemption for the governing ticket.
 
 ## Test plan / Quantified claims
 Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11); GNU `timeout` from coreutils; macOS `/bin/bash` 3.2 runs the script in the tests, and CI runs bash 5.
-- `python -m pytest tests/test_1871_ci_apt_install.py`: 16 passed at 7a972cbd (twice in a row, about 50 s each); 17 passed after the cache scope round; 19 passed after the CodeRabbit round; 21 after the test-postgis round; 22 after the kill-after round.
+- `python -m pytest tests/test_1871_ci_apt_install.py`: 16 passed at 7a972cbd (twice in a row, about 50 s each); 17 passed after the cache scope round; 19 passed after the CodeRabbit round; 21 after the test-postgis round; 22 after the kill-after round; 26 after the kill-after parser round.
 - Against the 2e61f1fc script and `ci.yml`: 11 failed and 5 passed. The five that pass cover behaviour the old script shares (usage error, no staging on failure, capped dpkg phase) plus the two action-file checks.
-- Adding `tests/test_release_process.py tests/test_user_config_export_changelog.py`: 41 passed at 7a972cbd; 42 after the cache scope round; 44 after the CodeRabbit round; 46 after the test-postgis round; 47 after the kill-after round.
+- Adding `tests/test_release_process.py tests/test_user_config_export_changelog.py`: 41 passed at 7a972cbd; 42 after the cache scope round; 44 after the CodeRabbit round; 46 after the test-postgis round; 47 after the kill-after round; 51 after the kill-after parser round.
+
+The review rounds below are a history in commit order. Where a later round changed an earlier decision, the earlier statement is marked superseded. The current design is the one described in "Design decision" and the Pre-mortem above.
 
 ## Review round on 682d5069 (hub finding: interrupted dpkg)
 Finding: if `timeout` stops `apt-get install` during the dpkg unpack/configure phase, dpkg is left interrupted. The retry then fails at once with "dpkg was interrupted, you must manually run 'sudo dpkg --configure -a'" or on the dpkg lock.
@@ -131,7 +134,7 @@ Fix:
   - the fallback mirror is used before the retry;
   - the cache is seeded and refreshed, and `cache-ready` is written to `GITHUB_OUTPUT`;
   - `APT::Keep-Downloaded-Packages=true` is set explicitly.
-- **Workflow:** the five steps use the action, with no step timeout.
+- **Workflow:** the five steps use the action, with no step timeout (superseded: step timeouts were added in the CodeRabbit rounds on 6c500ea5 and e4679b66).
 - **Tests:** the stub now models mirrors, archives and the dpkg repair. New tests cover:
   - cache hit;
   - cache miss and staging;
@@ -178,7 +181,7 @@ Fix:
   - repair and delay: (300 + 30) + 10;
   - final network: 2700 + 1 + 2 x 30;
   - final dpkg phase and autoclean: 2 x (300 + 30).
-- **Step timeout:** `timeout-minutes: 80` (4800 s) on the four install steps whose job has no timeout. It is above the script's own bound, so the script's diagnostics appear first, and well under 360 minutes. `test-postgis` keeps no step timeout, because its 20-minute job timeout is tighter.
+- **Step timeout:** `timeout-minutes: 80` (4800 s) on the four install steps whose job has no timeout. It is above the script's own bound, so the script's diagnostics appear first, and well under 360 minutes. `test-postgis` keeps no step timeout, because its 20-minute job timeout is tighter. (Superseded in the CodeRabbit round on e4679b66: `test-postgis` now has a 15-minute step timeout with shorter limits.)
 - **Tests:**
   - `test_final_download_stops_when_its_budget_runs_out`: a download that outlasts a 7 s budget ends with exit 124 on attempt 2 and the step exits 1;
   - `test_slow_download_finishes_within_the_final_budget`: an 8 s slow download completes within a 30 s budget, and the caps come from it;
@@ -245,6 +248,28 @@ Red, with the script mutated and restored afterwards (tests unchanged):
 - Only the repair's `--kill-after` changed to 90: collection fails with "sudo timeout calls disagree on --kill-after: 30, 90".
 
 Green with the real script: 22 passed; 47 with the changelog tests.
+
+## CodeRabbit round on 3e04cea1 (comments 4520348420 and 4520348410)
+**4520348420: the kill-after reader matched any text containing `sudo timeout`.** Valid; the reviewer reproduced a false collection failure. (The comment's `AttributeError` title does not apply, because the missing-flag case already reported cleanly, but the false match was real.)
+
+Fix:
+- `sudo_timeout_calls()` splits each line into shell words with `shlex` (posix, punctuation-aware). Comments are dropped and quoted text stays one word.
+- `sudo` counts only where a command starts: the first word, or after `!`, `if`, `then`, `&&`, `||`, `;` and the like.
+- `kill_after_of()` reads `--kill-after=N`, `--kill-after N` or `-k N` from the options of each real call. `script_kill_after(script)` takes a path, so variants can be tested.
+- A compound assert in the develop-save guard is split (ruff PT018).
+
+Regressions:
+- `test_kill_after_ignores_comments_and_echoed_text` appends six non-calls with a different kill-after: two comments, a trailing comment, a quoted `echo`, an unquoted `echo` and a quoted `printf`. Neither the call count nor the derived value changes.
+- `test_kill_after_still_catches_a_real_mismatched_call`: a real `if ! sudo timeout --kill-after=90 …` call still fails with "disagree on --kill-after: [30, 90]".
+- `test_kill_after_still_required_on_every_real_call`: a real call without the flag still fails.
+- `test_kill_after_reads_only_real_sudo_timeout_calls`: the real script yields the apt-get wrapper and the dpkg repair calls, both with the script's value.
+
+Red: with the old regex matching restored, the comment and echo test fails, because 8 "calls" are seen instead of 2. After the fix, 26 passed (51 with the changelog tests).
+
+**4520348410: stale "pending" wording and historical statements.**
+- The "pending" line now says this file is the author's record and not a pass, and that independent review and the merge decision happen outside it, on the exact head.
+- A note before the review rounds says they are a history.
+- The earlier statements that `test-postgis` (or every step) had no step timeout are marked superseded, pointing to the rounds that changed them.
 
 ## Rework ledger
 - During the first red check, a blocked command left the new `ci.yml` unstaged, so the restore reverted it to develop's version. The edit was re-applied and verified (five script calls, no `apt-get`) before the red check was repeated correctly. Nothing was committed in between.

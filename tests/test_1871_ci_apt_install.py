@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -68,19 +69,65 @@ DEFAULTS = {
 }
 
 
-def script_kill_after() -> int:
+# Shell words after which the next word starts a command.
+COMMAND_STARTERS = {"!", "if", "then", "else", "elif", "do", "while", "until", "&&", "||", ";", "|", "(", "{"}
+
+
+def sudo_timeout_calls(source: str) -> list[list[str]]:
+    """The real ``sudo timeout`` invocations in a shell script, as shell words.
+
+    Each line is split into shell words: comments are dropped and quoted text
+    stays one word, and ``sudo`` counts only where a command starts. So
+    ``# sudo timeout ...``, ``echo "sudo timeout ..."`` and
+    ``echo sudo timeout ...`` are not calls.
+    """
+    calls = []
+    for line in source.splitlines():
+        lexer = shlex.shlex(line.rstrip().removesuffix("\\"), posix=True, punctuation_chars=True)
+        lexer.whitespace_split = True
+        try:
+            words = list(lexer)
+        except ValueError:  # a quoted string that continues on the next line
+            continue
+        for index, word in enumerate(words[:-1]):
+            starts_command = index == 0 or words[index - 1] in COMMAND_STARTERS
+            if starts_command and word == "sudo" and words[index + 1] == "timeout":
+                calls.append(words[index:])
+    return calls
+
+
+def kill_after_of(call: list[str]) -> int | None:
+    """The ``--kill-after`` seconds of one ``sudo timeout`` call, or None."""
+    options = call[2:]
+    for index, word in enumerate(options):
+        if not word.startswith("-"):
+            break
+        value = None
+        if word.startswith("--kill-after="):
+            value = word.split("=", 1)[1]
+        elif word in ("--kill-after", "-k") and index + 1 < len(options):
+            value = options[index + 1]
+        if value is not None:
+            seconds = re.fullmatch(r"(\d+)s?", value)
+            assert seconds, f"--kill-after must be in seconds for the budget: {' '.join(call)}"
+            return int(seconds.group(1))
+    return None
+
+
+def script_kill_after(script: Path = SCRIPT) -> int:
     """The ``timeout --kill-after`` value the script really uses, read from it.
 
-    Every ``sudo timeout`` call must carry one, and all must agree, so the
-    budget below is computed from the script rather than a copy of it.
+    Every real ``sudo timeout`` call must carry one, and all must agree, so
+    the budget below is computed from the script rather than a copy of it.
     """
-    source = SCRIPT.read_text(encoding="utf-8")
-    timeout_calls = re.findall(r"sudo timeout\b[^\n]*", source)
-    values = {re.search(r"--kill-after=(\d+)\b", call) for call in timeout_calls}
-    assert timeout_calls and None not in values, f"every sudo timeout call needs --kill-after: {timeout_calls}"
-    kill_after = {int(match.group(1)) for match in values}
-    assert len(kill_after) == 1, f"sudo timeout calls disagree on --kill-after: {sorted(kill_after)}"
-    return kill_after.pop()
+    calls = sudo_timeout_calls(script.read_text(encoding="utf-8"))
+    assert calls, f"{script.name} has no sudo timeout calls"
+    values = [kill_after_of(call) for call in calls]
+    missing = [" ".join(call) for call, value in zip(calls, values) if value is None]
+    assert not missing, f"every sudo timeout call needs --kill-after: {missing}"
+    distinct = set(values)
+    assert len(distinct) == 1, f"sudo timeout calls disagree on --kill-after: {sorted(distinct)}"
+    return distinct.pop()
 
 
 KILL_AFTER = script_kill_after()
@@ -524,6 +571,53 @@ def test_missing_packages_is_a_usage_error(tmp_path: Path) -> None:
     assert runner.calls == []
 
 
+def _script_variant(tmp_path: Path, extra: str) -> Path:
+    variant = tmp_path / "ci_apt_install.sh"
+    variant.write_text(SCRIPT.read_text(encoding="utf-8") + extra, encoding="utf-8")
+    return variant
+
+
+def test_kill_after_reads_only_real_sudo_timeout_calls() -> None:
+    calls = sudo_timeout_calls(SCRIPT.read_text(encoding="utf-8"))
+    # The bounded apt-get wrapper and the dpkg repair.
+    assert any("apt-get" in call for call in calls), calls
+    assert any("dpkg" in call for call in calls), calls
+    assert {kill_after_of(call) for call in calls} == {KILL_AFTER}
+
+
+def test_kill_after_ignores_comments_and_echoed_text(tmp_path: Path) -> None:
+    other = KILL_AFTER + 60
+    variant = _script_variant(tmp_path, (
+        f"# sudo timeout --kill-after={other} only a comment\n"
+        f"    # sudo timeout --kill-after={other} indented comment\n"
+        f'echo "sudo timeout --kill-after={other} quoted"\n'
+        f"echo sudo timeout --kill-after={other} unquoted\n"
+        f"printf '%s\\n' 'sudo timeout --kill-after={other}'\n"
+        f"true  # sudo timeout --kill-after={other} trailing comment\n"
+    ))
+
+    assert len(sudo_timeout_calls(variant.read_text(encoding="utf-8"))) == len(
+        sudo_timeout_calls(SCRIPT.read_text(encoding="utf-8"))
+    )
+    assert script_kill_after(variant) == KILL_AFTER
+
+
+def test_kill_after_still_catches_a_real_mismatched_call(tmp_path: Path) -> None:
+    other = KILL_AFTER + 60
+    variant = _script_variant(tmp_path, f"if ! sudo timeout --kill-after={other} 5 true; then :; fi\n")
+
+    disagreement = re.escape(f"disagree on --kill-after: {sorted({KILL_AFTER, other})}")
+    with pytest.raises(AssertionError, match=disagreement):
+        script_kill_after(variant)
+
+
+def test_kill_after_still_required_on_every_real_call(tmp_path: Path) -> None:
+    variant = _script_variant(tmp_path, "sudo timeout 5 true\n")
+
+    with pytest.raises(AssertionError, match="needs --kill-after"):
+        script_kill_after(variant)
+
+
 def test_script_defaults_bound_the_final_attempt_above_the_evidence() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
     for name, value in DEFAULTS.items():
@@ -663,7 +757,8 @@ def test_develop_pushes_run_the_install_and_save_a_shared_cache() -> None:
         assert "if" not in job, f"{job_name}: a job condition could skip develop push runs"
     save = _action_steps()["Save .deb archives"]
     assert "github.event_name != 'merge_group'" in save["if"]
-    assert "push" not in save["if"] and "github.ref" not in save["if"]
+    assert "push" not in save["if"]
+    assert "github.ref" not in save["if"]
 
 
 def _cache_key(tmp_path: Path, packages: str, **env: str) -> dict[str, str]:
