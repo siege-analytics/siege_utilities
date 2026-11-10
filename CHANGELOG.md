@@ -387,6 +387,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- Numpy Fisher-Jenks classification preserves the optimal partition with
+  `min(k, n_unique)` nonempty classes, including singleton outliers and tight
+  clusters far from the data minimum, whose segment SSE is now accumulated
+  per segment instead of from cancelling prefix sums. Both classification
+  backends use upper-inclusive bins and class maxima for natural-break edges,
+  and the no-mapclassify `create_choropleth` path colours a value on an
+  internal edge with its own (lower) class. NaN and positive/negative
+  infinity receive bin `-1` and are excluded from break calculations. In
+  4.0.0 the numpy backend of `classify_series` assigned a value exactly on an
+  internal break to the upper class (`searchsorted(..., side="right")`; the
+  mapclassify backend was already upper-inclusive), masked only NaN so
+  infinities were classified, and could return different natural breaks for
+  clustered or outlier data. **Migration:** without mapclassify, or for
+  numpy-only schemes, expect values on an internal break to move down one
+  class and infinite values to get bin `-1`; recompute stored numpy-backend
+  classifications and natural breaks rather than mixing them with 4.1.0
+  output (#1455).
+
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,

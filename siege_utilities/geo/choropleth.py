@@ -232,6 +232,19 @@ def _compute_bivariate_classes(
     return gdf, np.asarray(var1_bins), np.asarray(var2_bins)
 
 
+def _upper_inclusive_boundaries(breaks: np.ndarray) -> np.ndarray:
+    """BoundaryNorm edges that colour each value by its classify_series bin.
+
+    classify_series bins are upper-inclusive: a value equal to an internal
+    edge belongs to the lower class. BoundaryNorm is lower-inclusive, so each
+    internal edge moves to the next float64 above it. Any float64 value above
+    the original edge is at least that large, so the classes agree exactly.
+    """
+    boundaries = np.asarray(breaks, dtype=np.float64).copy()
+    boundaries[1:-1] = np.nextafter(boundaries[1:-1], np.inf)
+    return boundaries
+
+
 # =============================================================================
 # PUBLIC FUNCTIONS
 # =============================================================================
@@ -299,7 +312,9 @@ def create_choropleth(
         plot_kwargs['k'] = k
     elif scheme is not None:
         cr = classify_series(gdf[column], scheme=scheme, k=k)
-        norm = mcolors.BoundaryNorm(cr.breaks, plt.get_cmap(cmap).N)
+        norm = mcolors.BoundaryNorm(
+            _upper_inclusive_boundaries(cr.breaks), plt.get_cmap(cmap).N,
+        )
         plot_kwargs['norm'] = norm
         plot_kwargs.pop('legend', None)
         plot_kwargs['legend'] = True
