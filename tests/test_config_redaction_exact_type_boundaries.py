@@ -1,5 +1,4 @@
 """Exact-type/ruling probes. Synthetic metadata only; no credential files."""
-import math
 from decimal import Decimal
 from typing import Any
 import pytest,yaml
@@ -8,6 +7,7 @@ from siege_utilities.config.models import person as M
 from siege_utilities.config.models.actor_types import User,Client,Collaborator,Organization,Collaboration
 from siege_utilities.config.models.oauth_integration import OAuthIntegration
 from siege_utilities.config.models.export import export_entities,import_entities
+from tests.hostile_secrets import unwrap_recording_subclass
 
 SECRET='DUMMY-METACLASS-ONLY-NOT-REAL-CREDENTIAL'
 MARKER='***REDACTED***'
@@ -62,19 +62,12 @@ def test_metaclass_secret_subclass_must_never_reach_unwrap(placement,surface):
 @pytest.mark.parametrize('surface',['to_dict','to_yaml','export_entities'])
 def test_hostile_secret_subclass_is_never_unwrapped(secret_type,placement,surface):
     calls=[]
-    class Hostile(secret_type):
-        def get_secret_value(self):calls.append(True);return '' if secret_type is SecretStr else b''
+    Hostile=unwrap_recording_subclass(secret_type,calls)
     value=Hostile(SECRET if secret_type is SecretStr else SECRET.encode());value.actual_secret=SECRET
     result=output(make_user(value,placement),surface)
     v=leaf(result,placement);assert type(v) is str and v==MARKER
     assert SECRET not in str(result)
     assert calls==[]
-
-@pytest.mark.parametrize('value',['',b'',[],{},(),set(),frozenset(),0,0.0,-0.0,False])
-def test_exact_empty_preserves_type_and_negative_zero(value):
-    result=M._redact_sensitive_value(value)
-    assert type(result) is type(value) and result==value
-    if type(value) is float:assert math.copysign(1.0,result)==math.copysign(1.0,value)
 
 @pytest.mark.parametrize('value',[True,1,1.0,float('nan'),float('inf'),float('-inf'),Decimal(0)])
 def test_nonempty_or_nonallowlisted_numbers_are_redacted(value):

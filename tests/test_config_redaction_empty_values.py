@@ -8,6 +8,8 @@ review flagged: empty builtins come back unchanged (as on develop), an exact
 empty SecretStr/SecretBytes is preserved for the default export->import
 round-trip, and an empty str subclass or a SecretStr subclass is still redacted.
 """
+import math
+
 from pydantic import SecretStr, SecretBytes
 import pytest
 
@@ -15,6 +17,7 @@ from siege_utilities.config.models.person import (
     _redact_sensitive_value,
     _strip_sensitive_fields,
 )
+from tests.hostile_secrets import unwrap_recording_subclass
 
 
 def test_empty_builtins_in_sensitive_keys_are_preserved_identically():
@@ -22,10 +25,13 @@ def test_empty_builtins_in_sensitive_keys_are_preserved_identically():
     assert _strip_sensitive_fields(dict(original)) == original
 
 
-@pytest.mark.parametrize("value", ["", b"", [], {}, (), set(), frozenset(), 0, 0.0, False])
-def test_genuinely_empty_exact_builtin_is_preserved(value):
-    assert _redact_sensitive_value(value) == value
-    assert type(_redact_sensitive_value(value)) is type(value)
+@pytest.mark.parametrize("value", ["", b"", [], {}, (), set(), frozenset(), 0, 0.0, -0.0, False])
+def test_exact_empty_builtin_is_preserved_with_type_and_sign(value):
+    result = _redact_sensitive_value(value)
+    assert type(result) is type(value)
+    assert result == value
+    if type(value) is float:
+        assert math.copysign(1.0, result) == math.copysign(1.0, value)
 
 
 def test_none_is_preserved():
@@ -58,14 +64,15 @@ def test_non_empty_secret_is_redacted():
     assert _redact_sensitive_value(SecretBytes(b"x")) == "***REDACTED***"
 
 
-def test_empty_secretstr_subclass_is_redacted():
+@pytest.mark.parametrize("base", [SecretStr, SecretBytes], ids=["SecretStr", "SecretBytes"])
+def test_empty_secret_subclass_is_redacted_without_being_unwrapped(base):
     # A subclass is always redacted, even unwrapping to empty: exact type only,
     # and its get_secret_value() is never consulted to decide.
-    class SneakySecret(SecretStr):
-        def get_secret_value(self):  # noqa: D401 - hostile stub
-            return ""
+    calls: list[bool] = []
+    hostile = unwrap_recording_subclass(base, calls)
 
-    assert _redact_sensitive_value(SneakySecret("")) == "***REDACTED***"
+    assert _redact_sensitive_value(hostile("" if base is SecretStr else b"")) == "***REDACTED***"
+    assert calls == []
 
 
 @pytest.mark.parametrize("value", ["abc", b"abc", [1], {"k": "v"}, (1,), 1, 1.0, True])

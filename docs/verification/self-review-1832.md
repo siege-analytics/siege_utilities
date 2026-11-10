@@ -15,7 +15,7 @@ Hostile-review-artifact: PR #1832 body, section "Verification at cf9eefa1": an i
 Project-contribution: closes the two remaining P0 redaction bypasses (credential aliases and non-string keys) and the falsey-value leaks, so `exclude_sensitive=True` exports contain no secret values.
 
 ## Investigation
-- PR files (10): `siege_utilities/config/models/_sensitivity.py`, `siege_utilities/config/models/person.py`, `tests/test_1460_sensitive_field_bypass.py`, five `tests/test_1832_*.py` modules, `tests/test_config_hydra_optional.py`, `tests/test_config_sensitive_fields.py`.
+- PR files (10): `siege_utilities/config/models/_sensitivity.py`, `siege_utilities/config/models/person.py`, `tests/test_1460_sensitive_field_bypass.py`, five `tests/test_1832_*.py` modules (renamed by behaviour in the pre-flight round below), `tests/test_config_hydra_optional.py`, `tests/test_config_sensitive_fields.py`.
 - At cf9eefa1, CHANGELOG.md had no #1460 entry; the note lived only in the PR body. The owner's criteria on #1484 (issuecomment-6649267710) state that a PR-body note alone is not the adopted release-note location.
 - GitHub reported the branch BEHIND develop dc7d3f76. A local three-way merge conflicted only positionally in CHANGELOG.md, against develop's #1463 entry.
 - The redaction decision sites are unchanged: `person.py` `_redact_sensitive_value`, `_strip_sensitive_fields`, `_convert_to_yaml_safe`; `_sensitivity.py` `field_has_sensitive_name`.
@@ -56,6 +56,27 @@ writing-rules:4 exemption for the governing ticket. The #1398 epic is context on
 - **Reason:** #1460 predates the canonical ticket template. It uses Problem / Evidence / Failure scenario / Done when / Assumptions / Falsifier sections, so `evaluate-ticket.sh` does not accept it as written.
 - **Evidence:** the problem (credential values leaking through `exclude_sensitive=True` exports), the evidence and the done-when criteria live in the #1460 body under `## Problem`, `## Evidence` and `## Done when`. The two reopened bypasses this PR addresses are quoted in the PR #1832 body ("Exemption: ticket-fitness" section). The earlier post-merge verification of #1460 is at https://github.com/siege-analytics/siege_utilities/issues/1460#issuecomment-6194494266. No public reviewer verdict for this PR exists yet; the earlier PASS on code at `cf9eefa1` is recorded in the PR body under "Verification at cf9eefa1". Investigation, pre-mortem and Junior/Senior records are on the ticket at issuecomment-6651153998 and issuecomment-6651203609.
 - **Falsification:** revert the implementation (restore `siege_utilities/config/models/person.py` from develop) and `tests/test_1460_sensitive_field_bypass.py::test_alias_field_redaction[alias-nested-to_dict]` goes red, because a field aliased `client_secret` keeps its dummy value in the `to_dict` export instead of being redacted. `test_non_str_key_redaction[credential-bytes-nested-to_dict]` goes red the same way for a `b"access_token"` key. This was verified on 2026-11-05: with develop's `person.py` in place, 96 failed and 125 passed; with the PR's file restored, 221 passed. Reverting `_sensitivity.py` as well makes the module fail to import, because the shared alias helper is new in this PR.
+
+## Pre-flight round on db526ae7 (develop 71f02b0b)
+**Develop merge (61cadc8f).** The PR was CONFLICTING. The only conflict was the CHANGELOG 4.1.0 Security position against the #1439 Instagram entry from develop; both entries are kept, develop first. Against develop the merged tree changes only the twelve PR files. No library code changed in this round.
+
+**Review thread 4429112649** (rename the `test_1832_*` files by behaviour, remove the duplicate empty-value case, share the hostile secret stubs). Fixed in the next commit. Test-only; no library change.
+- **Renamed** (`git mv`):
+  - `test_1832_empty_builtins_preserved.py` → `test_config_redaction_empty_values.py`;
+  - `test_1832_exact_type_boundaries.py` → `test_config_redaction_exact_type_boundaries.py`;
+  - `test_1832_empty_secret_roundtrip.py` → `test_config_export_empty_secret_roundtrip.py`;
+  - `test_1832_falsey_regression.py` → `test_config_redaction_falsey_nested_credentials.py`;
+  - `test_1832_remaining_falsey.py` → `test_config_redaction_falsey_values.py`.
+  Issue-numbered names are allowed by `scripts/check_test_file_hygiene.py` (develop has 20 such files), so this is a clarity change, not a rule fix; the hygiene check passes either way.
+- **Duplicate removed:** the 10-value exact-empty parametrization was a subset of the 11-value one (which adds `-0.0` and a sign check). One test now holds the 11-value version, `test_exact_empty_builtin_is_preserved_with_type_and_sign` in `test_config_redaction_empty_values.py`; the copy in the boundaries file is gone.
+- **Shared stub:** `tests/hostile_secrets.py::unwrap_recording_subclass(base, calls)` builds a `SecretStr`/`SecretBytes` subclass whose `get_secret_value()` records each call and unwraps to empty. The direct-call test (now parametrized over `SecretStr` and `SecretBytes`) and the export-surface test in the boundaries file use it, and both assert the secret was never consulted. The round-trip file's direct-call subclass test became an exact duplicate of the direct-call test and was removed, so that file covers only the export→import round trip. The metaclass-masquerade and falsey `__bool__` stubs test different attacks and stay local.
+- **Overlap with `test_1460_*`:** `test_1460_sensitive_field_bypass.py` has no exact-empty or secret-subclass cases, so nothing was merged from it.
+- **Counts:** the eight #1832 test modules went from 474 to 464 passed, the full self-review list from 2455 to 2445. Every one of the 10 is accounted for:
+  - the exact-empty subset replaced by the 11-value version in one place and removed in the other: −10;
+  - the direct-call subclass test now covers `SecretBytes` too: +1;
+  - the round-trip duplicate removed: −1.
+
+**CHANGELOG classification.** The #1460 Security note documents a behaviour change from 4.0.0: `exclude_sensitive=True` exports redact more fields and values. Under the pre-flight rule, a short BREAKING entry with a Migration line now points to it: read credentials from the live model or a secret store, and note that `import_entities` rejects redacted exports. The Security note itself stays where the canonical-placement rule puts security fixes.
 
 ## Rework ledger
 Empty.

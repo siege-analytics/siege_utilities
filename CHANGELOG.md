@@ -413,6 +413,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Loaders that insert with `ignore_conflicts=True` now report the rows
   actually inserted. New `backfill_derived_fields` command repairs rows
   loaded before this fix (#1539).
+- Config exports with `exclude_sensitive=True` (`to_dict`, `to_yaml`,
+  `export_entities`) redact more fields and values than in 4.0.0: fields
+  whose Pydantic alias names a credential, credential names in bytes keys,
+  and every value in a sensitive position other than `None` or an exact
+  empty or zero builtin, including falsey objects and secret subclasses (see
+  Security). **Migration:** read credentials from the live model or your
+  secret store, not from an `exclude_sensitive=True` export; such exports
+  now carry `***REDACTED***` in those positions, and `import_entities`
+  rejects them with `ValueError("Cannot import redacted ...")`. Export with
+  `exclude_sensitive=False` only to a trusted destination (#1460).
 
 ### BREAKING
 
