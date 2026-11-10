@@ -358,15 +358,23 @@ class SocialMediaReportGenerator:
     ) -> list[str]:
         insights: list[str] = []
 
+        # A comparison needs at least two known follower counts; with one, no
+        # platform is shown to be largest. When some counts are unknown, the
+        # claim is limited to the platforms that have one.
         known_audiences = [d for d in platform_data if pd.notna(d["account_info"].get("followers_count"))]
-        if len(platform_data) > 1 and known_audiences:
+        if len(known_audiences) > 1:
             best = max(
                 known_audiences,
                 key=lambda d: d["account_info"]["followers_count"],
             )
+            scope = (
+                "" if len(known_audiences) == len(platform_data)
+                else f" among the {len(known_audiences)} of {len(platform_data)} platforms "
+                     "with known follower counts"
+            )
             insights.append(
                 f"{best['platform'].replace('_', ' ').title()} has the largest "
-                f"audience with {_format_metric(best['account_info']['followers_count'])} followers."
+                f"audience{scope} with {_format_metric(best['account_info']['followers_count'])} followers."
             )
 
         for d in platform_data:

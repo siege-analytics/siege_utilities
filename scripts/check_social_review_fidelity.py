@@ -281,6 +281,7 @@ def audit() -> None:
     count = 0
     allowed = 0
     hits = set()
+    x_empty_followers_checked = 0
     _RELABELED.clear()
     for platform, current in (("instagram", instagram), ("x", x_twitter)):
         old = old_module(current)
@@ -330,8 +331,11 @@ def audit() -> None:
                     before = getattr(previous, method)(*args)
                     after = getattr(new, method)(*args)
                 allowed += compare(before, after, f"{platform}.{method}", hits)
-                if platform == "x" and method == "get_account_info" and body == account_empty:
+                # Identity, not value equality: only the empty-metrics fixture
+                # itself selects this check, and the check must run (below).
+                if platform == "x" and method == "get_account_info" and body is account_empty:
                     assert after["followers_count"] is None
+                    x_empty_followers_checked += 1
                 count += 1
 
     old_report = old_module(social_media_reports)
@@ -348,6 +352,11 @@ def audit() -> None:
             try:
                 reports.append(gen._build_report_data(deepcopy(data), START, END))
             except TypeError:
+                # Only the baseline is known to fail, and only on an unknown
+                # follower count. Any other TypeError is a new failure: raise it
+                # with its traceback instead of recording a placeholder.
+                if module is social_media_reports or None not in values:
+                    raise
                 reports.append("TypeError")
         if None not in values:
             allowed += compare(reports[0], reports[1], "report", hits)
@@ -362,6 +371,9 @@ def audit() -> None:
         count += 1
     assert "instagram.get_account_insights" in _RELABELED, (
         "#1444 covered-day relabel of Instagram account insights was not exercised"
+    )
+    assert x_empty_followers_checked == 1, (
+        f"X empty public_metrics null check ran {x_empty_followers_checked} times, expected 1"
     )
     # Each X clock already asserted its own relabel; this guards the wiring.
     assert "x.get_account_insights" in _RELABELED, (

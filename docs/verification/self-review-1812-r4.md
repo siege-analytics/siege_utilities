@@ -385,3 +385,61 @@ skipped. `check_exception_contracts.py`: 205 flagged, 0 unlisted, 0 stale.
 changed files. Running the script directly was blocked by a local shell guard
 (environment-variable prefix). The same `audit()` runs in full through the
 oracle tests.
+
+## Review threads at `006fc895` (6 threads)
+
+- **urllib3 DEBUG logging (Security, Major): fixed, not just documented.**
+  - urllib3 2.6.3 logs each request's path and query string at DEBUG: the
+    request line, `Retry: <url>` and `Redirecting <url>`. The token exchange
+    is a GET with `client_secret` and `fb_exchange_token` in that query, so
+    turning on DEBUG for `urllib3.connectionpool` wrote both credentials to
+    the log.
+  - For the duration of the exchange only, `refresh_access_token` adds a
+    filter to that logger that applies the library's `redact_url_secrets` to
+    every record. A record that cannot be rendered is replaced with a fixed
+    marker rather than emitted raw. The filter is removed afterwards, also on
+    failure.
+  - The docstring and the #1812 Security entry state this, keep the
+    proxy/load-balancer warning, and add that `http.client` `debuglevel`
+    output must stay off.
+  - Tests in `tests/test_instagram_token_exchange_logging.py` emit urllib3's
+    exact log calls through the real logger, using the URL requests prepares.
+    On the `006fc895` code, the app secret appeared in the `Retry:` line
+    (red); now it doesn't.
+- **"Largest audience" with one known count (Minor): fixed.**
+  - The insight needs at least two known follower counts. With K of M known
+    (K < M), it says "largest audience among the K of M platforms with known
+    follower counts".
+  - Tests: three one-known cases, an all-known case and a two-of-three case
+    in `tests/test_social_media_reports_nulls.py`. The four K-limited cases
+    were red at `006fc895`.
+  - #1877 (posts with known like counts) is a separate site and stays open.
+- **Narrow `TypeError` handling in the audit (Minor): fixed.** Only the
+  baseline report, on an input with an unknown follower count, may record the
+  `TypeError` placeholder. Any other `TypeError` re-raises with its traceback.
+  `test_new_type_error_in_current_report_surfaces_unmasked` (2 cases) got an
+  `AssertionError` from the old audit instead of the original `TypeError`.
+- **X `get_account_info` null-check guard (Trivial): fixed.** The check is
+  selected by fixture identity (`body is account_empty`), not value equality,
+  and the audit asserts that it ran exactly once. No behaviour changes for the
+  current fixtures, so there is no red/green pair; every green audit run
+  exercises the new assertion.
+- **Merge `test_1812_integral_count_rendering.py` (Trivial): done.** Its five
+  test functions (15 cases) moved unchanged into
+  `tests/test_social_media_reports_nulls.py`, the report's null-policy
+  module, and the issue-numbered file was removed. Same test names and
+  assertions, so the case count is unchanged.
+- **Mixed 429/5xx/transport sequences (Trivial): added.**
+  `test_mixed_429_5xx_and_transport_sequences_share_the_budget` runs all 125
+  three-event sequences of {429 with hint 0/15/450, 503, ConnectionError},
+  for both connectors and both caps. Each is checked against a reference
+  model for the sleeps taken and the error type: `SocialMediaRateLimitError`
+  when a 429 exhausts the budget, plain `SocialMediaError` when a 5xx or
+  transport backoff does. At the 20-second cap both exhaustion types are
+  reached. This adds coverage of existing behaviour, so it passes on both
+  sides.
+
+Verification (Python 3.11.11): the social/oracle/notebook-hygiene sweep gave
+1292 passed and 31 skipped. Exception contracts: 205 flagged, 0 unlisted, 0
+stale. Credential-URL guard: 0. Test-file hygiene PASS; ruff clean on all
+changed files.

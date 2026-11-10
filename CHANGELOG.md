@@ -417,8 +417,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   0. Totals sum known values and remain unknown when none are available.
   Comparisons, post rankings and chart data keep null values instead of
   replacing them with zero. Known integer counts still render as integers
-  (`7`, not `7.0`) when other values in the same column are missing. The X
-  connector-to-report fixture covers an empty `public_metrics` object
+  (`7`, not `7.0`) when other values in the same column are missing. The
+  "largest audience" insight needs at least two known follower counts, and
+  when some are unknown it names the largest among those with a known count.
+  The X connector-to-report fixture covers an empty `public_metrics` object
   (#1812). **Migration:** code that reads report chart, comparison or ranking
   data must handle `None` for unavailable metrics.
 
@@ -773,7 +775,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the exception class and attempt number. Dummy sentinel coverage checks error
   strings, repr and logged tracebacks. The credential URL guard now states that
   exchanges carry `client_secret` and `fb_exchange_token` in query parameters
-  even though the bearer header is removed (#1812).
+  even though the bearer header is removed. While the exchange runs, URL
+  secrets are redacted from `urllib3.connectionpool` log records, which at
+  DEBUG level include each request's full path and query string. Proxies,
+  load balancers and CDNs in front of graph.facebook.com still see the full
+  URL and must redact `/oauth/access_token` query strings themselves (#1812).
 - Credential files are written with mode 0600 before writing their payload,
   including existing files, with no write-then-chmod race. Missing parent
   directories are created with mode 0700. Profile defaults use per-user paths;

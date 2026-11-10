@@ -345,6 +345,28 @@ def test_x_clock_without_a_date_divergence_is_refused(monkeypatch: pytest.Monkey
         fidelity.audit()
 
 
+@pytest.mark.parametrize("fail_on_unknown", [False, True], ids=["all-known-input", "unknown-count-input"])
+def test_new_type_error_in_current_report_surfaces_unmasked(
+    monkeypatch: pytest.MonkeyPatch, fail_on_unknown: bool,
+) -> None:
+    # Only the baseline report may fail with TypeError, and only on an unknown
+    # follower count. A TypeError from the current report is a new failure and
+    # must reach the caller as itself, not as a "TypeError" placeholder.
+    from siege_utilities.reporting import social_media_reports
+
+    real = social_media_reports.SocialMediaReportGenerator._build_report_data
+
+    def failing(self: Any, data: Any, start: Any, end: Any) -> Any:
+        unknown = any(d["account_info"]["followers_count"] is None for d in data)
+        if unknown == fail_on_unknown:
+            raise TypeError("new current-report failure")
+        return real(self, data, start, end)
+
+    monkeypatch.setattr(social_media_reports.SocialMediaReportGenerator, "_build_report_data", failing)
+    with pytest.raises(TypeError, match="new current-report failure"):
+        fidelity.audit()
+
+
 def test_instagram_two_day_shift_is_still_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     # Only the exact one-day covered-day relabel is authorized for Instagram.
     from siege_utilities.analytics import instagram

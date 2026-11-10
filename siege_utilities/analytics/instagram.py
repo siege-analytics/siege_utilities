@@ -18,6 +18,7 @@ import json
 import logging
 import pathlib
 import time
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from math import isfinite
@@ -52,6 +53,38 @@ DEFAULT_TIMEOUT = 30
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_BACKOFF = 1.5
 DEFAULT_MAX_RETRY_WAIT = 900.0
+
+# urllib3 logs each request's path and query string at DEBUG (the request
+# line, "Retry: <url>", "Redirecting <url> -> ..."). The token exchange sends
+# client_secret and fb_exchange_token in that query string, so while it runs a
+# filter on this logger redacts URL secrets from every record.
+_URLLIB3_LOGGER = "urllib3.connectionpool"
+_URLLIB3_UNRENDERABLE = "[urllib3 log record suppressed during Instagram token exchange]"
+
+
+class _UrlSecretRedactingFilter(logging.Filter):
+    """Redact URL query secrets from records before any handler sees them."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            message = record.getMessage()
+        except (TypeError, ValueError, KeyError):
+            # An unrenderable record cannot be checked, so it is not emitted raw.
+            message = _URLLIB3_UNRENDERABLE
+        record.msg, record.args = redact_url_secrets(message), ()
+        return True
+
+
+@contextmanager
+def _urllib3_url_secrets_redacted() -> Iterator[None]:
+    """Redact URL secrets from urllib3 connection-pool records for the block."""
+    pool_logger = logging.getLogger(_URLLIB3_LOGGER)
+    redactor = _UrlSecretRedactingFilter()
+    pool_logger.addFilter(redactor)
+    try:
+        yield
+    finally:
+        pool_logger.removeFilter(redactor)
 
 DEFAULT_ACCOUNT_FIELDS = (
     "username,name,followers_count,follows_count,media_count,"
@@ -386,10 +419,14 @@ class InstagramConnector:
 
         Meta documents this exchange as a GET with ``client_secret`` and
         ``fb_exchange_token`` in the query string, so it stays a GET. This
-        library omits them from its own errors and logs, but any proxy,
-        load balancer or CDN between the caller and graph.facebook.com
-        sees the full URL: configure those to redact query strings for
-        ``/oauth/access_token`` and to keep such logs only briefly.
+        library omits them from its own errors and logs, and while the
+        exchange runs it redacts URL secrets from ``urllib3.connectionpool``
+        records, which at DEBUG level include each request's full path and
+        query. Any proxy, load balancer or CDN between the caller and
+        graph.facebook.com still sees the full URL: configure those to redact
+        query strings for ``/oauth/access_token`` and to keep such logs only
+        briefly. Low-level ``http.client`` debugging (``debuglevel``) prints
+        raw requests to stdout and must stay off in production.
         """
         if not self._app_id or not self._app_secret:
             raise SocialMediaAuthError(
@@ -404,12 +441,13 @@ class InstagramConnector:
         if not access_token:
             raise SocialMediaAuthError("Instagram token exchange requires a valid login token.")
 
-        data = self._request_url("GET", f"{BASE_URL}/oauth/access_token", params={
-            "grant_type": "fb_exchange_token",
-            "client_id": self._app_id,
-            "client_secret": self._app_secret,
-            "fb_exchange_token": access_token,
-        }, _token_exchange=True)
+        with _urllib3_url_secrets_redacted():
+            data = self._request_url("GET", f"{BASE_URL}/oauth/access_token", params={
+                "grant_type": "fb_exchange_token",
+                "client_id": self._app_id,
+                "client_secret": self._app_secret,
+                "fb_exchange_token": access_token,
+            }, _token_exchange=True)
         try:
             token = data["access_token"]
             expires_in = float(data["expires_in"])
