@@ -288,6 +288,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- Batch geocoding joins responses to inputs by a library-assigned unique ID
+  through `CompositeBatchGeocoder`, `CensusBatchGeocoder` and the Census CSV
+  submission (`geocode_batch` / `geocode_batch_chunked`), never by position or
+  by caller ID. Caller `input_id` values, including duplicates and blanks, are
+  restored on the returned results. Reordered or dropped response rows can no
+  longer move coordinates to another address. `CensusBatchGeocoder.geocode`
+  handles failures per chunk: successful chunks are kept, and failed or missing
+  rows now have `match_quality == MatchQuality.ERROR` (`"error"`, new) with a
+  diagnostic in `errors`, where v4.0.0 reported them as `no_match` or lost
+  every chunk. `GeocodingResult.matched` is false for both `error` and
+  `no_match`. Composite fallback keeps earlier backend errors in `errors` even
+  when a later backend succeeds. Low-level Census parsing marks a missing row
+  `match_type="Error"` and raises `CensusGeocodeError` for a non-list response,
+  a non-dict row, or an unknown or duplicate response ID; `chunk_size <= 0`
+  raises `ValueError`. `geocode_batch_chunked` still raises on request failure
+  (#1410). **Migration:** add `"error"` to any exhaustive `match_quality`
+  mapping; treat `matched == False` as "no coordinates" and inspect
+  `match_quality` to tell errors from genuine no-match; custom `BatchGeocoder`
+  backends must return each result with the `input_id` they were given; read
+  per-row status separately from the attempt history in `errors`.
+
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,
