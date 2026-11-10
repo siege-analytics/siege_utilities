@@ -34,7 +34,7 @@ The new mapping uses `pandas.api.types` predicates instead of name matching:
 - `is_timedelta64_dtype` gives `VARCHAR`;
 - everything else gives `VARCHAR`.
 
-Timedelta stays `VARCHAR`, explicitly. Snowflake has no interval column type, and how `write_pandas` loads a duration depends on logical-type loading, which is deferred. Raising instead is not safe here either: `_create_table_from_dataframe` runs `DROP TABLE IF EXISTS` before mapping columns when `overwrite=True`, so an exception would leave the table dropped with nothing created.
+Timedelta stays `VARCHAR`, as in v4.0.0, because Snowflake has no `INTERVAL` column type. There is no claim of a native interval type or of a proven duration round-trip. The mapper only chooses the column type; it does not serialize values. Callers who need durations in a usable form serialize them before upload (for example `.dt.total_seconds()`) or pre-create the table and pass `auto_create_table=False`. How `write_pandas` loads durations is part of the deferred logical-type work (#1884).
 
 | Dtype | v4.0.0 | Now | Test |
 |---|---|---|---|
@@ -42,7 +42,8 @@ Timedelta stays `VARCHAR`, explicitly. Snowflake has no interval column type, an
 | `Float64` (nullable) | `VARCHAR` | `FLOAT` | same |
 | `datetime64[ns, UTC]`, `datetime64[ns, America/Chicago]` | `TIMESTAMP_NTZ` | `TIMESTAMP_TZ` | same |
 | `category` of int / float / tz datetime | `VARCHAR` | `NUMBER(38,0)` / `FLOAT` / `TIMESTAMP_TZ` | same |
-| `interval[int64]` | `NUMBER(38,0)` | `VARCHAR` | same |
+| `interval[int64]` (pandas `IntervalDtype`, not a duration) | `NUMBER(38,0)`: the name `interval[int64, right]` contains "int" | `VARCHAR` | same |
+| `timedelta64[ns]` (an actual duration) | `VARCHAR` | `VARCHAR` (unchanged) | `test_mapping_keeps_v400_types_that_were_already_right` |
 | `int64`, `uint8`, `float64`, `bool`, `boolean`, `datetime64[ns]`, `timedelta64[ns]`, `object`, `string`, string categories, `period[M]` | unchanged | unchanged | `test_mapping_keeps_v400_types_that_were_already_right` |
 | CREATE TABLE built from an `Int64` and a tz-aware column | `VARCHAR`, `TIMESTAMP_NTZ` | `NUMBER(38,0)`, `TIMESTAMP_TZ` | `test_auto_create_uses_the_mapped_types` |
 

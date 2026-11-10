@@ -347,10 +347,13 @@ class SnowflakeConnector:
         * categoricals -> the type of their categories (integer categories ->
           ``NUMBER(38,0)``, string categories -> ``VARCHAR``).
 
-        Timedeltas map to ``VARCHAR(16777216)`` on purpose: Snowflake has no
-        interval column type, and how ``write_pandas`` loads durations depends on
-        logical-type loading, which this mapping does not change. Everything
-        else (strings, objects, intervals, periods) maps to ``VARCHAR(16777216)``.
+        Timedeltas map to ``VARCHAR(16777216)``, as in v4.0.0, because Snowflake
+        has no ``INTERVAL`` column type. This method only chooses the column
+        type; it does not serialize values. Callers who need durations in a
+        usable form should serialize them before upload (for example
+        ``.dt.total_seconds()``) or pre-create the table and pass
+        ``auto_create_table=False``. Everything else (strings, objects,
+        intervals, periods) maps to ``VARCHAR(16777216)``.
         """
         if isinstance(pandas_dtype, pd.CategoricalDtype):
             return self._map_pandas_to_snowflake_type(pandas_dtype.categories.dtype)
