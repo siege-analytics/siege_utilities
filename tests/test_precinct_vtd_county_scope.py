@@ -291,14 +291,64 @@ class TestNameCandidateValidation:
 
         assert _name_mappings(result) == []
 
-    @pytest.mark.parametrize("county", [None, {}, {"P1": "Alamance"}, {"P1": "001"}])
+    @pytest.mark.parametrize("county", [{}, {"P1": "Alamance"}, {"P1": "001"}])
     def test_direct_matching_without_county_evidence_is_empty(self, county):
         assert reconcile_names(
             {"P1": "Downtown"}, {LOCAL_VTD: "Downtown"}, precinct_county=county,
         ) == []
 
     def test_direct_matching_defaults_to_no_county(self):
-        assert reconcile_names({"P1": "Downtown"}, {LOCAL_VTD: "Downtown"}) == []
+        with pytest.warns(UserWarning, match="precinct_county"):
+            assert reconcile_names({"P1": "Downtown"}, {LOCAL_VTD: "Downtown"}) == []
+
+    def test_omitting_precinct_county_warns_instead_of_silently_returning_empty(self):
+        with pytest.warns(UserWarning, match="returns \\[\\]") as record:
+            reconcile_names({"P1": "Downtown"}, {LOCAL_VTD: "Downtown"})
+        assert record[0].filename == __file__, "warning must point at the caller"
+
+    def test_supplied_or_empty_inputs_do_not_warn(self, recwarn):
+        reconcile_names({"P1": "Downtown"}, {LOCAL_VTD: "Downtown"}, {"P1": "37001"})
+        reconcile_names({"P1": "Downtown"}, {LOCAL_VTD: "Downtown"}, {})
+        reconcile_names({}, {LOCAL_VTD: "Downtown"})
+        assert not [w for w in recwarn if issubclass(w.category, UserWarning)]
+
+
+class TestSkippedNameMatchingIsVisible:
+    def test_no_county_evidence_lists_the_precinct_and_logs(self, caplog):
+        with caplog.at_level("WARNING", logger="siege_utilities.geo.precinct_vtd"):
+            result = PrecinctVTDReconciler(
+                name_provider=_county_names({LOCAL_VTD: "Downtown"}),
+            ).reconcile(["P1"])
+        assert result.name_matching_skipped == ["P1"]
+        assert result.to_dict()["name_matching_skipped"] == ["P1"]
+        assert result.errors == []
+        assert "skipped for 1 of 1 precinct" in caplog.text
+
+    def test_conflicting_counties_are_listed(self):
+        spatial = DictSpatialOverlapProvider()
+        spatial.add(SpatialOverlap("P1", LOCAL_VTD, overlap_pct=0.5))
+        spatial.add(SpatialOverlap("P1", FOREIGN_VTD, overlap_pct=0.5))
+        result = PrecinctVTDReconciler(
+            spatial_provider=spatial, name_provider=_county_names({LOCAL_VTD: "Downtown"}),
+        ).reconcile(["P1"])
+        assert result.name_matching_skipped == ["P1"]
+
+    def test_resolved_county_is_not_listed_and_does_not_log(self, caplog):
+        with caplog.at_level("WARNING", logger="siege_utilities.geo.precinct_vtd"):
+            result = PrecinctVTDReconciler(
+                name_provider=_county_names({LOCAL_VTD: "Downtown"}, county="37001"),
+            ).reconcile(["P1"])
+        assert result.name_matching_skipped == []
+        assert "skipped" not in caplog.text
+
+    def test_only_unresolved_precincts_are_listed(self):
+        provider = DictNameMatchProvider()
+        provider.add_precinct("P1", "Downtown", county="37001")
+        provider.add_precinct("P2", "Uptown")
+        provider.add_vtd(LOCAL_VTD, "Downtown")
+        result = PrecinctVTDReconciler(name_provider=provider).reconcile(["P1", "P2"])
+        assert result.name_matching_skipped == ["P2"]
+        assert [m.precinct_id for m in _name_mappings(result)] == ["P1"]
 
 
 class TestNameMappingPrecedence:

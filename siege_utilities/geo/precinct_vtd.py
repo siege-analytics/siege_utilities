@@ -9,6 +9,7 @@ from __future__ import annotations
 import abc
 import logging
 import re
+import warnings
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from enum import Enum
@@ -118,6 +119,10 @@ class ReconciliationResult:
         unmatched_precincts: Precinct IDs with no mapping.
         method_counts: Count of mappings by method.
         errors: Any errors encountered.
+        name_matching_skipped: Precinct IDs whose names were not compared
+            with any VTD because county evidence was missing or conflicting.
+            A precinct listed here has no name match because name matching
+            never ran for it, not because no VTD name was similar.
     """
 
     mappings: list[PrecinctVTDMapping] = field(default_factory=list)
@@ -126,6 +131,7 @@ class ReconciliationResult:
     unmatched_precincts: list[str] = field(default_factory=list)
     method_counts: dict[str, int] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
+    name_matching_skipped: list[str] = field(default_factory=list)
 
     @property
     def match_rate(self) -> float:
@@ -150,6 +156,7 @@ class ReconciliationResult:
             "unmatched_precincts": self.unmatched_precincts,
             "mappings": [m.to_dict() for m in self.mappings],
             "errors": self.errors,
+            "name_matching_skipped": self.name_matching_skipped,
         }
 
 
@@ -371,7 +378,18 @@ def reconcile_names(
     happen to share a county. Malformed VTD GEOIDs are ignored.
     Confidence is capped at NAME_ONLY_MAX_CONFIDENCE, below HIGH, while
     name_similarity retains the raw score for spatial confirmation.
+
+    Calling without ``precinct_county`` returns ``[]`` and emits a
+    ``UserWarning``, because the two-argument form no longer matches anything.
     """
+    if precinct_county is None and precinct_names:
+        warnings.warn(
+            "reconcile_names() without precinct_county performs no name "
+            "matching and returns []; pass precinct_county mapping each "
+            "precinct ID to its state+county FIPS key.",
+            UserWarning,
+            stacklevel=2,
+        )
     by_county: dict[str, dict[str, str]] = {}
     for vgeoid, vname in vtd_names.items():
         county = _vtd_county(vgeoid)
@@ -527,7 +545,9 @@ class PrecinctVTDReconciler:
         Name matching uses numeric official county FIPS first, then counties
         from spatial overlaps >= MIN_OVERLAP_PCT, then optional provider keys.
         Conflicting counties at the first available evidence level skip name
-        matching; weaker evidence cannot override that ambiguity.
+        matching; weaker evidence cannot override that ambiguity. Precincts
+        whose names were not compared are listed in
+        ``ReconciliationResult.name_matching_skipped`` and logged as a warning.
 
         Args:
             precinct_ids: List of precinct identifiers to reconcile.
@@ -543,6 +563,7 @@ class PrecinctVTDReconciler:
         official_mappings: list[PrecinctVTDMapping] = []
         overlaps: list[SpatialOverlap] = []
         errors: list[str] = []
+        name_skipped: list[str] = []
 
         relevant_crosswalk = [
             e for e in self._crosswalk if e.precinct_id in set(precinct_ids)
@@ -577,6 +598,14 @@ class PrecinctVTDReconciler:
                             if county:
                                 precinct_county[pid] = county
                     name_mappings = reconcile_names(pnames, vnames, precinct_county)
+                    name_skipped = [pid for pid in pnames if pid not in precinct_county]
+                    if name_skipped:
+                        log.warning(
+                            "Name matching skipped for %d of %d precinct(s): "
+                            "county evidence missing or conflicting "
+                            "(see ReconciliationResult.name_matching_skipped)",
+                            len(name_skipped), len(pnames),
+                        )
             except (ValueError, TypeError, KeyError, AttributeError) as exc:
                 errors.append(f"Name matching error: {exc}")
 
@@ -596,4 +625,5 @@ class PrecinctVTDReconciler:
             unmatched_precincts=unmatched,
             method_counts=method_counts,
             errors=errors,
+            name_matching_skipped=name_skipped,
         )
