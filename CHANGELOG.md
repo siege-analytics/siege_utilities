@@ -369,14 +369,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `verify_bivariate_classification` reports reduced class counts as errors.
   Rendering raises a clear error if ties leave fewer than two bins on an
   axis, unless one class was requested. In 4.0.0 these functions classified
-  with `qcut(..., duplicates="drop")` and rendered tied data with fewer
-  classes, shifted colors and smaller crosstabs, including an axis collapsed
-  to one bin. **Migration:** `create_bivariate_choropleth` now raises
-  `ValueError` for a variable that ties into fewer than two bins; check
-  `nunique()` first, or pass `n_classes=1`.
-  Treat a reduced class count in `verify_bivariate_classification` as an
-  error rather than a pass, and regenerate stored tied bivariate maps, whose
-  colors and crosstab shape change (#1462).
+  with `qcut(..., duplicates="drop")`: `create_bivariate_choropleth` rendered
+  tied data, including an axis collapsed to one bin, with the top values in
+  a middle color and a legend whose ticks outnumbered its labels, and
+  `verify_bivariate_classification` returned `valid: True`.
+  `create_bivariate_crosstab` and `create_bivariate_analysis` raised
+  `ValueError: Length mismatch` on the same data; they now return the actual
+  grid. **Migration:** `create_bivariate_choropleth` now raises `ValueError`
+  for a variable that ties into fewer than two bins; check `nunique()` first,
+  or pass `n_classes=1`. Treat a reduced class count in
+  `verify_bivariate_classification` as an error rather than a pass, and
+  regenerate stored tied bivariate maps, whose colors change (#1462).
 
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
