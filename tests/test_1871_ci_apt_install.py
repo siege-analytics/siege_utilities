@@ -66,7 +66,24 @@ DEFAULTS = {
     "APT_DPKG_TIMEOUT": 300,
     "APT_RETRY_DELAY": 10,
 }
-KILL_AFTER = 30
+
+
+def script_kill_after() -> int:
+    """The ``timeout --kill-after`` value the script really uses, read from it.
+
+    Every ``sudo timeout`` call must carry one, and all must agree, so the
+    budget below is computed from the script rather than a copy of it.
+    """
+    source = SCRIPT.read_text(encoding="utf-8")
+    timeout_calls = re.findall(r"sudo timeout\b[^\n]*", source)
+    values = {re.search(r"--kill-after=(\d+)\b", call) for call in timeout_calls}
+    assert timeout_calls and None not in values, f"every sudo timeout call needs --kill-after: {timeout_calls}"
+    kill_after = {int(match.group(1)) for match in values}
+    assert len(kill_after) == 1, f"sudo timeout calls disagree on --kill-after: {sorted(kill_after)}"
+    return kill_after.pop()
+
+
+KILL_AFTER = script_kill_after()
 
 
 def worst_case_seconds(attempt: int, final_network: int, dpkg: int) -> int:
@@ -113,14 +130,19 @@ SUDO_STUB = """\
 import json, os, sys
 
 argv = sys.argv[1:]
-cap, command_line = None, argv
+cap, kill_after, command_line = None, None, argv
 if os.path.basename(argv[0]) == 'timeout':
-    # timeout --kill-after=30 CAP PROGRAM ARGS...
-    cap, command_line = int(argv[2]), argv[3:]
+    # timeout [--kill-after=N] CAP PROGRAM ARGS...
+    rest = argv[1:]
+    while rest[0].startswith('-'):
+        if rest[0].startswith('--kill-after='):
+            kill_after = int(rest[0].split('=', 1)[1])
+        rest = rest[1:]
+    cap, command_line = int(rest[0]), rest[1:]
 program, args = os.path.basename(command_line[0]), command_line[1:]
 env = dict(os.environ)
 if program in ('apt-get', 'dpkg'):
-    entry = {'cmd': program, 'argv': args, 'cap': cap}
+    entry = {'cmd': program, 'argv': args, 'cap': cap, 'kill_after': kill_after}
     if program == 'dpkg':
         if os.environ['DPKG_STUB_EXIT'] == '0' and args == ['--configure', '-a']:
             open(os.environ['APT_STUB_REPAIRED'], 'w').close()
@@ -429,6 +451,22 @@ def test_killed_install_repairs_dpkg_before_the_retry(tmp_path: Path) -> None:
     assert runner.calls[1]["fetch"] == PACKAGES
     assert runner.calls[5]["fetch"] == []
     assert "attempt 1 failed or stalled (exit 124)" in result.stderr
+
+
+def test_every_bounded_command_uses_the_budgeted_kill_after(tmp_path: Path) -> None:
+    # The interrupted-install path reaches every kind of bounded command:
+    # network phases, the dpkg phase, the repair and autoclean. Each must run
+    # under timeout with a cap and the kill-after the budget is computed from,
+    # so changing a --kill-after in the script breaks the budget guards.
+    runner = Runner(tmp_path)
+
+    result = runner.run(*PACKAGES, APT_STUB_BEFORE_REPAIR="install:hang")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert set(runner.commands) == {"update", "download", "install", "dpkg", "autoclean"}
+    for call in runner.calls:
+        assert call["cap"] is not None, call
+        assert call["kill_after"] == KILL_AFTER, call
 
 
 def test_dpkg_phase_stays_bounded_on_the_final_attempt(tmp_path: Path) -> None:

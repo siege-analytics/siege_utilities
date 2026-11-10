@@ -60,7 +60,7 @@ Chosen: (a) for the final attempt, combined with a wall-clock cap on the first a
 ## Peer review (Junior: shelves, gates)
 - Shelves: separate slow from stalled using the transport's own data timeout; fall back to another mirror; cache downloads rather than raising budgets; behavioural tests with stubs over a real `timeout`.
 - Gate 1 (syntax): `bash -n` and `shellcheck` on `scripts/ci_apt_install.sh` are clean. `yaml.safe_load` parses the workflows and the action in the guard tests, and the action's key step runs under bash in `test_cache_key_follows_the_image_and_the_package_set`. flake8 on the new test is clean at the CI limit of 127 characters. `actionlint` is not installed locally.
-- Gate 2 (tests): `tests/test_1871_ci_apt_install.py` gives 21 passed; with the changelog tests, 46 passed.
+- Gate 2 (tests): `tests/test_1871_ci_apt_install.py` gives 22 passed; with the changelog tests, 47 passed.
 - Gate 3 (guards): `scripts/check_test_file_hygiene.py` passes.
 
 ## Lead review (adversarial)
@@ -90,6 +90,7 @@ Phase B verification: stubs drive the real script through each case.
 | F4 | P1 | Final attempt unbounded against a trickle; six-hour job default (CodeRabbit 4498224208) | 45-minute final network budget; 80-minute step timeout where no job timeout applies |
 | F5 | P2 | Test assertions depended on capped stubs starting within the cap (CodeRabbit 4498224221) | logging and decisions moved to the uncapped `sudo` stub |
 | F6 | P1 | `test-postgis` install bounded only by its 20-minute job timeout, so a slow mirror cancels the job (CodeRabbit 4499528288) | shorter limits (worst case 851 s) under a 15-minute step timeout |
+| F7 | P2 | Budget guards hardcoded `kill-after 30` instead of reading the script (CodeRabbit 4519208528) | kill-after derived from the script; every bounded call checked in behaviour |
 
 ## Ticket-fitness exemption
 
@@ -106,9 +107,9 @@ writing-rules:4 exemption for the governing ticket.
 
 ## Test plan / Quantified claims
 Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11); GNU `timeout` from coreutils; macOS `/bin/bash` 3.2 runs the script in the tests, and CI runs bash 5.
-- `python -m pytest tests/test_1871_ci_apt_install.py`: 16 passed at 7a972cbd (twice in a row, about 50 s each); 17 passed after the cache scope round; 19 passed after the CodeRabbit round; 21 after the test-postgis round.
+- `python -m pytest tests/test_1871_ci_apt_install.py`: 16 passed at 7a972cbd (twice in a row, about 50 s each); 17 passed after the cache scope round; 19 passed after the CodeRabbit round; 21 after the test-postgis round; 22 after the kill-after round.
 - Against the 2e61f1fc script and `ci.yml`: 11 failed and 5 passed. The five that pass cover behaviour the old script shares (usage error, no staging on failure, capped dpkg phase) plus the two action-file checks.
-- Adding `tests/test_release_process.py tests/test_user_config_export_changelog.py`: 41 passed at 7a972cbd; 42 after the cache scope round; 44 after the CodeRabbit round; 46 after the test-postgis round.
+- Adding `tests/test_release_process.py tests/test_user_config_export_changelog.py`: 41 passed at 7a972cbd; 42 after the cache scope round; 44 after the CodeRabbit round; 46 after the test-postgis round; 47 after the kill-after round.
 
 ## Review round on 682d5069 (hub finding: interrupted dpkg)
 Finding: if `timeout` stops `apt-get install` during the dpkg unpack/configure phase, dpkg is left interrupted. The retry then fails at once with "dpkg was interrupted, you must manually run 'sudo dpkg --configure -a'" or on the dpkg lock.
@@ -229,6 +230,21 @@ Fix:
   - The action test asserts the input-to-variable wiring.
 
 Red: with the e4679b66 `ci.yml` and action, 3 failed and 1 passed. The blank-limits test passes on both, because the script already treated blanks as unset; it pins that guarantee for the action. After the fix, 21 passed.
+
+## CodeRabbit round on c61f8786 (comment 4519208528)
+**The budget guards did not read the script's kill-after.** Valid. `worst_case_seconds` used a test constant, `KILL_AFTER = 30`. The reviewer showed that changing both `--kill-after=30` in the script to 90 raises the real `test-postgis` bound from 851 s to 1331 s (over the 900 s step), yet every budget and wiring guard still passed.
+
+Fix:
+- **Static:** `script_kill_after()` reads `scripts/ci_apt_install.sh`. It requires every `sudo timeout` call to carry `--kill-after=N` and all of them to agree, and returns N. `KILL_AFTER`, and with it every worst-case figure, now comes from the script. A changed value moves the computed bounds, and a missing or mismatched value fails at collection.
+- **Behavioural:** the uncapped `sudo` stub now also logs each call's `--kill-after`. `test_every_bounded_command_uses_the_budgeted_kill_after` drives the interrupted-install path, which reaches every bounded command kind (update, download-only, the dpkg phase, `dpkg --configure -a` and autoclean). It asserts each call ran under `timeout` with a cap and with the script's kill-after.
+
+Red, with the script mutated and restored afterwards (tests unchanged):
+- Both `--kill-after=30` changed to 90:
+  - `test_test_postgis_limits_fit_its_job_with_room_for_the_tests` fails with `1331 == 851`;
+  - `test_install_steps_are_bounded_above_the_slowest_evidenced_install` fails because the default worst case becomes 4871 s, over the 4800 s step.
+- Only the repair's `--kill-after` changed to 90: collection fails with "sudo timeout calls disagree on --kill-after: 30, 90".
+
+Green with the real script: 22 passed; 47 with the changelog tests.
 
 ## Rework ledger
 - During the first red check, a blocked command left the new `ci.yml` unstaged, so the restore reverted it to develop's version. The edit was re-applied and verified (five script calls, no `apt-get`) before the red check was repeated correctly. Nothing was committed in between.
