@@ -387,6 +387,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- Census catalog cache filenames percent-encode dataset ids, keeping slash-based
+  ids such as `eits/resconst` and `dec/pl` in the cache directory and visible to
+  cache clearing. Yearless keys use a distinct `none` suffix, and cache logging
+  accepts `year=None`, including write failures. Entries in the old nested
+  layout are no longer read or cleared: the next load fetches and caches a
+  fresh copy at the new key, and the old nested files can be deleted by hand.
+  `CatalogCache.clear(dataset, year)` removes only
+  that entry, including a yearless one with `year=None`; `clear()` still
+  removes every entry. Passing only a dataset or only a year now raises
+  `ValueError` instead of deleting the whole cache (#1405).
+  **Migration:** call `clear()` with no arguments to empty the whole cache,
+  or pass both `dataset` and `year` (`year=None` for a yearless entry) to
+  remove one entry; expect one refetch after upgrading for each dataset id
+  containing `/` or other percent-encoded characters and for each yearless
+  entry (formerly `_None.json`), and delete the old files by hand if disk
+  space matters.
+
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,
