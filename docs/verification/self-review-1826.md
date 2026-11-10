@@ -31,6 +31,12 @@ Project-contribution: analytics outputs report what their names claim, and inval
     - M2, offset dropped instead of converted (`entered_stage.replace(tzinfo=timezone.utc)` at line 334 instead of `astimezone`): the pinned test fails 3/3 (`test_analytics_datetime.py:177: assert 6.9 == 7.0`).
   The pinned test still detects loss of the aware-UTC normalization it was written for.
 
+## Direct coverage of the new aging default
+Review found no test pinned the new default: `test_aging_alerts_work_for_small_samples` passes `aging_threshold` explicitly, the #1444 pin passes 14.0 explicitly, and `test_velocity_with_timestamps` (default analyzer, items at 5, 3 and 31 days) passes under both rules because v4.0.0's 2.0 x stage-average threshold there is 26 days.
+- Added `tests/test_1422_analytics_correctness.py::test_default_aging_threshold_is_an_exclusive_30_day_limit`: a default-constructed `PipelineAnalyzer` with items at 29.9, 30.0 and 30.1 days flags only the 30.1-day item. The boundary is exclusive because `pipeline.py` flags `d > self._aging_threshold`, so exactly 30.0 is not flagged. On v4.0.0 the same items give a 60-day threshold (2.0 x 30.0 average) and nothing is flagged: fails with `assert [] == ['over']`. At the tip: passes.
+- Tightened `tests/test_analytics_pipeline.py::test_velocity_with_timestamps` to also assert the 5-day and 3-day items are not flagged. This holds under both rules (passes on v4.0.0 and at the tip), so it is a control, not a defect test.
+- Analytics, datetime and temporal suites on the merged tree: 253 passed, 1 skipped.
+
 ## Pre-mortem
 1. Tiger. Severity: P1. Modifying a develop test weakens it. Mitigation: one-line pin with (a)/(b)/(c) evidence above; disclosed here, in the PR body and in the BREAKING entry's Migration line.
 2. Tiger. Severity: P2. A Migration line missing for one of the seven changes. Mitigation: each bullet has its own Migration.

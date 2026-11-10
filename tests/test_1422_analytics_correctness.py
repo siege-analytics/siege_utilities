@@ -55,6 +55,19 @@ def test_aging_alerts_work_for_small_samples(count, bound):
     assert report.velocity[0].aging_items == ["overdue"]
 
 
+def test_default_aging_threshold_is_an_exclusive_30_day_limit():
+    """The default flags items older than 30 days; exactly 30.0 is not flagged (pipeline uses ``d > limit``)."""
+    now = datetime(2026, 1, 31)
+    items = [
+        PipelineItem("under", "review", 1, now - timedelta(days=29.9)),
+        PipelineItem("at-limit", "review", 1, now - timedelta(days=30.0)),
+        PipelineItem("over", "review", 1, now - timedelta(days=30.1)),
+    ]
+    report = PipelineAnalyzer(["review"]).analyze(items, as_of=now)
+
+    assert report.velocity[0].aging_items == ["over"]
+
+
 @pytest.mark.parametrize("missing", [float("nan"), None, float("inf")])
 @pytest.mark.parametrize("missing_side", ["actual", "forecast"])
 def test_missing_forecast_data_is_insufficient(missing, missing_side):
