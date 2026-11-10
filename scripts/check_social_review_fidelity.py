@@ -80,6 +80,20 @@ def _is_temporal(value: object) -> bool:
     )
 
 
+def _is_scalar_count_unknown(value: object) -> bool:
+    """Whether ``value`` is a SCALAR unknown count: None, pd.NA or float NaN.
+
+    Only these may replace a baseline 0 at an authorized cell. A container
+    (ndarray of any shape, Series, list...) holding a missing element can make
+    ``pd.isna`` truthy, but it is not a count: ``pd.to_numeric`` rejects it and
+    the report builder raises on it. Temporal missing markers (NaT) are not
+    counts either (#1880).
+    """
+    if value is None or value is pd.NA:
+        return True
+    return isinstance(value, (float, np.floating)) and bool(np.isnan(value))
+
+
 def _is_count_null_dtype(dtype: object) -> bool:
     """Whether a column dtype can hold an unknown count: numeric (not bool) or object.
 
@@ -286,9 +300,10 @@ def compare(old: object, new: object, where: str, hits: set[str]) -> int:
             raise AssertionError(f"unexpected null type change at {where}: {old!r} -> {new!r}")
         return 0
     if _is_null(old) != _is_null(new):
-        # An unknown count is None, numeric NaN or pd.NA; a temporal NaT is a
-        # date/time value's missing marker, not a count (#1880).
-        if _is_zero(old) and _is_null(new) and not _is_temporal(new) and where in _AUTHORIZED:
+        # An unknown count is a scalar None, numeric NaN or pd.NA; a temporal
+        # NaT or a container holding a missing value is not a count (#1880).
+        if (_is_zero(old) and _is_scalar_count_unknown(new) and not _is_temporal(new)
+                and where in _AUTHORIZED):
             hits.add(where)
             return 1
         raise AssertionError(f"unexpected null/non-null diff at {where}: {old!r} -> {new!r}")

@@ -17,6 +17,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -423,4 +424,99 @@ def test_instagram_two_day_shift_is_still_rejected(monkeypatch: pytest.MonkeyPat
 
     monkeypatch.setattr(instagram.InstagramConnector, "get_account_insights", shifted)
     with pytest.raises(AssertionError, match="unexpected value diff"):
+        fidelity.audit()
+
+
+# #1880: only a SCALAR unknown count (None, float/NumPy NaN, pd.NA) may replace
+# a baseline 0 at an authorized cell. A container whose element is missing
+# makes pd.isna truthy but is not a count: pd.to_numeric rejects it and the
+# report builder raises on it. Each case below runs the real full audit with
+# only the X omitted-post converter cell changed.
+def _mutate_current_x_omitted_like_count(monkeypatch: pytest.MonkeyPatch, series_factory: Callable[[pd.Index], pd.Series]) -> None:
+    from siege_utilities.analytics import x_twitter
+
+    real = x_twitter.XTwitterConnector._tweets_to_dataframe
+
+    def mutated(posts: Any) -> pd.DataFrame:
+        frame = real(posts)
+        if posts == [{"id": "123"}]:  # the audit's omitted fixture only
+            frame = frame.copy(deep=True)
+            frame["like_count"] = series_factory(frame.index)
+        return frame
+
+    monkeypatch.setattr(x_twitter.XTwitterConnector, "_tweets_to_dataframe", staticmethod(mutated))
+
+
+def _object_cell(value: object) -> Callable[[pd.Index], pd.Series]:
+    """An object column whose single cell holds ``value`` itself (never unpacked)."""
+    def build(index: pd.Index) -> pd.Series:
+        cell = np.empty(1, dtype=object)
+        cell[0] = value
+        series = pd.Series(cell, index=index, dtype=object)
+        assert series.iat[0] is value, (type(series.iat[0]), type(value))
+        return series
+    return build
+
+
+def test_singleton_array_of_nat_count_is_rejected_by_the_real_audit(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The executed reviewer sample, verbatim: an object Series whose one cell
+    # is a length-one object ndarray holding NaT.
+    _mutate_current_x_omitted_like_count(
+        monkeypatch, lambda index: pd.Series([np.array([pd.NaT], dtype=object)], index=index, dtype=object),
+    )
+    with pytest.raises(AssertionError, match="unexpected"):
+        fidelity.audit()
+
+
+CONTAINER_SHAPES = [
+    ("singleton-object-NaT", np.array([pd.NaT], dtype=object)),
+    ("singleton-datetime64-NaT", np.array(["NaT"], dtype="datetime64[ns]")),
+    ("singleton-float-NaN", np.array([np.nan])),
+    ("singleton-object-None", np.array([None], dtype=object)),
+    ("singleton-object-NA", np.array([pd.NA], dtype=object)),
+    ("zero-dim-float-NaN", np.array(np.nan)),
+    ("zero-dim-object-NaT", np.array(pd.NaT, dtype=object)),
+    ("empty-float", np.array([], dtype=float)),
+    ("multi-float-NaN", np.array([np.nan, np.nan])),
+    ("multi-object-NaT", np.array([pd.NaT, pd.NaT], dtype=object)),
+]
+
+
+@pytest.mark.parametrize("shape,value", CONTAINER_SHAPES, ids=[name for name, _ in CONTAINER_SHAPES])
+def test_container_count_is_rejected_by_the_real_audit(
+    monkeypatch: pytest.MonkeyPatch, shape: str, value: np.ndarray,
+) -> None:
+    _mutate_current_x_omitted_like_count(monkeypatch, _object_cell(value))
+    with pytest.raises(AssertionError, match="unexpected"):
+        fidelity.audit()
+
+
+@pytest.mark.parametrize("series_factory", [
+    _object_cell(None),
+    lambda index: pd.Series([float("nan")], index=index),
+    _object_cell(np.float64("nan")),
+    lambda index: pd.Series([pd.NA], index=index, dtype="Int64"),
+], ids=["object-None", "float64-NaN", "object-numpy-NaN", "nullable-Int64-NA"])
+def test_scalar_unknown_count_stays_authorized_for_x(
+    monkeypatch: pytest.MonkeyPatch, series_factory: Callable[[pd.Index], pd.Series],
+) -> None:
+    _mutate_current_x_omitted_like_count(monkeypatch, series_factory)
+    fidelity.audit()
+
+
+@pytest.mark.parametrize("value", [pd.NaT, np.datetime64("NaT"), "unknown", False],
+                         ids=["scalar-NaT", "scalar-datetime64-NaT", "text", "bool"])
+def test_non_count_scalar_is_still_rejected_for_x(monkeypatch: pytest.MonkeyPatch, value: object) -> None:
+    _mutate_current_x_omitted_like_count(monkeypatch, _object_cell(value))
+    with pytest.raises(AssertionError, match="unexpected"):
+        fidelity.audit()
+
+
+@pytest.mark.parametrize("value", [[None], (None,), [float("nan")], (float("nan"),)],
+                         ids=["list-None", "tuple-None", "list-NaN", "tuple-NaN"])
+def test_list_and_tuple_counts_are_rejected_structurally(monkeypatch: pytest.MonkeyPatch, value: object) -> None:
+    # Lists and tuples take the comparator's earlier structural branch
+    # (baseline scalar 0 vs a sequence), executed here, not assumed.
+    _mutate_current_x_omitted_like_count(monkeypatch, _object_cell(value))
+    with pytest.raises(AssertionError):
         fidelity.audit()

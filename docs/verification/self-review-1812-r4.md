@@ -512,6 +512,9 @@ clean.
     makes the old tests pass.
   - The configuration's CRITICAL root level is not the cause; it does not by
     itself block propagated child records.
+  - This mechanism is demonstrated locally, by applying the same `LOGGING`
+    dict in-process. That it was the exclusive cause in the historical CI run
+    is inferred from the matching symptom, not directly proved.
   - This is a test isolation gap. Redaction did not fail: nothing was
     captured at all.
 - Fix (tests only):
@@ -586,3 +589,71 @@ Also in this round:
 - The adverb "deliberately" removed from the R-1812-4 (b) deviation note.
 - The native urllib3 cardinality, raw-args and filter-state tests are
   untouched. So are the frozen baseline hashes and the second-merger patches.
+
+## Container values in authorized count cells (#1880, reviewer finding at `4585f98a`)
+
+At `4585f98a`, the full audit certified an X omitted `like_count` cell
+holding `np.array([pd.NaT], dtype=object)`. The run reported 8 authorized
+cells and 0 other differences (23 fixtures).
+
+- Why it passed: the authorized zero -> unknown branch required only
+  `_is_null(new)` and `not _is_temporal(new)`. `pd.isna` on a length-one
+  array is truthy, `_is_temporal` inspects the container rather than its
+  NaT, and the object-dtype exemption then admitted the column.
+- Downstream, per the reviewer: `pd.to_numeric` raises `TypeError` and the
+  report builder raises `TypeError` on that cell; `+ 1` does not raise (it
+  keeps the object array).
+- This is an audit assurance gap, not a converter or connector regression.
+
+Fix (audit only): that branch now also requires `_is_scalar_count_unknown(new)`,
+an explicit scalar allowlist: `None`, `pd.NA`, or a `float` / NumPy floating
+NaN. Containers of any shape are ineligible, so they fall through to the
+normal "unexpected" rejection.
+
+Unchanged:
+
+- the global `_is_null` and every other comparator branch;
+- the 8 authorized locations and frozen hashes;
+- the strict axes, types, timezone, fixed-clock and relabel rules;
+- the unexpected-`TypeError` rule;
+- product code.
+
+Tests (`tests/test_1812_fidelity_oracle.py`). Each case runs the real full
+`audit()` with only the X omitted-post converter cell changed, and each setup
+asserts that the cell holds the intended object, so a shape cannot collapse
+into a scalar.
+
+- `test_singleton_array_of_nat_count_is_rejected_by_the_real_audit`: the
+  reviewer's sample, verbatim.
+- `test_container_count_is_rejected_by_the_real_audit` (10 shapes): singleton
+  object-NaT, datetime64-NaT, float-NaN, object-None and object-NA; 0-d
+  float-NaN and object-NaT; empty float; multi-element float-NaN and
+  object-NaT.
+- `test_scalar_unknown_count_stays_authorized_for_x`: object `None`, float64
+  NaN, object NumPy NaN and nullable Int64 NA are accepted.
+- `test_non_count_scalar_is_still_rejected_for_x`: scalar NaT,
+  `np.datetime64('NaT')`, text and bool are rejected.
+- `test_list_and_tuple_counts_are_rejected_structurally`: `[None]`,
+  `(None,)`, `[nan]` and `(nan,)`, executed separately. These are rejected by
+  the earlier structural branch.
+
+Red/green on the same 23 new tests:
+
+- Red, on the unchanged `4585f98a` helper: 8 failed, 15 passed. The 8
+  failures, all "DID NOT RAISE", are the sample plus singleton object-NaT,
+  datetime64-NaT, float-NaN, object-None and object-NA, and 0-d float-NaN and
+  object-NaT.
+- The empty and multi-element arrays were already rejected on the old
+  helper, through the value-diff branch.
+- Green, at this commit: 23 passed.
+- The whole oracle file gives 63 passed. The
+  social/oracle/notebook-hygiene/budget sweep gives 1336 passed, 31 skipped.
+
+Process notes:
+
+- The `Class-Audit: ... independent changes` trailer on the #1835 commit
+  covered that single budget round only. It is not a claim about the whole
+  converter/report PR, whose commits share one null/count/schema invariant.
+- The historical #1807 references in this file, about the combined tree and
+  the prepared patches, describe earlier preparation. They do not change the
+  current order: #1812 lands first and #1807 second.
