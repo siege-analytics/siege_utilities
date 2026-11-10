@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -61,6 +61,26 @@ __all__ = [
 
 log = logging.getLogger(__name__)
 
+# Default equal-area CRS for measuring source and overlap areas (World Mollweide).
+_DEFAULT_AREA_CRS = "ESRI:54009"
+
+
+def _validate_area_crs(area_crs: Any) -> str:
+    """Return ``area_crs`` as an authority string, rejecting geographic CRSs."""
+    from pyproj import CRS
+    from pyproj.exceptions import CRSError
+
+    try:
+        parsed = CRS.from_user_input(area_crs)
+    except CRSError as exc:
+        raise ValueError(f"area_crs {area_crs!r} is not a valid CRS: {exc}") from exc
+    if parsed.is_geographic:
+        raise ValueError(
+            f"area_crs must be a projected equal-area CRS; {area_crs!r} is geographic "
+            "and would measure areas in degrees."
+        )
+    return parsed.to_string()
+
 
 @dataclass
 class ArealInterpolationResult:
@@ -76,6 +96,7 @@ class ArealInterpolationResult:
         n_target: Number of target polygons.
         warnings: Any warnings generated during interpolation.
         backend: Selected backend (not invoked when there is no overlap).
+        area_crs: CRS in which source and overlap areas were measured.
     """
 
     data: gpd.GeoDataFrame
@@ -87,6 +108,7 @@ class ArealInterpolationResult:
     n_target: int = 0
     warnings: list[str] = field(default_factory=list)
     backend: str = ""
+    area_crs: Optional[str] = None
 
 
 def _ensure_common_crs(
@@ -126,10 +148,14 @@ def _interpolate_tobler(
     intensive_variables: list[str],
     allocate_total: bool,
     n_jobs: int,
+    area_crs: str = _DEFAULT_AREA_CRS,
 ) -> gpd.GeoDataFrame:
+    # Tobler measures areas in the frames' own CRS; give it equal-area frames.
+    # Rows keep their order, and values are assigned back to the target by
+    # position, so the output geometry and CRS are unaffected.
     result_gdf = _tobler_area_interpolate(
-        source_df=source,
-        target_df=target,
+        source_df=source.to_crs(area_crs),
+        target_df=target.to_crs(area_crs),
         extensive_variables=extensive_variables or None,
         intensive_variables=intensive_variables or None,
         allocate_total=allocate_total,
@@ -147,14 +173,15 @@ def _interpolate_duckdb(
     target: gpd.GeoDataFrame,
     extensive_variables: list[str],
     intensive_variables: list[str],
+    area_crs: str = _DEFAULT_AREA_CRS,
 ) -> gpd.GeoDataFrame:
-    """Area-weighted interpolation via DuckDB spatial SQL in World Mollweide."""
+    """Area-weighted interpolation via DuckDB spatial SQL in an equal-area CRS."""
     import pandas as pd
 
     # Project only the geometries used for area math; retain target geometry
     # and attributes in the returned frame, as in compute_area_weights.
-    source_ea = source.to_crs("ESRI:54009")
-    target_ea = target.to_crs("ESRI:54009")
+    source_ea = source.to_crs(area_crs)
+    target_ea = target.to_crs(area_crs)
 
     con = _duckdb.connect()
     con.execute("INSTALL spatial; LOAD spatial;")
@@ -235,12 +262,13 @@ def _interpolate_shapely(
     target: gpd.GeoDataFrame,
     extensive_variables: list[str],
     intensive_variables: list[str],
+    area_crs: str = _DEFAULT_AREA_CRS,
 ) -> gpd.GeoDataFrame:
     """Area-weighted interpolation via Shapely STRtree (no GDAL, no DuckDB)."""
     # Source areas and intersections must use the same equal-area measure,
     # regardless of the common working CRS or the requested output CRS.
-    src_geoms = source.to_crs("ESRI:54009").geometry.values
-    tgt_geoms = target.to_crs("ESRI:54009").geometry.values
+    src_geoms = source.to_crs(area_crs).geometry.values
+    tgt_geoms = target.to_crs(area_crs).geometry.values
 
     tree = STRtree(src_geoms)
 
@@ -366,14 +394,16 @@ def interpolate_areal(
     n_jobs: int = 1,
     *,
     crs: str | None = None,
+    area_crs: str = _DEFAULT_AREA_CRS,
 ) -> ArealInterpolationResult:
     """Transfer attribute data between non-coincident geographies.
 
     Uses area-weighted interpolation to redistribute values from source
     polygons to target polygons based on the area of intersection.
-    Shapely and DuckDB measure all areas in World Mollweide (ESRI:54009),
-    independently of the input and output CRSs. Tobler retains its own CRS
-    handling, including warnings when computing areas in a geographic CRS.
+    Every backend (tobler, DuckDB, Shapely) measures source and overlap areas
+    in ``area_crs`` (default World Mollweide, ``ESRI:54009``), independently of
+    the input and output CRSs; the CRS used is recorded in
+    ``ArealInterpolationResult.area_crs``.
 
     Backend dispatch (in priority order):
     1. tobler (PySAL) — when tobler + geopandas are installed
@@ -394,6 +424,10 @@ def interpolate_areal(
             (only applies to tobler backend).
         n_jobs: Number of parallel jobs (only applies to tobler backend).
         crs: Output CRS for the result GeoDataFrame (default: source CRS).
+        area_crs: Projected equal-area CRS in which areas are measured
+            (default ``"ESRI:54009"``, World Mollweide). A geographic CRS is
+            rejected; the CRS is not otherwise checked for the equal-area
+            property, so choose an equal-area projection.
 
     Returns:
         ArealInterpolationResult with interpolated GeoDataFrame in *crs*,
@@ -406,9 +440,11 @@ def interpolate_areal(
 
     Raises:
         ImportError: If no suitable backend is available.
-        ValueError: If no variables are specified, columns are missing, or
-            the target GeoDataFrame is empty.
+        ValueError: If no variables are specified, columns are missing, the
+            target GeoDataFrame is empty, or ``area_crs`` is invalid or
+            geographic.
     """
+    area_crs = _validate_area_crs(area_crs)
     extensive_variables = extensive_variables or []
     intensive_variables = intensive_variables or []
 
@@ -451,11 +487,11 @@ def interpolate_areal(
             return result
         if backend == "tobler":
             return _interpolate_tobler(
-                src, tgt, ext_vars, int_vars, allocate_total, n_jobs,
+                src, tgt, ext_vars, int_vars, allocate_total, n_jobs, area_crs,
             )
         if backend == "duckdb":
-            return _interpolate_duckdb(src, tgt, ext_vars, int_vars)
-        return _interpolate_shapely(src, tgt, ext_vars, int_vars)
+            return _interpolate_duckdb(src, tgt, ext_vars, int_vars, area_crs)
+        return _interpolate_shapely(src, tgt, ext_vars, int_vars, area_crs)
 
     # An intensive variable whose source values contain NaN must be computed on
     # the valid-source subset so the NaN source's area is excluded from BOTH
@@ -534,6 +570,7 @@ def interpolate_areal(
         n_target=len(target),
         warnings=warnings,
         backend=backend,
+        area_crs=area_crs,
     )
 
 
@@ -545,6 +582,7 @@ def interpolate_extensive(
     n_jobs: int = 1,
     *,
     crs: str | None = None,
+    area_crs: str = _DEFAULT_AREA_CRS,
 ) -> ArealInterpolationResult:
     """Interpolate extensive (total/count) variables between geographies."""
     return interpolate_areal(
@@ -554,6 +592,7 @@ def interpolate_extensive(
         allocate_total=allocate_total,
         n_jobs=n_jobs,
         crs=crs,
+        area_crs=area_crs,
     )
 
 
@@ -565,6 +604,7 @@ def interpolate_intensive(
     n_jobs: int = 1,
     *,
     crs: str | None = None,
+    area_crs: str = _DEFAULT_AREA_CRS,
 ) -> ArealInterpolationResult:
     """Interpolate intensive (rate/density) variables between geographies."""
     return interpolate_areal(
@@ -574,6 +614,7 @@ def interpolate_intensive(
         allocate_total=allocate_total,
         n_jobs=n_jobs,
         crs=crs,
+        area_crs=area_crs,
     )
 
 

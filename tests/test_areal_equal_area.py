@@ -14,11 +14,13 @@ from shapely.geometry import box  # noqa: E402
 from shapely.ops import unary_union  # noqa: E402
 
 
-@pytest.fixture(params=["shapely", "duckdb"])
+@pytest.fixture(params=["shapely", "duckdb", "tobler"])
 def area_backend(request, monkeypatch):
     from siege_utilities.geo.interpolation import areal
 
-    monkeypatch.setattr(areal, "_TOBLER_AVAILABLE", False)
+    if request.param == "tobler":
+        pytest.importorskip("tobler")
+    monkeypatch.setattr(areal, "_TOBLER_AVAILABLE", request.param == "tobler")
     monkeypatch.setattr(areal, "_DUCKDB_AVAILABLE", request.param == "duckdb")
     if request.param == "duckdb":
         duckdb = pytest.importorskip("duckdb")
@@ -40,6 +42,12 @@ def area_backend(request, monkeypatch):
         monkeypatch.setattr(areal, "_duckdb", SimpleNamespace(connect=lambda: proxy))
         request.addfinalizer(connection.close)
     return areal
+
+
+def _rtol(result):
+    # Shapely and DuckDB reproduce the reference areas to 1e-8. Tobler's own
+    # intersection pipeline differs by ~1e-7 relative; #1407 requires 0.1%.
+    return 1e-6 if result.backend == "tobler" else 1e-8
 
 
 @pytest.fixture
@@ -76,7 +84,7 @@ def test_extensive_equal_area_shares(area_backend, latitude_split, target_crs):
 
     result = area_backend.interpolate_areal(source, target, extensive_variables=["population"])
 
-    np.testing.assert_allclose(result.data["population"], expected, rtol=1e-8)
+    np.testing.assert_allclose(result.data["population"], expected, rtol=_rtol(result))
     assert result.data["population"].sum() == pytest.approx(1000.0)
     assert result.data.crs == source.crs
     assert result.data.columns.tolist() == target.columns.tolist()
@@ -99,7 +107,7 @@ def test_intensive_equal_area_average(area_backend, latitude_split, target_crs):
 
     result = area_backend.interpolate_areal(source, target, intensive_variables=["rate"])
 
-    assert result.data["rate"].iloc[0] == pytest.approx(expected, rel=1e-8)
+    assert result.data["rate"].iloc[0] == pytest.approx(expected, rel=_rtol(result))
     assert result.data.crs == source.crs
 
 
@@ -119,15 +127,85 @@ def test_output_crs_uses_source_or_explicit_override(area_backend, latitude_spli
     assert result.target_crs == str(target.crs)
 
 
-def test_tobler_keeps_geographic_crs_warning(monkeypatch, latitude_split):
+def test_tobler_measures_in_area_crs_not_degrees(monkeypatch, latitude_split):
+    """#1407: tobler used to measure geographic input in degrees (500/500, with a warning)."""
+    import warnings
+
     pytest.importorskip("tobler")
     from siege_utilities.geo.interpolation import areal
 
     source, target = latitude_split
     monkeypatch.setattr(areal, "_TOBLER_AVAILABLE", True)
-    with pytest.warns(UserWarning, match="geographic CRS"):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
         result = areal.interpolate_areal(source, target, extensive_variables=["population"])
+
+    assert not [w for w in caught if "geographic CRS" in str(w.message)]
     assert result.backend == "tobler"
+    np.testing.assert_allclose(result.data["population"], [525.2049, 474.7951], atol=1e-3)
     assert result.data.crs == source.crs
     assert_geodataframe_equal(result.data.drop(columns="population"),
                               target.drop(columns="population"))
+
+
+def _expected_shares(source, target, area_crs):
+    source_area = source.to_crs(area_crs).geometry.iloc[0]
+    overlaps = target.to_crs(area_crs).geometry.intersection(source_area).area
+    return 1000.0 * overlaps.to_numpy() / source_area.area
+
+
+def test_default_area_crs_is_recorded(area_backend, latitude_split):
+    source, target = latitude_split
+
+    result = area_backend.interpolate_areal(source, target, extensive_variables=["population"])
+
+    assert result.area_crs == "ESRI:54009"
+
+
+def test_area_crs_is_configurable_and_used(area_backend, latitude_split):
+    """The configured CRS must drive the areas, not just the metadata."""
+    source, target = latitude_split
+    mercator = _expected_shares(source, target, "EPSG:3857")
+    mollweide = _expected_shares(source, target, "ESRI:54009")
+    assert np.abs(mercator - mollweide).max() > 5.0, "fixture must separate the two CRSs"
+
+    result = area_backend.interpolate_areal(
+        source, target, extensive_variables=["population"], area_crs="EPSG:3857",
+    )
+
+    assert result.area_crs == "EPSG:3857"
+    np.testing.assert_allclose(result.data["population"], mercator, rtol=1e-6)
+    assert result.data.crs == source.crs
+
+
+@pytest.mark.parametrize("bad", ["EPSG:4326", "not-a-crs"])
+def test_geographic_or_invalid_area_crs_is_rejected(latitude_split, bad):
+    from siege_utilities.geo.interpolation import areal
+
+    source, target = latitude_split
+    with pytest.raises(ValueError, match="area_crs"):
+        areal.interpolate_areal(source, target, extensive_variables=["population"], area_crs=bad)
+
+
+def test_interpolate_extensive_passes_area_crs_through(area_backend, latitude_split):
+    whole, cells = latitude_split
+
+    extensive = area_backend.interpolate_extensive(
+        whole, cells, ["population"], area_crs="EPSG:6933",
+    )
+
+    assert extensive.area_crs == "EPSG:6933"
+    np.testing.assert_allclose(
+        extensive.data["population"], _expected_shares(whole, cells, "EPSG:6933"), rtol=1e-6,
+    )
+
+
+def test_interpolate_intensive_passes_area_crs_through(area_backend, latitude_split):
+    whole, cells = latitude_split
+
+    intensive = area_backend.interpolate_intensive(
+        cells.assign(rate=[100.0, 200.0]), whole.drop(columns="population"), ["rate"],
+        area_crs="EPSG:6933",
+    )
+
+    assert intensive.area_crs == "EPSG:6933"
