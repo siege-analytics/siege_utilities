@@ -472,16 +472,49 @@ class TestCensusAPIResponseNormalization:
         assert result['GEOID'].tolist() == ['06'] * 6
 
     @pytest.mark.parametrize('column', [
-        'other', 'P1_001N', 'DP05_0001E', 'B01001_01E', 'B01001_0001E',
-        'B0100_001E', 'B010001_001E', 'B01001a_001E',
-        'prefixB01001_001E', 'B01001_001Esuffix',
+        'P1_001N', 'POP_2020', 'DP05_0001E', 'B01001_01E', 'B01001_0001E',
+        'B0100_001E', 'B010001_001E',
     ])
-    def test_nonmatching_columns_are_untouched(self, column):
+    def test_non_acs_variables_are_numeric_without_sentinel_masking(self, column):
+        """Variables outside the ACS estimate/MOE pattern convert, but keep jam-like values."""
+        raw = pd.DataFrame({column: ['005', '-666666666']})
+
+        result = CensusAPI._convert_numeric_columns(raw)
+
+        pd.testing.assert_series_equal(result[column], pd.Series([5, -666666666], name=column))
+
+    @pytest.mark.parametrize('column', [
+        'other', 'B01001a_001E', 'prefixB01001_001E', 'B01001_001Esuffix', 'ucgid',
+    ])
+    def test_non_variable_columns_are_untouched(self, column):
         raw = pd.DataFrame({column: ['005', '-666666666']})
 
         result = CensusAPI._convert_numeric_columns(raw)
 
         pd.testing.assert_frame_equal(result, raw)
+
+    @pytest.mark.parametrize('dataset_variable', ['P1_001N', 'POP_2020'], ids=['dec-pl', 'pep'])
+    def test_process_response_converts_every_dataset_and_masks_only_acs(self, dataset_variable):
+        """Decennial and PEP counts are numeric again, as on v4.0.0; ACS sentinels become NaN."""
+        raw = pd.DataFrame({
+            'NAME': ['Example'] * 2, 'state': ['06'] * 2,
+            dataset_variable: ['39538223', '0'],
+            'B01001_001E': ['1234', '-666666666'],
+            'B01001_001EA': ['null', '*'],
+        })
+        processor = object.__new__(CensusAPI)
+
+        result = processor._process_response(raw, 'state')
+
+        pd.testing.assert_series_equal(
+            result[dataset_variable], pd.Series([39538223, 0], name=dataset_variable)
+        )
+        pd.testing.assert_series_equal(
+            result['B01001_001E'], pd.Series([1234.0, float('nan')], name='B01001_001E')
+        )
+        assert result['B01001_001EA'].tolist() == ['null', '*']
+        assert result['GEOID'].tolist() == ['06', '06']
+        assert result['NAME'].tolist() == ['Example', 'Example']
 
     def test_numeric_results_match_bulk_sentinel_masking(self, tmp_path, monkeypatch):
         from siege_utilities.geo.census.dual_source import BulkFileSource
