@@ -195,36 +195,52 @@ class FacebookBusinessConnector:
         """
         try:
             if not metrics:
+                # Current Page Insights names supported by Graph v22.0+,
+                # reviewed 2026-10-18; the installed Business SDK selects the
+                # API version. Follows count followers, and post engagements
+                # count interactions rather than unique engaged users.
                 metrics = [
-                    'page_impressions', 'page_engaged_users', 'page_post_engagements',
-                    'page_fans', 'page_views_total', 'page_actions_post_reactions_total'
+                    'page_media_view', 'page_post_engagements', 'page_follows',
+                    'page_views_total', 'page_actions_post_reactions_total'
                 ]
 
             page = Page(page_id)
             insights = page.get_insights(
-                fields=metrics,
                 params={
+                    # Page Insights expects comma-separated metric names; the
+                    # SDK would JSON-encode a Python list.
+                    'metric': ','.join(metrics),
                     'period': 'day',
                     'since': start_date,
                     'until': end_date
                 }
             )
 
-            # Convert to DataFrame
-            data = []
+            # Convert to DataFrame: one row per date, each response insight's
+            # values keyed by that insight's own metric name. The response
+            # returns one insight object per metric, each with a values list of
+            # one entry per date, so we must not collapse to values[0] or copy
+            # one metric's number into another column (#1812).
+            rows_by_date = {}
+            date_order = []
             for insight in insights:
-                insight_data = {}
-                for metric in metrics:
-                    values = insight.get('values', [])
-                    if values:
-                        insight_data['date'] = values[0].get('end_time', '')
-                        insight_data[metric] = values[0].get('value', 0)
-                    else:
-                        insight_data['date'] = ''
-                        insight_data[metric] = 0
+                metric_name = insight.get('name')
+                if not metric_name:
+                    # Values without a metric name cannot be attributed; a
+                    # partial frame would silently drop them.
+                    raise ValueError(
+                        f"Facebook Page Insights for page {page_id} returned an "
+                        "insight without a metric name; its values cannot be attributed."
+                    )
+                for entry in insight.get('values', []):
+                    date = entry.get('end_time', '')
+                    if date not in rows_by_date:
+                        rows_by_date[date] = {'date': date}
+                        date_order.append(date)
+                    # A missing value stays unavailable (None), never 0.
+                    rows_by_date[date][metric_name] = entry.get('value')
 
-                data.append(insight_data)
-
+            data = [rows_by_date[date] for date in date_order]
             df = pd.DataFrame(data)
             log_info(f"Retrieved {len(df)} page insights from page {page_id}")
             return df
