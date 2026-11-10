@@ -26,6 +26,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the #1478 entry under `[4.1.0]` and none under `[Unreleased]`.
 - Request a fresh exact-head review: any earlier result is void once the head moves, and the code diff against develop is unchanged.
 
+## Pre-flight (develop 71f02b0b)
+
+Develop was merged additively. The only conflict was `CHANGELOG.md`; every develop line was kept. Develop wins on any disagreement, and none exists: no develop change touches `siege_utilities/survey/`.
+
+Classification: caller code that worked on v4.0.0 behaves differently (significance flags, shares and confidence intervals change for the same data; `build_chain` and `column_proportion_test` raise where they returned; `ci` is `None` where it was `0.0`). The #1478 entry therefore moved from `### Fixed` to `### BREAKING` in `[4.1.0]` with a Migration line, with no change in meaning. The entry sits at its own position in the BREAKING list, not at the top of Fixed, so that the other open PRs do not conflict with it in the merge queue. `git diff origin/develop -- CHANGELOG.md` shows 18 added lines and 0 removed lines. The PR body classification is updated to match.
+
+Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_survey_significance_weighting.py test_survey_significance.py test_survey_crosstab.py -q` -> 48 passed in 1.38s. The library code is unchanged since the red/green run recorded in the Falsification entry below, which still applies to this head.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1478 (the #1398 epic is context only and is not a governing ticket).
