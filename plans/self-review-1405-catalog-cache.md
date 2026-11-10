@@ -28,6 +28,7 @@ Verified 2026-11-05: with `siege_utilities/geo/census/catalog_cache.py` checked 
 1. The allowlist fingerprints identify the same reviewed `get` and `put` handlers; only their hashes changed with the key rewrite, so swapping the keys keeps the guard's intent.
 2. `clear(dataset)` without a year never meant "delete everything"; raising on partial keys is safer than guessing.
 3. #1749 is an open proposal, so the repository convention is still a CHANGELOG entry in held `[4.1.0]`.
+4. Under the operator's standing rule (2026-11-06: an entry is BREAKING when code that worked on 4.0.0 now behaves differently), the #1405 entry moves from `[4.1.0]` `### Fixed` to `### BREAKING` with a Migration line. A partial-key `clear()` raises, and filenames change for slash-containing ids and for yearless entries. At v4.0.0, `_cache_path` wrote `f"{dataset}_{year}.json"`, so `year=None` gave `_None.json`; it is now `_none.json`. That corrects the PR body's earlier claim that ids without a slash keep their filenames. The develop `71f02b0b` merge kept both `[4.1.0]` Fixed entries (a union); develop's lines are unchanged.
 
 ## Test plan
 
