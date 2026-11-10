@@ -637,8 +637,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   district with a non-null ID in `plan_gdf` row order (rows without a district
   ID are ignored). Every district in `plan_gdf` now appears in
   the result, with zeros where no unit is assigned, and units whose interior
-  point falls outside every district raise a `UserWarning` stating how many
-  were excluded and their summed population (#1562).
+  point intersects no district with a non-null ID raise a `UserWarning` stating
+  how many were excluded and their summed population (#1562).
   Migration: district totals change wherever units straddle boundaries; filter
   `result[result[population_col] > 0]` to recover v4.0.0's omission of empty
   districts, and treat the warning as the signal that census coverage exceeds

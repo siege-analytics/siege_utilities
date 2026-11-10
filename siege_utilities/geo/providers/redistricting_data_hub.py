@@ -1371,7 +1371,7 @@ def demographic_profile(
         }
         message = (
             f"demographic_profile: {int(unmatched.sum())} census unit(s) have "
-            f"interior points outside every district and are excluded; "
+            f"interior points that intersect no district with a non-null ID and are excluded; "
             f"excluded totals: {excluded}"
         )
         log.warning(message)

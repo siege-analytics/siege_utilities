@@ -181,7 +181,13 @@ def test_unit_matching_only_a_null_id_row_is_reported_as_excluded():
         {"TOTPOP": [100, 200]}, geometry=[box(1, 1, 2, 2), box(11, 1, 12, 2)], crs=5070,
     )
 
-    with pytest.warns(UserWarning, match=r"1 census unit\(s\).*'TOTPOP': 100"):
+    # The unit lies inside a district, just not one with an ID, so the warning
+    # must not claim it is outside every district.
+    with pytest.warns(
+        UserWarning,
+        match=r"1 census unit\(s\) have interior points that intersect no district "
+              r"with a non-null ID and are excluded; excluded totals: \{'TOTPOP': 100\}",
+    ):
         result = demographic_profile(plan, census)
 
     pd.testing.assert_frame_equal(result, pd.DataFrame({"GEOID": ["D2"], "TOTPOP": [200]}))
