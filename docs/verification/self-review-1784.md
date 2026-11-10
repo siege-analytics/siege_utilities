@@ -27,6 +27,14 @@ Project-contribution: keeps `docs/NOTEBOOKS.md` and the Spark notebook truthful 
 - Scope: documentation, notebook prose and the test file; no library code and no executable notebook cell changed beyond the import smoke cell that already existed.
 - Gate evidence: pytest -> 9 passed; the test file parses because pytest collected and ran it.
 
+## Pre-flight (develop 71f02b0b)
+
+Develop was merged additively. The only conflict was `CHANGELOG.md`; every develop line was kept. Develop wins on any disagreement, and none exists: no develop change touches `notebooks/engines/` or `docs/NOTEBOOKS.md`.
+
+Classification: this PR changes a notebook's prose, the notebook guide and a test only, so no caller code that worked on v4.0.0 behaves differently; it is not BREAKING and the entry stays under `### Fixed` in `[4.1.0]`, now at its own position in that list so the other open PRs do not conflict with it in the merge queue.
+
+Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_1664_spark_notebook_truth.py -q` -> 9 passed in 2.77s. The notebook and guide are unchanged since the red/green run in the Falsification entry below, which still applies to this head.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1664 (the #1398 epic is context only and is not a governing ticket).
