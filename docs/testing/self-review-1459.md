@@ -28,6 +28,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has both #1459 entries under `[4.1.0]` Fixed and none under `[Unreleased]`.
 - Request a fresh exact-head review: the earlier result is void once the head moves, and the code diff against develop is unchanged.
 
+## Pre-flight (develop 71f02b0b)
+
+Develop was merged additively. The only conflict was `CHANGELOG.md`; every develop line was kept. Develop wins on any disagreement, and none exists: no develop change touches `siege_utilities/geo/geocoding.py` or `siege_utilities/distributed/spark_utils.py`.
+
+Classification: caller code that worked on v4.0.0 now sees different results, because which geocodes pass validation changes (the exact `(0, 0)` sentinel is rejected in pandas and Spark; coordinates v4.0.0 wrongly dropped are kept). The two #1459 entries are now one entry under `### BREAKING` in `[4.1.0]` with a Migration line, at its own position in the BREAKING list so it does not conflict with the other open PRs. `git diff origin/develop -- CHANGELOG.md` shows 16 added lines and 0 removed lines. The PR body classification is updated to match.
+
+Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_geocode_validation_crs.py test_geocode_validation_pandas.py -q` -> 45 passed in 8.83s. The library code is unchanged since the red/green run recorded in the Falsification entry below, which still applies to this head.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1459 (the #1398 epic is context only and is not a governing ticket).
