@@ -65,6 +65,7 @@ files. There is no foreign content in this PR.
 
 ## Rework ledger
 - d9b24ec1/cee57289: lookup outside the try. F1 is fixed in this round.
+- Pre-flight (2026-11-10). Develop sync: `02c44a00` merges develop `71f02b0b` for a positional CHANGELOG conflict (the #1444 and #1480 Fixed entries). Both are kept, a diff against develop deletes 0 develop lines, and no merged develop behaviour disagrees with this PR. Classification follows the operator rule (2026-11-06): a change that alters v4.0.0 caller behaviour is BREAKING. On the v4.0.0 tag, the `state_senate` keywords include `sldl` and the `state_house` keywords include `sldu` and bare `house`. `fetch_enacted_plan` and `RDHProvider.get_boundary` load `datasets[0]`, and `get_boundary` calls `get_enacted_plans` outside any try. So a multi-match request that loaded a plan now raises, and a lookup `OSError`/`ValueError` now arrives as `BoundaryFetchError` (a `RuntimeError`). The entry moves from 4.1.0 Fixed to BREAKING with a **Migration:** line. No code changed.
 
 ## Findings
 F1 fixed. No new code findings.

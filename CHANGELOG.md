@@ -118,14 +118,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- RDH enacted-plan selection maps SLDU to state senate and SLDL to state
-  house, and matches chamber keywords on token boundaries so titles such as
-  `household` and `houses` no longer match. `get_enacted_plans` and
-  `fetch_enacted_plan` raise `ValueError` with the candidate titles when
-  multiple plans match; `RDHProvider.get_boundary` raises
-  `BoundaryFetchError` for that ambiguity and for other dataset-lookup
-  failures, chaining the client error. Narrow the year filter or use
-  `list_datasets` and load a chosen dataset directly (#1480).
 - Instagram account insights now use UTC request boundaries regardless of
   the host timezone and label daily metrics with the day covered, one day
   before the end-of-period marker. X account snapshots use the UTC date.
@@ -365,6 +357,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   metadata on a list-compatible result (#1439).
 
 ### BREAKING
+
+- RDH enacted-plan selection maps SLDU to state senate and SLDL to state
+  house, and matches chamber keywords on token boundaries so titles such as
+  `household` and `houses` no longer match. `get_enacted_plans` and
+  `fetch_enacted_plan` raise `ValueError` with the candidate titles when
+  multiple plans match; `RDHProvider.get_boundary` raises
+  `BoundaryFetchError` for that ambiguity and for other dataset-lookup
+  failures, chaining the client error. In 4.0.0 `state_senate` also matched
+  `sldl` titles and `state_house` matched `sldu` and any title containing
+  `house`, and `fetch_enacted_plan` and `RDHProvider.get_boundary` silently
+  loaded the first match; a failed `get_boundary` lookup raised the client's
+  `OSError` or `ValueError` unchanged. **Migration:** a request that matched
+  several plans now raises instead of loading one: narrow the year filter, or
+  call `list_datasets` and load the chosen dataset directly. Code that
+  catches `OSError` or `ValueError` around `RDHProvider.get_boundary` must
+  also catch `BoundaryFetchError` (a `RuntimeError`). Re-check stored
+  `state_senate`/`state_house` results fetched with 4.0.0, which may hold the
+  other chamber's plan (#1480).
 
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
