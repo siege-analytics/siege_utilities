@@ -657,3 +657,26 @@ Process notes:
 - The historical #1807 references in this file, about the combined tree and
   the prepared patches, describe earlier preparation. They do not change the
   current order: #1812 lands first and #1807 second.
+
+## Develop merge after the 5.0.0 renumber (develop `83d3032e`)
+
+A reviewer-authorized additive merge of develop `83d3032e`, which includes
+#1882, #1871 and the #1885 renumber, into the accepted head `266d3a31`. The
+parents are `266d3a31` and `83d3032e`, in that order.
+
+- The only conflict was one hunk at the top of the `## [5.0.0]` `### Fixed`
+  list in `CHANGELOG.md`. The `## [4.1.0] - 2026-10-18` heading became
+  `## [5.0.0]` automatically, because this PR never edited that line, so
+  every #1812 entry now sits under `## [5.0.0]`.
+- Resolution: develop's #1882 entry first, then this PR's #1458 and #1474
+  entries. All lines are verbatim from both sides; only the three conflict
+  markers were removed.
+- The resolved file is identical to the union prepared beforehand from the
+  read-only `merge-tree` result (conflicted tree `90fc0ae5` with only its
+  marker lines removed).
+- No other file conflicted. Develop's other changes (CI apt retries, the 5.0.0
+  version metadata, the #1882 introspection fix and their self-reviews) are
+  imported unchanged. No production, test, oracle, fixture or notebook byte
+  of this PR changes.
+- The frozen-source and hash inventory from the earlier rounds is reused, not
+  rebuilt.
