@@ -35,6 +35,15 @@ Classification: this PR changes a notebook, the notebook guide and tests only, s
 
 Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_1671_geodjango_notebook_truth.py test_notebook_hygiene.py -k "1671 or geodjango" -q` -> 12 passed, 224 deselected in 1.80s. The notebook, guide and tests are unchanged since the red/green run in the Falsification entry below, which still applies to this head.
 
+## Review round on 4c0edaab (CodeRabbit 4524093683, 4524093698)
+
+Both findings were checked against the code and both are valid. Docs and tests only; no library code changed.
+
+- 4524093683 (`docs/NOTEBOOKS.md`): `--require-all-live-governed` fails only on `ungoverned_live_notebooks` (`scripts/check_notebook_inventory.py`), so it checks list membership, not cells. The guide placed that command under the code-cell rule. The guide now says the gate checks list membership only, and names the pytest checks that enforce the cell rules: `test_execution_notebook_has_code_cells` and `test_schematic_notebook_is_markdown_only` in `tests/test_notebooks.py`. The review prompt pointed at `tests/test_notebook_hygiene.py`, but that file does not enforce the code-cell rule, so the guide cites `tests/test_notebooks.py`. New test: `test_inventory_doc_names_the_cell_type_checks`.
+- 4524093698 (`tests/test_1671_geodjango_notebook_truth.py`): the recipe-claim assertion ran only when `find_spec("spatial_05_unified")` returned None, so an environment with any module of that name skipped it. The assertion now runs in every environment. New test: `test_recipe_claim_check_runs_when_a_loader_module_is_importable`. It puts a stub `spatial_05_unified` on `sys.path` and adds a "complete recipe you can copy-paste" claim to a copy of the notebook, and requires the recipe-claim test to fail.
+
+Red on 4c0edaab (new tests added, fixes not yet applied), run from the `tests` directory: `python -m pytest test_1671_geodjango_notebook_truth.py -q -p no:randomly` -> 2 failed, 4 passed. One failure is the missing guide text; the other is "DID NOT RAISE" from the importable-module test. Green after the fixes: 6 passed in 1.41s. The documented selection, `python -m pytest test_notebooks.py -k "test_execution_notebook_has_code_cells or test_schematic_notebook_is_markdown_only" -q`, gives 29 passed, 34 deselected. `test_notebook_hygiene.py` gives 232 passed. The spatial/06 wording shared with the Spark notebook PR (guide lines 110-118) is unchanged.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1671 (the #1398 epic is context only and is not a governing ticket).

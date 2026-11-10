@@ -1,6 +1,7 @@
 """Documentation contract for the schematic GeoDjango workflow (#1671)."""
 
 import ast
+import copy
 import importlib.util
 import json
 import re
@@ -31,15 +32,16 @@ def test_unresolved_loader_is_not_advertised_as_a_runnable_recipe(
     assert loader_import in markdown, (
         "Reassess the loader contract if the import changes"
     )
-    if importlib.util.find_spec("spatial_05_unified") is None:
-        assert not re.search(
-            r"\bcomplete\b|\bcopy[\s-]*paste(?:able)?\b",
-            markdown,
-            re.IGNORECASE,
-        ), (
-            "An unresolved loader import cannot be advertised as a "
-            "complete/copy-pasteable recipe"
-        )
+    # Checked in every environment: an installed module that happens to be
+    # named spatial_05_unified does not make the schematic's loader runnable.
+    assert not re.search(
+        r"\bcomplete\b|\bcopy[\s-]*paste(?:able)?\b",
+        markdown,
+        re.IGNORECASE,
+    ), (
+        "An unresolved loader import cannot be advertised as a "
+        "complete/copy-pasteable recipe"
+    )
 
     command_cell = next(
         cell.source for cell in notebook.cells if loader_import in cell.source
@@ -75,3 +77,34 @@ def test_execution_groups_do_not_list_markdown_only_notebooks():
              if not any(c["cell_type"] == "code" for c in
                         json.loads((REPO / "notebooks" / rel).read_text(encoding="utf-8"))["cells"])]
     assert not empty, f"execution groups list markdown-only notebooks: {empty}"
+
+
+def test_inventory_doc_names_the_cell_type_checks():
+    """The inventory gate checks list membership only, so the guide must name
+    the pytest checks that enforce code and markdown-only cells."""
+    doc = (REPO / "docs/NOTEBOOKS.md").read_text(encoding="utf-8")
+    assert "checks list membership only" in doc
+    assert "test_execution_notebook_has_code_cells" in doc
+    assert "test_schematic_notebook_is_markdown_only" in doc
+
+
+def test_recipe_claim_check_runs_when_a_loader_module_is_importable(
+    notebook: nbformat.NotebookNode,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An importable module named ``spatial_05_unified`` must not switch off
+    the check against advertising the schematic as a runnable recipe."""
+    (tmp_path / "spatial_05_unified.py").write_text(
+        "def build_unified_dataframe():\n    return None\n", encoding="utf-8"
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+    assert importlib.util.find_spec("spatial_05_unified") is not None
+
+    doctored = copy.deepcopy(notebook)
+    loader_import = "from spatial_05_unified import build_unified_dataframe"
+    cell = next(c for c in doctored.cells if loader_import in c.source)
+    cell.source += "\n\nThis is a complete recipe you can copy-paste."
+
+    with pytest.raises(AssertionError, match="complete/copy-pasteable"):
+        test_unresolved_loader_is_not_advertised_as_a_runnable_recipe(doctored)
