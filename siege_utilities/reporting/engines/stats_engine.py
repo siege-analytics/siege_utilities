@@ -182,7 +182,11 @@ class StatsChartMixin:
                                 max_height: int = 10,
                                 heat_chars: str = " \u2591\u2592\u2593\u2588") -> str:
         """
-        Create a text-based heatmap visualization
+        Create a text-based heatmap with two-character cells and headers.
+
+        Missing/non-finite cells use ``··`` and do not affect intensity scaling.
+        Longer column labels are abbreviated to two characters and listed in
+        full below the grid, in column order.
 
         Args:
             data: DataFrame containing the data
@@ -206,40 +210,51 @@ class StatsChartMixin:
                 values=value_column,
                 index=y_column,
                 columns=x_column,
-                fill_value=0
+                dropna=False,
+                observed=True,
             )
 
             # Normalize values to heat character indices
-            max_value = pivot_data.values.max()
-            min_value = pivot_data.values.min()
+            finite_values = pivot_data.values[np.isfinite(pivot_data.values)]
+            max_value = finite_values.max() if finite_values.size else 0
+            min_value = finite_values.min() if finite_values.size else 0
             value_range = max_value - min_value if max_value > min_value else 1
 
             # Create heatmap
             chart_lines = [f"<b>{_escape_paragraph(title)}</b>", "=" * len(title), ""]
 
             # Add column headers
-            col_headers = [f"{col:<8}" for col in pivot_data.columns]
-            chart_lines.append(_escape_paragraph(" " * 12 + "".join(col_headers)))
-            chart_lines.append(" " * 12 + "-" * len("".join(col_headers)))
+            cell_width = 2
+            row_label_width = max(10, max((len(str(idx)) for idx in pivot_data.index), default=0))
+            indent = " " * (row_label_width + 1)
+            col_headers = [str(col)[:cell_width].ljust(cell_width) for col in pivot_data.columns]
+            chart_lines.append(_escape_paragraph(indent + "".join(col_headers)))
+            chart_lines.append(indent + "-" * (cell_width * len(col_headers)))
 
             # Add rows
             for idx, row in pivot_data.iterrows():
-                row_label = f"{str(idx):<10}"
+                row_label = str(idx).ljust(row_label_width)
                 heat_row = ""
 
                 for value in row:
+                    if not np.isfinite(value):
+                        heat_row += '··'
+                        continue
                     # Normalize value to heat character index
                     normalized = (value - min_value) / value_range
                     char_index = int(normalized * (len(heat_chars) - 1))
                     char_index = max(0, min(char_index, len(heat_chars) - 1))
-                    heat_row += heat_chars[char_index] * 2
+                    heat_row += heat_chars[char_index] * cell_width
 
                 chart_lines.append(_escape_paragraph(f"{row_label} {heat_row}"))
 
             # Add legend
             chart_lines.append("")
+            if any(len(str(col)) > cell_width for col in pivot_data.columns):
+                chart_lines.append("Columns (left to right): " + _escape_paragraph(
+                    ", ".join(str(col) for col in pivot_data.columns)))
             legend = " ".join(f"{char} {i/(len(heat_chars)-1)*100:.0f}%" for i, char in enumerate(heat_chars))
-            chart_lines.append("Legend: " + _escape_paragraph(legend))
+            chart_lines.append("Legend: " + _escape_paragraph(legend + " ·· missing"))
 
             return "<br/>".join(chart_lines)
 
