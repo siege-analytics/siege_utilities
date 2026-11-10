@@ -163,3 +163,37 @@ def test_empty_dataframe_still_clears_previous_values(sheets_client, include_hea
     values_api.clear.assert_called_once_with(spreadsheetId="ss_123", range="'Sheet1'", body={})
     expected = [["id"]] if include_header else []
     assert values_api.update.call_args.kwargs["body"] == {"values": expected}
+
+
+def test_identifier_strings_are_sent_raw_by_default(sheets_client):
+    """#1432 item 1: "06001" is sent with RAW unless the caller opts out."""
+    client, values_api = sheets_client
+
+    write_dataframe(client, "ss_123", pd.DataFrame({"geoid": ["06001"], "fips": ["01"]}))
+
+    kwargs = values_api.update.call_args.kwargs
+    assert kwargs["valueInputOption"] == "RAW"
+    assert kwargs["body"]["values"][1] == ["06001", "01"]
+
+
+def test_caller_can_opt_into_user_entered(sheets_client):
+    """#1432 item 1, second alternative: write_dataframe exposes value_input_option."""
+    client, values_api = sheets_client
+
+    write_dataframe(
+        client, "ss_123", pd.DataFrame({"f": ["=1+1"]}), value_input_option="USER_ENTERED"
+    )
+
+    assert values_api.update.call_args.kwargs["valueInputOption"] == "USER_ENTERED"
+
+
+@pytest.mark.parametrize("bad_option", ["raw", "FORMULA", "", None])
+def test_invalid_value_input_option_raises_before_any_request(sheets_client, bad_option):
+    """An invalid option must not clear the tab: validation precedes the clear."""
+    client, values_api = sheets_client
+
+    with pytest.raises(ValueError, match="value_input_option must be one of"):
+        write_dataframe(client, "ss_123", pd.DataFrame({"id": [1]}), value_input_option=bad_option)
+
+    values_api.clear.assert_not_called()
+    values_api.update.assert_not_called()

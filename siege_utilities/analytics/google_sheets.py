@@ -23,6 +23,8 @@ from typing import Any, Dict, List, Optional
 
 log = logging.getLogger(__name__)
 
+_VALUE_INPUT_OPTIONS = frozenset({"RAW", "USER_ENTERED"})
+
 try:
     import numpy as np
     import pandas as pd
@@ -192,6 +194,12 @@ def read_dataframe(
         range_: A1 notation range (e.g. ``"Sheet1"`` or ``"Sheet1!A1:D100"``).
         has_header: If True, first row is used as column names.
 
+    Sheets omits trailing empty cells, so rows can be shorter than the
+    header or than each other. With ``has_header=True``, every row is
+    right-padded with ``""`` to the widest of the header and the data rows,
+    and header cells missing at the end are named ``column_<n>`` (``n`` is
+    the 1-based column position, made unique against existing names).
+
     Returns:
         pandas DataFrame.
     """
@@ -202,12 +210,28 @@ def read_dataframe(
     if not values:
         return pd.DataFrame()
 
-    if has_header and len(values) > 1:
-        return pd.DataFrame(values[1:], columns=values[0])
-    elif has_header:
-        return pd.DataFrame(columns=values[0])
-    else:
+    if not has_header:
         return pd.DataFrame(values)
+
+    header, rows = _pad_ragged(values[0], values[1:])
+    if rows:
+        return pd.DataFrame(rows, columns=header)
+    return pd.DataFrame(columns=header)
+
+
+def _pad_ragged(header: List[Any], rows: List[List[Any]]):
+    """Right-pad a header and rows that Sheets returned with trailing cells omitted."""
+    width = max([len(header)] + [len(row) for row in rows])
+    names = list(header)
+    taken = {str(name) for name in names}
+    for position in range(len(names) + 1, width + 1):
+        name = f"column_{position}"
+        while name in taken:
+            name = f"{name}_"
+        taken.add(name)
+        names.append(name)
+    padded = [list(row) + [""] * (width - len(row)) for row in rows]
+    return names, padded
 
 
 def get_spreadsheet_metadata(
@@ -269,6 +293,7 @@ def write_dataframe(
     sheet_name: str = "Sheet1",
     include_header: bool = True,
     start_cell: str = "A1",
+    value_input_option: str = "RAW",
 ) -> Dict[str, Any]:
     """Replace a sheet's values with a pandas DataFrame.
 
@@ -278,11 +303,13 @@ def write_dataframe(
     and other tabs are unaffected. Clear and update are separate requests;
     if the update fails after clearing, the tab's previous values are gone.
 
-    Values are written with ``RAW`` input so strings keep leading zeros and
-    are never interpreted as formulas. Dates and datetimes use ISO-8601,
+    Values are written with ``RAW`` input by default, so strings keep
+    leading zeros and are never interpreted as formulas. Pass
+    ``value_input_option="USER_ENTERED"`` to have Sheets parse values as if
+    typed (numbers, dates, formulas). Dates and datetimes use ISO-8601,
     numpy scalars become native Python scalars, missing values become empty
     strings, and other objects are stringified. Use ``write_values`` for
-    partial updates or intentional formula entry.
+    partial updates.
 
     Args:
         client: Authenticated GoogleWorkspaceClient.
@@ -291,10 +318,21 @@ def write_dataframe(
         sheet_name: Tab name (default ``"Sheet1"``).
         include_header: Whether to include column names as first row.
         start_cell: Top-left cell (default ``"A1"``).
+        value_input_option: ``"RAW"`` (default) or ``"USER_ENTERED"``.
 
     Returns:
         The API response dict.
+
+    Raises:
+        ValueError: If ``value_input_option`` is not ``"RAW"`` or
+            ``"USER_ENTERED"``. Raised before any request, so the tab is
+            not cleared.
     """
+    if value_input_option not in _VALUE_INPUT_OPTIONS:
+        raise ValueError(
+            f"value_input_option must be one of {sorted(_VALUE_INPUT_OPTIONS)}, "
+            f"got {value_input_option!r}"
+        )
     if not _PANDAS_AVAILABLE:
         raise ImportError("pandas is required. Install with: pip install siege-utilities[data]")
 
@@ -316,7 +354,9 @@ def write_dataframe(
     )
     log.info("Cleared values in %s tab %r", spreadsheet_id, sheet_name)
     range_ = f"{quoted_sheet}!{start_cell}"
-    return write_values(client, spreadsheet_id, range_, values, value_input_option="RAW")
+    return write_values(
+        client, spreadsheet_id, range_, values, value_input_option=value_input_option
+    )
 
 
 def add_sheet(
