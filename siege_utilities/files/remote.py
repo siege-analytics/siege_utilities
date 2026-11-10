@@ -243,8 +243,9 @@ def download_file(url: str, local_filename: FilePath,
     if retry_without_ssl:
         pending_error = None
         try:
+            # Known bandit B501 finding, suppressed here and tracked in #1754.
             with requests.get(url, stream=True, allow_redirects=True,
-                              timeout=timeout, verify=False,
+                              timeout=timeout, verify=False,  # nosec B501
                               headers=headers) as response:
                 if not response.ok:
                     raise ConnectionError(redact_url_secrets(

@@ -7,8 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Correct the geocoding notebook's cache-hit claim: the timed cell scans
+  already-collected results in memory to select matched input IDs. Add a
+  narrative regression test and offline execution coverage for the geo notebook
+  group. Correct the related notebook descriptions to cover precinct-level
+  bivariate mapping and statistical primitives, and add regression coverage for
+  their cross-reference claims (#1667).
+- `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
+  `48-49` and excludes the `10` all-industry total that caused double-counting,
+  along with supersector aggregates. **Behavior change:** `parse()` and
+  `load()` now default to `own_code=5` (private) and `area_level="state"`
+  (statewide, `agglvl_code=54` at the default `naics_depth=2`), instead of
+  mixing ownerships and statewide/county rows. Callers can select another
+  ownership and `county`, `national`, or `msa` area level; the aggregation
+  code follows the requested NAICS depth. Suppressed rows (`disclosure_code`
+  of `N`) carry a boolean `is_suppressed` flag, so their source employment
+  and wage zeros can be excluded from calculations. When their source
+  disclosure columns exist, boolean `is_lq_suppressed` and `is_oty_suppressed`
+  flags separately identify `lq_disclosure_code` and `oty_disclosure_code`
+  values of `N`; corresponding `lq_*`/`oty_*` zeros are sentinels, not measured
+  zeros. The parser docstring now describes all preserved source columns
+  plus these flags (#1507).
+
+## [4.1.0] - 2026-10-18
+
 ### Changed
 
+- New *file* names now get the same check as new directory names. The
+  `siege_utilities.files` helpers that create a file refuse a name containing
+  a C0, DEL or C1 control character, or a lone surrogate: they raise
+  `PathSecurityError` and create nothing. The helpers are `touch_file`,
+  `copy_file`, `move_file` (into an existing directory, the source's name is
+  checked), `delete_existing_file_and_replace_it_with_an_empty_file`,
+  `safe_file_write`, `safe_json_write`, `atomic_write_path`,
+  `atomic_write_shapefile`, `download_file`, `save_spatial`, `save_tabular`,
+  `secure_write_text`, and `unzip_file_to_directory` for member files, checked
+  at the path `zipfile` actually writes (so `a/../f<ESC>.txt` is refused). The
+  check is public as `reject_unsafe_new_file_path` (#1737).
+  **Migration:** existing files with such names can still be read, moved and
+  overwritten, except as a shapefile: `atomic_write_shapefile` and
+  `save_spatial(..., fmt=SpatialFormat.SHAPEFILE)` refuse an unsafe target
+  name even when it exists (its sidecars are published under that name), so
+  rename such a shapefile first. Callers that build file names from external
+  input should pass them through
+  `siege_utilities.files.operations.sanitize_filename`. This check's message
+  now reads "...in new name" rather than "...in new directory name";
+  `validate_directory_path` (and so `ensure_path_exists`) keeps the old text.
+  Writers outside `siege_utilities.files` are not yet covered (#1763).
 - Docstring generation now defaults to a dry run. CLI callers must pass
   `--write` (or `--apply`), and Python callers must pass `dry_run=False` to
   `process_python_file` or `main` to modify files (#1589).
@@ -71,13 +118,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Chart engines annotate horizontal bars at their ends with their values,
-  preserve fractional labels, accept a value format, and draw labelled grouped
-  bars. Dashboards use one labels/datasets schema for every subplot, retain all
-  datasets with legends, and raise for overflowing charts, unknown types, or
-  invalid data. Text heatmaps align two-character headers and distinguish missing
-  cells without distorting the scale; pie legends handle zero and non-finite
-  totals without division errors or NaN percentages (#1556).
+- Instagram account insights now use UTC request boundaries regardless of
+  the host timezone and label daily metrics with the day covered, one day
+  before the end-of-period marker. X account snapshots use the UTC date.
+  `PipelineAnalyzer` uses an aware UTC default and calculates elapsed time
+  in UTC for aware timestamps, including across daylight-saving changes;
+  naive-only inputs retain the host-local `datetime.now()` default (#1444).
+  **Migration:** naive pipeline timestamps are now interpreted as host-local,
+  not UTC. Mixed naive/aware input, including an `as_of` whose awareness
+  differs from the items, now raises `ValueError` identifying the offending
+  items. Keep naive timestamps in host-local time, or attach their actual
+  timezone and use aware timestamps throughout, including `as_of`.
+  The Facebook daily-label fix is tracked separately in #1435.
+- Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
+  DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
+  changes tokenizer byte offsets and prepared-statement result metadata; 2.0
+  adaptation is tracked separately (#1861, #1862).
+- The population-service resilience test for unpublished VTDs runs the
+  command with `--skip-checks`, so Django's `gis.W001` system-check warning on
+  runners with GDAL older than 3.9 no longer fails its empty-stderr assertion.
+  Control cases confirm the warning reaches stderr without the flag and that a
+  genuine command error still does with it (#1868).
+- `SparkEngine.nearest` ranks candidates by a per-point row identity,
+  preserving co-located points and points with no target within `max_distance`.
+  Results keep one point geometry and expose `distance` and `index_right`
+  without backend ranking columns. The lazy join no longer retains a checkpoint
+  or temporary views per call. Shared input `distance` columns are preserved as
+  `distance_left` and `distance_right`; single-sided input `distance` is still
+  replaced by the computed distance. Input `index_right` and duplicate output
+  names, including suffix collisions, raise `ValueError`. Drop or rename a
+  previous result's `index_right` before another nearest join (#1463).
+- Sanitize CRM upsert payloads for Salesforce, HubSpot, Zoho, and Dynamics:
+  omit top-level missing fields to preserve existing values, serialize dates and
+  timestamps as ISO 8601 strings, and convert numpy scalars to native types.
+  Salesforce bulk CSV uploads use empty cells for missing values; Dynamics emits
+  strict JSON (#1424).
+  JSON encoding failures raise once without retrying or backoff; transport failures
+  retain their existing retries and backoff.
+  **Documented behavior change from v4.0.0:** all four JSON upsert paths now
+  omit top-level `None`, NaN, NaT and `pd.NA`. In v4.0.0, explicit `None` was
+  sent as JSON `null`; NaN failed JSON encoding in Salesforce, HubSpot and Zoho,
+  while Dynamics sent literal non-standard `NaN`. This is not pre-4.0
+  compatibility: v3.23.0 had no implementations of these four connectors.
+  **Migration:** to send a top-level null, use
+  `update_record(object_type, record_id, {"Field": None})`; whether this clears
+  the field depends on the provider and field. Pandas dtype coercion can turn a
+  caller's `None` into NaN before the sanitizer sees it, losing that distinction.
+  Salesforce Bulk CSV keeps headers and writes blank cells for missing values.
+  Nested dicts preserve explicit `None` as JSON null, including `_delete: None`
+  and `id: None`. Nested dict values that are pandas/numpy missing sentinels
+  raise `ConnectorError` with the key path before sending any upsert request.
+  Missing list items (`None` or sentinels) remain null in place at every depth.
+  Scalar leaves retain their documented conversions, including Decimal and
+  infinity as strings. Unsupported containers, invalid JSON keys, circular
+  references and excessive depth raise `ConnectorError`; JSON encoding failures
+  keep that same error contract without retries (#1424).
+  Keeping `id: None` is serialization fidelity only and does not solve the B3b
+  identity concern. Provider/field identity and control validation is a separate
+  follow-up. Refs #1816.
+- Political schema migrations can now be applied: remove the trailing comma
+  that prevented V0002 from parsing and blocked dependent V0003. Limit the
+  composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
+  a linked office term preserves its predecessor's required `seat_id`
+  (PostgreSQL 15+). Widen congressional-terms uniqueness to
+  `(congress_number, seat_id, office_term_id)` so a successor can serve the
+  same seat in the same Congress (#1468).
 - Docstring generation inserts lines without rewriting existing comments or
   formatting, handles async definitions, and extracts signature details without
   importing target files. File exclusions match path components and include
@@ -216,6 +321,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list names `COUSUB` and `ADDRFEAT` and drops the non-existent `COUNTYSUB`,
   `SDELM`, `SDSEC` and `SDUNI`. An opt-in `-m integration` test HEADs one
   built URL per catalog type for 2010, 2019 and 2023 (#1464).
+- The CI battle-test script now runs the repository-root test suite and
+  returns pytest's exit status, so the job reflects real test results.
+  It applies the main lane's selection (`-m "not integration and not
+  postgis"`, `--ignore=tests/test_notebooks.py`) on both its uv and python
+  paths. Logs, coverage reports and the summary JSON are saved in the
+  repository-root `overnight_results/` directory used by CI, including when
+  tests fail. A failed write of `overnight_results/test_output.txt` now fails
+  the run instead of reporting exit 0, and `summary.json` records the pytest
+  and tee statuses and whether the output artifact was written (#1475).
+- `notebooks/analytics/01_connectors.ipynb` no longer advertises live
+  Google Analytics / Snowflake queries while only initializing the
+  connectors and always returning a hardcoded fixture. The notebook now
+  has an opt-in credentialed path (GA4 when
+  `GOOGLE_APPLICATION_CREDENTIALS`, `GA_PROPERTY_ID` and
+  `GA_PROPERTY_TIMEZONE` are set, else a configured Snowflake rollup) that
+  issues the real `get_ga4_data` / `execute_query` calls over the previous two
+  complete Monday-through-Sunday weeks and fails visibly on a missing property,
+  a missing or unknown time zone, or a query error. The GA4 weeks are chosen in
+  the property's time zone, matching how GA4 interprets report dates, not on the
+  host clock. `SNOWFLAKE_CONFIG_FILE` is documented as the JSON file the
+  connector loads with `json.load`, with an example of its keys, and the
+  Snowflake connection is closed after the query, also when it fails. The offline
+  path's output is clearly labelled an illustrative fixture. Empty or malformed
+  live results fail rather than silently becoming the fixture: missing dates
+  and null or non-finite session counts raise before grouping, and the
+  week-over-week change is withheld unless both weeks observed all seven
+  calendar days (#1661).
+- Instagram follows all account, post and insight pages across Graph hosts
+  and versions, filters every post page by date and limit, and splits daily
+  insights into at most 30-day UTC windows. GA4 retrieves every reported row
+  using offsets; `row_limit` now controls page size, and an incomplete report
+  raises. Vista Social account/profile lists document their first-page limit
+  and expose `has_more` (including unknown completeness) and pagination
+  metadata on a list-compatible result (#1439).
 
 ### BREAKING
 
@@ -225,14 +364,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `error_code="VINTAGE_NOT_PUBLISHED"`, `error_stage="discovery"`, with
   `context['served_year']` naming the vintage that would have been used.
   The legacy `get_geographic_boundaries` therefore returns `None` for such a
-  year. **Migration:** callers that pass a year Census has not published
-  (for example electinfo's `_fetch_gdf` and TIGER backfill asking for 2025
-  while 2023 is the latest) must handle the new code. Treat
-  `VINTAGE_NOT_PUBLISHED` as "not published yet" and skip or retry later, or
-  pass `allow_nearest_year=True` and key the rows by
-  `result.context['served_year']` (or the frame's `census_year` column),
-  never by the requested year. Do not write 2023 data under a 2025 vintage
-  (#1482).
+  year. A year with no TIGER directory at all (for example 2006, 2007 or a
+  future year) still fails earlier, with `error_code="INVALID_PARAMETERS"` at
+  `error_stage="input_validation"`, as in 4.0.0. **Migration:** callers that
+  can request a vintage Census has not published for that layer must handle
+  both codes. Treat `VINTAGE_NOT_PUBLISHED` and `INVALID_PARAMETERS` as "not
+  published" and skip or retry later, or pass `allow_nearest_year=True` and
+  key the rows by `result.context['served_year']` (or the frame's
+  `census_year` column), never by the requested year. Do not write one
+  vintage's data under another vintage's year (#1482).
 - A `state_fips` request for a national-only layer that has no state FIPS
   column (`cbsa`, `csa`, `metdiv`, `micro`, `necta`, `nectadiv`, `cnecta`,
   `aiannh` and similar) now fails with `STATE_FILTER_UNAVAILABLE`
@@ -648,6 +788,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sensitive files still blocked. Without a trusted `base_directory`, the
   blocklist is a guardrail, not a sandbox; filesystem changes after validation
   remain outside this check. (#1528)
+- Instagram checks every request URL, including `paging.next`, before
+  sending credentials. URLs must use HTTPS, the exact `graph.facebook.com` or
+  `graph.instagram.com` host, port 443 (or the default), and no user
+  information. **Behavior change from v4.0.0:** non-HTTPS, foreign-origin and
+  malformed URLs now raise `SocialMediaError` before a request is sent, and the
+  rejected URL is omitted from the error to protect embedded tokens.
+  Redirects are never followed: any 3xx response raises `SocialMediaError`
+  without echoing its `Location`, so a Graph response cannot forward the
+  request, or a token in the redirect target, to another host. (#1439,
+  #1833)
 
 ## [4.0.0] - 2026-10-11
 
