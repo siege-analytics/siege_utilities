@@ -35,6 +35,7 @@ from __future__ import annotations
 import enum
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterable
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 log = logging.getLogger(__name__)
@@ -409,8 +410,21 @@ class DataFrameEngine(ABC):
         Engines may override for native performance.
         Preserve the input CRS unless a target ``crs`` is supplied.
         """
-        gdf = self.to_geodataframe(df, geometry_col=geometry_col, crs=crs)
+        gdf = self._operation_frame(df, geometry_col, crs)
         return gdf.dissolve(by=by, **agg_kwargs).reset_index()
+
+    def _operation_frame(self, df: Any, geometry_col: str, crs: Optional[str]) -> Any:
+        """Read *df* at its source CRS, then reproject it to *crs* for a spatial operation.
+
+        Plain WKT text is read at the default CRS (EPSG:4326) first, so a
+        projected *crs* reprojects lon/lat coordinates instead of relabelling
+        them. Known-CRS geometry is reprojected; unknown-CRS geometry is
+        assigned *crs*. Without *crs* the source CRS is kept.
+        """
+        gdf = self.to_geodataframe(df, geometry_col)
+        if crs is None:
+            return gdf
+        return gdf.to_crs(crs) if gdf.crs is not None else gdf.set_crs(crs)
 
     # -- Spatial geometry loading (concrete defaults) ----------------------
 
@@ -634,11 +648,19 @@ class DataFrameEngine(ABC):
         a projected ``crs`` (preferably equal-area) to reproject both inputs.
         Without a target CRS, inputs must have the same projected CRS.
         The result is a table of target attributes and apportioned values.
+
+        On :class:`SparkEngine`, ``crs`` declares the CRS the stored
+        coordinates are already in and does not reproject: Spark stores no
+        source CRS, matching :meth:`SparkEngine.to_geodataframe`. Pass the
+        projected CRS the data were written in (for example the ``crs`` given
+        to ``read_spatial``). To reproject, read with
+        ``read_spatial(crs=<projected>)`` or convert with ``to_pandas`` and
+        ``to_crs`` first.
         """
         import geopandas as gpd
 
-        src = self.to_geodataframe(source_polys, source_geom, crs=crs)
-        tgt = self.to_geodataframe(target_polys, target_geom, crs=crs)
+        src = self._operation_frame(source_polys, source_geom, crs)
+        tgt = self._operation_frame(target_polys, target_geom, crs)
         self._require_projected_crs(src, tgt, "apportion")
 
         # Detect zero-area sources BEFORE gpd.overlay. A degenerate source
@@ -704,8 +726,8 @@ class DataFrameEngine(ABC):
             )
         import geopandas as gpd
 
-        pts = self.to_geodataframe(points, point_geom, crs=crs)
-        tgts = self.to_geodataframe(targets, target_geom, crs=crs)
+        pts = self._operation_frame(points, point_geom, crs)
+        tgts = self._operation_frame(targets, target_geom, crs)
         self._require_projected_crs(pts, tgts, "nearest")
 
         return gpd.sjoin_nearest(
@@ -716,7 +738,7 @@ class DataFrameEngine(ABC):
         )
 
     @staticmethod
-    def _require_projected_crs(left, right, operation):
+    def _require_projected_crs(left: Any, right: Any, operation: str) -> None:
         if left.crs != right.crs:
             raise ValueError(f"CRS mismatch in {operation}: {left.crs} and {right.crs}; supply a shared crs")
         if left.crs is None or not left.crs.is_projected:
@@ -769,7 +791,9 @@ class DataFrameEngine(ABC):
         return result
 
     @staticmethod
-    def _boundary_column_names(columns, layer_name, point_columns):
+    def _boundary_column_names(
+        columns: Iterable[str], layer_name: str, point_columns: Iterable[str]
+    ) -> Dict[str, str]:
         """Prefix attributes before joining so point names cannot be suffixed."""
         names = {c: f"{layer_name}_{c}" for c in columns if c != "geometry"}
         collisions = set(names.values()) & set(point_columns)
@@ -1119,7 +1143,7 @@ class DuckDBEngine(DataFrameEngine):
                     return True
         return False
 
-    def _bind_spatial_if_needed(self, operation, statement, **kwargs):
+    def _bind_spatial_if_needed(self, operation: Callable[..., Any], statement: str, **kwargs: Any) -> Any:
         """Retry only a bind failure that explicitly requires spatial."""
         import duckdb
 
@@ -1952,7 +1976,7 @@ class SparkEngine(DataFrameEngine):
         # failure at any registration or at SQL analysis drops every view
         # registered so far (#1852 R2); the success path keeps the views for the
         # returned lazy frame.
-        projection = self._spatial_join_projection(left, right, left_geom, right_geom, "l", "r")
+        projection = self._spatial_join_projection(left, right, left_geom, right_geom, "l", "r", how)
         registered: list = []
         try:
             left.createOrReplaceTempView(lv)
@@ -1970,10 +1994,30 @@ class SparkEngine(DataFrameEngine):
                 self._session.catalog.dropTempView(view)
             raise
 
-    def _spatial_join_projection(self, left, right, left_geom, right_geom, left_alias, right_alias):
-        """Keep the left geometry and apply the invariant's attribute suffixes."""
+    def _spatial_join_projection(
+        self,
+        left: Any,
+        right: Any,
+        left_geom: str,
+        right_geom: str,
+        left_alias: str,
+        right_alias: str,
+        how: str,
+    ) -> str:
+        """Keep the left geometry and apply the invariant's attribute suffixes.
+
+        Only ``inner`` and ``left`` joins are supported: the projection keeps the
+        left geometry only, so a right or outer join would return right-only
+        rows with a null geometry and lose the right geometry entirely.
+        """
         from collections import Counter
 
+        if how.lower() not in ("inner", "left"):
+            raise ValueError(
+                f"SparkEngine spatial join supports how='inner' or 'left', not {how!r}: "
+                "the result keeps only the left geometry, so right-only rows would lose "
+                "their geometry. Swap the inputs to keep the other side's rows."
+            )
         right_columns = [c for c in right.columns if c != right_geom]
         shared = set(left.columns) & set(right_columns)
         output = [
@@ -2055,6 +2099,15 @@ class SparkEngine(DataFrameEngine):
                 "ST_Distance on the joined geometry columns."
             )
         return self._session.sql(sql)
+
+    def _operation_frame(self, df: Any, geometry_col: str, crs: Optional[str]) -> Any:
+        """Spark carries no source CRS, so *crs* names the stored coordinates' CRS.
+
+        Unlike the base engines, stored WKT is not read at a default CRS and
+        reprojected: :meth:`to_geodataframe` assigns *crs* (default EPSG:4326)
+        to the stored coordinates, which are already in the caller-declared CRS.
+        """
+        return self.to_geodataframe(df, geometry_col, crs=crs)
 
     def to_geodataframe(self, df, geometry_col="geometry", *, crs=None):
         import geopandas as gpd
@@ -2183,7 +2236,7 @@ class SparkEngine(DataFrameEngine):
         # so a failure at any registration or at SQL analysis drops every view
         # registered so far (#1852 R2); the success path keeps the views for the
         # returned lazy frame.
-        projection = self._spatial_join_projection(points, polygons, point_geom, polygon_geom, "p", "poly")
+        projection = self._spatial_join_projection(points, polygons, point_geom, polygon_geom, "p", "poly", how)
         registered: list = []
         try:
             points.createOrReplaceTempView(pv)

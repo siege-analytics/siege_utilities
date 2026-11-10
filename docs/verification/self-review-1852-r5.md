@@ -22,6 +22,15 @@ The governing tickets #1479, #1497 and #1412 were written before the current
 evaluate-ticket structure (Problem / Evidence / Done-when headings), which is
 the Reason for each exemption; it covers ticket structure only.
 
+Revision relationship. The record was reviewed at `eff07712`. Both
+`c157abff` (the at-head controls) and `7cac3e01` (the 105-test run) are
+ancestors of `eff07712` (`git merge-base --is-ancestor`). Between `c157abff`
+and `eff07712` the only change is this file. Between `7cac3e01` and
+`eff07712` no library file and none of the four named test files changed
+(`git diff --stat 7cac3e01 eff07712 -- siege_utilities <four test files>`
+is empty). The results therefore hold at `eff07712`. Later revisions are
+recorded in their own self-review.
+
 The falsifier for each ticket is the at-head control below. The pre-fix-tree
 runs that follow are historical context: they show each defect existed before
 its fix, not that the current code still depends on it.

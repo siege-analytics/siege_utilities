@@ -335,7 +335,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   their new `crs` argument reprojects on request. Nearest distances and
   apportion area shares use projected units, and geographic, unknown or
   mismatched measurement CRSes raise `ValueError`. WKT text retains
-  default-CRS normalization (#1497). **Migration:** pass `crs="EPSG:4326"` to
+  default-CRS normalization: plain WKT is read at EPSG:4326 and a requested
+  `crs` reprojects it, rather than relabelling lon/lat values (#1497, #1852).
+  On `SparkEngine`, which stores no source CRS, `crs` on `apportion` and
+  `dissolve` declares the CRS the stored coordinates are already in and does not
+  reproject, matching `SparkEngine.to_geodataframe`. Reproject through
+  `read_spatial(crs=<projected>)`, or `to_pandas` then `to_crs`.
+  **Migration:** pass `crs="EPSG:4326"` to
   `to_geodataframe` for the previous output CRS; give nearest and apportion
   inputs in one projected CRS, or pass a projected `crs=`, and read distances
   in that CRS's units.
@@ -345,9 +351,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   column (`l.*, r.*`), including both geometries and duplicate names.
   Multi-layer assignment prefixes polygon attributes before joining, preserves
   point names, drops the generated right index, and keeps Spark frames native
-  between layers without collecting to the driver (#1479). **Migration:** read
-  shared attributes by their `_left`/`_right` names; select a right-side
-  geometry under another name before joining if you need it.
+  between layers without collecting to the driver (#1479). Because the result
+  keeps only the left geometry, `spatial_join` and `assign_boundaries` accept
+  `how="inner"` or `how="left"` only; `right`, `outer` and `full` raise
+  `ValueError` before any temp view is registered, where v4.0.0 ran them
+  (#1852). **Migration:** read shared attributes by their `_left`/`_right`
+  names; select a right-side geometry under another name before joining if you
+  need it; for a right join, swap the inputs and use `how="left"`.
 - `DuckDBEngine.join` resolves a coalesced geometry join key by source (the
   left frame's CRS for inner and left joins, the right frame's for a right
   join), rejects two conflicting known CRSes before the merge in every join

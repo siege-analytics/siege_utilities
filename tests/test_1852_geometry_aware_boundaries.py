@@ -1,13 +1,14 @@
 """Public join/conversion probes for the geometry-aware delta, no live services."""
 import copy
-import geopandas as gpd
 import pandas as pd
 import pytest
+
+gpd = pytest.importorskip("geopandas")
+pytest.importorskip("duckdb")
+
 from pyproj import CRS
 from shapely.geometry import Point
 from siege_utilities.engines.dataframe_engine import DuckDBEngine
-
-pytest.importorskip("duckdb")
 
 META='siege_geometry_crs'
 def require_typed_geometry():

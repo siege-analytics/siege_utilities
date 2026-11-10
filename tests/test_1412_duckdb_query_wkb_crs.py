@@ -367,6 +367,14 @@ def test_key_geometry_source_selected_while_nonkey_geometry_keeps_own_crs(typed_
     )
     out = typed_engine.join(left, right, on="geometry", how="inner")
     assert out.columns.tolist() == ["geometry", "extra_geom_x", "extra_geom_y"]
-    assert typed_engine.to_geodataframe(out, "geometry").crs.to_epsg() == 4326
-    assert typed_engine.to_geodataframe(out, "extra_geom_x").crs.to_epsg() == 4326
-    assert typed_engine.to_geodataframe(out, "extra_geom_y").crs.to_epsg() == 3857
+    # The geometry key matched: exactly one row, carrying each side's values.
+    assert len(out) == 1
+    key = typed_engine.to_geodataframe(out, "geometry")
+    extra_x = typed_engine.to_geodataframe(out, "extra_geom_x")
+    extra_y = typed_engine.to_geodataframe(out, "extra_geom_y")
+    assert key.geometry.iloc[0].equals(Point(-97, 30))
+    assert extra_x.geometry.iloc[0].equals(Point(1, 1))
+    assert extra_y.geometry.iloc[0].equals(Point(2, 2))
+    assert key.crs.to_epsg() == 4326
+    assert extra_x.crs.to_epsg() == 4326
+    assert extra_y.crs.to_epsg() == 3857

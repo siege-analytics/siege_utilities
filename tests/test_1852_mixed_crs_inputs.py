@@ -48,6 +48,19 @@ def test_mixed_outer_known_vs_attrs_none_rejected(e):
         e.join(_frame(e, 4326, as_gdf=True), _frame(e, None), on="geometry", how="outer")
 
 
+def test_mixed_outer_live_unknown_geoseries_ignores_stale_known_attrs(e):
+    # A live GeoSeries with an unknown CRS is authoritative: a stale known
+    # siege_geometry_crs entry must not make it match the known side, so the
+    # outer join still rejects known versus unknown.
+    from siege_utilities.engines.dataframe_engine import _GEOMETRY_CRS_ATTR
+
+    unknown = _frame(e, None, as_gdf=True)
+    assert unknown.crs is None
+    unknown.attrs[_GEOMETRY_CRS_ATTR] = {"geometry": "EPSG:4326"}
+    with pytest.raises(ValueError, match="outer join"):
+        e.join(_frame(e, 4326, as_gdf=True), unknown, on="geometry", how="outer")
+
+
 def test_mixed_right_join_geoseries_crs_wins_over_attrs_none_end_to_end(e):
     # left is attrs-based with unknown CRS; right is a GeoDataFrame known 3857.
     # Immutable bytes avoid the pre-existing composite/raw-WKB hashability
