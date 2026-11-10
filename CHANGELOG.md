@@ -387,6 +387,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `atomic_write_with_staging` now promotes entire Spark output directories
+  through the path's Hadoop filesystem, fixing silent empty destinations and
+  orphaned staged data on non-local filesystems. Promotion verifies nonempty
+  data, rejects different filesystems and overlapping paths, restores the prior
+  destination on failure, and prunes successful backups. The docstring now
+  describes filesystem-dependent atomicity, recovery failures, and staging-only
+  write modes accurately. `create_unique_staging_directory` no longer creates a
+  literal local directory tree for a URI `base_path`: any scheme of two or more
+  characters, with or without `//authority` (`s3a://`, `hdfs://`, `abfss://`,
+  `dbfs:/`, `hdfs:/`, `file:/`), returns the unique path string with the
+  original slashes and leaves creation to the cluster filesystem write. As in
+  Hadoop, a leading `name:` of two or more characters is a scheme, so a
+  relative `data:2024/x` is treated as a URI. A URI with no authority or
+  non-root path (`s3a://`, `dbfs:`, `file:///`), or a URI passed as a
+  `pathlib.Path` (which drops `//authority`), raises `ValueError`. A
+  scheme-less `base_path` is still created eagerly on the **driver's local
+  disk** and is not looked up through `fs.defaultFS`, so cluster callers must
+  pass a fully qualified URI; one-letter drive prefixes such as `C:/` stay
+  local (#1574).
+  **Migration:** keep the staging base and the destination on one
+  filesystem and in non-overlapping paths, since a cross-filesystem or
+  overlapping promotion now raises instead of being copied file by file
+  through the driver's local filesystem; expect empty output to raise rather
+  than succeed with zero items; pass staging URIs as `str`, not
+  `pathlib.Path`, and include an authority or non-root path; on clusters pass
+  a fully qualified URI as the staging base; and stop relying on
+  `<destination>_backup_<timestamp>` directories remaining after a
+  successful write.
+
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,
