@@ -48,6 +48,27 @@ def test_projection_rejects_joins_that_drop_the_right_geometry(how: str) -> None
         _engine()._spatial_join_projection(left, right, "geometry", "geometry", "l", "r", how)
 
 
+def test_rejection_tells_callers_to_reverse_directional_predicates() -> None:
+    # Swapping inputs alone inverts within/contains: assign_boundaries swapped
+    # would test whether a point contains a polygon, which is never true.
+    left = _Frame(["pid", "geometry"], [])
+    right = _Frame(["tid", "geometry"], [])
+
+    with pytest.raises(ValueError) as exc_info:
+        _engine()._spatial_join_projection(left, right, "geometry", "geometry", "l", "r", "right")
+
+    message = str(exc_info.value)
+    assert "reverse a directional predicate (within <-> contains)" in message
+    assert "spatial_join(polygons, points, how='left', predicate='contains')" in message
+
+
+def test_spark_nearest_rejects_crs_instead_of_ignoring_it() -> None:
+    # Spark stores no source CRS, so nearest cannot reproject or check one;
+    # an explicit crs must fail clearly rather than raise TypeError or be ignored.
+    with pytest.raises(NotImplementedError, match="SparkEngine.nearest does not support crs"):
+        _engine().nearest(_Frame(["pid", "geometry"], []), _Frame(["tid", "geometry"], []), crs="EPSG:5070")
+
+
 @pytest.mark.parametrize("how", ["inner", "left", "LEFT"])
 def test_projection_still_builds_inner_and_left_joins(how: str) -> None:
     left = _Frame(["pid", "geometry"], [])

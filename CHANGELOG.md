@@ -334,16 +334,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   EPSG:4326. Base nearest, apportion and dissolve retain projected inputs;
   their new `crs` argument reprojects on request. Nearest distances and
   apportion area shares use projected units, and geographic, unknown or
-  mismatched measurement CRSes raise `ValueError` on every engine; v4.0.0
-  imposed no CRS requirement and measured in the EPSG:4326 frame that
-  `to_geodataframe` returned (on Spark, the stored coordinates labelled
-  EPSG:4326), so a v4.0.0 call with geographic input now raises. WKT text retains
-  default-CRS normalization: plain WKT is read at EPSG:4326 and a requested
-  `crs` reprojects it, rather than relabelling lon/lat values (#1497, #1852).
-  On `SparkEngine`, which stores no source CRS, `crs` on `apportion` and
-  `dissolve` declares the CRS the stored coordinates are already in and does not
-  reproject, matching `SparkEngine.to_geodataframe`. Reproject through
-  `read_spatial(crs=<projected>)`, or `to_pandas` then `to_crs`.
+  mismatched measurement CRSes raise `ValueError` in apportion on every engine
+  and in nearest on the Pandas, DuckDB and PostGIS engines; v4.0.0 imposed no
+  CRS requirement and measured in the EPSG:4326 frame that `to_geodataframe`
+  returned (on Spark, the stored coordinates labelled EPSG:4326), so a v4.0.0
+  call with geographic input now raises. `SparkEngine.nearest` is unchanged
+  from v4.0.0: it measures in the stored coordinates' units with no CRS check,
+  and its new `crs` keyword raises `NotImplementedError`. WKT text retains
+  default-CRS normalization: plain WKT is read in the default CRS (EPSG:4326
+  unless changed with `set_default_crs`) and a requested `crs` reprojects it,
+  rather than relabelling lon/lat values (#1497, #1852). On `SparkEngine`,
+  which stores no source CRS, `crs` on `apportion` and `dissolve` declares the
+  CRS the stored coordinates are already in and does not reproject, matching
+  `SparkEngine.to_geodataframe`. Reproject through
+  `read_spatial(crs=<projected>)`, or `to_geodataframe(crs=<actual CRS>)` then
+  `to_crs` and the Pandas engine; `to_pandas` returns plain WKT text, which has
+  no `to_crs`.
   **Migration:** pass `crs="EPSG:4326"` to
   `to_geodataframe` for the previous output CRS; give nearest and apportion
   inputs in one projected CRS, or pass a projected `crs=`, and read distances
@@ -352,9 +358,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no-CRS geometry it declares the CRS the stored coordinates are already in
   and does not reproject, so never declare lon/lat degrees as projected. A
   call without `crs` on Spark frames or plain WKT, which v4.0.0 ran on the
-  stored coordinates, now raises under the default EPSG:4326: reproject
+  stored coordinates, now raises under the EPSG:4326 default: reproject
   upstream (for example `read_spatial(crs=<projected>)`), or pass the
-  projected CRS the stored coordinates are truly in.
+  projected CRS the stored coordinates are truly in. A configured projected
+  default (for example `set_default_crs("EPSG:5070")`) runs without `crs`.
 - Spark spatial joins and boundary assignments keep one left geometry and
   suffix shared attributes with `_left`/`_right`, matching the join invariant
   and nearest contract; in v4.0.0 the join returned every left and right
@@ -367,7 +374,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ValueError` before any temp view is registered, where v4.0.0 ran them
   (#1852). **Migration:** read shared attributes by their `_left`/`_right`
   names; select a right-side geometry under another name before joining if you
-  need it; for a right join, swap the inputs and use `how="left"`.
+  need it; for a right join, swap the inputs, use `how="left"` and reverse a
+  directional predicate (`within` and `contains` swap; `intersects`,
+  `touches`, `crosses` and `overlaps` are symmetric). For `assign_boundaries`
+  with `how="right"`, call `spatial_join(polygons, points, how="left",
+  predicate="contains")`.
 - `DuckDBEngine.join` resolves a coalesced geometry join key by source (the
   left frame's CRS for inner and left joins, the right frame's for a right
   join), rejects two conflicting known CRSes before the merge in every join

@@ -656,7 +656,9 @@ class DataFrameEngine(ABC):
         * Geometry with a known CRS (a GeoDataFrame, or DuckDB WKB with a
           CRS in pandas attrs) is transformed to ``crs``.
         * Plain WKT text on the Pandas, DuckDB and PostGIS engines is read
-          as EPSG:4326 lon/lat and transformed to ``crs``.
+          in the default CRS (EPSG:4326 lon/lat unless changed with
+          :func:`siege_utilities.geo.crs.set_default_crs`) and transformed to
+          ``crs``.
         * Geometry with no CRS (a GeoDataFrame whose CRS is None, or DuckDB
           WKB without attrs metadata) and every :class:`SparkEngine` frame,
           since Spark stores no source CRS, are not transformed: ``crs``
@@ -669,9 +671,11 @@ class DataFrameEngine(ABC):
           Pandas engine.
 
         Without ``crs``, both inputs must already share one projected CRS.
-        Spark frames and plain WKT are taken as EPSG:4326 and no-CRS
-        geometry stays unknown, so calling without ``crs`` on them raises.
-        The result is a table of target attributes and apportioned values.
+        Spark frames and plain WKT are labelled with the default CRS and
+        no-CRS geometry stays unknown. Under the EPSG:4326 default, calling
+        without ``crs`` on them raises; with a projected default configured
+        (for example EPSG:5070) the call runs in that CRS. The result is a
+        table of target attributes and apportioned values.
         """
         import geopandas as gpd
 
@@ -729,6 +733,8 @@ class DataFrameEngine(ABC):
         transforms or declares each input exactly as described in
         :meth:`apportion`. Geographic or unknown CRS inputs require a
         projected CRS; different input CRSes require a shared target CRS.
+        :meth:`SparkEngine.nearest` overrides this: it measures in the stored
+        coordinates' units with no projected-CRS check and rejects ``crs``.
 
         Raises
         ------
@@ -2033,7 +2039,10 @@ class SparkEngine(DataFrameEngine):
             raise ValueError(
                 f"SparkEngine spatial join supports how='inner' or 'left', not {how!r}: "
                 "the result keeps only the left geometry, so right-only rows would lose "
-                "their geometry. Swap the inputs to keep the other side's rows."
+                "their geometry. To keep the other side's rows, swap the inputs, use "
+                "how='left', and reverse a directional predicate (within <-> contains); "
+                "for assign_boundaries use spatial_join(polygons, points, how='left', "
+                "predicate='contains')."
             )
         right_columns = [c for c in right.columns if c != right_geom]
         shared = set(left.columns) & set(right_columns)
@@ -2286,8 +2295,17 @@ class SparkEngine(DataFrameEngine):
         return result
 
     def nearest(self, points, targets, *, k=1, max_distance=None,
-                point_geom="geometry", target_geom="geometry"):
+                point_geom="geometry", target_geom="geometry",
+                crs: Optional[str] = None):
         """Find up to k targets per point, retaining unmatched points with nulls.
+
+        Distances and ``max_distance`` are in the stored coordinates' units:
+        Spark stores no source CRS, so this override runs no projected-CRS
+        check and cannot reproject. ``crs`` is accepted only to fail clearly:
+        passing it raises ``NotImplementedError``. For metre distances, store
+        projected coordinates (for example ``read_spatial(crs=<projected>)``)
+        or use the Pandas engine on ``to_geodataframe(crs=<actual CRS>)``
+        reprojected with ``to_crs``.
 
         Keep the point geometry and suffix shared attributes with _left/_right.
         Spark has no index, so index_right is a generated target row identifier
@@ -2299,6 +2317,13 @@ class SparkEngine(DataFrameEngine):
         ValueError. Drop or rename index_right before passing a previous nearest
         result into another join.
         """
+        if crs is not None:
+            raise NotImplementedError(
+                "SparkEngine.nearest does not support crs: Spark stores no source CRS, "
+                "so distances use the stored coordinates' units and cannot be reprojected "
+                "or checked. Store projected coordinates (read_spatial(crs=<projected>)), "
+                "or use the Pandas engine on to_geodataframe(crs=<actual CRS>).to_crs(<projected>)."
+            )
         from collections import Counter
         from pyspark.sql import Window, functions as F
         from siege_utilities.core.sql_safety import validate_sql_identifier_in as validate_identifier_in

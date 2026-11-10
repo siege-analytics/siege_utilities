@@ -96,6 +96,26 @@ def test_spark_apportion_without_crs_rejects_default_geographic_label() -> None:
         )
 
 
+def test_spark_apportion_without_crs_uses_the_configured_default() -> None:
+    # The EPSG:4326 label is only the default: with a projected default
+    # configured, Spark apportion without crs measures the stored metres.
+    from siege_utilities.geo.crs import get_default_crs, set_default_crs
+
+    previous = get_default_crs()
+    set_default_crs(PROJECTED)
+    try:
+        result = _spark_engine().apportion(
+            _stored("pop", [1000.0], SOURCE),
+            _stored("tid", [1, 2], [box(0, 0, 250, 1000), box(250, 0, 1000, 1000)]),
+            "pop",
+        )
+    finally:
+        set_default_crs(previous)
+
+    shares = result.set_index("tid")["apportioned_pop"].sort_index()
+    assert shares.tolist() == pytest.approx([250.0, 750.0], rel=1e-12)
+
+
 def test_unknown_crs_geodataframe_requires_and_declares_crs() -> None:
     # A GeoDataFrame with no CRS is unknown: refused without crs, and given
     # crs it is declared (assigned) as that CRS, not transformed.
