@@ -32,12 +32,13 @@ import contextlib
 import logging
 import os
 import re
-import tempfile
+import secrets
+import stat
 import zipfile
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, BinaryIO, Dict, List, Optional, Union
 from urllib.parse import urlparse
 
 from siege_utilities.core._http import redact_url_secrets
@@ -254,6 +255,37 @@ def _single_member(directory: Path, pattern: str, kind: str) -> Path:
 # ---------------------------------------------------------------------------
 # Client
 # ---------------------------------------------------------------------------
+
+def _create_new_file(path: Path) -> BinaryIO:
+    """Create *path* exclusively for binary writing, with a new file's usual mode.
+
+    Mode 0o666 lets the process umask (and any default ACL) apply exactly as
+    for any new file. ``tempfile`` would force an owner-only 0o600, which a
+    published cache entry would keep. ``O_EXCL`` raises instead of reusing an
+    existing file, such as another download's partial file.
+    """
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+    descriptor = os.open(path, flags, 0o666)
+    try:
+        return os.fdopen(descriptor, "wb")
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def _keep_existing_mode(dest: Path, replacement: Path) -> None:
+    """Give *replacement* the permission bits of the *dest* entry it replaces.
+
+    A refresh must not narrow a shared cache entry to the refreshing process's
+    umask. When *dest* does not exist, *replacement* keeps its umask-derived
+    mode.
+    """
+    try:
+        mode = stat.S_IMODE(dest.stat().st_mode)
+    except FileNotFoundError:
+        return
+    os.chmod(replacement, mode)
+
 
 class RDHClient:
     """Client for the Redistricting Data Hub download API.
@@ -581,10 +613,10 @@ class RDHClient:
         error = None
         temporary_path = None
         try:
-            with tempfile.NamedTemporaryFile(
-                dir=dest.parent, suffix=".part", delete=False,
-            ) as output:
-                temporary_path = Path(output.name)
+            # Set the path first so the finally clause also covers a failure
+            # between creating the file and opening it for writing.
+            temporary_path = dest.with_name(f"{dest.name}.{secrets.token_hex(16)}.part")
+            with _create_new_file(temporary_path) as output:
                 with contextlib.closing(self._session.get(
                     url, params=self._auth_params(url), timeout=300, stream=True,
                     # Compare the stored bytes to the unencoded response length.
@@ -603,6 +635,7 @@ class RDHClient:
                             f"Content-Length mismatch: expected {expected_size} "
                             f"bytes, received {written_size}"
                         )
+            _keep_existing_mode(dest, temporary_path)
             os.replace(temporary_path, dest)
         except requests.RequestException as e:
             message = redact_url_secrets(f"RDH download failed: {e}")
