@@ -1847,43 +1847,91 @@ class SparkEngine(DataFrameEngine):
 
     def nearest(self, points, targets, *, k=1, max_distance=None,
                 point_geom="geometry", target_geom="geometry"):
-        """K-nearest -- Sedona ST_Distance with window function."""
-        self._ensure_sedona()
+        """Find up to k targets per point, retaining unmatched points with nulls.
+
+        Keep the point geometry and suffix shared attributes with _left/_right.
+        Spark has no index, so index_right is a generated target row identifier
+        (unique, not necessarily contiguous). The lazy plan assigns point
+        identities once, without checkpoints or session temporary views.
+        A single-sided input distance is replaced by the computed distance.
+        Shared input distance columns are preserved as distance_left and
+        distance_right. An input index_right or duplicate output names raise
+        ValueError. Drop or rename index_right before passing a previous nearest
+        result into another join.
+        """
+        from collections import Counter
+        from pyspark.sql import Window, functions as F
         from siege_utilities.core.sql_safety import validate_sql_identifier_in as validate_identifier_in
+        if "index_right" in points.columns or "index_right" in targets.columns:
+            raise ValueError("'index_right' cannot be a column name in the frames being joined")
         validate_identifier_in(point_geom, points.columns, label="point geometry column")
         validate_identifier_in(target_geom, targets.columns, label="target geometry column")
-        # Coerce numeric inputs so they can't carry SQL.
         k_lit = int(k)
         max_distance_lit = float(max_distance) if max_distance is not None else None
+
+        shared_distance = "distance" in points.columns and "distance" in targets.columns
+        point_columns = [c for c in points.columns if c != "distance" or shared_distance]
+        target_columns = [
+            c for c in targets.columns if c != target_geom and (c != "distance" or shared_distance)
+        ]
+        shared = set(point_columns) & set(target_columns)
+        point_output = [(c, c + "_left" if c in shared and c != point_geom else c) for c in point_columns]
+        target_output = [(c, c + "_right" if c in shared else c) for c in target_columns]
+        output_names = (
+            [name for _, name in point_output] + ["index_right"]
+            + [name for _, name in target_output] + ["distance"]
+        )
+        # Spark normally resolves names without regard to case.
+        case_sensitive = self._session.conf.get("spark.sql.caseSensitive", "false").lower() == "true"
+        name_counts = Counter(name if case_sensitive else name.lower() for name in output_names)
+        duplicates = sorted(name for name, count in name_counts.items() if count > 1)
+        if duplicates:
+            raise ValueError(f"SparkEngine.nearest: duplicate output column names: {duplicates}")
+
+        self._ensure_sedona()
         import uuid as _uuid
         tag = _uuid.uuid4().hex[:8]
-        pv = f"_nn_pts_{tag}"
-        tv = f"_nn_tgt_{tag}"
-        points.createOrReplaceTempView(pv)
-        targets.createOrReplaceTempView(tv)
-        # WHERE on a SELECT-list alias is invalid in Spark SQL; re-expand
-        # the ST_Distance expression in the predicate.
+        point_id = f"_nn_point_id_{tag}"
+        target_id = f"_nn_target_id_{tag}"
+        distance = f"_nn_distance_{tag}"
+        rank = f"_nn_rank_{tag}"
+
+        def quote(column):
+            return "`" + column.replace("`", "``") + "`"
+
+        # Each point occurs in one branch, so its identity needs no checkpoint.
+        point_rows = points.withColumn(point_id, F.monotonically_increasing_id()).alias("p")
+        target_rows = targets.withColumn(target_id, F.monotonically_increasing_id()).alias("t")
+        candidates = point_rows.join(target_rows, F.lit(True), "left").withColumn(
+            distance,
+            F.expr(
+                f"ST_Distance(ST_GeomFromText(p.{quote(point_geom)}), "
+                f"ST_GeomFromText(t.{quote(target_geom)}))"
+            ),
+        )
+        # Rank eligible distances first and retain one null row if none qualify.
+        # Computing distance after the outer join also supports Python SQL UDFs,
+        # which Spark cannot evaluate in a two-sided outer-join predicate.
+        eligible = F.col(distance).isNotNull() & F.lit(k_lit > 0)
         if max_distance_lit is not None:
-            dist_filter = (
-                f"WHERE ST_Distance(ST_GeomFromText(p.{point_geom}), "
-                f"ST_GeomFromText(t.{target_geom})) <= {max_distance_lit}"
-            )
-        else:
-            dist_filter = ""
-        return self._session.sql(f"""
-            SELECT * FROM (
-                SELECT p.*, t.*,
-                    ST_Distance(ST_GeomFromText(p.{point_geom}),
-                                ST_GeomFromText(t.{target_geom})) AS d,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY p.{point_geom}
-                        ORDER BY ST_Distance(ST_GeomFromText(p.{point_geom}),
-                                             ST_GeomFromText(t.{target_geom}))
-                    ) AS rn
-                FROM {pv} p, {tv} t
-                {dist_filter}
-            ) WHERE rn <= {k_lit}
-        """)
+            eligible = eligible & (F.col(distance) <= F.lit(max_distance_lit))
+        candidates = candidates.withColumn(distance, F.when(eligible, F.col(distance)))
+        window = Window.partitionBy(point_id).orderBy(F.col(distance).asc_nulls_last(), F.col(target_id))
+        ranked = candidates.withColumn(rank, F.row_number().over(window))
+        matched = F.col(distance).isNotNull()
+        selected = ranked.where(
+            (F.col(rank) <= max(k_lit, 1)) & (matched | (F.col(rank) == 1))
+        )
+        output = [
+            F.col(f"p.{quote(column)}").alias(name) for column, name in point_output
+        ]
+        output.append(F.when(matched, F.col(target_id)).alias("index_right"))
+        output.extend(
+            F.when(matched, F.col(f"t.{quote(column)}")).alias(name)
+            for column, name in target_output
+        )
+        output.append(F.col(distance).alias("distance"))
+        return selected.select(*output)
 
 
 # ---------------------------------------------------------------------------

@@ -52,9 +52,11 @@ ALLOWLIST = {
         "excludes unrelated hosts; download diagnostics are redacted and raise fresh exceptions "
         "without credential-bearing request/response/context; sentinel tests cover it.",
     ("analytics/instagram.py", "InstagramConnector._request_url",
-     "self._session.request(method, url, params=req_params, timeout=self._timeout)"):
+     "self._session.request(method, url, params=req_params, timeout=self._timeout, "
+     "allow_redirects=False)"):
         "Instagram strips access_token from params and paging URLs and authenticates "
-        "with a header. Fresh redacted exceptions and logs are covered by sentinel tests.",
+        "with a header. URLs are restricted to the HTTPS Graph origin and redirects are "
+        "never followed (#1794). Fresh redacted exceptions and logs are covered by sentinel tests.",
     ("analytics/vista_social.py", "VistaSocialConnector._request",
      "self._session.request(method, url, params=dict(params) if params else None, "
      "json=dict(json_body) if json_body is not None else None, timeout=self._timeout)"):

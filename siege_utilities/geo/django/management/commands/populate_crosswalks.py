@@ -20,7 +20,8 @@ class Command(BaseCommand):
 
     help = "Populate Census boundary crosswalk data"
 
-    GEOGRAPHY_TYPES = ["county", "tract", "blockgroup"]
+    # "blockgroup" is accepted as an alias; the service stores "block_group".
+    GEOGRAPHY_TYPES = ["county", "tract", "block_group", "blockgroup"]
 
     def add_arguments(self, parser):
         parser.add_argument(

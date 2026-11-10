@@ -144,6 +144,7 @@ See:
 - `docs/policies/PR_REVIEW_RUBRIC.md`
 - `docs/policies/CHANGE_CLASSIFICATION_AND_RELEASE_POLICY.md`
 - `docs/policies/CONTRIBUTOR_GOVERNANCE.md`
+- `RELEASING.md`
 - `docs/RELEASE_LINEAGE.md`
 - `docs/EXAMPLES.md`
 - `docs/ISOCHRONES_AND_WKLS.md`
