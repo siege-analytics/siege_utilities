@@ -10,7 +10,7 @@ import pytest
 import requests
 
 from siege_utilities.connectors._protocol import ConnectorRateLimitError
-from tests.crm_connector_factories import connector, response
+from tests.crm_connector_factories import connector, record_test_thread_sleeps, response
 
 
 PROVIDERS = ["salesforce", "hubspot", "zoho", "dynamics"]
@@ -22,8 +22,7 @@ def test_connector_over_cap_raises_without_sleep(provider, hint, monkeypatch):
     c = connector(provider)
     if hint == "date":
         hint = format_datetime(datetime.now(timezone.utc) + timedelta(hours=1), usegmt=True)
-    sleep = Mock()
-    monkeypatch.setattr("time.sleep", sleep)
+    sleep = record_test_thread_sleeps(monkeypatch)
     c._session.request = Mock(side_effect=[response(429, headers={"Retry-After": hint}), response()])
     with pytest.raises(ConnectorRateLimitError) as caught:
         c.request("GET", "/records")
@@ -38,8 +37,7 @@ def test_connector_over_cap_raises_without_sleep(provider, hint, monkeypatch):
 @pytest.mark.parametrize("delay", [30, 900])
 def test_connector_finite_wait_then_retry(provider, delay, monkeypatch):
     c = connector(provider)
-    sleep = Mock()
-    monkeypatch.setattr("time.sleep", sleep)
+    sleep = record_test_thread_sleeps(monkeypatch)
     c._session.request = Mock(side_effect=[response(429, headers={"Retry-After": str(delay)}), response()])
     assert c.request("GET", "/records") == {}
     sleep.assert_called_once_with(delay)
@@ -50,8 +48,7 @@ def test_connector_finite_wait_then_retry(provider, delay, monkeypatch):
 def test_connector_custom_wait_cap(provider, monkeypatch):
     c = connector(provider)
     c._max_retry_wait = 10
-    sleep = Mock()
-    monkeypatch.setattr("time.sleep", sleep)
+    sleep = record_test_thread_sleeps(monkeypatch)
     c._session.request = Mock(return_value=response(429, headers={"Retry-After": "30"}))
     with pytest.raises(ConnectorRateLimitError) as caught:
         c.request("GET", "/records")
@@ -62,8 +59,7 @@ def test_connector_custom_wait_cap(provider, monkeypatch):
 def test_connector_retry_helper_caps_fallback(monkeypatch):
     from siege_utilities.connectors._retry import rate_limit_error
 
-    sleep = Mock()
-    monkeypatch.setattr("time.sleep", sleep)
+    sleep = record_test_thread_sleeps(monkeypatch)
     with pytest.raises(ConnectorRateLimitError) as caught:
         rate_limit_error({}, "throttled", 1000)
     assert caught.value.retry_after is None
@@ -76,8 +72,7 @@ def test_connector_exponential_backoff_cannot_overflow(provider, failure, monkey
     c = connector(provider)
     c._retry_backoff = 1e300
     c._max_retry_wait = 10
-    sleep = Mock()
-    monkeypatch.setattr("time.sleep", sleep)
+    sleep = record_test_thread_sleeps(monkeypatch)
     failed = requests.Timeout() if failure == "transport" else response(503)
     c._session.request = Mock(side_effect=[failed, failed, response()])
     assert c.request("GET", "/records") == {}

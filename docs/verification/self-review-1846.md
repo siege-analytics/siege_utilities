@@ -302,3 +302,25 @@ the two GeoDjango-only collection files, gave 4968 passed and 33 skipped. The
 exception-contract guard reports 0 unlisted and 0 stale. Credential-URL guard
 0; secret-literal and secret-repr guards 0; test-file hygiene PASS; ruff clean
 on the new and rewritten files.
+
+## CI flake at 4b6666f1 (run 42751381586)
+
+One failure: `tests/test_1417_crm_retry_idempotency.py::test_retry_after_values_remain_typed_rate_limit_errors[date]`,
+`assert sleep.call_count == 1` failing with 363. The test and the connector
+were unchanged from 83217c36, whose run passed. The suite's autouse fixture
+replaced the process-wide `time.sleep` with a `Mock`, so sleeps from any other
+thread in the CI process were recorded as retry waits. This is a test defect,
+not a connector one.
+
+Fixed for the whole class, not just the one test.
+`tests/crm_connector_factories.py::record_test_thread_sleeps` records (and
+skips) only the calling thread's sleeps; other threads sleep for real. The four
+suites that assert on sleep calls use it: `test_1417_crm_retry_idempotency`,
+`test_1846_connector_retry_cap`, `test_1846_connector_bulk_auth` and
+`test_connector_upsert_sanitization`. Suites that only silence sleeps were not
+changed.
+
+Red/green: `test_background_thread_sleeps_are_not_counted_as_retry_waits` runs
+one 429 retry while a background thread loops on `time.sleep`. With the old
+process-wide mock it fails ("Called 25485 times"); with the recorder it
+passes. The #1846 set plus `tests/guard` gives 2370 passed.

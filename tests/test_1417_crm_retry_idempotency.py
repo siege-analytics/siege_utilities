@@ -1,5 +1,7 @@
 """Regression tests for safe CRM retries and batch outcomes (#1417)."""
 
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime
 from unittest.mock import Mock
@@ -11,14 +13,37 @@ import requests
 from siege_utilities.connectors._protocol import (
     ConnectorAuthError, ConnectorError, ConnectorRateLimitError,
 )
-from tests.crm_connector_factories import batch_response, connector, response
+from tests.crm_connector_factories import batch_response, connector, record_test_thread_sleeps, response
 
 
 @pytest.fixture(autouse=True)
-def sleep(monkeypatch):
-    sleep = Mock()
-    monkeypatch.setattr("time.sleep", sleep)
-    return sleep
+def sleep(monkeypatch: pytest.MonkeyPatch) -> Mock:
+    return record_test_thread_sleeps(monkeypatch)
+
+
+def test_background_thread_sleeps_are_not_counted_as_retry_waits(sleep: Mock) -> None:
+    # CI once recorded 363 sleeps for one retry wait: a process-wide time.sleep
+    # mock also counted an unrelated thread's sleeps. Only this thread counts.
+    started, stop = threading.Event(), threading.Event()
+
+    def background() -> None:
+        started.set()
+        while not stop.is_set():
+            time.sleep(0.001)
+
+    worker = threading.Thread(target=background, daemon=True)
+    worker.start()
+    try:
+        started.wait(5)
+        stop.wait(0.05)  # Event.wait, not time.sleep: lets the worker run
+        c = connector("hubspot")
+        c._session.request = Mock(side_effect=[response(429, headers={"Retry-After": "7"}), response()])
+        assert c.request("GET", "/records") == {}
+        stop.wait(0.05)
+    finally:
+        stop.set()
+        worker.join(5)
+    sleep.assert_called_once_with(7.0)
 
 
 @pytest.mark.parametrize("provider", ["salesforce", "hubspot", "zoho", "dynamics"])

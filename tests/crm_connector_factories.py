@@ -2,15 +2,19 @@
 
 Builds pre-authenticated Salesforce, HubSpot, Zoho and Dynamics connectors and
 canned ``requests.Response`` objects (plain JSON and Dynamics OData multipart
-batch bodies). Nothing here touches the network or patches ``time.sleep``;
-suites that need those controls keep them local.
+batch bodies). Nothing here touches the network or patches anything on import;
+suites opt in to ``record_test_thread_sleeps`` where they assert on sleeps.
 """
 from __future__ import annotations
 
 import json
+import threading
+import time
 from collections.abc import Iterable, Mapping
 from typing import Any
+from unittest.mock import Mock
 
+import pytest
 import requests
 
 from siege_utilities.connectors.dynamics import DynamicsConnector
@@ -45,6 +49,27 @@ def connector(provider: str) -> Any:
     c._retry_attempts = 3
     c._retry_backoff = 0
     return c
+
+
+def record_test_thread_sleeps(monkeypatch: pytest.MonkeyPatch, side_effect: Any = None) -> Mock:
+    """Patch ``time.sleep``; record (and skip) only the calling thread's sleeps.
+
+    A bare ``Mock`` on ``time.sleep`` also records sleeps from unrelated
+    background threads in the test process, so exact sleep assertions were
+    flaky in CI (363 recorded calls for a single retry wait). Other threads
+    keep sleeping for real and are never recorded.
+    """
+    recorder = Mock(side_effect=side_effect)
+    real_sleep = time.sleep
+    test_thread = threading.get_ident()
+
+    def sleep(seconds: float) -> Any:
+        if threading.get_ident() == test_thread:
+            return recorder(seconds)
+        return real_sleep(seconds)
+
+    monkeypatch.setattr("time.sleep", sleep)
+    return recorder
 
 
 def response(

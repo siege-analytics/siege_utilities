@@ -16,6 +16,7 @@ from siege_utilities.connectors.dynamics import DynamicsConnector
 from siege_utilities.connectors.hubspot import HubSpotConnector
 from siege_utilities.connectors.salesforce import SalesforceConnector
 from siege_utilities.connectors.zoho import ZohoConnector
+from tests.crm_connector_factories import record_test_thread_sleeps
 
 
 def _response(body, *, content_type="application/json", status=200):
@@ -190,9 +191,8 @@ def test_encoding_error_keeps_connector_error_contract(provider, object_type, mo
     connector._retry_attempts = 3
     connector._retry_backoff = 2
     send = Mock(side_effect=AssertionError("no HTTP expected"))
-    sleep = Mock(side_effect=AssertionError("no backoff expected"))
     monkeypatch.setattr(requests.Session, "send", send)
-    monkeypatch.setattr("time.sleep", sleep)
+    sleep = record_test_thread_sleeps(monkeypatch, side_effect=AssertionError("no backoff expected"))
     request = Mock(wraps=connector._session.request)
     monkeypatch.setattr(connector._session, "request", request)
 
@@ -218,9 +218,8 @@ def test_idempotent_transport_errors_keep_three_attempts_and_two_backoffs(provid
     connector._retry_attempts = 3
     connector._retry_backoff = 2
     send = Mock(side_effect=requests.exceptions.ConnectionError("connection failed"))
-    sleep = Mock()
     monkeypatch.setattr(requests.Session, "send", send)
-    monkeypatch.setattr("time.sleep", sleep)
+    sleep = record_test_thread_sleeps(monkeypatch)
     request = Mock(wraps=connector._session.request)
     monkeypatch.setattr(connector._session, "request", request)
 

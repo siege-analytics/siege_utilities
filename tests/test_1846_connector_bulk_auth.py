@@ -7,7 +7,7 @@ import pytest
 import requests
 
 from siege_utilities.connectors._protocol import ConnectorAuthError, ConnectorError, ConnectorRateLimitError
-from tests.crm_connector_factories import batch_response, connector, response
+from tests.crm_connector_factories import batch_response, connector, record_test_thread_sleeps, response
 
 
 def renewable(provider):
@@ -62,8 +62,7 @@ def test_connector_salesforce_bulk_upload_401(persistent):
 @pytest.mark.parametrize("hint", ["30", "901", "1e300"])
 def test_connector_salesforce_bulk_429_cap(operation, hint, monkeypatch):
     c = renewable("salesforce")
-    sleep = Mock()
-    monkeypatch.setattr("time.sleep", sleep)
+    sleep = record_test_thread_sleeps(monkeypatch)
     send = Mock(side_effect=[response(429, headers={"Retry-After": hint}), response()])
     if operation == "upload":
         c._session.put = send
