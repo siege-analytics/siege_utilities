@@ -634,7 +634,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `demographic_profile` assigns Census units by their representative interior
   points, so units straddling district boundaries are counted once rather than
   dropped; a point on a shared district edge goes to the first matching
-  district in `plan_gdf` row order. Every district in `plan_gdf` now appears in
+  district with a non-null ID in `plan_gdf` row order (rows without a district
+  ID are ignored). Every district in `plan_gdf` now appears in
   the result, with zeros where no unit is assigned, and units whose interior
   point falls outside every district raise a `UserWarning` stating how many
   were excluded and their summed population (#1562).

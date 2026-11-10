@@ -73,5 +73,9 @@ Interpreter: local Python 3.11.11, run from the repository root.
 - `test_result_is_stable_under_census_unit_order` (all 6 permutations of the three probe units): always D1 = 400, D2 = 200.
 - Against `3b0488e7`'s module: all 7 cases fail (the edge unit is dropped, so totals are 100/200 in every order); at the tip: 7 passed. `tests/test_demographic_profile.py`: 15 passed.
 
+## Review follow-up (null district IDs)
+- Review thread on `redistricting_data_hub.py:1359` (comment 4522899917): a plan row with a null district ID could win the first-match tie-break, and `groupby` then dropped the null key, so the unit vanished from both the result and the warning. Fixed: plan rows with a null ID are excluded before the join; docstring and CHANGELOG say "first matching district with a non-null ID".
+- `test_null_id_plan_row_does_not_capture_a_shared_edge_unit` and `test_unit_matching_only_a_null_id_row_is_reported_as_excluded`: both fail at `dfd30beb`, pass after. Related run: 283 passed, 5 skipped.
+
 ## Rework ledger
 - Pre-flight round, 2026-11-10: edge-point assignment, unmatched-population warning, zero rows, census `GEOID` collision; body classification and acceptance map corrected.

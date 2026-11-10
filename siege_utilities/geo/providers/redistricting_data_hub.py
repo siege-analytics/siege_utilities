@@ -1297,9 +1297,10 @@ def demographic_profile(
 
     Assigns each Census block/tract wholly to the district containing its
     representative (interior) point, then aggregates demographics per district.
-    A point on a shared district edge goes to the first matching district in
-    ``plan_gdf`` row order, so each unit is counted exactly once. Units whose
-    interior point falls outside every district are excluded, and a
+    A point on a shared district edge goes to the first matching district with
+    a non-null ID in ``plan_gdf`` row order, so each unit is counted exactly
+    once. Plan rows without a district ID are ignored. Units whose interior
+    point intersects no district with a non-null ID are excluded, and a
     ``UserWarning`` (also logged) reports how many were excluded and their
     summed population per column. Every district in ``plan_gdf`` appears in
     the result, with zeros where no unit is assigned.
@@ -1351,7 +1352,11 @@ def demographic_profile(
         crs=census_gdf.crs,
     )
     census_points["_unit_row"] = range(len(census_points))
-    plan_keys = plan_gdf[[district_id_col, "geometry"]].copy()
+    # Rows without a district ID cannot receive population (groupby drops a
+    # null key), so they must not win the first-match tie-break either.
+    plan_keys = plan_gdf.loc[
+        plan_gdf[district_id_col].notna(), [district_id_col, "geometry"]
+    ].copy()
     plan_keys["_plan_row"] = range(len(plan_keys))
     joined = gpd.sjoin(census_points, plan_keys, predicate="intersects")
     joined = joined.sort_values(["_unit_row", "_plan_row"]).drop_duplicates(

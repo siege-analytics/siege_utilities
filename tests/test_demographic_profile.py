@@ -152,6 +152,42 @@ def test_result_is_stable_under_census_unit_order(unit_order):
 
 
 @pytest.mark.geo
+def test_null_id_plan_row_does_not_capture_a_shared_edge_unit():
+    """A null-ID row listed first must not win the tie-break and lose the unit."""
+    plan = gpd.GeoDataFrame(
+        {"GEOID": [None, "D2"]},
+        geometry=[box(0, 0, 10, 10), box(10, 0, 20, 10)],
+        crs=5070,
+    )
+    census = gpd.GeoDataFrame(
+        {"TOTPOP": [300]}, geometry=[box(9, 1, 11, 2)], crs=5070,
+    )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        result = demographic_profile(plan, census)
+
+    pd.testing.assert_frame_equal(result, pd.DataFrame({"GEOID": ["D2"], "TOTPOP": [300]}))
+
+
+@pytest.mark.geo
+def test_unit_matching_only_a_null_id_row_is_reported_as_excluded():
+    plan = gpd.GeoDataFrame(
+        {"GEOID": [None, "D2"]},
+        geometry=[box(0, 0, 10, 10), box(10, 0, 20, 10)],
+        crs=5070,
+    )
+    census = gpd.GeoDataFrame(
+        {"TOTPOP": [100, 200]}, geometry=[box(1, 1, 2, 2), box(11, 1, 12, 2)], crs=5070,
+    )
+
+    with pytest.warns(UserWarning, match=r"1 census unit\(s\).*'TOTPOP': 100"):
+        result = demographic_profile(plan, census)
+
+    pd.testing.assert_frame_equal(result, pd.DataFrame({"GEOID": ["D2"], "TOTPOP": [200]}))
+
+
+@pytest.mark.geo
 def test_districts_without_units_appear_with_zeros():
     plan = gpd.GeoDataFrame(
         {"GEOID": ["D1", "D2", "D3"]},
