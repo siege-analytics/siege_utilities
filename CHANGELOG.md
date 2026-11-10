@@ -355,7 +355,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   raises. Vista Social account/profile lists document their first-page limit
   and expose `has_more` (including unknown completeness) and pagination
   metadata on a list-compatible result (#1439).
-- **Packaging behavior change from v4.0.0:** `pip install siege-utilities[crm]`
+- **Packaging behavior change from v4.0.0:** `pip install 'siege-utilities[crm]'`
   now installs `msal>=1.24.0` and pandas for the CRM connectors; `[all]` also
   includes MSAL. v4.0.0 declared no MSAL dependency, so every extra left
   Dynamics authentication unavailable without a separate install. Dynamics

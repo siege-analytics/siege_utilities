@@ -79,7 +79,7 @@ def test_dynamics_missing_dependency_names_crm_extra(monkeypatch, missing):
     monkeypatch.setattr(dynamics, "REQUESTS_AVAILABLE", True)
     monkeypatch.setattr(dynamics, "MSAL_AVAILABLE", True)
     monkeypatch.setattr(dynamics, missing, False)
-    with pytest.raises(ImportError, match=r"pip install siege-utilities\[crm\]"):
+    with pytest.raises(ImportError, match=r"pip install 'siege-utilities\[crm\]'"):
         dynamics.DynamicsConnector(
             environment_url="https://example.crm.dynamics.com",
             tenant_id="tenant",
