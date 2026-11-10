@@ -46,7 +46,14 @@ def install_archive(monkeypatch, tmp_path):
             for filename, content in files.items():
                 zf.writestr(filename, content)
         downloader = pl_downloader.PLFileDownloader(cache_dir=tmp_path)
-        monkeypatch.setattr(downloader, "_stream_download", lambda url: archive.getvalue())
+        downloader.download_calls = []
+
+        def download_archive(url, dest):
+            # Stand-in for the HTTP stream: the archive lands on disk at dest.
+            downloader.download_calls.append(url)
+            dest.write_bytes(archive.getvalue())
+
+        monkeypatch.setattr(downloader, "_download_archive", download_archive)
         monkeypatch.setattr(pl_downloader, "_default_downloader", downloader)
         return downloader
 
@@ -121,7 +128,7 @@ def test_2010_parsing_is_explicitly_unsupported(install_archive, entry_point):
         "ca000012010.pl": _segment_record(1, (1000, 71), (2000, 73)),
     })
 
-    with pytest.raises(NotImplementedError, match="2010.*fixed-width.*2020.*pipe-delimited"):
+    with pytest.raises(ValueError, match="2010.*fixed-width.*2020.*pipe-delimited"):
         if entry_point == "public":
             pl_downloader.get_pl_data("CA", year=2010, tables=["P1"])
         elif entry_point == "geo_parser":
@@ -145,10 +152,10 @@ def test_old_geo_cache_is_ignored_and_new_cache_is_reused(install_archive, monke
 
     assert result.loc[0, "GEOID"] == "06037101110"
 
-    def no_download(url):
+    def no_download(url, dest):
         pytest.fail("The corrected parsed cache should be reused")
 
-    monkeypatch.setattr(downloader, "_stream_download", no_download)
+    monkeypatch.setattr(downloader, "_download_archive", no_download)
     pd.testing.assert_frame_equal(result, pl_downloader.get_pl_data("CA", tables=["P1"]))
 
 
@@ -176,7 +183,7 @@ def test_2010_cache_cannot_bypass_format_error(install_archive):
         downloader.cache_dir / "data_pl1_CA_2010.parquet"
     )
 
-    with pytest.raises(NotImplementedError, match="2010.*fixed-width.*2020.*pipe-delimited"):
+    with pytest.raises(ValueError, match="2010.*fixed-width.*2020.*pipe-delimited"):
         pl_downloader.get_pl_data("CA", year=2010, tables=["P1"])
 
 
@@ -215,3 +222,79 @@ def test_all_tables_merge_without_duplicate_linking_fields(install_archive):
     ]:
         columns = [f"{table}_{cell:03d}N" for cell in range(1, count + 1)]
         assert result.loc[0, columns].tolist() == [str(start + cell) for cell in range(1, count + 1)]
+
+
+_ALL_SEGMENTS = {
+    "cageo2020.pl": _geo_record(),
+    "ca000012020.pl": _segment_record(1, (1000, 71), (2000, 73)),
+    "ca000022020.pl": _segment_record(2, (3000, 71), (4000, 73), (6000, 3)),
+    "ca000032020.pl": _segment_record(3, (5000, 10)),
+}
+
+
+def _leftover_archives(downloader):
+    return sorted(downloader.cache_dir.glob(".pl-archive-*"))
+
+
+def test_cold_cache_call_downloads_the_state_archive_once(install_archive):
+    """#1488: geo header and every segment come from one download per call."""
+    downloader = install_archive(_ALL_SEGMENTS)
+
+    pl_downloader.get_pl_data("CA")
+
+    assert len(downloader.download_calls) == 1
+    assert _leftover_archives(downloader) == []
+
+
+def test_warm_cache_call_downloads_nothing(install_archive):
+    downloader = install_archive(_ALL_SEGMENTS)
+    pl_downloader.get_pl_data("CA")
+    downloader.download_calls.clear()
+
+    pl_downloader.get_pl_data("CA")
+
+    assert downloader.download_calls == []
+
+
+def test_archive_is_removed_when_parsing_fails(install_archive):
+    fields = _segment_record(1, (1000, 71), (2000, 73)).rstrip("\n").split("|")[:-1]
+    downloader = install_archive({
+        "cageo2020.pl": _geo_record(),
+        "ca000012020.pl": "|".join(fields) + "\n",
+    })
+
+    with pytest.raises(ValueError, match="2020 PL pl1 has"):
+        pl_downloader.get_pl_data("CA", tables=["P1"])
+
+    assert len(downloader.download_calls) == 1
+    assert _leftover_archives(downloader) == []
+
+
+def test_missing_segment_raises_instead_of_returning_empty_data(install_archive):
+    """#1488 item 5: a missing segment is an error, not an empty frame."""
+    downloader = install_archive({"cageo2020.pl": _geo_record()})
+
+    with pytest.raises(ValueError, match="segment pl2 not found"):
+        downloader._download_and_parse_data("fixture.zip", 2020, "pl2")
+    with pytest.raises(ValueError, match="segment pl1 not found"):
+        pl_downloader.get_pl_data("CA", tables=["P1"])
+    assert _leftover_archives(downloader) == []
+
+
+def test_p1_labels_match_the_2020_table():
+    """#1488 item 5: P1_010N/P1_011N were mislabelled."""
+    labels = pl_downloader.PL_TABLES["P1"]["columns"]
+
+    assert labels["P1_009N"] == "Population of two or more races"
+    assert labels["P1_010N"] == "Population of two races"
+    assert labels["P1_011N"] == "White; Black or African American"
+
+
+def test_latin1_geo_fields_survive_streaming(install_archive):
+    fields = _geo_record().rstrip("\n").split("|")
+    fields[36] = "Cañada"
+    downloader = install_archive({"cageo2020.pl": ("|".join(fields) + "\n").encode("latin-1")})
+
+    parsed = downloader._download_and_parse_geo("fixture.zip", 2020)
+
+    assert parsed.iloc[0, 36] == "Cañada"

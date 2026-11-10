@@ -23,11 +23,13 @@ Example usage:
     blocks = get_pl_blocks(state='CA', county='037', year=2020)
 """
 
+import io
 import logging
+import os
+import tempfile
 import threading
 import zipfile
 from datetime import datetime, timedelta
-from io import StringIO
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
@@ -91,7 +93,7 @@ def _validate_parse_year(year: int) -> None:
     # 2010 needs a separate fixed-width geo / CSV data parser. Reject it before
     # reading caches or downloading, rather than silently applying 2020 names.
     if year == 2010:
-        raise NotImplementedError(
+        raise ValueError(
             "2010 PL parsing is not implemented: geographic headers are fixed-width "
             "and data segments are comma-delimited; the 2020 parser is pipe-delimited."
         )
@@ -116,6 +118,37 @@ def _stream_download_to_file(
                             f"Download from {url} exceeds {max_bytes / 1024 / 1024:.0f} MB limit"
                         )
                     f.write(chunk)
+
+
+class _ArchiveOnce:
+    """Download one PL state archive at most once, to a temporary file.
+
+    The geographic header and every data segment live in the same state
+    archive, so a ``get_data`` call shares one handle across them. The file is
+    created in the downloader's cache directory and removed by ``cleanup``.
+    """
+
+    def __init__(self, downloader: "PLFileDownloader", url: str):
+        self._downloader = downloader
+        self.url = url
+        self._path: Optional[Path] = None
+
+    def path(self) -> Path:
+        if self._path is None:
+            fd, name = tempfile.mkstemp(
+                dir=self._downloader.cache_dir, prefix='.pl-archive-', suffix='.zip'
+            )
+            os.close(fd)
+            self._path = Path(name)
+            log.info(f"Downloading PL archive: {self.url}")
+            self._downloader._download_archive(self.url, self._path)
+        return self._path
+
+    def cleanup(self) -> None:
+        if self._path is not None:
+            self._path.unlink(missing_ok=True)
+            self._path = None
+
 
 # Summary Level Codes
 SUMMARY_LEVELS = {
@@ -152,9 +185,9 @@ PL_TABLES = {
             'P1_006N': 'Asian alone',
             'P1_007N': 'Native Hawaiian and Other Pacific Islander alone',
             'P1_008N': 'Some Other Race alone',
-            'P1_009N': 'Two or More Races',
-            'P1_010N': 'Two Races including Some Other Race',
-            'P1_011N': 'Two Races excluding Some Other Race, and three or more',
+            'P1_009N': 'Population of two or more races',
+            'P1_010N': 'Population of two races',
+            'P1_011N': 'White; Black or African American',
         }
     },
     'P2': {
@@ -275,21 +308,13 @@ class PLFileDownloader:
 
         log.info(f"Initialized PLFileDownloader (cache: {self.cache_dir})")
 
-    def _stream_download(self, url: str) -> bytes:
-        """Stream-download a URL into memory with a size cap."""
-        chunks = []
-        downloaded = 0
-        with requests.get(url, stream=True, timeout=self.timeout) as resp:
-            resp.raise_for_status()
-            for chunk in resp.iter_content(chunk_size=_STREAM_CHUNK_SIZE):
-                downloaded += len(chunk)
-                if downloaded > PL_MAX_DOWNLOAD_BYTES:
-                    raise ValueError(
-                        f"Download from {url} exceeds "
-                        f"{PL_MAX_DOWNLOAD_BYTES / 1024 / 1024:.0f} MB limit"
-                    )
-                chunks.append(chunk)
-        return b''.join(chunks)
+    def _download_archive(self, url: str, dest: Path) -> None:
+        """Stream a state archive to ``dest`` on disk, with the download size cap."""
+        _stream_download_to_file(url, dest, timeout=self.timeout, max_bytes=PL_MAX_DOWNLOAD_BYTES)
+
+    def _archive_once(self, url: str) -> "_ArchiveOnce":
+        """Return a per-call handle that downloads ``url`` at most once."""
+        return _ArchiveOnce(self, url)
 
     def get_data(
         self,
@@ -314,7 +339,9 @@ class PLFileDownloader:
             DataFrame with PL data at specified geography level
 
         Raises:
-            NotImplementedError: For the unsupported 2010 file layout.
+            ValueError: For the unsupported 2010 file layout, an unknown
+                geography, a segment missing from the archive, or a segment
+                whose width does not match the 2020 layout.
         """
         _validate_parse_year(year)
 
@@ -337,9 +364,14 @@ class PLFileDownloader:
 
         sumlev = SUMMARY_LEVELS[geo_lower]
 
-        # Download and parse files
-        geo_df = self._get_geographic_file(state_abbr, year)
-        data_df = self._get_data_files(state_abbr, year, tables)
+        # The geo header and all segments share one state archive: download it
+        # at most once for this call (only on a cache miss), then remove it.
+        archive = self._archive_once(self._build_geo_url(state_abbr, year))
+        try:
+            geo_df = self._get_geographic_file(state_abbr, year, archive)
+            data_df = self._get_data_files(state_abbr, year, tables, archive)
+        finally:
+            archive.cleanup()
 
         # Merge geographic and data
         merged = geo_df.merge(data_df, on='LOGRECNO', how='inner')
@@ -358,8 +390,10 @@ class PLFileDownloader:
         log.info(f"Retrieved {len(merged)} {geography} records")
         return merged
 
-    def _get_geographic_file(self, state_abbr: str, year: int) -> pd.DataFrame:
-        """Download and parse the geographic header file."""
+    def _get_geographic_file(
+        self, state_abbr: str, year: int, archive: Optional[_ArchiveOnce] = None,
+    ) -> pd.DataFrame:
+        """Load the geographic header from cache, or parse it from the state archive."""
         _validate_parse_year(year)
         cache_file = self.cache_dir / f"geo_v{_PL_CACHE_SCHEMA_VERSION}_{state_abbr}_{year}.parquet"
 
@@ -367,11 +401,14 @@ class PLFileDownloader:
             log.debug(f"Loading geo file from cache: {cache_file.name}")
             return pd.read_parquet(cache_file)
 
-        # Download
-        url = self._build_geo_url(state_abbr, year)
-        log.info(f"Downloading geographic file: {url}")
-
-        df = self._download_and_parse_geo(url, year)
+        owned = archive is None
+        if owned:
+            archive = self._archive_once(self._build_geo_url(state_abbr, year))
+        try:
+            df = self._parse_geo_archive(archive.path(), year, archive.url)
+        finally:
+            if owned:
+                archive.cleanup()
 
         # Cache
         with atomic_write_path(cache_file) as tmp:
@@ -382,9 +419,10 @@ class PLFileDownloader:
         self,
         state_abbr: str,
         year: int,
-        tables: Optional[List[str]] = None
+        tables: Optional[List[str]] = None,
+        archive: Optional[_ArchiveOnce] = None,
     ) -> pd.DataFrame:
-        """Download and parse data segment files."""
+        """Load data segments from cache, or parse them from the state archive."""
         _validate_parse_year(year)
         if tables is None:
             tables = list(PL_TABLES.keys())
@@ -395,18 +433,33 @@ class PLFileDownloader:
             if table in PL_TABLES:
                 files_needed.add(PL_TABLES[table]['file'])
 
+        owned = archive is None
+        if owned:
+            archive = self._archive_once(self._build_geo_url(state_abbr, year))
+        try:
+            return self._merge_segments(state_abbr, year, sorted(files_needed), archive)
+        finally:
+            if owned:
+                archive.cleanup()
+
+    def _merge_segments(
+        self,
+        state_abbr: str,
+        year: int,
+        file_types: List[str],
+        archive: _ArchiveOnce,
+    ) -> pd.DataFrame:
+        """Load or parse each segment and merge them on LOGRECNO."""
         all_data = None
 
-        for file_type in sorted(files_needed):
+        for file_type in file_types:
             cache_file = self.cache_dir / f"data_v{_PL_CACHE_SCHEMA_VERSION}_{file_type}_{state_abbr}_{year}.parquet"
 
             if self._is_cache_valid(cache_file):
                 log.debug(f"Loading {file_type} from cache")
                 df = pd.read_parquet(cache_file)
             else:
-                url = self._build_data_url(state_abbr, year, file_type)
-                log.info(f"Downloading {file_type}: {url}")
-                df = self._download_and_parse_data(url, year, file_type)
+                df = self._parse_data_archive(archive.path(), year, file_type, archive.url)
                 with atomic_write_path(cache_file) as tmp:
                     df.to_parquet(tmp, index=False)
 
@@ -463,13 +516,18 @@ class PLFileDownloader:
         return state_names.get(state_abbr.upper(), state_abbr)
 
     def _download_and_parse_geo(self, url: str, year: int) -> pd.DataFrame:
-        """Download and parse geographic header file."""
+        """Download the state archive once and parse its geographic header."""
         _validate_parse_year(year)
-        import io
-        content = self._stream_download(url)
+        archive = self._archive_once(url)
+        try:
+            return self._parse_geo_archive(archive.path(), year, url)
+        finally:
+            archive.cleanup()
 
-        # Extract geo file from zip
-        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+    def _parse_geo_archive(self, archive_path: Path, year: int, url: str) -> pd.DataFrame:
+        """Parse the geographic header from a state archive on disk."""
+        _validate_parse_year(year)
+        with zipfile.ZipFile(archive_path) as zf:
             # Find the geo file (ends with 'geo2020.pl' or similar)
             geo_filename = None
             for name in zf.namelist():
@@ -487,17 +545,16 @@ class PLFileDownloader:
             if geo_filename is None:
                 raise ValueError(f"Could not find geographic file in {url}")
 
-            with zf.open(geo_filename) as f:
-                content = f.read().decode('latin-1')
-
-        # The 2020 geographic header is pipe-delimited.
-        df = pd.read_csv(
-            StringIO(content),
-            sep='|',
-            dtype=str,
-            header=None,
-            low_memory=False
-        )
+            # The 2020 geographic header is pipe-delimited. Stream the member
+            # instead of decoding it whole in memory.
+            with zf.open(geo_filename) as member:
+                df = pd.read_csv(
+                    io.TextIOWrapper(member, encoding='latin-1', newline=''),
+                    sep='|',
+                    dtype=str,
+                    header=None,
+                    low_memory=False
+                )
 
         # Name the documented prefix once, so GEOID construction reads STATE
         # (not the preceding DIVISION) and the other components by name. Keep
@@ -520,12 +577,20 @@ class PLFileDownloader:
         year: int,
         file_type: str
     ) -> pd.DataFrame:
-        """Download and parse data segment file."""
+        """Download the state archive once and parse one data segment."""
         _validate_parse_year(year)
-        import io
-        content = self._stream_download(url)
+        archive = self._archive_once(url)
+        try:
+            return self._parse_data_archive(archive.path(), year, file_type, url)
+        finally:
+            archive.cleanup()
 
-        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+    def _parse_data_archive(
+        self, archive_path: Path, year: int, file_type: str, url: str,
+    ) -> pd.DataFrame:
+        """Parse one data segment from a state archive on disk."""
+        _validate_parse_year(year)
+        with zipfile.ZipFile(archive_path) as zf:
             # Find the data file
             file_num = {'pl1': '1', 'pl2': '2', 'pl3': '3', 'pl4': '4'}.get(file_type, '1')
             data_filename = None
@@ -537,20 +602,20 @@ class PLFileDownloader:
                     break
 
             if data_filename is None:
-                log.warning(f"Data file {file_type} not found, returning empty DataFrame")
-                return pd.DataFrame({'LOGRECNO': []})
+                raise ValueError(
+                    f"PL data segment {file_type} not found in {url}; "
+                    f"archive members: {sorted(zf.namelist())}"
+                )
 
-            with zf.open(data_filename) as f:
-                content = f.read().decode('latin-1')
-
-        # Parse pipe-delimited data file
-        df = pd.read_csv(
-            StringIO(content),
-            sep='|',
-            dtype=str,
-            header=None,
-            low_memory=False
-        )
+            # Parse the pipe-delimited segment from the member stream.
+            with zf.open(data_filename) as member:
+                df = pd.read_csv(
+                    io.TextIOWrapper(member, encoding='latin-1', newline=''),
+                    sep='|',
+                    dtype=str,
+                    header=None,
+                    low_memory=False
+                )
 
         # Assign column names based on file type
         df = self._assign_data_columns(df, file_type, year)
@@ -693,7 +758,8 @@ def get_pl_data(
         DataFrame with PL data
 
     Raises:
-        NotImplementedError: For the unsupported 2010 file layout.
+        ValueError: For the unsupported 2010 file layout, a segment missing
+            from the archive, or a segment width that does not match 2020.
 
     Example:
         # Get California tract data
