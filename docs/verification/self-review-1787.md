@@ -28,13 +28,25 @@ Project-contribution: keeps the reports/01 notebook truthful about units, growth
 - Scope: one notebook, one test file, the changelog, and these documents; no library code changed.
 - Gate evidence: pytest -> 11 passed as above.
 
+## Review round after the develop sync (develop 71f02b0b)
+
+Develop was merged additively; the only conflict was `CHANGELOG.md`, resolved by keeping the develop #1444 entry and the #1673 entry. No develop behavior disagrees with this PR (notebook and test only).
+
+CodeRabbit comment 4333127909 (type hints on the PDF table test) was valid and is fixed: `test_pdf_table_renders_counts` takes `monkeypatch: pytest.MonkeyPatch` and returns `None`, `Spy.__init__` has typed arguments and a `None` return (`Sequence[Sequence[object]]`, `*object`, `**object`, because ruff ANN401 rejects `Any` there), and `rendered` and `ns` are annotated.
+
+Green: `python -m pytest test_1673_reports01_units_notebook_truth.py -q`, run from the `tests` directory (Python 3.11, repository pyproject) -> 3 passed in 32.94s; `python -m ruff check --select ANN test_1673_reports01_units_notebook_truth.py` -> All checks passed.
+
+Red: the same ruff command on the previous version of the file (restored with `git checkout HEAD --` before the fix was committed) reported 6 errors: ANN201 and ANN001 on `test_pdf_table_renders_counts`, and ANN204, ANN001, ANN002, ANN003 on `Spy.__init__`. The fixed file was then restored and passed. This is a typing-only change, so the behavioral tests are unchanged and are not a red-on-revert subject for this thread.
+
+CHANGELOG classification: a notebook and test change with no library behavior difference for callers, so it stays under Fixed without a Migration line. The library's `generate_pdf_report` ignoring `branding_config` is tracked separately in #1789.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1673 (the #1398 epic is context only and is not a governing ticket).
 
 - **Reason:** #1673 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
 - **Evidence:** the Problem (the reports/01 chart, table and PDF labeling cumulative counts as percentage shares with no denominator), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1673, and in the PR description. The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1673#issuecomment-6298384604.
-- **Falsification:** revert the implementation (the notebook edits of this PR); `tests/test_1673_reports01_units_notebook_truth.py::test_signups_use_counts_in_chart_table_and_report` goes red because the chart title again labels the series as a percentage share instead of counts. Observed revert run: with `notebooks/reports/01_charts_and_pdf.ipynb` restored to origin/develop (`git checkout origin/develop -- notebooks/reports/01_charts_and_pdf.ipynb`), `python -m pytest test_1673_reports01_units_notebook_truth.py::test_signups_use_counts_in_chart_table_and_report -q`, run from the tests directory, gave 1 error in 28.40s (the module fixture that evaluates the notebook's chart, table and report inputs raised `TypeError: 'NoneType' object is not iterable` on the percentage-share notebook; this is a setup error, not an assertion failure). After `git checkout HEAD --` of the notebook the command gave 1 passed in 27.28s, `test_1673_reports01_units_notebook_truth.py` gave 3 passed on the pushed head, and the worktree was clean. The latest commit of this PR is process-only.
+- **Falsification:** revert the implementation (the notebook edits of this PR); `tests/test_1673_reports01_units_notebook_truth.py::test_signups_use_counts_in_chart_table_and_report` goes red because the chart title again labels the series as a percentage share instead of counts. Observed revert run: with `notebooks/reports/01_charts_and_pdf.ipynb` restored to origin/develop (`git checkout origin/develop -- notebooks/reports/01_charts_and_pdf.ipynb`), `python -m pytest test_1673_reports01_units_notebook_truth.py::test_signups_use_counts_in_chart_table_and_report -q`, run from the tests directory, gave 1 error in 28.40s (the module fixture that evaluates the notebook's chart, table and report inputs raised `TypeError: 'NoneType' object is not iterable` on the percentage-share notebook; this is a setup error, not an assertion failure). After `git checkout HEAD --` of the notebook the command gave 1 passed in 27.28s, `test_1673_reports01_units_notebook_truth.py` gave 3 passed on the pushed head, and the worktree was clean. The latest commit of this PR adds type annotations to one test and updates this document; the notebook is unchanged.
 
 ## Lead review (adversarial)
 Phase A coherence: the reviewer findings (release-note placement, contradictory description, narrow self-review, weekly-GA wording) map to the `[4.1.0]` entry, the refreshed description, this whole-PR artifact and the one-bullet correction; no drift.

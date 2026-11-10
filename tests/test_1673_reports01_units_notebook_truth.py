@@ -1,7 +1,7 @@
 """Keep the chart, table, and PDF narrative in count units for #1673."""
 
 import re
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -102,24 +102,24 @@ def test_growth_matches_counts_on_every_report_surface(report_inputs: dict[str, 
     assert str(baseline) in report_inputs["summary"]
 
 
-def test_pdf_table_renders_counts(monkeypatch):
+def test_pdf_table_renders_counts(monkeypatch: pytest.MonkeyPatch) -> None:
     # Skip only when ReportLab is genuinely absent (the minimal lane). When it is
     # installed, a missing report_generator.Table is a real regression and must
     # FAIL, not skip -- a bare `Table is None` skip masked that (#1673 r2).
     pytest.importorskip("reportlab")
     import siege_utilities.reporting.report_generator as rgmod
     assert rgmod.Table is not None, "ReportLab installed but Table unavailable"
-    rendered = []
+    rendered: list[list[list[Any]]] = []
 
     class Spy(rgmod.Table):
-        def __init__(self, data, *a, **k):
+        def __init__(self, data: Sequence[Sequence[object]], *a: object, **k: object) -> None:
             super().__init__(data, *a, **k)
             rendered.append([list(r) for r in self._cellvalues])
 
     monkeypatch.setattr(rgmod, "Table", Spy)
     monkeypatch.setenv("MPLBACKEND", "Agg")
     nb = nbformat.read(NOTEBOOK, as_version=4)
-    ns = {}
+    ns: dict[str, Any] = {}
     for cell in nb.cells:
         if cell.cell_type == "code":
             exec(compile(cell.source.replace("%matplotlib inline\n", ""), cell.id, "exec"), ns)
