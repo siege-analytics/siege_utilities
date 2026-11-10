@@ -28,6 +28,7 @@ Verified 2026-11-05: with `siege_utilities/geo/census/api.py` and `siege_utiliti
 1. A 4xx other than 408 and 429 is permanent for the same request; retrying cannot change the answer.
 2. HTTP 408 is a server-side request timeout and should behave like a transport timeout (retry, then fall back).
 3. #1749 is an open proposal, so the release note belongs in held `[4.1.0]`.
+4. Under the operator's standing rule (2026-11-06: an entry is BREAKING when code that worked on 4.0.0 now behaves differently), the #1404 entry moves from `[4.1.0]` `### Fixed` to `### BREAKING` with a Migration line. Outages and 408 now fall back instead of raising, permanent 4xx are no longer retried, and `ApiSource` retries no longer multiply. `CensusAPI.__init__` takes no retry argument, so the Migration points callers at `degraded` and at retrying around the call, not at a configuration knob. The develop `71f02b0b` merge kept both `[4.1.0]` Fixed entries (a union); develop's lines are unchanged.
 
 ## Test plan
 

@@ -118,15 +118,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Census dual-source retrieval falls back to bulk Summary Files on HTTP 5xx,
-  HTTP 408, connection/DNS failures and timeouts via the new
-  `CensusServerError`, while other 4xx errors still propagate. Permanent
-  client errors (4xx other than 408 and 429) now raise `CensusAPIError` after
-  one request instead of five with backoff.
-  `CensusAPI` owns retries for `ApiSource`; retries no longer multiply, and no
-  delay follows the final attempt. Sustained 429s now accumulate at most 240
-  seconds of retry sleeps before bulk fallback with `degraded=True`, down from
-  900 seconds (#1404).
 - Instagram account insights now use UTC request boundaries regardless of
   the host timezone and label daily metrics with the day covered, one day
   before the end-of-period marker. X account snapshots use the UTC date.
@@ -366,6 +357,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   metadata on a list-compatible result (#1439).
 
 ### BREAKING
+
+- Census dual-source retrieval falls back to bulk Summary Files on HTTP 5xx,
+  HTTP 408, connection/DNS failures and timeouts via the new
+  `CensusServerError`, while other 4xx errors still propagate. Permanent
+  client errors (4xx other than 408 and 429) now raise `CensusAPIError` after
+  one request instead of five with backoff.
+  `CensusAPI` owns retries for `ApiSource`; retries no longer multiply, and no
+  delay follows the final attempt. Sustained 429s now accumulate at most 240
+  seconds of retry sleeps before bulk fallback with `degraded=True`, down from
+  900 seconds (#1404).
+  **Migration:** code that caught `CensusAPIError` for a Census API outage or
+  a 408 now receives bulk Summary File results instead; check `degraded` on
+  the result to tell them apart. Code that relied on a permanent 4xx being
+  retried must fix the request or retry around the call itself. With
+  `ApiSource`, `max_api_attempts` no longer multiplies `CensusAPI`'s own
+  retries, so expect fewer source-level attempts, shorter waits, and fallback
+  provenance that counts one API call and one bulk call.
 
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
