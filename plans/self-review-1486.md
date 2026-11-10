@@ -58,6 +58,7 @@ outside #1486.
 ## Rework ledger
 - ae2f057a/f23be9a5: the district tail lost its case. F1 is fixed in this round.
 - PR body VTD claim corrected; the 4.1.0 note restored to CHANGELOG.md.
+- Pre-flight (2026-11-10). Develop sync: `48e9d580` merges develop `71f02b0b` for a positional CHANGELOG conflict (the #1444 and #1486 Fixed entries). Both are kept, a diff against develop deletes 0 develop lines, and no merged develop behaviour disagrees with this PR. Classification follows the operator rule (2026-11-06): a change that alters v4.0.0 caller behaviour is BREAKING. On the v4.0.0 tag, `normalize_geoid` only calls `zfill`, so `"CA037"`/county returned `"CA037"` and `"1001020100"`/block_group returned `"001001020100"`. `slug_to_geoid` lowercases the slug, so `"ca-cd-zz"` returned `"06zz"`. This PR's tests (`test_normalization_rejects_wrong_alphabet`, `test_ten_digit_tract_cannot_become_a_block_group`, `test_district_slug_tail_canonicalizes_to_uppercase`) assert the new raises and the uppercase output. The entry moves from 4.1.0 Fixed to BREAKING with a **Migration:** line. No code changed.
 
 ## Findings
 F1 fixed. VTD debt reported (see Lead review).
