@@ -377,6 +377,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- Google Workspace writers: `create_report_from_arguments` removes the
+  existing content slides from the new presentation or template copy before
+  adding exactly one slide per argument (template masters and layouts are
+  kept), where v4.0.0 left the template's or default deck's slides in front of
+  the generated ones; if those slides cannot be read or deleted, the error
+  propagates and no argument slides are added. Google Docs `insert_text` and
+  `insert_paragraph` compute text and heading style ranges in UTF-16 code
+  units, so ranges no longer fall short after non-BMP characters such as
+  emoji. `read_document_text` requests all tabs, visits child tabs and nested
+  tables/tables of contents, and includes headers, footers and footnotes,
+  reading each tab's body and then those segments in API response order with
+  text-run whitespace preserved; v4.0.0 read only `body.content` of the
+  document fetched without tab content (the first tab's body: top-level
+  paragraphs and tables) (#1495). **Migration:** add any template sample
+  slides you relied on explicitly after generation; handle the propagated API
+  error where a template's slides cannot be removed; if you need body-only
+  text, filter the `read_document_text` result or read the document body
+  yourself.
+
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,
