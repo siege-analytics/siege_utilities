@@ -472,9 +472,10 @@ def test_instagram_absolute_paging_url_preserves_partial_results(monkeypatch, ca
 
 
 def test_instagram_missing_account_metric_is_not_zero(monkeypatch):
+    # Rows are labelled with the covered day, one day before end_time (#1444).
     client, _ = connector("instagram", monkeypatch, [response(body={"data": [
-        {"name": "reach", "values": [{"end_time": "2026-01-15", "value": 0}, {"end_time": "2026-01-16"}]},
-        {"name": "follower_count", "values": [{"end_time": "2026-01-15"}, {"end_time": "2026-01-16", "value": 0}]},
+        {"name": "reach", "values": [{"end_time": "2026-01-16", "value": 0}, {"end_time": "2026-01-17"}]},
+        {"name": "follower_count", "values": [{"end_time": "2026-01-16"}, {"end_time": "2026-01-17", "value": 0}]},
     ]}), response(body={"data": []})])  # second 30-day UTC window (#1439)
     result = client.get_account_insights(START, END).set_index("date")
     assert result.loc["2026-01-15", "reach"] == 0

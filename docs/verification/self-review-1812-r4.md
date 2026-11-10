@@ -272,3 +272,41 @@ and `tests/guard/test_exception_contract_guard.py` are 904 passed, 1 skipped.
 handler fingerprint moved, so none was refreshed).
 `check_credential_urls.py`: 0 unreviewed sites. The static-guard scripts and
 `ruff check` on the three changed files pass.
+
+## Develop sync with #1809, #1778 and #1780 (merges of `e6350590` and `71f02b0b`)
+
+`e6350590` (#1809) merged without conflicts. `71f02b0b` brought #1778 (#1444) and
+#1780. #1778 labels Instagram daily insight rows with the covered day (one day before
+Graph's `end_time` marker), takes X account snapshots on the UTC date, and adds
+pipeline timezone handling. The merge conflicted in 2 regions of
+`analytics/instagram.py` (imports, the `get_account_insights` docstring), 2 of
+`analytics/x_twitter.py` (imports, the `get_account_insights` docstring) and the
+CHANGELOG [4.1.0] Fixed tail. All were resolved as unions: both import sets, and
+docstrings that state both #1778's labelling and #1812's null policy. The CHANGELOG
+keeps every develop line, including #1444's entry, beside this PR's entries. The
+code bodies merged without conflicts. #1812's null policy survived
+(`value_entry.get("value")` beside #1778's covered-day code), and no `0` default
+appears in either connector.
+
+Disagreement, resolved for develop: #1778's covered-day labels change two
+#1812-owned checks.
+- `test_instagram_missing_account_metric_is_not_zero` used `end_time`s that now
+  label the previous day. Its fixture `end_time`s move forward one day, so the
+  assertions are unchanged.
+- The fidelity oracle compares against the frozen d329eef7 baseline, which labels
+  Instagram rows by `end_time` and X snapshots by local `date.today()`. It now
+  authorizes exactly #1444's relabel, and only in the `date` cells of
+  `get_account_insights`: an Instagram label must equal the baseline label minus
+  one day, and an X label must equal today's UTC date. The audit requires the
+  Instagram relabel to fire. Every other value, null and string still compares
+  strictly.
+- Control: changing the allowed shift to two days makes `test_unmutated_audit_is_green`
+  and `test_seed_controls_leave_the_audit_green` fail on
+  `instagram.get_account_insights[0,'date']`. It was restored.
+
+Verification on the merged tree (Python 3.11.11): the changelog tests, the social
+suites, the fidelity oracle, `test_1439_*` (which holds #1444's Instagram checks),
+`test_analytics_datetime`, `test_1794_*`, `test_1475_*`, `test_1809_*`,
+`test_1780_*`, `test_1661_*` and the exception-contract guard test are 1028 passed,
+1 skipped. `check_exception_contracts.py --list`: 205 flagged, 0 unlisted, 0 stale.
+`check_credential_urls.py`: 0 unreviewed sites. ruff passes on the changed files.

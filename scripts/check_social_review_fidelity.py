@@ -7,7 +7,7 @@ memory without changing tracked files. No HTTP.
 """
 
 from copy import deepcopy
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 import hashlib
 import numbers
 from pathlib import Path
@@ -115,6 +115,26 @@ def _strict_equal(old, new):
     return bool(old == new)
 
 
+# #1444 (#1778, already in develop) relabels daily account insights: an Instagram
+# row carries the day its value covers, one day before Graph's end_time marker,
+# and an X snapshot carries the UTC date. Only these 'date' cells may differ from
+# the frozen baseline, and only by exactly that rule (#1812).
+_RELABELED = set()
+
+
+def _is_1444_relabel(old, new, where):
+    if not (isinstance(old, str) and isinstance(new, str)):
+        return False
+    if where.startswith("instagram.get_account_insights[") and where.endswith(",'date']"):
+        try:
+            return new == (date.fromisoformat(old) - timedelta(days=1)).isoformat()
+        except ValueError:
+            return False
+    if where == "x.get_account_insights[0,'date']":
+        return new == datetime.now(timezone.utc).date().isoformat()
+    return False
+
+
 def compare(old, new, where, hits):
     """Count ONLY the authorized baseline-zero -> current-null cells.
 
@@ -159,6 +179,9 @@ def compare(old, new, where, hits):
         raise AssertionError(f"unexpected null/non-null diff at {where}: {old!r} -> {new!r}")
     if _strict_equal(old, new):
         return 0
+    if _is_1444_relabel(old, new, where):
+        _RELABELED.add(where.split("[", 1)[0])
+        return 0
     raise AssertionError(f"unexpected value diff at {where}: {old!r} -> {new!r}")
 
 
@@ -166,6 +189,7 @@ def audit():
     count = 0
     allowed = 0
     hits = set()
+    _RELABELED.clear()
     for platform, current in (("instagram", instagram), ("x", x_twitter)):
         old = old_module(current)
         class_name = "InstagramConnector" if platform == "instagram" else "XTwitterConnector"
@@ -240,6 +264,9 @@ def audit():
             assert reports[1]["metrics"]["x_twitter — Followers"]["value"] == "unavailable"
             assert data[0]["account_info"]["followers_count"] is None
         count += 1
+    assert "instagram.get_account_insights" in _RELABELED, (
+        "#1444 covered-day relabel of Instagram account insights was not exercised"
+    )
     assert hits == _AUTHORIZED, (
         "authorized zero -> null locations differ from those observed; "
         f"missing {sorted(_AUTHORIZED - hits)}, unexpected {sorted(hits - _AUTHORIZED)}"
