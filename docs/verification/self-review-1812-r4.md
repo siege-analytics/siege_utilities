@@ -402,10 +402,23 @@ oracle tests.
   - The docstring and the #1812 Security entry state this, keep the
     proxy/load-balancer warning, and add that `http.client` `debuglevel`
     output must stay off.
-  - Tests in `tests/test_instagram_token_exchange_logging.py` emit urllib3's
-    exact log calls through the real logger, using the URL requests prepares.
-    On the `006fc895` code, the app secret appeared in the `Retry:` line
-    (red); now it doesn't.
+  - Native evidence, as the reviewer required, in
+    `tests/test_instagram_token_exchange_logging.py`:
+    - The test runs the real path `refresh_access_token` -> `requests` ->
+      urllib3's HTTPS connection pool for the real
+      `https://graph.facebook.com/v22.0/oauth/access_token` URL, with DEBUG
+      enabled on `urllib3.connectionpool`. It captures urllib3's own records.
+    - Only the socket is redirected: the pool's `ConnectionCls` dials a local
+      plain-HTTP Graph stand-in. The stand-in confirms it received both
+      sentinel credentials in the query string.
+    - With the `006fc895` `instagram.py` (red), urllib3's own record from
+      `connectionpool.py:544` contained
+      `client_secret=SYNTHETIC_APP_SECRET_6d1e&fb_exchange_token=SYNTHETIC_LOGIN_TOKEN_93ab`.
+    - With the fix (green), both native request lines show
+      `client_secret=[REDACTED]&fb_exchange_token=[REDACTED]`, and neither
+      sentinel appears in any record.
+    - The earlier security report excluded third-party HTTP DEBUG logging;
+      this test is the first coverage of it.
 - **"Largest audience" with one known count (Minor): fixed.**
   - The insight needs at least two known follower counts. With K of M known
     (K < M), it says "largest audience among the K of M platforms with known
