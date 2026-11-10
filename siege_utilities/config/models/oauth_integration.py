@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 import re
 
+from ._expiry import as_utc, utc_now
+
 __all__ = ["OAuthProvider", "OAuthScope", "OAuthIntegration"]
 
 
@@ -188,15 +190,15 @@ class OAuthIntegration(BaseModel):
         """Check if access token is expired."""
         if not self.expires_at:
             return False
-        return datetime.now() >= self.expires_at
-    
+        return utc_now() >= as_utc(self.expires_at)
+
     def needs_refresh(self) -> bool:
         """Check if token needs refresh based on threshold."""
         if not self.expires_at or not self.auto_refresh:
             return False
-        
-        threshold_time = self.expires_at - timedelta(seconds=self.refresh_threshold)
-        return datetime.now() >= threshold_time
+
+        threshold_time = as_utc(self.expires_at) - timedelta(seconds=self.refresh_threshold)
+        return utc_now() >= threshold_time
     
     def is_valid(self) -> bool:
         """Check if integration is valid (active and has valid token)."""
