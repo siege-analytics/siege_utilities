@@ -232,7 +232,11 @@ def analyze_class(cls, class_name: str) -> Dict[str, Any]:
         for method_name in dir(cls):
             if not method_name.startswith('_'):
                 method = getattr(cls, method_name)
-                if inspect.isfunction(method) or inspect.ismethod(method):
+                # Classify by actual type, as _attribute_kind does: the
+                # isinstance-based inspect checks read a lazy class
+                # attribute's __class__ and set it up (#1882).
+                method_type = type(method)
+                if issubclass(method_type, (types.FunctionType, types.MethodType)):
                     methods[method_name] = analyze_function(method, method_name)
 
         doc = inspect.getdoc(cls) or "No documentation"

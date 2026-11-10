@@ -121,7 +121,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Package introspection (`analyze_package_structure`, `analyze_module` and
   `generate_architecture_diagram`) now walks only `siege_utilities` modules,
   chosen by module name instead of a file-path substring, and classifies
-  attributes without evaluating lazy objects. Previously, a virtualenv whose
+  module attributes and class members without evaluating lazy objects. Previously, a virtualenv whose
   path contained `siege_utilities` (as on CI runners) made it walk every
   installed package, and an `isinstance` check set up Django's lazy
   `staticfiles_storage`, raising `ImproperlyConfigured` when `STATIC_URL` is

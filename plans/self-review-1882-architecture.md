@@ -23,7 +23,11 @@ Pre-mortem-artifact: https://github.com/siege-analytics/siege_utilities/issues/1
   - Used at the package top level (`analyze_package_structure`) and inside `_analyze_module`.
 - `_is_package_module(module)` decides recursion by module name: `siege_utilities`, or a name starting `siege_utilities.`.
   - The previous test, `'siege_utilities' in str(item.__file__)`, matched every installed package on CI, where the virtualenv is under `.../siege_utilities/siege_utilities/.venv`.
-- The `inspect` helpers inside `analyze_function`/`analyze_class` are unchanged. They only run on objects already classified as real functions or classes.
+- `analyze_class` now classifies class members by actual type as well: `issubclass(type(member), (types.FunctionType, types.MethodType))` replaces `inspect.isfunction`/`inspect.ismethod`. This was added after independent review (https://github.com/siege-analytics/siege_utilities/pull/1883#issuecomment-6762079633).
+  - The reviewer found that a real `SimpleLazyObject` held as a public attribute of a package class (`Holder.storage`) was still set up through that path. That was pre-existing on develop `2deb6a1f` and remained on `af5056db`.
+  - Ordinary methods, staticmethods (functions on the class) and bound classmethods are still discovered.
+  - Nothing is caught or suppressed, class analysis is kept, and the lazy value is never pre-initialised.
+- `inspect.signature`/`getdoc`/`getfile` in `analyze_function` and `analyze_class` are unchanged. They only run on objects already classified as real functions, methods or classes.
 
 `tests/test_architecture.py::TestAnalyzeModule::test_submodule_detection` built its fake package child as a module named `child`, counted as package-owned only because its fake path contained `siege_utilities`, which is the rule this ticket replaces. Its fakes now carry real package names (`siege_utilities.parent`, `siege_utilities.parent.child`). The intent, that a package submodule is detected, is unchanged, and the test passes on both the old and new code.
 
@@ -60,6 +64,13 @@ Pre-mortem-artifact: https://github.com/siege-analytics/siege_utilities/issues/1
 - The fix addresses both causes named in the ticket: the path-based recursion and the evaluation of lazy objects. Either one alone would leave a way to hit the failure (a lazy object held directly by a package module; any third-party walk).
 - Ordering: #1791's test file is the only test on develop that changes Django settings, so it would arm this bug for every later run. This fix has to land before #1791.
 - Post-mortem: not applicable. The bug was caught on a PR's CI before reaching a release; no published version failed because of it.
+
+## Review round: lazy class attribute
+
+- **Red on `af5056db`:** `tests/test_1882_architecture_module_walk.py::test_real_django_lazy_class_attribute_is_never_set_up` gave 1 failed. The test's sentinel `RuntimeError` subclass ("SimpleLazyObject on a class was set up") escaped `analyze_module` -> `analyze_class`.
+- **After:** that test passes. Its positive control holds: `Holder`'s `run`, `build` (bound classmethod) and `helper` (staticmethod) are all discovered, with `method_count` 3.
+- **Wider set:** the new file plus `tests/test_architecture.py`, `tests/test_development_runtime_introspection_contracts.py`, `tests/test_public_api_surface.py` and `tests/guard/test_exception_contract_guard.py` gave 385 passed.
+- **Package output unchanged:** the fresh-process fingerprint is still identical to develop: 7 modules, 58 functions, 33 classes, 12 walked; walked-set hash `cdc09513adef0621`; normalised output hash `61a799bb048eb0c6`.
 
 ## Quantified claims
 

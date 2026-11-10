@@ -136,6 +136,53 @@ def test_ci_path_module_holding_staticfiles_storage_does_not_break_introspection
     assert info["functions"].keys() == {"helper"}
 
 
+def test_real_django_lazy_class_attribute_is_never_set_up():
+    """A package-owned class holding a real SimpleLazyObject as a public class
+    attribute: analyze_module -> analyze_class must not set it up, and must
+    still discover the class's ordinary methods and bound classmethods."""
+    pytest.importorskip("django")
+    from django.utils.functional import SimpleLazyObject
+
+    setups = []
+
+    class _Sentinel(RuntimeError):
+        pass
+
+    def _factory():
+        setups.append(1)
+        raise _Sentinel("SimpleLazyObject on a class was set up")
+
+    class Holder:
+        storage = SimpleLazyObject(_factory)
+
+        def run(self):
+            return None
+
+        @classmethod
+        def build(cls):
+            return cls()
+
+        @staticmethod
+        def helper():
+            return None
+
+    Holder.__module__ = "siege_utilities._probe_1882_class"
+    package = _module(
+        "siege_utilities._probe_1882_class",
+        "/srv/checkout/siege_utilities/_probe_1882_class.py",
+        Holder=Holder,
+    )
+
+    info = analyze_module(package, "_probe_1882_class")
+
+    assert setups == []
+    assert "error" not in info
+    holder = info["classes"]["Holder"]
+    assert "error" not in holder
+    assert holder["methods"].keys() == {"build", "helper", "run"}
+    assert holder["method_count"] == 3
+
+
 def test_real_django_lazy_object_is_never_set_up():
     pytest.importorskip("django")
     from django.utils.functional import SimpleLazyObject
