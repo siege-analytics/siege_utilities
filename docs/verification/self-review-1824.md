@@ -13,7 +13,7 @@ Pre-mortem-artifact: https://github.com/siege-analytics/siege_utilities/issues/1
 Project-contribution: geocoded coordinates always belong to the address that was submitted, and one failed Census chunk no longer discards the others.
 
 ## Investigation
-- GitHub reported PR #1824 MERGEABLE/CLEAN against develop; a read-only trial merge against develop `2deb6a1f` after this round's commit is recorded in the commit message. No develop merge was needed.
+- GitHub reported PR #1824 MERGEABLE/CLEAN against develop. A read-only trial merge (`git merge-tree --write-tree`) of `0a38d40f` against develop `2deb6a1f` reported no conflicted files (tree `b7926c4b`), so no develop merge was needed.
 - Commit `27e050d1` and its predecessor moved the entry into the PR body under the #1749 convention; #1749 is an open proposal and develop pull requests record entries in `CHANGELOG.md`, so the entry is restored there.
 - `census_geocoder.py` changed between v4.0.0 and this branch's merge base (#1400 URL redaction, #1709 fail-loudly). The v4.0.0 red run below confirms the alignment defects exist at the tag itself.
 - `GeocodingResult.matched` (`batch_geocoder.py:74`) and `MatchQuality.ERROR = "error"` (`batch_geocoder.py:40`) are the names the CHANGELOG entry cites.
