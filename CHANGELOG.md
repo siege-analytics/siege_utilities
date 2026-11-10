@@ -361,6 +361,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Dynamics authentication unavailable without a separate install. Dynamics
   dependency errors now recommend `[crm]`, and CI installs it so the Dynamics
   tests execute instead of skipping (#1449).
+- CI installs the GDAL/PostGIS system packages through a local
+  `.github/actions/apt-install` action, so a slow or stalled Ubuntu mirror no
+  longer cancels a required job or dequeues the merge queue (#1871):
+  - The downloaded `.deb` archives are cached with `actions/cache`, keyed on
+    the runner image and the package list, so most runs download nothing.
+  - apt drops a connection that sends no data for 30 seconds and retries it.
+  - The first attempt stops downloading from the primary mirror after two
+    minutes. Before the retry, `dpkg --configure -a` repairs any interrupted
+    install and apt switches from `azure.archive.ubuntu.com` to
+    `archive.ubuntu.com`.
+  - The final attempt gives downloads a 45-minute budget, above the slowest
+    install seen to finish (38 minutes on `develop`), so a slow but live
+    download completes and a trickle cannot hold the runner. The install from
+    the downloaded files stays bounded.
+  - Every install step has a step timeout above the script's own bounded
+    worst case: 80 minutes where the job has no timeout, and 15 minutes in
+    `test-postgis`, whose install uses shorter limits (worst case 851 seconds)
+    so a slow mirror fails the step and leaves 5 minutes of the 20-minute job
+    instead of cancelling it. Job timeouts are unchanged.
 
 ### BREAKING
 
