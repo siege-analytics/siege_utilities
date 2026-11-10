@@ -113,7 +113,7 @@ body, diff against develop and branch commits do not reference it).
 
 ## Test plan
 
-- Under duckdb 1.4.4 (default_31111, within #1862's pinned range): `pytest tests/test_1852_conversion_siblings.py` -> 8 passed. Without duckdb the module now skips via importorskip instead of producing 8 setup errors.
+- Under duckdb 1.4.4 (local env, within #1862's pinned range): `pytest tests/test_1852_conversion_siblings.py` -> 8 passed. Without duckdb the module now skips via importorskip instead of producing 8 setup errors.
 - At `7cac3e01` under duckdb 1.5.6 (Python 3.11.11): `tests/test_1412_duckdb_query_wkb_crs.py`, `tests/test_1479_spark_join_collisions.py`, `tests/test_1497_engine_crs_preservation.py` and `tests/test_1852_conversion_siblings.py` -> 105 passed, 0 skipped.
 
 ## duckdb 1.4.x support (after the develop sync at `695c4b92`)
