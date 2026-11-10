@@ -232,9 +232,11 @@ class InstagramConnector:
 
         Defaults to reach and follower_count. Fetch every page in each window
         of at most 30 days. UTC boundaries keep chunk lengths independent of
-        the caller's timezone and DST. Overrides must support daily
-        time-series values. Missing values stay null; account
-        views/profile_views require a total_value query instead.
+        the caller's timezone and DST. Rows are labelled with the calendar
+        day covered by each daily insight, one day before its end-of-period
+        ``end_time`` date. Overrides must support daily time-series values.
+        Missing values stay null; account views/profile_views require a
+        total_value query instead.
         """
         self._ensure_connected()
         metric_str = ",".join(metrics) if metrics else DEFAULT_ACCOUNT_METRICS
@@ -254,7 +256,14 @@ class InstagramConnector:
                     metric_name = metric_block["name"]
                     for value_entry in metric_block.get("values", []):
                         end_time = value_entry.get("end_time", "")
-                        dt = end_time[:10] if end_time else ""
+                        # For period=day, end_time marks the following
+                        # midnight, ending the measured day. Keep the
+                        # marker's calendar date (without host/UTC
+                        # conversion) and label the preceding day.
+                        dt = ""
+                        if end_time:
+                            covered_day = date.fromisoformat(end_time[:10]) - timedelta(days=1)
+                            dt = covered_day.isoformat()
                         row = rows_by_date.setdefault(dt, {"date": dt})
                         row[metric_name] = value_entry.get("value")
             since_ts = chunk_until + 1

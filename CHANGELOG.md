@@ -137,6 +137,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `page_media_view`, `page_follows` and `page_post_engagements` in place of
   retired impression, fan and engaged-user defaults. These replacements count
   views, followers and interactions, respectively (#1474).
+- Instagram account insights now use UTC request boundaries regardless of
+  the host timezone and label daily metrics with the day covered, one day
+  before the end-of-period marker. X account snapshots use the UTC date.
+  `PipelineAnalyzer` uses an aware UTC default and calculates elapsed time
+  in UTC for aware timestamps, including across daylight-saving changes;
+  naive-only inputs retain the host-local `datetime.now()` default (#1444).
+  **Migration:** naive pipeline timestamps are now interpreted as host-local,
+  not UTC. Mixed naive/aware input, including an `as_of` whose awareness
+  differs from the items, now raises `ValueError` identifying the offending
+  items. Keep naive timestamps in host-local time, or attach their actual
+  timezone and use aware timestamps throughout, including `as_of`.
+  The Facebook daily-label fix is tracked separately in #1435.
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
@@ -337,6 +349,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tests fail. A failed write of `overnight_results/test_output.txt` now fails
   the run instead of reporting exit 0, and `summary.json` records the pytest
   and tee statuses and whether the output artifact was written (#1475).
+- `notebooks/analytics/01_connectors.ipynb` no longer advertises live
+  Google Analytics / Snowflake queries while only initializing the
+  connectors and always returning a hardcoded fixture. The notebook now
+  has an opt-in credentialed path (GA4 when
+  `GOOGLE_APPLICATION_CREDENTIALS`, `GA_PROPERTY_ID` and
+  `GA_PROPERTY_TIMEZONE` are set, else a configured Snowflake rollup) that
+  issues the real `get_ga4_data` / `execute_query` calls over the previous two
+  complete Monday-through-Sunday weeks and fails visibly on a missing property,
+  a missing or unknown time zone, or a query error. The GA4 weeks are chosen in
+  the property's time zone, matching how GA4 interprets report dates, not on the
+  host clock. `SNOWFLAKE_CONFIG_FILE` is documented as the JSON file the
+  connector loads with `json.load`, with an example of its keys, and the
+  Snowflake connection is closed after the query, also when it fails. The offline
+  path's output is clearly labelled an illustrative fixture. Empty or malformed
+  live results fail rather than silently becoming the fixture: missing dates
+  and null or non-finite session counts raise before grouping, and the
+  week-over-week change is withheld unless both weeks observed all seven
+  calendar days (#1661).
 - Instagram follows all account, post and insight pages across Graph hosts
   and versions, filters every post page by date and limit, and splits daily
   insights into at most 30-day UTC windows. GA4 retrieves every reported row
