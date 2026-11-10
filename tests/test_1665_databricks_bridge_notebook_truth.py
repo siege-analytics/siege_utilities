@@ -5,6 +5,7 @@ the Spark/GeoPandas bridge, which lives in Markdown.
 """
 
 import inspect
+import re
 from pathlib import Path
 
 import nbformat
@@ -16,14 +17,18 @@ NOTEBOOK = (
     / "notebooks/engines/03_databricks_geo.ipynb"
 )
 
+# One pattern for the guard and for its own test, so the test exercises the
+# predicate the guard uses. Accepts either quote style and inner whitespace.
+_OVERWRITE_MODE = re.compile(r"""\.mode\(\s*["']overwrite["']\s*\)""")
+
 
 @pytest.fixture(scope="module")
-def notebook():
+def notebook() -> nbformat.NotebookNode:
     return nbformat.read(NOTEBOOK, as_version=4)
 
 
 @pytest.fixture(scope="module")
-def bridge(notebook):
+def bridge(notebook: nbformat.NotebookNode) -> str:
     sections = [
         cell.source
         for cell in notebook.cells
@@ -34,11 +39,13 @@ def bridge(notebook):
     return " ".join(sections[0].split())
 
 
-def test_notebook_is_valid(notebook):
+def test_notebook_is_valid(notebook: nbformat.NotebookNode) -> None:
     nbformat.validate(notebook)
 
 
-def test_bridge_is_labeled_schematic_not_executed(bridge, notebook):
+def test_bridge_is_labeled_schematic_not_executed(
+    bridge: str, notebook: nbformat.NotebookNode
+) -> None:
     assert "schematic" in bridge.lower(), (
         "The bridge example must be labeled schematic"
     )
@@ -50,7 +57,7 @@ def test_bridge_is_labeled_schematic_not_executed(bridge, notebook):
     ), "A runnable bridge needs local metric-radius and CRS behavior tests"
 
 
-def test_degree_buffer_disclaims_metric_distance(bridge):
+def test_degree_buffer_disclaims_metric_distance(bridge: str) -> None:
     assert "EPSG:4326" in bridge
     assert "`buffer(0.01)` uses 0.01 angular degrees" in bridge
     assert "not a fixed metric distance" in bridge
@@ -59,7 +66,7 @@ def test_degree_buffer_disclaims_metric_distance(bridge):
     assert "projected.geometry.buffer(radius_m)" in bridge
 
 
-def test_real_use_recipe_projects_then_buffers_in_meters(bridge):
+def test_real_use_recipe_projects_then_buffers_in_meters(bridge: str) -> None:
     assert "projected metric CRS" in bridge
     assert "UTM" in bridge
     assert "equidistant" in bridge
@@ -73,7 +80,7 @@ def test_real_use_recipe_projects_then_buffers_in_meters(bridge):
     )
 
 
-def test_driver_collection_requires_a_caller_bound(bridge):
+def test_driver_collection_requires_a_caller_bound(bridge: str) -> None:
     assert "collects all supplied rows to the driver" in bridge
     assert "no internal row limit" in bridge
     assert "before calling `spark_to_geopandas`" in bridge
@@ -82,18 +89,36 @@ def test_driver_collection_requires_a_caller_bound(bridge):
     assert "spark_to_geopandas( spark_df.limit(max_driver_rows)," in bridge
 
 
-def _bridge_source():
+def _bridge_source() -> str:
     nb = nbformat.read(NOTEBOOK, as_version=4)
     return next(c.source for c in nb.cells if c.source.startswith("## 4. Spark"))
 
-def test_schematic_code_buffers_in_meters_and_does_not_overwrite_with_a_sample():
+
+def _capped_sample_overwrites(code: str) -> bool:
+    """True when a capped sample is written with ``mode("overwrite")``."""
+    return "limit(max_driver_rows)" in code and bool(_OVERWRITE_MODE.search(code))
+
+
+def test_schematic_code_buffers_in_meters_and_does_not_overwrite_with_a_sample() -> None:
     code = _bridge_source().split("```python", 1)[1].split("```", 1)[0]
     assert "buffer(0.01)" not in code, "code block still buffers in degrees"
     assert code.index("to_crs(metric_crs)") < code.index("buffer(radius_m)") < code.index("to_crs('EPSG:4326')")
-    assert not ("limit(max_driver_rows)" in code and "mode('overwrite')" in code), \
+    assert not _capped_sample_overwrites(code), \
         "a capped sample must not overwrite a persistent table"
 
-def _documented_params(line):
+
+@pytest.mark.parametrize("write", ['.mode("overwrite")', ".mode('overwrite')", ".mode( 'overwrite' )"])
+def test_capped_sample_overwrite_is_detected_in_either_quote_style(write: str) -> None:
+    code = f"spark_df.limit(max_driver_rows).write{write}.saveAsTable('t')"
+    assert _capped_sample_overwrites(code)
+
+
+def test_uncapped_or_append_writes_are_not_flagged_as_sample_overwrites() -> None:
+    assert not _capped_sample_overwrites("spark_df.write.mode('overwrite').saveAsTable('t')")
+    assert not _capped_sample_overwrites("spark_df.limit(max_driver_rows).write.mode('append').saveAsTable('t')")
+
+
+def _documented_params(line: str) -> set[str]:
     """Parameter identifiers the notebook lists for a bridge function.
 
     The listing is ``- `name(a, b='x', c=None)` ``; return ``{'a', 'b', 'c'}``
@@ -110,16 +135,32 @@ def _documented_params(line):
     return names
 
 
-@pytest.mark.parametrize("name", ["pandas_to_spark", "spark_to_pandas", "geopandas_to_spark", "spark_to_geopandas"])
-def test_listed_bridge_signatures_match_module(name):
+def _signature_mismatch(name: str, documented: set[str]) -> tuple[list[str], list[str]]:
+    """Return (missing, stale): implemented-but-unlisted and listed-but-removed names."""
     from siege_utilities.databricks import dataframe_bridge
+    implemented = set(inspect.signature(getattr(dataframe_bridge, name)).parameters)
+    return sorted(implemented - documented), sorted(documented - implemented)
+
+
+@pytest.mark.parametrize("name", ["pandas_to_spark", "spark_to_pandas", "geopandas_to_spark", "spark_to_geopandas"])
+def test_listed_bridge_signatures_match_module(name: str) -> None:
     line = next(l for l in _bridge_source().splitlines() if l.startswith(f"- `{name}("))
-    documented = _documented_params(line)
-    for param in inspect.signature(getattr(dataframe_bridge, name)).parameters:
-        assert param in documented, f"{name} listing omits {param!r}"
+    missing, stale = _signature_mismatch(name, _documented_params(line))
+    assert not missing and not stale, (
+        f"{name} listing mismatch: missing {missing}, stale {stale}"
+    )
 
 
-def test_signature_check_flags_a_dropped_documented_param():
+def test_signature_check_flags_a_stale_documented_param() -> None:
+    # A listed argument that the function no longer has must fail the check;
+    # the earlier loop only walked implemented names and let it pass.
+    line = next(l for l in _bridge_source().splitlines() if l.startswith("- `pandas_to_spark("))
+    stale_line = line.replace("(", "(removed_param=None, ", 1)
+    missing, stale = _signature_mismatch("pandas_to_spark", _documented_params(stale_line))
+    assert stale == ["removed_param"] and not missing, (missing, stale)
+
+
+def test_signature_check_flags_a_dropped_documented_param() -> None:
     # A shared prefix must not mask a missing parameter: dropping `crs=None`
     # while keeping `crs_column='geometry_crs'` has to be caught. The earlier
     # `param in line` substring check passed that mutation falsely.
