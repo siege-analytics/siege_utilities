@@ -115,8 +115,10 @@ class TestCompositeConfig:
             _StubGeocoder("b", available=False),
         ])
         result = g.geocode(["123 Main St"])
-        assert len(result.errors) == 1
+        assert len(result.errors) == 2
         assert "No available" in result.errors[0]
+        assert "input_id '0'" in result.errors[1]
+        assert "123 Main St" not in result.errors[1]
 
 
 # ---------------------------------------------------------------------------

@@ -133,7 +133,10 @@ class CompositeBatchGeocoder(BatchGeocoder):
                 gr = returned.get(batch_id)
                 if gr is None:
                     reason = "duplicate" if counts[batch_id] else "missing"
-                    errors.append(f"Backend {backend.backend_name}: {reason} result for input_id {batch_id!r}")
+                    errors.append(
+                        f"Backend {backend.backend_name}: {reason} result for "
+                        f"input_id {inputs[batch_id].input_id!r}"
+                    )
                     gr = GeocodingResult(
                         input_id=batch_id,
                         input_address=addr.one_line,
@@ -158,6 +161,7 @@ class CompositeBatchGeocoder(BatchGeocoder):
             if batch_id in best:
                 results.append(replace(best[batch_id], input_id=addr.input_id))
             else:
+                errors.append(f"No geocoding backend produced a result for input_id {addr.input_id!r}")
                 results.append(GeocodingResult(
                     input_address=addr.one_line,
                     input_id=addr.input_id,

@@ -29,6 +29,28 @@ Project-contribution: geocoded coordinates always belong to the address that was
   - (c) mutation control on what #1667 protects (the timed cell is an in-memory scan, not a second geocoder run): cell `c5` temporarily re-runs `geocode_batch(...)` before the scan; with the echo stub in place the test fails, `Expected 'addressbatch' to have been called once. Called 2 times.` (1 failed, 8 passed). The notebook was then restored from HEAD and `git status` shows only the test file modified;
   - (d) contract control: `tests/test_1410_batch_geocode_alignment.py::test_census_rejects_ambiguous_response_ids[unknown]` raises `CensusGeocodeError` ("unknown or duplicate"), and the composite variant `test_composite_rejects_ambiguous_response_ids[unknown]` marks the row `error`; both pass on the merged tree.
 
+## Reviewer ruling round (no-backends behaviour and coverage)
+Ruling: with no available backend, return one `MatchQuality.ERROR` row per input (caller identity, multiplicity and order kept, no invented coordinates), keep the capability summary, and put per-row diagnostics carrying the caller ID (no address text, credentials, provider body or stack, no invented "raised exception") in the existing `errors` list.
+
+Library change (`geo/providers/composite_geocoder.py`, two edits): missing/duplicate per-row diagnostics name the caller ID (`inputs[batch_id].input_id`) instead of the internal batch ID; each input left without any backend result appends "No geocoding backend produced a result for input_id <caller id>". The "No available geocoding backends" summary stays first.
+
+Coverage map (`tests/test_1410_batch_geocode_alignment.py` unless noted):
+| Required control | Test | v4.0.0 (`9c3463b1`) | tip `57257f67` | this round |
+|---|---|---|---|---|
+| empty input | `test_empty_input_returns_no_rows_and_calls_no_backend` (plus existing `test_composite_geocoder.py::test_empty_input`) | passes (control) | passes | passes |
+| duplicate caller IDs | `test_duplicate_and_blank_caller_ids_get_distinct_response_rows[census,batch,composite]` (existing) | fails | passes | passes |
+| mixed caller IDs (`1` vs `"1"`) | `test_mixed_type_caller_ids_are_joined_by_internal_ids_not_stringified_ones` | fails (`[3.0, 2.0, 1.0]`) | passes | passes |
+| all failed, no backends | `test_no_available_backend_gives_one_error_row_per_input_with_caller_ids` | fails (`[] == ['a', 'a', '', 7]`: no rows) | fails (`0 == 4`: no per-row diagnostics) | passes |
+| unknown / duplicate / missing submitted IDs never attach another input's data | `test_corrupted_submitted_ids_never_attach_another_inputs_data[unknown,duplicate,missing]` | fails (rows attached to the wrong inputs) | fails only on the caller-ID diagnostic | passes |
+Whole file: v4.0.0 30 failed, 1 passed (the empty-input control); this round 31 passed.
+
+Second develop test modified:
+- File and test: `tests/test_composite_geocoder.py::TestCompositeConfig::test_all_unavailable_returns_error` (from #654, `d27dbe68`; not touched by this PR before this round).
+- Change: `len(result.errors) == 1` becomes `== 2`; added `"input_id '0'" in result.errors[1]` and `"123 Main St" not in result.errors[1]`. `"No available" in result.errors[0]` is unchanged, and nothing else in the test changes (`git diff --stat`: 3 insertions, 1 deletion).
+- Reason: it encoded the pre-ruling one-error contract; the ruling puts per-row diagnostics into the same `errors` list.
+- Evidence: (a) unmodified test with the patched code fails (`assert 2 == 1`); (b) modified test with the patched code passes; (c) mutation control, summary dropped (`errors = []`): fails (`assert 1 == 2`); (d) mutation control, per-row diagnostic dropped: fails (`assert 1 == 2`). Both mutations were restored, and the composite diff against HEAD is exactly the two intended edits.
+- Touched suites on the final tree (the 1410 file, eight provider files, notebook hygiene/capability, the #1667 file): 432 passed.
+
 ## Pre-mortem
 1. Tiger. Severity: P2. The entry under-describes the `"error"` quality and the `input_id` contract. Mitigation: the entry names `MatchQuality.ERROR`, `matched`, `CensusGeocodeError`, the `chunk_size` `ValueError` and the echo requirement, with a Migration line.
 2. Paper Tiger. Severity: P2. The v4.0.0 red run fails for import reasons. Mitigation: failures read; they are alignment and contract assertions (`[3.0, 2.0, 1.0] == [1.0, 2.0, 3.0]` for the reversed stub, `[1.0, 1.0, 3.0, 3.0] == [1.0, 2.0, 3.0, 4.0]` for duplicate/blank IDs, `'no_match' == 'error'`, `DID NOT RAISE CensusGeocodeError`).
@@ -51,3 +73,4 @@ Phase B verification (red/green): `tests/test_1410_batch_geocode_alignment.py` c
 | F2 | P2 | PR body labels caller-visible changes as Fixed | body addendum states BREAKING |
 | F3 | P3 | Tip lacked review trailers | this commit carries them |
 | F4 | P1 | Semantic conflict with develop's #1667 notebook stub (caller IDs) | develop merged `51cfbc10`; stub echoes submitted IDs, with (a)-(d) evidence; merged-tree suites 426 passed |
+| F5 | P1 | Reviewer ruling: no-backends per-input error rows with caller-ID diagnostics; required coverage controls | two composite edits; four new test groups (coverage map above); #654 test updated with (a)-(d) evidence; 432 passed |

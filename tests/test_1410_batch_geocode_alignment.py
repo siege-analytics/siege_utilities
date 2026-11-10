@@ -12,6 +12,7 @@ from siege_utilities.geo.providers.batch_geocoder import (
     BatchGeocoder,
     BatchGeocodingResult,
     GeocodingResult,
+    normalize_addresses,
 )
 from siege_utilities.geo.providers.census_batch import CensusBatchGeocoder
 from siege_utilities.geo.providers.composite_geocoder import CompositeBatchGeocoder
@@ -270,3 +271,96 @@ def test_invalid_chunk_size_is_rejected(chunk_size):
         CensusBatchGeocoder(chunk_size=chunk_size)
     with pytest.raises(ValueError, match="chunk_size"):
         census_geocoder.geocode_batch_chunked([], chunk_size=chunk_size)
+
+
+class UnavailableBackend(ReorderingBackend):
+    backend_name = "offline"
+
+    def is_available(self):
+        return False
+
+
+class CorruptingBackend(ReorderingBackend):
+    """Answer for every submitted ID, then corrupt the row for the last input."""
+
+    def __init__(self, corruption):
+        super().__init__()
+        self.corruption = corruption
+
+    def geocode(self, addresses):
+        result = super().geocode(addresses)
+        last = result.results[0]  # rows come back reversed
+        if self.corruption == "unknown":
+            result.results[0] = replace(last, input_id="not-submitted")
+        elif self.corruption == "duplicate":
+            result.results.append(replace(last, lat=99.0, lon=-99.0))
+        else:
+            result.results.pop(0)
+        return result
+
+
+def own_addresses(inputs):
+    return [addr.one_line for addr in normalize_addresses(inputs)]
+
+
+def test_empty_input_returns_no_rows_and_calls_no_backend():
+    backend = ReorderingBackend()
+    result = CompositeBatchGeocoder([backend]).geocode([])
+
+    assert result.results == []
+    assert result.errors == []
+    assert backend.submitted == []
+
+
+def test_mixed_type_caller_ids_are_joined_by_internal_ids_not_stringified_ones():
+    backend = ReorderingBackend()
+    inputs = [{"street": "1", "id": 1}, {"street": "2", "id": "1"}, {"street": "3", "id": 1}]
+    result = CompositeBatchGeocoder([backend]).geocode(inputs)
+
+    assert [row.lat for row in result.results] == [1.0, 2.0, 3.0]
+    assert [row.input_id for row in result.results] == [1, "1", 1]
+    assert [type(row.input_id) for row in result.results] == [int, str, int]
+    submitted = [addr.input_id for addr in backend.submitted]
+    assert len(set(submitted)) == 3
+    assert set(submitted).isdisjoint({1, "1"})
+
+
+def test_no_available_backend_gives_one_error_row_per_input_with_caller_ids():
+    backend = UnavailableBackend()
+    inputs = [
+        {"street": "100 Private Lane", "id": "a"},
+        {"street": "200 Private Lane", "id": "a"},
+        {"street": "300 Private Lane", "id": ""},
+        {"street": "400 Private Lane", "id": 7},
+    ]
+    result = CompositeBatchGeocoder([backend]).geocode(inputs)
+
+    assert backend.submitted == []
+    assert [row.input_id for row in result.results] == ["a", "a", "", 7]
+    assert [row.input_address for row in result.results] == own_addresses(inputs)
+    for row in result.results:
+        assert row.match_quality == "error"
+        assert not row.matched
+        assert row.lat is None and row.lon is None
+    assert "No available geocoding backends" in result.errors
+    per_row = [error for error in result.errors if error != "No available geocoding backends"]
+    assert len(per_row) == 4
+    for caller_id, message in zip(["a", "a", "", 7], per_row):
+        assert f"input_id {caller_id!r}" in message
+    for message in result.errors:
+        assert "Private Lane" not in message
+        assert "raise" not in message.lower() and "exception" not in message.lower()
+
+
+@pytest.mark.parametrize("corruption", ["unknown", "duplicate", "missing"])
+def test_corrupted_submitted_ids_never_attach_another_inputs_data(corruption):
+    inputs = addresses(["a", "b", "c"])
+    result = CompositeBatchGeocoder([CorruptingBackend(corruption)]).geocode(inputs)
+    rows = result.results
+
+    assert [row.input_id for row in rows] == ["a", "b", "c"]
+    assert [row.input_address for row in rows] == own_addresses(inputs)
+    assert [row.lat for row in rows] == [1.0, 2.0, None]
+    assert [row.lon for row in rows] == [-1.0, -2.0, None]
+    assert rows[2].match_quality == "error" and not rows[2].matched
+    assert any("input_id 'c'" in error for error in result.errors)

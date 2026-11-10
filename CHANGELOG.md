@@ -391,14 +391,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when a later backend succeeds. Low-level Census parsing marks a missing row
   `match_type="Error"` and raises `CensusGeocodeError` for a non-list response,
   a non-dict row, or an unknown or duplicate response ID; `chunk_size <= 0`
-  raises `ValueError`. `geocode_batch_chunked` still raises on request failure
-  (#1410). **Migration:** add `"error"` to any exhaustive `match_quality`
-  mapping; treat `matched == False` as "no coordinates" and inspect
-  `match_quality` to tell errors from genuine no-match; custom `BatchGeocoder`
-  backends and Census `addressbatch` stand-ins must echo the `input_id` they
-  were given (rows with unknown or duplicate IDs are rejected); read per-row
-  status separately from the attempt history in `errors`. The #1667 notebook
-  test's `addressbatch` stub now echoes the submitted IDs for this reason.
+  raises `ValueError`. `geocode_batch_chunked` still raises on request failure.
+  When no composite backend is available, `results` holds one `error` row per
+  input (caller ID, order and duplicates kept, no coordinates) and `errors`
+  holds the "No available geocoding backends" summary followed by one entry
+  per input naming its caller ID; v4.0.0 returned no rows and only the
+  summary. Composite per-row diagnostics for missing or duplicate backend rows
+  name the caller ID, not the internal batch ID (#1410). **Migration:** add
+  `"error"` to any exhaustive `match_quality` mapping; treat
+  `matched == False` as "no coordinates" and inspect `match_quality` to tell
+  errors from genuine no-match; custom `BatchGeocoder` backends and Census
+  `addressbatch` stand-ins must echo the `input_id` they were given (rows with
+  unknown or duplicate IDs are rejected); read per-row status separately from
+  the attempt history in `errors`; code that counted `errors` (for example
+  expecting exactly one entry when no backend is available) must expect the
+  summary plus one entry per input. The #1667 notebook test's `addressbatch`
+  stub now echoes the submitted IDs, and the #654 test
+  `test_all_unavailable_returns_error` now expects the per-input entry, for
+  these reasons.
 
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
