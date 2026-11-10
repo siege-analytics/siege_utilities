@@ -422,6 +422,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `DemographicPopulationService.populate` (and `populate_demographics`,
+  `populate_all_groups`) no longer skips an existing snapshot. Without
+  `update_existing`/`--update` it merges in only the variables the snapshot
+  lacks and counts it as `records_updated`; it counts `records_skipped` only
+  when nothing new arrived. A group load that used to report `N skipped`
+  now reports `N updated`. Variables a snapshot already holds are still
+  overwritten only with `update_existing=True` (#1550).
 - The `SocialMediaReportGenerator` and `AnalyticsReportGenerator` report
   methods now write a PDF into the generator's output directory and return its
   `Path`. On v4.0.0 they called `ReportGenerator` methods with a different
@@ -437,13 +444,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fixed file name must read the returned path instead. The social-media
   generator produces PDF only (its PPTX wording was removed); build any PPTX
   separately (#1461).
-- `DemographicPopulationService.populate` (and `populate_demographics`,
-  `populate_all_groups`) no longer skips an existing snapshot. Without
-  `update_existing`/`--update` it merges in only the variables the snapshot
-  lacks and counts it as `records_updated`; it counts `records_skipped` only
-  when nothing new arrived. A group load that used to report `N skipped`
-  now reports `N updated`. Variables a snapshot already holds are still
-  overwritten only with `update_existing=True` (#1550).
 - `DemographicSnapshot.total_population`, `median_household_income` and
   `median_age` are NULL when the source estimate is a negative Census
   sentinel or not numeric. Fractional estimates (for example rollup
