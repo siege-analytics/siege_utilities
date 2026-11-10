@@ -35,36 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING (#1409):** AREA, POPULATION and HOUSING crosswalk transformations
-  use `area_weight`, `population_weight` and `housing_weight`, respectively, and
-  raise `ValueError` naming the source and target for a missing weight on a
-  matched source/target row. AREA no longer treats a missing `area_weight` as
-  1.0, which silently counted the full value toward that target; fix or drop
-  such crosswalk rows before calling. The check applies to every AREA call,
-  including calls that name only `intensive_variables`. Sources absent from the
-  crosswalk still keep their values. POPULATION and HOUSING also raise for a
-  missing weight column. The Census crosswalk client currently supplies only
-  area weights.
-  **Migration:** pass `WeightMethod.AREA` explicitly when using that client, or
-  supply an enriched crosswalk to `CrosswalkProcessor` for population/housing
-  weighting. String methods are converted through `WeightMethod(value)`; invalid
-  methods raise instead of falling back to AREA.
-  `aggregation_func='weighted_mean'` divides by the weight of the rows with a
-  non-missing value, so a missing value no longer lowers the mean; a target
-  whose values are all missing is NaN with coverage 0.0. Previously every row's
-  weight stayed in the denominator.
-  EQUAL now divides each source among its targets, so split outputs change and
-  conserve totals. All-missing extensive sums now return NaN instead of zero.
-  Name rates, ratios, medians, and densities in `intensive_variables` when using
-  `transform`, `apply_crosswalk`, or `normalize_to_year` to avoid summing them.
-  `get_longitudinal_data` accepts the same names as `intensive_columns` and warns
-  when they are omitted during boundary normalization.
-  Each transformed crosswalk value column gains `<col>_coverage`: the share of
-  target contribution weight with non-missing values, using allocation weights
-  for extensive columns and overlap areas for intensive columns. All-missing
-  targets and targets with no contribution weight have coverage 0.0. Update
-  downstream column selections and missing-value handling for these outputs.
-
 - New *file* names now get the same check as new directory names. The
   `siege_utilities.files` helpers that create a file refuse a name containing
   a C0, DEL or C1 control character, or a lone surrogate: they raise
@@ -148,15 +118,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Crosswalk extensive sums preserve NaN when every contributing value is
-  missing. AREA, POPULATION and HOUSING use their respective crosswalk weight
-  columns and raise `ValueError` for a missing weight on a matched row (and, for
-  POPULATION and HOUSING, for an absent column). `weighted_mean` excludes
-  missing values from both its numerator and its denominator. EQUAL divides a
-  source's value among its targets, conserving totals through splits and merges.
-  `normalize_to_year` now accepts `weight_method` and `intensive_variables`, so
-  callers can preserve rates with the existing area-weighted averaging path
-  while allocating and summing extensive counts (#1409).
+- Instagram account insights now use UTC request boundaries regardless of
+  the host timezone and label daily metrics with the day covered, one day
+  before the end-of-period marker. X account snapshots use the UTC date.
+  `PipelineAnalyzer` uses an aware UTC default and calculates elapsed time
+  in UTC for aware timestamps, including across daylight-saving changes;
+  naive-only inputs retain the host-local `datetime.now()` default (#1444).
+  **Migration:** naive pipeline timestamps are now interpreted as host-local,
+  not UTC. Mixed naive/aware input, including an `as_of` whose awareness
+  differs from the items, now raises `ValueError` identifying the offending
+  items. Keep naive timestamps in host-local time, or attach their actual
+  timezone and use aware timestamps throughout, including `as_of`.
+  The Facebook daily-label fix is tracked separately in #1435.
 - Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
   DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
   changes tokenizer byte offsets and prepared-statement result metadata; 2.0
@@ -348,6 +321,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list names `COUSUB` and `ADDRFEAT` and drops the non-existent `COUNTYSUB`,
   `SDELM`, `SDSEC` and `SDUNI`. An opt-in `-m integration` test HEADs one
   built URL per catalog type for 2010, 2019 and 2023 (#1464).
+- The CI battle-test script now runs the repository-root test suite and
+  returns pytest's exit status, so the job reflects real test results.
+  It applies the main lane's selection (`-m "not integration and not
+  postgis"`, `--ignore=tests/test_notebooks.py`) on both its uv and python
+  paths. Logs, coverage reports and the summary JSON are saved in the
+  repository-root `overnight_results/` directory used by CI, including when
+  tests fail. A failed write of `overnight_results/test_output.txt` now fails
+  the run instead of reporting exit 0, and `summary.json` records the pytest
+  and tee statuses and whether the output artifact was written (#1475).
+- `notebooks/analytics/01_connectors.ipynb` no longer advertises live
+  Google Analytics / Snowflake queries while only initializing the
+  connectors and always returning a hardcoded fixture. The notebook now
+  has an opt-in credentialed path (GA4 when
+  `GOOGLE_APPLICATION_CREDENTIALS`, `GA_PROPERTY_ID` and
+  `GA_PROPERTY_TIMEZONE` are set, else a configured Snowflake rollup) that
+  issues the real `get_ga4_data` / `execute_query` calls over the previous two
+  complete Monday-through-Sunday weeks and fails visibly on a missing property,
+  a missing or unknown time zone, or a query error. The GA4 weeks are chosen in
+  the property's time zone, matching how GA4 interprets report dates, not on the
+  host clock. `SNOWFLAKE_CONFIG_FILE` is documented as the JSON file the
+  connector loads with `json.load`, with an example of its keys, and the
+  Snowflake connection is closed after the query, also when it fails. The offline
+  path's output is clearly labelled an illustrative fixture. Empty or malformed
+  live results fail rather than silently becoming the fixture: missing dates
+  and null or non-finite session counts raise before grouping, and the
+  week-over-week change is withheld unless both weeks observed all seven
+  calendar days (#1661).
+- Instagram follows all account, post and insight pages across Graph hosts
+  and versions, filters every post page by date and limit, and splits daily
+  insights into at most 30-day UTC windows. GA4 retrieves every reported row
+  using offsets; `row_limit` now controls page size, and an incomplete report
+  raises. Vista Social account/profile lists document their first-page limit
+  and expose `has_more` (including unknown completeness) and pagination
+  metadata on a list-compatible result (#1439).
 
 ### BREAKING
 
@@ -464,6 +471,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- AREA, POPULATION and HOUSING crosswalk transformations use `area_weight`,
+  `population_weight` and `housing_weight`, respectively, and raise `ValueError`
+  naming the source and target for a missing weight on a matched
+  source/target row. AREA no longer treats a missing `area_weight` as 1.0, which
+  silently counted the full value toward that target; fix or drop such
+  crosswalk rows before calling. The check applies to every AREA call,
+  including calls that name only `intensive_variables`. Sources absent from the
+  crosswalk still keep their values. POPULATION and HOUSING also raise for a
+  missing weight column. The Census crosswalk client currently supplies only
+  area weights. `aggregation_func='weighted_mean'` divides by the weight of the
+  rows with a non-missing value, so a missing value no longer lowers the mean;
+  a target whose values are all missing is NaN with coverage 0.0. Previously
+  every row's weight stayed in the denominator. EQUAL now divides each source
+  among its targets, so split outputs change and conserve totals. All-missing
+  extensive sums now return NaN instead of zero. Each transformed crosswalk
+  value column gains `<col>_coverage`: the share of target contribution weight
+  with non-missing values, using allocation weights for extensive columns and
+  overlap areas for intensive columns; all-missing targets and targets with no
+  contribution weight have coverage 0.0. `normalize_to_year` now accepts
+  `weight_method` and `intensive_variables`, and `get_longitudinal_data`
+  accepts the same names as `intensive_columns` and warns when they are
+  omitted during boundary normalization. **Migration:** pass
+  `WeightMethod.AREA` explicitly when using the Census crosswalk client, or
+  supply an enriched crosswalk to `CrosswalkProcessor` for population/housing
+  weighting. String methods are converted through `WeightMethod(value)`; invalid
+  methods raise instead of falling back to AREA. Name rates, ratios, medians,
+  and densities in `intensive_variables` (or `intensive_columns`) when using
+  `transform`, `apply_crosswalk`, `normalize_to_year` or
+  `get_longitudinal_data`, so they are averaged and not summed. Update
+  downstream column selections and missing-value handling for the new
+  `<col>_coverage` outputs (#1409).
 - `DemographicRollupService.rollup` has a new `overwrite: bool = False`
   parameter, and by default it no longer replaces a value already present on
   the target snapshot (for example a county value fetched from the Census
@@ -781,6 +819,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sensitive files still blocked. Without a trusted `base_directory`, the
   blocklist is a guardrail, not a sandbox; filesystem changes after validation
   remain outside this check. (#1528)
+- Instagram checks every request URL, including `paging.next`, before
+  sending credentials. URLs must use HTTPS, the exact `graph.facebook.com` or
+  `graph.instagram.com` host, port 443 (or the default), and no user
+  information. **Behavior change from v4.0.0:** non-HTTPS, foreign-origin and
+  malformed URLs now raise `SocialMediaError` before a request is sent, and the
+  rejected URL is omitted from the error to protect embedded tokens.
+  Redirects are never followed: any 3xx response raises `SocialMediaError`
+  without echoing its `Location`, so a Graph response cannot forward the
+  request, or a token in the redirect target, to another host. (#1439,
+  #1833)
 
 ## [4.0.0] - 2026-10-11
 

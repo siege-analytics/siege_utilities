@@ -31,6 +31,14 @@ Gate evidence, all observed in this work cycle:
 - Request a fresh exact-head review: the earlier result is void once the head moves, and the code diff is unchanged.
 - Obtain the operator's release sign-off for the BREAKING classification before tagging.
 
+## Pre-flight (develop 71f02b0b)
+
+Develop was merged additively. The only conflict was `CHANGELOG.md`; every develop line was kept. Develop wins on any disagreement, and none exists: no develop change touches `siege_utilities/geo/crosswalk/` or `siege_utilities/geo/timeseries/`.
+
+Classification: the PR is BREAKING (operator decision, option A). The brief places BREAKING entries under `### BREAKING` with a Migration line, so the former `### Changed` entry and the `### Fixed` entry are now one entry under `### BREAKING` in `[4.1.0]`, at its own position in the BREAKING list so it does not conflict with the other open PRs. Meaning is unchanged; the Migration text now also names the new `normalize_to_year` and `get_longitudinal_data` options. `git diff origin/develop -- CHANGELOG.md` shows 31 added lines and 0 removed lines. The PR body is updated to match.
+
+Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_crosswalk_weights_1409.py test_geo_crosswalk_crosswalk_processor_errors.py test_longitudinal_aligner.py -q` -> 65 passed in 0.73s. The red/green evidence for the AREA and `weighted_mean` changes is the "Falsification for the final commit" entry below, which still applies to this head.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1409 (the #1398 epic is context only and is not a governing ticket).
