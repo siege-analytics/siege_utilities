@@ -262,10 +262,12 @@ class TestAnalyzeModule:
         assert result["class_count"] == 1
 
     def test_submodule_detection(self):
-        parent = types.ModuleType("parent")
+        # Package membership is decided by module name (#1882), so the fakes
+        # carry real package names, as every siege_utilities submodule does.
+        parent = types.ModuleType("siege_utilities.parent")
         parent.__file__ = "/fake/siege_utilities/parent/__init__.py"
 
-        child = types.ModuleType("child")
+        child = types.ModuleType("siege_utilities.parent.child")
         child.__file__ = "/fake/siege_utilities/parent/child.py"
 
         parent.child = child

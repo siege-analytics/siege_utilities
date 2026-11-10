@@ -5,6 +5,7 @@ Architecture analysis and diagram generation for siege_utilities package.
 import logging
 import inspect
 import importlib
+import types
 from pathlib import Path
 from typing import Dict, Any, Optional
 import json
@@ -37,6 +38,37 @@ __all__ = [
 
 log = logging.getLogger(__name__)
 
+_PACKAGE = "siege_utilities"
+
+
+def _attribute_kind(item: Any) -> Optional[str]:
+    """Classify a module attribute without evaluating lazy objects (#1882).
+
+    ``inspect.isfunction``/``isclass``/``ismodule`` are ``isinstance`` checks,
+    which read ``item.__class__`` when it differs from ``type(item)``. Django's
+    ``LazyObject`` sets itself up on that read (``staticfiles_storage`` raises
+    ``ImproperlyConfigured`` without ``STATIC_URL``). ``type(item)`` never
+    consults ``__class__``, and agrees with ``isinstance`` for ordinary objects.
+    """
+    item_type = type(item)
+    if issubclass(item_type, types.FunctionType):
+        return "function"
+    if issubclass(item_type, type):
+        return "class"
+    if issubclass(item_type, types.ModuleType):
+        return "module"
+    return None
+
+
+def _is_package_module(module: types.ModuleType) -> bool:
+    """True for ``siege_utilities`` and its submodules, decided by name (#1882).
+
+    A file-path test matched every installed package on CI, where the
+    virtualenv lives under ``.../siege_utilities/siege_utilities/.venv``.
+    """
+    name = getattr(module, "__name__", "")
+    return name == _PACKAGE or name.startswith(_PACKAGE + ".")
+
 
 def analyze_package_structure(package_name: str = "siege_utilities") -> Dict[str, Any]:
     """
@@ -68,7 +100,7 @@ def analyze_package_structure(package_name: str = "siege_utilities") -> Dict[str
             if not item_name.startswith('_'):
                 item = getattr(package, item_name)
 
-                if inspect.ismodule(item):
+                if _attribute_kind(item) == "module":
                     module_info = analyze_module(item, item_name)
                     structure["modules"][item_name] = module_info
                     structure["module_count"] += 1
@@ -132,20 +164,22 @@ def _analyze_module(module, module_name: str, seen: set) -> Dict[str, Any]:
         for item_name in dir(module):
             if not item_name.startswith('_'):
                 item = getattr(module, item_name)
+                kind = _attribute_kind(item)
 
-                if inspect.isfunction(item):
+                if kind == "function":
                     func_info = analyze_function(item, item_name)
                     module_info["functions"][item_name] = func_info
                     module_info["function_count"] += 1
 
-                elif inspect.isclass(item):
+                elif kind == "class":
                     class_info = analyze_class(item, item_name)
                     module_info["classes"][item_name] = class_info
                     module_info["class_count"] += 1
 
-                elif inspect.ismodule(item) and hasattr(item, '__file__'):
-                    # Only analyze submodules that are part of our package
-                    if 'siege_utilities' in str(item.__file__):
+                elif kind == "module" and hasattr(item, '__file__'):
+                    # Only analyze submodules of our package, decided by module
+                    # name: a path test matches every installed package on CI.
+                    if _is_package_module(item):
                         submodule_info = _analyze_module(item, item_name, seen)
                         module_info["submodules"][item_name] = submodule_info
 
