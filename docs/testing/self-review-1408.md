@@ -27,6 +27,14 @@ Gate evidence, all observed in this work cycle:
 - Confirm `CHANGELOG.md` has the #1408 entry under `[4.1.0]` and none under `[Unreleased]`.
 - Request a fresh exact-head review: the earlier result is void once the head moves, and the code diff is unchanged.
 
+## Pre-flight (develop 71f02b0b)
+
+Develop was merged additively. The only conflict was `CHANGELOG.md`; every develop line was kept. Develop wins on any disagreement, and none exists: no develop change touches `siege_utilities/geo/timeseries/longitudinal_data.py`.
+
+Classification: caller code that worked on v4.0.0 now behaves differently (`align` propagates crosswalk errors other than unavailable coverage instead of falling back to areal interpolation, and raises when both methods fail instead of returning `method="failed"`). The #1408 entry moved from `### Fixed` to `### BREAKING` in `[4.1.0]` with a Migration line, at its own position in the BREAKING list so it does not conflict with the other open PRs. `git diff origin/develop -- CHANGELOG.md` shows 8 added lines and 0 removed lines. The PR body classification is updated to match.
+
+Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_longitudinal_aligner.py test_geo_crosswalk_crosswalk_client_errors.py test_batch1_1373.py -q` -> 88 passed, 4 warnings in 3.31s. The library code is unchanged since the red/green run recorded in the Falsification entry below, which still applies to this head.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1408 (the #1398 epic is context only and is not a governing ticket).
