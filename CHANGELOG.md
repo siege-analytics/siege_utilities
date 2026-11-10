@@ -118,15 +118,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Bivariate choropleths with tied values use the actual quantile grid and
-  preserve the palette's low and high colors. Crosstab dimensions and legend
-  ticks match the retained breaks, and verification reports reduced class
-  counts as errors. Rendering raises a clear error if ties leave fewer than
-  two bins on an axis, unless one class was requested. The reporting map
-  engine's bivariate maps (`create_bivariate_choropleth_matplotlib` and the
-  folium `create_bivariate_choropleth`) no longer crash on tied data: they
-  spread each variable's actual classes across the 3x3 palette and raise a
-  clear error when a variable has fewer than two classes (#1462).
+- The reporting map engine's bivariate maps
+  (`create_bivariate_choropleth_matplotlib` and the folium
+  `create_bivariate_choropleth`) no longer crash on tied data: they spread
+  each variable's actual classes across the 3x3 palette and raise a clear
+  error when a variable has fewer than two classes (#1462).
 - Instagram account insights now use UTC request boundaries regardless of
   the host timezone and label daily metrics with the day covered, one day
   before the end-of-period marker. X account snapshots use the UTC date.
@@ -366,6 +362,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   metadata on a list-compatible result (#1439).
 
 ### BREAKING
+
+- Bivariate choropleths in `siege_utilities.geo.choropleth` with tied values
+  use the actual quantile grid and preserve the palette's low and high colors.
+  Crosstab dimensions and legend ticks match the retained breaks, and
+  `verify_bivariate_classification` reports reduced class counts as errors.
+  Rendering raises a clear error if ties leave fewer than two bins on an
+  axis, unless one class was requested. In 4.0.0 these functions classified
+  with `qcut(..., duplicates="drop")` and rendered tied data with fewer
+  classes, shifted colors and smaller crosstabs, including an axis collapsed
+  to one bin. **Migration:** `create_bivariate_choropleth` now raises
+  `ValueError` for a variable that ties into fewer than two bins; check
+  `nunique()` first, or pass `n_classes=1`.
+  Treat a reduced class count in `verify_bivariate_classification` as an
+  error rather than a pass, and regenerate stored tied bivariate maps, whose
+  colors and crosstab shape change (#1462).
 
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A

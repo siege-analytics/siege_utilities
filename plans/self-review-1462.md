@@ -56,6 +56,7 @@ No live notebook calls the map engine bivariate methods (grep over `notebooks/`)
 ## Rework ledger
 - a14179ec/995aab86: the second ticket instance was left unfixed. F1 is fixed in this round.
 - The 4.1.0 note is restored to CHANGELOG.md and names the map engine paths.
+- Pre-flight (2026-11-10). Develop sync: `f87f3273` merges develop `71f02b0b` for a positional CHANGELOG conflict (the #1444 and #1462 Fixed entries). Both are kept, a diff against develop deletes 0 develop lines, and no merged develop behaviour disagrees with this PR. Classification follows the operator rule (2026-11-06): a change that alters v4.0.0 caller behaviour is BREAKING. On the v4.0.0 tag, `geo/choropleth.py` classified with `qcut(..., duplicates="drop")` and rendered tied data, including an axis collapsed to one bin. `_bivariate_color_grid` now raises below two bins (unless `n_classes=1`), and colours, crosstab shape and `verify_bivariate_classification` results change. So the geo part moves to 4.1.0 BREAKING with a **Migration:** line. The reporting map engine part stays under Fixed, because v4.0.0 crashed on tied data there and no caller could rely on that. No code changed.
 
 ## Findings
 F1 fixed. Pre-existing and out of scope: `create_bivariate_choropleth_matplotlib`
