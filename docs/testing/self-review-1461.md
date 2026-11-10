@@ -39,6 +39,10 @@ Red controls at this head: with `_facade_content.py` restored to the previous he
 
 CHANGELOG classification: on v4.0.0 these facades called a `ReportGenerator` method with a different signature or methods that do not exist, wrote no PDF, and either raised or returned a content dictionary. Callers now get a real `Path`, so caller-visible behavior changed; the entry is under `### BREAKING` in `[4.1.0]` with a Migration line, and the Fixed entry remains. The PR body classification is updated to match.
 
+## Notebook wording (review note on cf6ab305)
+
+The reviewer noted that `notebooks/analytics/03_social_media_analytics.ipynb`, markdown cell 7 (`ed9cb89c`), still said `SocialMediaReportGenerator` "normally renders PDF/PPTX reports". The facade writes a PDF only (`siege_utilities/reporting/social_media_reports.py` documents PDF output and has no PPTX path), so the cell now says it "normally renders a PDF report". One line in one markdown cell changed; no code changed. Tests, run from the `tests` directory: `python -m pytest test_notebook_hygiene.py test_notebooks.py -q -p no:randomly` -> 265 passed, 1 skipped in 387.50s.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1461 (the #1398 epic is context only and is not a governing ticket).
