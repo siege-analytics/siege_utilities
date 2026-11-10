@@ -90,6 +90,8 @@ Interpreter: ~/.pyenv/versions/default_31111/bin/python (Python 3.11.11), snowfl
   - #1661/#1780 tests, notebook hygiene, capability coverage and changelog: 319 passed.
   - The analytics/01 notebook still executes in the pure lane.
   - flake8 (127) and test hygiene are clean.
+- **Hosted CI:** run 42394673730 on 1cc65663 has conclusion `success`.
+- **Trailers:** the 599c1b96 merge and 1cc65663 carried `Self-Review-Source` but no `Self-Review:` trailer. The next additive commit carries it for both; no history was rewritten.
 
 ## Rework ledger
 During the reorder check, the first cell insert was refused because the notebook had changed on disk since it was read (after a restore). The run that followed tested the unmodified notebook, so it was discarded. The insert was redone after re-reading the notebook, and the reorder results above come from the redone run.
