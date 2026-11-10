@@ -176,11 +176,18 @@ class LegendManager:
 
         span = max_value - min_value
         step = abs(span / levels)
-        precision = 0
-        if step < 1:
-            precision = max(2, math.ceil(-math.log10(step))) if step else 2
         edges = [min_value + span * k / levels for k in range(levels + 1)]
         edges[-1] = max_value
+        if step < 1:
+            precision = max(2, math.ceil(-math.log10(step))) if step else 2
+        else:
+            # Steps of 1 or more can still produce fractional edges (0..7.5 in
+            # five levels is 0, 1.5, 3, ...): use the fewest decimals that
+            # show every edge exactly, up to six.
+            precision = next(
+                (d for d in range(7) if all(abs(round(e, d) - e) < 1e-9 for e in edges)),
+                6,
+            )
 
         bins = []
         for i in range(levels):

@@ -72,7 +72,9 @@ def test_heatmap_bins_cover_full_interval(heatmap_legend):
     [
         (1, [0, 0.2, 0.4, 0.6, 0.8, 1]),
         (0.00001, [0, 0.000002, 0.000004, 0.000006, 0.000008, 0.00001]),
+        (7.5, [0, 1.5, 3, 4.5, 6, 7.5]),
     ],
+    ids=["unit", "tiny", "step-over-one-fractional"],
 )
 def test_heatmap_bins_preserve_fractional_edges(heatmap_legend, maximum, expected_edges):
     labels, swatches = heatmap_legend(0, maximum)
@@ -227,6 +229,43 @@ def test_natural_breaks_uses_fisher_jenks_not_quantiles(map_engine, monkeypatch,
     facecolors = ax.collections[0].get_facecolors()
     for class_index, facecolor in zip(jenks.bins, facecolors):
         np.testing.assert_allclose(facecolor, swatches[class_index])
+
+
+@pytest.mark.parametrize("backend", ["mapclassify", "numpy"])
+def test_natural_breaks_value_on_interior_break_uses_lower_range(
+    map_engine, monkeypatch, tmp_path, backend,
+):
+    """A value equal to an interior break belongs to the range it closes, on both backends."""
+    from siege_utilities.geo import classification
+
+    if backend == "mapclassify":
+        pytest.importorskip("mapclassify")
+    else:
+        monkeypatch.setattr(classification, "_MAPCLASSIFY_AVAILABLE", False)
+
+    # Both backends split these values into {0,1,2}, {30,31,32}, {60,61,62}; they
+    # report the interior breaks differently (2/32 vs 30/60).
+    values = [0, 1, 2, 30, 31, 32, 60, 61, 62]
+    ax = _render_advanced_choropleth(monkeypatch, tmp_path, values, "natural_breaks", bins=3)
+
+    labels = [text.get_text() for text in ax.get_legend().get_texts()]
+    bounds = [tuple(float(edge.replace(",", "")) for edge in label.split(" – ")) for label in labels]
+    assert bounds == [(0.0, 2.0), (2.0, 32.0), (32.0, 62.0)]
+    # Independent expectation: 2 closes the first range and 32 the second.
+    expected_classes = [0, 0, 0, 1, 1, 1, 2, 2, 2]
+    swatches = [patch.get_facecolor() for patch in ax.get_legend().get_patches()]
+    facecolors = ax.collections[0].get_facecolors()
+    for class_index, facecolor in zip(expected_classes, facecolors):
+        np.testing.assert_allclose(facecolor, swatches[class_index])
+
+
+def test_natural_breaks_constant_fractional_column(map_engine, monkeypatch, tmp_path):
+    """Zero-width classes must not break legend precision."""
+    ax = _render_advanced_choropleth(monkeypatch, tmp_path, [0.25] * 4, "natural_breaks", bins=3)
+
+    labels = [text.get_text() for text in ax.get_legend().get_texts()]
+    assert labels
+    assert all("0.25" in label for label in labels)
 
 
 def test_natural_breaks_leaves_missing_values_unclassified(map_engine, monkeypatch, tmp_path):

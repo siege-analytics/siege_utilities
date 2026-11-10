@@ -63,5 +63,11 @@ Interpreter: local Python 3.11.11, run from the repository root.
 - Reporting run as in Gate 2: 808 passed, 1 skipped.
 - `tests/test_legend_data_accuracy.py`: 3 failed / 16 passed on `d7337a4b`; 19 failed on `v4.0.0`; 19 passed after.
 
+## Review follow-up (three review threads)
+- 4523483238 (`map_engine.py:434`, boundary inclusivity): a probe of both backends on the same data showed mapclassify reports each class's upper bound while the numpy backend reports the next class's lower bound (e.g. `[0, 2, 32, 62]` vs `[0, 30, 60, 62]` for the same partition), each assigning classes consistently with its own breaks. A first attempt to re-assign classes with `searchsorted(side="left")` would have misclassified numpy edge values and was replaced: the legend keeps the backend's classes and builds upper-inclusive ranges ending at each class's largest value. The numpy backend's own class assignment and breaks in `geo/classification.py` are unchanged (outside this PR).
+- 4523483252 (`map_engine.py:450`, zero-width intervals): precision uses only positive finite widths, falling back to one decimal; zero-width ranges print the value.
+- 4523483272 (`legend_manager.py:181`, fractional edges with step ≥ 1): precision is the fewest decimals (≤ 6) that represent every edge exactly; the step < 1 behaviour is unchanged.
+- Red at `821fd9a4`: `test_natural_breaks_value_on_interior_break_uses_lower_range[numpy]`, `test_natural_breaks_constant_fractional_column`, and both `step-over-one-fractional` cases (4 failed; the mapclassify boundary case passes as a control). After: 24 passed in the legend tests; 838 passed, 1 skipped in the reporting run.
+
 ## Rework ledger
 - Pre-flight round, 2026-11-10: Fisher-Jenks natural breaks; heatmap centring removed; CHANGELOG entry; body classification and acceptance map.

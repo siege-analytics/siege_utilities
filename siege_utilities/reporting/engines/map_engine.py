@@ -428,10 +428,24 @@ class MapChartMixin:
                 from siege_utilities.geo.classification import classify_series
 
                 result = classify_series(merged[value_column], "natural_breaks", k=bins)
-                classified = pd.Series(result.bins, index=merged.index, dtype=float).where(
-                    result.bins >= 0
+                # The backends report interior breaks differently (mapclassify:
+                # each class's upper bound; numpy: the next class's lower
+                # bound), but each assigns classes consistently with its own
+                # breaks. Keep the backend's classes and show every range
+                # upper-inclusively, ending at its class's largest value, so a
+                # value on a boundary is in the range the legend shows it in.
+                values = merged[value_column].to_numpy(dtype=float)
+                valid = result.bins >= 0
+                class_count = len(result.breaks) - 1
+                uppers = [
+                    values[valid & (result.bins == i)].max()
+                    if (valid & (result.bins == i)).any() else result.breaks[i + 1]
+                    for i in range(class_count)
+                ]
+                bin_edges = np.asarray([np.nanmin(values)] + uppers, dtype=float)
+                classified = pd.Series(
+                    np.where(valid, result.bins, np.nan).astype(float), index=merged.index
                 )
-                bin_edges = np.asarray(result.breaks, dtype=float)
             else:
                 classified, bin_edges = pd.qcut(
                     merged[value_column], bins, labels=False, duplicates='drop', retbins=True,
@@ -446,12 +460,17 @@ class MapChartMixin:
             class_count = len(bin_edges) - 1
             cmap = plt.get_cmap(color_scheme)
             norm = Normalize(vmin=0, vmax=max(class_count - 1, 1))
-            smallest_width = min(np.diff(bin_edges), default=1)
+            # Zero-width (constant data) and non-finite intervals carry no
+            # precision information; fall back to one decimal when none remain.
+            widths = np.diff(bin_edges)
+            positive_widths = widths[np.isfinite(widths) & (widths > 0)]
+            smallest_width = positive_widths.min() if positive_widths.size else 1.0
             precision = max(1, int(np.ceil(-np.log10(smallest_width))))
             legend_handles = [
                 Patch(
                     facecolor=cmap(norm(i)),
-                    label=f"{lower:,.{precision}f} – {upper:,.{precision}f}",
+                    label=(f"{lower:,} – {upper:,}" if lower == upper
+                           else f"{lower:,.{precision}f} – {upper:,.{precision}f}"),
                 )
                 for i, (lower, upper) in enumerate(zip(bin_edges[:-1], bin_edges[1:]))
             ]
