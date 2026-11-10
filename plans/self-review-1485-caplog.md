@@ -27,6 +27,7 @@ Verified 2026-11-05: with `report_generator.py`, `templates/base_template.py` an
 
 1. The warning is emitted on `siege_utilities.reporting.report_generator` (module logger), so setting that logger's level is sufficient for `caplog`.
 2. The test settings may disable existing loggers; resetting `disabled` through `monkeypatch` is restored at teardown.
+3. Under the operator's standing rule (2026-11-06: an entry is BREAKING when code that worked on 4.0.0 now behaves differently), the #1485 contract entry moves from `[4.1.0]` `### Changed` to `### BREAKING` with a Migration line. Custom section types, a DataFrame appendix and non-string content now raise, and a titled report gains an automatic title page. The Migration's title-page sentence was checked against `report_generator.py:480-481`. The develop `71f02b0b` merge kept both `[4.1.0]` Fixed entries (a union); develop's lines are unchanged.
 
 ## Test plan
 
@@ -39,7 +40,7 @@ Verified 2026-11-05: with `report_generator.py`, `templates/base_template.py` an
 - Shelves: writing-tests:3 (tests must not depend on order or on other tests' side effects), writing-claims:2 (counts carry `Verified-by:`).
 - Syntax check: `py_compile` on 1 changed `.py` file -> parses clean (exit 0).
 - Test suite: module 24 passed under each of seeds 37 and 102; the target test passes alone.
-- Findings: test-only change; no library code touched. The two #1485 CHANGELOG entries were already in `[4.1.0]` (`### Changed` and `### Fixed`) and remain there after the develop merge.
+- Findings: test-only change; no library code touched. The two #1485 CHANGELOG entries are in `[4.1.0]` (`### BREAKING`, moved from `### Changed`, and `### Fixed`) after the develop `71f02b0b` merge.
 - Notebook API: N/A (no library contract change). Doc build N/A.
 
 ## Lead review

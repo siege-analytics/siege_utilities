@@ -116,17 +116,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   how undecodable (non-UTF-8) bytes reach Python, are refused as well. The
   check is public as `reject_unsafe_new_directory_names` (#1716).
 
-- `generate_pdf_report` now raises `ValueError` for a section `type` outside
-  the supported set (`executive_summary`, `methodology`, `data_summary`,
-  `text`, `insights`, `recommendations`, `charts`, `title_page`,
-  `table_of_contents`, `table`, `appendix`), and for non-string content in the
-  `text`/`executive_summary`/`methodology`/`data_summary`/`appendix` sections.
-  Callers that relied on a custom `add_section` type, a DataFrame
-  `add_appendix`, or `None` text must change: put custom prose in a `text`
-  section and tabular appendices in a `table` section through
-  `add_table_section`. A report with a top-level `title` and no `title_page`
-  section now gets a title page (#1485).
-
 ### Fixed
 
 - Render analytics and comprehensive PDF report sections, including chart lists,
@@ -378,6 +367,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   metadata on a list-compatible result (#1439).
 
 ### BREAKING
+
+- `generate_pdf_report` now raises `ValueError` for a section `type` outside
+  the supported set (`executive_summary`, `methodology`, `data_summary`,
+  `text`, `insights`, `recommendations`, `charts`, `title_page`,
+  `table_of_contents`, `table`, `appendix`), and for non-string content in the
+  `text`/`executive_summary`/`methodology`/`data_summary`/`appendix` sections.
+  A report with a top-level `title` and no `title_page` section now gets a
+  title page (#1485).
+  **Migration:** callers that relied on a custom `add_section` type, a
+  DataFrame `add_appendix`, or `None` text must change: put custom prose in a
+  `text` section and tabular appendices in a `table` section through
+  `add_table_section`. An explicit `title_page` section replaces the
+  automatic title page, and a report with no `title` in its content or
+  metadata gets none.
 
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
