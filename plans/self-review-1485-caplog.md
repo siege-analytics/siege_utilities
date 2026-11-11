@@ -55,3 +55,23 @@ Verified 2026-11-05: with `report_generator.py`, `templates/base_template.py` an
 ## Rework ledger
 
 1 hostile-review follow-up applied (reset `disabled`).
+
+## Develop integration (79f37f4d, 2026-11-11)
+
+Reason for the merge: after #1812 landed, develop `79f37f4d` and this branch added entries at the same places in `CHANGELOG.md`, so the pull request reported a conflict.
+
+Merge: `bbf88492b42f13848e6b4efcbecd40eff886a3f2` (first parent) + develop `79f37f4df28059a875c8dbf84cf77ce86812bdbb`, made with `--no-ff --no-commit`. One file conflicted, `CHANGELOG.md`, with two add/add hunks under `## [5.0.0]`. Both sides were kept verbatim, develop's entries first, and only the conflict markers were removed. No source, template or test file needed resolution.
+
+- `### Fixed`: develop's #1882, #1458 and #1474 entries, then this PR's #1485 rendering entry.
+- `### BREAKING`: develop's #1474/#1458, #1465/#1835 and #1812 entries with their Migration paragraphs, then this PR's `generate_pdf_report` entry with its Migration paragraph, unchanged.
+- `CHANGELOG.md` against `79f37f4d`: 23 lines added, none removed (this PR's two entries). Against `bbf88492`: 116 added, 2 removed; the 2 are develop's own edits outside the conflict (the held section renamed to `[5.0.0]`, and the SSL entry's release number).
+- Inventory against `79f37f4d`: only this PR's 7 files differ. Every imported develop file equals landed develop.
+- Inventory against `bbf88492`: develop's 39 files differ, plus this section. This PR's source, template and test files equal `bbf88492`.
+- The `[4.1.0]` references in Assumption 3 and Peer review above are historical; develop renamed that section to `[5.0.0]`.
+
+Tests in the merged tree: Python 3.11.11, pytest 8.4.2, pytest-randomly 5.0.0, ReportLab 4.4.10 rendering real PDFs, PyPDF2 3.0.1 parsing their text.
+
+- `pytest -p randomly --randomly-seed=1736` over `tests/test_report_generator_renders_sections.py tests/test_content_page_template_errors.py tests/test_reporting_errors.py tests/test_reporting_factory_contracts.py tests/test_reporting_markup_escaping.py tests/test_reporting_module.py tests/test_table_utils.py tests/test_backward_compat.py tests/test_public_api_surface.py tests/test_sprint_a_reliability.py tests/test_1812_fidelity_oracle.py tests/test_1812_null_policy_end_to_end.py tests/test_social_media_reports_nulls.py tests/test_social_media_reports_errors.py tests/guard/test_exception_contract_guard.py` -> 815 passed, 3 skipped. Two skips in `tests/test_sprint_a_reliability.py` need `weightipy`, which is not installed; `tests/test_reporting_module.py:616` runs only when `python-pptx` is absent. None is in the #1485 module.
+- `tests/test_report_generator_renders_sections.py` alone under seeds 37 and 102 -> 24 passed each, no skips. These include the page-overflow, repeated-header and missing-chart log checks.
+- `scripts/check_exception_contracts.py --list` -> 205 handlers flagged, 0 unlisted, 0 stale.
+- Boundary: the rendered-PDF checks parse extracted text; they do not compare page images. The PostGIS and notebook jobs were not run locally; exact-head CI is the evidence for them.
