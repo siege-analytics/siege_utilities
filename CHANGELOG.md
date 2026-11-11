@@ -244,6 +244,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `SIEGE_TEST_*` run controls, so a run never reads or rewrites the
   developer's own config through `SIEGE_USER_CONFIG_DIR`,
   `SIEGE_SETTINGS_FILE` or any `SIEGE_<SETTING>` override (#1717).
+- S2 cell IDs are documented as uint64 values that can exceed signed
+  BIGINT. Add `s2_cell_id_to_int64` with an exact inverse through
+  `s2_cell_id_to_uint64`, and an opt-in `as_signed=True` (default `False`, so
+  existing results are unchanged) on point indexing, polygon indexing, region
+  covers, and range generation so signed SQL `BETWEEN` queries match the
+  unsigned cell ranges. Correct the PostGIS storage guidance (#1473).
 - `is_sensitive_path` again blocks `_`/`-` prefixed private-key names outside
   `.ssh` (`deploy_id_rsa`, `github-id_ecdsa`) and now covers `id_ed25519`;
   `paid_rsa` and `*.pub` stay allowed (#1702).

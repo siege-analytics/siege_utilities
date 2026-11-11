@@ -157,14 +157,19 @@ def index_polygon(
     resolution (uniform).
 
     With S2: if ``max_cells`` is provided (or any of ``min_level``,
-    ``max_level``), returns a :class:`list` of int64 cell IDs from
+    ``max_level``), returns a :class:`list` of uint64 cell IDs from
     :func:`s2_region_cover` (variable-resolution coverage with a cell-
-    count budget). Otherwise returns a :class:`set` of int64 cell IDs
+    count budget). Otherwise returns a :class:`set` of uint64 cell IDs
     at a single ``level`` from :func:`s2_index_polygon`.
 
     The shape of the return value (set vs list) intentionally signals
     which mode you got. For SQL-friendly cell-id ranges, see
     :func:`s2_cells_to_ranges`.
+
+    Raw S2 IDs can exceed signed BIGINT. Convert with
+    :func:`s2_cell_id_to_int64`, or call the S2 helpers directly with
+    ``as_signed=True``. Use ``s2_cells_to_ranges(..., as_signed=True)``
+    for queries against signed IDs.
     """
     kwargs_for_inference = {
         "resolution": resolution,
