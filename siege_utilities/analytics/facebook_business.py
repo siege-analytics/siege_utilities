@@ -13,7 +13,7 @@ import json
 import logging
 import pathlib
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List
 import pandas as pd
 
@@ -63,6 +63,24 @@ __all__ = [
     "load_facebook_account_profile",
     "save_facebook_account_profile",
 ]
+
+
+def _page_insight_measured_day(end_time: str) -> str:
+    """Return the measured day (YYYY-MM-DD) for a period=day Page Insights value.
+
+    Facebook stamps each daily value with the end of its period. The end_time
+    is normalized to UTC first, so equivalent instants get the same label on
+    any host: a naive timestamp is read as UTC, never as host local time. One
+    calendar day is then subtracted. An empty end_time stays empty rather than
+    being given a fabricated date; an unparseable one raises ValueError.
+    """
+    if not end_time:
+        return end_time
+    moment = datetime.fromisoformat(end_time)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    measured_day = moment.astimezone(timezone.utc).date() - timedelta(days=1)
+    return measured_day.isoformat()
 
 
 class FacebookBusinessConnector:
@@ -193,43 +211,73 @@ class FacebookBusinessConnector:
             metrics: List of metrics to retrieve
 
         Returns:
-            Pandas DataFrame with one row per measured day and one column per
-            requested metric. The date column is YYYY-MM-DD, one day before
-            the date of end_time for period=day. Missing values and metric/day
-            pairs are NaN.
+            Pandas DataFrame with columns ``['date', *metrics]`` in requested
+            order and one row per measured day. The date column is YYYY-MM-DD:
+            end_time normalized to UTC (a naive end_time is read as UTC), minus
+            one day, for period=day. Missing values and metric/day pairs are
+            NaN; a known 0 stays 0. Returned metrics that were not requested
+            are dropped, and an empty response gives a zero-row frame with the
+            same columns.
+
+        Raises:
+            ValueError: an insight in the response has no metric name, even
+                when its values list is empty.
         """
         try:
             if not metrics:
+                # Current Page Insights names supported by Graph v22.0+,
+                # reviewed 2026-10-18; the installed Business SDK selects the
+                # API version. Follows count followers, and post engagements
+                # count interactions rather than unique engaged users.
                 metrics = [
-                    'page_impressions', 'page_engaged_users', 'page_post_engagements',
-                    'page_fans', 'page_views_total', 'page_actions_post_reactions_total'
+                    'page_media_view', 'page_post_engagements', 'page_follows',
+                    'page_views_total', 'page_actions_post_reactions_total'
                 ]
 
             page = Page(page_id, api=self.api)
             insights = page.get_insights(
-                fields=metrics,
                 params={
+                    # Page Insights expects comma-separated metric names; the
+                    # SDK would JSON-encode a Python list.
+                    'metric': ','.join(metrics),
                     'period': 'day',
                     'since': start_date,
                     'until': end_date
                 }
             )
 
-            # Each insight contains one metric's daily values; join by date.
+            # The response holds one insight object per metric, each with one
+            # value entry per day. Key every value by its insight's own metric
+            # name and its measured day; never collapse to values[0] or copy
+            # one metric's number into another column (#1812, #1435).
+            insight_list = list(insights)
+            # Validate every name before projecting any value, so an unnamed
+            # insight raises even when its values list is empty (#1474).
+            for insight in insight_list:
+                if not insight.get('name'):
+                    raise ValueError(
+                        f"Facebook Page Insights for page {page_id} returned an "
+                        "insight without a metric name; its values cannot be attributed."
+                    )
+            requested = set(metrics)
             data_by_date = {}
-            for insight in insights:
+            for insight in insight_list:
                 metric = insight.get('name')
-                if metric not in metrics:
+                if metric not in requested:
+                    # Named but not requested: dropped without creating rows
+                    # or reading its values.
                     continue
-                for value in insight.get('values') or []:
-                    date = value.get('end_time', '')
-                    if date:
-                        measured_day = datetime.fromisoformat(date).date() - timedelta(days=1)
-                        date = measured_day.isoformat()
+                for entry in insight.get('values') or []:
+                    date = _page_insight_measured_day(entry.get('end_time', ''))
                     row = data_by_date.setdefault(date, {'date': date})
-                    row[metric] = value.get('value', float('nan'))
+                    # A missing value is unavailable (NaN); a known 0 stays 0.
+                    value = entry.get('value')
+                    row[metric] = float('nan') if value is None else value
 
-            df = pd.DataFrame(data_by_date.values(), columns=['date', *metrics])
+            # Fixed schema: 'date' plus the requested metrics in requested
+            # order; an absent metric is a column of NaN and an empty or
+            # unrequested-only response is a zero-row frame with this schema.
+            df = pd.DataFrame(list(data_by_date.values()), columns=['date', *metrics])
             log_info(f"Retrieved {len(df)} page insights from page {page_id}")
             return df
 

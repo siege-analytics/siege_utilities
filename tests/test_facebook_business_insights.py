@@ -98,8 +98,10 @@ def test_page_insights_pivots_each_metric_for_each_day(page_insights):
 @pytest.mark.parametrize("dates, measured_days", [
     (["2024-01-01T08:00:00+0000", "2024-01-02T08:00:00+0000"],
      ["2023-12-31", "2024-01-01"]),
+    # 00:00 at +14:00 is 10:00 UTC on the previous day, so the UTC measured
+    # day is two calendar days before the local date (#1435 x #1812 contract).
     (["2024-03-01T00:00:00+1400", "2024-03-02T00:00:00+1400"],
-     ["2024-02-29", "2024-03-01"]),
+     ["2024-02-28", "2024-02-29"]),
 ])
 def test_page_insights_normalises_every_end_time_to_measured_day(
     page_insights, dates, measured_days,
@@ -162,13 +164,32 @@ def test_page_insights_joins_sparse_metrics_by_date(page_insights):
 @pytest.mark.parametrize("insights", [
     [],
     [{"name": "page_impressions", "values": []}],
-    [{"values": [{"end_time": "2024-01-01", "value": 999}]}],
-], ids=["no-insights", "no-values", "no-name"])
+], ids=["no-insights", "no-values"])
 def test_page_insights_without_named_values_has_schema(page_insights, insights):
     df = page_insights(insights, ["page_impressions", "page_fans"])
 
     assert df.empty
     assert df.columns.tolist() == ["date", "page_impressions", "page_fans"]
+
+
+@pytest.mark.parametrize("unnamed", [
+    {"values": [{"end_time": "2024-01-01", "value": 999}]},
+    {"values": []},
+    {"name": "", "values": [{"end_time": "2024-01-01", "value": 1}]},
+    {"name": None},
+], ids=["no-name", "no-name-empty-values", "empty-name", "null-name-no-values"])
+def test_page_insights_rejects_unnamed_insight_before_projection(
+    page_insights, unnamed,
+):
+    # An unnamed insight cannot be attributed to a metric. It raises even when
+    # its values are empty and even after a valid, requested insight (#1474).
+    with pytest.raises(ValueError, match="without a metric name"):
+        page_insights([
+            {"name": "page_impressions", "values": [
+                {"end_time": "2024-01-02T08:00:00+0000", "value": 10},
+            ]},
+            unnamed,
+        ], ["page_impressions"])
 
 
 @pytest.mark.parametrize("method, factory_name, args", [
@@ -333,3 +354,129 @@ def test_batch_docstring_matches_accepted_types_and_takes_config_directory():
     assert "config_directory" in inspect.signature(batch_retrieve_facebook_data).parameters
     doc = batch_retrieve_facebook_data.__doc__
     assert all(t in doc for t in ("ad_account", "page", "business"))
+
+
+# Integration contract after #1812 landed (#1435 x #1812): measured day in UTC,
+# fixed requested schema, unrequested metrics dropped, unnamed insights raise.
+
+def test_page_insights_equivalent_instants_share_a_measured_day(page_insights):
+    # Three spellings of 2024-01-02T04:00Z. The literal local dates differ
+    # (01-02, 01-01, 01-02), so only UTC normalization gives one label.
+    df = page_insights([
+        {"name": "page_impressions", "values": [
+            {"end_time": "2024-01-02T04:00:00+0000", "value": 1},
+        ]},
+        {"name": "page_fans", "values": [
+            {"end_time": "2024-01-01T20:00:00-0800", "value": 2},
+        ]},
+        {"name": "page_views_total", "values": [
+            {"end_time": "2024-01-02T13:00:00+0900", "value": 3},
+        ]},
+    ], ["page_impressions", "page_fans", "page_views_total"])
+
+    assert df["date"].tolist() == ["2024-01-01"]
+    assert df.iloc[0][["page_impressions", "page_fans", "page_views_total"]].tolist() == [1, 2, 3]
+
+
+@pytest.mark.parametrize("end_time, measured_day", [
+    ("2025-01-01", "2024-12-31"),
+    ("2025-01-01T08:00:00+0000", "2024-12-31"),
+    ("2025-01-01T03:00:00+0500", "2024-12-30"),
+    ("2024-12-31T22:00:00-0300", "2024-12-31"),
+], ids=["naive-date", "utc", "east-of-utc", "west-of-utc"])
+def test_page_insights_measured_day_across_year_boundary(
+    page_insights, end_time, measured_day,
+):
+    df = page_insights([
+        {"name": "page_impressions", "values": [{"end_time": end_time, "value": 5}]},
+    ], ["page_impressions"])
+
+    assert df["date"].tolist() == [measured_day]
+
+
+@pytest.fixture
+def host_timezone():
+    """Run with a forced host TZ and restore it afterwards."""
+    import os
+    import time
+
+    if not hasattr(time, "tzset"):
+        pytest.skip("time.tzset is unavailable; run these timezone-isolation tests on a POSIX host with time.tzset")
+    original = os.environ.get("TZ")
+
+    def apply(name):
+        os.environ["TZ"] = name
+        time.tzset()
+
+    yield apply
+    if original is None:
+        os.environ.pop("TZ", None)
+    else:
+        os.environ["TZ"] = original
+    time.tzset()
+
+
+@pytest.mark.parametrize("tz_name", ["Pacific/Kiritimati", "America/Los_Angeles", "UTC"])
+def test_page_insights_naive_end_time_is_utc_on_any_host(
+    page_insights, host_timezone, tz_name,
+):
+    host_timezone(tz_name)
+    df = page_insights([
+        {"name": "page_impressions", "values": [
+            {"end_time": "2024-01-02T08:00:00", "value": 7},
+            {"end_time": "2024-01-03T08:00:00+0000", "value": 8},
+        ]},
+    ], ["page_impressions"])
+
+    assert df["date"].tolist() == ["2024-01-01", "2024-01-02"]
+
+
+def test_page_insights_requested_metric_absent_from_response_is_nan_column(page_insights):
+    df = page_insights([
+        {"name": "page_impressions", "values": [
+            {"end_time": "2024-01-02T08:00:00+0000", "value": 0},
+        ]},
+    ], ["page_fans", "page_impressions"])
+
+    assert df.columns.tolist() == ["date", "page_fans", "page_impressions"]
+    assert pd.isna(df.loc[0, "page_fans"])
+    assert df.loc[0, "page_impressions"] == 0
+
+
+@pytest.mark.parametrize("unrequested", [
+    {"name": "page_fans", "values": [{"end_time": "2024-01-05T08:00:00+0000", "value": 9}]},
+    # Its values are discarded unread, so an unparseable end_time is not an error.
+    {"name": "page_fans", "values": [{"end_time": "not-a-timestamp", "value": 9}]},
+], ids=["valid-values", "unparseable-values"])
+def test_page_insights_unrequested_only_response_is_schema_frame(page_insights, unrequested):
+    df = page_insights([unrequested], ["page_impressions"])
+
+    assert df.empty
+    assert df.columns.tolist() == ["date", "page_impressions"]
+
+
+def test_page_insights_unrequested_metric_creates_no_rows(page_insights):
+    df = page_insights([
+        {"name": "page_impressions", "values": [
+            {"end_time": "2024-01-02T08:00:00+0000", "value": 10},
+        ]},
+        {"name": "page_fans", "values": [
+            {"end_time": "2024-01-05T08:00:00+0000", "value": 99},
+        ]},
+    ], ["page_impressions"])
+
+    assert df.columns.tolist() == ["date", "page_impressions"]
+    assert df["date"].tolist() == ["2024-01-01"]
+    assert df["page_impressions"].tolist() == [10]
+
+
+def test_page_insights_explicit_null_value_is_nan_and_zero_stays_zero(page_insights):
+    df = page_insights([
+        {"name": "page_impressions", "values": [
+            {"end_time": "2024-01-02T08:00:00+0000", "value": None},
+            {"end_time": "2024-01-03T08:00:00+0000", "value": 0},
+        ]},
+    ], ["page_impressions"])
+
+    assert pd.isna(df.loc[0, "page_impressions"])
+    assert df.loc[1, "page_impressions"] == 0

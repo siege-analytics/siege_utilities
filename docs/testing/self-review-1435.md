@@ -35,6 +35,31 @@ Classification: caller code that worked on v4.0.0 now sees different results (pa
 
 Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_facebook_business_insights.py test_facebook_business_connector.py -m "not integration and not requires_api_key" -q` -> 29 passed, 1 deselected in 0.79s. The library code is unchanged since the red/green run recorded in the Falsification entry below, which still applies to this head.
 
+## Integration with #1812 (develop 79f37f4d)
+
+#1812 landed first, as the reviewer decided, and both PRs fix the same v4.0.0 page-insights bug with contradictory output contracts. This merge has parents 32f961e9 (this branch) then 79f37f4d (develop). The only conflict was the `get_page_insights` row-building hunk in `siege_utilities/analytics/facebook_business.py`; `CHANGELOG.md` and `tests/test_facebook_business_connector.py` merged without conflict. The hunk is resolved to the reviewer's contract:
+
+- `period=day`: `end_time` is normalized to UTC before one calendar day is subtracted (`_page_insight_measured_day`); a naive `end_time` is read as UTC, never host local time; an empty `end_time` stays empty.
+- Columns are fixed to `['date', *metrics]` in requested order. An absent value or metric is NaN, a known 0 stays 0, and an empty or unrequested-only response is a zero-row frame with that schema.
+- Every insight name is validated before any value is projected, so an unnamed insight raises `ValueError` even with empty values (#1812's behavior; this branch's skip-unnamed behavior is gone). Named but unrequested insights are dropped before their values are read.
+- Kept unchanged: #1812's Graph defaults and comma-joined `metric` parameter, and this branch's per-instance API sessions, ad insights, business NaN and `config_directory`.
+
+Disclosed test changes. Every other assertion and control is kept.
+- (a) `test_facebook_business_connector.py::test_get_page_insights_keys_by_metric_name_across_every_date`: the date expectation moves from the raw `end_time` to the measured day (`["2025-12-31", "2026-01-01"]`). The value and cardinality assertions are unchanged.
+- (b) `test_facebook_business_insights.py::test_page_insights_without_named_values_has_schema`: its `no-name` case moves to the new `test_page_insights_rejects_unnamed_insight_before_projection`, which expects `ValueError`. The `no-insights` and `no-values` schema cases stay.
+- (c) `test_page_insights_normalises_every_end_time_to_measured_day`, `+1400` case: the expectation moves from `["2024-02-29", "2024-03-01"]` to `["2024-02-28", "2024-02-29"]`. 00:00 at +14:00 is 10:00 UTC the previous day, and the old expectation encoded the literal local date, which the UTC contract replaces.
+
+New controls: offset equivalence (three spellings of one instant), the year boundary (naive, UTC, east and west of UTC), host-TZ independence for a naive `end_time` (`TZ` forced to Pacific/Kiritimati, America/Los_Angeles and UTC), a requested metric absent from the response, an unrequested-only response (including one with an unparseable `end_time`, which is never read), an unrequested metric creating no rows, an explicit null value next to a known zero, and unnamed insights with values, empty values, an empty name and a null name.
+
+Red and green, from the `tests` directory (Python 3.11, repository pyproject, mock transport only; no live Facebook, network or TLS claim):
+- This branch's parent source (`facebook_business.py` at 32f961e9): `test_facebook_business_connector.py` and `test_facebook_business_insights.py` gave 9 failed, 39 passed, 1 skipped. All 9 are behavioral: unnamed insights did not raise (5), and offset/UTC labels were wrong (4). The naive host-TZ control passes on this parent, because literal-date parsing is also host-independent.
+- Develop's parent source (79f37f4d): 36 failed, 12 passed, 1 skipped. 22 page-insights failures are behavioral (raw `end_time` dates, dynamic columns, unrequested rows, and a `TypeError` on `values: None`). The other 14 are this branch's features absent from develop: per-instance sessions (7, including the two connector init tests), ad fields (2) and business NaN (1) fail behaviorally; of the 4 `config_directory` cases, three batch calls fail with an interface `TypeError` and the signature check fails its assertion.
+- The merged tree: the two Facebook files gave 48 passed, 1 skipped (the skip is the `requires_api_key` live test). With `test_social_connectors_cluster.py`, `test_social_media_reports_nulls.py`, `test_social_review_blockers.py`, the four `test_1812_*` files, `test_instagram_token_exchange_logging.py` and `test_x_budget_enforced_per_attempt.py`: 411 passed, 1 skipped. `test_social_media_reports_errors.py` and the three exception-contract files: 68 passed. `test_notebook_hygiene.py` and `test_notebooks.py`: 265 passed, 1 skipped.
+
+CHANGELOG: develop's #1474 BREAKING entry keeps Instagram's `None` policy; only its Facebook clause now says a missing daily value is unavailable (NaN). This branch's #1435 entry, now under `[5.0.0]`, states the one Facebook contract above and its Migration, including that `date` was the raw `end_time` in v4.0.0. No other entry is changed or moved.
+
+This comparison is the implementer's own and is not an independent hostile review.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1435 (the #1398 epic is context only and is not a governing ticket).
