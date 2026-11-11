@@ -80,3 +80,21 @@ Tests in the merged tree, one invocation: Python 3.11.11, pytest 8.4.2, pytest-r
 - `pytest -p randomly --randomly-seed=2859228993` over `tests/test_1404_census_dual_source_fallback.py tests/test_census_api_client.py tests/test_dual_source_1375.py tests/test_summary_file_1385.py tests/test_credential_url_leak.py tests/test_1882_architecture_module_walk.py tests/test_architecture.py tests/guard/test_exception_contract_guard.py` -> 551 passed. The same set with a random seed also gave 551 passed.
 - `scripts/check_exception_contracts.py --list` -> 0 unlisted, 0 stale.
 - Boundary: the local virtualenv path does not contain `siege_utilities`, so this run does not reproduce CI's path condition. Fresh hosted CI on the merge head is the evidence for the 3.13 lane. No live Census calls; HTTP and sleep are faked, as before.
+
+## Develop integration (79f37f4d, 2026-11-11)
+
+Reason for the merge: after #1812 landed, develop `79f37f4d` and this branch added entries at the same place in `CHANGELOG.md`, so the pull request reported a conflict.
+
+Merge: `8558aee2ed30f7a696c424e1216a515708be4573` (first parent) + develop `79f37f4df28059a875c8dbf84cf77ce86812bdbb`, made with `--no-ff --no-commit`. One file conflicted, `CHANGELOG.md`, with one add/add hunk under `## [5.0.0]` `### BREAKING`. Develop's #1474/#1458, #1465/#1835 and #1812 entries with their Migration paragraphs come first, then this PR's #1404 entry with its Migration paragraph, both verbatim; only the conflict markers were removed. No source or test file needed resolution.
+
+- `CHANGELOG.md` against `79f37f4d`: 16 lines added, none removed (the #1404 entry). Against `8558aee2`: 85 added, none removed.
+- Inventory against `79f37f4d`: only this PR's 13 files differ. Every imported develop file equals landed develop.
+- Inventory against `8558aee2`: exactly the 24 files develop changed between `83d3032e` and `79f37f4d`, plus this section.
+- Guard inputs: `scripts/exception_contracts_allowlist.json` and `scripts/check_credential_urls.py` are develop's blobs (this PR never changed them); `scripts/contracts/contract_allowlist.json` is this PR's blob with `CensusServerError` (develop never changed it). The exception allowlist has 205 keys and no duplicates.
+
+Tests in the merged tree: Python 3.11.11, pytest 8.4.2, pytest-randomly 5.0.0.
+
+- `pytest -p randomly --randomly-seed=1791` over `tests/test_1404_census_dual_source_fallback.py tests/test_census_api_client.py tests/test_census_api_key_warning.py tests/test_census_cache_backend.py tests/test_census_cache_django_roundtrip.py tests/test_census_catalog_cache.py tests/test_dual_source_1375.py tests/test_summary_file_1385.py tests/test_credential_url_guard.py tests/test_credential_url_leak.py tests/test_instagram_token_exchange_logging.py tests/test_public_api_surface.py tests/test_1882_architecture_module_walk.py tests/test_architecture.py tests/test_development_runtime_introspection_contracts.py tests/guard/test_exception_contract_guard.py tests/test_exception_contract_review.py` -> 1007 passed, none skipped.
+- `scripts/check_exception_contracts.py --list` -> 205 handlers flagged, 0 unlisted, 0 stale.
+- The credential URL scan of `siege_utilities` runs inside `tests/test_credential_url_guard.py` (`test_no_unreviewed_credential_urls`, `test_credential_url_allowlist_is_specific_and_current`), both passing.
+- Boundary: no live Census calls; HTTP and sleep are faked. `tests/test_census_api_integration.py` is network-bound and was not run. PostGIS and notebook jobs are left to exact-head CI.
