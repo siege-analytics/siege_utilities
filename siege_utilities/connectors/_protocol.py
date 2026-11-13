@@ -272,17 +272,18 @@ class _SecretRedactionMixin:
 
         For credentials a public call sends that are not instance configuration
         (an OAuth authorization code). Read-only: the value sent is unchanged.
-        A non-string value cannot be matched safely, so it fails closed: every
-        diagnostic for the rest of the call becomes the trusted constant. A
-        ``str`` subclass is copied to an exact ``str`` first, so its own
-        methods never run here. Must run inside a public connector call, whose
+        Only an exact ``str`` is collected. Anything else fails closed, so every
+        diagnostic for the rest of the call becomes the trusted constant. That
+        includes a ``str`` subclass, whose ``encode`` (called when the form is
+        encoded) may send text other than what it reads as. Its own methods
+        never run here. Must run inside a public connector call, whose
         boundary owns the scope.
         """
         invocation = _invocation_secrets.get()
         if invocation is None:
             raise RuntimeError("per-call credentials must be registered inside a public connector call")
-        if isinstance(value, str):
-            invocation.add(str.__str__(value))
+        if type(value) is str:
+            invocation.add(value)
         else:
             invocation.failed = True
 
@@ -297,17 +298,22 @@ class _SecretRedactionMixin:
         Recognized credential header names (``Authorization``,
         ``Proxy-Authorization``, ``X-Api-Key`` and the other names the key-based
         redactor knows) are matched case-insensitively and ignoring surrounding
-        whitespace, as ``str`` or ``bytes``. The raw value is registered, plus
-        the credential after an auth scheme (``Bearer <token>``, any
-        whitespace); a bytes value is registered in its latin-1 and UTF-8
-        decodings. Names and values are copied to exact ``str``
-        first, so a ``str`` subclass's own methods never run here. Other headers
-        are ordinary data and are not registered. A ``None`` value is skipped
-        (requests drops it, so nothing is sent). The mapping is caller-supplied
-        and untrusted: if copying or reading it fails, a header name is neither
-        text nor bytes, or a credential value is not text or bytes, collection
-        fails closed for the rest of the call. Read-only: the snapshot is not
-        modified. The broad handler is reviewed in
+        whitespace. The raw value is registered, plus the credential after an
+        auth scheme (``Bearer <token>``, any whitespace); a bytes value is
+        registered in its latin-1 and UTF-8 decodings. Other headers are
+        ordinary data and are not registered. A ``None`` value is skipped
+        (requests drops it, so nothing is sent).
+
+        Only exact ``str`` and ``bytes`` names and credential values are
+        collected, through their builtin methods. A subclass can override
+        ``decode``, ``encode`` or other methods the transport calls when it
+        sends the value, so what is sent cannot be known from the object. Any
+        subclass name, or subclass credential value, therefore fails closed
+        for the rest of the call. Its own methods never run here. The mapping
+        is caller-supplied and untrusted: if copying it fails, or a name or
+        credential value is of any other type, collection also fails closed.
+        Read-only: the snapshot is not modified, and every value is still sent
+        as supplied. The broad handler is reviewed in
         scripts/exception_contracts_allowlist.json.
         """
         if headers is None:
@@ -319,20 +325,20 @@ class _SecretRedactionMixin:
             snapshot = dict(headers)
             failed = False
             for name, raw in snapshot.items():
-                if isinstance(name, bytes):
+                if type(name) is bytes:
                     name = name.decode("latin-1")
-                if not isinstance(name, str):
+                elif type(name) is not str:
                     failed = True
                     continue
-                key = str.__str__(name).strip().lower()
+                key = name.strip().lower()
                 if key not in _CREDENTIAL_HEADERS or raw is None:
                     continue
-                if isinstance(raw, bytes):
+                if type(raw) is bytes:
                     # Valid UTF-8 adds its exact text; invalid bytes add a
                     # replacement-character string, which only over-redacts.
                     texts = [raw.decode("latin-1"), raw.decode("utf-8", errors="replace")]
-                elif isinstance(raw, str):
-                    texts = [str.__str__(raw)]
+                elif type(raw) is str:
+                    texts = [raw]
                 else:
                     failed = True
                     continue

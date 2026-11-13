@@ -22,7 +22,7 @@ section below):
 Pre-author-inventory: https://github.com/siege-analytics/siege_utilities/pull/1846#issuecomment-6799717089 (the credential collector, both credential entry points and the shared header-name list, read before the change)
 Investigate-artifact: https://github.com/siege-analytics/siege_utilities/pull/1846#issuecomment-6799717089
 Pre-mortem-artifact: https://github.com/siege-analytics/siege_utilities/pull/1846#issuecomment-6799717089
-Hostile-review-artifact: https://github.com/siege-analytics/siege_utilities/pull/1846#issuecomment-6800741041 (first fresh-context adversarial pass; second pass on the staged change: https://github.com/siege-analytics/siege_utilities/pull/1846#issuecomment-6801144147; third pass on the test file: https://github.com/siege-analytics/siege_utilities/pull/1846#issuecomment-6804929888)
+Hostile-review-artifact: https://github.com/siege-analytics/siege_utilities/pull/1846#issuecomment-6800741041 (first fresh-context adversarial pass; second pass on the staged change: https://github.com/siege-analytics/siege_utilities/pull/1846#issuecomment-6801144147; third pass on the test file: https://github.com/siege-analytics/siege_utilities/pull/1846#issuecomment-6804929888; subclass round with its hostile re-check: https://github.com/siege-analytics/siege_utilities/pull/1846#issuecomment-6843497902)
 
 ## Peer review
 
@@ -542,6 +542,69 @@ These runs put the source files back to `ec09ffa9` and to each earlier
 version with the tests kept, then copied the final files back and checked
 their hashes.
 
+## Subclass collection round (2026-11-13, on head `bffee49e`)
+
+Goal source: the reviewer's disposition of head `bffee49e` retained the hold
+for one source-derived residual, not an executed leak. A `bytes` subclass
+whose buffer holds the real token can override `decode()` to return an
+ordinary shadow value. Registration then recorded the shadow text while the
+transport sent the real buffer, so a neutral echo of the complete token
+reached a 400 detail or a connector log unredacted.
+
+Change (supersedes the "copied to exact `str` first" description above):
+only exact `str` and `bytes` header names, credential values and OAuth codes
+are collected, through their builtin methods. A subclass can override
+`decode`, `encode` or other methods the transport calls when it sends the
+value (http.client encodes text header values; urlencode encodes form
+values). So what is sent cannot be known from the object, and any subclass
+fails closed to the trusted constant for the rest of that call. Its own
+methods never run during collection, and it is still sent unchanged. This
+does not claim that one builtin call recovers what an overridden name,
+`encode` or buffer would send. It refuses to guess.
+
+Tests (65 cases in the file, 6 new or changed):
+
+- The reviewer's case through the public `request`: a `bytes` subclass with
+  a shadow `decode()`, a neutral complete-token echo in the 400 detail and in
+  an in-call connector log, the constant-only message, and the sent object
+  and buffer unchanged.
+- A `str` value with a shadow `encode()`, and a header name that encodes as
+  `Authorization`.
+- An OAuth code whose `encode()` yields the real code (all three providers).
+- The two earlier `str`-subclass tests now expect the constant-only result
+  instead of ordinary detail. Exact `str` and `bytes` positives still keep
+  ordinary detail.
+
+Red/green on `bffee49e` source: 10 failed and 55 passed.
+
+- 6 failures are causal: the per-call token or code is present in the
+  exception text. That covers the shadow-decode `bytes` value, the
+  shadow-encode `str` value and name, and the shadow-encode code (×3).
+- 4 are the changed expectations for the earlier `str`-subclass tests (×1
+  header, ×3 code). The old source already redacted those tokens; it fails
+  only on the new constant-only assertion.
+- With the change, 65 passed. Restored control: `_protocol.py` put back to
+  `bffee49e` with the tests kept gave the same 10 failures. The change copied
+  back (sha256 8cf9c83c) gave 65 passed.
+
+Limits:
+
+- A caller passing a `str` or `bytes` subclass now gets constant-only
+  diagnostics for that call, bounded by the existing lifetime tests. This
+  includes a subclass used as an ordinary header name (for example a
+  `StrEnum` member as `Content-Type`), because a name could encode as a
+  credential header.
+- Credentials configured on the connector (constructor values such as an
+  access token or client secret) are still collected with `isinstance(...,
+  str)`. A subclass there could format or encode to a value other than the
+  one registered. That path is outside this per-call round and is recorded,
+  not changed, here.
+
+A fresh-context hostile re-check of this round's diff found no high or medium
+issue. It noted one test compared the sent headers with `==`, which could not
+detect a swapped plain-`str` copy; that test now checks identity. It also
+noted the two limits above.
+
 ## Count and test-name qualification (2026-11-11)
 
 - Scanner disposition 6 above names `test__http.py` and `test__retry.py` only
@@ -583,3 +646,15 @@ their hashes.
   structural test and recorded as limits.
 - Third independent pass (test file): 9 findings (2 medium, 7 low); 8
   addressed with test changes, and the replay test kept as is.
+- Subclass round (2026-11-13), Python 3.11.11:
+  - New file 65 cases: 10 failed / 55 passed on `bffee49e` source (6 causal
+    missing-token, 4 changed constant-only expectations), 65 passed final.
+  - The 34 PR test files, the new file and `tests/guard`: 2005 passed.
+  - The sweep (same `-k`): 5235 passed, 6 skipped, 1 error. In this run GDAL
+    was available, so the two GeoDjango files collected. The one error is
+    `tests/test_rdh_precinct_loader.py::TestPrecinctLoading::test_discovers_requested_year_and_office[2024-g24sosidoe-secretary_of_state-IND-DOE]`
+    (matched by `secret`). It needs a local Postgres role `postgres` that does
+    not exist: environment setup, not run successfully, unrelated to this
+    diff.
+  - Exception contracts 215 flagged, 0 unlisted, 0 stale; credential-URL
+    guard 0; test-file hygiene PASS; ruff clean.

@@ -461,7 +461,15 @@ class HostileStr(str):
     __hash__ = str.__hash__
 
 
-def test_a_str_subclass_header_value_is_registered_without_running_its_methods() -> None:
+# A str or bytes SUBCLASS can override decode(), encode() or other methods,
+# and the transport (http.client, urlencode) may call them when it sends the
+# value. What is sent then cannot be known from the object, so only exact str
+# and bytes are collected; a subclass fails closed to the trusted constant for
+# the call. Its own methods never run during collection, and it is still sent
+# unchanged.
+
+
+def test_a_str_subclass_header_value_fails_closed_without_running_its_methods() -> None:
     c = dynamics()
     c._session.request = Mock(return_value=response(401, echo_body(PER_CALL)))
     value = HostileStr(f"Bearer {PER_CALL}")
@@ -470,12 +478,14 @@ def test_a_str_subclass_header_value_is_registered_without_running_its_methods()
         c.request("GET", "/x", headers={"Authorization": value})
 
     assert PER_CALL not in shown(caught.value)
-    assert "was rejected for this tenant" in str(caught.value)
+    # The 401 path raises ConnectorAuthError without a status attribute, so
+    # the trusted constant is the class name alone.
+    assert str(caught.value) == "ConnectorAuthError"
     assert c._session.request.call_args.kwargs["headers"]["Authorization"] is value
 
 
 @pytest.mark.parametrize("provider", ["hubspot", "salesforce", "zoho"])
-def test_a_str_subclass_authorization_code_is_registered_without_running_its_methods(
+def test_a_str_subclass_authorization_code_fails_closed_without_running_its_methods(
     provider: str,
 ) -> None:
     c = connector(provider)
@@ -489,6 +499,98 @@ def test_a_str_subclass_authorization_code_is_registered_without_running_its_met
         c.authenticate_with_code(code, CALLBACK)
 
     assert CODE not in shown(caught.value)
+    assert str(caught.value) == "ConnectorAuthError"
+    assert c._session.post.call_args.kwargs["data"]["code"] is code
+
+
+class ShadowBytes(bytes):
+    """Sends its real buffer, but decode() returns an ordinary shadow value."""
+
+    def decode(self, *args: Any, **kwargs: Any) -> str:
+        return "ordinary-shadow-value"
+
+
+class ShadowEncodeStr(str):
+    """Reads as an ordinary value, but encode() (used on send) yields the token."""
+
+    def encode(self, *args: Any, **kwargs: Any) -> bytes:
+        return f"Bearer {PER_CALL}".encode("latin-1")
+
+
+class EncodesAsAuthorization(str):
+    """A header name that reads as ordinary but encodes as Authorization."""
+
+    def encode(self, *args: Any, **kwargs: Any) -> bytes:
+        return b"Authorization"
+
+
+def test_a_bytes_subclass_credential_with_a_shadow_decode_fails_closed(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    c = dynamics()
+    buffer = f"Bearer {PER_CALL}".encode("latin-1")
+    value = ShadowBytes(buffer)
+
+    def send(*args: Any, **kwargs: Any):
+        # Neutral complete-token echoes: no Bearer, key or URL syntax.
+        c._log.warning("upstream rejected %s", PER_CALL)
+        return response(400, {"error": {"message": f"upstream rejected {PER_CALL}"}})
+
+    c._session.request = Mock(side_effect=send)
+    caplog.set_level(logging.WARNING)
+
+    with pytest.raises(ConnectorError) as caught:
+        c.request("GET", "/x", headers={"Authorization": value})
+
+    assert PER_CALL not in shown(caught.value)
+    assert caplog.records
+    assert PER_CALL not in logged(caplog)
+    assert str(caught.value) == "ConnectorError (HTTP 400)"
+    sent = c._session.request.call_args.kwargs["headers"]["Authorization"]
+    assert sent is value
+    assert bytes(sent) == buffer
+
+
+@pytest.mark.parametrize("headers", [
+    {"Authorization": ShadowEncodeStr("Bearer ordinary-shadow-value")},
+    {EncodesAsAuthorization("X-Request-Note"): PER_CALL},
+], ids=["value-with-shadow-encode", "name-encoding-as-authorization"])
+def test_str_subclass_names_and_values_fail_closed(headers: dict) -> None:
+    c = dynamics()
+    c._session.request = Mock(return_value=response(400, {
+        "error": {"message": f"upstream rejected {PER_CALL}"},
+    }))
+
+    with pytest.raises(ConnectorError) as caught:
+        c.request("GET", "/x", headers=headers)
+
+    assert PER_CALL not in shown(caught.value)
+    assert str(caught.value) == "ConnectorError (HTTP 400)"
+    # Sent unchanged: the very same name and value objects, not equal copies.
+    sent = c._session.request.call_args.kwargs["headers"]
+    [(name, value)] = headers.items()
+    [(sent_name, sent_value)] = sent.items()
+    assert sent_name is name and sent_value is value
+
+
+@pytest.mark.parametrize("provider", ["hubspot", "salesforce", "zoho"])
+def test_an_authorization_code_subclass_with_a_shadow_encode_fails_closed(provider: str) -> None:
+    class ShadowCode(str):
+        def encode(self, *args: Any, **kwargs: Any) -> bytes:
+            return CODE.encode("ascii")
+
+    c = connector(provider)
+    echo = f"code {CODE} has expired"
+    c._session.post = Mock(return_value=response(400, {
+        "message": echo, "error_description": echo, "error": echo,
+    }))
+    code = ShadowCode("ordinary-shadow-value")
+
+    with pytest.raises(ConnectorAuthError) as caught:
+        c.authenticate_with_code(code, CALLBACK)
+
+    assert CODE not in shown(caught.value)
+    assert str(caught.value) == "ConnectorAuthError"
     assert c._session.post.call_args.kwargs["data"]["code"] is code
 
 

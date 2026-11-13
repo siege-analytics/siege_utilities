@@ -909,8 +909,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a `DynamicsConnector.request(headers=...)` credential header and the code
   passed to HubSpot, Salesforce and Zoho `authenticate_with_code` are removed
   from that call's exceptions and log records, including a nested token
-  refresh. A short or unreadable one leaves only the error type and HTTP
-  status. The values sent are unchanged and are not kept after the call
+  refresh. A short or unreadable one, or a `str` or `bytes` subclass (whose
+  sent value cannot be known from the object), leaves only the error type and
+  HTTP status. The values sent are unchanged and are not kept after the call
   (#1846).
 - Credential files are written with mode 0600 before writing their payload,
   including existing files, with no write-then-chmod race. Missing parent
