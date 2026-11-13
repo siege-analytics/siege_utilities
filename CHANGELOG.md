@@ -433,8 +433,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of `0`; in v4.0.0 an omitted follower, like, comment or impression
   count, and an Instagram media or story insight without a value, became 0.
   Instagram media insights read `total_value` and keep a missing value as
-  `None`, and Facebook Page Insights keep a missing daily value as `None`
-  instead of `0` (#1474). Post frames keep their existing columns, add a `metrics`
+  `None`, and Facebook Page Insights report a missing daily value as
+  unavailable (NaN) instead of `0` (#1474, #1435). Post frames keep their existing columns, add a `metrics`
   dictionary and return `published_at` as a UTC-aware timestamp (NaT if
   unavailable) instead of the API's string, with a stable schema for empty
   results. When a later page stays throttled, the posts collected so far are
@@ -705,6 +705,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Nothing repairs them automatically. Run
   `python manage.py backfill_derived_fields --dry-run --strip-name` to see
   the counts, then the same command without `--dry-run` (#1539, #1550).
+- Facebook page insights now merge every metric's daily values by measured day.
+  For `period=day`, `date` is a `YYYY-MM-DD` string: `end_time` normalized to
+  UTC (an `end_time` without an offset is read as UTC, not host local time),
+  minus one day. The frame always has the columns `date` plus the requested
+  metrics in requested order; a requested metric absent from the response is a
+  column of NaN, and an empty response, or one holding only metrics that were
+  not requested, is a zero-row frame with those columns. Returned metrics that
+  were not requested are dropped. Missing per-day values and metric/day pairs
+  are NaN, not zero; a reported 0 stays 0. An insight without a metric name
+  raises `ValueError`, even when it has no values. Each connector uses its own
+  API session for page, ad, business, and account calls, preventing token sharing while preserving any existing SDK default API.
+  Facebook ad insights now request daily rows (`time_increment=1`) and include
+  `ad_id`, `ad_name`, `date_start`, and `date_stop`, including when callers
+  supply custom fields; missing ad and business metrics are NaN instead of
+  zero. `batch_retrieve_facebook_data` documents its accepted `data_types` as
+  `ad_account`, `page`, and `business` and accepts `config_directory` to load
+  the client profiles used by all three retrieval paths. **Migration:** parse
+  page-insight `date` as a `YYYY-MM-DD` string for the UTC day before
+  `end_time` (it was the raw `end_time` string in v4.0.0), and re-check any
+  code that assumed the old date value; select page-insight columns by the
+  metric names you requested, since unrequested metrics are no longer returned;
+  handle `ValueError` for a response with an unnamed insight; treat NaN as "no
+  value" and fill it explicitly if zero was intended; expect one row per day
+  from ad insights and the added `ad_id`, `ad_name`, `date_start` and
+  `date_stop` columns (#1435).
 - `CrosswalkPopulationService.populate` (and `populate_crosswalks`) now loads
   crosswalks: it calls `get_crosswalk(geography_level=...)` instead of the
   nonexistent `geography_type=` keyword, which raised `TypeError` on every
