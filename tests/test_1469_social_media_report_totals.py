@@ -134,20 +134,40 @@ def test_post_counts_and_engagement_are_labeled_as_samples(report, posts_limit):
     payload = writer.call_args.args[0]
     summary = payload["executive_summary"]
     assert f"{limit + 3} posts analyzed" in summary
-    assert f"most recent up to {limit} per platform" in summary
+    assert f"(up to {limit} per platform" in summary
     assert "posts in the reporting window" not in summary
     metrics = payload["metrics"]
     assert "Total Posts (all platforms)" not in metrics
-    assert metrics[f"fakebook — Posts analyzed (most recent up to {limit})"]["value"] == str(limit)
-    assert metrics[f"Posts analyzed (all platforms; most recent up to {limit} each)"]["value"] == str(limit + 3)
+    assert metrics[f"fakebook — Posts analyzed (up to {limit})"]["value"] == str(limit)
+    assert metrics[f"Posts analyzed (all platforms; up to {limit} each)"]["value"] == str(limit + 3)
     comparison = payload["tables"][0]
-    assert comparison["headers"][-1] == f"Posts analyzed (most recent up to {limit})"
+    assert comparison["headers"][-1] == f"Posts analyzed (up to {limit})"
     assert comparison["data"][0][-1] == str(limit)
     assert "analyzed posts" in payload["charts"][1]["title"]
     assert all("analyzed posts" in table["title"] for table in payload["tables"][1:])
     post_insights = [line for line in payload["insights"] if "post" in line]
     assert post_insights
     assert all("analyzed posts" in line for line in post_insights)
+
+
+def test_capped_posts_make_no_recency_claim(report):
+    # The connector protocol promises at most ``limit`` posts and no order. A
+    # connector that returns its oldest posts first must not be described as
+    # the most recent sample.
+    generator, writer = report
+    posts = pd.DataFrame({
+        "text": [f"Post {i}" for i in range(80)],
+        "like_count": range(80),
+        "published_at": pd.date_range("2026-01-01", periods=80, freq="D"),
+    })
+
+    generator.create_social_media_report([FakeConnector(posts=posts)], START, END, posts_limit=30)
+
+    payload = writer.call_args.args[0]
+    rendered = str(payload).lower()
+    assert not any(word in rendered for word in ("recent", "newest", "latest"))
+    assert "up to 30 per platform" in payload["executive_summary"]
+    assert payload["metrics"]["fakebook — Posts analyzed (up to 30)"]["value"] == "30"
 
 
 @pytest.mark.parametrize("missing_followers", [None, float("nan"), pd.NA])

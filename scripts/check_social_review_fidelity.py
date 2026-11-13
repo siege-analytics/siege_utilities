@@ -133,9 +133,10 @@ _AUTHORIZED = frozenset({
     "x._tweets_to_dataframe.omitted[0,'impression_count']",
 })
 
-# #1469 rewords the report so post metrics read as a capped sample of the most
-# recent posts. Before the unchanged strict comparison, these fixed rules turn
-# the FROZEN BASELINE report's wording into #1469's. The rules are literal and
+# #1469 rewords the report so post metrics read as a capped sample of posts,
+# with no claim about their order. Before the unchanged strict comparison,
+# these fixed rules turn the FROZEN BASELINE report's wording into #1469's.
+# The rules are literal and
 # never derived from the current report. Each rewrite is recorded by fixture
 # case, rule, slot kind (dict key, dict value, comparison-table header) and its
 # ORIGINAL baseline path. The record must equal _1469_EXPECTED_REWRITES
@@ -145,15 +146,15 @@ _POSTS_LIMIT = 50
 _1469_STRINGS = {
     "Total Likes by Platform": "Likes from analyzed posts by Platform",
     "Total Posts (all platforms)": (
-        f"Posts analyzed (all platforms; most recent up to {_POSTS_LIMIT} each)"
+        f"Posts analyzed (all platforms; up to {_POSTS_LIMIT} each)"
     ),
 }
 _1469_PATTERNS = (
     ("platform posts metric key", re.compile(r"^(\w+) — Posts$"),
-     rf"\1 — Posts analyzed (most recent up to {_POSTS_LIMIT})"),
+     rf"\1 — Posts analyzed (up to {_POSTS_LIMIT})"),
     ("top posts table title", re.compile(r"^Top Posts — (.+)$"), r"Top analyzed posts — \1"),
     ("executive summary", re.compile(r"^(Cross-platform social media report .+ posts) in the reporting window\.$"),
-     rf"\1 analyzed (most recent up to {_POSTS_LIMIT} per platform within the reporting window). "
+     rf"\1 analyzed (up to {_POSTS_LIMIT} per platform within the reporting window). "
      "Post metrics describe this sample."),
     ("average likes insight", re.compile(r"^(.+): average (.+) likes per post across (\d+) posts\.$"),
      r"\1: average \2 likes per post among \3 analyzed posts (excluding missing like counts)."),
@@ -230,7 +231,7 @@ def _reword_table_headers(report: dict[str, Any], case: str, observed: Counter) 
     """#1469 relabels the comparison table's post-count column only."""
     for index, table in enumerate(report.get("tables", [])):
         if table.get("title") == "Platform Comparison" and table["headers"][3] == "Posts":
-            table["headers"][3] = f"Posts analyzed (most recent up to {_POSTS_LIMIT})"
+            table["headers"][3] = f"Posts analyzed (up to {_POSTS_LIMIT})"
             observed[(case, "comparison table header", "header",
                       f"report.tables[{index}].headers[3]")] += 1
             return

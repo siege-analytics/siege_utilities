@@ -139,6 +139,36 @@ Open reviewer question (no change made): the #1469 CHANGELOG Fixed entry says co
 
 Inherited limits (unchanged, disclosed): `pd.to_numeric` turns the integer 10**30 into an inexact float, and an integer above float range such as 10**400 raises `OverflowError`. Ties for the largest audience go to the first platform in input order. The guard adds no float conversion, and a 2**63+1 case pins exact large-integer formatting.
 
+## Review round: no recency claim for capped posts (2026-11-13)
+
+Review being answered: the code-review thread on `cf129681`, "Do not claim recency without an ordering contract". `SocialMediaProtocol.get_posts` (`siege_utilities/analytics/_social_protocol.py:162` to `:167`) promises posts in the window and a maximum count, with no order. The "most recent up to N" labels were new in this PR, and Instagram's own connector notes that it returns posts normally newest first only as a connector detail.
+
+Integration first: `90368d8` merges develop `ce07cf5d`. `git merge-tree` reported no conflicted path, and the result differs from develop only in this PR's nine files. Against `cf129681`, it adds only develop's twelve files.
+
+Fix, neutral wording only, with no sorting and no ordering claim:
+- `siege_utilities/reporting/social_media_reports.py`: the executive summary, the per-platform and all-platform posts metric keys, and the comparison table's posts header now say "up to N" instead of "most recent up to N".
+- The `posts_limit` docstring now says connectors promise only the maximum, not which posts within the reporting window or in what order.
+- `scripts/check_social_review_fidelity.py` (called out because it is the reviewed fidelity oracle): only its four rewrite target strings and its header comment change, to the new wording. The manifest, rule names, patterns, paths and counts are unchanged.
+- `tests/test_1469_social_media_report_totals.py`: the four label assertions are updated. One new test, `test_capped_posts_make_no_recency_claim`, gives the report a connector that returns its 30 oldest of 80 posts. It asserts that the report contains none of "recent", "newest" or "latest" and labels the sample "up to 30".
+
+Evidence (Python 3.11.11, from this worktree):
+- writing-tests: before the fix, on the module from `cf129681`, the new test → 1 failed, on the "recent" assertion. After the fix → 1 passed.
+- writing-tests: test_1469, report nulls, the fidelity oracle, report errors, the null-policy end-to-end test, review blockers, release process, CHANGELOG export and `tests/guard` → 345 passed. After the two review notes below, test_1469, the oracle, nulls and errors → 147 passed.
+- writing-code: `check_exception_contracts.py --list` → 200 flagged, 0 unlisted, 0 stale. `ruff check` on the three changed files → All checks passed. `check_test_file_hygiene.py` → PASS.
+- Not valid as evidence: running `scripts/check_social_review_fidelity.py` directly imports an installed copy of the library instead of this worktree, and it failed on an unrelated import. The oracle's audit is exercised inside the oracle test suite above.
+
+Hostile review (fresh context, of the staged change): ACCEPT.
+- No recency claim about social posts remains in the module, tests, scripts, notebooks, CHANGELOG or this file, and nothing sorts posts.
+- The protocol is order-free.
+- The oracle diff is limited to target strings and the comment, with the manifest unchanged. Oracle suite 69 passed; test_1469 47 passed.
+- The regression test really feeds the oldest posts.
+
+Two low notes were applied after the review:
+- the test also rejects "newest" and "latest";
+- the docstring says "not which posts within the reporting window".
+
+The CHANGELOG needs no change: its entries describe the labels without claiming recency. Text like counts at the report level remain tracked in #1915.
+
 ## Rework ledger
 - a15ae436/5a0d8626: unknown counts rendered as 0. Fixed in aa501053 per the ruling.
 - The 4.1.0 Changed and Fixed notes are restored to CHANGELOG.md, and the Fixed note states the policy.

@@ -141,9 +141,11 @@ class SocialMediaReportGenerator:
             end_date: Inclusive end of the reporting window.
             title: Custom report title. Defaults to
                 ``"Social Media Report — {client_name}"``.
-            posts_limit: Positive maximum number of recent posts to retrieve
-                per platform. Defaults to 50. Post counts, likes, rankings and
-                averages describe this sample, not the full reporting window.
+            posts_limit: Positive maximum number of posts to request from each
+                platform's connector. Defaults to 50. Connectors promise only
+                this maximum, not which posts within the reporting window or in
+                what order, so post counts, likes, rankings and averages
+                describe the returned sample, not the full reporting window.
 
         Returns:
             Path to the generated PDF.
@@ -249,7 +251,7 @@ class SocialMediaReportGenerator:
             f"covering {start_date} through {end_date}. "
             f"Analyzed {len(platforms)} platform(s) ({', '.join(platforms)}) "
             f"with {_format_metric(total_followers)} total followers and {total_posts:,} "
-            f"posts analyzed (most recent up to {posts_limit:,} per platform "
+            f"posts analyzed (up to {posts_limit:,} per platform "
             f"within the reporting window). Post metrics describe this sample."
         )
 
@@ -273,7 +275,7 @@ class SocialMediaReportGenerator:
 
             post_count = len(d["posts"])
             total_posts += post_count
-            metrics[f"{platform} — Posts analyzed (most recent up to {posts_limit:,})"] = {
+            metrics[f"{platform} — Posts analyzed (up to {posts_limit:,})"] = {
                 "value": f"{post_count:,}",
                 "change": "N/A",
                 "status": "stable",
@@ -284,7 +286,7 @@ class SocialMediaReportGenerator:
             "change": "N/A",
             "status": "stable",
         }
-        metrics[f"Posts analyzed (all platforms; most recent up to {posts_limit:,} each)"] = {
+        metrics[f"Posts analyzed (all platforms; up to {posts_limit:,} each)"] = {
             "value": f"{total_posts:,}",
             "change": "N/A",
             "status": "stable",
@@ -376,7 +378,7 @@ class SocialMediaReportGenerator:
                 "title": "Platform Comparison",
                 "headers": [
                     "Platform", "Followers", "Following",
-                    f"Posts analyzed (most recent up to {posts_limit:,})",
+                    f"Posts analyzed (up to {posts_limit:,})",
                 ],
                 "data": comparison_data,
             })
