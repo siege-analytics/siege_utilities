@@ -91,6 +91,55 @@ def test_spatial_helpers_reject_mismatched_crs(engine, frames, method):
         getattr(engine, method)(points, right)
 
 
+@pytest.mark.filterwarnings("ignore:CRS mismatch between:UserWarning")
+def test_multi_assign_keeps_matching_non_default_crs_across_layers(engine, frames):
+    points, polygons = frames
+    points = points.to_crs(3857)
+    layers = {
+        "district": polygons.to_crs(3857),
+        "county": polygons.rename(columns={"d": "c"}).to_crs(3857),
+    }
+
+    result = engine.multi_assign(points, layers)
+
+    assert len(result) == 1
+    assert list(result["id"]) == [1]
+    assert list(result["district_d"]) == ["x"]
+    assert list(result["county_c"]) == ["x"]
+    assert result["geometry"].iloc[0].equals(points.geometry.iloc[0])
+
+
+@pytest.fixture(params=[
+    "duckdb",
+    pytest.param("postgis", marks=pytest.mark.postgis),
+])
+def converting_engine(request):
+    """Engines that convert non-GeoDataFrame inputs with to_geodataframe."""
+    if request.param == "duckdb":
+        pytest.importorskip("duckdb")
+        return DuckDBEngine()
+    pytest.importorskip("sqlalchemy")
+    return PostGISEngine("postgresql://localhost/unused")
+
+
+@pytest.mark.filterwarnings("ignore:CRS mismatch between:UserWarning")
+def test_frame_without_crs_metadata_is_unknown_crs(converting_engine):
+    import pandas as pd
+
+    points = pd.DataFrame({"id": [1], "geometry": ["POINT (-10850000 3550000)"]})
+    polygons = gpd.GeoDataFrame(
+        {"d": ["x"]},
+        geometry=[box(-11000000, 3400000, -10700000, 3700000)],
+        crs="EPSG:3857",
+    )
+
+    result = converting_engine.spatial_join(points, polygons)
+
+    assert len(result) == 1
+    assert result[["id", "d"]].to_dict("records") == [{"id": 1, "d": "x"}]
+    assert result["geometry"].iloc[0].equals(Point(-10850000, 3550000))
+
+
 @pytest.mark.requires_spark
 def test_spark_spatial_join_rejects_known_mismatched_crs(real_spark_session):
     left = real_spark_session.createDataFrame([("POINT(-97.7 30.3)",)], ["geometry"])

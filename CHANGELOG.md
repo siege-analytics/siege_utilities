@@ -536,15 +536,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   loaded before this fix (#1539).
 - DuckDB and PostGIS `spatial_join`, along with `point_in_polygon`,
   `assign_boundaries`, `intersect_boundaries`, and `multi_assign`, now raise
-  `ValueError` on mismatched known CRS like PandasEngine. All engines share
-  the CRS check, including Spark when CRS metadata is available. Known CRS
-  values are compared as coordinate reference systems through pyproj when
-  it is installed, so `"EPSG:4326"` and `"epsg:4326"` match; without pyproj
-  they are compared literally with a warning. Matching and unknown CRS
-  retain their existing behavior (#1619). **Migration:** inputs with
-  mismatched known CRS used to join raw coordinates on DuckDB, PostGIS and
-  Spark and now raise; reproject one input to match the other (for example
-  `right.to_crs(left.crs)`) before calling `spatial_join` or these helpers.
+  `ValueError` on mismatched known CRS like PandasEngine. The check reads
+  the CRS of the inputs as passed: a frame without CRS metadata, such as a
+  pandas frame of WKT or a DuckDB query result, counts as unknown CRS and
+  joins as before. On PostGIS, `multi_assign` checks only the first
+  boundary layer, because each later layer receives the previous result
+  without its CRS (#1898). On Spark, only `spatial_join` and the
+  `point_in_polygon` and `intersect_boundaries` helpers that delegate to it
+  run the check, and only when both frames carry an explicit `crs`
+  attribute; Spark `assign_boundaries` and `multi_assign` do not check
+  (#1896). Known CRS values are compared as coordinate reference systems
+  through pyproj when it is installed, so `"EPSG:4326"` and `"epsg:4326"`
+  match; without pyproj they are compared literally, with a warning when
+  they differ. Matching and unknown CRS retain their existing behavior
+  (#1619). **Migration:** inputs with mismatched known CRS used to join raw
+  coordinates on DuckDB and PostGIS, and on Spark through the three checked
+  methods, and now raise; reproject one input to match the other before
+  calling them (for example `right.to_crs(left.crs)` for GeoDataFrames;
+  after reprojecting a Spark frame, update or remove its `crs` attribute).
 
 ### BREAKING
 

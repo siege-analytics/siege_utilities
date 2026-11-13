@@ -1372,9 +1372,11 @@ class DuckDBEngine(DataFrameEngine):
                      *, left_geom="geometry", right_geom="geometry"):
         # Delegate to GeoPandas for correctness
         import geopandas as gpd
+        # Check the inputs as given: to_geodataframe stamps the default CRS on
+        # frames without CRS metadata, which is not a CRS the caller supplied.
+        _validate_spatial_join_crs(left, right)
         left_gdf = self.to_geodataframe(left, left_geom) if not isinstance(left, gpd.GeoDataFrame) else left
         right_gdf = self.to_geodataframe(right, right_geom) if not isinstance(right, gpd.GeoDataFrame) else right
-        _validate_spatial_join_crs(left_gdf, right_gdf)
         return gpd.sjoin(left_gdf, right_gdf, how=how, predicate=predicate)
 
     def buffer(self, df, distance, geometry_col="geometry", *, crs=None):
@@ -2177,9 +2179,11 @@ class PostGISEngine(DataFrameEngine):
     def spatial_join(self, left, right, how="inner", predicate="intersects",
                      *, left_geom="geometry", right_geom="geometry"):
         import geopandas as gpd
+        # Check the inputs as given: to_geodataframe stamps the default CRS on
+        # frames without CRS metadata, which is not a CRS the caller supplied.
+        _validate_spatial_join_crs(left, right)
         left_gdf = left if isinstance(left, gpd.GeoDataFrame) else self.to_geodataframe(left, left_geom)
         right_gdf = right if isinstance(right, gpd.GeoDataFrame) else self.to_geodataframe(right, right_geom)
-        _validate_spatial_join_crs(left_gdf, right_gdf)
         return gpd.sjoin(left_gdf, right_gdf, how=how, predicate=predicate)
 
     def buffer(self, df, distance, geometry_col="geometry", *, crs=None):
