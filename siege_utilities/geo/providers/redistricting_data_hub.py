@@ -287,6 +287,52 @@ def _keep_existing_mode(dest: Path, replacement: Path) -> None:
     os.chmod(replacement, mode)
 
 
+def _received_wire_size(resp: Any, written_size: int) -> int:
+    """Return the number of response-body bytes that arrived on the wire.
+
+    Content-Length counts wire bytes. Without a Content-Encoding (or with
+    ``identity``) those are the bytes written to the file. Otherwise requests
+    may have decoded them, so the written count does not describe the wire;
+    use the count urllib3 read from the connection (``HTTPResponse.tell``),
+    which counts raw bytes before decoding in urllib3 1.26 and 2.x. A
+    response object that cannot report it raises rather than skipping the
+    check. urllib3 does not count chunked reads, so a server that sends
+    chunked transfer together with Content-Length and an encoding (which
+    RFC 7230 forbids) fails the check rather than being cached.
+    """
+    encoding = resp.headers.get("Content-Encoding", "").strip().lower()
+    if encoding in ("", "identity"):
+        return written_size
+    tell = getattr(getattr(resp, "raw", None), "tell", None)
+    wire_size = tell() if callable(tell) else None
+    if not isinstance(wire_size, int):
+        raise requests.RequestException(
+            f"Cannot verify the size of a {encoding!r}-encoded response: "
+            "the transport does not report the bytes received"
+        )
+    return wire_size
+
+
+def _sync_directory(directory: Path) -> None:
+    """Persist a completed rename in *directory*, best effort, on POSIX.
+
+    The replacement is already published, so a filesystem that cannot sync
+    a directory is logged at debug level rather than raised, as in
+    ``siege_utilities.files.operations.atomic_write_path``. Other platforms
+    cannot open a directory for fsync and are skipped.
+    """
+    if os.name != "posix":
+        return
+    try:
+        directory_fd = os.open(directory, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    except OSError:
+        log.debug("Directory fsync unavailable for %s", directory, exc_info=True)
+
+
 class RDHClient:
     """Client for the Redistricting Data Hub download API.
 
@@ -566,8 +612,12 @@ class RDHClient:
         """Download a dataset file and publish it to the cache atomically.
 
         New downloads must match Content-Length when the server supplies it.
-        Failed downloads remove their temporary file and preserve any existing
-        cache entry. Existing cache entries are reused without a network check.
+        For a content-encoded response, the bytes received on the wire are
+        compared, since the stored bytes may be decoded. The file is fsynced
+        before it is published, and on POSIX the directory after. Failed
+        downloads remove their temporary file and preserve any existing cache
+        entry. Existing cache entries are reused without a network or size
+        check.
 
         Parameters
         ----------
@@ -585,7 +635,10 @@ class RDHClient:
         Raises
         ------
         requests.RequestException
-            The request fails or the downloaded size differs from Content-Length.
+            The request fails, the received size differs from Content-Length,
+            or an encoded response's received size cannot be determined.
+        OSError
+            Writing, syncing or publishing the cache file fails.
         """
         if isinstance(dataset, str):
             url = dataset
@@ -630,13 +683,24 @@ class RDHClient:
                     written_size = 0
                     for chunk in resp.iter_content(chunk_size=8192):
                         written_size += output.write(chunk)
-                    if expected_size is not None and written_size != expected_size:
-                        raise requests.RequestException(
-                            f"Content-Length mismatch: expected {expected_size} "
-                            f"bytes, received {written_size}"
-                        )
-            _keep_existing_mode(dest, temporary_path)
+                    if expected_size is not None:
+                        received_size = _received_wire_size(resp, written_size)
+                        if received_size != expected_size:
+                            raise requests.RequestException(
+                                f"Content-Length mismatch: expected {expected_size} "
+                                f"bytes, received {received_size}"
+                            )
+                _keep_existing_mode(dest, temporary_path)
+                # Make the bytes and mode durable before the rename publishes
+                # them, so a crash cannot expose an empty or short entry where
+                # fsync reaches stable storage (on macOS, os.fsync does not
+                # flush the drive cache; that needs F_FULLFSYNC).
+                output.flush()
+                os.fsync(output.fileno())
             os.replace(temporary_path, dest)
+            # Persist the rename too, so a refresh (use_cache=False) that
+            # returned cannot revert to the entry it replaced after a crash.
+            _sync_directory(dest.parent)
         except requests.RequestException as e:
             message = redact_url_secrets(f"RDH download failed: {e}")
             log_error(message)
