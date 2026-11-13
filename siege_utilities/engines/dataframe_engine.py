@@ -900,7 +900,13 @@ class DataFrameEngine(ABC):
                 if (layer_crs_unknown and polygons.crs is not None
                         and points_crs is not None
                         and not _same_crs(points_crs, polygons.crs)):
-                    polygons = polygons.set_crs(None, allow_override=True)
+                    # Clear the CRS through the backing GeometryArray, as
+                    # _apply_geoseries_crs does, because set_crs(None) raises
+                    # on geopandas < 1.0. Work on a copy so the caller's data
+                    # is never changed, whatever conversion returned.
+                    # Coordinates are unchanged.
+                    polygons = polygons.copy()
+                    polygons[polygons.geometry.name].values.crs = None
             # Keep the layer's active geometry column under its own name, so a
             # layer whose geometry is not called "geometry" still joins.
             polygon_geom = polygons.geometry.name

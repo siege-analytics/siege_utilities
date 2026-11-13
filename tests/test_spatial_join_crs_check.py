@@ -111,7 +111,11 @@ def test_multi_assign_keeps_matching_non_default_crs_across_layers(engine, frame
 
 @pytest.fixture(params=["pandas", "duckdb"])
 def layer_checking_engine(request):
-    """Engines whose multi_assign keeps the GeoDataFrame, so every layer is checked."""
+    """Pandas and DuckDB engines, whose multi_assign checks every layer.
+
+    PostGIS multi_assign now checks every layer as well; its later-layer case
+    is in tests/test_1852_multi_assign_crs_layers.py under the postgis marker.
+    """
     if request.param == "pandas":
         return PandasEngine()
     pytest.importorskip("duckdb")

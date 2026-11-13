@@ -731,7 +731,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was accepted, a GeoDataFrame join bypassed the rule, and the result was
   mislabelled EPSG:4326 (#1852). **Migration:** reproject both inputs to one
   CRS before joining on a geometry key.
-
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,
