@@ -2,12 +2,16 @@
 
 import json
 import socket
+import threading
+import time
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pandas as pd
 import pytest
 import requests
 
+import siege_utilities.geo.census.api as census_api_module
 from siege_utilities.geo.census.api import CensusAPI
 from siege_utilities.geo.census.dual_source import (
     AlternationPolicy,
@@ -33,6 +37,8 @@ REQUEST = {
 }
 # Five transport attempts, with four 60-second waits, instead of 900 seconds.
 RATE_LIMIT_WAIT_BOUND = 240
+# Captured at import, before any test in this module fakes the API's clock.
+REAL_SLEEP = time.sleep
 
 
 def http_response(status):
@@ -54,7 +60,11 @@ def no_network(monkeypatch):
 @pytest.fixture
 def fake_clock(monkeypatch):
     sleeps = []
-    monkeypatch.setattr("siege_utilities.geo.census.api.time.sleep", sleeps.append)
+    # Replace only the census API module's own ``time`` binding. Patching
+    # "...api.time.sleep" would set ``sleep`` on the shared ``time`` module and
+    # fake it for every thread in the process (#1906). api.py uses ``time``
+    # only for ``time.sleep``.
+    monkeypatch.setattr(census_api_module, "time", SimpleNamespace(sleep=sleeps.append))
     return sleeps
 
 
@@ -214,3 +224,23 @@ def test_sustained_rate_limit_has_bounded_wait(
     assert fake_clock == [60, 60, 60, 60]
     assert get.call_count == 5
     assert_bulk_result(result, provenance, client)
+
+
+def test_fake_clock_does_not_patch_the_shared_time_sleep(fake_clock):
+    # #1906: patching "<module>.time.sleep" set ``sleep`` on the shared
+    # ``time`` module, so other threads stopped waiting and their sleeps were
+    # recorded as the census API's retry delays.
+    assert time.sleep is REAL_SLEEP
+
+    other_thread_slept = []
+
+    def sleep_in_another_thread():
+        time.sleep(0)
+        other_thread_slept.append(True)
+
+    worker = threading.Thread(target=sleep_in_another_thread)
+    worker.start()
+    worker.join(timeout=10)
+
+    assert other_thread_slept == [True]
+    assert fake_clock == []
