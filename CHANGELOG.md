@@ -848,6 +848,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- The `geo`, `web` and `all` extras require `soupsieve>=4.0.0` on Python
+  3.11.5 and newer (`python_full_version >= '3.11.5'`), so installs there
+  cannot resolve a soupsieve release affected by CVE-2026-126190, a
+  denial of service in its CSS selector engine. soupsieve comes in through
+  `beautifulsoup4`. `requires-python` stays `>=3.11`.
+  **Residual exposure:** soupsieve 4.0 and 4.1 require Python 3.11.5 or
+  newer, so on Python 3.11.0 to 3.11.4 an affected soupsieve <4 (currently
+  2.10) remains installable. The remedy there is upgrading to Python 3.11.5
+  or newer.
+  **Reachability:** siege_utilities itself does not call BeautifulSoup's CSS
+  selector API (`select`, `select_one`, `css`), but downstream or third-party
+  code that runs those on untrusted markup is still exposed on Python below
+  3.11.5.
+  **Audit coverage:** the CI dependency audit resolves at Python 3.11.5 on
+  the Linux runner only, matching the marker floor; it does not audit the
+  full `>=3.11` range, and adds no ignore for this advisory (#1895).
 - Instagram token exchange errors omit response bodies and transport exception
   text. Malformed responses use fixed diagnostics; transport retries report
   the exception class and attempt number. Dummy sentinel coverage checks error
