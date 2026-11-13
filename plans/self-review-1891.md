@@ -5,6 +5,8 @@ ticket_refs:
 
 # Self-review: #1891, TemporalTimeseriesBuilder groups the snapshot frame once
 
+## Assumptions
+
 Working as: software engineer
 
 Goal source: https://github.com/siege-analytics/siege_utilities/issues/1891
@@ -12,7 +14,14 @@ Review-Tier: C
 Pre-author-inventory: https://github.com/siege-analytics/siege_utilities/issues/1891#issuecomment-6842143287
 Investigate-artifact: https://github.com/siege-analytics/siege_utilities/issues/1891#issuecomment-6842143287 (Investigation fact sheet)
 Pre-mortem-artifact: https://github.com/siege-analytics/siege_utilities/issues/1891#issuecomment-6842143287 (Pre-mortem)
+Hostile-review-artifact: https://github.com/siege-analytics/siege_utilities/issues/1891#issuecomment-6842576602
+Project-contribution: the temporal time-series builder no longer rescans the whole snapshot frame per boundary per variable, so multi-variable builds over tract-level census vintages stay practical for downstream where-when analysis
 Base: develop `6c049c2c`
+
+Stated assumptions:
+- `boundary_id` values are the hashable scalar types the builder sees in practice (GEOID strings, integers); exotic id types are out of scope for this change (see Findings).
+- pandas 2.x semantics (the project pins `pandas>=2.0,<3.0`): `Series.unique()`, `pd.factorize` and `Index.get_indexer` share one hash-table equivalence.
+- The previous loop at develop `6c049c2c` is the behavioral reference; the change must not alter any output for supported id types.
 
 ## Change
 
@@ -66,11 +75,22 @@ Design changes made during self-review, before staging:
 
 ## Peer review
 
-Syntax check: NOT RUN locally (local env blocked). `ast.parse` on the 2 changed `.py` files
-has not been run; exact-head CI import and collection is the evidence.
-Test suite: NOT RUN locally (local env blocked); CI is the evidence. Neither the new test file
-nor the existing temporal tests have been run locally. Nothing here claims a pass. Command for
-a working environment:
+Shelves: writing-tests:1 (the new tests import `siege_utilities.geo.temporal.services` and
+assert the builder's output; the oracle is the previous algorithm, not the new one, so a
+behavior change in the builder turns the equivalence cases red); writing-claims:2 (the counts
+below carry their command; the commit's Verified-by trailer repeats them).
+
+History: this file at commit 9b76f485 (tree 7de65494) said the syntax check and tests were NOT
+RUN locally (local environment host-blocked). That was written when the tree was staged. The
+syntax parse below then ran before the commit on that same staged tree (the 9b76f485 commit
+message records it); the tests ran only after the commit.
+
+- Syntax check, before commit 9b76f485, on staged tree 7de65494, 2026-11-12 ~21:01 CST: `python3 -m py_compile siege_utilities/geo/temporal/services.py tests/test_temporal_builder_grouping_1891.py` under the system Python 3.9.6 → exit 0 (parse only, not a test run).
+- Test suite, AFTER 9b76f485, on its tree 7de65494 (worktree clean, HEAD = 9b76f485), 2026-11-12 ~21:12 CST: `python -m pytest -o addopts="" -p no:cacheprovider tests/test_temporal_builder_grouping_1891.py tests/test_temporal_services.py -q` from the worktree root, Python 3.11.11 → 42 passed in 1.08s (exit 0). The grouped-once and no-variables tests monkeypatch `_positions_by_boundary`, which exists only in the new code, so the worktree code was the code under test.
+- Notebook API check: N/A (no notebook calls `TemporalTimeseriesBuilder`).
+
+Command used for the equivalence and temporal tests (also runnable from `tests/` with
+`--rootdir=..`):
 
 `cd tests && python -m pytest -o addopts="" --rootdir=.. -c ../pyproject.toml -p no:cacheprovider test_temporal_builder_grouping_1891.py test_temporal_services.py test_exception_contracts.py -q`
 
@@ -97,23 +117,32 @@ the grouped-once test is the one that fails on the old loop's structure.
 - SU-4a: no notebook calls `TemporalTimeseriesBuilder` (grep of `notebooks/`); the contract is
   unchanged, so no notebook update. The missing notebook coverage is pre-existing.
 - SU-4b: error paths covered as above.
-- SU-5: 3 files change (plus this record); the parse check is NOT RUN locally (local env
-  blocked); CI is the evidence.
+- SU-5: 3 files change (plus this record); both changed `.py` files parse (syntax check above,
+  exit 0).
 
 ## Lead review
 
-Implementer-authored adversarial pass only; not an independent hostile review. Checked:
-order, NaN/None ids, duplicate years, dtype preservation, error timing, memory, numpy versus
-pandas scalar lookup, mixed-type object ids, categorical ids, empty frames.
+Implementer-authored adversarial pass. Checked: order, NaN/None ids, duplicate years, dtype
+preservation, error timing, memory, numpy versus pandas scalar lookup, mixed-type object ids,
+categorical ids, empty frames.
+
+Independent hostile review: a fresh-context adversarial reviewer, given the old loop and the
+staged diff only (read-only, no interpreter), found no S1 or S2:
+https://github.com/siege-analytics/siege_utilities/issues/1891#issuecomment-6842576602
 
 ## Findings
 
 - Fixed before staging: cached row objects (memory) and dict lookup by scalar hash (datetime
   ids). See the rework ledger.
-- Open: the syntax check and tests are NOT RUN locally (local env blocked); exact-head CI is
-  the evidence and must be green on these tests before merge.
-- Open, nonblocking: no independent hostile review yet; no benchmark (no performance claim).
-- Ticket copy: https://github.com/siege-analytics/siege_utilities/issues/1891#issuecomment-6842389878
+- Resolved after commit 9b76f485: the syntax check (exit 0) and the 42 equivalence and temporal
+  tests (42 passed) ran; see Peer review. Exact-head CI remains the full-suite evidence.
+- Hostile-review S3/S4, nonblocking: exotic `boundary_id` types (overlapping Interval ids, and
+  `Timestamp`/`np.datetime64` objects for the same instant in one object column) make
+  `get_indexer` raise where the old `==` filter worked; tuple ids change behavior; nullable
+  `Int64`/`string` with pd.NA, tz-aware, bool, unused categories and a non-default index are not
+  yet in the equivalence tests. Tracked in #1897.
+- Open, nonblocking: no benchmark (no performance claim).
+- Ticket copy of the self-review: https://github.com/siege-analytics/siege_utilities/issues/1891#issuecomment-6842389878
 
 ## Rollback
 
@@ -121,6 +150,8 @@ Revert the single commit; no data, schema or API migration.
 
 ## Not verified
 
-- No test, syntax check or benchmark has been run locally (local env blocked); CI is the
-  evidence.
-- No performance figure is claimed; only the removal of the per-boundary full-frame scan.
+- Only the two test files above ran locally; the full suite has not run locally, and
+  exact-head CI is the full-suite evidence.
+- No benchmark: no performance figure is claimed; only the removal of the per-boundary
+  full-frame scan.
+- The exotic-id divergences in Findings are reasoned by the hostile review, not reproduced.

@@ -12,11 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TemporalTimeseriesBuilder.build` groups the snapshot frame by
   `boundary_id` once and reuses each boundary's row positions for every
   requested variable, instead of filtering the whole frame once per boundary
-  per variable. Output is unchanged: the same series in the same first-appearance
-  boundary order, with the same years, values, MOEs, statistics and
-  created/skipped counts; a missing `boundary_id` or `year` column still
-  raises `KeyError` at the same point. An equivalence test compares the new
-  builder with the previous loop field by field (#1891).
+  per variable. Output is unchanged for the `boundary_id` types covered by the
+  equivalence tests (integer, float with NaN, string, mixed integer/string,
+  datetime, categorical, and missing ids): the same series in the same
+  first-appearance boundary order, with the same years, values, MOEs,
+  statistics and created/skipped counts; a missing `boundary_id` or `year`
+  column still raises `KeyError` at the same point. An equivalence test
+  compares the new builder with the previous loop field by field (#1891).
+  Exotic id types (overlapping intervals, mixed `Timestamp`/`np.datetime64`
+  objects in one column) and further dtype coverage are tracked in #1897.
 - Correct the geocoding notebook's cache-hit claim: the timed cell scans
   already-collected results in memory to select matched input IDs. Add a
   narrative regression test and offline execution coverage for the geo notebook
