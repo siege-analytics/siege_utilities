@@ -35,6 +35,7 @@ from __future__ import annotations
 import enum
 import logging
 from abc import ABC, abstractmethod
+from inspect import getattr_static as _getattr_static
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 log = logging.getLogger(__name__)
@@ -112,6 +113,61 @@ def _aggregate_pandas_groups(grouped: Any, normalised: Dict[str, str]) -> Any:
         # real zero sums and nullable dtypes; equivalent to sum(min_count=1).
         result[sum_cols] = result[sum_cols].where(grouped[sum_cols].count() > 0)
     return result.reset_index()
+
+
+def _same_crs(left_crs: Any, right_crs: Any) -> bool:
+    """Whether two known CRS values name the same coordinate reference system.
+
+    Literally equal values match without importing pyproj. Otherwise both are
+    parsed with ``pyproj.CRS.from_user_input`` and compared with pyproj's
+    default, axis-order-sensitive equality, the policy
+    ``geo.crs.reproject_if_needed`` uses. A value pyproj cannot parse never
+    matches. Without pyproj (the optional ``geo`` extra) the values are
+    compared literally and a warning is logged.
+    """
+    if left_crs == right_crs:
+        return True
+    try:
+        from pyproj import CRS
+        from pyproj.exceptions import CRSError
+    except ImportError:
+        log.warning(
+            "pyproj is not installed (install siege-utilities[geo]); comparing "
+            "spatial_join CRS metadata %r and %r literally.",
+            left_crs,
+            right_crs,
+        )
+        return False
+    try:
+        return CRS.from_user_input(left_crs) == CRS.from_user_input(right_crs)
+    except (CRSError, ValueError, TypeError):
+        # Unparseable metadata is not the same CRS. Other pyproj failures,
+        # such as a missing PROJ data directory, propagate.
+        return False
+
+
+def _frame_crs(frame: Any) -> Any:
+    """Return a frame's CRS metadata, or None when it carries none."""
+    # Spark resolves column names through __getattr__; a column named "crs"
+    # is data, not frame metadata. Only read explicitly defined attributes.
+    return frame.crs if _getattr_static(frame, "crs", None) is not None else None
+
+
+def _validate_spatial_join_crs(left: Any, right: Any) -> None:
+    """Reject mismatched known CRS while allowing inputs with no CRS metadata.
+
+    The frame's ``crs`` attribute is read statically, so a Spark column named
+    ``crs`` is not metadata. Known values are compared as coordinate reference
+    systems through pyproj when it is installed, and literally otherwise.
+    WKT geometry carries no CRS, so none is inferred from it.
+    """
+    left_crs = _frame_crs(left)
+    right_crs = _frame_crs(right)
+    if left_crs is not None and right_crs is not None and not _same_crs(left_crs, right_crs):
+        raise ValueError(
+            f"CRS mismatch in spatial_join: left has {left_crs}, "
+            f"right has {right_crs}. Reproject one input to match the other."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -209,7 +265,8 @@ class DataFrameEngine(ABC):
         """Spatial join using a geometric predicate.
 
         *predicate* is one of: intersects, contains, within, touches,
-        crosses, overlaps.
+        crosses, overlaps. Raises ``ValueError`` when both input CRS are
+        known and differ; unknown CRS is allowed. Inputs are not reprojected.
         """
 
     @abstractmethod
@@ -712,10 +769,19 @@ class DataFrameEngine(ABC):
         # implementations -- subclasses may override for efficiency.
         point_cols = set(self.to_pandas(points).columns)
 
+        # Points without CRS metadata stay unknown for every layer. Converting
+        # them for the first join can give the result the default CRS; that
+        # label is the library's, not the caller's, so a later layer must not
+        # be compared against it.
+        points_crs_unknown = _frame_crs(points) is None
         result = points
         for layer_name, polygons in boundary_layers.items():
+            layer_points = result
+            if points_crs_unknown and _frame_crs(result) is not None:
+                import pandas as pd
+                layer_points = pd.DataFrame(result)
             assigned = self.assign_boundaries(
-                result, polygons,
+                layer_points, polygons,
                 point_geom=point_geom, polygon_geom="geometry",
                 how="left",
             )
@@ -831,11 +897,7 @@ class PandasEngine(DataFrameEngine):
             left = left.set_geometry(left_geom)
         if right.geometry.name != right_geom:
             right = right.set_geometry(right_geom)
-        if left.crs is not None and right.crs is not None and left.crs != right.crs:
-            raise ValueError(
-                f"CRS mismatch in spatial_join: left has {left.crs}, "
-                f"right has {right.crs}. Reproject one input to match the other."
-            )
+        _validate_spatial_join_crs(left, right)
         return gpd.sjoin(left, right, how=how, predicate=predicate)
 
     def buffer(self, df, distance, geometry_col="geometry", *, crs=None):
@@ -1324,6 +1386,9 @@ class DuckDBEngine(DataFrameEngine):
                      *, left_geom="geometry", right_geom="geometry"):
         # Delegate to GeoPandas for correctness
         import geopandas as gpd
+        # Check the inputs as given: to_geodataframe stamps the default CRS on
+        # frames without CRS metadata, which is not a CRS the caller supplied.
+        _validate_spatial_join_crs(left, right)
         left_gdf = self.to_geodataframe(left, left_geom) if not isinstance(left, gpd.GeoDataFrame) else left
         right_gdf = self.to_geodataframe(right, right_geom) if not isinstance(right, gpd.GeoDataFrame) else right
         return gpd.sjoin(left_gdf, right_gdf, how=how, predicate=predicate)
@@ -1617,6 +1682,7 @@ class SparkEngine(DataFrameEngine):
 
     def spatial_join(self, left, right, how="inner", predicate="intersects",
                      *, left_geom="geometry", right_geom="geometry"):
+        _validate_spatial_join_crs(left, right)
         self._ensure_sedona()
         from siege_utilities.core.sql_safety import (
             validate_sql_identifier_in as validate_identifier_in,
@@ -2127,6 +2193,9 @@ class PostGISEngine(DataFrameEngine):
     def spatial_join(self, left, right, how="inner", predicate="intersects",
                      *, left_geom="geometry", right_geom="geometry"):
         import geopandas as gpd
+        # Check the inputs as given: to_geodataframe stamps the default CRS on
+        # frames without CRS metadata, which is not a CRS the caller supplied.
+        _validate_spatial_join_crs(left, right)
         left_gdf = left if isinstance(left, gpd.GeoDataFrame) else self.to_geodataframe(left, left_geom)
         right_gdf = right if isinstance(right, gpd.GeoDataFrame) else self.to_geodataframe(right, right_geom)
         return gpd.sjoin(left_gdf, right_gdf, how=how, predicate=predicate)
