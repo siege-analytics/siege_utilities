@@ -7,7 +7,8 @@ Scope: the commits on PR #1751 after `0e8dfeb3`. Each is listed with the round i
 - Correction round, `0aec21a6`. DuckDB and PostGIS `spatial_join` check the inputs as passed, before conversion supplies a default CRS. Two tests were added to `tests/test_spatial_join_crs_check.py`, and the CHANGELOG entry and INVARIANTS bullet were narrowed. This artifact was also updated in that commit.
 - Test-timeout round, `a02c9dd8`: the `_run_python` test helper gained `timeout=60` after the exact-head CI static guards flagged it (`scripts/check_unbounded_io.py`).
 - Merge rounds, `c8bddd1a` (develop `f22dce96`) and `b0ceb40b` (develop `cab06ce4`): additive develop merges. Against develop, each result changed only this PR's six files. Each round's self-review and independent hostile review are on #1619 (issuecomment-6845610783 and issuecomment-6847498515).
-- Multi-layer round, the follow-up commit on `b0ceb40b`. `multi_assign` keeps points that arrive without CRS metadata unknown for every boundary layer, so the default CRS that converting them for the first join assigns is not compared against later layers. One two-layer test on DuckDB and PostGIS was added.
+- Multi-layer round, `1222d802`. `multi_assign` keeps points that arrive without CRS metadata unknown for every boundary layer, so the default CRS that converting them for the first join assigns is not compared against later layers. One two-layer test on DuckDB and PostGIS was added.
+- Merge rounds, `39714439` (develop `75371af8`) and `7ef48554` (develop `1dcb1e59`): additive develop merges. In `7ef48554` the only conflict was CHANGELOG.md, resolved with develop's bullets first and the #1619 bullet unchanged as the last item of the first `[5.0.0]` BREAKING list. Each round's self-review and independent hostile review are on #1619 (issuecomment-6850868302 and issuecomment-6852271626).
 
 Written 2026-11-11 and updated 2026-11-13, after the original implementation at `0e8dfeb3` (authored and committed 2026-10-18). No investigation, pre-mortem or hostile review was recorded for the original round; those remain absent for it.
 
@@ -46,7 +47,7 @@ Correction round (follow-up commit):
 - With the new tests and the merge commit's engine: 3 failed, 34 passed. The failures are the PostGIS two-layer `multi_assign` case and the plain-WKT case on DuckDB and PostGIS, each a false `left has EPSG:4326, right has EPSG:3857` mismatch.
 - With the correction: 57 passed, 0 failed, 0 skipped across `tests/test_spatial_join_crs_check.py` and `tests/test_1619_crs_semantic_compare.py`. That includes the real-Spark cases and the driver-side PostGIS cases.
 
-Multi-layer round (follow-up commit on `b0ceb40b`):
+Multi-layer round (`1222d802`):
 - With the new two-layer test and the `b0ceb40b` engine: the DuckDB case fails with `left has EPSG:4326, right has EPSG:3857` at the second layer, raised from `multi_assign` through `assign_boundaries` and `spatial_join`. The PostGIS case passes, because PostGIS `to_pandas` already drops the assigned CRS between layers.
 - With the change: 87 passed across `tests/test_spatial_join_crs_check.py`, `tests/test_1619_crs_semantic_compare.py`, `tests/test_dataframe_engine_spatial.py` and `tests/property/test_spatial_join_invariants.py`. `scripts/check_unbounded_io.py` reports 0 violations on the library and on tests, and the exception contracts guard reports 0 unlisted handlers.
 - The independent review of this change asked for a test that a known CRS mismatch still raises on a later layer. `test_multi_assign_rejects_a_known_mismatch_on_a_later_layer` covers Pandas and DuckDB (PostGIS checks only its first layer, #1898). It passes with the change. With the new condition temporarily weakened to ignore whether the points had CRS metadata, it fails on both engines (DuckDB: did not raise), and the code was then restored.
@@ -85,4 +86,4 @@ Not run here: the full repository suite, and PostGIS against a live database. Th
 | F6 | P2 | DuckDB and PostGIS checked frames without CRS metadata as the default CRS instead of unknown. | fixed in the correction commit |
 | F7 | P2 | Spark `assign_boundaries` and `multi_assign` do not run the CRS check. | ticket #1896 |
 | F8 | P2 | PostGIS `multi_assign` checks only its first boundary layer, because `to_pandas` drops the frame CRS between layers (inherited). | ticket #1898 |
-| F9 | P1 | DuckDB `multi_assign` with points that have no CRS metadata raised a false mismatch from the second layer on, against the default CRS that the first join's conversion assigned. | fixed in the multi-layer commit |
+| F9 | P1 | DuckDB `multi_assign` with points that have no CRS metadata raised a false mismatch from the second layer on, against the default CRS that the first join's conversion assigned. | fixed in 1222d802 |
