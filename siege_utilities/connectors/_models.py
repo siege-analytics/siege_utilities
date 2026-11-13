@@ -10,6 +10,10 @@ shapes for cross-CRM dedup and reporting.
 Each model carries ``source_system`` / ``source_id`` to trace records
 back to their origin. ``metadata`` provides an escape hatch for
 vendor-specific fields that don't map to the canonical shape.
+
+Connector mapping helpers normalize missing scalar values (None, NaN,
+pd.NA and NaT) to None. Missing account and opportunity names use an
+empty string so an unnamed record does not abort the conversion.
 """
 
 from __future__ import annotations
@@ -28,6 +32,22 @@ __all__ = [
     "CRMOpportunity",
     "CRMActivity",
 ]
+
+
+def _normalize_crm_record(record: dict[str, Any]) -> dict[str, Any]:
+    """Copy a mapping row with missing scalars set to None before coercion.
+
+    Recurse into HubSpot properties and raw Zoho lookup dictionaries. Keep
+    other containers intact, avoiding ambiguous array results from pd.isna.
+    """
+    normalized: dict[str, Any] = {}
+    for key, value in record.items():
+        if isinstance(value, dict):
+            value = _normalize_crm_record(value)
+        elif pd.api.types.is_scalar(value) and pd.isna(value):
+            value = None
+        normalized[key] = value
+    return normalized
 
 
 class CRMAddress(BaseModel):
@@ -82,7 +102,7 @@ class CRMAccount(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
-    name: str
+    name: str = Field(description="Account name; connectors use an empty string when missing")
     industry: str | None = None
     website: str | None = None
     revenue: Decimal | None = None
@@ -109,17 +129,20 @@ class CRMAccount(BaseModel):
 
 
 class CRMOpportunity(BaseModel):
-    """A deal / opportunity record from any CRM system."""
+    """A deal / opportunity record with probability on a 0-100 percentage scale."""
 
     model_config = ConfigDict(extra="forbid")
 
     id: str
-    name: str
+    name: str = Field(description="Opportunity name; connectors use an empty string when missing")
     account_id: str | None = None
     stage: str | None = None
     amount: Decimal | None = None
     close_date: date | None = None
-    probability: float | None = None
+    probability: float | None = Field(
+        default=None,
+        description="Probability on a 0-100 percentage scale; 80 means 80%.",
+    )
     owner_id: str | None = None
     source_system: str = Field(description="CRM vendor identifier")
     source_id: str = Field(description="Record ID in the source CRM")
