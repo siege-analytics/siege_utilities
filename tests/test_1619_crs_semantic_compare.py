@@ -149,7 +149,7 @@ def _run_python(code):
     # is imported.
     return subprocess.run(
         [sys.executable, "-c", textwrap.dedent(code)],
-        capture_output=True, text=True, check=True, cwd=REPO_ROOT,
+        capture_output=True, text=True, check=True, cwd=REPO_ROOT, timeout=60,
     )
 
 
