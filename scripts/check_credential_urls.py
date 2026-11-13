@@ -53,10 +53,14 @@ ALLOWLIST = {
         "without credential-bearing request/response/context; sentinel tests cover it.",
     ("analytics/instagram.py", "InstagramConnector._request_url",
      "self._session.request(method, url, params=req_params, timeout=self._timeout, "
-     "allow_redirects=False)"):
+     "allow_redirects=False, **{'headers': {'Authorization': None}} if _token_exchange else {})"):
         "Instagram strips access_token from params and paging URLs and authenticates "
         "with a header. URLs are restricted to the HTTPS Graph origin and redirects are "
-        "never followed (#1794). Fresh redacted exceptions and logs are covered by sentinel tests.",
+        "never followed (#1794). On the token-exchange path the bearer Authorization header "
+        "is removed (set to None), but client_secret and fb_exchange_token carry credentials "
+        "in query parameters. Exchange diagnostics omit response bodies and transport "
+        "exception text; dummy sentinel tests cover messages, repr and logged tracebacks. "
+        "Other requests use the session's header auth and redact URL diagnostics.",
     ("analytics/vista_social.py", "VistaSocialConnector._request",
      "self._session.request(method, url, params=dict(params) if params else None, "
      "json=dict(json_body) if json_body is not None else None, timeout=self._timeout)"):

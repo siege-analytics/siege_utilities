@@ -81,3 +81,41 @@ Observed revert results (2026-11-05). Command, with `REV` set to the revert targ
 - `REV=dc7d3f76` (develop): 8 failed, 0 passed. At develop the assignment cases fail earlier: the shipped postgres defaults are rejected at construction.
 - `REV=f5f84c71` (pre-F1 head): 6 failed, 2 passed. The 6 assignment cases fail on the post-rejection state assertion; the 2 shipped-default cases pass.
 - Current-head green: after the file was restored, `(cd tests && python -m pytest -o addopts="" -p no:cacheprovider --rootdir=.. -q test_1490_database_connection_validation.py)` gave 91 passed. The worktree was clean.
+
+## Current integration round (develop 6c049c2c), Tier C local gate
+
+Appended 2026-11-13 for the merge of develop `6c049c2c` into head `44dba809`. The sections above are frozen history and are left unchanged; their "4.1.0" wording predates develop's rename of the release section to 5.0.0.
+
+Working as: software engineer (release integration), tech lead (merge review)
+Investigate-artifact: https://github.com/siege-analytics/siege_utilities/issues/1490#issuecomment-6799999766 (Investigation Fact Sheet section, posted 2026-11-11 15:32:09Z for the first staging of this integration)
+Pre-mortem-artifact: https://github.com/siege-analytics/siege_utilities/issues/1490#issuecomment-6799999766 (Pre-Mortem section, same comment)
+Hostile-review-artifact: https://github.com/siege-analytics/siege_utilities/issues/1490#issuecomment-6800152944 (independent Senior adversarial review by a fresh-context reviewer, with responses; posted 2026-11-11 15:38:36Z, 11250 characters)
+
+The local review gate for this round is Tier C. The PR's own change is a configuration model, but the merge brings in develop's `.github/workflows/ci.yml` and `.github/actions/apt-install/action.yml`, which raise the whole-tree classification to C.
+
+### History: voided first staging (develop 79f37f4d)
+On 2026-11-11 this integration was first staged against develop `79f37f4d` (staged tree `d3e6baed`, CHANGELOG blob `e6430e97`) and was never committed. Before any commit, #1791 landed on develop as `6c049c2c`. It adds the #1404 Census dual-source bullet at the same BREAKING anchor, so the earlier staging would have conflicted with the new develop. That staging was aborted after a verified backup of the worker-authored self-review blob, and the merge was redone against `6c049c2c`. The plan, investigation, pre-mortem and independent review linked above were written for the first staging; the method is unchanged, and develop's BREAKING block now also includes the #1404 bullet.
+
+### Scope of the integration round
+The only path both sides changed since the merge base `71f02b0b` is `CHANGELOG.md`. Both sides inserted bullets at the top of the `[5.0.0]` Fixed and BREAKING lists. Under Fixed, develop's 3 bullets (#1882, #1458, #1474) come first, followed by the #1490 bullet. Under BREAKING, develop's 3 social bullets and the #1404 Census bullet come first, followed by the #1490 bullet with its Migration note. Each of the two conflicts was resolved by deleting the three marker lines and placing develop's block above this PR's block, with no other byte changed. No #1490 code or test changed in this round. The rerere cache held no earlier resolution: the merge printed "Recorded preimage for 'CHANGELOG.md'" and no "Resolved ... using previous resolution" line.
+
+### Integration checks (writing-claims: each item observed on the 6c049c2c merge)
+- `git ls-remote` immediately before the merge gave develop `6c049c2c` and head `44dba809`. MERGE_HEAD is `6c049c2c`.
+- Before the hand resolution there were 6 marker lines: 2 hunks, 3 markers each, no base section. The Fixed hunk was 6 PR lines against 33 develop lines; the BREAKING hunk was 9 PR lines against 68 develop lines.
+- After resolution: the staged `CHANGELOG.md` blob is `ed7cc59f`, which equals the expected blob; the conflict marker count is 0.
+- The staged tree differs from develop `6c049c2c` only on the seven #1490 paths, and from `44dba809` only on develop's changed paths plus this appended section.
+
+### Tests and guards on the 6c049c2c merged tree (writing-tests, writing-code)
+Rerun on 2026-11-13 with Python 3.11.11 and hydra-core 1.3.2; `sys.path[0]` was this worktree. None of these results are carried over from the voided staging.
+- pytest on the six target modules gave 356 passed, 0 skipped: `test_1490_database_connection_validation`, `test_config_model_validation`, `test_config_secret_repr`, `test_hydra_integration`, `test_config_hydra_optional` and `test_config_models_actor_types_errors`.
+- `test_credential_url_guard` gave 115 passed.
+- `check_secret_literals` PASS; `check_secret_repr` PASS; `check_credential_urls` reports 0 unreviewed sites; `check_test_file_hygiene` PASS.
+- `check_exception_contracts --list`, rerun fresh, reports 0 unlisted and 0 stale.
+- `check_lazy_imports` OK, with 8 optional skips (GDAL is not installed locally).
+- flake8 with the phase 4 rules on the 5 PR Python files gave no output.
+- Not run locally, and left to hosted CI:
+  - the lint ratchet scripts, because no `flake8` executable is on PATH;
+  - the exception-contract guard self-test;
+  - bandit, which is not installed;
+  - the public API contract comparison, which needs CI-built baseline and candidate contracts. #1791 changed its allowlist, and this PR does not touch the public API.
+- The GitGuardian check on the PR is still failing. This round takes no provider, fixture, credential or history action on it.
