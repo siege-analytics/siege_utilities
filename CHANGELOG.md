@@ -514,6 +514,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   also catch `BoundaryFetchError` (a `RuntimeError`). Re-check stored
   `state_senate`/`state_house` results fetched with 4.0.0, which may hold the
   other chamber's plan (#1480).
+- `place_history` and longitudinal boundary normalization now raise `ValueError`
+  when CT county-equivalent, tract, block-group, or block GEOIDs cross the 2022
+  planning-region recode, including normalization to a target across 2022.
+  The error names the required CT 2020->2022 crosswalk. In 4.0.0 these queries
+  returned a result, reporting unchanged lineage or merging incompatible GEOIDs
+  silently. Normalization checks only those levels, so CT SLDU/SLDL frames,
+  whose 5-digit GEOIDs collide with the county codes, pass unchanged. A
+  nationwide frame at an affected level that contains any CT row raises for
+  the whole request. **Migration:** keep CT county, tract, block-group and
+  block queries on one side of 2022, or drop CT rows (state FIPS `09`) from
+  nationwide frames that cross 2022 and handle them separately until the CT
+  2020->2022 crosswalk is supported; that work is tracked in #1795 (#1437).
 
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
