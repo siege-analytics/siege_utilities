@@ -339,6 +339,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   0600 throughout. Spark staged exports finish copying beside the destination
   before publication, preserving existing data on copy failures (#1509).
 
+- The natural-language geometry notebook resolves Lausanne and Lake Geneva to
+  distinct illustrative fixtures, rejects unknown place names, and labels
+  directional results against the queried fixture's centroid. The Lake Geneva
+  fixture joins Grand Lac and Petit Lac boxes so south-shore towns fall south of
+  its centroid (#1672).
 - Attach `BoundaryManager` to all boundary models so the documented
   `.objects.containing_point/nearest/for_state/for_year` API works. Distance
   filters on SRID-4326 geometry now cast to geography to honor meters, and
