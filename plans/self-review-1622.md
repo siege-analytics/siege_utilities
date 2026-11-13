@@ -16,9 +16,28 @@ Review tier: B, by content. The local tooling classified this merge as tier C,
 because develop-side workflow and release files are in the merge set, and the
 pass was run under that stricter gate. The tier C fields follow.
 
+## Assumptions
+
 Working as: data engineer, data analyst
 
+Domain(s): data engineering, data analysis
+
+Geospatial cross-cut: yes (the regression module runs only against PostGIS)
+
 Goal source: #1622 ("Done when")
+
+Goal source verification: not run as a separate ticket check; the "Done when"
+items were read from the ticket and compared with the code, and the "fails on
+`v4.0.0`" item is recorded below as unmet.
+
+Plan reference: the Junior task description and the response to the
+independent Senior review (links below).
+
+Pre-author-inventory: NONE
+
+Project-contribution: stored `DemographicTimeSeries` growth rates mean per
+calendar year and MOEs stay aligned with their years; this integration makes
+the PR mergeable into develop with an accurate BREAKING and Migration record.
 
 Investigate-artifact:
 https://github.com/siege-analytics/siege_utilities/issues/1622#issuecomment-6799914437
@@ -115,6 +134,59 @@ Import provenance: the pytest header shows the worktree as rootdir, and
 `python -m` puts the working directory first on `sys.path`. That is weaker
 evidence than printing the imported module's `__file__`, which was not done
 for this record.
+
+## Peer review
+
+- **CAGR:** the exponent at the PR head is `series_years[-1] - series_years[0]`.
+  The ticket's decennial example gives 1.21^(1/20) - 1, about 0.009577, and
+  the test expects 0.009576582776887.
+- **MOEs:** stored without compaction on create and update. A series with no
+  MOEs now stores a list of `None` instead of `[]`, and the CHANGELOG says so.
+- **Reads:** GEOIDs are resolved once per call, and snapshots and existing
+  series are read once per variable. Updates still save row by row.
+- **Negative paths in the test file:**
+  - fewer than two observations writes no series;
+  - `_cagr` rejects zero periods;
+  - a zero or negative start stores `cagr=None`;
+  - out-of-state, other-dataset, other-level and other-interval rows are left
+    alone.
+  All of these are in the PostGIS module, were skipped locally, and must pass
+  in the exact-final-head `test-postgis` job.
+- **CHANGELOG fact check:** 0.0096 and 0.10 match the code and test. The
+  Migration key (geography level, GEOID, variable, dataset, start and end
+  years) matches the existing-series lookup. The affected-row selector follows
+  from the old formula and the MOE compaction.
+- **Syntax check:** `git diff --cached --check` against develop was clean
+  before commit; no conflict markers remain; no Python source changed relative
+  to the PR head.
+
+## Lead review
+
+- **Approach fit:** the fix is at the formula and the storage line, the right
+  layer. The engine-agnostic temporal builder already used elapsed years and
+  kept `None` MOEs, so this brings the Django service in line with it.
+- **Blast radius:**
+  - every `DemographicTimeSeries` row written after the merge;
+  - consumers that sum, index or truth-test `moe_values`;
+  - stored rows from earlier versions, until they are recomputed.
+- **Evidence:** the evidence for the fix is CI-only. Local runs cannot exercise
+  the database path, and the pre-fix control was not shown. A green job must
+  be read case by case and is not red-on-revert.
+- **Placement:** `[5.0.0]` is the pending, untagged MAJOR release. The two
+  `[Unreleased]` entries predate the 4.1.0 to 5.0.0 renumber. The placement
+  follows this round's review decision and is flagged for whole-PR review.
+- **Findings:**
+  - S1 (P1): the "fails on `v4.0.0`" criterion cannot be shown in the
+    supported environment in this pass; recorded as unmet, and the ticket
+    stays open.
+  - S2 (P2): the CHANGELOG bullet was imprecise; fixed in the committed
+    bullet.
+  - S3 (P2): `[5.0.0]` versus `[Unreleased]` placement; kept, and flagged.
+  - S4 (P3): CAGR units, the builder's per-boundary scan and Census sentinels
+    are follow-ups (#1890, #1891, #1403), not part of this PR.
+- **Ticket record:** the full self-review, including the rework ledger, is
+  posted at
+  https://github.com/siege-analytics/siege_utilities/issues/1622#issuecomment-6800956235.
 
 ## Out of scope
 
