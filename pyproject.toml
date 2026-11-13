@@ -86,6 +86,10 @@ geo = [
     "geoalchemy2>=0.14.0",
     # Required by geo/spatial_data.py (BeautifulSoup HTML/XML parsing).
     "beautifulsoup4>=4.12.0",
+    # bs4's selector engine; 4.0.0 fixes CVE-2026-126190 but requires Python
+    # >=3.11.5. 3.11.0-3.11.4 cannot install the fixed soupsieve, so the
+    # marker keeps those installs resolvable (#1895).
+    "soupsieve>=4.0.0; python_full_version >= '3.11.5'",
 ]
 
 # Native GDAL/OGR Python bindings. Kept as a SEPARATE opt-in extra (not part of
@@ -172,6 +176,9 @@ config-extras = [
 # Web scraping / parsing
 web = [
     "beautifulsoup4>=4.12.0",
+    # CVE-2026-126190 fix; 3.11.0-3.11.4 cannot install it, so the marker
+    # keeps those installs resolvable (#1895).
+    "soupsieve>=4.0.0; python_full_version >= '3.11.5'",
     "lxml>=4.9.0",
 ]
 # Note: `streamlit` extra removed in 3.24.0 (#1180, #1186); 3.23.0 on PyPI
@@ -333,6 +340,9 @@ all = [
     "omegaconf>=2.3.0",
     # web
     "beautifulsoup4>=4.12.0",
+    # CVE-2026-126190 fix; 3.11.0-3.11.4 cannot install it, so the marker
+    # keeps those installs resolvable (#1895).
+    "soupsieve>=4.0.0; python_full_version >= '3.11.5'",
     "lxml>=4.9.0",
     # performance
     # Upper bound: DuckDB 2.0 changes tokenizer byte offsets and prepared-statement
