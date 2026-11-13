@@ -163,6 +163,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   views, followers and interactions, respectively. A Page Insights response
   with an insight that has no metric name raises `ValueError` instead of
   silently dropping its values (#1474).
+- Social media reports no longer crash or display `nan` when follower or
+  following counts are NaN, text, unparseable or infinite: numeric text such
+  as `"1200"` counts as a number, and other values render as `unavailable`.
+  Like counts that are NaN or non-numeric text are left out of like totals,
+  averages and the top-post pick instead of crashing; the top-posts table
+  shows a missing like or comment count as `unavailable` and other values as
+  returned, with whole-number floats shown as integers. The top-post insight
+  no longer crashes when a connector's posts frame repeats index labels.
+  Daily metric charts include nullable and narrower numeric dtypes (#1469).
 - Instagram account insights now use UTC request boundaries regardless of
   the host timezone and label daily metrics with the day covered, one day
   before the end-of-period marker. X account snapshots use the UTC date.
@@ -531,6 +540,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   block queries on one side of 2022, or drop CT rows (state FIPS `09`) from
   nationwide frames that cross 2022 and handle them separately until the CT
   2020->2022 crosswalk is supported; that work is tracked in #1795 (#1437).
+- `SocialMediaReportGenerator.create_social_media_report` raises
+  `SocialMediaError` naming the platform, the failed operation and the error
+  type when a connector's account info, insights or posts call fails. In 4.0.0
+  it logged a warning and built the PDF from empty data. The connector's error
+  text is not included, and the connector error is neither chained as the
+  cause nor reachable from the raised error's context (`__cause__` and
+  `__context__` are both `None`), because it can carry access tokens in
+  request URLs or headers. **Migration:** catch `SocialMediaError`
+  around `create_social_media_report`, or drop the failing connector from
+  `connectors` and regenerate, if a partial report is acceptable (#1469).
+- Social media reports show an unavailable count as `unavailable` (metrics,
+  comparison table, insights) or `None` (chart and daily-series data) instead
+  of `0`. This covers a missing `followers_count` or `following_count` and a
+  missing `like_count` column. Totals sum only known values and are
+  `unavailable` when none is known; the largest-audience insight ranks known
+  audiences only; average likes use known counts only. Known zeros stay `0`.
+  Post metrics describe the analyzed sample: `create_social_media_report`
+  takes a keyword-only `posts_limit` (default 50, the 4.0.0 fixed limit). The
+  posts metric keys, the comparison table's posts header and the executive
+  summary now say "analyzed" and name the limit; the likes chart title, the
+  top-posts table titles and the average-likes and top-post insights now say
+  "analyzed" without naming it. **Migration:** treat `None` and
+  `unavailable` as unknown rather than zero; if a zero is required, have the
+  connector return an explicit `0`. Code that reads the private report
+  builders' metric keys or titles must use the new labels (#1469).
 
 - CRM transport and server-error retries are limited to GET, PUT and DELETE.
   POST and PATCH requests are sent once, avoiding duplicate creates after a

@@ -6,11 +6,13 @@ id, so no git history is needed (shallow CI checkouts work). Loads them in
 memory without changing tracked files. No HTTP.
 """
 
+from collections import Counter
 from copy import deepcopy
 from datetime import date, datetime, timedelta, timezone
 import hashlib
 import numbers
 from pathlib import Path
+import re
 from types import ModuleType
 from typing import Any
 from unittest.mock import Mock, patch
@@ -130,6 +132,109 @@ _AUTHORIZED = frozenset({
     "x._tweets_to_dataframe.omitted[0,'bookmark_count']",
     "x._tweets_to_dataframe.omitted[0,'impression_count']",
 })
+
+# #1469 rewords the report so post metrics read as a capped sample of posts,
+# with no claim about their order. Before the unchanged strict comparison,
+# these fixed rules turn the FROZEN BASELINE report's wording into #1469's.
+# The rules are literal and
+# never derived from the current report. Each rewrite is recorded by fixture
+# case, rule, slot kind (dict key, dict value, comparison-table header) and its
+# ORIGINAL baseline path. The record must equal _1469_EXPECTED_REWRITES
+# exactly, so a missing, duplicate, excess, moved or undeclared rewrite fails.
+# Every value, null and other string must still match exactly.
+_POSTS_LIMIT = 50
+_1469_STRINGS = {
+    "Total Likes by Platform": "Likes from analyzed posts by Platform",
+    "Total Posts (all platforms)": (
+        f"Posts analyzed (all platforms; up to {_POSTS_LIMIT} each)"
+    ),
+}
+_1469_PATTERNS = (
+    ("platform posts metric key", re.compile(r"^(\w+) — Posts$"),
+     rf"\1 — Posts analyzed (up to {_POSTS_LIMIT})"),
+    ("top posts table title", re.compile(r"^Top Posts — (.+)$"), r"Top analyzed posts — \1"),
+    ("executive summary", re.compile(r"^(Cross-platform social media report .+ posts) in the reporting window\.$"),
+     rf"\1 analyzed (up to {_POSTS_LIMIT} per platform within the reporting window). "
+     "Post metrics describe this sample."),
+    ("average likes insight", re.compile(r"^(.+): average (.+) likes per post across (\d+) posts\.$"),
+     r"\1: average \2 likes per post among \3 analyzed posts (excluding missing like counts)."),
+    ("top post insight", re.compile(r"^Top performing (\S+) post: "),
+     r"Top performing \1 post among analyzed posts: "),
+)
+
+
+def _1469_case_manifest(case: str, likes_chart: int) -> dict[tuple[str, str, str, str], int]:
+    """Declared rewrites for one known-value fixture, by ORIGINAL baseline path.
+
+    Literal, reviewed against the frozen d329eef7 baseline report (never the
+    current output). The fixtures differ only in where the likes chart sits:
+    the [0, 0] baseline has no followers chart, so its likes chart is first.
+    """
+    return {
+        (case, "Total Likes by Platform", "value", f"report.charts[{likes_chart}].title"): 1,
+        (case, "Total Posts (all platforms)", "key",
+         "report.metrics[key='Total Posts (all platforms)']"): 1,
+        (case, "platform posts metric key", "key", "report.metrics[key='x_twitter — Posts']"): 1,
+        (case, "platform posts metric key", "key", "report.metrics[key='instagram — Posts']"): 1,
+        (case, "top posts table title", "value", "report.tables[1].title"): 1,
+        (case, "top posts table title", "value", "report.tables[2].title"): 1,
+        (case, "executive summary", "value", "report.executive_summary"): 1,
+        (case, "average likes insight", "value", "report.insights[1]"): 1,
+        (case, "average likes insight", "value", "report.insights[3]"): 1,
+        (case, "top post insight", "value", "report.insights[2]"): 1,
+        (case, "top post insight", "value", "report.insights[4]"): 1,
+        (case, "comparison table header", "header", "report.tables[0].headers[3]"): 1,
+    }
+
+
+# Exact expected multiset: 12 occurrences per known-value fixture, 24 in all.
+_1469_EXPECTED_REWRITES: Counter = Counter({
+    **_1469_case_manifest("known[12, 3]", likes_chart=1),
+    **_1469_case_manifest("known[0, 0]", likes_chart=0),
+})
+
+
+def _reword_text(text: str, case: str, kind: str, path: str, observed: Counter) -> str:
+    """Reword one baseline string and record (case, rule, kind, path) once."""
+    if text in _1469_STRINGS:
+        observed[(case, text, kind, path)] += 1
+        return _1469_STRINGS[text]
+    for name, pattern, replacement in _1469_PATTERNS:
+        if pattern.search(text):
+            observed[(case, name, kind, path)] += 1
+            return pattern.sub(replacement, text)
+    return text
+
+
+def _reword_1469(value: object, case: str, path: str, observed: Counter) -> object:
+    """Apply #1469's fixed rewording to a BASELINE report value.
+
+    Returns a reworded copy; the baseline value is not modified. Paths name
+    the ORIGINAL baseline location: ``<parent>.<key>`` for a dict value,
+    ``<parent>[key=<key>]`` for a dict key, ``<parent>[i]`` for a list item.
+    """
+    if isinstance(value, dict):
+        reworded = {}
+        for key, item in value.items():
+            new_key = (_reword_text(key, case, "key", f"{path}[key={key!r}]", observed)
+                       if isinstance(key, str) else key)
+            reworded[new_key] = _reword_1469(item, case, f"{path}.{key}", observed)
+        return reworded
+    if isinstance(value, list):
+        return [_reword_1469(item, case, f"{path}[{i}]", observed) for i, item in enumerate(value)]
+    if isinstance(value, str):
+        return _reword_text(value, case, "value", path, observed)
+    return value
+
+
+def _reword_table_headers(report: dict[str, Any], case: str, observed: Counter) -> None:
+    """#1469 relabels the comparison table's post-count column only."""
+    for index, table in enumerate(report.get("tables", [])):
+        if table.get("title") == "Platform Comparison" and table["headers"][3] == "Posts":
+            table["headers"][3] = f"Posts analyzed (up to {_POSTS_LIMIT})"
+            observed[(case, "comparison table header", "header",
+                      f"report.tables[{index}].headers[3]")] += 1
+            return
 
 
 def _strict_equal(old: object, new: object) -> bool:
@@ -377,6 +482,7 @@ def audit() -> None:
                 count += 1
 
     old_report = old_module(social_media_reports)
+    observed: Counter = Counter()
     for values in ([12, 3], [0, 0], [None, None], [None, 12], [None, 0]):
         data = [{"platform": name, "account_info": {"followers_count": followers, "following_count": 2},
                  "posts": pd.DataFrame({"text": ["Dummy post"], "like_count": [4], "reply_count": [0],
@@ -397,7 +503,10 @@ def audit() -> None:
                     raise
                 reports.append("TypeError")
         if None not in values:
-            allowed += compare(reports[0], reports[1], "report", hits)
+            case = f"known{values}"
+            baseline = _reword_1469(reports[0], case, "report", observed)
+            _reword_table_headers(baseline, case, observed)
+            allowed += compare(baseline, reports[1], "report", hits)
         else:
             assert reports[0] == "TypeError"
             assert isinstance(reports[1], dict)
@@ -407,6 +516,12 @@ def audit() -> None:
             assert reports[1]["metrics"]["x_twitter — Followers"]["value"] == "unavailable"
             assert data[0]["account_info"]["followers_count"] is None
         count += 1
+    missing = _1469_EXPECTED_REWRITES - observed
+    excess = observed - _1469_EXPECTED_REWRITES
+    assert observed == _1469_EXPECTED_REWRITES, (
+        "#1469 baseline rewrites differ from the declared manifest; "
+        f"missing {sorted(missing.items())}, excess or undeclared {sorted(excess.items())}"
+    )
     assert "instagram.get_account_insights" in _RELABELED, (
         "#1444 covered-day relabel of Instagram account insights was not exercised"
     )
