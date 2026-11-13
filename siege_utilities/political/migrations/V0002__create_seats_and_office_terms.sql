@@ -49,8 +49,7 @@ CREATE TABLE political.seats (
     notes TEXT NOT NULL DEFAULT '',
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 COMMENT ON TABLE political.seats IS
@@ -148,11 +147,12 @@ CREATE TABLE political.office_terms (
 -- Enforce the same-seat invariant on next_term_id. The compound FK references
 -- UNIQUE (id, seat_id) on this same table: when next_term_id is not NULL it must
 -- point at a row whose seat_id matches the current row's seat_id.
+-- PostgreSQL 15+ clears only the forward link, preserving the NOT NULL seat_id.
 ALTER TABLE political.office_terms
     ADD CONSTRAINT fk_office_terms_next_same_seat
         FOREIGN KEY (next_term_id, seat_id)
         REFERENCES political.office_terms (id, seat_id)
-        ON DELETE SET NULL;
+        ON DELETE SET NULL (next_term_id);
 
 COMMENT ON TABLE political.office_terms IS
     'Generic service period on a Seat. Handles odd-term offices (2-year NH/VT gov, 4-year most states, 5-year some appointed positions, 3-year administrator rotations, mid-term fills from specials).';
@@ -188,7 +188,8 @@ CREATE TABLE political.congressional_terms (
     congress_number SMALLINT NOT NULL
         CHECK (congress_number >= 1 AND congress_number <= 300),
     -- 1st Congress through (eventually) the 300th. Generous upper bound.
-    -- Uniqueness is (congress_number, seat_id) — see partial index below.
+    -- Multiple office terms may serve the same seat in one Congress.
+    -- Uniqueness is (congress_number, seat_id, office_term_id) — see index below.
 
     senate_classes_up SMALLINT[] NOT NULL DEFAULT ARRAY[]::SMALLINT[],
     -- Array of Senate classes with seats up for election in this
@@ -209,7 +210,7 @@ CREATE TABLE political.congressional_terms (
 );
 
 CREATE UNIQUE INDEX uq_congressional_terms_congress_seat
-    ON political.congressional_terms (congress_number, seat_id);
+    ON political.congressional_terms (congress_number, seat_id, office_term_id);
 
 COMMENT ON TABLE political.congressional_terms IS
     'US federal specialization of OfficeTerm. 2-year boundary anchored by congress_number. Every OfficeTerm for a federal House/Senate/Presidential Seat has a matching row here.';

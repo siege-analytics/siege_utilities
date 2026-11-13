@@ -3,6 +3,7 @@ Modern path utilities for siege_utilities.
 Provides clean, type-safe path manipulation utilities.
 """
 
+import os
 import zipfile
 import logging
 from pathlib import Path
@@ -56,6 +57,20 @@ def ensure_path_exists(desired_path: FilePath) -> Path:
     except OSError as e:
         log.error(f"Failed to create path {desired_path}: {e}")
         raise
+
+def _zip_member_write_path(target_dir: Path, member: str) -> Path:
+    """Return where ``ZipFile.extract(member, target_dir)`` writes ``member``.
+
+    Mirrors ``zipfile.ZipFile._extract_member``: separators are normalised,
+    a drive is stripped, and empty, ``.`` and ``..`` parts are dropped, so the
+    unsafe-name check sees the name that is actually created (#1737).
+    """
+    arcname = member.replace("/", os.path.sep)
+    if os.path.altsep:
+        arcname = arcname.replace(os.path.altsep, os.path.sep)
+    arcname = os.path.splitdrive(arcname)[1]
+    parts = [p for p in arcname.split(os.path.sep) if p not in ("", os.path.curdir, os.path.pardir)]
+    return target_dir.joinpath(*parts)
 
 def unzip_file_to_directory(zip_file_path: FilePath,
                            extract_to: Optional[FilePath] = None,
@@ -129,11 +144,13 @@ def unzip_file_to_directory(zip_file_path: FilePath,
                 continue
             members.append(member)
         # Refuse the whole archive, before creating anything, if extraction
-        # would create a directory with an unsafe name (#1716).
-        from siege_utilities.files.validation import reject_unsafe_new_directory_names
+        # would create a directory or file with an unsafe name (#1716, #1737).
+        # Check the path zipfile actually writes: it drops '', '.' and '..'
+        # parts, so 'a/../f<ESC>.txt' lands at 'a/f<ESC>.txt'.
+        from siege_utilities.files.validation import reject_unsafe_new_file_path
         for member in members:
-            destination = target_dir / member
-            reject_unsafe_new_directory_names(destination if member.endswith('/') else destination.parent)
+            reject_unsafe_new_file_path(target_dir / member)
+            reject_unsafe_new_file_path(_zip_member_write_path(target_dir, member))
         target_dir.mkdir(parents=True, exist_ok=True)
         for member in members:
             zip_ref.extract(member, target_dir)
