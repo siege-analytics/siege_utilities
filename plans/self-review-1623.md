@@ -37,3 +37,20 @@ Merge of develop `79f37f4df28059a875c8dbf84cf77ce86812bdbb` into the PR branch a
   - `git diff --stat 79f37f4d <merged tree>`, excluding this file, lists exactly the branch's five original files: `CHANGELOG.md`, the 0020 migration, `temporal_political.py`, `tests/test_district_geoid_constraints.py` and `tests/test_django_temporal_models_orm.py` (+130/-7, the same as the PR's own diff).
   - The branch's code and test files are byte-identical to `15579261`.
 - **Tests for this commit:** none were executed locally. The affected modules need GDAL and PostGIS, which are not available to the local test settings in this pass. The evidence is the exact-final-head CI run. The geospatial-library install step has recently failed on another PR's run (cause unconfirmed); if that recurs, the database tests stay not run.
+
+## Precheck change (current review round)
+
+Hostile-review-artifact for this section: https://github.com/siege-analytics/siege_utilities/issues/1623#issuecomment-6800282408 (independent fresh-context review, with responses). Ticket-side self-review: https://github.com/siege-analytics/siege_utilities/issues/1623#issuecomment-6800678454.
+
+- **Change:**
+  - `0020_seat_uniqueness` gains a read-only `RunPython(reject_duplicate_presidents, RunPython.noop, hints={"model_name": "seat"})` as its first operation. It uses the historical `Seat` model on `schema_editor.connection.alias` and filters `office="PRESIDENT"`, the singleton's own condition. With two or more rows it raises `RuntimeError` naming `seat_president_singleton`, the total, the alias and up to 20 primary keys in pk order, and states that this migration changed no rows or constraints. The three constraint operations are unchanged.
+  - New `tests/test_0020_seat_uniqueness_precheck.py` (database-free; skips without GeoDjango) and `tests/test_0020_seat_uniqueness.py` (`postgis` marker; real `MigrationExecutor` from historical 0019 state, including a no-DDL-before-error assertion).
+  - `tests/test_0019_demographic_geoid_keys.py`: teardown restores the computed `siege_geo` leaf.
+  - `CHANGELOG.md`: the #1623 entry moves to 5.0.0 BREAKING with a Migration line, including the reverse limitation.
+- **Deviation from the reviewed draft:** the database-free module gained a GeoDjango skip guard (the pattern in `tests/test_district_geoid_constraints.py`). Without it, the module errored at collection when GDAL was absent.
+- **Syntax check:** `python -m py_compile` on the migration and the three test modules, exit 0.
+- **Tests:** zero test cases were executed locally.
+  - The database-free module skips because GDAL is not configured for the local test settings. Its 6 cases run in CI `test (3.11/3.12/3.13)`.
+  - The PostGIS module (5 cases), the 0019 module and the singleton/Senate ORM tests run only in `test-postgis`. The named tests must be shown executed there, not skipped, before any pass is claimed.
+  - Red-on-revert is inferred, not executed.
+- **Findings:** F1 to F12, recorded on the ticket. F5 (a pre-existing exception-handling mismatch in `siege_utilities/geo/django/__init__.py`) is out of scope, and F6 (no completed exact-head CI run yet) is open.
