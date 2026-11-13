@@ -221,6 +221,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Keeping `id: None` is serialization fidelity only and does not solve the B3b
   identity concern. Provider/field identity and control validation is a separate
   follow-up. Refs #1816.
+- `SalesforceConnector.get_objects()` resolves dotted relationship fields and
+  matches each field segment case-insensitively, so requests such as
+  `Account.Name` and `name` return values instead of all-null columns. Output
+  labels keep the caller's spelling; absent fields and relationships remain
+  null, and empty results keep the requested columns (#1428).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
@@ -433,8 +438,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of `0`; in v4.0.0 an omitted follower, like, comment or impression
   count, and an Instagram media or story insight without a value, became 0.
   Instagram media insights read `total_value` and keep a missing value as
-  `None`, and Facebook Page Insights keep a missing daily value as `None`
-  instead of `0` (#1474). Post frames keep their existing columns, add a `metrics`
+  `None`, and Facebook Page Insights report a missing daily value as
+  unavailable (NaN) instead of `0` (#1474, #1435). Post frames keep their existing columns, add a `metrics`
   dictionary and return `published_at` as a UTC-aware timestamp (NaT if
   unavailable) instead of the API's string, with a stable schema for empty
   results. When a later page stays throttled, the posts collected so far are
@@ -514,7 +519,112 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   also catch `BoundaryFetchError` (a `RuntimeError`). Re-check stored
   `state_senate`/`state_house` results fetched with 4.0.0, which may hold the
   other chamber's plan (#1480).
+- `place_history` and longitudinal boundary normalization now raise `ValueError`
+  when CT county-equivalent, tract, block-group, or block GEOIDs cross the 2022
+  planning-region recode, including normalization to a target across 2022.
+  The error names the required CT 2020->2022 crosswalk. In 4.0.0 these queries
+  returned a result, reporting unchanged lineage or merging incompatible GEOIDs
+  silently. Normalization checks only those levels, so CT SLDU/SLDL frames,
+  whose 5-digit GEOIDs collide with the county codes, pass unchanged. A
+  nationwide frame at an affected level that contains any CT row raises for
+  the whole request. **Migration:** keep CT county, tract, block-group and
+  block queries on one side of 2022, or drop CT rows (state FIPS `09`) from
+  nationwide frames that cross 2022 and handle them separately until the CT
+  2020->2022 crosswalk is supported; that work is tracked in #1795 (#1437).
 
+- CRM transport and server-error retries are limited to GET, PUT and DELETE.
+  POST and PATCH requests are sent once, avoiding duplicate creates after a
+  lost response; in v4.0.0 they were retried. HTTP 429 responses wait for
+  `Retry-After` (seconds or HTTP date), falling back to the configured
+  backoff; only idempotent methods retry. Every wait is capped by the new
+  `max_retry_wait=900.0` setting: over-cap and non-finite hints raise
+  `ConnectorRateLimitError` with `retry_after` and do not sleep, fallback waits
+  are bounded, and wait settings must be finite and nonnegative. Auth and
+  rate-limit errors stop batch upserts, and failed HubSpot token validation
+  leaves the connector disconnected. Dynamics batch upserts inspect inner
+  responses, report missing responses as failures, and mark every record in a
+  rolled-back changeset as failed (#1417). **Migration:** a POST or PATCH that
+  fails in transport now raises after one attempt; retry it yourself only after
+  checking whether the record was created. Code that relied on long
+  `Retry-After` sleeps must catch `ConnectorRateLimitError` and reschedule from
+  `retry_after`, or pass a larger `max_retry_wait`. v3.23.0 had no connector
+  implementations.
+- Zoho canonical contacts and opportunities take account and owner
+  relationships from the lookup ID (`Account_Name_id`, `Owner_id`, or the raw
+  lookup's `id`) instead of display names or missing IDs; in v4.0.0 `owner_id`
+  could hold the owner's display name and a flattened account lookup gave no
+  `account_id`. `CRMOpportunity` probability uses a documented 0-100
+  percentage scale: HubSpot's 0-1 fraction is multiplied by 100 in decimal
+  arithmetic, so `0.29` becomes exactly `29.0`, while
+  Salesforce, Zoho and Dynamics keep their percentage values. Dynamics requests
+  formatted-value annotations on every page and uses the industry label when
+  present; without a label, industry remains the option-set code as a string
+  (#1426). **Migration:** code that read Zoho `owner_id` as a name must look
+  the owner up by ID; code that multiplied HubSpot `probability` by 100 must
+  stop; code that matched Dynamics `industry` option-set codes must match
+  labels when one is returned. v3.23.0 had no implementations of these
+  connectors.
+- `DynamicsConnector.create_record()` returns the new record ID from the
+  `OData-EntityId` header on a 204 response; in v4.0.0 it returned an empty
+  string. Representation responses keep the edit-link and primary-key
+  fallbacks, with the correct keys for all standard entities, including
+  `opportunityid` and activity `activityid`. A response without a record ID
+  raises `ConnectorError` instead of returning an empty string (#1427).
+  **Migration:** code that tested the result for `""` must catch
+  `ConnectorError` instead.
+- HubSpot, Zoho and Dynamics return zero rows without a data request for
+  `limit=0`; in v4.0.0 `limit=0` fetched every record. `None` remains
+  unlimited. Zoho COQL stops at the requested count, and record listing uses
+  continuation tokens past 2,000 rows. Dynamics FetchXML follows paging
+  cookies and raises on missing, invalid or repeated cookies when more rows
+  remain. HubSpot search raises a clear error before paging beyond its
+  10,000-result cap (#1429). **Migration:** pass `limit=None`, not `0`, for no
+  limit; narrow HubSpot search filters or use unfiltered listing for more than
+  10,000 results. v3.23.0 had no connector implementations.
+- Salesforce, HubSpot, Zoho and Dynamics `to_crm_*` helpers map missing
+  numeric, date and string values (`None`, NaN, NaT and `pd.NA`) to `None`
+  before conversion. Missing required account and opportunity names become an
+  empty string, so unnamed records stay in the result instead of aborting the
+  whole list. Valid values and zeros are preserved (#1425). **Migration:** to
+  drop unnamed accounts or opportunities, filter on `name == ""`. v3.23.0 had
+  no implementations of these connectors.
+- Salesforce, HubSpot and Zoho authorization URLs percent-encode OAuth
+  parameters, preserving redirect URI queries and state values containing
+  reserved characters. HubSpot scope separators use `%20` (#1431); in v4.0.0
+  parameters were joined without encoding. **Migration:** pass redirect URIs,
+  scopes and state as plain values; do not encode them before calling
+  `get_authorization_url()`, or they will be encoded twice. v3.23.0 had no
+  connector implementations.
+- Salesforce, HubSpot, Zoho and Dynamics renew credentials once after HTTP 401
+  and replay the rejected request once when renewal is available, including
+  Dynamics public batch upserts and Salesforce CSV uploads and result
+  downloads. Persistent authentication failures raise `ConnectorAuthError`;
+  result-download errors and incomplete result IDs cannot become successful
+  upsert results. Transport and server-error retry limits remain in place.
+  Known token lifetimes use timezone-aware UTC with a 60-second refresh
+  margin. Salesforce does not report an access-token lifetime, so its expiry
+  stays unknown and renewal happens on 401; v4.0.0 assumed two hours from
+  issue. Dynamics renewal clears cached client-credential tokens before
+  acquiring a replacement (#1436). **Migration:** remove caller-side
+  re-authentication around HTTP 401, which the connector now handles once per
+  request. Salesforce `is_connected()` no longer turns False two hours after
+  issue; it stays True until a request is rejected, so code that polled it to
+  decide when to re-authenticate must instead handle `ConnectorAuthError`.
+  v3.23.0 had no connector implementations.
+- Exceptions leaving a public CRM connector method are rebuilt with a
+  sanitized message: the same exception type where it can be built from one
+  message, otherwise `ConnectorError` whose text is `"<original type>:
+  <sanitized message>"` and whose `original_type` names the original class
+  (for example pydantic `ValidationError` or `json.JSONDecodeError`). Only the
+  validated `status_code`, `status` and `retry_after` attributes are carried
+  over; all other attributes of the original exception are dropped. The
+  original is never chained as the cause and is not shown in tracebacks (#1846).
+  **Migration:** code that caught `pydantic.ValidationError`,
+  `json.JSONDecodeError`, `UnicodeDecodeError`, or their base `ValueError`, from
+  a connector method must catch `ConnectorError` and check `original_type`. Read
+  the field or position from the message text instead of exception attributes;
+  when a configured credential is shorter than eight characters or cannot be
+  collected, the text is only the type name.
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,
@@ -674,6 +784,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not rely on row order across offices, read `assignments` to see every
   period of an office with overlapping periods, correct inverted seat rows
   at the data source, and set `from_year` on ongoing seat rows (#1466).
+- DuckDB and PostGIS `spatial_join`, along with `point_in_polygon`,
+  `assign_boundaries`, `intersect_boundaries`, and `multi_assign`, now raise
+  `ValueError` on mismatched known CRS like PandasEngine. The check reads
+  the CRS of the inputs as passed: a frame without CRS metadata, such as a
+  pandas frame of WKT or a DuckDB query result, counts as unknown CRS and
+  joins as before. On PostGIS, `multi_assign` checks only the first
+  boundary layer, because each later layer receives the previous result
+  without its CRS (#1898). On Spark, only `spatial_join` and the
+  `point_in_polygon` and `intersect_boundaries` helpers that delegate to it
+  run the check, and only when both frames carry an explicit `crs`
+  attribute; Spark `assign_boundaries` and `multi_assign` do not check
+  (#1896). Known CRS values are compared as coordinate reference systems
+  through pyproj when it is installed, so `"EPSG:4326"` and `"epsg:4326"`
+  match; without pyproj they are compared literally, with a warning when
+  they differ. Matching and unknown CRS retain their existing behavior
+  (#1619). **Migration:** inputs with mismatched known CRS used to join raw
+  coordinates on DuckDB and PostGIS, and on Spark through the three checked
+  methods, and now raise; reproject one input to match the other before
+  calling them (for example `right.to_crs(left.crs)` for GeoDataFrames;
+  after reprojecting a Spark frame, update or remove its `crs` attribute).
 - Codification recency and demographic metrics return corrected values for
   the same input (#1492):
   - `compute_recency` and `AddressVintage.is_new_construction` measure new
@@ -731,6 +861,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Nothing repairs them automatically. Run
   `python manage.py backfill_derived_fields --dry-run --strip-name` to see
   the counts, then the same command without `--dry-run` (#1539, #1550).
+- Facebook page insights now merge every metric's daily values by measured day.
+  For `period=day`, `date` is a `YYYY-MM-DD` string: `end_time` normalized to
+  UTC (an `end_time` without an offset is read as UTC, not host local time),
+  minus one day. The frame always has the columns `date` plus the requested
+  metrics in requested order; a requested metric absent from the response is a
+  column of NaN, and an empty response, or one holding only metrics that were
+  not requested, is a zero-row frame with those columns. Returned metrics that
+  were not requested are dropped. Missing per-day values and metric/day pairs
+  are NaN, not zero; a reported 0 stays 0. An insight without a metric name
+  raises `ValueError`, even when it has no values. Each connector uses its own
+  API session for page, ad, business, and account calls, preventing token sharing while preserving any existing SDK default API.
+  Facebook ad insights now request daily rows (`time_increment=1`) and include
+  `ad_id`, `ad_name`, `date_start`, and `date_stop`, including when callers
+  supply custom fields; missing ad and business metrics are NaN instead of
+  zero. `batch_retrieve_facebook_data` documents its accepted `data_types` as
+  `ad_account`, `page`, and `business` and accepts `config_directory` to load
+  the client profiles used by all three retrieval paths. **Migration:** parse
+  page-insight `date` as a `YYYY-MM-DD` string for the UTC day before
+  `end_time` (it was the raw `end_time` string in v4.0.0), and re-check any
+  code that assumed the old date value; select page-insight columns by the
+  metric names you requested, since unrequested metrics are no longer returned;
+  handle `ValueError` for a response with an unnamed insight; treat NaN as "no
+  value" and fill it explicitly if zero was intended; expect one row per day
+  from ad insights and the added `ad_id`, `ad_name`, `date_start` and
+  `date_stop` columns (#1435).
 - `CrosswalkPopulationService.populate` (and `populate_crosswalks`) now loads
   crosswalks: it calls `get_crosswalk(geography_level=...)` instead of the
   nonexistent `geography_type=` keyword, which raised `TypeError` on every
@@ -826,6 +981,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `by_population(..., dataset="acs5")` now scopes by content type and dataset and
   selects the newest data year when no year is specified. GFK-specific relation
   introspection/prefetch APIs no longer apply. (#1560)
+
+- `TimeseriesService.populate_timeseries` computes CAGR per calendar year:
+  the exponent is the elapsed span `end_year - start_year` instead of the
+  number of observation gaps, so sparse series no longer overstate annual
+  growth by roughly the observation spacing (values 1000, 1100 and 1210 for
+  2000, 2010 and 2020 now store about 0.0096 instead of 0.10). A missing MOE
+  is stored as `None` in `moe_values` instead of being dropped, so `years`,
+  `values` and `moe_values` stay positionally aligned; a series with no MOEs
+  now stores a list of `None` instead of `[]`. Snapshots and existing series
+  are read once per variable instead of once per GEOID; `years` and `values`
+  are unchanged. A negative end value, such as a raw Census sentinel
+  (`-666666666`) kept in a snapshot, now stores `cagr` as `None`: earlier
+  versions stored a meaningless negative rate for a two-observation series
+  and failed to save longer series, because the fractional power of a
+  negative number is complex (#1622).
+  **Migration:** no schema migration is needed. Rows written by earlier
+  versions keep the old CAGR and compacted `moe_values` until
+  `populate_timeseries(..., update_existing=True)` recomputes them. It
+  rewrites a stored row only when the geography level, GEOID, variable,
+  dataset and start and end years all match a recomputed series, so
+  snapshots for both stored endpoint years must still exist and be among
+  the requested years. Affected rows have
+  `end_year - start_year != len(years) - 1`,
+  `len(moe_values) != len(years)` or a negative last value. Treat `None` in
+  `moe_values` as an unavailable MOE and `None` in `cagr` as undefined.
 
 - `ConfigurationMigrator.migrate_user_profile` and `migrate_client_profile`
   in both `config.enhanced_config` and `config.migration` now propagate file,
@@ -1032,6 +1212,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   DEBUG level include each request's full path and query string. Proxies,
   load balancers and CDNs in front of graph.facebook.com still see the full
   URL and must redact `/oauth/access_token` query strings themselves (#1812).
+- CRM connectors redact sensitive URL, header, form and JSON values from
+  exceptions, tracebacks, log records and upsert result representations, and
+  keep raw transport exceptions out of displayed exception chains, including
+  Dynamics batch errors. Redacted connector log records keep the real
+  caller's file, line and function, and a log template that does not match
+  its arguments logs a marked fallback instead of raising into the caller.
+  Quoted JSON secret redaction runs in linear time, so a long run of
+  backslashes in an error body cannot stall it. HubSpot, Zoho and Salesforce
+  token failures whose JSON body is not an object raise `ConnectorAuthError`
+  instead of `AttributeError`. An `UpsertResult` pickles without the
+  connector's redactor, so a pickled result never carries the connector or its
+  credentials; after unpickling its repr uses key-based redaction. Credentials
+  supplied per call are redacted too:
+  a `DynamicsConnector.request(headers=...)` credential header and the code
+  passed to HubSpot, Salesforce and Zoho `authenticate_with_code` are removed
+  from that call's exceptions and log records, including a nested token
+  refresh. A short or unreadable one, or a `str` or `bytes` subclass (whose
+  sent value cannot be known from the object), leaves only the error type and
+  HTTP status. The values sent are unchanged and are not kept after the call
+  (#1846).
 - Credential files are written with mode 0600 before writing their payload,
   including existing files, with no write-then-chmod race. Missing parent
   directories are created with mode 0700. Profile defaults use per-user paths;
