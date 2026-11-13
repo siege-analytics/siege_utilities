@@ -355,6 +355,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   0600 throughout. Spark staged exports finish copying beside the destination
   before publication, preserving existing data on copy failures (#1509).
 
+- `RDHClient.download_dataset` streams to a temporary file beside the cache
+  entry and publishes it with `os.replace` only after the byte count matches
+  `Content-Length` when present, requesting identity encoding so the length
+  describes the stored bytes. For a response the server still content-encodes,
+  the bytes received on the wire are compared instead, since requests may
+  store them decoded; an encoded response whose received size cannot be
+  determined is rejected, and a malformed `Content-Length` raises
+  `requests.RequestException`. The file is fsynced before it is published,
+  and on POSIX the directory after, best effort: a failed directory sync is
+  logged, not raised. An interrupted or short download raises,
+  removes its temporary file, and leaves any existing cache entry intact;
+  v4.0.0 wrote the cache path directly and later reused the truncated file. A
+  new entry gets the umask-derived mode of any new file and a refresh keeps the
+  replaced entry's permission bits, as v4.0.0's in-place write did. Cache
+  entries already truncated by v4.0.0 are still served, because a cache hit
+  checks only that the file exists; delete them, or pass `use_cache=False`
+  once after upgrading. ZIP extraction is not yet atomic; #1925 tracks it
+  (#1415).
+
 - Attach `BoundaryManager` to all boundary models so the documented
   `.objects.containing_point/nearest/for_state/for_year` API works. Distance
   filters on SRID-4326 geometry now cast to geography to honor meters, and

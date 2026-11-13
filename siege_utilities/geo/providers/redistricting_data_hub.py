@@ -28,14 +28,18 @@ Usage::
 
 from __future__ import annotations
 
+import contextlib
+import errno
 import logging
 import os
 import re
+import secrets
+import stat
 import zipfile
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, BinaryIO, Dict, List, Optional, Union
 from urllib.parse import urlparse
 
 from siege_utilities.core._http import redact_url_secrets
@@ -252,6 +256,120 @@ def _single_member(directory: Path, pattern: str, kind: str) -> Path:
 # ---------------------------------------------------------------------------
 # Client
 # ---------------------------------------------------------------------------
+
+def _create_new_file(path: Path) -> BinaryIO:
+    """Create *path* exclusively for binary writing, with a new file's usual mode.
+
+    Mode 0o666 lets the process umask (and any default ACL) apply exactly as
+    for any new file. ``tempfile`` would force an owner-only 0o600, which a
+    published cache entry would keep. ``O_EXCL`` raises instead of reusing an
+    existing file, such as another download's partial file.
+    """
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+    descriptor = os.open(path, flags, 0o666)
+    try:
+        return os.fdopen(descriptor, "wb")
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def _keep_existing_mode(dest: Path, replacement: Path) -> None:
+    """Give *replacement* the permission bits of the *dest* entry it replaces.
+
+    A refresh must not narrow a shared cache entry to the refreshing process's
+    umask. When *dest* does not exist, *replacement* keeps its umask-derived
+    mode.
+    """
+    try:
+        mode = stat.S_IMODE(dest.stat().st_mode)
+    except FileNotFoundError:
+        return
+    os.chmod(replacement, mode)
+
+
+def _received_wire_size(resp: Any, written_size: int) -> int:
+    """Return the number of response-body bytes that arrived on the wire.
+
+    Content-Length counts wire bytes. Without a Content-Encoding (or with
+    ``identity``) those are the bytes written to the file. Otherwise requests
+    may have decoded them, so the written count does not describe the wire;
+    use the count urllib3 read from the connection (``HTTPResponse.tell``),
+    which counts raw bytes before decoding in urllib3 1.26 and 2.x. A
+    response object that cannot report it raises rather than skipping the
+    check. urllib3 does not count chunked reads, so a server that sends
+    chunked transfer together with Content-Length and an encoding (which
+    RFC 7230 forbids) fails the check rather than being cached.
+    """
+    encoding = resp.headers.get("Content-Encoding", "").strip().lower()
+    if encoding in ("", "identity"):
+        return written_size
+    tell = getattr(getattr(resp, "raw", None), "tell", None)
+    wire_size = tell() if callable(tell) else None
+    if not isinstance(wire_size, int):
+        raise requests.RequestException(
+            f"Cannot verify the size of a {encoding!r}-encoded response: "
+            "the transport does not report the bytes received"
+        )
+    return wire_size
+
+
+def _parse_content_length(value: str) -> int:
+    """Parse a Content-Length header value as a non-negative byte count.
+
+    urllib3 joins repeated headers with ", ", so identical repeated values
+    (``"10, 10"``) are accepted as one. Anything else that is not a single
+    non-negative integer raises, rather than skipping the size check.
+    """
+    parts = {part.strip() for part in value.split(",")}
+    # At most 19 digits (any 64-bit size), so int() never meets Python's
+    # integer string-conversion limit on a hostile header.
+    if len(parts) != 1 or not re.fullmatch(r"[0-9]{1,19}", next(iter(parts))):
+        raise requests.RequestException(f"Invalid Content-Length header: {value!r}")
+    return int(next(iter(parts)))
+
+
+# Errors that mean the platform or filesystem cannot sync a directory at all,
+# as opposed to a sync that was attempted and failed (for example EIO).
+_DIRECTORY_SYNC_UNSUPPORTED = frozenset(
+    getattr(errno, name)
+    for name in ("EINVAL", "ENOTSUP", "EOPNOTSUPP", "EBADF", "EACCES", "EPERM")
+    if hasattr(errno, name)
+)
+
+
+def _sync_directory(directory: Path) -> None:
+    """Persist a completed rename in *directory*, best effort, on POSIX.
+
+    The replacement is already published and its contents are synced, so a
+    failure here only risks the rename itself not surviving a crash; it is
+    logged, not raised. A filesystem or sandbox that cannot sync a directory
+    (EINVAL, ENOTSUP, EOPNOTSUPP, EBADF, EACCES, EPERM) is logged at debug
+    level; any other error, such as EIO, is a real durability failure and
+    logged as a warning. Other platforms cannot open a directory for fsync and
+    are skipped.
+    """
+    if os.name != "posix":
+        return
+    try:
+        directory_fd = os.open(directory, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    except OSError as exc:
+        # Deliberately not raised: the complete, fsynced file is already
+        # published, so raising would report a successful download as failed.
+        # No result is fabricated; only the rename's crash durability is lost.
+        if exc.errno in _DIRECTORY_SYNC_UNSUPPORTED:
+            log.debug("Directory fsync unavailable for %s", directory, exc_info=True)
+        else:
+            log.warning(
+                "Directory fsync failed for %s (%s); the new cache entry is "
+                "published but its rename may not survive a crash",
+                directory, exc,
+            )
+
 
 class RDHClient:
     """Client for the Redistricting Data Hub download API.
@@ -529,7 +647,15 @@ class RDHClient:
         output_dir: Optional[Union[str, Path]] = None,
         use_cache: bool = True,
     ) -> Path:
-        """Download a dataset file.
+        """Download a dataset file and publish it to the cache atomically.
+
+        New downloads must match Content-Length when the server supplies it.
+        For a content-encoded response, the bytes received on the wire are
+        compared, since the stored bytes may be decoded. The file is fsynced
+        before it is published, and on POSIX the directory after. Failed
+        downloads remove their temporary file and preserve any existing cache
+        entry. Existing cache entries are reused without a network or size
+        check.
 
         Parameters
         ----------
@@ -543,6 +669,15 @@ class RDHClient:
         Returns
         -------
         Path to the downloaded file (or extracted directory for ZIPs).
+
+        Raises
+        ------
+        requests.RequestException
+            The request fails, Content-Length is malformed, the received size
+            differs from it, or an encoded response's received size cannot be
+            determined.
+        OSError
+            Writing, syncing or publishing the cache file fails.
         """
         if isinstance(dataset, str):
             url = dataset
@@ -568,19 +703,50 @@ class RDHClient:
 
         log_info(redact_url_secrets(f"RDH: Downloading {filename}..."))
         error = None
+        temporary_path = None
         try:
-            resp = self._session.get(
-                url, params=self._auth_params(url), timeout=300, stream=True
-            )
-            resp.raise_for_status()
-
-            with open(dest, "wb") as f:
-                for chunk in resp.iter_content(chunk_size=8192):
-                    f.write(chunk)
+            # Set the path first so the finally clause also covers a failure
+            # between creating the file and opening it for writing.
+            temporary_path = dest.with_name(f"{dest.name}.{secrets.token_hex(16)}.part")
+            with _create_new_file(temporary_path) as output:
+                with contextlib.closing(self._session.get(
+                    url, params=self._auth_params(url), timeout=300, stream=True,
+                    # Compare the stored bytes to the unencoded response length.
+                    headers={"Accept-Encoding": "identity"},
+                )) as resp:
+                    resp.raise_for_status()
+                    expected_size = (
+                        _parse_content_length(resp.headers["Content-Length"])
+                        if "Content-Length" in resp.headers else None
+                    )
+                    written_size = 0
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        written_size += output.write(chunk)
+                    if expected_size is not None:
+                        received_size = _received_wire_size(resp, written_size)
+                        if received_size != expected_size:
+                            raise requests.RequestException(
+                                f"Content-Length mismatch: expected {expected_size} "
+                                f"bytes, received {received_size}"
+                            )
+                _keep_existing_mode(dest, temporary_path)
+                # Make the bytes and mode durable before the rename publishes
+                # them, so a crash cannot expose an empty or short entry where
+                # fsync reaches stable storage (on macOS, os.fsync does not
+                # flush the drive cache; that needs F_FULLFSYNC).
+                output.flush()
+                os.fsync(output.fileno())
+            os.replace(temporary_path, dest)
+            # Persist the rename too, so a refresh (use_cache=False) that
+            # returned cannot revert to the entry it replaced after a crash.
+            _sync_directory(dest.parent)
         except requests.RequestException as e:
             message = redact_url_secrets(f"RDH download failed: {e}")
             log_error(message)
             error = type(e)(message)
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
         if error is not None:
             # A fresh exception drops request/response URLs and suppressed context.
             raise error from None
