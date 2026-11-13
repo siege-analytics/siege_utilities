@@ -10,7 +10,7 @@ constraint-dependencies = ["greenlet!=3.5.6"]
 
 [project]
 name = "siege-utilities"
-version = "4.1.0"
+version = "5.0.0"
 description = "A comprehensive Python utilities package with enhanced auto-discovery"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -86,6 +86,10 @@ geo = [
     "geoalchemy2>=0.14.0",
     # Required by geo/spatial_data.py (BeautifulSoup HTML/XML parsing).
     "beautifulsoup4>=4.12.0",
+    # bs4's selector engine; 4.0.0 fixes CVE-2026-126190 but requires Python
+    # >=3.11.5. 3.11.0-3.11.4 cannot install the fixed soupsieve, so the
+    # marker keeps those installs resolvable (#1895).
+    "soupsieve>=4.0.0; python_full_version >= '3.11.5'",
 ]
 
 # Native GDAL/OGR Python bindings. Kept as a SEPARATE opt-in extra (not part of
@@ -172,6 +176,9 @@ config-extras = [
 # Web scraping / parsing
 web = [
     "beautifulsoup4>=4.12.0",
+    # CVE-2026-126190 fix; 3.11.0-3.11.4 cannot install it, so the marker
+    # keeps those installs resolvable (#1895).
+    "soupsieve>=4.0.0; python_full_version >= '3.11.5'",
     "lxml>=4.9.0",
 ]
 # Note: `streamlit` extra removed in 3.24.0 (#1180, #1186); 3.23.0 on PyPI
@@ -191,7 +198,9 @@ web = [
 ]
 # DuckDB performance backend
 performance = [
-    "duckdb>=0.7.0",
+    # Upper bound: DuckDB 2.0 changes tokenizer byte offsets and prepared-statement
+    # result metadata, breaking the class-hardening suite. Pinned pending 2.0 support.
+    "duckdb>=0.7.0,<2.0",
 ]
 # Database connectivity
 database = [
@@ -331,9 +340,14 @@ all = [
     "omegaconf>=2.3.0",
     # web
     "beautifulsoup4>=4.12.0",
+    # CVE-2026-126190 fix; 3.11.0-3.11.4 cannot install it, so the marker
+    # keeps those installs resolvable (#1895).
+    "soupsieve>=4.0.0; python_full_version >= '3.11.5'",
     "lxml>=4.9.0",
     # performance
-    "duckdb>=0.7.0",
+    # Upper bound: DuckDB 2.0 changes tokenizer byte offsets and prepared-statement
+    # result metadata, breaking the class-hardening suite. Pinned pending 2.0 support.
+    "duckdb>=0.7.0,<2.0",
     # database
     "sqlalchemy>=1.4.0",
     # 3d

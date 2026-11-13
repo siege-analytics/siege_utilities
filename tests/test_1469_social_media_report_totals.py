@@ -1,0 +1,427 @@
+"""Regression coverage for social report failures, sample counts and missing metrics."""
+
+import logging
+import re
+import traceback
+from datetime import date
+from unittest.mock import Mock
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from siege_utilities.analytics._social_protocol import SocialMediaError
+from siege_utilities.reporting.social_media_reports import SocialMediaReportGenerator
+
+
+START = date(2026, 1, 1)
+END = date(2026, 3, 31)
+
+
+class FakeConnector:
+    def __init__(
+        self, platform_name="fakebook", *, followers=10, following=5,
+        posts=None, insights=None, failure=None, error=None,
+    ):
+        self.platform_name = platform_name
+        self.followers = followers
+        self.following = following
+        self.posts = posts if posts is not None else pd.DataFrame()
+        self.insights = insights if insights is not None else pd.DataFrame()
+        self.failure = failure
+        self.error = error
+        self.post_requests = []
+
+    def get_account_info(self):
+        if self.failure == "get_account_info":
+            raise self.error
+        return {"followers_count": self.followers, "following_count": self.following}
+
+    def get_account_insights(self, start_date, end_date):
+        assert (start_date, end_date) == (START, END)
+        if self.failure == "get_account_insights":
+            raise self.error
+        return self.insights
+
+    def get_posts(self, start_date, end_date, *, limit):
+        self.post_requests.append((start_date, end_date, limit))
+        if self.failure == "get_posts":
+            raise self.error
+        return self.posts.head(limit)
+
+
+@pytest.fixture
+def report(tmp_path, monkeypatch):
+    generator = SocialMediaReportGenerator("client", output_dir=tmp_path)
+    writer = Mock(return_value=tmp_path / "report.pdf")
+    monkeypatch.setattr(generator.report_generator, "create_analytics_report", writer)
+    return generator, writer
+
+
+OPERATIONS = {
+    "get_account_info": "account info",
+    "get_account_insights": "account insights",
+    "get_posts": "posts",
+}
+
+
+@pytest.mark.parametrize("method", list(OPERATIONS))
+@pytest.mark.parametrize("error_type", [RuntimeError, SocialMediaError])
+def test_connector_failure_raises_with_platform_and_category(report, method, error_type):
+    # The error names the platform, the operation and the error type. It does
+    # not chain or quote the connector error, which may carry credentials.
+    generator, writer = report
+    connector = FakeConnector(failure=method, error=error_type("retrieval failed"))
+
+    with pytest.raises(SocialMediaError) as exc:
+        generator.create_social_media_report([FakeConnector("healthy"), connector], START, END)
+
+    message = str(exc.value)
+    assert "fakebook" in message
+    assert OPERATIONS[method] in message
+    assert error_type.__name__ in message
+    assert "retrieval failed" not in message
+    assert exc.value.__cause__ is None
+    assert exc.value.__suppress_context__ is True
+    assert exc.value.__context__ is None
+    writer.assert_not_called()
+
+
+SECRET = "DUMMY_SECRET_1807"
+
+
+@pytest.mark.parametrize("method", list(OPERATIONS))
+@pytest.mark.parametrize("secret_text", [
+    f"request failed: https://graph.instagram.com/v22.0/me?access_token={SECRET}",
+    f"401 Unauthorized; Authorization: Bearer {SECRET}",
+])
+def test_connector_failure_never_exposes_secrets(report, caplog, method, secret_text):
+    generator, writer = report
+    connector = FakeConnector(failure=method, error=RuntimeError(secret_text))
+    log = logging.getLogger("test_1469_secret_controls")
+
+    with caplog.at_level(logging.DEBUG):
+        with pytest.raises(SocialMediaError) as exc:
+            generator.create_social_media_report([connector], START, END)
+        log.exception("report failed", exc_info=exc.value)
+
+    rendered = "".join(traceback.format_exception(exc.value))
+    assert SECRET not in str(exc.value)
+    assert SECRET not in repr(exc.value)
+    # from None only hides the connector error from tracebacks; it must not
+    # stay reachable as the implicit context either.
+    assert exc.value.__context__ is None
+    assert SECRET not in rendered
+    assert SECRET not in caplog.text
+    writer.assert_not_called()
+
+
+@pytest.mark.parametrize("posts_limit", [None, 75], ids=["default-50", "custom-75"])
+def test_post_counts_and_engagement_are_labeled_as_samples(report, posts_limit):
+    generator, writer = report
+    posts = pd.DataFrame({
+        "text": [f"Post {i}" for i in range(120)],
+        "like_count": range(120),
+    })
+    connectors = [FakeConnector(posts=posts), FakeConnector("other", posts=posts.head(3))]
+    kwargs = {} if posts_limit is None else {"posts_limit": posts_limit}
+    limit = posts_limit or 50
+
+    output = generator.create_social_media_report(connectors, START, END, **kwargs)
+
+    assert output == writer.return_value
+    assert all(c.post_requests == [(START, END, limit)] for c in connectors)
+    payload = writer.call_args.args[0]
+    summary = payload["executive_summary"]
+    assert f"{limit + 3} posts analyzed" in summary
+    assert f"(up to {limit} per platform" in summary
+    assert "posts in the reporting window" not in summary
+    metrics = payload["metrics"]
+    assert "Total Posts (all platforms)" not in metrics
+    assert metrics[f"fakebook — Posts analyzed (up to {limit})"]["value"] == str(limit)
+    assert metrics[f"Posts analyzed (all platforms; up to {limit} each)"]["value"] == str(limit + 3)
+    comparison = payload["tables"][0]
+    assert comparison["headers"][-1] == f"Posts analyzed (up to {limit})"
+    assert comparison["data"][0][-1] == str(limit)
+    assert "analyzed posts" in payload["charts"][1]["title"]
+    assert all("analyzed posts" in table["title"] for table in payload["tables"][1:])
+    post_insights = [line for line in payload["insights"] if "post" in line]
+    assert post_insights
+    assert all("analyzed posts" in line for line in post_insights)
+
+
+def test_capped_posts_make_no_recency_claim(report):
+    # The connector protocol promises at most ``limit`` posts and no order. A
+    # connector that returns its oldest posts first must not be described as
+    # the most recent sample.
+    generator, writer = report
+    posts = pd.DataFrame({
+        "text": [f"Post {i}" for i in range(80)],
+        "like_count": range(80),
+        "published_at": pd.date_range("2026-01-01", periods=80, freq="D"),
+    })
+
+    generator.create_social_media_report([FakeConnector(posts=posts)], START, END, posts_limit=30)
+
+    payload = writer.call_args.args[0]
+    rendered = str(payload).lower()
+    assert not any(word in rendered for word in ("recent", "newest", "latest"))
+    assert "up to 30 per platform" in payload["executive_summary"]
+    assert payload["metrics"]["fakebook — Posts analyzed (up to 30)"]["value"] == "30"
+
+
+@pytest.mark.parametrize("missing_followers", [None, float("nan"), pd.NA])
+@pytest.mark.parametrize("missing_likes", [None, float("nan"), pd.NA])
+def test_missing_counts_render_unavailable_never_zero(
+    report, missing_followers, missing_likes,
+):
+    # Hub ruling R-1807-1812-N: an unavailable metric is None/"unavailable",
+    # never a fabricated 0. Known zeros (the "other" platform) stay 0.
+    generator, writer = report
+    posts = pd.DataFrame({"text": ["one", "two"], "like_count": [missing_likes] * 2})
+    connector = FakeConnector(followers=missing_followers, following=missing_followers, posts=posts)
+    other = FakeConnector("other", followers=0, following=0)
+
+    generator.create_social_media_report([connector, other], START, END)
+
+    payload = writer.call_args.args[0]
+    assert "0 total followers" in payload["executive_summary"]
+    assert payload["metrics"]["Total Followers (all platforms)"]["value"] == "0"
+    assert payload["metrics"]["fakebook — Followers"]["value"] == "unavailable"
+    assert payload["metrics"]["other — Followers"]["value"] == "0"
+    assert payload["charts"] == []
+    assert payload["tables"][0]["data"][0][1:3] == ["unavailable", "unavailable"]
+    assert payload["tables"][0]["data"][1][1:3] == ["0", "0"]
+    assert all(row[1] == "unavailable" for row in payload["tables"][1]["data"])
+    assert any("average unavailable likes" in line for line in payload["insights"])
+    assert not any("average 0 likes" in line for line in payload["insights"])
+    assert not any("Top performing" in line for line in payload["insights"])
+    # One known count (a known 0) of two: no platform is shown to be largest (#1812).
+    assert not any("largest audience" in line for line in payload["insights"])
+    assert "nan" not in str(payload).lower()
+    assert "<NA>" not in str(payload)
+
+
+class AbsentMetricsConnector(FakeConnector):
+    """Account info that omits the count keys entirely."""
+
+    def get_account_info(self):
+        return {}
+
+
+def test_absent_and_all_unknown_counts_render_unavailable(report):
+    generator, writer = report
+    connectors = [AbsentMetricsConnector("absent"), FakeConnector("unknown", followers=None)]
+
+    generator.create_social_media_report(connectors, START, END)
+
+    payload = writer.call_args.args[0]
+    assert "unavailable total followers" in payload["executive_summary"]
+    assert payload["metrics"]["Total Followers (all platforms)"]["value"] == "unavailable"
+    assert payload["metrics"]["absent — Followers"]["value"] == "unavailable"
+    assert payload["tables"][0]["data"][0][1:3] == ["unavailable", "unavailable"]
+    assert not any("largest audience" in line for line in payload["insights"])
+    assert payload["charts"] == []
+
+
+def test_missing_metrics_do_not_change_known_counts_or_rankings(report):
+    generator, writer = report
+    posts = pd.DataFrame({
+        "text": ["unknown", "popular", "quiet"],
+        "like_count": pd.Series([pd.NA, 6, 0], dtype="Int64"),
+        "comments_count": pd.Series([pd.NA, 2, 0], dtype="Int64"),
+    })
+    missing = FakeConnector(followers=None, posts=posts.head(1))
+    known = FakeConnector("known", followers=12, posts=posts)
+
+    generator.create_social_media_report([missing, known], START, END)
+
+    payload = writer.call_args.args[0]
+    assert payload["metrics"]["Total Followers (all platforms)"]["value"] == "12"
+    # Unknown values are chart gaps, not zeros.
+    assert payload["charts"][0]["data"]["datasets"][0]["data"] == [None, 12]
+    assert payload["charts"][1]["data"]["datasets"][0]["data"] == [None, 6]
+    # One known count of two: no platform is shown to be largest (#1812).
+    assert not any("largest audience" in line for line in payload["insights"])
+    assert any('"popular…" with 6 likes' in line for line in payload["insights"])
+    assert any("Known: average 3 likes per post" in line for line in payload["insights"])
+    known_table = next(t for t in payload["tables"] if t["title"].endswith("— Known"))
+    assert [row[:3] for row in known_table["data"]] == [
+        ["popular", "6", "2"], ["quiet", "0", "0"], ["unknown", "unavailable", "unavailable"],
+    ]
+    assert "<NA>" not in str(payload)
+
+
+@pytest.mark.parametrize("dtype", ["Int64", "Float64", "int32", "float32"])
+def test_numeric_insights_include_nullable_and_narrow_dtypes(report, dtype):
+    generator, writer = report
+    nullable = dtype[0].isupper()
+    insights = pd.DataFrame({
+        "date": [START, END],
+        "reach": pd.Series([3, None if nullable else 2], dtype=dtype),
+        "label": ["start", "end"],
+        "active": pd.Series([True, None], dtype="boolean"),
+    })
+    generator.create_social_media_report([FakeConnector(insights=insights)], START, END)
+
+    charts = writer.call_args.args[0]["charts"]
+    daily = next(chart for chart in charts if chart["type"] == "line")
+    assert daily["data"]["datasets"] == [{"label": "Reach", "data": [3, None if nullable else 2]}]
+
+
+@pytest.mark.parametrize("posts_limit", [0, -1, 1.5, True, None])
+def test_invalid_posts_limit_fails_before_retrieval(report, posts_limit):
+    generator, writer = report
+    connector = Mock()
+
+    with pytest.raises(ValueError, match="posts_limit must be a positive integer"):
+        generator.create_social_media_report([connector], START, END, posts_limit=posts_limit)
+
+    assert connector.mock_calls == []
+    writer.assert_not_called()
+
+
+@pytest.mark.parametrize("text_count", ["1200", "1200.0"])
+def test_string_account_counts_are_normalized_in_every_section(report, text_count):
+    # CodeRabbit 4499070041: the protocol allows string counts. Numeric text
+    # counts as a number; unparseable text is unavailable, never a crash or 0.
+    generator, writer = report
+    connectors = [
+        FakeConnector("text", followers=text_count, following="34"),
+        FakeConnector("garbled", followers="not a number", following="n/a"),
+        FakeConnector("known", followers=5, following=7),
+    ]
+
+    generator.create_social_media_report(connectors, START, END)
+
+    payload = writer.call_args.args[0]
+    assert "1,205 total followers" in payload["executive_summary"]
+    assert payload["metrics"]["Total Followers (all platforms)"]["value"] == "1,205"
+    assert payload["metrics"]["text — Followers"]["value"] == "1,200"
+    assert payload["metrics"]["garbled — Followers"]["value"] == "unavailable"
+    assert payload["charts"][0]["data"]["datasets"][0]["data"] == [1200, None, 5]
+    assert [row[1:3] for row in payload["tables"][0]["data"]] == [
+        ["1,200", "34"], ["unavailable", "unavailable"], ["5", "7"],
+    ]
+    assert (
+        "Text has the largest audience among the 2 of 3 platforms with known "
+        "follower counts with 1,200 followers."
+    ) in payload["insights"]
+
+
+def test_top_post_is_selected_by_position_with_duplicate_index_labels(report):
+    # CodeRabbit 4499070047: a connector frame can repeat index labels; a label
+    # lookup then returns several rows and int() of them raises TypeError.
+    generator, writer = report
+    posts = pd.DataFrame({"text": ["first", "second"], "like_count": [1, 5]}, index=[0, 0])
+
+    generator.create_social_media_report([FakeConnector(posts=posts)], START, END)
+
+    insights = writer.call_args.args[0]["insights"]
+    assert any('"second…" with 5 likes' in line for line in insights)
+    assert any("Fakebook: average 3 likes per post" in line for line in insights)
+
+
+# Known counts are finite counts. An infinite count, numeric or text, is
+# unavailable: never a known value, never 0, and never the largest audience.
+_INFINITE = re.compile(r"(?<![a-z])-?inf(?:inity)?(?![a-z])|∞")
+
+
+def _payload(writer):
+    payload = writer.call_args.args[0]
+    assert not _INFINITE.search(str(payload).lower())
+    return payload
+
+
+@pytest.mark.parametrize("infinite", [float("inf"), np.inf, "inf", "Infinity"])
+def test_infinite_count_is_unavailable_and_never_the_largest_audience(report, infinite):
+    generator, writer = report
+    connectors = [
+        FakeConnector("endless", followers=infinite, following=infinite),
+        FakeConnector("known", followers=5, following=7),
+    ]
+
+    generator.create_social_media_report(connectors, START, END)
+
+    payload = _payload(writer)
+    assert payload["metrics"]["endless — Followers"]["value"] == "unavailable"
+    assert payload["metrics"]["Total Followers (all platforms)"]["value"] == "5"
+    assert [row[1:3] for row in payload["tables"][0]["data"]] == [
+        ["unavailable", "unavailable"], ["5", "7"],
+    ]
+    assert payload["charts"][0]["data"]["datasets"][0]["data"] == [None, 5]
+    # One known count of two: nothing is compared.
+    assert not any("largest audience" in line for line in payload["insights"])
+
+
+@pytest.mark.parametrize("negative", [float("-inf"), "-inf"])
+def test_negative_infinite_count_scopes_the_claim_to_the_finite_counts(report, negative):
+    generator, writer = report
+    connectors = [
+        FakeConnector("sink", followers=negative),
+        FakeConnector("small", followers=5),
+        FakeConnector("big", followers=7),
+    ]
+
+    generator.create_social_media_report(connectors, START, END)
+
+    payload = _payload(writer)
+    assert payload["metrics"]["sink — Followers"]["value"] == "unavailable"
+    assert payload["metrics"]["Total Followers (all platforms)"]["value"] == "12"
+    assert (
+        "Big has the largest audience among the 2 of 3 platforms with known "
+        "follower counts with 7 followers."
+    ) in payload["insights"]
+
+
+def test_all_infinite_counts_are_unavailable(report):
+    generator, writer = report
+    connectors = [
+        FakeConnector("up", followers=float("inf")),
+        FakeConnector("down", followers="-inf"),
+    ]
+
+    generator.create_social_media_report(connectors, START, END)
+
+    payload = _payload(writer)
+    assert "unavailable total followers" in payload["executive_summary"]
+    assert payload["metrics"]["Total Followers (all platforms)"]["value"] == "unavailable"
+    assert payload["metrics"]["up — Followers"]["value"] == "unavailable"
+    assert payload["metrics"]["down — Followers"]["value"] == "unavailable"
+    assert payload["charts"] == []
+    assert not any("largest audience" in line for line in payload["insights"])
+
+
+def test_known_zero_and_text_counts_stay_known_beside_an_infinite_count(report):
+    generator, writer = report
+    connectors = [
+        FakeConnector("zero", followers=0, following=0),
+        FakeConnector("endless", followers=float("inf")),
+        FakeConnector("text", followers="1200", following="34"),
+    ]
+
+    generator.create_social_media_report(connectors, START, END)
+
+    payload = _payload(writer)
+    assert payload["metrics"]["zero — Followers"]["value"] == "0"
+    assert payload["metrics"]["text — Followers"]["value"] == "1,200"
+    assert payload["metrics"]["endless — Followers"]["value"] == "unavailable"
+    assert payload["metrics"]["Total Followers (all platforms)"]["value"] == "1,200"
+    assert payload["charts"][0]["data"]["datasets"][0]["data"] == [0, None, 1200]
+    assert (
+        "Text has the largest audience among the 2 of 3 platforms with known "
+        "follower counts with 1,200 followers."
+    ) in payload["insights"]
+
+
+def test_large_integer_count_is_kept_exactly(report):
+    # A count beyond int64 must not be routed through float to check finiteness.
+    generator, writer = report
+    large = 2**63 + 1
+    connectors = [FakeConnector("large", followers=large), FakeConnector("small", followers=5)]
+
+    generator.create_social_media_report(connectors, START, END)
+
+    payload = _payload(writer)
+    assert payload["metrics"]["large — Followers"]["value"] == f"{large:,}"
+    assert payload["charts"][0]["data"]["datasets"][0]["data"] == [large, 5]
