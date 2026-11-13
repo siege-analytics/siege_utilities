@@ -170,3 +170,29 @@ rerere recorded this conflict's preimage, and records the resolution at commit, 
 Residuals, recorded and not fixed here:
 - the shared BREAKING anchor collision across PRs, which this restage illustrates;
 - the precinct, CVAP and PL 94-171 loaders that still take `datasets[0]`.
+
+## Review fields for the develop integration round
+
+Working as: software engineer (PR author, develop integration)
+Investigate-artifact: https://github.com/siege-analytics/siege_utilities/issues/1480#issuecomment-6799939326
+Pre-mortem-artifact: https://github.com/siege-analytics/siege_utilities/issues/1480#issuecomment-6799939326
+
+The investigation and pre-mortem were written for the markers-only integration plan against develop 79f37f4d. The 6c049c2c restage applies the same plan, and no new senior review was run for it.
+
+## Peer review (develop integration round)
+
+All results below were run on the merged 6c049c2c snapshot, staged tree `0960ea10`, which is merge commit `4e685c7e`. This follow-up commit changes only this file.
+
+- writing-code: markers-only CHANGELOG resolution; staged blob `9ead24f8` matches the expected blob. Against develop `6c049c2c`, only the 5 PR paths differ, and the 4 that are not CHANGELOG are byte-identical to `1e439ce7`.
+- writing-code: guard results, each `python scripts/<guard>.py`:
+  - credential URL guard: 0 unreviewed;
+  - exception contracts `--list`: 205 flagged, 0 unlisted, 0 stale;
+  - secret literal, secret repr and subprocess safety: 0 violations in 395 files each;
+  - lazy imports: OK (59 packages, 8 optional GDAL skips);
+  - error-path coverage: 395 pass, 0 fail;
+  - test file hygiene: PASS;
+  - extras coherence: 24 coherent;
+  - release check: consistent 5.0.0.
+  The lint ratchet was not run (flake8 not installed locally).
+- writing-tests: `python -m pytest tests/test_1480_rdh_chamber_sldu_sldl.py tests/test_redistricting_data_hub.py tests/test_boundary_providers.py -q -p no:cacheprovider --no-cov -rA` → 218 passed, 0 failed, 0 skipped (69 / 104 / 45). `tests/test_credential_url_guard.py` → 115 passed.
+- writing-claims: the counts above are pytest summary and `-rA` lines and guard outputs from the 6c049c2c run, recorded in the integration section above. Hosted CI is not claimed.
