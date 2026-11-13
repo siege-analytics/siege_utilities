@@ -579,21 +579,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   builders' metric keys or titles must use the new labels (#1469).
 - Bivariate choropleths in `siege_utilities.geo.choropleth` with tied values
   use the actual quantile grid and preserve the palette's low and high colors.
-  Crosstab dimensions and legend ticks match the retained breaks, and
-  `verify_bivariate_classification` reports reduced class counts as errors.
-  Rendering raises a clear error if ties leave fewer than two bins on an
-  axis, unless one class was requested. In 4.0.0 these functions classified
-  with `qcut(..., duplicates="drop")`: `create_bivariate_choropleth` rendered
-  tied data, including an axis collapsed to one bin, with the top values in
-  a middle color and a legend whose ticks outnumbered its labels, and
-  `verify_bivariate_classification` returned `valid: True`.
-  `create_bivariate_crosstab` and `create_bivariate_analysis` raised
-  `ValueError: Length mismatch` on the same data; they now return the actual
-  grid. **Migration:** `create_bivariate_choropleth` now raises `ValueError`
-  for a variable that ties into fewer than two bins; check `nunique()` first,
-  or pass `n_classes=1`. Treat a reduced class count in
-  `verify_bivariate_classification` as an error rather than a pass, and
-  regenerate stored tied bivariate maps, whose colors change (#1462).
+  Crosstab dimensions and legend ticks match the retained breaks.
+  `verify_bivariate_classification` reports a reduced class count as an
+  error, and also a variable with fewer populated classes than requested
+  (for example, 2 units classified into 3 classes). Rendering raises a clear
+  `ValueError` if ties leave fewer than two bins on an axis, unless one class
+  was requested, and `create_bivariate_crosstab` raises `ValueError` for a
+  variable with zero classes (all values identical or missing) instead of
+  returning an empty table. In 4.0.0 these functions classified with
+  `qcut(..., duplicates="drop")` and labelled the legend with one tick per
+  requested class boundary but one label per retained break. When ties
+  collapsed a quantile boundary, `create_bivariate_choropleth` and
+  `create_bivariate_analysis` raised matplotlib's `ValueError` that the number
+  of tick locations does not match the number of labels, and
+  `create_bivariate_crosstab` raised `ValueError` (`Length mismatch`, or a
+  pandas error for a constant variable); 5.0.0 renders and tabulates the
+  actual grid. Ties that left every boundary distinct rendered in 4.0.0 and
+  still do. This 4.0.0 behaviour is derived from source (v4.0.0
+  `choropleth.py` lines 220-228, 505-512 and 856, with matplotlib 3.7.5 or
+  later), not executed. **Migration:** `verify_bivariate_classification` now
+  returns `valid: False` for a reduced or unpopulated class count where 4.0.0
+  returned `valid: True`; treat those results as errors. Callers that caught
+  the 4.0.0 matplotlib error on such data now get a figure (#1462).
 
 - CRM transport and server-error retries are limited to GET, PUT and DELETE.
   POST and PATCH requests are sent once, avoiding duplicate creates after a

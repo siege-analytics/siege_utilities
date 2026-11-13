@@ -614,8 +614,10 @@ def create_bivariate_crosstab(
         If render=True: Tuple of (DataFrame, fig, ax).
 
     Raises:
-        ValueError: When rendering, if the color scheme is invalid or an
-            axis has fewer than two bins, unless n_classes=1 was requested.
+        ValueError: If a variable has zero quantile classes (all values
+            identical or missing). When rendering, also if the color scheme
+            is invalid or an axis has fewer than two bins, unless
+            n_classes=1 was requested.
     """
     classified, var1_breaks, var2_breaks = _compute_bivariate_classes(
         gdf, var1, var2, n_classes
@@ -649,6 +651,17 @@ def create_bivariate_crosstab(
     ct.columns.name = var1
 
     if not render:
+        # A variable with zero classes (all values identical or missing) would
+        # give an empty table that reads like data; raise as the map and the
+        # rendered crosstab do (verify_bivariate_classification reports it as
+        # an error).
+        empty = [name for name, count in ((var1, var1_count), (var2, var2_count))
+                 if count == 0]
+        if empty:
+            raise ValueError(
+                f"Cannot cross-tabulate bivariate quantiles: '{empty[0]}' has zero "
+                "quantile classes (its values are all identical or missing)."
+            )
         return ct
 
     # Render colored figure

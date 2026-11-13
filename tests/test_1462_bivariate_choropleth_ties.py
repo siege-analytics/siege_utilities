@@ -120,8 +120,14 @@ def test_degenerate_axes_report_clear_errors(values, count, render_artifact):
     assert verification['valid'] is False
     assert any(f"'a' has {count} quantile classes" in error
                for error in verification['errors'])
-    ct = create_bivariate_crosstab(gdf, 'a', 'b', n_classes=3)
-    assert ct.shape == (3, count)
+    if count == 0:
+        # A constant variable has no classes; an empty crosstab would be
+        # indistinguishable from data, so it raises like the render paths.
+        with pytest.raises(ValueError, match="'a' has zero quantile classes"):
+            create_bivariate_crosstab(gdf, 'a', 'b', n_classes=3)
+    else:
+        ct = create_bivariate_crosstab(gdf, 'a', 'b', n_classes=3)
+        assert ct.shape == (3, count)
 
     figs_before = set(plt.get_fignums())
     with pytest.raises(ValueError, match='Cannot render bivariate quantiles'):
