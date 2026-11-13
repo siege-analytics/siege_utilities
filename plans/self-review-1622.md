@@ -12,6 +12,11 @@ was written on 2026-11-11, after the original implementation at `6d1923c0`
 (2026-10-18). It does not backfill the original round: no investigation,
 pre-mortem or hostile review was recorded before that implementation.
 
+Updated on 2026-11-13 for the second review round:
+- the develop `f22dce96` integration;
+- the exact-head CI result at `3b1de990`;
+- the negative-end CAGR fix the exact-head review found (S2-1, see "Round 2" below).
+
 Review tier: B, by content. The local tooling classified this merge as tier C,
 because develop-side workflow and release files are in the merge set, and the
 pass was run under that stricter gate. The tier C fields follow.
@@ -33,27 +38,22 @@ items were read from the ticket and compared with the code, and the "fails on
 Plan reference: the Junior task description and the response to the
 independent Senior review (links below).
 
-Pre-author-inventory: NONE
+Pre-author-inventory: https://github.com/siege-analytics/siege_utilities/issues/1622#issuecomment-6799914437
 
-Trivial-against-state: docs-only
-Reason: in this integration round the only authored files are `CHANGELOG.md`
-and this record; the service and test are byte-identical to the original
-implementation at `6d1923c0`, and every other file is byte-identical to
-develop `79f37f4d`, so this round touches no data-shape, config-state,
-topology, plan-shape or version-resolution contact point. No pre-author
-inventory was recorded for the original 2026-10-18 implementation; that
-absence is stated above and is not backfilled here.
-Evidence: `git diff --name-only 79f37f4d HEAD` lists `CHANGELOG.md`,
-`plans/self-review-1622.md`,
-`siege_utilities/geo/django/services/timeseries_service.py` and
-`tests/test_timeseries_cagr_moe.py`; the non-Markdown entries are only the
-service and test, and `git diff 6d1923c0 HEAD` on those two paths is empty
-(0 lines).
-Falsification: if `git diff 6d1923c0 HEAD --
-siege_utilities/geo/django/services/timeseries_service.py
-tests/test_timeseries_cagr_moe.py` shows any change, or
-`git diff --name-only 79f37f4d HEAD` lists any other non-Markdown file, this
-declaration is wrong.
+The investigation linked above records the current behavior with file and
+line evidence. No pre-author inventory was recorded for the original
+2026-10-18 implementation; that absence is not backfilled.
+
+The earlier integration rounds (`79f37f4d`, `f22dce96`) authored only
+`CHANGELOG.md` and this record. Round 2 changes code (the CAGR helper), so
+those rounds' docs-only declaration does not cover it. Before authoring the
+round 2 fix, these states were measured:
+- `_cagr` returned `(end / start) ** (1 / periods) - 1` and caught only
+  `ZeroDivisionError` and `ValueError`; the caller caught only `ValueError`.
+- `populate_timeseries` has no try or transaction around the per-GEOID loop.
+- Raw Census sentinels stay in `DemographicSnapshot.values` by design (the
+  summary columns map them to `None`, the JSON keeps the raw value).
+- The unfixed helper failed all nine new negative-end cases (see Round 2).
 
 Project-contribution: stored `DemographicTimeSeries` growth rates mean per
 calendar year and MOEs stay aligned with their years; this integration makes
@@ -98,6 +98,12 @@ was written by the plan's author and is superseded by the independent review.
     `moe_values` can now hold `None` (a series with no MOEs stores a list of
     `None` instead of `[]`). 5.0.0 is the pending MAJOR release for breaking
     changes (see `docs/verification/self-review-1885.md`).
+- Second integration: develop `f22dce96` was merged on 2026-11-13 (merge
+  `85c3a60b`, parents `3b1de990` and `f22dce96`). It had no conflicts. The
+  PR's files were unchanged, and the CHANGELOG entry's added lines hashed the
+  same before and after.
+- A further merge of the live develop tip follows the round 2 fix commit; its
+  SHA is in that merge commit.
 
 ## Evidence status
 
@@ -113,9 +119,18 @@ was written by the plan's author and is superseded by the independent review.
     instead of about 0.009577 for the 2000/2010/2020 case, and a compacted
     `moe_values` (`[50, 40]` instead of `[50, None, 40]`).
   - The ticket's "fails on `v4.0.0`" criterion is therefore unmet.
-- **Fixed behavior in CI: PENDING.** The exact-head `test-postgis` log must
-  show all 22 cases in `tests/test_timeseries_cagr_moe.py` PASSED and none
-  skipped. This record is written before that run and claims no CI result.
+- **Fixed behavior in CI:**
+  - At head `3b1de990` (run 43352194897, pull_request), the `test-postgis`
+    log showed all 22 cases in `tests/test_timeseries_cagr_moe.py` PASSED,
+    with none skipped. This was read by the project coordinator, not by the
+    author of this record.
+  - Round 2 adds four cases (negative end, create and update), making 26.
+    Those must pass in the next exact-head run; that result is PENDING.
+- **Red-on-revert history:** the PR description reports a run of 15 failed and
+  7 passed with the v4.0.0 service. The original author's ticket comment of
+  2026-10-18 says the red-on-revert could not be reproduced locally, and no
+  record of such a run exists. The exact-head reviewer derived the same 15/7
+  by hand. A hand derivation is not a run, so the result stays NOT RUN.
 
 ## Verification (local Python 3.11.11)
 
@@ -154,6 +169,51 @@ Import provenance: the pytest header shows the worktree as rootdir, and
 `python -m` puts the working directory first on `sys.path`. That is weaker
 evidence than printing the imported module's `__file__`, which was not done
 for this record.
+
+## Round 2: negative-end CAGR (S2-1)
+
+**Finding (exact-head review of `85c3a60b`):**
+- With a positive start, a negative end and an exponent of two or more years,
+  `(end / start) ** (1 / periods)` is a complex number.
+- `_cagr` did not reject it. The value reached the `cagr` FloatField on
+  `save()` or on the bulk insert. The resulting `TypeError` escaped
+  `populate_timeseries` with no GEOID or variable named, and no transaction
+  covers the loop.
+- Elapsed calendar years made this reachable for two-observation series
+  spanning two or more years. Before, those had an exponent of 1 and stored a
+  meaningless negative rate.
+
+**Fix:** `_cagr` raises `ValueError` for a negative end/start ratio, and for
+any non-real result. The caller's existing handler stores `cagr=None`. A zero
+end is still a real -100% rate. Only
+`siege_utilities/geo/django/services/timeseries_service.py` changes.
+
+**Tests:**
+- `tests/test_timeseries_rollup_services.py`:
+  - nine helper cases (ends -666666666, -999999999 and -1, periods 1, 2 and
+    10) must raise `ValueError`;
+  - one case pins a zero end at -1.0.
+- `tests/test_timeseries_cagr_moe.py`: four PostGIS cases (ends -666666666
+  and -999999999, create and update) assert that the series is written with
+  `cagr` None.
+
+**Red/green (local Python 3.11.11, `-p no:randomly`, `-k cagr` on
+`tests/test_timeseries_rollup_services.py`):**
+- RED, unfixed service: 9 failed ("DID NOT RAISE <class 'ValueError'>" for
+  every negative-end case), 3 passed.
+- GREEN, fixed service: 12 passed.
+- The four PostGIS cases skip locally, and their red on the unfixed service
+  is NOT RUN. A local PostgreSQL 14 service exists, but using it for the
+  suite was not authorized in this pass. They must pass in the next
+  exact-head `test-postgis` run.
+
+**Local targeted run after the fix** (15 files, including develop's soupsieve
+marker test): 273 passed, 1 skipped, 10 failed.
+- The skip is the PostGIS module.
+- The 10 failures are all in `tests/test_temporal_store.py`, a local pyarrow
+  error that the scheme 'file' is already registered. That code and test are
+  unchanged by this PR, and they passed on the 79f37f4d integration. The
+  cause is in the local environment and is unverified.
 
 ## Peer review
 

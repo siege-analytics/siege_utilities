@@ -173,7 +173,9 @@ class TimeseriesService:
                         series_values[0], series_values[-1], series_years[-1] - series_years[0],
                     )
                 except ValueError:
-                    cagr = None  # start_value <= 0 — CAGR undefined
+                    # Non-positive start or negative end (e.g. a Census
+                    # sentinel): CAGR is undefined and stored as None.
+                    cagr = None
                 trend = self._trend_direction(series_values)
 
                 existing = existing_by_key.get((geoid, series_years[0], series_years[-1]))
@@ -287,7 +289,10 @@ class TimeseriesService:
             The compound annual growth rate.
 
         Raises:
-            ValueError: When inputs violate constraints.
+            ValueError: When inputs violate constraints, including a negative
+                end value (for example a raw Census sentinel such as
+                ``-666666666``), whose fractional power would be a complex
+                number that the ``cagr`` FloatField cannot store.
         """
         if periods <= 0:
             raise ValueError(
@@ -297,13 +302,25 @@ class TimeseriesService:
             raise ValueError(
                 f"CAGR requires start_value > 0; got {start_value}"
             )
+        ratio = end_value / start_value
+        if ratio < 0:
+            raise ValueError(
+                f"CAGR is undefined for a negative end/start ratio: "
+                f"start={start_value}, end={end_value}, periods={periods}"
+            )
         try:
-            return (end_value / start_value) ** (1 / periods) - 1
+            result = ratio ** (1 / periods) - 1
         except (ZeroDivisionError, ValueError) as exc:
             raise ValueError(
                 f"CAGR computation failed for start={start_value}, "
                 f"end={end_value}, periods={periods}: {exc}"
             ) from exc
+        if isinstance(result, complex):
+            raise ValueError(
+                f"CAGR is undefined (non-real result) for start={start_value}, "
+                f"end={end_value}, periods={periods}"
+            )
+        return result
 
     @staticmethod
     def _trend_direction(values: list) -> str:

@@ -222,6 +222,23 @@ def test_batched_reads_preserve_scope_and_existing_intervals(make_county):
     assert not DemographicTimeSeries.objects.filter(object_id=outside_state.geoid).exists()
 
 
+@pytest.mark.parametrize("update", [False, True], ids=["create", "update"])
+@pytest.mark.parametrize("end_value", [-666666666, -999999999])
+def test_negative_end_sentinel_stores_no_cagr(make_county, update, end_value):
+    """A raw Census sentinel as the last value leaves CAGR undefined (None).
+
+    With elapsed calendar years a two-observation 2010/2020 series has a
+    ten-year exponent, so a negative end would give a complex CAGR that the
+    FloatField cannot store; the series must still be written.
+    """
+    county = make_county()
+    years = [2010, 2020]
+    add_snapshots(county, years, [1000, end_value], [None, None])
+    series = populate(county, years, update=update)
+    assert series.values == [1000, end_value]
+    assert series.cagr is None
+
+
 @pytest.mark.parametrize("start_value", [0, -666666666])
 def test_nonpositive_start_keeps_existing_cagr_behavior(make_county, start_value):
     county = make_county()

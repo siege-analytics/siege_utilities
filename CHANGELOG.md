@@ -655,7 +655,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `values` and `moe_values` stay positionally aligned; a series with no MOEs
   now stores a list of `None` instead of `[]`. Snapshots and existing series
   are read once per variable instead of once per GEOID; `years` and `values`
-  are unchanged (#1622).
+  are unchanged. A negative end value, such as a raw Census sentinel
+  (`-666666666`) kept in a snapshot, now stores `cagr` as `None`: earlier
+  versions stored a meaningless negative rate for a two-observation series
+  and failed to save longer series, because the fractional power of a
+  negative number is complex (#1622).
   **Migration:** no schema migration is needed. Rows written by earlier
   versions keep the old CAGR and compacted `moe_values` until
   `populate_timeseries(..., update_existing=True)` recomputes them. It
@@ -663,9 +667,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dataset and start and end years all match a recomputed series, so
   snapshots for both stored endpoint years must still exist and be among
   the requested years. Affected rows have
-  `end_year - start_year != len(years) - 1` or
-  `len(moe_values) != len(years)`. Treat `None` in `moe_values` as an
-  unavailable MOE.
+  `end_year - start_year != len(years) - 1`,
+  `len(moe_values) != len(years)` or a negative last value. Treat `None` in
+  `moe_values` as an unavailable MOE and `None` in `cagr` as undefined.
 
 - `ConfigurationMigrator.migrate_user_profile` and `migrate_client_profile`
   in both `config.enhanced_config` and `config.migration` now propagate file,
