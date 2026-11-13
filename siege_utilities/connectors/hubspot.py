@@ -196,7 +196,11 @@ class HubSpotConnector(_SecretRedactionMixin):
         code: str,
         redirect_uri: str,
     ) -> None:
-        """Complete the OAuth 2.0 authorization code flow."""
+        """Complete the OAuth 2.0 authorization code flow.
+
+        The authorization code is redacted from this call's diagnostics.
+        """
+        self._register_invocation_secret(code)
         token_url = f"{HUBSPOT_AUTH_BASE}/oauth/v1/token"
         payload = {
             "grant_type": "authorization_code",

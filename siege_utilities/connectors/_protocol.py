@@ -13,6 +13,7 @@ no CDC, no conflict resolution beyond dedup.
 
 from __future__ import annotations
 
+import contextvars
 import copy
 import json
 import math
@@ -26,7 +27,7 @@ from typing import Any, Protocol, runtime_checkable
 import numpy as np
 import pandas as pd
 
-from siege_utilities.core._http import _MIN_SECRET_VALUE_LEN, redact_secrets
+from siege_utilities.core._http import _MIN_SECRET_VALUE_LEN, _SECRET_HEADERS, redact_secrets
 
 # Distinct fail-closed signal: secret collection could not be trusted, so the
 # caller must not emit any upstream text it cannot prove secret-free.
@@ -40,6 +41,54 @@ _LOG_SUPPRESSED = "[log message suppressed]"
 # a nested failure in a wrapped public callable (e.g. a hostile secret getter)
 # re-raises raw so fail-closed collection handles it rather than recursing.
 _boundary_state = threading.local()
+
+
+class _InvocationSecrets:
+    """Credentials sent by the current public connector call.
+
+    Per-call values (a request's own ``Authorization`` header, an OAuth
+    authorization code) are not instance configuration, so ``_secret_values``
+    cannot see them on its own. The outermost public call opens one of these;
+    nested public calls (token refresh, a ``request`` inside a read method) add
+    to the same one; it is dropped when the outermost call ends, after the
+    boundary has sanitized any exception. ``failed`` records a collection that
+    could not complete, which makes every diagnostic fall back to the trusted
+    constant for the rest of the call.
+    """
+
+    __slots__ = ("values", "failed")
+
+    def __init__(self) -> None:
+        self.values: list[str] = []
+        self.failed = False
+
+    def add(self, value: str) -> None:
+        if value and value not in self.values:
+            self.values.append(value)
+
+
+# Context-local, so concurrent threads and asyncio tasks never share a call's
+# credentials, and nothing outlives the public call that registered it.
+_invocation_secrets: contextvars.ContextVar[_InvocationSecrets | None] = contextvars.ContextVar(
+    "connector_invocation_secrets", default=None,
+)
+# Request header names whose values are credentials (the same names the
+# key-based redactor recognizes), compared case-insensitively.
+_CREDENTIAL_HEADERS = frozenset(_SECRET_HEADERS.split("|"))
+# Header values carrying an auth scheme: "<scheme> <credential>".
+_SCHEMED_HEADERS = frozenset({"authorization", "proxy-authorization"})
+
+
+def _enter_invocation() -> contextvars.Token | None:
+    """Open the call's credential scope unless an outer public call owns one."""
+    if _invocation_secrets.get() is not None:
+        return None
+    return _invocation_secrets.set(_InvocationSecrets())
+
+
+def _exit_invocation(token: contextvars.Token | None) -> None:
+    if token is not None:
+        _invocation_secrets.reset(token)
 
 __all__ = [
     "ConnectorProtocol",
@@ -181,18 +230,23 @@ class _SecretRedactionMixin:
         return adapter
 
     def _secret_values(self) -> "list[str] | object":
-        """Configured secret values to redact, or the fail-closed signal.
+        """Configured and per-call secret values to redact, or the fail-closed signal.
 
-        Returns a list of the instance's own secret strings, or
-        ``_SECRET_COLLECTION_FAILED`` when collection could not complete. A
-        caller-supplied header mapping is untrusted: its ``.get`` may be a
-        hostile override that raises anything (its own exception text can
-        carry a secret). Any such failure yields the fail-closed signal rather
+        Returns a list of the instance's own secret strings plus the
+        credentials registered by the current public call (see
+        ``_register_invocation_secret``), or ``_SECRET_COLLECTION_FAILED`` when
+        collection could not complete. A caller-supplied header mapping is
+        untrusted: its ``.get`` may be a hostile override that raises anything
+        (its own exception text can carry a secret). Any such failure, or a
+        per-call collection that failed, yields the fail-closed signal rather
         than a partial list, so ``_redact`` cannot emit text it did not fully
         scan. The broad handler is reviewed in
         scripts/exception_contracts_allowlist.json (#1846 B2 D5).
         """
         try:
+            invocation = _invocation_secrets.get()
+            if invocation is not None and invocation.failed:
+                return _SECRET_COLLECTION_FAILED
             values: list[str] = []
             for attr in self._SECRET_ATTRS:
                 value = getattr(self, attr, None)
@@ -205,11 +259,94 @@ class _SecretRedactionMixin:
                     raw = headers.get(header)
                     if isinstance(raw, str) and raw:
                         values.append(raw[7:] if raw[:7].lower() == "bearer " else raw)
+            if invocation is not None:
+                values.extend(invocation.values)
             return values
         except Exception:
             # Build the signal AFTER the except so no raise chains the caught
             # exception (whose text may hold a secret) into __context__.
             return _SECRET_COLLECTION_FAILED
+
+    def _register_invocation_secret(self, value: object) -> None:
+        """Treat *value* as a secret for the rest of the current public call.
+
+        For credentials a public call sends that are not instance configuration
+        (an OAuth authorization code). Read-only: the value sent is unchanged.
+        A non-string value cannot be matched safely, so it fails closed: every
+        diagnostic for the rest of the call becomes the trusted constant. A
+        ``str`` subclass is copied to an exact ``str`` first, so its own
+        methods never run here. Must run inside a public connector call, whose
+        boundary owns the scope.
+        """
+        invocation = _invocation_secrets.get()
+        if invocation is None:
+            raise RuntimeError("per-call credentials must be registered inside a public connector call")
+        if isinstance(value, str):
+            invocation.add(str.__str__(value))
+        else:
+            invocation.failed = True
+
+    def _register_request_headers(self, headers: object) -> "dict | None":
+        """Snapshot a caller's per-call headers and register their credentials.
+
+        Returns ``dict(headers)``, the one copy the caller should send, so the
+        values registered are exactly the values sent (a mapping that returns
+        different values on each read cannot send an unregistered one). Returns
+        ``None`` when *headers* is ``None`` or could not be read.
+
+        Recognized credential header names (``Authorization``,
+        ``Proxy-Authorization``, ``X-Api-Key`` and the other names the key-based
+        redactor knows) are matched case-insensitively and ignoring surrounding
+        whitespace, as ``str`` or ``bytes``. The raw value is registered, plus
+        the credential after an auth scheme (``Bearer <token>``, any
+        whitespace); a bytes value is registered in its latin-1 and UTF-8
+        decodings. Names and values are copied to exact ``str``
+        first, so a ``str`` subclass's own methods never run here. Other headers
+        are ordinary data and are not registered. A ``None`` value is skipped
+        (requests drops it, so nothing is sent). The mapping is caller-supplied
+        and untrusted: if copying or reading it fails, a header name is neither
+        text nor bytes, or a credential value is not text or bytes, collection
+        fails closed for the rest of the call. Read-only: the snapshot is not
+        modified. The broad handler is reviewed in
+        scripts/exception_contracts_allowlist.json.
+        """
+        if headers is None:
+            return None
+        invocation = _invocation_secrets.get()
+        if invocation is None:
+            raise RuntimeError("per-call credentials must be registered inside a public connector call")
+        try:
+            snapshot = dict(headers)
+            failed = False
+            for name, raw in snapshot.items():
+                if isinstance(name, bytes):
+                    name = name.decode("latin-1")
+                if not isinstance(name, str):
+                    failed = True
+                    continue
+                key = str.__str__(name).strip().lower()
+                if key not in _CREDENTIAL_HEADERS or raw is None:
+                    continue
+                if isinstance(raw, bytes):
+                    # Valid UTF-8 adds its exact text; invalid bytes add a
+                    # replacement-character string, which only over-redacts.
+                    texts = [raw.decode("latin-1"), raw.decode("utf-8", errors="replace")]
+                elif isinstance(raw, str):
+                    texts = [str.__str__(raw)]
+                else:
+                    failed = True
+                    continue
+                for text in texts:
+                    invocation.add(text)
+                    parts = text.split(None, 1)
+                    if key in _SCHEMED_HEADERS and len(parts) == 2 and parts[1].strip():
+                        invocation.add(parts[1].strip())
+        except Exception:
+            invocation.failed = True
+            return None
+        if failed:
+            invocation.failed = True
+        return snapshot
 
     def _redact(self, text: object) -> str:
         """Key-based plus configured-value redaction for diagnostic text.
@@ -325,11 +462,16 @@ class _SecretRedactionMixin:
         if inspect.iscoroutinefunction(func):
             @functools.wraps(func)
             async def boundary(self, *args, **kwargs):
+                # The per-call credential scope spans the whole call and closes
+                # only after sanitization, so the sanitized text sees it.
+                scope = _enter_invocation()
                 try:
                     return await func(self, *args, **kwargs)
                 except Exception as exc:
                     sanitized = _SecretRedactionMixin._sanitize_or_reraise(self, exc, func)
                     raise sanitized from None
+                finally:
+                    _exit_invocation(scope)
         elif inspect.isasyncgenfunction(func):
             @functools.wraps(func)
             async def boundary(self, *args, **kwargs):
@@ -376,10 +518,16 @@ class _SecretRedactionMixin:
         else:
             @functools.wraps(func)
             def boundary(self, *args, **kwargs):
+                # The per-call credential scope spans the whole call (nested
+                # public calls reuse it) and closes only after sanitization.
+                scope = _enter_invocation()
                 try:
-                    return func(self, *args, **kwargs)
-                except Exception as exc:
-                    sanitized = _SecretRedactionMixin._sanitize_or_reraise(self, exc, func)
+                    try:
+                        return func(self, *args, **kwargs)
+                    except Exception as exc:
+                        sanitized = _SecretRedactionMixin._sanitize_or_reraise(self, exc, func)
+                finally:
+                    _exit_invocation(scope)
                 # Raise OUTSIDE the except block so the sanitized exception
                 # carries no implicit __context__ (and ``from None`` clears
                 # __cause__). Async/generator variants raise inside the handler;

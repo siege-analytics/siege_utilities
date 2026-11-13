@@ -905,7 +905,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Quoted JSON secret redaction runs in linear time, so a long run of
   backslashes in an error body cannot stall it. HubSpot and Zoho token
   failures whose JSON body is not an object raise `ConnectorAuthError`
-  instead of `AttributeError` (#1846).
+  instead of `AttributeError`. Credentials supplied per call are redacted too:
+  a `DynamicsConnector.request(headers=...)` credential header and the code
+  passed to HubSpot, Salesforce and Zoho `authenticate_with_code` are removed
+  from that call's exceptions and log records, including a nested token
+  refresh. A short or unreadable one leaves only the error type and HTTP
+  status. The values sent are unchanged and are not kept after the call
+  (#1846).
 - Credential files are written with mode 0600 before writing their payload,
   including existing files, with no write-then-chmod race. Missing parent
   directories are created with mode 0700. Profile defaults use per-user paths;

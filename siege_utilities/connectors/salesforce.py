@@ -394,7 +394,11 @@ class SalesforceConnector(_SecretRedactionMixin):
         code: str,
         redirect_uri: str,
     ) -> None:
-        """Complete the OAuth 2.0 Web Server Flow with an authorization code."""
+        """Complete the OAuth 2.0 Web Server Flow with an authorization code.
+
+        The authorization code is redacted from this call's diagnostics.
+        """
+        self._register_invocation_secret(code)
         token_url = f"{self._login_url}/services/oauth2/token"
         payload = {
             "grant_type": "authorization_code",

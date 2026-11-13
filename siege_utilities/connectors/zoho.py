@@ -237,7 +237,11 @@ class ZohoConnector(_SecretRedactionMixin):
         code: str,
         redirect_uri: str,
     ) -> None:
-        """Complete the OAuth 2.0 web-based flow."""
+        """Complete the OAuth 2.0 web-based flow.
+
+        The authorization code is redacted from this call's diagnostics.
+        """
+        self._register_invocation_secret(code)
         token_url = f"{self._dc['accounts_url']}/oauth/v2/token"
         payload = {
             "grant_type": "authorization_code",

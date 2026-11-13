@@ -898,7 +898,16 @@ class DynamicsConnector(_SecretRedactionMixin):
         json_body: dict[str, Any] | None = None,
         headers: Mapping[str, str] | None = None,
     ) -> dict[str, Any]:
-        """Send an authenticated request to the Dataverse Web API."""
+        """Send an authenticated request to the Dataverse Web API.
+
+        Credential values in *headers* (for example a per-call
+        ``Authorization``) are redacted from this call's diagnostics, including
+        a nested token refresh. *headers* is read once per call and that copy is
+        sent on every attempt, so the values sent are the values registered.
+        """
+        snapshot = self._register_request_headers(headers)
+        if snapshot is not None:
+            headers = snapshot
         self._ensure_connected()
         url = f"{self._environment_url}{path}" if not path.startswith("http") else path
         last_failure = "HTTP error"
