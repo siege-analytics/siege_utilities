@@ -462,6 +462,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The X connector-to-report fixture covers an empty `public_metrics` object
   (#1812). **Migration:** code that reads report chart, comparison or ranking
   data must handle `None` for unavailable metrics.
+- Census dual-source retrieval falls back to bulk Summary Files on HTTP 5xx,
+  HTTP 408, connection/DNS failures and timeouts via the new
+  `CensusServerError`, while other 4xx errors still propagate. Permanent
+  client errors (4xx other than 408 and 429) now raise `CensusAPIError` after
+  one request instead of five with backoff.
+  `CensusAPI` owns retries for `ApiSource`; retries no longer multiply, and no
+  delay follows the final attempt. Sustained 429s now accumulate at most 240
+  seconds of retry sleeps before bulk fallback with `degraded=True`, down from
+  900 seconds (#1404).
+  **Migration:** code that caught `CensusAPIError` for a Census API outage or
+  a 408 now receives bulk Summary File results instead; check `degraded` on
+  the result to tell them apart. Code that relied on a permanent 4xx being
+  retried must fix the request or retry around the call itself. With
+  `ApiSource`, `max_api_attempts` no longer multiplies `CensusAPI`'s own
+  retries, so expect fewer source-level attempts, shorter waits, and fallback
+  provenance that counts one API call and one bulk call.
 
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
@@ -830,6 +846,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- The `geo`, `web` and `all` extras require `soupsieve>=4.0.0` on Python
+  3.11.5 and newer (`python_full_version >= '3.11.5'`), so installs there
+  cannot resolve a soupsieve release affected by CVE-2026-126190, a
+  denial of service in its CSS selector engine. soupsieve comes in through
+  `beautifulsoup4`. `requires-python` stays `>=3.11`.
+  **Residual exposure:** soupsieve 4.0 and 4.1 require Python 3.11.5 or
+  newer, so on Python 3.11.0 to 3.11.4 an affected soupsieve <4 (currently
+  2.10) remains installable. The remedy there is upgrading to Python 3.11.5
+  or newer.
+  **Reachability:** siege_utilities itself does not call BeautifulSoup's CSS
+  selector API (`select`, `select_one`, `css`), but downstream or third-party
+  code that runs those on untrusted markup is still exposed on Python below
+  3.11.5.
+  **Audit coverage:** the CI dependency audit resolves at Python 3.11.5 on
+  the Linux runner only, matching the marker floor; it does not audit the
+  full `>=3.11` range, and adds no ignore for this advisory (#1895).
 - Instagram token exchange errors omit response bodies and transport exception
   text. Malformed responses use fixed diagnostics; transport retries report
   the exception class and attempt number. Dummy sentinel coverage checks error
