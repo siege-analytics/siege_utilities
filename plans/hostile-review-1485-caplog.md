@@ -5,7 +5,7 @@ ticket_refs:
 
 # Hostile review: #1485 / PR #1736 order-independent log test
 
-Reviewer: a separate read-only review agent (same model family as the implementer). The cross-family exact-head re-review by the independent PR reviewer is still required and is requested after push.
+Reviewer: a separate read-only reviewer, independent of the implementer. An independent exact-head re-review is still required and is requested after push.
 Scope: the test-only diff on top of the develop merge `d106a3a0` (`tests/test_report_generator_renders_sections.py`).
 
 ## Findings and dispositions
