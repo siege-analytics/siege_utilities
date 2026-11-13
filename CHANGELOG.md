@@ -184,6 +184,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   returned, with whole-number floats shown as integers. The top-post insight
   no longer crashes when a connector's posts frame repeats index labels.
   Daily metric charts include nullable and narrower numeric dtypes (#1469).
+- Render analytics and comprehensive PDF report sections, including chart lists,
+  insight and recommendation bullets, title-page details, a table of contents
+  with page numbers, and appendix dividers. Normalize table record dictionaries
+  into column-aligned values. Reject unsupported section shapes
+  and warn about empty content or missing chart images. Continue content-page
+  paragraphs, tables and bullet lists across page breaks, repeating table
+  headers and raising when a fragment cannot fit, instead of silently
+  discarding content. `ContentPageTemplate.add_bullet_list` now renders each
+  item as a wrapped, paginating flowable rather than a fixed-height canvas line
+  that dropped items past the page bottom (#1485).
 - Instagram account insights now use UTC request boundaries regardless of
   the host timezone and label daily metrics with the day covered, one day
   before the end-of-period marker. X account snapshots use the UTC date.
@@ -620,6 +630,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   returns `valid: False` for a reduced or unpopulated class count where 4.0.0
   returned `valid: True`; treat those results as errors. Callers that caught
   the 4.0.0 matplotlib error on such data now get a figure (#1462).
+- `generate_pdf_report` now raises `ValueError` for a section `type` outside
+  the supported set (`text`, `executive_summary`, `methodology`,
+  `data_summary`, `appendix`, `insights`, `recommendations`, `title_page`,
+  `table_of_contents`, `appendix_header`, `table`, `chart`, `charts`, `map`,
+  `maps`), and for non-string content in the
+  `text`/`executive_summary`/`methodology`/`data_summary`/`appendix` sections.
+  It also raises `ValueError` for these shapes: `insights` or `recommendations`
+  content that is not a list of nonempty strings; `table` content that is not
+  a mapping, whose data is not a list of rows or a DataFrame, or whose headers
+  are not a list or tuple; chart content that is not a list, tuple or mapping,
+  map content that is not a mapping (including a bare list), or a mapping
+  whose `charts`/`maps` value is not a list or tuple; a `title_page` section
+  with content, non-string fields or no title; a `table_of_contents` section
+  with content; an `appendix_header` section with content or without a
+  title; and a chart or map description that is neither `None` nor a string.
+  A chart or map section with no renderable image still renders, with a
+  warning. `ContentPageTemplate` raises `ValueError` for table rows of
+  differing lengths or with no columns, and for a non-positive paragraph font
+  size or line spacing. `executive_summary`, `methodology`, `data_summary` and
+  `appendix` text is now split into lines with `- `/`* ` bullet detection, as
+  `text` already was; 4.0.0 rendered it as one paragraph. A report with a top-level `title` and no `title_page` section
+  now gets a title page (#1485).
+  **Migration:** callers that relied on a custom `add_section` type, a
+  DataFrame `add_appendix`, or `None` text must change: put custom prose in a
+  `text` section and tabular appendices in a `table` section through
+  `add_table_section`. An explicit `title_page` section replaces the
+  automatic title page, and a report with no `title` in its content or
+  metadata gets none.
 
 - CRM transport and server-error retries are limited to GET, PUT and DELETE.
   POST and PATCH requests are sent once, avoiding duplicate creates after a
