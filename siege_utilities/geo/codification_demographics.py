@@ -64,7 +64,8 @@ class DemographicSignature:
 
     Attributes:
         total_block_population: Sum of block populations (unweighted).
-        weighted_blocks: Number of blocks with both addresses and demographics.
+        weighted_blocks: Number of blocks in the address counts that have
+            demographics, including blocks with no addresses or population.
         pct_white: Address-weighted white percentage.
         pct_black: Address-weighted black percentage.
         pct_hispanic: Address-weighted Hispanic percentage.
@@ -176,9 +177,8 @@ def compute_demographic_signature(
             weighted_pct_occupied += addr_count * (demo.housing_occupied / demo.housing_total)
             weighted_pct_vacant += addr_count * (demo.housing_vacant / demo.housing_total)
 
-    if total_addresses == 0 and housing_addresses == 0:
-        return DemographicSignature()
-
+    # Every rate below guards its own zero denominator, so matched blocks are
+    # counted even when no address enters a population or housing rate.
     return DemographicSignature(
         total_block_population=total_pop,
         weighted_blocks=matched_blocks,

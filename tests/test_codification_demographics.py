@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 
 from siege_utilities.geo.codification_demographics import (
     BlockDemographics,
+    DemographicSignature,
     DictBlockDemographicsProvider,
     compute_demographic_signature,
 )
@@ -267,3 +270,44 @@ class TestDemographicMetricsRegression1492:
         assert sig.pct_asian == pytest.approx(0.1 if include_populated_block else 0.0)
         assert sig.pct_other == pytest.approx(0.15 if include_populated_block else 0.0)
         assert sig.pct_voting_age == pytest.approx(0.6 if include_populated_block else 0.0)
+
+
+class TestMatchedBlocksWithoutDenominators1492:
+    """Matched blocks are counted even when no address enters a rate denominator."""
+
+    _RATE_FIELDS = (
+        "pct_white", "pct_black", "pct_hispanic", "pct_asian", "pct_other",
+        "pct_voting_age", "pct_housing_occupied", "pct_housing_vacant",
+    )
+
+    @pytest.mark.parametrize(
+        "counts, demos",
+        [({}, {}), ({"B1": 5}, {})],
+        ids=["empty_input", "no_matched_block"],
+    )
+    def test_no_matched_block_returns_default_signature(self, counts, demos):
+        sig = compute_demographic_signature(counts, demos)
+
+        assert dataclasses.asdict(sig) == dataclasses.asdict(DemographicSignature())
+
+    def test_zero_population_zero_housing_block_is_counted(self):
+        sig = compute_demographic_signature(
+            {"B1": 5}, {"B1": BlockDemographics(block_geoid="B1")}
+        )
+
+        assert sig.weighted_blocks == 1
+        expected = dataclasses.asdict(DemographicSignature())
+        actual = dataclasses.asdict(sig)
+        del expected["weighted_blocks"], actual["weighted_blocks"]
+        assert actual == expected
+
+    def test_matched_block_without_addresses_is_counted(self):
+        sig = compute_demographic_signature(
+            {"B1": 0},
+            {"B1": BlockDemographics(block_geoid="B1", total_population=100)},
+        )
+
+        assert sig.weighted_blocks == 1
+        assert sig.total_block_population == 100
+        for field in self._RATE_FIELDS:
+            assert getattr(sig, field) == 0.0, field
