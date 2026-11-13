@@ -209,34 +209,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Keeping `id: None` is serialization fidelity only and does not solve the B3b
   identity concern. Provider/field identity and control validation is a separate
   follow-up. Refs #1816.
-- **Documented behavior change from v4.0.0:** Salesforce, HubSpot, Zoho and
-  Dynamics `to_crm_*` helpers map missing numeric, date and string values
-  (`None`, NaN, NaT and `pd.NA`) to `None` before conversion. Missing required
-  account and opportunity names become an empty string, so unnamed records stay
-  in the result instead of aborting the whole list. Valid values and zeros are
-  preserved (#1425). **Migration:** to drop unnamed accounts or opportunities,
-  filter on `name == ""`. v3.23.0 had no implementations of these connectors.
 - `SalesforceConnector.get_objects()` resolves dotted relationship fields and
   matches each field segment case-insensitively, so requests such as
   `Account.Name` and `name` return values instead of all-null columns. Output
   labels keep the caller's spelling; absent fields and relationships remain
   null, and empty results keep the requested columns (#1428).
-- **Documented behavior change from v4.0.0:** Salesforce, HubSpot and Zoho
-  authorization URLs percent-encode OAuth parameters, preserving redirect URI
-  queries and state values containing reserved characters. HubSpot scope
-  separators use `%20` (#1431). v3.23.0 had no connector implementations.
-- **Documented behavior change from v4.0.0:** Salesforce, HubSpot, Zoho and
-  Dynamics renew credentials once after HTTP 401 and replay the rejected
-  request once when renewal is available, including Dynamics public batch
-  upserts and Salesforce CSV uploads and result downloads. Persistent
-  authentication failures raise `ConnectorAuthError`; result-download errors
-  and incomplete result IDs cannot become successful upsert results. Transport
-  and server-error retry limits remain in place. Known token lifetimes use
-  timezone-aware UTC with a 60-second refresh margin. Salesforce does not
-  report an access-token lifetime, so its expiry stays unknown and renewal
-  happens on 401; v4.0.0 assumed two hours from issue. Dynamics renewal clears
-  cached client-credential tokens before acquiring a replacement (#1436).
-  v3.23.0 had no connector implementations.
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
@@ -556,6 +533,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   10,000-result cap (#1429). **Migration:** pass `limit=None`, not `0`, for no
   limit; narrow HubSpot search filters or use unfiltered listing for more than
   10,000 results. v3.23.0 had no connector implementations.
+- Salesforce, HubSpot, Zoho and Dynamics `to_crm_*` helpers map missing
+  numeric, date and string values (`None`, NaN, NaT and `pd.NA`) to `None`
+  before conversion. Missing required account and opportunity names become an
+  empty string, so unnamed records stay in the result instead of aborting the
+  whole list. Valid values and zeros are preserved (#1425). **Migration:** to
+  drop unnamed accounts or opportunities, filter on `name == ""`. v3.23.0 had
+  no implementations of these connectors.
+- Salesforce, HubSpot and Zoho authorization URLs percent-encode OAuth
+  parameters, preserving redirect URI queries and state values containing
+  reserved characters. HubSpot scope separators use `%20` (#1431); in v4.0.0
+  parameters were joined without encoding. **Migration:** pass redirect URIs,
+  scopes and state as plain values; do not encode them before calling
+  `get_authorization_url()`, or they will be encoded twice. v3.23.0 had no
+  connector implementations.
+- Salesforce, HubSpot, Zoho and Dynamics renew credentials once after HTTP 401
+  and replay the rejected request once when renewal is available, including
+  Dynamics public batch upserts and Salesforce CSV uploads and result
+  downloads. Persistent authentication failures raise `ConnectorAuthError`;
+  result-download errors and incomplete result IDs cannot become successful
+  upsert results. Transport and server-error retry limits remain in place.
+  Known token lifetimes use timezone-aware UTC with a 60-second refresh
+  margin. Salesforce does not report an access-token lifetime, so its expiry
+  stays unknown and renewal happens on 401; v4.0.0 assumed two hours from
+  issue. Dynamics renewal clears cached client-credential tokens before
+  acquiring a replacement (#1436). **Migration:** remove caller-side
+  re-authentication around HTTP 401, which the connector now handles once per
+  request. Salesforce `is_connected()` no longer turns False two hours after
+  issue; it stays True until a request is rejected, so code that polled it to
+  decide when to re-authenticate must instead handle `ConnectorAuthError`.
+  v3.23.0 had no connector implementations.
+- Exceptions leaving a public CRM connector method are rebuilt with a
+  sanitized message: the same exception type where it can be built from one
+  message, otherwise `ConnectorError` whose text is `"<original type>:
+  <sanitized message>"` and whose `original_type` names the original class
+  (for example pydantic `ValidationError` or `json.JSONDecodeError`). Only the
+  validated `status_code`, `status` and `retry_after` attributes are carried
+  over; all other attributes of the original exception are dropped. The
+  original is never chained as the cause and is not shown in tracebacks (#1846).
+  **Migration:** code that caught `pydantic.ValidationError`,
+  `json.JSONDecodeError`, `UnicodeDecodeError`, or their base `ValueError`, from
+  a connector method must catch `ConnectorError` and check `original_type`. Read
+  the field or position from the message text instead of exception attributes;
+  when a configured credential is shorter than eight characters or cannot be
+  collected, the text is only the type name.
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,
@@ -935,9 +956,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   caller's file, line and function, and a log template that does not match
   its arguments logs a marked fallback instead of raising into the caller.
   Quoted JSON secret redaction runs in linear time, so a long run of
-  backslashes in an error body cannot stall it. HubSpot and Zoho token
-  failures whose JSON body is not an object raise `ConnectorAuthError`
-  instead of `AttributeError`. Credentials supplied per call are redacted too:
+  backslashes in an error body cannot stall it. HubSpot, Zoho and Salesforce
+  token failures whose JSON body is not an object raise `ConnectorAuthError`
+  instead of `AttributeError`. An `UpsertResult` pickles without the
+  connector's redactor, so a pickled result never carries the connector or its
+  credentials; after unpickling its repr uses key-based redaction. Credentials
+  supplied per call are redacted too:
   a `DynamicsConnector.request(headers=...)` credential header and the code
   passed to HubSpot, Salesforce and Zoho `authenticate_with_code` are removed
   from that call's exceptions and log records, including a nested token

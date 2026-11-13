@@ -626,9 +626,12 @@ class _SecretRedactionMixin:
             rebuilt.args = (message,)
             self._apply_validated_scalars(rebuilt, status, retry_after)
         except Exception:
-            # Reconstruction or a scalar set failed: fall back to the always
-            # constructible constant and set the same validated scalars on it.
-            rebuilt = self._constant_error(original_type)
+            # The class cannot be rebuilt from one message (pydantic
+            # ValidationError, json.JSONDecodeError, codec errors) or a scalar
+            # set failed: fall back to ConnectorError carrying the SAME
+            # sanitized message (never re-read from the original) and
+            # ``original_type``, plus the same validated scalars.
+            rebuilt = self._constant_error(original_type, message)
             self._apply_validated_scalars(rebuilt, status, retry_after)
         del exc
         return rebuilt
@@ -662,14 +665,25 @@ class _SecretRedactionMixin:
             rebuilt.args = (label,)
             _SecretRedactionMixin._apply_validated_scalars(rebuilt, status, retry_after)
         except Exception:
-            rebuilt = _SecretRedactionMixin._constant_error(original_type)
+            rebuilt = _SecretRedactionMixin._constant_error(original_type, label)
             _SecretRedactionMixin._apply_validated_scalars(rebuilt, status, retry_after)
         return rebuilt
 
     @staticmethod
-    def _constant_error(original_type):
-        """A ``ConnectorError`` whose text is the trusted class-name constant."""
-        rebuilt = ConnectorError(original_type)
+    def _constant_error(original_type, detail=None):
+        """A ``ConnectorError`` naming *original_type*, with *detail* when given.
+
+        *detail* must already be sanitized (the boundary message or the trusted
+        label); it is never read from the original exception here. With no or
+        an empty detail, or a detail that already starts with the class name (the
+        trusted constant used under short or failed collection), the text is
+        that constant; otherwise it is ``"<original_type>: <detail>"``.
+        """
+        if not detail or detail.startswith(original_type):
+            text = detail or original_type
+        else:
+            text = f"{original_type}: {detail}"
+        rebuilt = ConnectorError(text)
         rebuilt.original_type = original_type
         return rebuilt
 
@@ -815,6 +829,25 @@ class UpsertResult:
 
     def __post_init__(self, redact: "Callable[[object], object] | None") -> None:
         self._redact = redact
+
+    def __getstate__(self) -> dict:
+        """Pickle the result data only, never the connector's redactor.
+
+        The redactor is a bound connector method: pickling it would either fail
+        (the connector's logger adapter holds a local function) or, with
+        cloudpickle/dill, carry the whole connector and its credentials into
+        the pickled result. An unpickled result renders its repr with the
+        key-based fallback redactor.
+        """
+        state = self.__dict__.copy()
+        state["_redact"] = None
+        return state
+
+    def __copy__(self) -> "UpsertResult":
+        """Shallow copy that keeps the redactor (unlike pickling)."""
+        clone = self.__class__.__new__(self.__class__)
+        clone.__dict__.update(self.__dict__)
+        return clone
 
     def __deepcopy__(self, memo: dict) -> "UpsertResult":
         """Copy the result data deeply but share the redactor callable."""

@@ -1257,9 +1257,14 @@ class SalesforceConnector(_SecretRedactionMixin):
         if resp.status_code != 200:
             try:
                 body = resp.json()
-                raw = body.get("error_description", body.get("error", resp.text))
             except ValueError:
-                raw = resp.text
+                body = None
+            # A JSON body that is not an object (list, string, number) has no
+            # error fields; use the raw text, as HubSpot and Zoho do.
+            raw = (
+                body.get("error_description", body.get("error", resp.text))
+                if isinstance(body, dict) else resp.text
+            )
             detail = self._safe_upstream_detail(raw)
             raise ConnectorAuthError(
                 f"Salesforce auth failed ({resp.status_code})"

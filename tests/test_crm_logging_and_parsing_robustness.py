@@ -4,8 +4,8 @@
   turns a mismatched log template into a caller-visible exception.
 * Quoted-secret redaction runs in linear time on long backslash runs.
 * HubSpot deal probability scales to a percentage without float error.
-* HubSpot and Zoho token errors with non-object JSON bodies still raise the
-  typed auth error.
+* HubSpot, Zoho and Salesforce token errors with non-object JSON bodies still
+  raise the typed auth error.
 
 Synthetic values only; every send is intercepted.
 """
@@ -140,7 +140,7 @@ def test_hubspot_non_numeric_probability_still_raises_value_error() -> None:
         hubspot.to_crm_opportunities(frame)
 
 
-@pytest.mark.parametrize("provider", ["hubspot", "zoho"])
+@pytest.mark.parametrize("provider", ["hubspot", "zoho", "salesforce"])
 @pytest.mark.parametrize("body", [["invalid_grant"], "invalid_grant", 7])
 def test_token_error_with_non_object_json_raises_auth_error(provider: str, body: object) -> None:
     c = connector(provider)

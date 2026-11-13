@@ -605,6 +605,103 @@ issue. It noted one test compared the sent headers with `==`, which could not
 detect a swapped plain-`str` copy; that test now checks identity. It also
 noted the two limits above.
 
+## Pickling and boundary-fallback round (2026-11-13, on head `84f7a708`)
+
+Goal source: an exact-head review of `84f7a708` failed on two findings
+derived by hand, plus small items. Both findings were reproduced before
+being fixed.
+
+1. `UpsertResult` kept the connector's bound redactor with no pickling hook.
+   Reproduced: `pickle.dumps` of a real failed upsert raised `Can't pickle
+   local object '_SecretRedactionMixin._log.<locals>.<lambda>'` for all four
+   connectors. v4.0.0's plain dataclass pickled. With cloudpickle or dill the
+   whole connector, credentials included, would have been serialized. Fix:
+   `__getstate__` drops the redactor, so an unpickled result renders its repr
+   with the key-based fallback. `__copy__` keeps it, so shallow and deep
+   copies still share it.
+2. The public-boundary fallback for an exception class that cannot be
+   rebuilt from one message gave `ConnectorError` whose text was only the
+   class name, so the sanitized message was lost. Reproduced through public
+   calls: a pydantic `ValidationError` from `DynamicsConnector.to_crm_contacts`
+   and a `json.JSONDecodeError` from Salesforce `authenticate_with_code`. Fix:
+   the fallback text is `"<original type>: <sanitized message>"`, with
+   `original_type` set. The message is the boundary's already-sanitized text
+   and is never re-read from the original. Under short or failed collection
+   it stays the trusted constant. The class/static-method path keeps its
+   trusted label the same way. The rebuild still carries only the validated
+   status and retry-after attributes. That contract is now a CHANGELOG
+   BREAKING entry with a Migration line.
+3. Salesforce token errors with a JSON body that is not an object raised
+   `AttributeError`; they now raise `ConnectorAuthError` like HubSpot and Zoho.
+4. CHANGELOG: the #1425, #1431 and #1436 entries change v4.0.0 caller
+   behavior. This was checked against `v4.0.0`:
+   - #1431: the authorization query was joined without encoding.
+   - #1436: 401 raised without renewal, and Salesforce assumed two hours.
+   - #1425: `None` or NaN names failed validation and aborted the list.
+
+   So they move from Fixed to BREAKING with Migration lines. Their text is
+   kept, minus the "Documented behavior change" label.
+
+Tests: `tests/test_1846_pickle_and_boundary_fallback.py` (19 cases) and
+the non-object token test extended to Salesforce.
+
+- Pickle round trips through public upserts for all four connectors: no
+  configured credential sentinel in the pickled bytes, equality, the
+  redactor dropped, repr working. A result carrying ids and the connector's
+  redactor round-trips on every pickle protocol (0 to 5), keeps its ids and
+  totals, and renders the ids through the fallback redactor. Copies keep the
+  redactor. A cloudpickle variant is SKIPPED because cloudpickle is not
+  installed here; it was not run.
+- Fallback text and `original_type`: `ValidationError` keeps `first_name`,
+  and `JSONDecodeError` keeps `Expecting value`. A two-argument exception
+  keeps its redacted message, carries no other attributes and leaks no
+  sentinel. The short-credential case stays constant-only.
+
+Red/green on `84f7a708` source:
+
+- The new file gave 17 failed, 1 passed (the short-credential control) and
+  1 skipped: 14 pickling failures and 3 lost-detail failures. With the fix it
+  gives 18 passed and 1 skipped. Restored control: `_protocol.py` put back
+  to `84f7a708` gave the same 17 failures; the final fix copied back (sha256
+  be62c0ed) gave 18 passed.
+- The Salesforce cases failed 3 times with `AttributeError` before the guard
+  and pass after it.
+- The exception-contract allowlist entries for the two edited fallback
+  handlers were refreshed with updated rationale (215 flagged, 0 unlisted, 0
+  stale).
+
+A fresh-context hostile review of this round's staged diff found no high
+issue.
+
+- Medium: the new BREAKING entry claimed the original exception's cause and
+  context are never chained. Only the sync boundary drops `__context__`; the
+  coroutine, generator and class/static boundaries raise `from None` inside
+  the handler, so `__context__` still references the original, hidden from
+  tracebacks. The entry now says the original is never chained as the cause
+  and is not shown in tracebacks.
+- Lows fixed:
+  - the Migration lines now cover `ValueError` catch sites and the
+    constant-only text under a short credential;
+  - the #1436 Migration line describes Salesforce `is_connected()` instead
+    of a private attribute;
+  - an empty detail now yields the bare type name;
+  - a protocol-by-protocol round trip with ids was added.
+- Lows recorded and not changed:
+  - #1424 still carries the "Documented behavior change" label under Fixed.
+    This round was scoped to #1425, #1431 and #1436; it is left for a
+    ruling.
+  - A subclass of `UpsertResult` with `__slots__` would lose slot values.
+    No such subclass exists.
+
+Not changed in this round, and recorded for a follow-up:
+- the Dynamics outer 5xx or transport abort dropping earlier batches;
+- the `Prefer` annotation columns and the 204 id mapping, which are not
+  disclosed;
+- the double wait on a single-attempt 429;
+- generic key redaction;
+- the Salesforce bulk PUT retry;
+- `dataclasses.replace` dropping the redactor.
+
 ## Count and test-name qualification (2026-11-11)
 
 - Scanner disposition 6 above names `test__http.py` and `test__retry.py` only
