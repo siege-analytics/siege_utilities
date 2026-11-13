@@ -936,6 +936,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   selects the newest data year when no year is specified. GFK-specific relation
   introspection/prefetch APIs no longer apply. (#1560)
 
+- `TimeseriesService.populate_timeseries` computes CAGR per calendar year:
+  the exponent is the elapsed span `end_year - start_year` instead of the
+  number of observation gaps, so sparse series no longer overstate annual
+  growth by roughly the observation spacing (values 1000, 1100 and 1210 for
+  2000, 2010 and 2020 now store about 0.0096 instead of 0.10). A missing MOE
+  is stored as `None` in `moe_values` instead of being dropped, so `years`,
+  `values` and `moe_values` stay positionally aligned; a series with no MOEs
+  now stores a list of `None` instead of `[]`. Snapshots and existing series
+  are read once per variable instead of once per GEOID; `years` and `values`
+  are unchanged. A negative end value, such as a raw Census sentinel
+  (`-666666666`) kept in a snapshot, now stores `cagr` as `None`: earlier
+  versions stored a meaningless negative rate for a two-observation series
+  and failed to save longer series, because the fractional power of a
+  negative number is complex (#1622).
+  **Migration:** no schema migration is needed. Rows written by earlier
+  versions keep the old CAGR and compacted `moe_values` until
+  `populate_timeseries(..., update_existing=True)` recomputes them. It
+  rewrites a stored row only when the geography level, GEOID, variable,
+  dataset and start and end years all match a recomputed series, so
+  snapshots for both stored endpoint years must still exist and be among
+  the requested years. Affected rows have
+  `end_year - start_year != len(years) - 1`,
+  `len(moe_values) != len(years)` or a negative last value. Treat `None` in
+  `moe_values` as an unavailable MOE and `None` in `cagr` as undefined.
+
 - `ConfigurationMigrator.migrate_user_profile` and `migrate_client_profile`
   in both `config.enhanced_config` and `config.migration` now propagate file,
   YAML/JSON and validation errors; missing files raise `FileNotFoundError`.
