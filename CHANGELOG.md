@@ -583,12 +583,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   connector return an explicit `0`. Code that reads the private report
   builders' metric keys or titles must use the new labels (#1469).
 - `generate_pdf_report` now raises `ValueError` for a section `type` outside
-  the supported set (`executive_summary`, `methodology`, `data_summary`,
-  `text`, `insights`, `recommendations`, `charts`, `title_page`,
-  `table_of_contents`, `table`, `appendix`), and for non-string content in the
+  the supported set (`text`, `executive_summary`, `methodology`,
+  `data_summary`, `appendix`, `insights`, `recommendations`, `title_page`,
+  `table_of_contents`, `appendix_header`, `table`, `chart`, `charts`, `map`,
+  `maps`), and for non-string content in the
   `text`/`executive_summary`/`methodology`/`data_summary`/`appendix` sections.
-  A report with a top-level `title` and no `title_page` section now gets a
-  title page (#1485).
+  It also raises `ValueError` for these shapes: `insights` or `recommendations`
+  content that is not a list of nonempty strings; `table` content that is not
+  a mapping, whose data is not a list of rows or a DataFrame, or whose headers
+  are not a list or tuple; chart content that is not a list, tuple or mapping,
+  map content that is not a mapping (including a bare list), or a mapping
+  whose `charts`/`maps` value is not a list or tuple; a `title_page` section
+  with content, non-string fields or no title; a `table_of_contents` section
+  with content; an `appendix_header` section with content or without a
+  title; and a chart or map description that is neither `None` nor a string.
+  A chart or map section with no renderable image still renders, with a
+  warning. `ContentPageTemplate` raises `ValueError` for table rows of
+  differing lengths or with no columns, and for a non-positive paragraph font
+  size or line spacing. `executive_summary`,
+  `methodology`, `data_summary` and `appendix` text is now split into lines
+  with `- `/`* ` bullet detection, as `text` already was; 4.0.0 rendered it as
+  one paragraph. A report with a top-level `title` and no `title_page` section
+  now gets a title page (#1485).
   **Migration:** callers that relied on a custom `add_section` type, a
   DataFrame `add_appendix`, or `None` text must change: put custom prose in a
   `text` section and tabular appendices in a `table` section through

@@ -301,7 +301,9 @@ class ReportGenerator:
             report_content: Existing report content
             title: Section title
             table_data: Table data (rows, record dictionaries or DataFrame)
-            headers: Column headers
+            headers: For record dictionaries, the record keys to show, in
+                order; each must be a key of the records. For row lists and
+                DataFrames, the column labels to display.
             level: Section level
             table_style: Table styling
             sort_by: Column index or header name to sort by.
@@ -318,6 +320,15 @@ class ReportGenerator:
         if isinstance(table_data, list) and table_data and isinstance(table_data[0], dict):
             if not all(isinstance(row, dict) for row in table_data):
                 raise ValueError("Table section records must all be dictionaries")
+            if headers is not None:
+                # headers select record keys; an unknown one would become a
+                # column of missing values.
+                record_keys = set().union(*table_data)
+                missing = [header for header in headers if header not in record_keys]
+                if missing:
+                    raise ValueError(
+                        f"Table headers {missing} are not keys of the table records"
+                    )
             table_data = pd.DataFrame(table_data, columns=headers)
 
         # Convert DataFrame to list format if needed
@@ -623,7 +634,9 @@ class ReportGenerator:
                                      height=chart_height*inch)
                         result.append(img)
                     else:
-                        log.warning("Chart has no existing image path: %r", chart)
+                        # Log the mapping's keys only, never its values.
+                        log.warning("Chart mapping has no existing image path (keys: %s)",
+                                    sorted(str(key) for key in chart))
                     continue
 
                 log.warning(f"Unknown chart type: {type(chart)}")
@@ -743,8 +756,11 @@ class ReportGenerator:
                 invalid_content('a mapping with table data')
             table_data = content.get('data')
             headers = content.get('headers')
+            # 4.0.0 rendered tuple headers; accept them as a list.
+            if isinstance(headers, tuple):
+                headers = list(headers)
             if headers is not None and not isinstance(headers, list):
-                invalid_content('a list of column headers')
+                invalid_content('a list or tuple of column headers')
 
             if isinstance(table_data, pd.DataFrame):
                 headers = headers or table_data.columns.tolist()
@@ -752,7 +768,7 @@ class ReportGenerator:
             else:
                 if not isinstance(table_data, list) or not all(isinstance(row, (list, tuple)) for row in table_data):
                     invalid_content('a list of rows or a DataFrame')
-                if headers and table_data and table_data[0] != headers:
+                if headers and table_data and list(table_data[0]) != headers:
                     # add_table_section already prepends headers.
                     table_data = [headers] + table_data
 
@@ -780,13 +796,20 @@ class ReportGenerator:
         elif section_type in {'chart', 'charts', 'map', 'maps'}:
             key = 'maps' if section_type in {'map', 'maps'} else 'charts'
             description = ''
-            if key == 'charts' and isinstance(content, list):
-                charts = content
+            if key == 'charts' and isinstance(content, (list, tuple)):
+                charts = list(content)
             elif isinstance(content, dict):
                 charts = content.get(key, [])
-                description = content.get('description', '')
-                if not isinstance(charts, list):
-                    invalid_content(f'a list under {key!r}')
+                # As in 4.0.0, a None description means no description.
+                description = content.get('description')
+                if description is None:
+                    description = ''
+                # 4.0.0 iterated any sequence of images; a str, bytes or
+                # mapping is not a list of images, so it is rejected rather
+                # than iterated.
+                if not isinstance(charts, (list, tuple)):
+                    invalid_content(f'a list or tuple under {key!r}')
+                charts = list(charts)
                 if key == 'charts' and content.get('image_path'):
                     charts = [content['image_path']] + charts
             else:

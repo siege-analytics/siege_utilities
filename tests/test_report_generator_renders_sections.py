@@ -111,23 +111,111 @@ def test_content_page_overflow_preserves_every_item(tmp_path, kind):
             assert "Item" in page  # Repeat column headers after every page break.
 
 
-@pytest.mark.parametrize("section", [
-    {"type": "unknown", "content": ["lost"]},
-    {"type": "text", "content": ["lost"]},
-    {"type": "text", "content": {}},
-    {"type": "insights", "content": "lost"},
-    {"type": "recommendations", "content": [{"unexpected": "lost"}]},
-    {"type": "charts", "content": "lost"},
-    {"type": "charts", "content": {"charts": "lost"}},
-    {"type": "table", "content": []},
-    {"type": "maps", "content": ["lost"]},
+TEXT_EXPECTED = "a string or a mapping with a text string"
+
+
+@pytest.mark.parametrize("section, message", [
+    ({"type": "unknown", "content": ["lost"]}, "Unknown report section type: 'unknown'"),
+    ({"type": "text", "content": ["lost"]}, f"'text' section: expected {TEXT_EXPECTED}"),
+    ({"type": "text", "content": {}}, f"'text' section: expected {TEXT_EXPECTED}"),
+    ({"type": "insights", "content": "lost"},
+     "'insights' section: expected a list of nonempty strings"),
+    ({"type": "recommendations", "content": [{"unexpected": "lost"}]},
+     "'recommendations' section: expected a list of nonempty strings"),
+    ({"type": "charts", "content": "lost"},
+     "'charts' section: expected a chart list or an image mapping"),
+    ({"type": "charts", "content": {"charts": "lost"}},
+     "'charts' section: expected a list or tuple under 'charts'"),
+    ({"type": "charts", "content": {"charts": b"lost"}},
+     "'charts' section: expected a list or tuple under 'charts'"),
+    ({"type": "charts", "content": {"charts": {"image_path": "lost"}}},
+     "'charts' section: expected a list or tuple under 'charts'"),
+    ({"type": "table", "content": []}, "'table' section: expected a mapping with table data"),
+    ({"type": "maps", "content": ["lost"]}, "'maps' section: expected a maps mapping"),
+    ({"type": "map", "content": ["lost"]}, "'map' section: expected a maps mapping"),
+    ({"type": "table", "content": {"data": [["a"]], "headers": "a"}},
+     "'table' section: expected a list or tuple of column headers"),
+    ({"type": "appendix_header", "title": ""},
+     "'appendix_header' section: expected an appendix divider title"),
+    ({"type": "maps", "content": {"maps": [], "description": 3}},
+     "'maps' section: expected a string description"),
 ])
-def test_invalid_section_raises_without_publishing_pdf(generator, tmp_path, section):
+def test_invalid_section_raises_without_publishing_pdf(generator, tmp_path, section, message):
     output = tmp_path / "invalid.pdf"
-    with pytest.raises(ValueError, match="section"):
+    with pytest.raises(ValueError, match=re.escape(message)):
         generator.generate_pdf_report({"sections": [{"title": "Bad", **section}]}, str(output))
     assert not output.exists()
     assert not list(tmp_path.glob(".*.part"))
+
+
+@pytest.mark.parametrize("section, message", [
+    ({"title": "Cover", "content": "unexpected"},
+     "title, subtitle, author, client and date strings on the section"),
+    ({"title": "Cover", "author": 7},
+     "title, subtitle, author, client and date strings on the section"),
+    ({"title": "  "}, "a nonempty title"),
+    ({}, "a nonempty title"),
+])
+def test_invalid_title_page_raises(generator, tmp_path, section, message):
+    output = tmp_path / "title.pdf"
+    with pytest.raises(ValueError, match=re.escape(f"'title_page' section: expected {message}")):
+        generator.generate_pdf_report({"sections": [{"type": "title_page", **section}]}, str(output))
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("kind", ["chart", "map"])
+def test_none_description_renders_images_as_in_4_0_0(generator, chart_path, tmp_path, kind):
+    report = {"sections": []}
+    if kind == "chart":
+        generator.add_chart_section(report, "Charts", [chart_path], description=None)
+    else:
+        generator.add_map_section(report, "Maps", [chart_path], description=None)
+    output = tmp_path / f"{kind}-none-description.pdf"
+    generator.generate_pdf_report(report, str(output))
+    reader = PdfReader(output)
+    assert image_count(reader) == 1
+    assert "None" not in "\n".join(page.extract_text() for page in reader.pages)
+
+
+@pytest.mark.parametrize("kind", ["chart", "map"])
+def test_tuple_of_images_renders(generator, chart_path, tmp_path, kind):
+    report = {"sections": []}
+    # Two distinct images: ReportLab embeds one image object per unique file.
+    second_path = tmp_path / "second.png"
+    PILImage.new("RGB", (32, 24), "teal").save(second_path)
+    images = (chart_path, second_path)
+    if kind == "chart":
+        generator.add_chart_section(report, "Charts", images)
+    else:
+        generator.add_map_section(report, "Maps", images)
+    output = tmp_path / f"{kind}-tuple.pdf"
+    generator.generate_pdf_report(report, str(output))
+    assert image_count(PdfReader(output)) == 2
+
+
+RECORDS = [{"Metric": "Signups", "Value": 1820}, {"Metric": "RSVPs", "Value": 640}]
+
+
+@pytest.mark.parametrize("headers, missing, present", [
+    (["Name", "Count"], ["Name", "Count"], []),
+    (["Metric", "Count"], ["Count"], ["Metric"]),
+])
+def test_record_headers_must_be_record_keys(generator, headers, missing, present):
+    # For records, headers select and order record keys, so a header that is
+    # not a key would otherwise produce a column of missing values.
+    report = {"sections": []}
+    try:
+        updated = generator.add_table_section(report, "Metrics", RECORDS, headers=headers)
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        pytest.fail(f"no error; rows were {updated['sections'][0]['content']['data']}")
+    assert "not keys of the table records" in message
+    for name in missing:
+        assert repr(name) in message
+    for name in present:
+        assert repr(name) not in message
+    assert report["sections"] == []
 
 
 def test_missing_chart_warns(generator, tmp_path, caplog, monkeypatch):
@@ -140,6 +228,44 @@ def test_missing_chart_warns(generator, tmp_path, caplog, monkeypatch):
     generator.generate_pdf_report(report, str(tmp_path / "missing.pdf"))
     assert "chart" in caplog.text.lower()
     assert "missing.png" in caplog.text
+
+
+def test_chart_mapping_warning_logs_keys_not_values(generator, tmp_path, caplog, monkeypatch):
+    logger_name = "siege_utilities.reporting.report_generator"
+    monkeypatch.setattr(logging.getLogger(logger_name), "disabled", False)
+    caplog.set_level(logging.WARNING, logger=logger_name)
+    secret = "private-value-0451"
+    report = {"sections": [{"type": "charts", "title": "Charts", "content": {
+        "charts": [{"image_path": str(tmp_path / f"{secret}.png"), "note": secret}],
+    }}]}
+    generator.generate_pdf_report(report, str(tmp_path / "mapping.pdf"))
+    assert "image_path" in caplog.text and "note" in caplog.text
+    assert secret not in caplog.text
+
+
+@pytest.mark.parametrize("content_kind", ["bare tuple", "image_path with tuple"])
+def test_chart_content_tuples_render(generator, chart_path, tmp_path, content_kind):
+    second_path = tmp_path / "second.png"
+    PILImage.new("RGB", (32, 24), "teal").save(second_path)
+    if content_kind == "bare tuple":
+        content = (chart_path, second_path)
+    else:
+        content = {"image_path": str(chart_path), "charts": (second_path,)}
+    output = tmp_path / "chart-content.pdf"
+    generator.generate_pdf_report(
+        {"sections": [{"type": "charts", "title": "Charts", "content": content}]}, str(output),
+    )
+    assert image_count(PdfReader(output)) == 2
+
+
+def test_tuple_headers_render_once(generator, tmp_path):
+    report = {"sections": []}
+    generator.add_table_section(report, "Metrics", [["Signups", 1820]], headers=("HdrMetric", "HdrValue"))
+    output = tmp_path / "tuple-headers.pdf"
+    generator.generate_pdf_report(report, str(output))
+    text = "\n".join(page.extract_text() for page in PdfReader(output).pages)
+    assert text.count("HdrMetric") == 1
+    assert "Signups" in text
 
 
 def test_paragraph_too_tall_for_empty_page_raises(tmp_path):
