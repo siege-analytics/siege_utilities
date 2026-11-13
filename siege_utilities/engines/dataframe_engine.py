@@ -115,13 +115,50 @@ def _aggregate_pandas_groups(grouped: Any, normalised: Dict[str, str]) -> Any:
     return result.reset_index()
 
 
+def _same_crs(left_crs: Any, right_crs: Any) -> bool:
+    """Whether two known CRS values name the same coordinate reference system.
+
+    Literally equal values match without importing pyproj. Otherwise both are
+    parsed with ``pyproj.CRS.from_user_input`` and compared with pyproj's
+    default, axis-order-sensitive equality, the policy
+    ``geo.crs.reproject_if_needed`` uses. A value pyproj cannot parse never
+    matches. Without pyproj (the optional ``geo`` extra) the values are
+    compared literally and a warning is logged.
+    """
+    if left_crs == right_crs:
+        return True
+    try:
+        from pyproj import CRS
+        from pyproj.exceptions import CRSError
+    except ImportError:
+        log.warning(
+            "pyproj is not installed (install siege-utilities[geo]); comparing "
+            "spatial_join CRS metadata %r and %r literally.",
+            left_crs,
+            right_crs,
+        )
+        return False
+    try:
+        return CRS.from_user_input(left_crs) == CRS.from_user_input(right_crs)
+    except (CRSError, ValueError, TypeError):
+        # Unparseable metadata is not the same CRS. Other pyproj failures,
+        # such as a missing PROJ data directory, propagate.
+        return False
+
+
 def _validate_spatial_join_crs(left: Any, right: Any) -> None:
-    """Reject mismatched known CRS while allowing inputs with no CRS metadata."""
+    """Reject mismatched known CRS while allowing inputs with no CRS metadata.
+
+    The frame's ``crs`` attribute is read statically, so a Spark column named
+    ``crs`` is not metadata. Known values are compared as coordinate reference
+    systems through pyproj when it is installed, and literally otherwise.
+    WKT geometry carries no CRS, so none is inferred from it.
+    """
     # Spark resolves column names through __getattr__; a column named "crs"
     # is data, not frame metadata. Only read explicitly defined attributes.
     left_crs = left.crs if _getattr_static(left, "crs", None) is not None else None
     right_crs = right.crs if _getattr_static(right, "crs", None) is not None else None
-    if left_crs is not None and right_crs is not None and left_crs != right_crs:
+    if left_crs is not None and right_crs is not None and not _same_crs(left_crs, right_crs):
         raise ValueError(
             f"CRS mismatch in spatial_join: left has {left_crs}, "
             f"right has {right_crs}. Reproject one input to match the other."

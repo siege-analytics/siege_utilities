@@ -12,8 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DuckDB and PostGIS `spatial_join`, along with `point_in_polygon`,
   `assign_boundaries`, `intersect_boundaries`, and `multi_assign`, now raise
   `ValueError` on mismatched known CRS like PandasEngine. All engines share
-  the CRS check, including Spark when CRS metadata is available. Matching
-  and unknown CRS retain their existing behavior (#1619).
+  the CRS check, including Spark when CRS metadata is available. Known CRS
+  values are compared as coordinate reference systems through pyproj when
+  it is installed, so `"EPSG:4326"` and `"epsg:4326"` match; without pyproj
+  they are compared literally with a warning. Matching and unknown CRS
+  retain their existing behavior (#1619).
 
 ## [4.1.0] - 2026-10-18
 

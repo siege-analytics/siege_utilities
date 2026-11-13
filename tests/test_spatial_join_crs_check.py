@@ -103,7 +103,7 @@ def test_spark_spatial_join_rejects_known_mismatched_crs(real_spark_session):
 
 
 @pytest.mark.requires_spark
-@pytest.mark.parametrize("crs_metadata", ["matching", "unknown", "data_column"])
+@pytest.mark.parametrize("crs_metadata", ["matching", "case_variant", "unknown", "data_column"])
 def test_spark_spatial_join_allows_matching_or_unknown_crs(real_spark_session, crs_metadata):
     from shapely import wkt
 
@@ -117,6 +117,9 @@ def test_spark_spatial_join_allows_matching_or_unknown_crs(real_spark_session, c
     right = spark.createDataFrame([("x", "POINT(-97.7 30.3)")], ["d", "geometry"])
     if crs_metadata == "matching":
         left.crs = right.crs = "EPSG:4326"
+    elif crs_metadata == "case_variant":
+        left.crs = "EPSG:4326"
+        right.crs = "epsg:4326"
     elif crs_metadata == "data_column":
         from pyspark.sql import functions as F
 
