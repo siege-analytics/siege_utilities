@@ -4,6 +4,39 @@ Config
 User and project configuration: credentials, database connections, client
 profiles, project management.
 
+Home directories and path defaults
+----------------------------------
+
+``config.constants`` and ``config.paths`` resolve each exported path on its
+first access and retain that ``Path`` value. Set environment overrides before
+accessing the corresponding path. Importing a module or a non-path constant
+such as ``DEFAULT_TIMEOUT`` does not look up the home directory.
+
+Defaults keep their usual home-relative layout: ``SIEGE_UTILITIES_HOME`` is
+``~/siege_utilities``, ``SIEGE_CACHE_DIR`` is ``~/.siege_cache``, and
+``SIEGE_OUTPUT_DIR`` is ``~/Downloads``. If home lookup raises ``RuntimeError``
+or ``KeyError`` (for example, an arbitrary container uid with no ``HOME`` or
+passwd entry), the home substitute is
+``Path(tempfile.gettempdir()) / f"siege_utilities-{os.getuid()}"`` on POSIX.
+On Windows it is ``Path(tempfile.gettempdir()) / "siege_utilities"``.
+Default download, Census catalog, PL cache, and Census inventory paths use
+the same substitute. Resolving a path creates no directories unless automatic
+initialization is enabled as described below.
+
+``SIEGE_UTILITIES``, ``SIEGE_CACHE``, ``SIEGE_OUTPUT``, and the other path
+overrides are checked before their defaults. Accepted overrides do not call
+``Path.home()``. ``config.paths`` retains its safety check: overrides must
+resolve within the home directory or its substitute, unless
+``SIEGE_ALLOW_UNSAFE_PATHS=1`` is set. For a container volume such as
+``/data/cache``, set that opt-in along with ``SIEGE_CACHE=/data/cache`` when
+using ``config.paths``. The three paths exported from ``config.constants``
+(also exposed directly by ``config``) retain their unvalidated override
+behavior.
+
+``SIEGE_AUTO_INIT_DIRS=true`` now creates the standard directory tree at the
+first path access instead of module import. Call
+``initialize_siege_directories()`` to create it immediately.
+
 Sharing exports without secrets
 -------------------------------
 

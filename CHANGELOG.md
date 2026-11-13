@@ -646,6 +646,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   selects the newest data year when no year is specified. GFK-specific relation
   introspection/prefetch APIs no longer apply. (#1560)
 
+- Resolve configuration paths on first access so imports survive an unset
+  `HOME` and a uid without a passwd entry. Use a temporary per-uid home
+  substitute when lookup fails, and check environment overrides before
+  resolving defaults. Guard default downloads and defer Census catalog,
+  inventory, and PL cache paths too. `SIEGE_UTILITIES_HOME`,
+  `SIEGE_CACHE_DIR` and `SIEGE_OUTPUT_DIR` are now resolved when first read,
+  not when `siege_utilities.config` is imported, so an environment override
+  set after import but before the first read now takes effect, and
+  `SIEGE_AUTO_INIT_DIRS=true` now creates directories on first path access
+  rather than at import. **Migration:** code that relied on those directories
+  existing immediately after import must touch the path (for example through
+  `get_file_path`) or create the directory itself, and code that set
+  `SIEGE_UTILITIES`, `SIEGE_CACHE` or `SIEGE_OUTPUT` after import and expected
+  it to be ignored must set them before the first read (#1448).
 - `ConfigurationMigrator.migrate_user_profile` and `migrate_client_profile`
   in both `config.enhanced_config` and `config.migration` now propagate file,
   YAML/JSON and validation errors; missing files raise `FileNotFoundError`.

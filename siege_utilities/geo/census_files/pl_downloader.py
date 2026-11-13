@@ -31,6 +31,7 @@ from typing import Dict, List, Optional, Union
 import pandas as pd
 import requests
 
+from ...config._home import _home_directory
 from ...config import (
     STATE_FIPS_CODES,
     FIPS_TO_STATE,
@@ -69,7 +70,24 @@ PL_2010_BASE_URL = "https://www2.census.gov/census_2010/01-Redistricting_File--P
 
 # Cache settings
 PL_CACHE_TIMEOUT_DAYS = 30
-DEFAULT_CACHE_DIR = Path.home() / '.siege_utilities' / 'cache' / 'pl_files'
+DEFAULT_CACHE_DIR: Path
+globals().pop('DEFAULT_CACHE_DIR', None)
+
+
+def _default_cache_dir() -> Path:
+    if 'DEFAULT_CACHE_DIR' not in globals():
+        globals()['DEFAULT_CACHE_DIR'] = _home_directory() / '.siege_utilities' / 'cache' / 'pl_files'
+    return globals()['DEFAULT_CACHE_DIR']
+
+
+def __getattr__(name: str) -> Path:
+    if name == 'DEFAULT_CACHE_DIR':
+        return _default_cache_dir()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | set(__all__))
 
 # Request timeout
 PL_REQUEST_TIMEOUT = 300  # 5 minutes - files can be large
@@ -250,7 +268,7 @@ class PLFileDownloader:
             cache_dir: Directory for caching files
             timeout: Request timeout in seconds
         """
-        self.cache_dir = Path(cache_dir) if cache_dir else DEFAULT_CACHE_DIR
+        self.cache_dir = Path(cache_dir) if cache_dir else _default_cache_dir()
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.timeout = timeout
 
