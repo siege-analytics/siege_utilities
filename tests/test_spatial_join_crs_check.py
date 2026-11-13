@@ -109,6 +109,31 @@ def test_multi_assign_keeps_matching_non_default_crs_across_layers(engine, frame
     assert result["geometry"].iloc[0].equals(points.geometry.iloc[0])
 
 
+@pytest.fixture(params=["pandas", "duckdb"])
+def layer_checking_engine(request):
+    """Engines whose multi_assign keeps the GeoDataFrame, so every layer is checked."""
+    if request.param == "pandas":
+        return PandasEngine()
+    pytest.importorskip("duckdb")
+    return DuckDBEngine()
+
+
+def test_multi_assign_rejects_a_known_mismatch_on_a_later_layer(layer_checking_engine, frames):
+    points, polygons = frames
+    layers = {
+        "district": polygons.to_crs(3857),
+        "county": polygons.rename(columns={"d": "c"}),
+    }
+
+    with pytest.raises(ValueError) as exc_info:
+        layer_checking_engine.multi_assign(points.to_crs(3857), layers)
+
+    assert str(exc_info.value) == (
+        "CRS mismatch in spatial_join: left has EPSG:3857, "
+        "right has EPSG:4326. Reproject one input to match the other."
+    )
+
+
 @pytest.fixture(params=[
     "duckdb",
     pytest.param("postgis", marks=pytest.mark.postgis),
@@ -137,6 +162,30 @@ def test_frame_without_crs_metadata_is_unknown_crs(converting_engine):
 
     assert len(result) == 1
     assert result[["id", "d"]].to_dict("records") == [{"id": 1, "d": "x"}]
+    assert result["geometry"].iloc[0].equals(Point(-10850000, 3550000))
+
+
+@pytest.mark.filterwarnings("ignore:CRS mismatch between:UserWarning")
+def test_multi_assign_keeps_points_without_crs_metadata_unknown(converting_engine):
+    import pandas as pd
+
+    points = pd.DataFrame({"id": [1], "geometry": ["POINT (-10850000 3550000)"]})
+    polygons = gpd.GeoDataFrame(
+        {"d": ["x"]},
+        geometry=[box(-11000000, 3400000, -10700000, 3700000)],
+        crs="EPSG:3857",
+    )
+    layers = {
+        "district": polygons,
+        "county": polygons.rename(columns={"d": "c"}),
+    }
+
+    result = converting_engine.multi_assign(points, layers)
+
+    assert len(result) == 1
+    assert list(result["id"]) == [1]
+    assert list(result["district_d"]) == ["x"]
+    assert list(result["county_c"]) == ["x"]
     assert result["geometry"].iloc[0].equals(Point(-10850000, 3550000))
 
 

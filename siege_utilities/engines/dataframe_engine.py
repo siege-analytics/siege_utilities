@@ -146,6 +146,13 @@ def _same_crs(left_crs: Any, right_crs: Any) -> bool:
         return False
 
 
+def _frame_crs(frame: Any) -> Any:
+    """Return a frame's CRS metadata, or None when it carries none."""
+    # Spark resolves column names through __getattr__; a column named "crs"
+    # is data, not frame metadata. Only read explicitly defined attributes.
+    return frame.crs if _getattr_static(frame, "crs", None) is not None else None
+
+
 def _validate_spatial_join_crs(left: Any, right: Any) -> None:
     """Reject mismatched known CRS while allowing inputs with no CRS metadata.
 
@@ -154,10 +161,8 @@ def _validate_spatial_join_crs(left: Any, right: Any) -> None:
     systems through pyproj when it is installed, and literally otherwise.
     WKT geometry carries no CRS, so none is inferred from it.
     """
-    # Spark resolves column names through __getattr__; a column named "crs"
-    # is data, not frame metadata. Only read explicitly defined attributes.
-    left_crs = left.crs if _getattr_static(left, "crs", None) is not None else None
-    right_crs = right.crs if _getattr_static(right, "crs", None) is not None else None
+    left_crs = _frame_crs(left)
+    right_crs = _frame_crs(right)
     if left_crs is not None and right_crs is not None and not _same_crs(left_crs, right_crs):
         raise ValueError(
             f"CRS mismatch in spatial_join: left has {left_crs}, "
@@ -764,10 +769,19 @@ class DataFrameEngine(ABC):
         # implementations -- subclasses may override for efficiency.
         point_cols = set(self.to_pandas(points).columns)
 
+        # Points without CRS metadata stay unknown for every layer. Converting
+        # them for the first join can give the result the default CRS; that
+        # label is the library's, not the caller's, so a later layer must not
+        # be compared against it.
+        points_crs_unknown = _frame_crs(points) is None
         result = points
         for layer_name, polygons in boundary_layers.items():
+            layer_points = result
+            if points_crs_unknown and _frame_crs(result) is not None:
+                import pandas as pd
+                layer_points = pd.DataFrame(result)
             assigned = self.assign_boundaries(
-                result, polygons,
+                layer_points, polygons,
                 point_geom=point_geom, polygon_geom="geometry",
                 how="left",
             )
