@@ -1137,6 +1137,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     success with 0 updated. Unmatched districts are counted in
     `records_skipped`, and a partial match adds a warning. Pass the CVAP
     level whose GEOIDs equal your plan's district GEOIDs.
+- `demographic_profile` assigns Census units by their representative interior
+  points, so units straddling district boundaries are counted once rather than
+  dropped; a point on a shared district edge goes to the first matching
+  district with a non-null ID in `plan_gdf` row order (rows without a district
+  ID are ignored). Every district in `plan_gdf` now appears in
+  the result, with zeros where no unit is assigned, and units whose interior
+  point intersects no district with a non-null ID raise a `UserWarning` stating
+  how many were excluded and their summed population (#1562).
+  Migration: district totals change wherever units straddle boundaries; filter
+  `result[result[population_col] > 0]` to recover v4.0.0's omission of empty
+  districts, and treat the warning as the signal that census coverage exceeds
+  the plan. `RDHLoaderService` (`geo/django/services/rdh_loader.py`) stores one
+  `DistrictDemographics` row per returned district, so it now writes
+  zero-valued rows for districts with no census units instead of no row;
+  consumers that treated a missing row as "no data" should check for zeros.
 
 ### Security
 
