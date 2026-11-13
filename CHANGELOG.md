@@ -613,6 +613,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   source-level boundary table (latest vintage <= `year`), or the crosswalk
   sources in crosswalk mode, so missing children lower it; when no boundaries
   are loaded it logs a warning and falls back to existing snapshots (#1604).
+- Seat uniqueness includes Senate class, so a state's two U.S. Senate seats
+  can coexist with an empty district label. A partial unique constraint allows
+  only one PRESIDENT seat, including when its state is NULL; creating a second
+  PRESIDENT seat now raises `IntegrityError`. Django migration
+  `0020_seat_uniqueness` replaces the old uniqueness constraint while preserving
+  duplicate protection for seats without a Senate class (#1623).
+  **Migration:** before applying `0020_seat_uniqueness`, reconcile duplicate
+  PRESIDENT seats, including rows that reference them (deleting a seat
+  cascades). If duplicates remain, the migration stops before changing any
+  constraint and reports their count and lowest primary keys; it never deletes
+  or merges rows. Set `senate_class` on both of a state's U.S. Senate seats so
+  they can coexist; seats without a class still allow only one per office,
+  state and district label. Reversing 0020 restores the old
+  `(office, state, district_label)` key, so it fails while a state still has
+  two Senate seats with the same district label.
 
 ### BREAKING
 
