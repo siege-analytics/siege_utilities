@@ -29,6 +29,7 @@ Usage::
 from __future__ import annotations
 
 import contextlib
+import errno
 import logging
 import os
 import re
@@ -313,13 +314,40 @@ def _received_wire_size(resp: Any, written_size: int) -> int:
     return wire_size
 
 
+def _parse_content_length(value: str) -> int:
+    """Parse a Content-Length header value as a non-negative byte count.
+
+    urllib3 joins repeated headers with ", ", so identical repeated values
+    (``"10, 10"``) are accepted as one. Anything else that is not a single
+    non-negative integer raises, rather than skipping the size check.
+    """
+    parts = {part.strip() for part in value.split(",")}
+    # At most 19 digits (any 64-bit size), so int() never meets Python's
+    # integer string-conversion limit on a hostile header.
+    if len(parts) != 1 or not re.fullmatch(r"[0-9]{1,19}", next(iter(parts))):
+        raise requests.RequestException(f"Invalid Content-Length header: {value!r}")
+    return int(next(iter(parts)))
+
+
+# Errors that mean the platform or filesystem cannot sync a directory at all,
+# as opposed to a sync that was attempted and failed (for example EIO).
+_DIRECTORY_SYNC_UNSUPPORTED = frozenset(
+    getattr(errno, name)
+    for name in ("EINVAL", "ENOTSUP", "EOPNOTSUPP", "EBADF", "EACCES", "EPERM")
+    if hasattr(errno, name)
+)
+
+
 def _sync_directory(directory: Path) -> None:
     """Persist a completed rename in *directory*, best effort, on POSIX.
 
-    The replacement is already published, so a filesystem that cannot sync
-    a directory is logged at debug level rather than raised, as in
-    ``siege_utilities.files.operations.atomic_write_path``. Other platforms
-    cannot open a directory for fsync and are skipped.
+    The replacement is already published and its contents are synced, so a
+    failure here only risks the rename itself not surviving a crash; it is
+    logged, not raised. A filesystem or sandbox that cannot sync a directory
+    (EINVAL, ENOTSUP, EOPNOTSUPP, EBADF, EACCES, EPERM) is logged at debug
+    level; any other error, such as EIO, is a real durability failure and
+    logged as a warning. Other platforms cannot open a directory for fsync and
+    are skipped.
     """
     if os.name != "posix":
         return
@@ -329,8 +357,18 @@ def _sync_directory(directory: Path) -> None:
             os.fsync(directory_fd)
         finally:
             os.close(directory_fd)
-    except OSError:
-        log.debug("Directory fsync unavailable for %s", directory, exc_info=True)
+    except OSError as exc:
+        # Deliberately not raised: the complete, fsynced file is already
+        # published, so raising would report a successful download as failed.
+        # No result is fabricated; only the rename's crash durability is lost.
+        if exc.errno in _DIRECTORY_SYNC_UNSUPPORTED:
+            log.debug("Directory fsync unavailable for %s", directory, exc_info=True)
+        else:
+            log.warning(
+                "Directory fsync failed for %s (%s); the new cache entry is "
+                "published but its rename may not survive a crash",
+                directory, exc,
+            )
 
 
 class RDHClient:
@@ -635,8 +673,9 @@ class RDHClient:
         Raises
         ------
         requests.RequestException
-            The request fails, the received size differs from Content-Length,
-            or an encoded response's received size cannot be determined.
+            The request fails, Content-Length is malformed, the received size
+            differs from it, or an encoded response's received size cannot be
+            determined.
         OSError
             Writing, syncing or publishing the cache file fails.
         """
@@ -677,7 +716,7 @@ class RDHClient:
                 )) as resp:
                     resp.raise_for_status()
                     expected_size = (
-                        int(resp.headers["Content-Length"])
+                        _parse_content_length(resp.headers["Content-Length"])
                         if "Content-Length" in resp.headers else None
                     )
                     written_size = 0

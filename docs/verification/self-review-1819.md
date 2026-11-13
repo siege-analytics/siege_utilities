@@ -35,7 +35,7 @@ New POSIX-only tests in `tests/test_1415_rdh_atomic_download.py`. A `umask` fixt
 
 ## CHANGELOG
 
-A `[4.1.0]` Fixed entry for #1415 now sits after the #1509 entry. An earlier #1415 entry was removed in `9547c73c` under the #1749 body-only convention. The current convention keeps canonical release notes in CHANGELOG.md `[4.1.0]`, so the entry is restored and covers the permission behaviour.
+A `[5.0.0]` Fixed entry for #1415 now sits after the #1509 entry. An earlier #1415 entry was removed in `9547c73c` under the #1749 body-only convention. The current convention keeps canonical release notes in CHANGELOG.md `[5.0.0]`, so the entry is restored and covers the permission behaviour. (This section was written as `[4.1.0]`; the release was renumbered to 5.0.0.)
 
 Not BREAKING. v4.0.0 wrote the cache path in place, so a new file got the umask mode and a refresh kept its mode; this round restores that behaviour. Atomic publication changes only failure behaviour: no truncated cache entry is left behind.
 

@@ -150,7 +150,7 @@
     "call": "zf.extractall(extract_dir)",
     "file": "geo/providers/redistricting_data_hub.py",
     "count": 1,
-    "reason": "RDH extraction is deferred to #1415 alongside its pinned download write; partial extraction handling remains that issue’s responsibility."
+    "reason": "RDH ZIP extraction is not yet atomic; #1925 tracks extracting into a staging directory and publishing it, and partial extraction handling remains that issue's responsibility."
   },
   {
     "scope": "generate_branch_report",
