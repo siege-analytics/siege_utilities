@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Importing `siege_utilities.geo.django` no longer raises when Django is
+  installed but the GDAL C library is not. The GeoDjango availability check now
+  also catches `ImproperlyConfigured`, so `_gis_available` is `False` and
+  callers that need GeoDjango get the existing `ImportError` from the
+  dependency check. Django remains optional (#1889).
 - Correct the geocoding notebook's cache-hit claim: the timed cell scans
   already-collected results in memory to select matched input IDs. Add a
   narrative regression test and offline execution coverage for the geo notebook
