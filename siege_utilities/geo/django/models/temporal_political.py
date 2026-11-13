@@ -162,12 +162,28 @@ class Seat(models.Model):
     class Meta:
         verbose_name = "Seat"
         verbose_name_plural = "Seats"
-        unique_together = [("office", "state", "district_label")]
         indexes = [
             models.Index(fields=["office", "state"]),
             models.Index(fields=["office"]),
         ]
         constraints = [
+            models.UniqueConstraint(
+                fields=["office", "state", "district_label", "senate_class"],
+                condition=models.Q(senate_class__isnull=False),
+                name="seat_identity_with_senate_class",
+            ),
+            # NULL Senate classes must still identify a single statewide or
+            # district seat, even with PostgreSQL's default NULLS DISTINCT.
+            models.UniqueConstraint(
+                fields=["office", "state", "district_label"],
+                condition=models.Q(senate_class__isnull=True),
+                name="seat_identity_without_senate_class",
+            ),
+            models.UniqueConstraint(
+                fields=["office"],
+                condition=models.Q(office="PRESIDENT"),
+                name="seat_president_singleton",
+            ),
             models.CheckConstraint(
                 condition=(
                     models.Q(state__isnull=False)
