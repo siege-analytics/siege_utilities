@@ -19,6 +19,7 @@ from siege_utilities.geo.census.dual_source import (
 from siege_utilities.geo.census_api_client import (
     CensusAPIError,
     CensusRateLimitError,
+    CensusServerError,
 )
 
 
@@ -90,7 +91,7 @@ def test_api_healthy(primary, secondary, request_kwargs):
 
 
 @pytest.mark.parametrize("budget", [1, 3])
-@pytest.mark.parametrize("error_type", [CensusRateLimitError, Timeout])
+@pytest.mark.parametrize("error_type", [CensusRateLimitError, Timeout, CensusServerError])
 def test_forced_api_degradation(
     primary, secondary, request_kwargs, budget, error_type,
 ):
@@ -280,8 +281,8 @@ def test_wrapped_transport_timeout_triggers_default_fallback(
     ).fetch(**request_kwargs)
 
     assert result is secondary.fetch.return_value[0]
-    assert provenance == Provenance("bulk", "summary-file.csv", 4, True)
-    assert api.fetch_data.call_args_list == [call(**request_kwargs)] * 3
+    assert provenance == Provenance("bulk", "summary-file.csv", 2, True)
+    api.fetch_data.assert_called_once_with(**request_kwargs)
     secondary.fetch.assert_called_once_with(**request_kwargs)
 
 
@@ -319,7 +320,7 @@ def test_policy_defaults():
     policy = AlternationPolicy()
 
     assert policy.max_api_attempts == 3
-    assert policy.fallback_on == (CensusRateLimitError, Timeout)
+    assert policy.fallback_on == (CensusRateLimitError, Timeout, CensusServerError)
     assert policy.alternate_under_sustained_pressure is False
 
 
