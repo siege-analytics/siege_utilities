@@ -548,6 +548,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   this check. **Migration:** close or correct inverted rows at the data
   source, or catch `ValueError` around state-scoped redistricting queries
   (#1466).
+- This qualifies the entry above: the inverted-span check reaches callers in
+  three different ways. Only
+  `DictRedistrictingDataProvider.get_district_assignments` and
+  `RedistrictingOverlayResult.active_at` perform it;
+  `RedistrictingOverlay.fetch` raises only when its provider does. The Dict
+  provider checks spans before applying the year range, so a row outside the
+  queried years can still raise; it skips rows for other states first only
+  when `state_fips` is passed, and without it checks every stored row.
+  `active_at` checks every assignment in the result, whatever its state or
+  dates. `place_history` does not raise when the overlay's
+  provider does: it records the failure in `result.errors` ("Overlay
+  '<name>' failed: ...") and leaves that overlay out of `result.overlays`.
+  **Migration:** with `place_history`, check `result.errors` for a failed
+  redistricting overlay; around direct provider calls, `fetch` and
+  `active_at`, catch `ValueError` (#1466).
 - `SeatsOverlayResult.current_districts` keeps every row of the chosen
   start-year group: two same-office seats starting in the same year, one
   finite and one ongoing, are both returned (4.0.0 returned only the finite
@@ -557,6 +572,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **Migration:** treat `current_districts` as a list of one or more rows per
   office, and do not assume the newest finite seat is the current one
   (#1466).
+- Redistricting `to_date` is now exclusive.
+  `RedistrictingOverlayResult.active_at` no longer returns an assignment on
+  its `to_date`, and
+  `DictRedistrictingDataProvider.get_district_assignments` no longer returns
+  an assignment whose `to_date` is January 1 of the earliest queried year.
+  4.0.0 treated `to_date` as the last active day. Data stored with an
+  inclusive last day, such as a plan ending December 31 followed by one
+  starting January 1, now has no active plan on December 31, and no error is
+  raised. A one-day assignment stored with `from_date` equal to `to_date` is
+  now an empty span, which `active_at` and the Dict provider skip.
+  **Migration:** store the day after the last effective day as `to_date`
+  (#1466).
+- The state filters in `DictElectionDataProvider` and
+  `DictRedistrictingDataProvider` now map a recognised two-digit FIPS
+  `state_fips` to its abbreviation before comparing it, case-insensitively,
+  with each row's `state`; the row value is not mapped. 4.0.0 compared the
+  two values case-insensitively without mapping, so a row whose `state` held
+  a FIPS code matched the same code in `state_fips`. Such rows no longer
+  match a recognised FIPS query, and no error is raised. **Migration:** store
+  `state` as the two-letter state abbreviation (#1466).
+- A reversed year range (`from_year` after `to_year`) now covers the same
+  years as the ordered range in `DictElectionDataProvider` and
+  `DictRedistrictingDataProvider`. For a reversed range, 4.0.0 returned no
+  election results, and only the redistricting assignments that began by
+  the end of the earlier year and lasted at least to the start of the later
+  year. **Migration:** if code relied on an empty or partial result for a
+  reversed range, check the order before querying (#1466).
+- `SeatsOverlayResult.current_districts` now selects within each office at a
+  shared reference year: the latest end year across all rows, counting an
+  ongoing row by its start year. 4.0.0 kept only rows whose end year (or
+  start year, for an ongoing row) equalled that latest year, so it dropped
+  any office whose latest year was earlier, including an office served only
+  by an ongoing seat that started earlier. Now every office with a row
+  covering the reference year contributes its chosen start-year group, and
+  only that group: where 4.0.0 returned two overlapping periods of one office
+  because both ended (or, if ongoing, started) in that year, one group is
+  returned now. Rows come back grouped by office in first-seen order instead
+  of input order. A row whose `from_year` is after its `to_year` is never
+  returned (4.0.0 returned it when its `to_year` was the latest year), but
+  its `to_year` still sets the reference year, so it can leave its own and
+  other offices with no current district. An ongoing row with no
+  `from_year` is treated as starting before every known year: it always
+  covers the reference year, and unless another ongoing row of the same
+  office has a known `from_year`, its group is chosen over that office's
+  finite rows. 4.0.0 dropped such a row unless no row in the result had a
+  known end or start year. **Migration:** expect rows for more offices, do
+  not rely on row order across offices, read `assignments` to see every
+  period of an office with overlapping periods, correct inverted seat rows
+  at the data source, and set `from_year` on ongoing seat rows (#1466).
 
 ### BREAKING
 
