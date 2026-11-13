@@ -10,7 +10,7 @@ constraint-dependencies = ["greenlet!=3.5.6"]
 
 [project]
 name = "siege-utilities"
-version = "4.1.0"
+version = "5.0.0"
 description = "A comprehensive Python utilities package with enhanced auto-discovery"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -191,7 +191,9 @@ web = [
 ]
 # DuckDB performance backend
 performance = [
-    "duckdb>=0.7.0",
+    # Upper bound: DuckDB 2.0 changes tokenizer byte offsets and prepared-statement
+    # result metadata, breaking the class-hardening suite. Pinned pending 2.0 support.
+    "duckdb>=0.7.0,<2.0",
 ]
 # Database connectivity
 database = [
@@ -239,6 +241,7 @@ dev = [
     "pytest-forked>=1.4.0",
     "pytest-django>=4.5.0",
     "pytest-randomly>=3.15.0",
+    "pglast>=8.4",
     "hypothesis>=6.100.0",
     "nbmake>=1.5.0",
     "papermill>=2.4.0",
@@ -332,7 +335,9 @@ all = [
     "beautifulsoup4>=4.12.0",
     "lxml>=4.9.0",
     # performance
-    "duckdb>=0.7.0",
+    # Upper bound: DuckDB 2.0 changes tokenizer byte offsets and prepared-statement
+    # result metadata, breaking the class-hardening suite. Pinned pending 2.0 support.
+    "duckdb>=0.7.0,<2.0",
     # database
     "sqlalchemy>=1.4.0",
     # 3d

@@ -9,17 +9,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `TimeseriesService` now calculates CAGR per calendar year instead of per
-  observation gap; sparse series previously overstated annual growth by roughly
-  the observation spacing factor. Missing MOEs retain `None` placeholders so
-  `years`, `values`, and `moe_values` stay positionally aligned. Snapshot reads
-  and existing-series lookups are batched per variable and geography level,
-  preserving series values while removing per-GEOID reads (#1622).
+- Correct the geocoding notebook's cache-hit claim: the timed cell scans
+  already-collected results in memory to select matched input IDs. Add a
+  narrative regression test and offline execution coverage for the geo notebook
+  group. Correct the related notebook descriptions to cover precinct-level
+  bivariate mapping and statistical primitives, and add regression coverage for
+  their cross-reference claims (#1667).
+- `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
+  `48-49` and excludes the `10` all-industry total that caused double-counting,
+  along with supersector aggregates. **Behavior change:** `parse()` and
+  `load()` now default to `own_code=5` (private) and `area_level="state"`
+  (statewide, `agglvl_code=54` at the default `naics_depth=2`), instead of
+  mixing ownerships and statewide/county rows. Callers can select another
+  ownership and `county`, `national`, or `msa` area level; the aggregation
+  code follows the requested NAICS depth. Suppressed rows (`disclosure_code`
+  of `N`) carry a boolean `is_suppressed` flag, so their source employment
+  and wage zeros can be excluded from calculations. When their source
+  disclosure columns exist, boolean `is_lq_suppressed` and `is_oty_suppressed`
+  flags separately identify `lq_disclosure_code` and `oty_disclosure_code`
+  values of `N`; corresponding `lq_*`/`oty_*` zeros are sentinels, not measured
+  zeros. The parser docstring now describes all preserved source columns
+  plus these flags (#1507).
 
-## [4.1.0] - 2026-10-18
+## [5.0.0]
 
 ### Changed
 
+- New *file* names now get the same check as new directory names. The
+  `siege_utilities.files` helpers that create a file refuse a name containing
+  a C0, DEL or C1 control character, or a lone surrogate: they raise
+  `PathSecurityError` and create nothing. The helpers are `touch_file`,
+  `copy_file`, `move_file` (into an existing directory, the source's name is
+  checked), `delete_existing_file_and_replace_it_with_an_empty_file`,
+  `safe_file_write`, `safe_json_write`, `atomic_write_path`,
+  `atomic_write_shapefile`, `download_file`, `save_spatial`, `save_tabular`,
+  `secure_write_text`, and `unzip_file_to_directory` for member files, checked
+  at the path `zipfile` actually writes (so `a/../f<ESC>.txt` is refused). The
+  check is public as `reject_unsafe_new_file_path` (#1737).
+  **Migration:** existing files with such names can still be read, moved and
+  overwritten, except as a shapefile: `atomic_write_shapefile` and
+  `save_spatial(..., fmt=SpatialFormat.SHAPEFILE)` refuse an unsafe target
+  name even when it exists (its sidecars are published under that name), so
+  rename such a shapefile first. Callers that build file names from external
+  input should pass them through
+  `siege_utilities.files.operations.sanitize_filename`. This check's message
+  now reads "...in new name" rather than "...in new directory name";
+  `validate_directory_path` (and so `ensure_path_exists`) keeps the old text.
+  Writers outside `siege_utilities.files` are not yet covered (#1763).
 - Docstring generation now defaults to a dry run. CLI callers must pass
   `--write` (or `--apply`), and Python callers must pass `dry_run=False` to
   `process_python_file` or `main` to modify files (#1589).
@@ -82,6 +118,104 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Package introspection (`analyze_package_structure`, `analyze_module` and
+  `generate_architecture_diagram`) now recurses only into `siege_utilities`
+  submodules, chosen by module name instead of a file-path substring, and
+  classifies module attributes and class members without evaluating lazy
+  objects. Module attributes of the top-level package are still analyzed as
+  before. Previously, a virtualenv whose
+  path contained `siege_utilities` (as on CI runners) made it walk every
+  installed package, and an `isinstance` check set up Django's lazy
+  `staticfiles_storage`, raising `ImproperlyConfigured` when `STATIC_URL` is
+  unset. Output for package modules is unchanged (#1882).
+- Instagram and X retry rate limits within the configured attempt budget and
+  honor `Retry-After` up to `max_retry_wait` (900 seconds by default). Larger
+  hints raise `SocialMediaRateLimitError` without sleeping and retain the hint
+  in `retry_after`; configured backoff uses the same cap. `max_retry_wait` also
+  bounds the total sleep across one request's retries: a wait that would push
+  the total past it is not taken, so a rate limit raises
+  `SocialMediaRateLimitError` and a transport or 5xx failure stops retrying and
+  reports the attempts made. This covers HTTP dates and X reset epochs. An
+  HTTP date without a zone is read as UTC, and a date already past falls back
+  to the configured backoff instead of retrying at once.
+  Instagram documents the roughly 60-day token lifetime and offers token
+  exchange with stored expiry and a fresh-login path for expired tokens
+  (#1458).
+- Graph insight defaults use supported metrics: daily Instagram account
+  insights use `reach` and `follower_count`; media use `views` and
+  `total_interactions`; stories use `navigation` and accept caller overrides.
+  Media insights read `total_value`. Facebook Page
+  Insights pass metrics as a comma-separated `metric` parameter and use
+  `page_media_view`, `page_follows` and `page_post_engagements` in place of
+  retired impression, fan and engaged-user defaults. These replacements count
+  views, followers and interactions, respectively. A Page Insights response
+  with an insight that has no metric name raises `ValueError` instead of
+  silently dropping its values (#1474).
+- Instagram account insights now use UTC request boundaries regardless of
+  the host timezone and label daily metrics with the day covered, one day
+  before the end-of-period marker. X account snapshots use the UTC date.
+  `PipelineAnalyzer` uses an aware UTC default and calculates elapsed time
+  in UTC for aware timestamps, including across daylight-saving changes;
+  naive-only inputs retain the host-local `datetime.now()` default (#1444).
+  **Migration:** naive pipeline timestamps are now interpreted as host-local,
+  not UTC. Mixed naive/aware input, including an `as_of` whose awareness
+  differs from the items, now raises `ValueError` identifying the offending
+  items. Keep naive timestamps in host-local time, or attach their actual
+  timezone and use aware timestamps throughout, including `as_of`.
+  The Facebook daily-label fix is tracked separately in #1435.
+- Pin `duckdb` to `>=0.7.0,<2.0` in the `performance` and `all` extras so a
+  DuckDB 2.0 install does not destabilize the class-hardening suite. DuckDB 2.0
+  changes tokenizer byte offsets and prepared-statement result metadata; 2.0
+  adaptation is tracked separately (#1861, #1862).
+- The population-service resilience test for unpublished VTDs runs the
+  command with `--skip-checks`, so Django's `gis.W001` system-check warning on
+  runners with GDAL older than 3.9 no longer fails its empty-stderr assertion.
+  Control cases confirm the warning reaches stderr without the flag and that a
+  genuine command error still does with it (#1868).
+- `SparkEngine.nearest` ranks candidates by a per-point row identity,
+  preserving co-located points and points with no target within `max_distance`.
+  Results keep one point geometry and expose `distance` and `index_right`
+  without backend ranking columns. The lazy join no longer retains a checkpoint
+  or temporary views per call. Shared input `distance` columns are preserved as
+  `distance_left` and `distance_right`; single-sided input `distance` is still
+  replaced by the computed distance. Input `index_right` and duplicate output
+  names, including suffix collisions, raise `ValueError`. Drop or rename a
+  previous result's `index_right` before another nearest join (#1463).
+- Sanitize CRM upsert payloads for Salesforce, HubSpot, Zoho, and Dynamics:
+  omit top-level missing fields to preserve existing values, serialize dates and
+  timestamps as ISO 8601 strings, and convert numpy scalars to native types.
+  Salesforce bulk CSV uploads use empty cells for missing values; Dynamics emits
+  strict JSON (#1424).
+  JSON encoding failures raise once without retrying or backoff; transport failures
+  retain their existing retries and backoff.
+  **Documented behavior change from v4.0.0:** all four JSON upsert paths now
+  omit top-level `None`, NaN, NaT and `pd.NA`. In v4.0.0, explicit `None` was
+  sent as JSON `null`; NaN failed JSON encoding in Salesforce, HubSpot and Zoho,
+  while Dynamics sent literal non-standard `NaN`. This is not pre-4.0
+  compatibility: v3.23.0 had no implementations of these four connectors.
+  **Migration:** to send a top-level null, use
+  `update_record(object_type, record_id, {"Field": None})`; whether this clears
+  the field depends on the provider and field. Pandas dtype coercion can turn a
+  caller's `None` into NaN before the sanitizer sees it, losing that distinction.
+  Salesforce Bulk CSV keeps headers and writes blank cells for missing values.
+  Nested dicts preserve explicit `None` as JSON null, including `_delete: None`
+  and `id: None`. Nested dict values that are pandas/numpy missing sentinels
+  raise `ConnectorError` with the key path before sending any upsert request.
+  Missing list items (`None` or sentinels) remain null in place at every depth.
+  Scalar leaves retain their documented conversions, including Decimal and
+  infinity as strings. Unsupported containers, invalid JSON keys, circular
+  references and excessive depth raise `ConnectorError`; JSON encoding failures
+  keep that same error contract without retries (#1424).
+  Keeping `id: None` is serialization fidelity only and does not solve the B3b
+  identity concern. Provider/field identity and control validation is a separate
+  follow-up. Refs #1816.
+- Political schema migrations can now be applied: remove the trailing comma
+  that prevented V0002 from parsing and blocked dependent V0003. Limit the
+  composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
+  a linked office term preserves its predecessor's required `seat_id`
+  (PostgreSQL 15+). Widen congressional-terms uniqueness to
+  `(congress_number, seat_id, office_term_id)` so a successor can serve the
+  same seat in the same Congress (#1468).
 - Docstring generation inserts lines without rewriting existing comments or
   formatting, handles async definitions, and extracts signature details without
   importing target files. File exclusions match path components and include
@@ -220,8 +354,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list names `COUSUB` and `ADDRFEAT` and drops the non-existent `COUNTYSUB`,
   `SDELM`, `SDSEC` and `SDUNI`. An opt-in `-m integration` test HEADs one
   built URL per catalog type for 2010, 2019 and 2023 (#1464).
+- The CI battle-test script now runs the repository-root test suite and
+  returns pytest's exit status, so the job reflects real test results.
+  It applies the main lane's selection (`-m "not integration and not
+  postgis"`, `--ignore=tests/test_notebooks.py`) on both its uv and python
+  paths. Logs, coverage reports and the summary JSON are saved in the
+  repository-root `overnight_results/` directory used by CI, including when
+  tests fail. A failed write of `overnight_results/test_output.txt` now fails
+  the run instead of reporting exit 0, and `summary.json` records the pytest
+  and tee statuses and whether the output artifact was written (#1475).
+- `notebooks/analytics/01_connectors.ipynb` no longer advertises live
+  Google Analytics / Snowflake queries while only initializing the
+  connectors and always returning a hardcoded fixture. The notebook now
+  has an opt-in credentialed path (GA4 when
+  `GOOGLE_APPLICATION_CREDENTIALS`, `GA_PROPERTY_ID` and
+  `GA_PROPERTY_TIMEZONE` are set, else a configured Snowflake rollup) that
+  issues the real `get_ga4_data` / `execute_query` calls over the previous two
+  complete Monday-through-Sunday weeks and fails visibly on a missing property,
+  a missing or unknown time zone, or a query error. The GA4 weeks are chosen in
+  the property's time zone, matching how GA4 interprets report dates, not on the
+  host clock. `SNOWFLAKE_CONFIG_FILE` is documented as the JSON file the
+  connector loads with `json.load`, with an example of its keys, and the
+  Snowflake connection is closed after the query, also when it fails. The offline
+  path's output is clearly labelled an illustrative fixture. Empty or malformed
+  live results fail rather than silently becoming the fixture: missing dates
+  and null or non-finite session counts raise before grouping, and the
+  week-over-week change is withheld unless both weeks observed all seven
+  calendar days (#1661).
+- Instagram follows all account, post and insight pages across Graph hosts
+  and versions, filters every post page by date and limit, and splits daily
+  insights into at most 30-day UTC windows. GA4 retrieves every reported row
+  using offsets; `row_limit` now controls page size, and an incomplete report
+  raises. Vista Social account/profile lists document their first-page limit
+  and expose `has_more` (including unknown completeness) and pagination
+  metadata on a list-compatible result (#1439).
+- CI installs the GDAL/PostGIS system packages through a local
+  `.github/actions/apt-install` action, so a slow or stalled Ubuntu mirror no
+  longer cancels a required job or dequeues the merge queue (#1871):
+  - The downloaded `.deb` archives are cached with `actions/cache`, keyed on
+    the runner image and the package list, so most runs download nothing.
+  - apt drops a connection that sends no data for 30 seconds and retries it.
+  - The first attempt stops downloading from the primary mirror after two
+    minutes. Before the retry, `dpkg --configure -a` repairs any interrupted
+    install and apt switches from `azure.archive.ubuntu.com` to
+    `archive.ubuntu.com`.
+  - The final attempt gives downloads a 45-minute budget, above the slowest
+    install seen to finish (38 minutes on `develop`), so a slow but live
+    download completes and a trickle cannot hold the runner. The install from
+    the downloaded files stays bounded.
+  - Every install step has a step timeout above the script's own bounded
+    worst case: 80 minutes where the job has no timeout, and 15 minutes in
+    `test-postgis`, whose install uses shorter limits (worst case 851 seconds)
+    so a slow mirror fails the step and leaves 5 minutes of the 20-minute job
+    instead of cancelling it. Job timeouts are unchanged.
 
 ### BREAKING
+
+- Instagram and X return missing account, post and insight metrics as `None`
+  instead of `0`; in v4.0.0 an omitted follower, like, comment or impression
+  count, and an Instagram media or story insight without a value, became 0.
+  Instagram media insights read `total_value` and keep a missing value as
+  `None`, and Facebook Page Insights keep a missing daily value as `None`
+  instead of `0` (#1474). Post frames keep their existing columns, add a `metrics`
+  dictionary and return `published_at` as a UTC-aware timestamp (NaT if
+  unavailable) instead of the API's string, with a stable schema for empty
+  results. When a later page stays throttled, the posts collected so far are
+  returned with a warning instead of raising `SocialMediaRateLimitError`.
+  Instagram classifies Graph error codes before usage telemetry, so code 190
+  raises `SocialMediaAuthError` instead of being treated as a rate limit when
+  usage was high, and subcode 463 records expiry on first pages, later pages
+  and exchanges of the current token; a supplied token that has already
+  expired raises `SocialMediaAuthError` before any request (#1458).
+  **Migration:** treat `None` as unavailable and fill zeros only where zero is
+  meant; compare `published_at` with timezone-aware datetimes; check for the
+  throttling warning, or the number of posts returned, where completeness
+  matters; catch `SocialMediaAuthError` for expired or rejected tokens.
+- X validates user ID lookups during authentication, so `authenticate()`
+  raises for an unknown user ID. Non-public and organic insight fields are
+  requested only with the `user_context=True` opt-in for OAuth user tokens; in
+  v4.0.0 the post-insights request always asked for them. A zero post limit returns an empty
+  frame without requests; in v4.0.0 `limit=0` meant no limit. Requests ask for
+  at least five tweets per page while honoring smaller result limits, and
+  public, non-public and organic insights combine with that precedence.
+  Request path identifiers are validated before percent-encoding: user/post
+  IDs accept 1 to 19 ASCII digits and usernames accept 1 to 15 ASCII letters,
+  digits or underscores. Invalid values raise `ValueError` before requests
+  (#1465). X checks `budget_limit` before every attempt, including retries:
+  once the estimated cost has reached the limit, a retry after a 5xx or 429 is
+  not sent and `SocialMediaError` ("API budget limit reached") is raised. In
+  v4.0.0 the cap was checked once per request, so a 5xx retry could still be
+  sent past the cap and succeed. A 429, which v4.0.0 never retried and raised
+  as `SocialMediaRateLimitError`, now raises the budget error when the cap is
+  reached before the retry. A transport failure adds no estimated cost, so
+  its retry is still allowed within the cap (#1835). **Migration:** pass
+  `user_context=True` with an OAuth user token to keep non-public and organic
+  metrics; pass `limit=None` for no limit; check user IDs and usernames before
+  calling; raise `budget_limit` or call `reset_cost_tracking()` where a retry
+  must be allowed to exceed the previous cap, and catch `SocialMediaError` for
+  the budget stop.
+- Social reports render missing platform metrics as `unavailable` instead of
+  0. Totals sum known values and remain unknown when none are available.
+  Comparisons, post rankings and chart data keep null values instead of
+  replacing them with zero. Known integer counts still render as integers
+  (`7`, not `7.0`) when other values in the same column are missing. The
+  "largest audience" insight needs at least two known follower counts, and
+  when some are unknown it names the largest among those with a known count.
+  The X connector-to-report fixture covers an empty `public_metrics` object
+  (#1812). **Migration:** code that reads report chart, comparison or ranking
+  data must handle `None` for unavailable metrics.
 
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
@@ -389,6 +629,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `by_population(..., dataset="acs5")` now scopes by content type and dataset and
   selects the newest data year when no year is specified. GFK-specific relation
   introspection/prefetch APIs no longer apply. (#1560)
+
+- `TimeseriesService.populate_timeseries` computes CAGR per calendar year:
+  the exponent is the elapsed span `end_year - start_year` instead of the
+  number of observation gaps, so sparse series no longer overstate annual
+  growth by roughly the observation spacing (values 1000, 1100 and 1210 for
+  2000, 2010 and 2020 now store about 0.0096 instead of 0.10). A missing MOE
+  is stored as `None` in `moe_values` instead of being dropped, so `years`,
+  `values` and `moe_values` stay positionally aligned; a series with no MOEs
+  now stores a list of `None` instead of `[]`. Snapshots and existing series
+  are read once per variable instead of once per GEOID; `years` and `values`
+  are unchanged (#1622).
+  **Migration:** no schema migration is needed. Rows written by earlier
+  versions keep the old CAGR and compacted `moe_values` until
+  `populate_timeseries(..., update_existing=True)` recomputes them. It
+  rewrites a stored row only when the geography level, GEOID, variable,
+  dataset and start and end years all match a recomputed series, so
+  snapshots for both stored endpoint years must still exist and be among
+  the requested years. Affected rows have
+  `end_year - start_year != len(years) - 1` or
+  `len(moe_values) != len(years)`. Treat `None` in `moe_values` as an
+  unavailable MOE.
 
 - `ConfigurationMigrator.migrate_user_profile` and `migrate_client_profile`
   in both `config.enhanced_config` and `config.migration` now propagate file,
@@ -569,6 +830,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Instagram token exchange errors omit response bodies and transport exception
+  text. Malformed responses use fixed diagnostics; transport retries report
+  the exception class and attempt number. Dummy sentinel coverage checks error
+  strings, repr and logged tracebacks. The credential URL guard now states that
+  exchanges carry `client_secret` and `fb_exchange_token` in query parameters
+  even though the bearer header is removed. While the exchange runs, URL
+  secrets are redacted from `urllib3.connectionpool` log records, which at
+  DEBUG level include each request's full path and query string. Proxies,
+  load balancers and CDNs in front of graph.facebook.com still see the full
+  URL and must redact `/oauth/access_token` query strings themselves (#1812).
 - Credential files are written with mode 0600 before writing their payload,
   including existing files, with no write-then-chmod race. Missing parent
   directories are created with mode 0700. Profile defaults use per-user paths;
@@ -606,7 +877,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Escape report data in Paragraph text, Folium popup HTML, and IDML XML.
   Closes stored XSS in saved Folium maps and fixes report/IDML crashes on
   `& < > "` while preserving intentional markup. (#1565)
-- For the planned 4.1.0 release, SSL failures now raise instead of silently
+- For the planned 5.0.0 release, SSL failures now raise instead of silently
   retrying with `verify=False`. The optional `download_file` parameter
   `allow_insecure_fallback=False` is allowlisted in the API contract gate as
   a backward-compatible addition. Verified downloads honor `REQUESTS_CA_BUNDLE`,
@@ -653,6 +924,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sensitive files still blocked. Without a trusted `base_directory`, the
   blocklist is a guardrail, not a sandbox; filesystem changes after validation
   remain outside this check. (#1528)
+- Instagram checks every request URL, including `paging.next`, before
+  sending credentials. URLs must use HTTPS, the exact `graph.facebook.com` or
+  `graph.instagram.com` host, port 443 (or the default), and no user
+  information. **Behavior change from v4.0.0:** non-HTTPS, foreign-origin and
+  malformed URLs now raise `SocialMediaError` before a request is sent, and the
+  rejected URL is omitted from the error to protect embedded tokens.
+  Redirects are never followed: any 3xx response raises `SocialMediaError`
+  without echoing its `Location`, so a Graph response cannot forward the
+  request, or a token in the redirect target, to another host. (#1439,
+  #1833)
 
 ## [4.0.0] - 2026-10-11
 
