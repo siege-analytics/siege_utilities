@@ -347,13 +347,13 @@ def create_comprehensive_pdf_report(maps_dict):
         level=1
     )
     
-    # Add data appendix
+    # Add the raw data as a table section: appendix content must be text, so
+    # tabular data goes through add_table_section.
     cities_df = create_sample_geographic_data()
-    report_content = report_gen.add_appendix(
+    report_content = report_gen.add_table_section(
         report_content,
         "Raw Data Tables",
         cities_df,
-        appendix_type="data"
     )
     
     # Generate PDF report
