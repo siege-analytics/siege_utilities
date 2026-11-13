@@ -1,10 +1,12 @@
 """Regression coverage for social report failures, sample counts and missing metrics."""
 
 import logging
+import re
 import traceback
 from datetime import date
 from unittest.mock import Mock
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -170,7 +172,8 @@ def test_missing_counts_render_unavailable_never_zero(
     assert any("average unavailable likes" in line for line in payload["insights"])
     assert not any("average 0 likes" in line for line in payload["insights"])
     assert not any("Top performing" in line for line in payload["insights"])
-    assert "Other has the largest audience with 0 followers." in payload["insights"]
+    # One known count (a known 0) of two: no platform is shown to be largest (#1812).
+    assert not any("largest audience" in line for line in payload["insights"])
     assert "nan" not in str(payload).lower()
     assert "<NA>" not in str(payload)
 
@@ -214,7 +217,8 @@ def test_missing_metrics_do_not_change_known_counts_or_rankings(report):
     # Unknown values are chart gaps, not zeros.
     assert payload["charts"][0]["data"]["datasets"][0]["data"] == [None, 12]
     assert payload["charts"][1]["data"]["datasets"][0]["data"] == [None, 6]
-    assert "Known has the largest audience with 12 followers." in payload["insights"]
+    # One known count of two: no platform is shown to be largest (#1812).
+    assert not any("largest audience" in line for line in payload["insights"])
     assert any('"popular…" with 6 likes' in line for line in payload["insights"])
     assert any("Known: average 3 likes per post" in line for line in payload["insights"])
     known_table = next(t for t in payload["tables"] if t["title"].endswith("— Known"))
@@ -275,7 +279,10 @@ def test_string_account_counts_are_normalized_in_every_section(report, text_coun
     assert [row[1:3] for row in payload["tables"][0]["data"]] == [
         ["1,200", "34"], ["unavailable", "unavailable"], ["5", "7"],
     ]
-    assert "Text has the largest audience with 1,200 followers." in payload["insights"]
+    assert (
+        "Text has the largest audience among the 2 of 3 platforms with known "
+        "follower counts with 1,200 followers."
+    ) in payload["insights"]
 
 
 def test_top_post_is_selected_by_position_with_duplicate_index_labels(report):
@@ -289,3 +296,108 @@ def test_top_post_is_selected_by_position_with_duplicate_index_labels(report):
     insights = writer.call_args.args[0]["insights"]
     assert any('"second…" with 5 likes' in line for line in insights)
     assert any("Fakebook: average 3 likes per post" in line for line in insights)
+
+
+# Known counts are finite counts. An infinite count, numeric or text, is
+# unavailable: never a known value, never 0, and never the largest audience.
+_INFINITE = re.compile(r"(?<![a-z])-?inf(?:inity)?(?![a-z])|∞")
+
+
+def _payload(writer):
+    payload = writer.call_args.args[0]
+    assert not _INFINITE.search(str(payload).lower())
+    return payload
+
+
+@pytest.mark.parametrize("infinite", [float("inf"), np.inf, "inf", "Infinity"])
+def test_infinite_count_is_unavailable_and_never_the_largest_audience(report, infinite):
+    generator, writer = report
+    connectors = [
+        FakeConnector("endless", followers=infinite, following=infinite),
+        FakeConnector("known", followers=5, following=7),
+    ]
+
+    generator.create_social_media_report(connectors, START, END)
+
+    payload = _payload(writer)
+    assert payload["metrics"]["endless — Followers"]["value"] == "unavailable"
+    assert payload["metrics"]["Total Followers (all platforms)"]["value"] == "5"
+    assert [row[1:3] for row in payload["tables"][0]["data"]] == [
+        ["unavailable", "unavailable"], ["5", "7"],
+    ]
+    assert payload["charts"][0]["data"]["datasets"][0]["data"] == [None, 5]
+    # One known count of two: nothing is compared.
+    assert not any("largest audience" in line for line in payload["insights"])
+
+
+@pytest.mark.parametrize("negative", [float("-inf"), "-inf"])
+def test_negative_infinite_count_scopes_the_claim_to_the_finite_counts(report, negative):
+    generator, writer = report
+    connectors = [
+        FakeConnector("sink", followers=negative),
+        FakeConnector("small", followers=5),
+        FakeConnector("big", followers=7),
+    ]
+
+    generator.create_social_media_report(connectors, START, END)
+
+    payload = _payload(writer)
+    assert payload["metrics"]["sink — Followers"]["value"] == "unavailable"
+    assert payload["metrics"]["Total Followers (all platforms)"]["value"] == "12"
+    assert (
+        "Big has the largest audience among the 2 of 3 platforms with known "
+        "follower counts with 7 followers."
+    ) in payload["insights"]
+
+
+def test_all_infinite_counts_are_unavailable(report):
+    generator, writer = report
+    connectors = [
+        FakeConnector("up", followers=float("inf")),
+        FakeConnector("down", followers="-inf"),
+    ]
+
+    generator.create_social_media_report(connectors, START, END)
+
+    payload = _payload(writer)
+    assert "unavailable total followers" in payload["executive_summary"]
+    assert payload["metrics"]["Total Followers (all platforms)"]["value"] == "unavailable"
+    assert payload["metrics"]["up — Followers"]["value"] == "unavailable"
+    assert payload["metrics"]["down — Followers"]["value"] == "unavailable"
+    assert payload["charts"] == []
+    assert not any("largest audience" in line for line in payload["insights"])
+
+
+def test_known_zero_and_text_counts_stay_known_beside_an_infinite_count(report):
+    generator, writer = report
+    connectors = [
+        FakeConnector("zero", followers=0, following=0),
+        FakeConnector("endless", followers=float("inf")),
+        FakeConnector("text", followers="1200", following="34"),
+    ]
+
+    generator.create_social_media_report(connectors, START, END)
+
+    payload = _payload(writer)
+    assert payload["metrics"]["zero — Followers"]["value"] == "0"
+    assert payload["metrics"]["text — Followers"]["value"] == "1,200"
+    assert payload["metrics"]["endless — Followers"]["value"] == "unavailable"
+    assert payload["metrics"]["Total Followers (all platforms)"]["value"] == "1,200"
+    assert payload["charts"][0]["data"]["datasets"][0]["data"] == [0, None, 1200]
+    assert (
+        "Text has the largest audience among the 2 of 3 platforms with known "
+        "follower counts with 1,200 followers."
+    ) in payload["insights"]
+
+
+def test_large_integer_count_is_kept_exactly(report):
+    # A count beyond int64 must not be routed through float to check finiteness.
+    generator, writer = report
+    large = 2**63 + 1
+    connectors = [FakeConnector("large", followers=large), FakeConnector("small", followers=5)]
+
+    generator.create_social_media_report(connectors, START, END)
+
+    payload = _payload(writer)
+    assert payload["metrics"]["large — Followers"]["value"] == f"{large:,}"
+    assert payload["charts"][0]["data"]["datasets"][0]["data"] == [large, 5]

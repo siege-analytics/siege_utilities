@@ -13,6 +13,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from siege_utilities.analytics._social_protocol import SocialMediaError
@@ -33,7 +34,15 @@ def _known_sum(values) -> Any:
 
 
 def _format_metric(value: Any, spec: str = ",") -> str:
-    return format(value, spec) if pd.notna(value) else "unavailable"
+    if not pd.notna(value):
+        return "unavailable"
+    # A count column that also holds a missing value is float (Python float,
+    # numpy float64, or numpy float32 from a nullable Float32 column), so a
+    # known count of 7 arrives as 7.0; render integral values as integers
+    # unless the caller asked for an explicit precision.
+    if "." not in spec and isinstance(value, (float, np.floating)) and float(value).is_integer():
+        value = int(value)
+    return format(value, spec)
 
 
 def _retrieval_error(operation: str, platform: str, exc: Exception) -> SocialMediaError:
@@ -54,13 +63,18 @@ def _numeric_likes(posts: pd.DataFrame) -> pd.Series:
 
 
 def _numeric_count(value: Any) -> int | float | None:
-    """An account count as a number; missing or unparseable counts become None.
+    """An account count as a number; missing, unparseable or infinite counts become None.
 
     Connectors may return counts as text (``"1200"``), so every report section
-    reads counts through this helper instead of the raw value.
+    reads counts through this helper instead of the raw value. A known count is
+    finite: ``inf``/``-inf`` (numeric or text such as ``"inf"``) is unavailable,
+    never a known value or 0. Only floating values can be infinite, so integers
+    are never converted to float for this check.
     """
     number = pd.to_numeric(pd.Series([value], dtype=object), errors="coerce").iloc[0]
     if pd.isna(number):
+        return None
+    if isinstance(number, (float, np.floating)) and not np.isfinite(number):
         return None
     return int(number) if float(number).is_integer() else float(number)
 
@@ -399,15 +413,25 @@ class SocialMediaReportGenerator:
     ) -> list[str]:
         insights: list[str] = []
 
+        # A comparison needs at least two known follower counts; with one, no
+        # platform is shown to be largest. When some counts are unknown, the
+        # claim is limited to the platforms that have one. Counts are read
+        # through _followers, so numeric text counts as a number and
+        # unparseable text is unknown.
         known_audiences = [
             (d, followers) for d in platform_data
             if (followers := _followers(d["account_info"])) is not None
         ]
-        if len(platform_data) > 1 and known_audiences:
+        if len(known_audiences) > 1:
             best, best_followers = max(known_audiences, key=lambda pair: pair[1])
+            scope = (
+                "" if len(known_audiences) == len(platform_data)
+                else f" among the {len(known_audiences)} of {len(platform_data)} platforms "
+                     "with known follower counts"
+            )
             insights.append(
                 f"{best['platform'].replace('_', ' ').title()} has the largest "
-                f"audience with {_format_metric(best_followers)} followers."
+                f"audience{scope} with {_format_metric(best_followers)} followers."
             )
 
         for d in platform_data:

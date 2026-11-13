@@ -55,6 +55,13 @@ clean at the #1807 head.
 ### writing-claims
 - The counts are pytest summary lines from this work cycle.
 
+### Round 2026-11-13: develop 6c049c2c integration
+All results below are from the integrated, uncommitted tree. The interpreter was Python 3.11.11 (pandas 2.3.3, numpy 2.4.2), and it imported `social_media_reports` from this worktree.
+- writing-code: `ruff check` on the five placed files → All checks passed (which also proves they parse). `check_exception_contracts.py --list` → 200 flagged, 0 unlisted, 0 stale. `check_credential_urls.py` → 0 unreviewed sites. `check_test_file_hygiene.py` → PASS (run from the repository root). `check_secret_literals.py` → PASS, 0 violations in 395 files. `check_no_stub_docstrings.py` → OK.
+- writing-tests: the directly relevant selection was test_1469, report nulls, the fidelity oracle, report errors, the null-policy end-to-end test, social review blockers, the #1404 Census fallback, dual-source 1375, summary file 1385 and `tests/guard`. pytest → 461 passed. The wider social connector selection (Instagram paging and redirects, wait budgets, Instagram and X errors, Facebook, token-exchange logging, the connectors cluster, Vista, the X budget) gave pytest → 335 passed, 2 skipped. Both skips are `requires_api_key` with no credentials file (`test_facebook_business_connector.py:84`, `test_vista_social_connector.py:127`). They are skips, not passes.
+- writing-tests (red on revert, on the integrated tree): with the module swapped to the pre-guard composition (sha256 70329e61), `test_1469_social_media_report_totals.py` → 8 failed, 38 passed. Every failure is an `inf` or `-inf` rendered in the report payload. After restoring the guarded module (sha256 edb368e1, re-hashed), the same file → 46 passed.
+- writing-claims: every count above is a pytest or guard summary line from this cycle. The fidelity oracle's seeded manifest controls are part of `tests/test_1812_fidelity_oracle.py`, inside the 461.
+
 ## Lead review
 The two PRs now share one null policy. Whichever PR merges second takes this
 module from #1807, updates the two title literals in
@@ -101,6 +108,36 @@ Develop sync first: `13405c8a` merges develop `71f02b0b` for a positional CHANGE
 - Red/green, command: `git checkout 13405c8a -- siege_utilities/reporting/social_media_reports.py`; `(cd tests && python -m pytest -o addopts="" -p no:cacheprovider --rootdir=.. -c ../pyproject.toml -q test_1469_social_media_report_totals.py -k "string_account_counts or duplicate_index")`; `git checkout HEAD -- siege_utilities/reporting/social_media_reports.py`. At `13405c8a`: 3 failed. At `4fbc80fe`: 3 passed, and the worktree was clean afterwards.
 - Wider check at `4fbc80fe`: test_1469, report errors, smoke, runtime guard, sql safety, release process, changelog export, analytics datetime and 1661 notebook connector truth gave 234 passed. Severe flake8 is clean. Exception contracts: 202 flagged / 0 unlisted / 0 stale. Stub docstrings: OK. `check_test_file_hygiene.py` was not validly run: from `tests/` it flags every file in the repository, because it resolves paths relative to the working directory.
 - Classification: on v4.0.0 both inputs crashed, so no caller could rely on the old behaviour. The fix extends the existing 4.1.0 Fixed entry, and the BREAKING entries are unchanged.
+
+## Review round: develop 6c049c2c integration (2026-11-13)
+
+Working as: software engineer, tech lead
+Goal source: #1469, and the integration plan posted at https://github.com/siege-analytics/siege_utilities/issues/1469#issuecomment-6840828280
+Investigate-artifact: https://github.com/siege-analytics/siege_utilities/issues/1469#issuecomment-6840828280 (Investigation section)
+Pre-mortem-artifact: https://github.com/siege-analytics/siege_utilities/issues/1469#issuecomment-6840828280 (Pre-mortem section)
+Hostile-review-artifact: https://github.com/siege-analytics/siege_utilities/issues/1469#issuecomment-6260721218 (the PR's independent review). In a later round, the same independent reviewer accepted the finite-count guard and the oracle manifest by exact sha256 (below). An independent review of the new head is still pending and will follow publication.
+Project-contribution: the social report module reaches develop with one null policy shared with the companion null-policy work, and the fidelity oracle now pins every rewritten baseline occurrence by fixture, rule, slot kind and path, so downstream report consumers get unavailable counts instead of fabricated zeros or infinities.
+
+Scope. This merges develop 6c049c2c (merge base 71f02b0b). The merge brings in develop's social oracle and null-policy work and the #1791 Census retry and fallback fix. No behavior is added beyond what was already reviewed.
+
+Conflicts, from `git merge --no-ff --no-commit`: exactly `CHANGELOG.md` and `siege_utilities/reporting/social_media_reports.py`. `scripts/exception_contracts_allowlist.json` auto-merged. No other path conflicted.
+
+Resolution. Each placed file was checked by sha256 against the independently reviewed value, before and after placing it:
+- `siege_utilities/reporting/social_media_reports.py`: edb368e13e66ccf35916c46f1f20f9513fb8073ca340747cd3d1467bafeda612. This is the integrated module plus the finite-count guard: after `pd.isna`, a floating value that is not finite is unavailable. It is not hand-merged and does not take either whole side.
+- `scripts/check_social_review_fidelity.py`: 0cc954568ab432221e8492ba81bb05abf64aaa09f2de1e74c8d0674c94e85cc3. The oracle has a literal 24-occurrence manifest keyed by fixture, rule, slot kind and original baseline path, compared with exact Counter equality.
+- `tests/test_1812_fidelity_oracle.py`: d9ab912511caa94ab00d5a5df4eba833fbfd3ff626b4e7a9a64eb645ffeb1cb7 (seeded manifest controls).
+- `tests/test_1469_social_media_report_totals.py`: 86ec9f7f56bb9212f4757a697768cbab272a84bd84a417b4a4ee3cf69712ff4b (nine finite-count cases added).
+- `tests/test_social_media_reports_nulls.py`: 05fad46cecb6515960e0f96ddab225573471fdd69ebf5075473206e73e8f55aa. This file is called out explicitly: it is outside the reviewed hash list above. It is the mechanical consequence of this PR's relabels. Two title literals change ("Top Posts — X Twitter" becomes "Top analyzed posts — X Twitter"; "Total Likes by Platform" becomes "Likes from analyzed posts by Platform"). Without the change, develop's null-policy test fails on the merged tree. No assertion value changes.
+- `scripts/exception_contracts_allowlist.json`: the auto-merge result, blob 0afcd5938a61cf18e1b0ef08d79242a42e65b152 (sha256 83aee513b8aef86c20e188dd437923680a2c812efacd8472b8475962adcc8e4e). It equals develop minus this PR's five `_collect_platform_data` entries, and the exception-contracts guard reports 0 unlisted and 0 stale.
+- `CHANGELOG.md`: a develop-first verbatim union. A diff against develop's file shows additions only: this PR's #1469 Fixed entry after the #1474 entry, and its two #1469 BREAKING entries after the #1404 Census entry. All develop lines are kept, including the Census retry and fallback text.
+
+Evidence: see "Round 2026-11-13" under Peer review.
+
+Not done in this step: no local full-suite run (the full suite is CI's exact-head run after publication). No notebook execution: `notebooks/analytics/03_social_media_analytics.ipynb` uses `SocialMediaReportGenerator`, but a grep finds none of the relabeled titles under `notebooks/`.
+
+Open reviewer question (no change made): the #1469 CHANGELOG Fixed entry says counts that are "NaN, text or unparseable" render as unavailable. The finite-count guard also makes `inf`, `-inf`, `"inf"` and `"Infinity"` unavailable, and the entry does not mention it. The accepted wording is kept as is. Whether to add the non-finite case is left to the reviewer.
+
+Inherited limits (unchanged, disclosed): `pd.to_numeric` turns the integer 10**30 into an inexact float, and an integer above float range such as 10**400 raises `OverflowError`. Ties for the largest audience go to the first platform in input order. The guard adds no float conversion, and a 2**63+1 case pins exact large-integer formatting.
 
 ## Rework ledger
 - a15ae436/5a0d8626: unknown counts rendered as 0. Fixed in aa501053 per the ruling.
