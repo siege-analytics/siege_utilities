@@ -483,12 +483,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and parameterized multi-statement SQL before execution; in v4.0.0 keywords
   other than `table` and `df` were silently ignored. WKB materialization
   retains per-column CRS in pandas attrs, including empty results; unknown CRS
-  remains `None`. `read_spatial` preserves file CRS and coordinates by default
-  and reprojects only when a target is requested, rejecting reprojection when
-  the source CRS is unknown; in v4.0.0 it returned EPSG:4326 by default
-  (#1412). **Migration:** pass only `parameters`/`params` (plus `table`/`df`)
-  to `query` and run parameterized statements one at a time; pass
-  `crs="EPSG:4326"` to `read_spatial` to keep the previous output CRS.
+  remains `None`. DuckDB `read_spatial` preserves file CRS and coordinates by
+  default and reprojects only when a target is requested, rejecting
+  reprojection when the source CRS is unknown; in v4.0.0 it returned EPSG:4326
+  by default (#1412). **Migration:** pass only `parameters`/`params` (plus
+  `table`/`df`) to `query` and run parameterized statements one at a time;
+  pass `crs="EPSG:4326"` to DuckDB `read_spatial` to keep the previous output
+  CRS.
 - Pandas, DuckDB and PostGIS `to_geodataframe` preserve an existing
   GeoDataFrame's CRS when no target is supplied; in v4.0.0 they reprojected to
   EPSG:4326. Base nearest, apportion and dissolve retain projected inputs;
@@ -500,10 +501,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   returned (on Spark, the stored coordinates labelled EPSG:4326), so a v4.0.0
   call with geographic input now raises. `SparkEngine.nearest` is unchanged
   from v4.0.0: it measures in the stored coordinates' units with no CRS check,
-  and its new `crs` keyword raises `NotImplementedError`. WKT text retains
-  default-CRS normalization: plain WKT is read in the default CRS (EPSG:4326
-  unless changed with `set_default_crs`) and a requested `crs` reprojects it,
-  rather than relabelling lon/lat values (#1497, #1852). On `SparkEngine`,
+  and its new `crs` keyword raises `NotImplementedError`. Plain geometry with
+  no CRS metadata is read in the default CRS (EPSG:4326 unless changed with
+  `set_default_crs`) on the Pandas, DuckDB and PostGIS engines: WKT text,
+  Shapely objects such as `load_points` output, and all-null columns.
+  In nearest, apportion and dissolve a requested `crs` reprojects it rather
+  than relabelling lon/lat values, while `to_geodataframe(crs=...)` labels it
+  with that CRS (#1497, #1852). DuckDB WKB bytes and hex WKB without CRS
+  metadata have an unknown CRS, which `crs` declares. On `SparkEngine`,
   which stores no source CRS, `crs` on `apportion` and `dissolve` declares the
   CRS the stored coordinates are already in and does not reproject, matching
   `SparkEngine.to_geodataframe`. Reproject through
@@ -513,22 +518,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **Migration:** pass `crs="EPSG:4326"` to
   `to_geodataframe` for the previous output CRS; give nearest and apportion
   inputs in one projected CRS, or pass a projected `crs=`, and read distances
-  in that CRS's units. `crs=` transforms only inputs whose CRS is known
-  (including plain WKT, read as EPSG:4326); on `SparkEngine` frames and
-  no-CRS geometry it declares the CRS the stored coordinates are already in
-  and does not reproject, so never declare lon/lat degrees as projected. A
-  call without `crs` on Spark frames or plain WKT, which v4.0.0 ran on the
-  stored coordinates, now raises under the EPSG:4326 default: reproject
-  upstream (for example `read_spatial(crs=<projected>)`), or pass the
-  projected CRS the stored coordinates are truly in. A configured projected
-  default (for example `set_default_crs("EPSG:5070")`) runs without `crs`.
+  in that CRS's units. In nearest, apportion and dissolve, `crs=` transforms
+  only inputs whose CRS is known (including plain WKT and plain Shapely
+  geometry, both read in the default CRS); on `SparkEngine` frames and
+  no-CRS geometry (including DuckDB
+  WKB without CRS metadata) it declares the CRS the stored coordinates are
+  already in and does not reproject, so never declare lon/lat degrees as
+  projected. A call without `crs` on Spark frames, plain WKT or plain Shapely
+  geometry, which v4.0.0
+  ran on the stored coordinates, now raises under the EPSG:4326 default. For
+  plain lon/lat WKT or Shapely geometry on the Pandas, DuckDB and PostGIS
+  engines, pass a projected `crs` to reproject it. For Spark frames, reproject upstream (for
+  example `read_spatial(crs=<projected>)`), or pass the projected CRS the
+  stored coordinates are truly in. A configured projected default (for
+  example `set_default_crs("EPSG:5070")`) runs without `crs`.
 - Spark spatial joins and boundary assignments keep one left geometry and
   suffix shared attributes with `_left`/`_right`, matching the join invariant
   and nearest contract; in v4.0.0 the join returned every left and right
   column (`l.*, r.*`), including both geometries and duplicate names.
   Multi-layer assignment prefixes polygon attributes before joining, preserves
   point names, drops the generated right index, and keeps Spark frames native
-  between layers without collecting to the driver (#1479). Because the result
+  between layers without collecting to the driver (#1479). On Spark, because the result
   keeps only the left geometry, `spatial_join` and `assign_boundaries` accept
   `how="inner"` or `how="left"` only; `right`, `outer` and `full` raise
   `ValueError` before any temp view is registered, where v4.0.0 ran them
@@ -539,6 +549,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `touches`, `crosses` and `overlaps` are symmetric). For `assign_boundaries`
   with `how="right"`, call `spatial_join(polygons, points, how="left",
   predicate="contains")`.
+- On the Pandas, DuckDB and PostGIS engines, `multi_assign` converts each
+  non-GeoDataFrame layer with `to_geodataframe`, resets the layer's index
+  before joining, and keeps the layer's active geometry column under its own
+  name, so a layer whose geometry column is not named `geometry` joins
+  instead of failing (#1852).
 - `DuckDBEngine.join` resolves a coalesced geometry join key by source (the
   left frame's CRS for inner and left joins, the right frame's for a right
   join), rejects two conflicting known CRSes before the merge in every join

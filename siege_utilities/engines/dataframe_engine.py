@@ -214,8 +214,11 @@ class DataFrameEngine(ABC):
     def read_spatial(self, path: str, *, crs: Optional[str] = None, **kwargs: Any) -> Any:
         """Read a spatial file (GeoJSON, Shapefile, GeoParquet, GPKG).
 
-        Returns an engine-native spatial DataFrame.  *crs* defaults to
-        ``EPSG:4326`` (via ``geo.crs.get_default_crs``).
+        Returns an engine-native spatial DataFrame. The Pandas, PostGIS and
+        Spark engines reproject to *crs*, defaulting to the configured default
+        CRS (``EPSG:4326`` unless changed with ``geo.crs.set_default_crs``).
+        :class:`DuckDBEngine` keeps the file's own CRS and coordinates unless
+        *crs* is given, and rejects reprojection when the file CRS is unknown.
         """
 
     # -- Spatial operations ------------------------------------------------
@@ -274,7 +277,11 @@ class DataFrameEngine(ABC):
 
         Always returns a ``geopandas.GeoDataFrame`` regardless of engine.
         An existing GeoDataFrame retains its CRS unless ``crs`` is supplied.
-        Text geometry without CRS metadata uses the configured default CRS.
+        Plain geometry without CRS metadata (WKT text, Shapely objects or an
+        all-null column) is labelled ``crs``, or the configured default CRS
+        when ``crs`` is omitted; ``crs`` labels it and does not reproject.
+        On :class:`DuckDBEngine`, WKB bytes and hex WKB without CRS metadata
+        keep an unknown CRS, so ``crs`` declares it.
         """
 
     def from_geodataframe(
@@ -419,9 +426,9 @@ class DataFrameEngine(ABC):
     def _operation_frame(self, df: Any, geometry_col: str, crs: Optional[str]) -> Any:
         """Read *df* at its source CRS, then reproject it to *crs* for a spatial operation.
 
-        Plain WKT text is read at the default CRS (EPSG:4326) first, so a
-        projected *crs* reprojects lon/lat coordinates instead of relabelling
-        them. Known-CRS geometry is reprojected; unknown-CRS geometry is
+        Plain WKT text and plain Shapely geometry are read at the default CRS
+        (EPSG:4326 unless changed) first, so a projected *crs* reprojects
+        lon/lat coordinates instead of relabelling them. Known-CRS geometry is reprojected; unknown-CRS geometry is
         assigned *crs*. Without *crs* the source CRS is kept.
         """
         gdf = self.to_geodataframe(df, geometry_col)
@@ -655,12 +662,14 @@ class DataFrameEngine(ABC):
 
         * Geometry with a known CRS (a GeoDataFrame, or DuckDB WKB with a
           CRS in pandas attrs) is transformed to ``crs``.
-        * Plain WKT text on the Pandas, DuckDB and PostGIS engines is read
+        * Plain WKT text on the Pandas, DuckDB and PostGIS engines, and plain
+          Shapely geometry (for example :meth:`load_points` output), is read
           in the default CRS (EPSG:4326 lon/lat unless changed with
           :func:`siege_utilities.geo.crs.set_default_crs`) and transformed to
           ``crs``.
         * Geometry with no CRS (a GeoDataFrame whose CRS is None, or DuckDB
-          WKB without attrs metadata) and every :class:`SparkEngine` frame,
+          WKB bytes or hex WKB without attrs metadata) and every
+          :class:`SparkEngine` frame,
           since Spark stores no source CRS, are not transformed: ``crs``
           declares the CRS the coordinates are already in, matching
           :meth:`SparkEngine.to_geodataframe`. Nothing is inferred, so the
@@ -671,8 +680,8 @@ class DataFrameEngine(ABC):
           Pandas engine.
 
         Without ``crs``, both inputs must already share one projected CRS.
-        Spark frames and plain WKT are labelled with the default CRS and
-        no-CRS geometry stays unknown. Under the EPSG:4326 default, calling
+        Spark frames, plain WKT and plain Shapely geometry are labelled with
+        the default CRS and no-CRS geometry stays unknown. Under the EPSG:4326 default, calling
         without ``crs`` on them raises; with a projected default configured
         (for example EPSG:5070) the call runs in that CRS. The result is a
         table of target attributes and apportioned values.
@@ -777,7 +786,8 @@ class DataFrameEngine(ABC):
         """Assign points to multiple boundary layers simultaneously.
 
         Calls :meth:`assign_boundaries` for each layer and renames every
-        polygon-side column to be ``{layer_name}_{column}`` so layers do
+        polygon-side column except the layer's active geometry column to be
+        ``{layer_name}_{column}`` so layers do
         not collide on shared schemas (TIGER layers share ``geoid`` /
         ``name`` columns -- without prefixing, the second join silently
         overwrites the first layer's columns).
@@ -805,20 +815,31 @@ class DataFrameEngine(ABC):
         for layer_name, polygons in boundary_layers.items():
             if not isinstance(polygons, gpd.GeoDataFrame):
                 polygons = self.to_geodataframe(polygons)
-            names = self._boundary_column_names(polygons.columns, layer_name, result.columns)
+            # Keep the layer's active geometry column under its own name, so a
+            # layer whose geometry is not called "geometry" still joins.
+            polygon_geom = polygons.geometry.name
+            names = self._boundary_column_names(
+                polygons.columns, layer_name, result.columns, polygon_geom
+            )
             result = self.assign_boundaries(
                 result, polygons.rename(columns=names).reset_index(drop=True),
-                point_geom=point_geom, polygon_geom="geometry",
+                point_geom=point_geom, polygon_geom=polygon_geom,
                 how="left",
             ).drop(columns=["index_right"], errors="ignore")
         return result
 
     @staticmethod
     def _boundary_column_names(
-        columns: Iterable[str], layer_name: str, point_columns: Iterable[str]
+        columns: Iterable[str],
+        layer_name: str,
+        point_columns: Iterable[str],
+        geometry_col: str = "geometry",
     ) -> Dict[str, str]:
-        """Prefix attributes before joining so point names cannot be suffixed."""
-        names = {c: f"{layer_name}_{c}" for c in columns if c != "geometry"}
+        """Prefix attributes before joining so point names cannot be suffixed.
+
+        ``geometry_col`` (the layer's active geometry column) keeps its name.
+        """
+        names = {c: f"{layer_name}_{c}" for c in columns if c != geometry_col}
         collisions = set(names.values()) & set(point_columns)
         if collisions:
             raise ValueError(f"multi_assign: layer columns collide with point columns: {sorted(collisions)}")
@@ -1671,9 +1692,12 @@ class DuckDBEngine(DataFrameEngine):
 
         Also accepts typed DuckDB relations (materialized via :meth:`to_pandas`),
         frames containing hex WKB, WKT or Shapely geometry, and GeoDataFrames.
-        WKB uses the per-column CRS retained in pandas attrs; absent metadata
-        means unknown CRS, not the default. WKT text retains default-CRS
-        normalization. ``crs`` reprojects known CRS or assigns unknown CRS.
+        WKB uses the per-column CRS retained in pandas attrs; WKB or hex WKB
+        without that metadata has an unknown CRS, not the default. Plain WKT
+        text, Shapely objects and all-null columns without metadata are
+        labelled ``crs``, or the default CRS when ``crs`` is omitted, as on the
+        Pandas engine; a geometry-dtype column keeps its own CRS. Otherwise
+        ``crs`` reprojects a known CRS or assigns an unknown one.
         """
         import geopandas as gpd
         import pandas as pd
@@ -1706,13 +1730,24 @@ class DuckDBEngine(DataFrameEngine):
             # attrs map, and to the WKT text default only when attrs has no entry.
             source_crs = self._column_crs(df, geometry_col)
             metadata = df.attrs.get(_GEOMETRY_CRS_ATTR, {})
-            if not _is_geoseries(df[geometry_col]) and geometry_col not in metadata:
-                # Hex WKB, unlike WKT text, must not acquire the text default.
+            column = df[geometry_col]
+            # A geometry-dtype column (for example pd.DataFrame(gdf)) carries
+            # its own CRS in its array, so it is not a "no recorded CRS" case.
+            has_geometry_dtype = getattr(column.dtype, "name", "") == "geometry"
+            if (not _is_geoseries(column) and not has_geometry_dtype
+                    and geometry_col not in metadata):
+                # A plain column with no recorded CRS is read at the default
+                # CRS, as the Pandas and PostGIS engines read it: WKT text,
+                # Shapely objects (load_points) and all-null columns. WKB bytes
+                # and hex WKB text carry no CRS and keep it unknown, so crs=
+                # declares it (the shared crs contract; see apportion).
                 if isinstance(sample, str):
                     head = sample[:32].strip()
-                    is_hex = head and all(c in "0123456789abcdefABCDEF" for c in head)
-                    if not is_hex:
-                        source_crs = crs if crs is not None else get_default_crs()
+                    is_wkb = bool(head) and all(c in "0123456789abcdefABCDEF" for c in head)
+                else:
+                    is_wkb = isinstance(sample, (bytes, bytearray, memoryview))
+                if not is_wkb:
+                    source_crs = crs if crs is not None else get_default_crs()
             geoms = df[geometry_col]
             if sample is not None and not isinstance(sample, BaseGeometry):
                 if isinstance(sample, (bytes, bytearray, memoryview)):
