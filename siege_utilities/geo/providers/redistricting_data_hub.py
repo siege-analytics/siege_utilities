@@ -708,7 +708,11 @@ class RDHClient:
         year: Optional[str] = None,
         format: str = "shp",
     ) -> List[RDHDataset]:
-        """Find enacted redistricting plan datasets for a state.
+        """Find an unambiguous enacted redistricting plan for a state.
+
+        Chamber keywords match whole tokens, treating underscores as word
+        separators. SLDU identifies the upper chamber (state senate), and
+        SLDL identifies the lower chamber (state house).
 
         Parameters
         ----------
@@ -722,6 +726,19 @@ class RDHClient:
             Dataset format filter. Only ``"shp"`` is loadable via
             :meth:`load_shapefile`; other formats are returned as metadata
             only.
+
+        Returns
+        -------
+        List[RDHDataset]
+            An empty list or the single matching dataset.
+
+        Raises
+        ------
+        ValueError
+            More than one dataset matches. This also prevents
+            :func:`fetch_enacted_plan` and ``RDHProvider.get_boundary`` from
+            loading an arbitrary plan. Narrow the year filter or use
+            :meth:`list_datasets` to choose a dataset for loading directly.
         """
         datasets = self.list_datasets(
             states=[state],
@@ -731,16 +748,28 @@ class RDHClient:
 
         chamber_keywords = {
             "congress": ["congressional", "congress", "cd"],
-            "state_senate": ["state senate", "upper", "sldl", "senate"],
-            "state_house": ["state house", "lower", "sldu", "house"],
+            "state_senate": ["state senate", "upper", "sldu", "senate"],
+            "state_house": ["state house", "lower", "sldl", "house"],
         }
         keywords = chamber_keywords.get(chamber.lower(), [chamber.lower()])
+        chamber_pattern = re.compile(
+            r"\b(?:" + "|".join(re.escape(kw.replace("_", " ")) for kw in keywords) + r")\b",
+            re.IGNORECASE,
+        )
 
-        return [
+        matches = [
             ds for ds in datasets
-            if any(kw in ds.title.lower() for kw in keywords)
+            if chamber_pattern.search(ds.title.replace("_", " "))
             and ("enacted" in ds.title.lower() or "adopted" in ds.title.lower() or ds.official)
         ]
+        if len(matches) > 1:
+            raise ValueError(
+                f"Ambiguous enacted {chamber} plan for {state}"
+                + (f" year={year}" if year else "")
+                + f": {len(matches)} datasets match: {sorted(ds.title for ds in matches)}. "
+                "Narrow the year filter or use list_datasets() to choose a dataset."
+            )
+        return matches
 
     def get_precinct_data(
         self,
@@ -1120,6 +1149,9 @@ def fetch_enacted_plan(
     ------
     FileNotFoundError
         If no matching enacted plan dataset is found.
+    ValueError
+        If multiple enacted plan datasets match. Narrow the year filter or
+        use :meth:`RDHClient.list_datasets` and load the chosen dataset directly.
     """
     if not HAS_GEOPANDAS:
         raise ImportError(
