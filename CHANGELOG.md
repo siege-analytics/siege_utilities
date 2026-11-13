@@ -845,6 +845,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   methods, and now raise; reproject one input to match the other before
   calling them (for example `right.to_crs(left.crs)` for GeoDataFrames;
   after reprojecting a Spark frame, update or remove its `crs` attribute).
+- Codification recency and demographic metrics return corrected values for
+  the same input (#1492):
+  - `compute_recency` and `AddressVintage.is_new_construction` measure new
+    construction against the latest TIGER vintage (`TIGER_VINTAGES[-1]`)
+    instead of the area's own newest first year or an address's last
+    observation. An all-2010 area now reports `new_construction_pct` 0
+    instead of 1.0, and an address seen only in 2010 is no longer new.
+  - An even-count `median_vintage` is the lower central observed vintage, so
+    it is always a real vintage year; v4.0.0 averaged the two, giving years
+    such as 2011.
+  - `compute_demographic_signature` keeps zero-population blocks for the
+    housing rates, and divides `pct_housing_occupied` and
+    `pct_housing_vacant` by the addresses in blocks with `housing_total > 0`,
+    so group-quarters blocks no longer deflate them. `weighted_blocks` now
+    counts every matched block, including zero-population ones. Population
+    rates keep their nonzero-population denominator.
+    When no matched block has any addresses, `weighted_blocks` and
+    `total_block_population` still count those blocks and their population,
+    and every rate is 0.0; 4.0.0 returned all defaults in that case.
+
+  **Migration:** recompute any stored portraits or headline metrics.
+  Expect lower `new_construction_pct` for established areas, observed-year
+  medians, and higher housing occupancy where group-quarters blocks were
+  present. Code that relied on `weighted_blocks` excluding zero-population
+  blocks must filter those blocks itself.
+  Do not treat `weighted_blocks > 0` as a sign that the rates have data.
 
 ### BREAKING
 
