@@ -63,7 +63,7 @@ def test_b5_nullable_post_metrics_at_every_numeric_site(assembler, likes):
     data = [platform(followers=5, posts=posts), platform("instagram", followers=None)]
     original = posts.copy(deep=True)
     report = assembler._build_report_data(data, START, END)
-    table = next(t for t in report["tables"] if t["title"] == "Top Posts — X Twitter")
+    table = next(t for t in report["tables"] if t["title"] == "Top analyzed posts — X Twitter")
     unknown = next(row for row in table["data"] if row[0] == "unknown")
     assert unknown[1:3] == ["unavailable", "unavailable"]
     assert "nan" not in str(report).lower()
@@ -83,7 +83,7 @@ def test_b5_nullable_series_and_chart_gaps(assembler, dtype):
     })
     known = platform("instagram", 10, pd.DataFrame({"text": ["known"], "like_count": [12]}))
     report = assembler._build_report_data([unknown, known], START, END)
-    likes = next(c for c in report["charts"] if c["title"] == "Total Likes by Platform")
+    likes = next(c for c in report["charts"] if c["title"] == "Likes from analyzed posts by Platform")
     assert likes["data"]["datasets"][0]["data"] == [None, 12]
     daily = next(c for c in report["charts"] if c["type"] == "line")
     assert daily["data"]["datasets"][0]["data"] == [None, 2]
