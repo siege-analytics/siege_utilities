@@ -154,6 +154,7 @@ class TimeseriesService:
                 ).iterator()
             }
             to_create = []
+            cagr_undefined = 0
 
             for geoid in geoids:
                 by_year = observations.get(geoid, {})
@@ -176,6 +177,7 @@ class TimeseriesService:
                     # Non-positive start or negative end (e.g. a Census
                     # sentinel): CAGR is undefined and stored as None.
                     cagr = None
+                    cagr_undefined += 1
                 trend = self._trend_direction(series_values)
 
                 existing = existing_by_key.get((geoid, series_years[0], series_years[-1]))
@@ -232,7 +234,8 @@ class TimeseriesService:
             results.append(result)
             log.info(
                 f"Timeseries {variable}: created={result.records_created}, "
-                f"updated={result.records_updated}, skipped={result.records_skipped}"
+                f"updated={result.records_updated}, skipped={result.records_skipped}, "
+                f"cagr_undefined={cagr_undefined}"
             )
 
         return results
@@ -309,18 +312,12 @@ class TimeseriesService:
                 f"start={start_value}, end={end_value}, periods={periods}"
             )
         try:
-            result = ratio ** (1 / periods) - 1
+            return ratio ** (1 / periods) - 1
         except (ZeroDivisionError, ValueError) as exc:
             raise ValueError(
                 f"CAGR computation failed for start={start_value}, "
                 f"end={end_value}, periods={periods}: {exc}"
             ) from exc
-        if isinstance(result, complex):
-            raise ValueError(
-                f"CAGR is undefined (non-real result) for start={start_value}, "
-                f"end={end_value}, periods={periods}"
-            )
-        return result
 
     @staticmethod
     def _trend_direction(values: list) -> str:

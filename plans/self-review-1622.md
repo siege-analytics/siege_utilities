@@ -183,8 +183,13 @@ for this record.
   spanning two or more years. Before, those had an exponent of 1 and stored a
   meaningless negative rate.
 
-**Fix:** `_cagr` raises `ValueError` for a negative end/start ratio, and for
-any non-real result. The caller's existing handler stores `cagr=None`. A zero
+**Fix:** `_cagr` raises `ValueError` for a negative end/start ratio; with a
+positive start and a non-negative ratio the power is always real. The fix
+commit also added a check for a non-real result. The independent review
+showed that check could not be reached (a complex input fails earlier with
+`TypeError`), so the correction commit removed it. The caller's existing
+handler stores `cagr=None`, and the per-variable log line now counts these
+series (`cagr_undefined`). A zero
 end is still a real -100% rate. Only
 `siege_utilities/geo/django/services/timeseries_service.py` changes.
 
@@ -237,16 +242,21 @@ marker test): 273 passed, 1 skipped, 10 failed.
   years) matches the existing-series lookup. The affected-row selector follows
   from the old formula and the MOE compaction.
 - **Syntax check:** `git diff --cached --check` against develop was clean
-  before commit; no conflict markers remain; no Python source changed relative
-  to the PR head.
+  before each commit, and no conflict markers remain. The integration merges
+  changed no Python source relative to the PR. Round 2 changes the service and
+  two test files; `ruff check` on them passed.
 - **Shelves checked:**
   - writing-releases:1: the change is breaking for stored series, so the
-    CHANGELOG entry is under `### BREAKING` with a Migration line; the staged
-    CHANGELOG diff against develop was +21/-0, the single entry.
+    CHANGELOG entry is under `### BREAKING` with a Migration line. The staged
+    CHANGELOG diff against develop was +21/-0 in the integration rounds and
+    +25/-0 after round 2, the single entry in each case.
   - writing-claims:1: before calling the CAGR fix complete, `git grep -n -i
     cagr` at develop found the two other implementations (temporal builder,
-    `change_metrics`); both already use elapsed years, so the class is closed
-    for the exponent. The unit difference is follow-up #1890.
+    `change_metrics`). Both already use elapsed years, so the class is closed
+    for the exponent. It is NOT closed for negative ends: the temporal
+    builder's `_cagr` still returns a complex value for a negative end, which
+    its schema rejects. That is drafted as a follow-up and is outside the
+    files this round may change. The unit difference is follow-up #1890.
   - writing-claims:8: the local counts come from the pytest summary line
     (206 passed, 25 skipped, 0 failed) and the 22-case count from the test
     file's parametrization.
@@ -262,7 +272,10 @@ marker test): 273 passed, 1 skipped, 10 failed.
 
 - **Approach fit:** the fix is at the formula and the storage line, the right
   layer. The engine-agnostic temporal builder already used elapsed years and
-  kept `None` MOEs, so this brings the Django service in line with it.
+  kept `None` MOEs, so this brings the Django service in line with it for
+  those two points. For a negative end the two now differ: the Django service
+  stores `None`, while the temporal builder still produces a complex value
+  (follow-up).
 - **Blast radius:**
   - every `DemographicTimeSeries` row written after the merge;
   - consumers that sum, index or truth-test `moe_values`;
@@ -281,14 +294,25 @@ marker test): 273 passed, 1 skipped, 10 failed.
     bullet.
   - S3 (P2): `[5.0.0]` versus `[Unreleased]` placement; kept, and flagged.
   - S4 (P3): CAGR units, the builder's per-boundary scan and Census sentinels
-    are follow-ups (#1890, #1891, #1403), not part of this PR.
+    in the mean and standard deviation are follow-ups (#1890, #1891, #1403),
+    not part of this PR. #1891's builder scan has since been fixed on develop.
+  - Round 2 (S2-1): a negative end gave a complex CAGR; fixed. The
+    independent review of the staged merge
+    (https://github.com/siege-analytics/siege_utilities/issues/1622#issuecomment-6851470468)
+    found it acceptable, with corrections that the following commit makes.
+    Its other findings are drafted as a follow-up: the temporal builder's
+    negative-end CAGR, and string values that can still stop the run.
 - **Ticket record:** the full self-review, including the rework ledger, is
   posted at
   https://github.com/siege-analytics/siege_utilities/issues/1622#issuecomment-6800956235.
 
 ## Out of scope
 
-- Census sentinels in `mean`, `std_dev` and `cagr` (#1403).
+- Census sentinels in `mean` and `std_dev`, and a sentinel start value
+  (#1403). A sentinel end value is now handled in `cagr` (round 2).
 - CAGR units: this service and the temporal builder store a fraction, while
-  `geo/timeseries/change_metrics.py` returns a percentage.
-- The temporal builder's per-boundary scan.
+  `geo/timeseries/change_metrics.py` returns a percentage (#1890).
+- The temporal builder's per-boundary scan (#1891, fixed on develop).
+- The temporal builder's negative-end CAGR, the loader's M-suffixed MOE key
+  that this service does not read, and string values in snapshots that can
+  still stop `populate_timeseries` (drafted follow-up).
