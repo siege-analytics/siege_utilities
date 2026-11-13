@@ -510,9 +510,16 @@ jobs:
       if: ${{ !cancelled() }}
       # Resolves every pinned dependency of --extra all --extra dev without
       # installing it. PYSEC-2026-1835 (PyPDF2) is ignored until #1754.
+      # The audit targets 3.11.5, not a bare 3.11: uv treats an omitted patch
+      # as .0, and at 3.11.0 the soupsieve>=4.0.0 marker in the extras is off.
+      # 3.11.5 mirrors that marker floor; tests/test_1895_soupsieve_marker.py
+      # pins both to 3.11.5. This audits the 3.11.5 resolution on the Linux
+      # runner only, not the whole >=3.11 range: on 3.11.0 to 3.11.4 soupsieve
+      # <4 (affected by CVE-2026-126190) stays installable, and that range is
+      # not audited here (#1895).
       run: |
         python -m pip install uv
-        uv pip compile pyproject.toml --extra all --extra dev --python-version 3.11 -o security-requirements.txt
+        uv pip compile pyproject.toml --extra all --extra dev --python-version 3.11.5 -o security-requirements.txt
         pip-audit -r security-requirements.txt --no-deps --disable-pip --progress-spinner off \
           --ignore-vuln PYSEC-2026-1835 --format json --output pip-audit-report.json \
           || { pip-audit -r security-requirements.txt --no-deps --disable-pip --progress-spinner off --ignore-vuln PYSEC-2026-1835; exit 1; }
