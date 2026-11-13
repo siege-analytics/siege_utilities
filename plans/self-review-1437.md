@@ -180,3 +180,32 @@ Out-of-scope follow-up candidate (SU-1). `_get_default_provider` in `siege_utili
 Post-mortem: not applicable. This is a develop integration with no regression and no materialized pre-mortem Tiger.
 
 Not claimed: this round does not approve or enqueue the PR or close #1437. Fresh required hosted CI on the new head and an independent whole-PR review are still owed.
+
+## Later develop integrations (f22dce96, 7f6e88f0)
+
+Appended 2026-11-13. Sections above are unchanged and describe earlier rounds. Neither integration changes any #1437 source, test or CHANGELOG text.
+
+**Develop `f22dce96`, merge `85251c35`.**
+- This brought in #1903 (#1895 soupsieve CVE fix). The PR's security job builds from the PR's own `pyproject.toml`, so it needed the fix merged in.
+- The merge applied with no conflicts, and the staged tree equalled the trial `merge-tree` result.
+- On the staged snapshot, the four #1437 modules plus `tests/test_1895_soupsieve_marker.py` gave 211 passed, 0 failed, 0 skipped.
+- Evidence: https://github.com/siege-analytics/siege_utilities/issues/1437#issuecomment-6845616389 (self-review) and https://github.com/siege-analytics/siege_utilities/issues/1437#issuecomment-6845613930 (independent review of the staged merge, verdict PASS).
+
+**Develop `7f6e88f0`, this round.**
+- This brought in four PRs that landed on develop after `f22dce96`:
+  - #1894 (#1892, CI runner pin);
+  - #1806 (#1484, Snowflake types);
+  - #1755 (#1623, seat uniqueness);
+  - #1797 (#1480, RDH chamber selection).
+- #1797's #1480 BREAKING entry landed at the same CHANGELOG anchor as #1437's.
+- The trial `merge-tree` reported one conflict, `CHANGELOG.md` only. It was resolved markers-only, with develop's #1480 entry first and the #1437 entry after, verbatim.
+- Versus develop `7f6e88f0`, the merged tree differs only on the PR's five files. `CHANGELOG.md` is +12/-0 there, the #1437 entry.
+- Develop's 17 changed paths since `f22dce96` come in unchanged. None is on the #1437 paths: they include `geo/providers/redistricting_data_hub.py`, `geo/providers/boundary_providers.py`, one Django migration (`0020_seat_uniqueness.py`) with a model change, and the Snowflake connector.
+- On the staged snapshot:
+  - the four #1437 modules plus `tests/test_1480_rdh_chamber_sldu_sldl.py` gave 272 passed, 0 failed, 0 skipped;
+  - `scripts/check_exception_contracts.py --list` -> 205 flagged, 0 unlisted, 0 stale;
+  - `scripts/check_credential_urls.py` -> 0 unreviewed sites;
+  - `scripts/release_manager.py --check` -> consistent at 5.0.0;
+  - `git diff --cached --check` -> clean.
+
+Known open items from the exact-head review of `85251c35` are tracked in #1913 and are not addressed here.

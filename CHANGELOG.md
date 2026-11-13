@@ -478,6 +478,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ApiSource`, `max_api_attempts` no longer multiplies `CensusAPI`'s own
   retries, so expect fewer source-level attempts, shorter waits, and fallback
   provenance that counts one API call and one bulk call.
+- RDH enacted-plan selection maps SLDU to state senate and SLDL to state
+  house, and matches chamber keywords on token boundaries so titles such as
+  `household` and `houses` no longer match. `get_enacted_plans` and
+  `fetch_enacted_plan` raise `ValueError` with the candidate titles when
+  multiple plans match; `RDHProvider.get_boundary` raises
+  `BoundaryFetchError` for that ambiguity and for other dataset-lookup
+  failures, chaining the client error. In 4.0.0 `state_senate` also matched
+  `sldl` titles and `state_house` matched `sldu` and any title containing
+  `house`, and `fetch_enacted_plan` and `RDHProvider.get_boundary` silently
+  loaded the first match; a failed `get_boundary` lookup raised the client's
+  `OSError` or `ValueError` unchanged. **Migration:** a request that matched
+  several plans now raises instead of loading one: narrow the year filter, or
+  call `list_datasets` and load the chosen dataset directly. Code that
+  catches `OSError` or `ValueError` around `RDHProvider.get_boundary` must
+  also catch `BoundaryFetchError` (a `RuntimeError`). Re-check stored
+  `state_senate`/`state_house` results fetched with 4.0.0, which may hold the
+  other chamber's plan (#1480).
 - `place_history` and longitudinal boundary normalization now raise `ValueError`
   when CT county-equivalent, tract, block-group, or block GEOIDs cross the 2022
   planning-region recode, including normalization to a target across 2022.
@@ -546,6 +563,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Loaders that insert with `ignore_conflicts=True` now report the rows
   actually inserted. New `backfill_derived_fields` command repairs rows
   loaded before this fix (#1539).
+- `SnowflakeConnector` auto-create (`upload_dataframe(...,
+  auto_create_table=True)`) chooses column types with `pandas.api.types`
+  predicates instead of matching the dtype name (#1484):
+  - Nullable `Int64`/`UInt8`-style integers now get `NUMBER(38,0)`, and
+    nullable `Float64` gets `FLOAT`; v4.0.0 created `VARCHAR`.
+  - Timezone-aware datetimes (pandas `DatetimeTZDtype`) now get
+    `TIMESTAMP_TZ`; v4.0.0 created `TIMESTAMP_NTZ`.
+  - Categoricals take the type of their categories, so integer, float or
+    datetime categories are no longer `VARCHAR`.
+  - Interval dtypes now get `VARCHAR`; v4.0.0 created `NUMBER(38,0)`.
+  - NumPy integer, float, bool and naive `datetime64` columns, nullable
+    `boolean`, strings, objects, string categories, periods and timedeltas
+    keep their v4.0.0 types. Arrow-backed timestamp dtypes (for example from
+    `convert_dtypes(dtype_backend="pyarrow")`) are not recognised and stay
+    `VARCHAR`, as in v4.0.0; no native Arrow loading or round-trip is claimed.
+
+  Existing tables are not altered. Logical-type loading in `write_pandas`
+  and restoring the session database/schema after a per-call override are
+  not part of this change (#1484 remaining items; the latter rides with
+  #1421). **Migration:** tables auto-created from such frames now have
+  numeric or `TIMESTAMP_TZ` columns where v4.0.0 created `VARCHAR` or
+  `TIMESTAMP_NTZ`. Drop casts that compensated for `VARCHAR`. To keep the
+  v4.0.0 column types, create the table yourself and pass
+  `auto_create_table=False`.
 
 ### BREAKING
 
@@ -601,6 +642,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   source-level boundary table (latest vintage <= `year`), or the crosswalk
   sources in crosswalk mode, so missing children lower it; when no boundaries
   are loaded it logs a warning and falls back to existing snapshots (#1604).
+- Seat uniqueness includes Senate class, so a state's two U.S. Senate seats
+  can coexist with an empty district label. A partial unique constraint allows
+  only one PRESIDENT seat, including when its state is NULL; creating a second
+  PRESIDENT seat now raises `IntegrityError`. Django migration
+  `0020_seat_uniqueness` replaces the old uniqueness constraint while preserving
+  duplicate protection for seats without a Senate class (#1623).
+  **Migration:** before applying `0020_seat_uniqueness`, reconcile duplicate
+  PRESIDENT seats, including rows that reference them (deleting a seat
+  cascades). If duplicates remain, the migration stops before changing any
+  constraint and reports their count and lowest primary keys; it never deletes
+  or merges rows. Set `senate_class` on both of a state's U.S. Senate seats so
+  they can coexist; seats without a class still allow only one per office,
+  state and district label. Reversing 0020 restores the old
+  `(office, state, district_label)` key, so it fails while a state still has
+  two Senate seats with the same district label.
 
 ### BREAKING
 
