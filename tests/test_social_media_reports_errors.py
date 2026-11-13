@@ -31,3 +31,4 @@ def test_collect_platform_data_raises_on_connector_failures(tmp_path):
     assert "info failed" not in str(exc.value)
     assert exc.value.__cause__ is None
     assert exc.value.__suppress_context__ is True
+    assert exc.value.__context__ is None

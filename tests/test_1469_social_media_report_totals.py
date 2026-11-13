@@ -83,6 +83,7 @@ def test_connector_failure_raises_with_platform_and_category(report, method, err
     assert "retrieval failed" not in message
     assert exc.value.__cause__ is None
     assert exc.value.__suppress_context__ is True
+    assert exc.value.__context__ is None
     writer.assert_not_called()
 
 
@@ -107,6 +108,9 @@ def test_connector_failure_never_exposes_secrets(report, caplog, method, secret_
     rendered = "".join(traceback.format_exception(exc.value))
     assert SECRET not in str(exc.value)
     assert SECRET not in repr(exc.value)
+    # from None only hides the connector error from tracebacks; it must not
+    # stay reachable as the implicit context either.
+    assert exc.value.__context__ is None
     assert SECRET not in rendered
     assert SECRET not in caplog.text
     writer.assert_not_called()

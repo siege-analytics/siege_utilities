@@ -49,8 +49,9 @@ def _retrieval_error(operation: str, platform: str, exc: Exception) -> SocialMed
     """Name the platform, operation and error type without the error's text.
 
     Connector errors can carry request URLs or headers with access tokens, so
-    their text is never copied. Callers raise this ``from None`` so the original
-    error is not chained into tracebacks either.
+    their text is never copied. Callers raise this ``from None`` and then clear
+    its ``__context__``, so the original error is neither chained into
+    tracebacks nor reachable from the raised error.
     """
     return SocialMediaError(
         f"Failed to get {operation} from {platform} ({type(exc).__name__})"
@@ -183,19 +184,26 @@ class SocialMediaReportGenerator:
             log.info("Collecting data from %s", platform)
 
             try:
-                account_info = conn.get_account_info()
-            except Exception as exc:
-                raise _retrieval_error("account info", platform, exc) from None
+                try:
+                    account_info = conn.get_account_info()
+                except Exception as exc:
+                    raise _retrieval_error("account info", platform, exc) from None
 
-            try:
-                insights_df = conn.get_account_insights(start_date, end_date)
-            except Exception as exc:
-                raise _retrieval_error("account insights", platform, exc) from None
+                try:
+                    insights_df = conn.get_account_insights(start_date, end_date)
+                except Exception as exc:
+                    raise _retrieval_error("account insights", platform, exc) from None
 
-            try:
-                posts_df = conn.get_posts(start_date, end_date, limit=posts_limit)
-            except Exception as exc:
-                raise _retrieval_error("posts", platform, exc) from None
+                try:
+                    posts_df = conn.get_posts(start_date, end_date, limit=posts_limit)
+                except Exception as exc:
+                    raise _retrieval_error("posts", platform, exc) from None
+            except SocialMediaError as error:
+                # ``from None`` hides the connector error from tracebacks but
+                # still leaves it on ``__context__``; clear it so its text
+                # cannot be reached from the raised error.
+                error.__context__ = None
+                raise
 
             results.append({
                 "platform": platform,
