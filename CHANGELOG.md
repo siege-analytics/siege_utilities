@@ -478,6 +478,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ApiSource`, `max_api_attempts` no longer multiplies `CensusAPI`'s own
   retries, so expect fewer source-level attempts, shorter waits, and fallback
   provenance that counts one API call and one bulk call.
+- GEOID utilities accept uppercase alphanumeric SLD and congressional district
+  codes, including undefined districts and Alaska senate letters. Numeric
+  levels reject non-digit input; normalization converts integral floats and
+  checks state FIPS prefixes, preventing extra zero-padding from creating
+  state `00`. Float columns with missing values now retain valid join keys.
+  `slug_to_geoid` returns CD and SLD district codes in canonical uppercase,
+  so alphanumeric districts such as `06ZZZ` round trip through
+  `geoid_to_slug`. `can_normalize_geoid` now reports whether
+  `normalize_geoid` succeeds, so for VTD levels it follows the existing
+  padding-only VTD normalization and accepts non-digit values it previously
+  rejected; VTD normalization and `validate_geoid` are unchanged. In 4.0.0
+  `normalize_geoid` only zero-padded: `normalize_geoid("CA037", "county")`
+  returned `"CA037"`, `normalize_geoid("1001020100", "block_group")` returned
+  `"001001020100"` (state `00`), and `slug_to_geoid("ca-cd-zz")` returned
+  `"06zz"`. **Migration:** `normalize_geoid` and the column helpers now raise
+  `ValueError` for non-digit values at numeric levels and for values whose
+  padding would invent state `00`; clean or drop such GEOIDs first. Compare
+  or join `slug_to_geoid` district output against uppercase codes. Code that
+  used `can_normalize_geoid(..., "vtd")` to reject non-digit VTDs must check
+  `str.isdigit()` itself (#1486).
 
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A

@@ -84,6 +84,39 @@ class TestNormalizeGEOID:
         with pytest.raises(ValueError, match="Unrecognized geographic level"):
             normalize_geoid("06", "invalid_level")
 
+    @pytest.mark.parametrize(
+        "level,value",
+        [
+            ("state", "0"), ("county", "037"), ("tract", "101020100"),
+            ("block_group", "1001020100"), ("block", "1001020100001"),
+            ("place", "12345"), ("sldu", "ZZZ"), ("sldl", "ZZZ"),
+            ("cd", "ZZ"), ("puma", "12345"), ("cousub", "10010001"),
+            ("tabblock20", "1001020100001"), ("tabblock10", "1001020100001"),
+        ],
+    )
+    def test_state_prefix_cannot_be_padded_to_zero(self, level, value):
+        with pytest.raises(ValueError, match="state FIPS '00'"):
+            normalize_geoid(value, level)
+
+    @pytest.mark.parametrize("level", ["zcta", "cbsa"])
+    def test_non_state_geoid_allows_multiple_leading_zeros(self, level):
+        assert normalize_geoid("123", level) == "00123"
+
+    @pytest.mark.parametrize("value", [6037.5, float("nan"), float("inf"), -float("inf")])
+    def test_non_integral_float_rejected(self, value):
+        with pytest.raises(ValueError, match="finite integral"):
+            normalize_geoid(value, "county")
+        assert can_normalize_geoid(value, "county") is False
+
+    @pytest.mark.parametrize("level", ["vtd", "voting_district", "vtd20"])
+    @pytest.mark.parametrize(
+        "value,expected",
+        [("06037", "00000006037"), ("0100500008a", "0100500008a"), (6037.0, "000006037.0")],
+    )
+    def test_vtd_keeps_existing_normalization(self, level, value, expected):
+        assert normalize_geoid(value, level) == expected
+        assert can_normalize_geoid(value, level) is True
+
 
 class TestNormalizeGEOIDColumn:
     """Tests for column-wise GEOID normalization."""
@@ -252,10 +285,13 @@ class TestValidateGEOID:
     @pytest.mark.parametrize("strict", [True, False])
     @pytest.mark.parametrize(
         "level,length",
-        [(level, length) for level, length in GEOID_LENGTHS.items() if level != "vtd"],
+        [
+            (level, length) for level, length in GEOID_LENGTHS.items()
+            if level not in {"vtd", "sldu", "sldl", "cd"}
+        ],
     )
-    def test_validate_non_vtd_rejects_letters(self, level, length, strict):
-        """Every other geography remains digits-only in either mode."""
+    def test_validate_numeric_level_rejects_letters(self, level, length, strict):
+        """Numeric geographies remain digits-only in either mode."""
         assert validate_geoid("0" * (length - 1) + "A", level, strict=strict) is False
 
     @pytest.mark.parametrize(
@@ -273,6 +309,19 @@ class TestValidateGEOID:
     def test_validate_unknown_geography(self):
         """An unrecognized geography returns the documented invalid sentinel."""
         assert validate_geoid("0100500008A", "unknown") is False
+
+    @pytest.mark.parametrize("strict", [True, False])
+    @pytest.mark.parametrize(
+        "geoid,level",
+        [
+            ("CAZZZ", "sldu"), ("06zzZ", "sldl"), ("0600-", "sldu"),
+            ("06ZZZZ", "sldl"), ("CAZZ", "cd"), ("06zz", "cd"),
+            ("060/", "cd"), ("06ZZZ", "cd"), ("06\u00e9Z", "cd"),
+            ("０６０３７", "county"),
+        ],
+    )
+    def test_validate_rejects_invalid_district_and_numeric_characters(self, geoid, level, strict):
+        assert validate_geoid(geoid, level, strict=strict) is False
 
     def test_invalid_short_geoid_default(self):
         """Test that short GEOID missing leading zeros is invalid by default."""
@@ -330,6 +379,28 @@ class TestCanNormalizeGEOID:
     def test_unknown_geography(self):
         """Test that unknown geography level returns False."""
         assert can_normalize_geoid("06037", "invalid_level") is False
+
+    @pytest.mark.parametrize(
+        "value,level,expected",
+        [
+            (" 6037 ", "county", "06037"), (6037.0, "county", "06037"),
+            ("0200A", "state_legislative_upper", "0200A"),
+            ("6ZZ", "congressional_district", "06ZZ"),
+            ("10010201001", "bg", "010010201001"),
+            ("1001020100", "tract", "01001020100"),
+            ("00037", "county", None), ("03037", "county", None),
+            ("   ", "county", None), (True, "county", None),
+            (pd.NA, "county", None), ([], "county", None),
+            ("6037.0", "county", None), ("00000", "zcta", "00000"),
+        ],
+    )
+    def test_normalizability_edge_cases(self, value, level, expected):
+        if expected is None:
+            with pytest.raises(ValueError):
+                normalize_geoid(value, level)
+        else:
+            assert normalize_geoid(value, level) == expected
+        assert can_normalize_geoid(value, level) is (expected is not None)
 
 
 class TestValidateGEOIDColumn:
