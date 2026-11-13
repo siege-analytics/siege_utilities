@@ -59,21 +59,21 @@ Project-contribution: stored `DemographicTimeSeries` growth rates mean per
 calendar year and MOEs stay aligned with their years; this integration makes
 the PR mergeable into develop with an accurate BREAKING and Migration record.
 
-Investigate-artifact:
-https://github.com/siege-analytics/siege_utilities/issues/1622#issuecomment-6799914437
+Investigate-artifact: https://github.com/siege-analytics/siege_utilities/issues/1622#issuecomment-6799914437
 
-Pre-mortem-artifact: the pre-mortem for the revised plan is in
-https://github.com/siege-analytics/siege_utilities/issues/1622#issuecomment-6800217762.
-The combined comment's pre-mortem section is restated as its own entry in
+Pre-mortem-artifact: https://github.com/siege-analytics/siege_utilities/issues/1622#issuecomment-6800217762
+
+The pre-mortem above is for the revised plan. The combined comment's
+pre-mortem section is restated as its own entry in
 https://github.com/siege-analytics/siege_utilities/issues/1622#issuecomment-6800307447.
 
 Junior task description:
 https://github.com/siege-analytics/siege_utilities/issues/1622#issuecomment-6799995136
 
-Hostile-review-artifact: the independent Senior adversarial review, produced
-by a fresh-context reviewer, is in
-https://github.com/siege-analytics/siege_utilities/issues/1622#issuecomment-6800163894.
-The item-by-item response is in
+Hostile-review-artifact: https://github.com/siege-analytics/siege_utilities/issues/1622#issuecomment-6800163894
+
+The hostile review above is the independent Senior adversarial review,
+produced by a fresh-context reviewer. The item-by-item response is in
 https://github.com/siege-analytics/siege_utilities/issues/1622#issuecomment-6800188053.
 An earlier Senior checklist
 (https://github.com/siege-analytics/siege_utilities/issues/1622#issuecomment-6799997178)
@@ -179,6 +179,24 @@ for this record.
 - **Syntax check:** `git diff --cached --check` against develop was clean
   before commit; no conflict markers remain; no Python source changed relative
   to the PR head.
+- **Shelves checked:**
+  - writing-releases:1: the change is breaking for stored series, so the
+    CHANGELOG entry is under `### BREAKING` with a Migration line; the staged
+    CHANGELOG diff against develop was +21/-0, the single entry.
+  - writing-claims:1: before calling the CAGR fix complete, `git grep -n -i
+    cagr` at develop found the two other implementations (temporal builder,
+    `change_metrics`); both already use elapsed years, so the class is closed
+    for the exponent. The unit difference is follow-up #1890.
+  - writing-claims:8: the local counts come from the pytest summary line
+    (206 passed, 25 skipped, 0 failed) and the 22-case count from the test
+    file's parametrization.
+  - writing-tests:1: NOT demonstrated in this pass. The regression test has
+    not been shown to fail on the pre-fix service (pre-fix control NOT RUN).
+  - writing-claims:10: import provenance rests on the pytest rootdir and
+    `python -m` path ordering, which is weaker than printing the imported
+    module's path.
+- **Notebook API check:** N/A; no notebook calls `populate_timeseries` or
+  `TimeseriesService` (`git grep` at develop).
 
 ## Lead review
 
