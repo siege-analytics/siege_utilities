@@ -1,6 +1,6 @@
 # Self-review: Facebook insights parsing and API isolation (#1435, PR #1774)
 
-Scope of this artifact: the PR as a whole at its code head, plus the process-only commit that syncs with develop, moves the three release notes into `[4.1.0]` and adds this file. The process commit changes `CHANGELOG.md` and this document and no library code. The PR body was also rewritten to describe the code at this head.
+Scope of this artifact: the PR as a whole at its code head, plus the process-only commit that syncs with develop, moves the three release notes into `[4.1.0]` and adds this file. (Historical: `[4.1.0]` was the pending release section at that commit. Develop has since renamed it `[5.0.0]`, where the consolidated #1435 `### BREAKING` entry now sits.) The process commit changes `CHANGELOG.md` and this document and no library code. The PR body was also rewritten to describe the code at this head.
 
 Review-Tier: A for the process commit (documentation and release notes only). The code commits under review were reviewed independently at exact head 0b2b6234 by the external reviewer (ticket #1435, review comment 6256996896).
 
@@ -9,8 +9,8 @@ Review-Tier: A for the process commit (documentation and release notes only). Th
 - Goal source: ticket #1435. Page insights must join every metric's daily values by measured day instead of copying the first value into every column, and each connector must use its own API session.
 - Roles: author is the PR owner; the independent reviewer is the cross-family hostile reviewer who recorded the head 0b2b6234 verdict on the ticket.
 - The code diff against `origin/develop` is limited to `siege_utilities/analytics/facebook_business.py`, `tests/test_facebook_business_connector.py`, `tests/test_facebook_business_insights.py` and `CHANGELOG.md`. This commit adds no library code.
-- The body claims were checked against `facebook_business.py` at this head: the page `date` is `YYYY-MM-DD` for the date of `end_time` minus one day with absent values as NaN (`get_page_insights`, lines 184-238); ad insights request `time_increment=1` and the fields `ad_id`, `ad_name`, `date_start`, `date_stop`, with NaN for absent metrics (`get_ad_insights`, lines 121-168); business missing metrics are NaN (`get_business_insights`); `batch_retrieve_facebook_data` takes the optional `config_directory: str | None = None` and forwards it to all three retrieval paths (lines 475-501); every SDK object receives `api=self.api`.
-- Release convention: user-visible notes belong in `[4.1.0]`. This commit moves the three #1435 entries verbatim. No other `[Unreleased]` entry was touched.
+- The body claims were checked against `facebook_business.py` at this head: the page `date` is `YYYY-MM-DD` for the date of `end_time` minus one day with absent values as NaN (`FacebookBusinessConnector.get_page_insights`); ad insights request `time_increment=1` and the fields `ad_id`, `ad_name`, `date_start`, `date_stop`, with NaN for absent metrics (`get_ad_insights`); business missing metrics are NaN (`get_business_insights`); `batch_retrieve_facebook_data` takes the optional `config_directory: str | None = None` and forwards it to all three retrieval paths; every SDK object receives `api=self.api`. Functions are cited by symbol name because line numbers move as the file changes.
+- Release convention at that commit (historical): user-visible notes belonged in `[4.1.0]`, and this commit moved the three #1435 entries there verbatim. No other `[Unreleased]` entry was touched. That section is now `[5.0.0]`.
 - Pre-author-inventory: NONE. Trivial-against-state: the commit moves existing text between two sections of one file, checked with `git diff origin/develop -- CHANGELOG.md`, which shows only #1435 additions after the sync.
 
 ## Peer review
@@ -24,14 +24,14 @@ Gate evidence, all observed in this work cycle:
 ## Test plan
 
 - Confirm exact-head CI at the pushed head reports success other than the known DuckDB 2.0 failures on develop.
-- Confirm `CHANGELOG.md` has the three #1435 entries under `[4.1.0]` and none under `[Unreleased]`.
+- Confirm `CHANGELOG.md` has the consolidated #1435 entry under `### BREAKING` in `[5.0.0]` and none under `[Unreleased]`. (Historical: at the process commit this check read "the three #1435 entries under `[4.1.0]`".)
 - Request a fresh exact-head review: the earlier result is void once the head moves, and the code diff is unchanged.
 
 ## Pre-flight (develop 71f02b0b)
 
 Develop was merged additively. The only conflict was `CHANGELOG.md`; every develop line was kept, including develop's #1444 entry, which already states that "the Facebook daily-label fix is tracked separately in #1435". Develop wins on any disagreement, and none exists: the analytics files changed by the merge are Google Analytics, Instagram, Vista Social, X and the pipeline analyzer, and none is the Facebook connector.
 
-Classification: caller code that worked on v4.0.0 now sees different results (page-insight `date` is a `YYYY-MM-DD` string for the day before `end_time`, absent values are NaN instead of zero, ad insights are daily rows with added columns). The three #1435 entries are now one entry under `### BREAKING` in `[4.1.0]` with a Migration line, at its own position in the BREAKING list so it does not conflict with the other open PRs. `git diff origin/develop -- CHANGELOG.md` shows 16 added lines and 0 removed lines. The PR body classification is updated to match.
+Classification: caller code that worked on v4.0.0 now sees different results (page-insight `date` is a `YYYY-MM-DD` string for the day before `end_time`, absent values are NaN instead of zero, ad insights are daily rows with added columns). The three #1435 entries are now one entry under `### BREAKING` in `[4.1.0]` (historical name; now `[5.0.0]`) with a Migration line, at its own position in the BREAKING list so it does not conflict with the other open PRs. `git diff origin/develop -- CHANGELOG.md` shows 16 added lines and 0 removed lines. The PR body classification is updated to match.
 
 Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_facebook_business_insights.py test_facebook_business_connector.py -m "not integration and not requires_api_key" -q` -> 29 passed, 1 deselected in 0.79s. The library code is unchanged since the red/green run recorded in the Falsification entry below, which still applies to this head.
 
@@ -70,4 +70,4 @@ Governing ticket: #1435 (the #1398 epic is context only and is not a governing t
 
 ## Lead review
 
-The change is additive and reverts with one commit. No behavior change. No claim in this artifact exceeds what was observed.
+The change is additive and reverts with one commit. The process-only commit made no behavior change. The PR as a whole does change caller-visible behavior and is classified BREAKING (see Classification above). No claim in this artifact exceeds what was observed.
