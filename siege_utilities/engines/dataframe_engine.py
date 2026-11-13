@@ -865,6 +865,14 @@ class DataFrameEngine(ABC):
             column names never appear in the output. The join's generated
             right index is dropped. Point-side column names are preserved;
             a prefixed layer name colliding with a point column raises ValueError.
+
+        Every layer goes through the :meth:`spatial_join` CRS check against
+        the points. Points without CRS metadata count as unknown CRS for
+        every layer. A layer without frame-level CRS metadata keeps whatever
+        CRS conversion gives it (the default CRS for WKT text, Shapely objects
+        and all-null columns; a CRS recorded in DuckDB attrs; none for DuckDB
+        WKB without metadata), unless the points have a different known CRS;
+        then it joins with an unknown CRS, so it cannot raise a false mismatch.
         """
         import geopandas as gpd
 
@@ -875,15 +883,27 @@ class DataFrameEngine(ABC):
         points_crs_unknown = _frame_crs(points) is None
         result = points
         for layer_name, polygons in boundary_layers.items():
-            if not isinstance(polygons, gpd.GeoDataFrame):
-                polygons = self.to_geodataframe(polygons)
-            # Keep the layer's active geometry column under its own name, so a
-            # layer whose geometry is not called "geometry" still joins.
-            polygon_geom = polygons.geometry.name
             layer_points = result
             if points_crs_unknown and _frame_crs(result) is not None:
                 import pandas as pd
                 layer_points = pd.DataFrame(result)
+            if not isinstance(polygons, gpd.GeoDataFrame):
+                # A layer without frame-level CRS metadata counts as unknown for
+                # the CRS check, as points do. Conversion may still assign it a
+                # CRS (the default CRS, or one recorded in DuckDB attrs), which
+                # the check never saw. Remove that CRS only when it differs from
+                # the points' known CRS, so it cannot raise a false mismatch;
+                # otherwise the join is the one a direct spatial_join makes.
+                layer_crs_unknown = _frame_crs(polygons) is None
+                polygons = self.to_geodataframe(polygons)
+                points_crs = _frame_crs(layer_points)
+                if (layer_crs_unknown and polygons.crs is not None
+                        and points_crs is not None
+                        and not _same_crs(points_crs, polygons.crs)):
+                    polygons = polygons.set_crs(None, allow_override=True)
+            # Keep the layer's active geometry column under its own name, so a
+            # layer whose geometry is not called "geometry" still joins.
+            polygon_geom = polygons.geometry.name
             names = self._boundary_column_names(
                 polygons.columns, layer_name, result.columns, polygon_geom
             )

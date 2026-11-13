@@ -653,8 +653,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Shapely objects such as `load_points` output, and all-null columns.
   In nearest, apportion and dissolve a requested `crs` reprojects it rather
   than relabelling lon/lat values, while `to_geodataframe(crs=...)` labels it
-  with that CRS (#1497, #1852). DuckDB WKB bytes and hex WKB without CRS
-  metadata have an unknown CRS, which `crs` declares. On `SparkEngine`,
+  with that CRS (#1497, #1852). DuckDB `buffer` with `crs` likewise treats
+  plain Shapely geometry as the default CRS and reprojects the result.
+  DuckDB WKB bytes and hex WKB without CRS metadata have an unknown CRS,
+  which `crs` declares. On `SparkEngine`,
   which stores no source CRS, `crs` on `apportion` and `dissolve` declares the
   CRS the stored coordinates are already in and does not reproject, matching
   `SparkEngine.to_geodataframe`. Reproject through
@@ -671,12 +673,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   WKB without CRS metadata) it declares the CRS the stored coordinates are
   already in and does not reproject, so never declare lon/lat degrees as
   projected. A call without `crs` on Spark frames, plain WKT or plain Shapely
-  geometry, which v4.0.0
-  ran on the stored coordinates, now raises under the EPSG:4326 default. For
-  plain lon/lat WKT or Shapely geometry on the Pandas, DuckDB and PostGIS
-  engines, pass a projected `crs` to reproject it. For Spark frames, reproject upstream (for
-  example `read_spatial(crs=<projected>)`), or pass the projected CRS the
-  stored coordinates are truly in. A configured projected default (for
+  geometry, which v4.0.0 ran on the stored coordinates, now raises under the
+  EPSG:4326 default. For plain lon/lat WKT or Shapely geometry on the Pandas,
+  DuckDB and PostGIS engines, pass a projected `crs` to reproject it. For
+  Spark frames, reproject upstream (for example
+  `read_spatial(crs=<projected>)`), or pass the projected CRS the stored
+  coordinates are truly in. A configured projected default (for
   example `set_default_crs("EPSG:5070")`) runs without `crs`.
 - Spark spatial joins and boundary assignments keep one left geometry and
   suffix shared attributes with `_left`/`_right`, matching the join invariant
@@ -684,8 +686,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   column (`l.*, r.*`), including both geometries and duplicate names.
   Multi-layer assignment prefixes polygon attributes before joining, preserves
   point names, drops the generated right index, and keeps Spark frames native
-  between layers without collecting to the driver (#1479). On Spark, because the result
-  keeps only the left geometry, `spatial_join` and `assign_boundaries` accept
+  between layers without collecting to the driver (#1479). On Spark, because
+  the result keeps only the left geometry, `spatial_join` and
+  `assign_boundaries` accept
   `how="inner"` or `how="left"` only; `right`, `outer` and `full` raise
   `ValueError` before any temp view is registered, where v4.0.0 ran them
   (#1852). **Migration:** read shared attributes by their `_left`/`_right`
@@ -695,11 +698,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `touches`, `crosses` and `overlaps` are symmetric). For `assign_boundaries`
   with `how="right"`, call `spatial_join(polygons, points, how="left",
   predicate="contains")`.
-- On the Pandas, DuckDB and PostGIS engines, `multi_assign` converts each
-  non-GeoDataFrame layer with `to_geodataframe`, resets the layer's index
-  before joining, and keeps the layer's active geometry column under its own
-  name, so a layer whose geometry column is not named `geometry` joins
-  instead of failing (#1852).
+- On the Pandas, DuckDB and PostGIS engines, `multi_assign` prefixes each
+  layer's attributes before joining, resets the layer's index, keeps the
+  layer's active geometry column under its own name and drops the generated
+  right index. It converts a non-GeoDataFrame layer with `to_geodataframe`.
+  A layer of WKT text, Shapely objects or all-null values without CRS
+  metadata keeps the default CRS that conversion gives it, as a direct
+  `spatial_join` would, unless the points have a different known CRS; then
+  the layer joins with an unknown CRS, so there is no false mismatch, and
+  geopandas warns about the CRS difference as v4.0.0 did. A DuckDB layer of
+  WKB without CRS metadata stays unknown, so geopandas warns even for
+  default-CRS points, where v4.0.0 labelled it EPSG:4326 and was silent. On
+  Pandas, a non-GeoDataFrame layer and a layer whose active geometry is not
+  named `geometry` now join, where v4.0.0 failed. A prefixed layer column
+  that collides with a point column, for example when `multi_assign` runs
+  again with the same layer name, raises `ValueError`; v4.0.0 silently
+  produced duplicate column labels. PostGIS `multi_assign` now returns a
+  GeoDataFrame, where v4.0.0 returned a plain DataFrame (#1852).
+  **Migration:** v4.0.0's `{layer}_index_right` column is no longer
+  returned. A column that both the points and the first layer sharing it
+  have, which v4.0.0 returned as `{layer}_{col}_left` and
+  `{layer}_{col}_right` (later layers already used `{layer}_{col}`), is now
+  `{col}` (the points' value) and `{layer}_{col}` (the layer's value).
 - `DuckDBEngine.join` resolves a coalesced geometry join key by source (the
   left frame's CRS for inner and left joins, the right frame's for a right
   join), rejects two conflicting known CRSes before the merge in every join
@@ -876,9 +896,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ValueError` on mismatched known CRS like PandasEngine. The check reads
   the CRS of the inputs as passed: a frame without CRS metadata, such as a
   pandas frame of WKT or a DuckDB query result, counts as unknown CRS and
-  joins as before. On PostGIS, `multi_assign` checks only the first
-  boundary layer, because each later layer receives the previous result
-  without its CRS (#1898). On Spark, only `spatial_join` and the
+  joins as before. A CRS recorded per geometry column in a DuckDB frame's
+  pandas attrs is not read by the check, so such a frame also counts as
+  unknown. On the Pandas, DuckDB and PostGIS engines, `multi_assign` checks
+  every boundary layer against points with a known CRS; points without CRS
+  metadata stay unknown for every layer, and a layer without CRS metadata
+  is not compared against points in another known CRS (#1898, #1852). On
+  Spark, only `spatial_join` and the
   `point_in_polygon` and `intersect_boundaries` helpers that delegate to it
   run the check, and only when both frames carry an explicit `crs`
   attribute; Spark `assign_boundaries` and `multi_assign` do not check
