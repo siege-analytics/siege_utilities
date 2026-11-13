@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compares the new builder with the previous loop field by field (#1891).
   Exotic id types (overlapping intervals, mixed `Timestamp`/`np.datetime64`
   objects in one column) and further dtype coverage are tracked in #1897.
+- Importing `siege_utilities.geo.django` no longer raises when Django is
+  installed but the GDAL C library is not. The GeoDjango availability check now
+  also catches `ImproperlyConfigured`, so `_gis_available` is `False`, and
+  `get_model()` and `get_service()` raise the existing `ImportError` from the
+  dependency check. Importing the `models` package, or using a service that
+  loads GeoDjango, still raises Django's `ImproperlyConfigured`. Django remains
+  optional (#1889).
 - Correct the geocoding notebook's cache-hit claim: the timed cell scans
   already-collected results in memory to select matched input IDs. Add a
   narrative regression test and offline execution coverage for the geo notebook
