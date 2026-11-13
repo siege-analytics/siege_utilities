@@ -302,34 +302,53 @@ class MapChartMixin:
 
         Returns:
             GeoDataFrame with bivariate_color column added
+
+        Raises:
+            ValueError: If ties leave either variable with fewer than 2
+                quantile classes, so its colour range cannot be shown.
+
+        Ties may leave fewer than 3 quantile classes for a variable. Its
+        actual classes are then spread from the low to the high end of the
+        3x3 matrix, matching ``geo.choropleth.create_bivariate_choropleth``.
         """
         gdf = gdf.copy()
 
         # Remove NaN values for classification
         valid_mask = gdf[var1_col].notna() & gdf[var2_col].notna()
 
+        # Gray for rows without both values
+        gdf['bivariate_color'] = '#cccccc'
         if not valid_mask.any():
-            gdf['bivariate_color'] = '#cccccc'  # Gray for no data
             return gdf
 
-        # Classify variables into 3 quantile-based bins each
-        var1_bins = pd.qcut(gdf.loc[valid_mask, var1_col], 3, labels=[0, 1, 2], duplicates='drop')
-        var2_bins = pd.qcut(gdf.loc[valid_mask, var2_col], 3, labels=[0, 1, 2], duplicates='drop')
+        var1_levels = self._bivariate_matrix_levels(gdf.loc[valid_mask, var1_col], var1_col)
+        var2_levels = self._bivariate_matrix_levels(gdf.loc[valid_mask, var2_col], var2_col)
 
-        # Initialize color column
-        gdf['bivariate_color'] = '#cccccc'  # Default gray for NaN/invalid
-
-        # Assign colors based on bivariate classification
-        for i, (idx, row) in enumerate(gdf[valid_mask].iterrows()):
-            try:
-                bin1 = int(var1_bins.iloc[i]) if pd.notna(var1_bins.iloc[i]) else 1
-                bin2 = int(var2_bins.iloc[i]) if pd.notna(var2_bins.iloc[i]) else 1
-                color = color_matrix[bin2, bin1]  # Note: row=var2, col=var1
-                gdf.loc[idx, 'bivariate_color'] = color
-            except (ValueError, IndexError):
-                gdf.loc[idx, 'bivariate_color'] = '#cccccc'
+        # Row = var2, column = var1
+        gdf.loc[valid_mask, 'bivariate_color'] = color_matrix[var2_levels, var1_levels]
 
         return gdf
+
+    @staticmethod
+    def _bivariate_matrix_levels(values: 'pd.Series', column: str) -> 'np.ndarray':
+        """Map quantile classes after ties onto the 3 matrix levels, low to high.
+
+        ``values`` must be NaN-free: ``pd.qcut`` gives NaN codes for NaN
+        inputs, and the integer cast below cannot represent them.
+        ``_apply_bivariate_colors`` passes only rows where both variables
+        are present.
+        """
+        codes, edges = pd.qcut(values, 3, labels=False, duplicates='drop', retbins=True)
+        class_count = len(edges) - 1
+        if class_count < 2:
+            raise ValueError(
+                f"Cannot render bivariate quantiles for '{column}': ties leave "
+                f"{max(class_count, 0)} of 3 requested classes, and each variable "
+                "needs at least 2 classes to preserve the color range. Use more "
+                "distinct values or a univariate map."
+            )
+        levels = np.rint(np.linspace(0, 2, class_count)).astype(int)
+        return levels[codes.to_numpy(dtype=int)]
 
     def _add_bivariate_legend(self, ax, var1: str, var2: str, color_matrix: 'np.ndarray'):
         """
