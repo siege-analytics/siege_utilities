@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from siege_utilities.geo.codification_recency import (
+    TIGER_VINTAGES,
     AddressVintage,
     DictAddressVintageProvider,
     compute_recency,
@@ -26,7 +27,7 @@ class TestAddressVintage:
         assert not v.is_new_construction
 
     def test_is_new_construction(self):
-        v = _av(first_vintage=2024, present_in=[2020, 2022, 2024])
+        v = _av(first_vintage=2024, present_in=[2024])
         assert v.is_new_construction
 
     def test_not_new_construction(self):
@@ -57,7 +58,7 @@ class TestComputeRecency:
         assert r.total_analyzed == 10
         assert r.vintage_distribution == {2020: 10}
         assert r.vintage_pct[2020] == pytest.approx(1.0)
-        assert r.new_construction_count == 10
+        assert r.new_construction_count == 0
         assert r.median_vintage == 2020
 
     def test_mixed_vintages(self):
@@ -65,14 +66,14 @@ class TestComputeRecency:
             _av(first_vintage=2016),
             _av(first_vintage=2016),
             _av(first_vintage=2018),
-            _av(first_vintage=2020),
-            _av(first_vintage=2020),
+            _av(first_vintage=2024, present_in=[2024]),
+            _av(first_vintage=2024, present_in=[2024]),
         ]
         r = compute_recency(vintages)
         assert r.total_analyzed == 5
         assert r.vintage_distribution[2016] == 2
         assert r.vintage_distribution[2018] == 1
-        assert r.vintage_distribution[2020] == 2
+        assert r.vintage_distribution[2024] == 2
         assert r.new_construction_count == 2
         assert r.new_construction_pct == pytest.approx(0.4)
 
@@ -84,7 +85,7 @@ class TestComputeRecency:
     def test_median_even(self):
         vintages = [_av(first_vintage=y) for y in [2010, 2016, 2020, 2022]]
         r = compute_recency(vintages)
-        assert r.median_vintage == 2018
+        assert r.median_vintage == 2016
 
     def test_skips_none_vintage(self):
         vintages = [_av(first_vintage=2020), AddressVintage(input_id="1")]
@@ -124,14 +125,15 @@ class TestComputeRecencyErrorPaths:
         assert r.median_vintage is None
 
     def test_single_vintage_edge_case(self):
-        """Single vintage: median is itself, new_construction_pct is 1.0."""
-        vintages = [_av(first_vintage=2022, present_in=[2022])]
+        """A single address first appearing in the latest vintage is new."""
+        latest = TIGER_VINTAGES[-1]
+        vintages = [_av(first_vintage=latest, present_in=[latest])]
         r = compute_recency(vintages)
         assert r.total_analyzed == 1
-        assert r.median_vintage == 2022
+        assert r.median_vintage == latest
         assert r.new_construction_count == 1
         assert r.new_construction_pct == pytest.approx(1.0)
-        assert r.vintage_pct[2022] == pytest.approx(1.0)
+        assert r.vintage_pct[latest] == pytest.approx(1.0)
 
 
 class TestAddressVintageEdgeCases:
@@ -141,7 +143,7 @@ class TestAddressVintageEdgeCases:
         """No validation — negative vintage is stored as-is."""
         v = AddressVintage(input_id="0", first_vintage=-1, present_in=[-1])
         assert v.first_vintage == -1
-        assert v.is_new_construction is True
+        assert v.is_new_construction is False
 
     def test_negative_vintage_in_compute_recency(self):
         """Negative vintages flow through compute_recency without error."""
@@ -152,7 +154,7 @@ class TestAddressVintageEdgeCases:
         r = compute_recency(vintages)
         assert r.total_analyzed == 2
         assert -1 in r.vintage_distribution
-        assert r.new_construction_count == 1  # 2020 is the most recent
+        assert r.new_construction_count == 0
 
     def test_empty_present_in_not_new_construction(self):
         v = AddressVintage(input_id="0", first_vintage=2020, present_in=[])
@@ -179,3 +181,37 @@ class TestDictAddressVintageProviderMissing:
         provider.add(_av(input_id="A"))
         result = provider.get_vintages([])
         assert result == []
+
+
+class TestRecencyMetricsRegression1492:
+    @pytest.mark.parametrize("present_in", [[2010], TIGER_VINTAGES])
+    def test_all_2010_area_has_no_new_construction(self, present_in):
+        vintages = [
+            AddressVintage(str(i), first_vintage=2010, present_in=present_in)
+            for i in range(5)
+        ]
+
+        result = compute_recency(vintages)
+
+        assert result.new_construction_pct == 0.0
+        assert result.new_construction_count == 0
+        assert result.total_analyzed == 5
+
+    def test_address_new_construction_uses_latest_tiger_vintage(self):
+        old = AddressVintage("x", first_vintage=2010, present_in=[2010])
+        latest = TIGER_VINTAGES[-1]
+        new = AddressVintage("new", first_vintage=latest, present_in=[latest])
+
+        assert old.is_new_construction is False
+        assert new.is_new_construction is True
+        result = compute_recency([old, new])
+        assert result.new_construction_count == 1
+        assert result.new_construction_pct == 0.5
+
+    def test_even_median_is_lower_observed_vintage(self):
+        vintages = [
+            AddressVintage(str(year), first_vintage=year, present_in=[year])
+            for year in [2010, 2012]
+        ]
+
+        assert compute_recency(vintages).median_vintage == 2010
