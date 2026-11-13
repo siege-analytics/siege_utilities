@@ -119,10 +119,14 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install system geospatial libraries
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends \
-          gdal-bin libgdal-dev libgeos-dev libproj-dev
+      # Cached .deb archives, a fallback mirror on retry and a 45-minute budget
+      # for the final download (#1871); a 38-minute install on develop exited 0.
+      # The step timeout sits above the script's own bounded worst case (about
+      # 73 minutes), so the script reports first and the 6-hour default never applies.
+      timeout-minutes: 80
+      uses: ./.github/actions/apt-install
+      with:
+        packages: gdal-bin libgdal-dev libgeos-dev libproj-dev
 
     - name: Install UV
       run: |
@@ -227,10 +231,14 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Install system geospatial libraries
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends \
-          gdal-bin libgdal-dev libgeos-dev libproj-dev
+      # Cached .deb archives, a fallback mirror on retry and a 45-minute budget
+      # for the final download (#1871); a 38-minute install on develop exited 0.
+      # The step timeout sits above the script's own bounded worst case (about
+      # 73 minutes), so the script reports first and the 6-hour default never applies.
+      timeout-minutes: 80
+      uses: ./.github/actions/apt-install
+      with:
+        packages: gdal-bin libgdal-dev libgeos-dev libproj-dev
 
     - name: Set up Java 17
       uses: actions/setup-java@v4
@@ -343,10 +351,18 @@ jobs:
         python-version: "3.11"
 
     - name: Install system geospatial libraries
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends \
-          gdal-bin libgdal-dev libgeos-dev libproj-dev
+      # Cached .deb archives, a fallback mirror on retry and a bounded final
+      # download (#1871). Sized to this job's 20 minutes: the shorter limits
+      # bound the script at 851 s, under the 15-minute step, which leaves 5
+      # minutes for the other steps (they have taken at most 181 s), so a slow
+      # mirror fails this step cleanly instead of cancelling the job.
+      timeout-minutes: 15
+      uses: ./.github/actions/apt-install
+      with:
+        packages: gdal-bin libgdal-dev libgeos-dev libproj-dev
+        attempt-timeout: "60"
+        final-network-timeout: "240"
+        dpkg-timeout: "60"
 
     - name: Install UV
       run: |
@@ -618,10 +634,14 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Install system geospatial libraries
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends \
-          gdal-bin libgdal-dev libgeos-dev libproj-dev
+      # Cached .deb archives, a fallback mirror on retry and a 45-minute budget
+      # for the final download (#1871); a 38-minute install on develop exited 0.
+      # The step timeout sits above the script's own bounded worst case (about
+      # 73 minutes), so the script reports first and the 6-hour default never applies.
+      timeout-minutes: 80
+      uses: ./.github/actions/apt-install
+      with:
+        packages: gdal-bin libgdal-dev libgeos-dev libproj-dev
 
     - name: Set up Python 3.11
       uses: actions/setup-python@v5
@@ -703,10 +723,14 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Install system geospatial libraries
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends \
-          gdal-bin libgdal-dev libgeos-dev libproj-dev
+      # Cached .deb archives, a fallback mirror on retry and a 45-minute budget
+      # for the final download (#1871); a 38-minute install on develop exited 0.
+      # The step timeout sits above the script's own bounded worst case (about
+      # 73 minutes), so the script reports first and the 6-hour default never applies.
+      timeout-minutes: 80
+      uses: ./.github/actions/apt-install
+      with:
+        packages: gdal-bin libgdal-dev libgeos-dev libproj-dev
 
     - name: Set up Java 17
       uses: actions/setup-java@v4

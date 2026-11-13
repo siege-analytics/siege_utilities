@@ -89,7 +89,7 @@ and no history is rewritten.
 |---|---|---|---|---|---|
 | `v3.19.0` | `75c8125f` | No | Yes | 3.19.0, uploaded 2026-06-20 | Keep as is. `75c8125f` ("fix version to 3.19.0 for tag backfill", 2026-06-19) changes only version strings in 5 files, on top of `13a2653f`, which is on `main` (2026-05-28). The 3.19.0 code is `main`@`13a2653f`. |
 | `v3.21.0` | `7764b35d` | Yes | No | Never uploaded | Keep as is. 3.21.0 was not published to PyPI and will not be; a wheel exists only on Nexus (#1419, #1401). Its changes reached PyPI in 3.22.0. |
-| `v4.0.0` | `9c3463b1` | Yes | Yes | 4.0.0, uploaded 2026-10-11 by hand, before CI, without attestations | Keep as is (the file cannot be replaced). The wheel matches the tag but also ships a top-level `spikes` package and lacks the SQL/YAML data files (#1420). 4.1.0 is the first release through this workflow. |
+| `v4.0.0` | `9c3463b1` | Yes | Yes | 4.0.0, uploaded 2026-10-11 by hand, before CI, without attestations | Keep as is (the file cannot be replaced). The wheel matches the tag but also ships a top-level `spikes` package and lacks the SQL/YAML data files (#1420). 5.0.0 is the first release through this workflow. |
 
 3.24.0 was never tagged and never uploaded to PyPI; a 3.24.0 wheel exists on
 Nexus (#1401). Nexus publishing is tracked in #1401, not here.

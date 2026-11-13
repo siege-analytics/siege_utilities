@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   zeros. The parser docstring now describes all preserved source columns
   plus these flags (#1507).
 
-## [4.1.0] - 2026-10-18
+## [5.0.0]
 
 ### Changed
 
@@ -118,6 +118,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Package introspection (`analyze_package_structure`, `analyze_module` and
+  `generate_architecture_diagram`) now recurses only into `siege_utilities`
+  submodules, chosen by module name instead of a file-path substring, and
+  classifies module attributes and class members without evaluating lazy
+  objects. Module attributes of the top-level package are still analyzed as
+  before. Previously, a virtualenv whose
+  path contained `siege_utilities` (as on CI runners) made it walk every
+  installed package, and an `isinstance` check set up Django's lazy
+  `staticfiles_storage`, raising `ImproperlyConfigured` when `STATIC_URL` is
+  unset. Output for package modules is unchanged (#1882).
+- Instagram and X retry rate limits within the configured attempt budget and
+  honor `Retry-After` up to `max_retry_wait` (900 seconds by default). Larger
+  hints raise `SocialMediaRateLimitError` without sleeping and retain the hint
+  in `retry_after`; configured backoff uses the same cap. `max_retry_wait` also
+  bounds the total sleep across one request's retries: a wait that would push
+  the total past it is not taken, so a rate limit raises
+  `SocialMediaRateLimitError` and a transport or 5xx failure stops retrying and
+  reports the attempts made. This covers HTTP dates and X reset epochs. An
+  HTTP date without a zone is read as UTC, and a date already past falls back
+  to the configured backoff instead of retrying at once.
+  Instagram documents the roughly 60-day token lifetime and offers token
+  exchange with stored expiry and a fresh-login path for expired tokens
+  (#1458).
+- Graph insight defaults use supported metrics: daily Instagram account
+  insights use `reach` and `follower_count`; media use `views` and
+  `total_interactions`; stories use `navigation` and accept caller overrides.
+  Media insights read `total_value`. Facebook Page
+  Insights pass metrics as a comma-separated `metric` parameter and use
+  `page_media_view`, `page_follows` and `page_post_engagements` in place of
+  retired impression, fan and engaged-user defaults. These replacements count
+  views, followers and interactions, respectively. A Page Insights response
+  with an insight that has no metric name raises `ValueError` instead of
+  silently dropping its values (#1474).
 - Instagram account insights now use UTC request boundaries regardless of
   the host timezone and label daily metrics with the day covered, one day
   before the end-of-period marker. X account snapshots use the UTC date.
@@ -355,9 +388,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   raises. Vista Social account/profile lists document their first-page limit
   and expose `has_more` (including unknown completeness) and pagination
   metadata on a list-compatible result (#1439).
+- CI installs the GDAL/PostGIS system packages through a local
+  `.github/actions/apt-install` action, so a slow or stalled Ubuntu mirror no
+  longer cancels a required job or dequeues the merge queue (#1871):
+  - The downloaded `.deb` archives are cached with `actions/cache`, keyed on
+    the runner image and the package list, so most runs download nothing.
+  - apt drops a connection that sends no data for 30 seconds and retries it.
+  - The first attempt stops downloading from the primary mirror after two
+    minutes. Before the retry, `dpkg --configure -a` repairs any interrupted
+    install and apt switches from `azure.archive.ubuntu.com` to
+    `archive.ubuntu.com`.
+  - The final attempt gives downloads a 45-minute budget, above the slowest
+    install seen to finish (38 minutes on `develop`), so a slow but live
+    download completes and a trickle cannot hold the runner. The install from
+    the downloaded files stays bounded.
+  - Every install step has a step timeout above the script's own bounded
+    worst case: 80 minutes where the job has no timeout, and 15 minutes in
+    `test-postgis`, whose install uses shorter limits (worst case 851 seconds)
+    so a slow mirror fails the step and leaves 5 minutes of the 20-minute job
+    instead of cancelling it. Job timeouts are unchanged.
 
 ### BREAKING
 
+- Instagram and X return missing account, post and insight metrics as `None`
+  instead of `0`; in v4.0.0 an omitted follower, like, comment or impression
+  count, and an Instagram media or story insight without a value, became 0.
+  Instagram media insights read `total_value` and keep a missing value as
+  `None`, and Facebook Page Insights keep a missing daily value as `None`
+  instead of `0` (#1474). Post frames keep their existing columns, add a `metrics`
+  dictionary and return `published_at` as a UTC-aware timestamp (NaT if
+  unavailable) instead of the API's string, with a stable schema for empty
+  results. When a later page stays throttled, the posts collected so far are
+  returned with a warning instead of raising `SocialMediaRateLimitError`.
+  Instagram classifies Graph error codes before usage telemetry, so code 190
+  raises `SocialMediaAuthError` instead of being treated as a rate limit when
+  usage was high, and subcode 463 records expiry on first pages, later pages
+  and exchanges of the current token; a supplied token that has already
+  expired raises `SocialMediaAuthError` before any request (#1458).
+  **Migration:** treat `None` as unavailable and fill zeros only where zero is
+  meant; compare `published_at` with timezone-aware datetimes; check for the
+  throttling warning, or the number of posts returned, where completeness
+  matters; catch `SocialMediaAuthError` for expired or rejected tokens.
+- X validates user ID lookups during authentication, so `authenticate()`
+  raises for an unknown user ID. Non-public and organic insight fields are
+  requested only with the `user_context=True` opt-in for OAuth user tokens; in
+  v4.0.0 the post-insights request always asked for them. A zero post limit returns an empty
+  frame without requests; in v4.0.0 `limit=0` meant no limit. Requests ask for
+  at least five tweets per page while honoring smaller result limits, and
+  public, non-public and organic insights combine with that precedence.
+  Request path identifiers are validated before percent-encoding: user/post
+  IDs accept 1 to 19 ASCII digits and usernames accept 1 to 15 ASCII letters,
+  digits or underscores. Invalid values raise `ValueError` before requests
+  (#1465). X checks `budget_limit` before every attempt, including retries:
+  once the estimated cost has reached the limit, a retry after a 5xx or 429 is
+  not sent and `SocialMediaError` ("API budget limit reached") is raised. In
+  v4.0.0 the cap was checked once per request, so a 5xx retry could still be
+  sent past the cap and succeed. A 429, which v4.0.0 never retried and raised
+  as `SocialMediaRateLimitError`, now raises the budget error when the cap is
+  reached before the retry. A transport failure adds no estimated cost, so
+  its retry is still allowed within the cap (#1835). **Migration:** pass
+  `user_context=True` with an OAuth user token to keep non-public and organic
+  metrics; pass `limit=None` for no limit; check user IDs and usernames before
+  calling; raise `budget_limit` or call `reset_cost_tracking()` where a retry
+  must be allowed to exceed the previous cap, and catch `SocialMediaError` for
+  the budget stop.
+- Social reports render missing platform metrics as `unavailable` instead of
+  0. Totals sum known values and remain unknown when none are available.
+  Comparisons, post rankings and chart data keep null values instead of
+  replacing them with zero. Known integer counts still render as integers
+  (`7`, not `7.0`) when other values in the same column are missing. The
+  "largest audience" insight needs at least two known follower counts, and
+  when some are unknown it names the largest among those with a known count.
+  The X connector-to-report fixture covers an empty `public_metrics` object
+  (#1812). **Migration:** code that reads report chart, comparison or ranking
+  data must handle `None` for unavailable metrics.
+- Census dual-source retrieval falls back to bulk Summary Files on HTTP 5xx,
+  HTTP 408, connection/DNS failures and timeouts via the new
+  `CensusServerError`, while other 4xx errors still propagate. Permanent
+  client errors (4xx other than 408 and 429) now raise `CensusAPIError` after
+  one request instead of five with backoff.
+  `CensusAPI` owns retries for `ApiSource`; retries no longer multiply, and no
+  delay follows the final attempt. Sustained 429s now accumulate at most 240
+  seconds of retry sleeps before bulk fallback with `degraded=True`, down from
+  900 seconds (#1404).
+  **Migration:** code that caught `CensusAPIError` for a Census API outage or
+  a 408 now receives bulk Summary File results instead; check `degraded` on
+  the result to tell them apart. Code that relied on a permanent 4xx being
+  retried must fix the request or retry around the call itself. With
+  `ApiSource`, `max_api_attempts` no longer multiplies `CensusAPI`'s own
+  retries, so expect fewer source-level attempts, shorter waits, and fallback
+  provenance that counts one API call and one bulk call.
 - RDH enacted-plan selection maps SLDU to state senate and SLDL to state
   house, and matches chamber keywords on token boundaries so titles such as
   `household` and `houses` no longer match. `get_enacted_plans` and
@@ -722,6 +842,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Instagram token exchange errors omit response bodies and transport exception
+  text. Malformed responses use fixed diagnostics; transport retries report
+  the exception class and attempt number. Dummy sentinel coverage checks error
+  strings, repr and logged tracebacks. The credential URL guard now states that
+  exchanges carry `client_secret` and `fb_exchange_token` in query parameters
+  even though the bearer header is removed. While the exchange runs, URL
+  secrets are redacted from `urllib3.connectionpool` log records, which at
+  DEBUG level include each request's full path and query string. Proxies,
+  load balancers and CDNs in front of graph.facebook.com still see the full
+  URL and must redact `/oauth/access_token` query strings themselves (#1812).
 - Credential files are written with mode 0600 before writing their payload,
   including existing files, with no write-then-chmod race. Missing parent
   directories are created with mode 0700. Profile defaults use per-user paths;
@@ -759,7 +889,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Escape report data in Paragraph text, Folium popup HTML, and IDML XML.
   Closes stored XSS in saved Folium maps and fixes report/IDML crashes on
   `& < > "` while preserving intentional markup. (#1565)
-- For the planned 4.1.0 release, SSL failures now raise instead of silently
+- For the planned 5.0.0 release, SSL failures now raise instead of silently
   retrying with `verify=False`. The optional `download_file` parameter
   `allow_insecure_fallback=False` is allowlisted in the API contract gate as
   a backward-compatible addition. Verified downloads honor `REQUESTS_CA_BUNDLE`,
