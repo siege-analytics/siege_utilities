@@ -913,6 +913,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   key the rows by `result.context['served_year']` (or the frame's
   `census_year` column), never by the requested year. Do not write one
   vintage's data under another vintage's year (#1482).
+- Survey inference uses separate effective sample sizes and unweighted
+  respondent counts while retaining weighted display bases. Proportion tests
+  skip longitudinal deltas, top-N shares keep the full denominator, and
+  MEAN_SCALE uses weighted means and standard errors, so published
+  significance flags, shares, means and confidence intervals can change for
+  the same data. `build_chain` now raises `CrosstabInputError` for negative or
+  non-finite weights. `column_proportion_test` now raises `SignificanceError`
+  on builder-produced metric-sum tables (a non-unit `metric`), not only on
+  manually constructed Views, and chi-square rejects metric-sum tables.
+  MEAN_SCALE `ci` is now `None` (was `0.0`) when the effective n is 1 or less,
+  and an effective n below 30 without SciPy raises `SignificanceError`.
+  **Migration:** re-run published survey crosstabs and compare their
+  significance flags and confidence intervals. Clean negative or non-finite
+  weights before calling `build_chain`. Manually constructed Views must
+  provide `effective_n` for proportion tests and `respondent_count` for
+  chi-square. Do not run proportion or chi-square tests on metric-sum tables.
+  Treat `ci=None` as "not estimable", not zero width, and install SciPy for
+  small-sample Student's t intervals (#1478).
 - A `state_fips` request for a national-only layer that has no state FIPS
   column (`cbsa`, `csa`, `metdiv`, `micro`, `necta`, `nectadiv`, `cnecta`,
   `aiannh` and similar) now fails with `STATE_FILTER_UNAVAILABLE`
