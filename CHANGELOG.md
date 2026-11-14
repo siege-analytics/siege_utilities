@@ -922,6 +922,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `populate_boundaries --type cbsa --state ...`. `county_fips` now filters
   and must be a 3-digit code with `state_fips`; a layer without a `countyfp`
   column fails with `COUNTY_FILTER_UNAVAILABLE` (#1482).
+- Git branch operations and workflows reject refs that v4.0.0 accepted:
+  option-like refs, reserved revision aliases, bare filenames and bare worktree
+  path collisions are refused before git runs, a bare dotted name
+  such as `v1.2` or `hotfix-1.2.3` now raises, and a name equal to a top-level
+  file or directory in `repo_path` now raises, for remotes as well as branches.
+  Every base, target and generated branch name is validated, ref arguments are
+  passed after explicit option/path boundaries, and Git 2.23 or newer is
+  required because the helpers use `git switch`. `switch_branch` resolves exact
+  local and remote-tracking refs instead of substring matching, preventing
+  accidental path restoration. `push_branch`/`pull_branch` keep their
+  historical behaviour for a falsy `branch_name` (`None` or `""` pushes or
+  pulls the current branch); only a non-empty name is validated and used as an
+  exact `refs/heads/<name>`. **Migration:** upgrade Git to 2.23 or newer on any
+  host that runs these helpers; rename refs, branches and worktree paths that
+  are now rejected (for a dotted name use a slash namespace such as
+  `release/1.2`; avoid names that equal a file or directory in `repo_path`);
+  and pass an exact local branch or remote-tracking ref name to
+  `switch_branch`, because a partial or substring name no longer matches
+  (#1543).
 - `address_features`, `linear_water`, `area_water`, `roads` and `edges` are
   removed from `BOUNDARY_TYPE_CATALOG`, and `construct_download_url` raises
   `BoundaryConfigurationError` for them. Census publishes these only per
