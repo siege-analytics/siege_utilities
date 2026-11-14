@@ -134,6 +134,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   if a member would create such a directory. New components containing a lone surrogate, which is
   how undecodable (non-UTF-8) bytes reach Python, are refused as well. The
   check is public as `reject_unsafe_new_directory_names` (#1716).
+- `ReportGenerator.add_text_section` and `ReportGenerator.add_map_section`
+  accept `page_break_before` and `page_break_after` (both default `False`),
+  passed through to `add_section`, so a text or map section can start on a
+  new page or end its page. Calls without them behave as before (#1927).
 
 ### Fixed
 
@@ -196,6 +200,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   discarding content. `ContentPageTemplate.add_bullet_list` now renders each
   item as a wrapped, paginating flowable rather than a fixed-height canvas line
   that dropped items past the page bottom (#1485).
+- In the shipped example
+  `siege_utilities/reporting/examples/comprehensive_mapping_example.py`,
+  `create_comprehensive_pdf_report` and `create_comprehensive_powerpoint` now
+  run: they pass the client name that `ReportGenerator` and
+  `PowerPointGenerator` require, the page breaks they request work, and the
+  PowerPoint comparison slide passes its columns as text. Both had failed on
+  their first call since the example was added. The example's
+  `demonstrate_comprehensive_mapping` step, and so `main()`, still fails
+  because it passes no boundary data to the map functions, tracked in #1931
+  (#1927).
 - Instagram account insights now use UTC request boundaries regardless of
   the host timezone and label daily metrics with the day covered, one day
   before the end-of-period marker. X account snapshots use the UTC date.

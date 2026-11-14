@@ -355,21 +355,27 @@ class ReportGenerator:
 
     def add_text_section(self, report_content: Dict[str, Any], title: str,
                          text_content: str, level: int = 1,
-                         text_style: str = "body") -> Dict[str, Any]:
+                         text_style: str = "body",
+                         page_break_before: bool = False,
+                         page_break_after: bool = False) -> Dict[str, Any]:
         """
         Add a text section to the report.
-        
+
         Args:
             report_content: Existing report content
             title: Section title
             text_content: Text content
             level: Section level
             text_style: Text styling
-            
+            page_break_before: Start the section on a new page
+            page_break_after: Start the next section on a new page
+
         Returns:
             Updated report content
         """
-        return self.add_section(report_content, 'text', title, text_content, level)
+        return self.add_section(report_content, 'text', title, text_content, level,
+                                page_break_before=page_break_before,
+                                page_break_after=page_break_after)
 
     def add_chart_section(self, report_content: Dict[str, Any], title: str,
                           charts: List[ImageType], description: str = "",
@@ -398,10 +404,12 @@ class ReportGenerator:
 
     def add_map_section(self, report_content: Dict[str, Any], title: str,
                         maps: List[ImageType], map_type: str = "choropleth",
-                        description: str = "", level: int = 1) -> Dict[str, Any]:
+                        description: str = "", level: int = 1,
+                        page_break_before: bool = False,
+                        page_break_after: bool = False) -> Dict[str, Any]:
         """
         Add a map section to the report.
-        
+
         Args:
             report_content: Existing report content
             title: Section title
@@ -409,7 +417,9 @@ class ReportGenerator:
             map_type: Type of maps
             description: Section description
             level: Section level
-            
+            page_break_before: Start the section on a new page
+            page_break_after: Start the next section on a new page
+
         Returns:
             Updated report content
         """
@@ -419,7 +429,9 @@ class ReportGenerator:
             'description': description
         }
 
-        return self.add_section(report_content, 'maps', title, content, level)
+        return self.add_section(report_content, 'maps', title, content, level,
+                                page_break_before=page_break_before,
+                                page_break_after=page_break_after)
 
     def add_appendix(self, report_content: Dict[str, Any], title: str,
                      content: Any, appendix_type: str = "data",
