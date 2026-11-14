@@ -234,6 +234,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `demonstrate_comprehensive_mapping` step, and so `main()`, still fails
   because it passes no boundary data to the map functions, tracked in #1931
   (#1927).
+- `DatabaseConnection` validates settings by database type so the shipped
+  PostgreSQL and DuckDB defaults load through Hydra. Accept IPv6 hosts and
+  file database paths, and allow file connections without server credentials.
+  A rejected assignment raises `ValidationError` and leaves the connection
+  unchanged. The stored-password policy change is listed under BREAKING
+  (#1490).
 - Instagram account insights now use UTC request boundaries regardless of
   the host timezone and label daily metrics with the day covered, one day
   before the end-of-period marker. X account snapshots use the UTC date.
@@ -698,6 +704,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `add_table_section`. An explicit `title_page` section replaces the
   automatic title page, and a report with no `title` in its content or
   metadata gets none.
+- `DatabaseConnection` no longer enforces a password-strength or length
+  policy. Server connections still require a non-empty password, and stored
+  passwords load as given. In 4.0.0 the model required at least 8
+  characters, an uppercase letter, a lowercase letter and a digit, and
+  rejected common passwords, on construction and on assignment
+  (`validate_assignment=True`); such a password now loads without
+  `ValidationError`. **Migration:** callers that relied on
+  `DatabaseConnection` to enforce password strength must validate passwords
+  themselves before constructing it (#1490).
 
 - CRM transport and server-error retries are limited to GET, PUT and DELETE.
   POST and PATCH requests are sent once, avoiding duplicate creates after a
