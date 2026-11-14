@@ -47,14 +47,25 @@ def test_comprehensive_powerpoint_runs(maps_dict, tmp_path, monkeypatch):
 
     assert output.is_file()
     assert output.stat().st_size > 0
+    slides = list(pptx.Presentation(str(output)).slides)
     deck_text = "\n".join(
         shape.text_frame.text
-        for slide in pptx.Presentation(str(output)).slides
+        for slide in slides
         for shape in slide.shapes if shape.has_text_frame
     )
     # The comparison slide shows both column headings and their items.
     for expected in ("Static Maps", "Interactive Maps", "Choropleth", "Cluster Maps"):
         assert expected in deck_text
+
+    # Each map slide shows its map as a picture (#1933).
+    from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+    pictures_by_title = {
+        slide.shapes.title.text: sum(shape.shape_type == MSO_SHAPE_TYPE.PICTURE for shape in slide.shapes)
+        for slide in slides if slide.shapes.title is not None
+    }
+    for title in ("Regional Population vs Income", "City Population Distribution", "3D Elevation Visualization"):
+        assert pictures_by_title.get(title) == 1, title
 
 
 @pytest.fixture
