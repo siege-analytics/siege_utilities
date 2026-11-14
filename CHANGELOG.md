@@ -146,6 +146,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `create_bivariate_choropleth`) no longer crash on tied data: they spread
   each variable's actual classes across the 3x3 palette and raise a clear
   error when a variable has fewer than two classes (#1462).
+- `PowerPointGenerator` map slides now show their description and the maps
+  given as image paths or as the library's own map images (the ReportLab
+  Images that the chart and map engines return, which map and chart slides
+  now embed from their PNG data). `add_map_slide` stores its images under
+  `maps`, but map slides were built by the chart builder, which reads
+  `charts`, so every map slide came out with only its title and nothing was
+  logged. A map slide now places one map full width, two side by side and
+  three or four in a grid, and puts maps beyond the fourth on a slide titled
+  "<title> (continued)". A map slide with no maps logs a warning. On map and chart
+  slides, an image path that does not exist, a ReportLab Image without
+  embedded image data, or a map or chart that is none of these nor a
+  described chart, still gets a labeled placeholder and now also logs a
+  warning naming it and the slide title. An image file or embedded image
+  that cannot be decoded raises an error naming the file, if any, and the
+  slide title: a decoding `OSError` such as PIL's `UnidentifiedImageError`
+  keeps its type, and a `ValueError` (invalid base64 or an unsupported
+  format) reaches the caller as `RuntimeError`, as slide-building errors
+  already did. An error opening the file is raised unchanged.
+  `create_comprehensive_presentation` documents that its table of contents
+  and agenda list only the `sections` passed to it, not slides added later,
+  and logs a warning when either is requested without sections. Chart slides
+  that drop their description or an under-filled layout, callers that build
+  empty contents and agenda slides, and image objects that point at a file
+  are tracked in #1934 (#1933).
 - The reporting map engine's Folium maps (`create_marker_map`,
   `create_heatmap_map`, `create_cluster_map` and `create_flow_map`) no longer
   raise when given a title, and `create_marker_map` no longer raises with its
