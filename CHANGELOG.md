@@ -323,6 +323,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `RDHLoaderService.load_cvap_for_plan` and the CSV path of
   `load_demographics_for_plan` report numeric GEOID columns and unmatched
   districts instead of skipping them silently.
+- Label the Spark notebook's Sedona SQL as schematic and document the required
+  donor and precinct views, geometry inputs, and runtime prerequisites. Clarify
+  that notebook execution checks imports, with cluster-free CI regression
+  coverage for the documented contract and import smoke test. Describe both
+  the Spark/Sedona and GeoDjango notebooks as schematic in the notebook guide;
+  the Spark/Sedona notebook executes only an import smoke cell, while the
+  GeoDjango spatial/06 notebook is markdown-only with no code cells (#1664).
 - `get_directory_info`, `load_directory_config`, `list_directory_configs`,
   `load_project_config` and `list_projects` create nothing, so they are back to
   their behaviour before #1692: a missing name containing a control character
