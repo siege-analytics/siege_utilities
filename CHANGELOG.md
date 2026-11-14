@@ -1436,6 +1436,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     success with 0 updated. Unmatched districts are counted in
     `records_skipped`, and a partial match adds a warning. Pass the CVAP
     level whose GEOIDs equal your plan's district GEOIDs.
+- Reporting legends and classification describe the data (#1535). Heatmap
+  legends show contiguous, closed bins covering the full data range, preserve
+  fractional edges with adaptive precision, and support a single bin in both
+  ReportLab tables and Matplotlib legends. Bivariate legends place the second
+  variable's High colors at the top, matching the map. Advanced choropleth
+  legends show the actual classification ranges with matching swatches,
+  including when duplicate bin edges are dropped. `create_advanced_choropleth`
+  with `classification="natural_breaks"` computes Fisher-Jenks breaks through
+  `siege_utilities.geo.classification.classify_series` instead of quantiles;
+  its legend ranges are upper-inclusive and end at each class's largest value
+  on both classifier backends, and constant data no longer breaks the legend.
+  Heatmap legends keep fractional edges when the step is 1 or more (0–7.5 in
+  five levels reads 0.0–1.5, …). `create_heatmap` no longer centres its
+  sequential `YlOrRd` colormap at 0.
+  Migration: legends, natural-breaks classes and heatmap colours change for the
+  same data; callers that relied on quantile classes should pass
+  `classification="quantiles"`, and images compared against v4.0.0 output need
+  new baselines.
 
 ### Security
 

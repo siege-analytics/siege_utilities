@@ -368,11 +368,11 @@ class MapChartMixin:
 
             # Convert hex color strings to RGBA array for imshow
             rgb_matrix = np.array([[to_rgba(c) for c in row] for row in color_matrix])
-            legend_ax.imshow(rgb_matrix, aspect='equal')
+            legend_ax.imshow(rgb_matrix, aspect='equal', origin='lower')
             legend_ax.set_xticks([0, 1, 2])
             legend_ax.set_yticks([0, 1, 2])
             legend_ax.set_xticklabels(['Low', 'Med', 'High'], fontsize=8)
-            legend_ax.set_yticklabels(['High', 'Med', 'Low'], fontsize=8)
+            legend_ax.set_yticklabels(['Low', 'Med', 'High'], fontsize=8)
             legend_ax.set_xlabel(var1, fontsize=9, fontweight='bold')
             legend_ax.set_ylabel(var2, fontsize=9, fontweight='bold')
             legend_ax.tick_params(length=0, labelsize=8)
@@ -433,14 +433,66 @@ class MapChartMixin:
 
             # Apply classification
             if classification == "quantiles":
-                merged[f'{value_column}_classified'] = pd.qcut(merged[value_column], bins, labels=False, duplicates='drop')
+                classified, bin_edges = pd.qcut(
+                    merged[value_column], bins, labels=False, duplicates='drop', retbins=True,
+                )
             elif classification == "equal_interval":
-                merged[f'{value_column}_classified'] = pd.cut(merged[value_column], bins, labels=False, duplicates='drop')
+                classified, bin_edges = pd.cut(
+                    merged[value_column], bins, labels=False, duplicates='drop', retbins=True,
+                )
             elif classification == "natural_breaks":
-                # Simple natural breaks using quantiles as approximation
-                merged[f'{value_column}_classified'] = pd.qcut(merged[value_column], bins, labels=False, duplicates='drop')
+                # Real Fisher-Jenks breaks (numpy, or mapclassify when installed).
+                # Class indices and edges come from one result so the polygons
+                # and the legend agree; NaN inputs (bin -1) stay unclassified.
+                from siege_utilities.geo.classification import classify_series
+
+                result = classify_series(merged[value_column], "natural_breaks", k=bins)
+                # The backends report interior breaks differently (mapclassify:
+                # each class's upper bound; numpy: the next class's lower
+                # bound), but each assigns classes consistently with its own
+                # breaks. Keep the backend's classes and show every range
+                # upper-inclusively, ending at its class's largest value, so a
+                # value on a boundary is in the range the legend shows it in.
+                values = merged[value_column].to_numpy(dtype=float)
+                valid = result.bins >= 0
+                class_count = len(result.breaks) - 1
+                uppers = [
+                    values[valid & (result.bins == i)].max()
+                    if (valid & (result.bins == i)).any() else result.breaks[i + 1]
+                    for i in range(class_count)
+                ]
+                bin_edges = np.asarray([np.nanmin(values)] + uppers, dtype=float)
+                classified = pd.Series(
+                    np.where(valid, result.bins, np.nan).astype(float), index=merged.index
+                )
             else:
-                merged[f'{value_column}_classified'] = pd.qcut(merged[value_column], bins, labels=False, duplicates='drop')
+                classified, bin_edges = pd.qcut(
+                    merged[value_column], bins, labels=False, duplicates='drop', retbins=True,
+                )
+            merged[f'{value_column}_classified'] = classified
+
+            # Use the same class-to-color mapping for the polygons and legend,
+            # including empty classes and edges dropped by pandas.
+            from matplotlib.colors import Normalize
+            from matplotlib.patches import Patch
+
+            class_count = len(bin_edges) - 1
+            cmap = plt.get_cmap(color_scheme)
+            norm = Normalize(vmin=0, vmax=max(class_count - 1, 1))
+            # Zero-width (constant data) and non-finite intervals carry no
+            # precision information; fall back to one decimal when none remain.
+            widths = np.diff(bin_edges)
+            positive_widths = widths[np.isfinite(widths) & (widths > 0)]
+            smallest_width = positive_widths.min() if positive_widths.size else 1.0
+            precision = max(1, int(np.ceil(-np.log10(smallest_width))))
+            legend_handles = [
+                Patch(
+                    facecolor=cmap(norm(i)),
+                    label=(f"{lower:,} – {upper:,}" if lower == upper
+                           else f"{lower:,.{precision}f} – {upper:,.{precision}f}"),
+                )
+                for i, (lower, upper) in enumerate(zip(bin_edges[:-1], bin_edges[1:]))
+            ]
 
             # Create figure with very conservative sizing to prevent ReportLab crashes
             fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
@@ -448,13 +500,14 @@ class MapChartMixin:
             # Create choropleth
             merged.plot(
                 column=f'{value_column}_classified',
-                cmap=color_scheme,
+                cmap=cmap,
+                norm=norm,
                 linewidth=0.5,
                 edgecolor='black',
                 ax=ax,
-                legend=True,
-                legend_kwds={'label': value_column, 'orientation': 'vertical'}
+                legend=False,
             )
+            ax.legend(handles=legend_handles, title=value_column)
 
             # Add title and remove axes
             ax.set_title(title or f"Choropleth Map: {value_column}")
