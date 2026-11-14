@@ -1222,6 +1222,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that relied on 0.0 should `.fillna(0)` explicitly. `first`/`last` still
   differ between the pandas-backed engines and Spark (documented) (#1454).
 
+- `Collaborator.access_expires`, `Collaboration.end_date`,
+  `Credential.expires_at`, and `OAuthIntegration.expires_at` accept past
+  datetimes, so persisted models can reload after expiry; constructing one with
+  a past value used to raise a validation error and no longer does. Expired
+  items still load as expired: `is_expired`, `is_token_expired`,
+  `needs_refresh`, `is_access_expired` and `Collaboration.is_active` report
+  them, and `Person.get_valid_credentials` and `get_valid_oauth_integrations`
+  exclude them. These checks now accept timezone-aware values such as
+  `2026-01-01T00:00:00Z` or any UTC offset and compare the instant, where
+  v4.0.0 raised `TypeError` (at construction, comparing an aware value with a
+  naive `datetime.now()`). Naive values keep their v4.0.0 meaning: local
+  wall-clock time. Stored values are not converted. **Migration:** code that
+  relied on that validation error to reject an already-expired value must check
+  the value itself, for example by calling the model's expiry or active-state
+  check after construction (#1496).
 - `DemographicSnapshot` and `DemographicTimeSeries` now use GEOID-native keys.
   The indexed `object_id` CharField is retained as the ORM/storage name and
   repurposed as GEOID-only; `geoid` is a read/write instance alias (also accepted
