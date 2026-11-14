@@ -18,11 +18,15 @@ Usage:
 """
 
 import logging
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 log = logging.getLogger(__name__)
 
+_VALUE_INPUT_OPTIONS = frozenset({"RAW", "USER_ENTERED"})
+
 try:
+    import numpy as np
     import pandas as pd
     _PANDAS_AVAILABLE = True
 except ImportError:
@@ -190,6 +194,12 @@ def read_dataframe(
         range_: A1 notation range (e.g. ``"Sheet1"`` or ``"Sheet1!A1:D100"``).
         has_header: If True, first row is used as column names.
 
+    Sheets omits trailing empty cells, so rows can be shorter than the
+    header or than each other. With ``has_header=True``, every row is
+    right-padded with ``""`` to the widest of the header and the data rows,
+    and header cells missing at the end are named ``column_<n>`` (``n`` is
+    the 1-based column position, made unique against existing names).
+
     Returns:
         pandas DataFrame.
     """
@@ -200,12 +210,28 @@ def read_dataframe(
     if not values:
         return pd.DataFrame()
 
-    if has_header and len(values) > 1:
-        return pd.DataFrame(values[1:], columns=values[0])
-    elif has_header:
-        return pd.DataFrame(columns=values[0])
-    else:
+    if not has_header:
         return pd.DataFrame(values)
+
+    header, rows = _pad_ragged(values[0], values[1:])
+    if rows:
+        return pd.DataFrame(rows, columns=header)
+    return pd.DataFrame(columns=header)
+
+
+def _pad_ragged(header: List[Any], rows: List[List[Any]]):
+    """Right-pad a header and rows that Sheets returned with trailing cells omitted."""
+    width = max([len(header)] + [len(row) for row in rows])
+    names = list(header)
+    taken = {str(name) for name in names}
+    for position in range(len(names) + 1, width + 1):
+        name = f"column_{position}"
+        while name in taken:
+            name = f"{name}_"
+        taken.add(name)
+        names.append(name)
+    padded = [list(row) + [""] * (width - len(row)) for row in rows]
+    return names, padded
 
 
 def get_spreadsheet_metadata(
@@ -243,6 +269,23 @@ def copy_spreadsheet(
     return client.copy_file(spreadsheet_id, title)
 
 
+def _serialize_dataframe_cell(value: Any) -> Any:
+    """Convert a DataFrame cell to a JSON-safe Sheets scalar."""
+    if pd.api.types.is_scalar(value) and pd.isna(value):
+        return ""
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, np.integer):
+        return int(value)
+    if isinstance(value, np.floating):
+        return float(value)
+    if isinstance(value, np.bool_):
+        return bool(value)
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
+
+
 def write_dataframe(
     client,
     spreadsheet_id: str,
@@ -250,8 +293,23 @@ def write_dataframe(
     sheet_name: str = "Sheet1",
     include_header: bool = True,
     start_cell: str = "A1",
+    value_input_option: str = "RAW",
 ) -> Dict[str, Any]:
-    """Write a pandas DataFrame to a sheet.
+    """Replace a sheet's values with a pandas DataFrame.
+
+    Clears all values in the target tab before writing, including cells
+    outside the new DataFrame's footprint and before ``start_cell``. This
+    removes stale rows and columns from larger previous writes. Formatting
+    and other tabs are unaffected. Clear and update are separate requests;
+    if the update fails after clearing, the tab's previous values are gone.
+
+    Values are written with ``RAW`` input by default, so strings keep
+    leading zeros and are never interpreted as formulas. Pass
+    ``value_input_option="USER_ENTERED"`` to have Sheets parse values as if
+    typed (numbers, dates, formulas). Dates and datetimes use ISO-8601,
+    numpy scalars become native Python scalars, missing values become empty
+    strings, and other objects are stringified. Use ``write_values`` for
+    partial updates.
 
     Args:
         client: Authenticated GoogleWorkspaceClient.
@@ -260,10 +318,21 @@ def write_dataframe(
         sheet_name: Tab name (default ``"Sheet1"``).
         include_header: Whether to include column names as first row.
         start_cell: Top-left cell (default ``"A1"``).
+        value_input_option: ``"RAW"`` (default) or ``"USER_ENTERED"``.
 
     Returns:
         The API response dict.
+
+    Raises:
+        ValueError: If ``value_input_option`` is not ``"RAW"`` or
+            ``"USER_ENTERED"``. Raised before any request, so the tab is
+            not cleared.
     """
+    if value_input_option not in _VALUE_INPUT_OPTIONS:
+        raise ValueError(
+            f"value_input_option must be one of {sorted(_VALUE_INPUT_OPTIONS)}, "
+            f"got {value_input_option!r}"
+        )
     if not _PANDAS_AVAILABLE:
         raise ImportError("pandas is required. Install with: pip install siege-utilities[data]")
 
@@ -271,14 +340,23 @@ def write_dataframe(
     if include_header:
         values.append([str(c) for c in df.columns.tolist()])
 
-    for _, row in df.iterrows():
-        values.append([
-            v if not _PANDAS_AVAILABLE or not pd.isna(v) else ""
-            for v in row.tolist()
-        ])
+    for row in df.itertuples(index=False, name=None):
+        values.append([_serialize_dataframe_cell(value) for value in row])
 
-    range_ = f"{sheet_name}!{start_cell}"
-    return write_values(client, spreadsheet_id, range_, values)
+    # Quote the tab to avoid resolving a cell reference or same-named range.
+    quoted_sheet = "'" + sheet_name.replace("'", "''") + "'"
+    (
+        client.sheets_service()
+        .spreadsheets()
+        .values()
+        .clear(spreadsheetId=spreadsheet_id, range=quoted_sheet, body={})
+        .execute()
+    )
+    log.info("Cleared values in %s tab %r", spreadsheet_id, sheet_name)
+    range_ = f"{quoted_sheet}!{start_cell}"
+    return write_values(
+        client, spreadsheet_id, range_, values, value_input_option=value_input_option
+    )
 
 
 def add_sheet(

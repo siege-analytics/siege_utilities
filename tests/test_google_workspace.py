@@ -161,6 +161,8 @@ class TestGoogleSheets:
          .update().execute.return_value) = {"updatedCells": 6}
         result = write_values(mock_client, "ss_123", "Sheet1!A1:B3", [["a", "b"], ["c", "d"]])
         assert result["updatedCells"] == 6
+        kwargs = mock_client._mock_sheets.spreadsheets().values().update.call_args.kwargs
+        assert kwargs["valueInputOption"] == "USER_ENTERED"
 
     def test_append_rows(self, mock_client):
         from siege_utilities.analytics.google_sheets import append_rows

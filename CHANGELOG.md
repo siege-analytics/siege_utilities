@@ -1436,6 +1436,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     success with 0 updated. Unmatched districts are counted in
     `records_skipped`, and a partial match adds a warning. Pass the CVAP
     level whose GEOIDs equal your plan's district GEOIDs.
+- `google_sheets.write_dataframe` now writes with `RAW` input by default,
+  preserving leading zeros and storing formula-like strings literally; pass
+  `value_input_option="USER_ENTERED"` to have Sheets parse values as typed.
+  Any other value raises `ValueError` before any request. Dates and datetimes
+  are serialized as ISO-8601 strings, numpy scalars become native Python
+  values without row-wise integer-to-float coercion, missing values become
+  empty strings, and other objects are stringified (#1432).
+  Migration: callers that relied on formulas or on Sheets parsing numbers
+  and dates pass `value_input_option="USER_ENTERED"`.
+- `google_sheets.write_dataframe` clears all values in the selected tab before
+  writing, including cells outside the new DataFrame footprint and before
+  `start_cell`, so smaller replacements leave no stale rows or columns.
+  Formatting and other tabs are unaffected. Clear and update are separate
+  requests; an update failure after clearing leaves the previous values
+  removed (#1432).
+  Migration: use `write_values` for partial updates or to share a tab with
+  other tables; its `USER_ENTERED` default is unchanged.
+- `google_sheets.read_dataframe` no longer raises `ValueError` on ragged
+  sheets: with `has_header=True`, rows are right-padded with `""` and missing
+  trailing header cells are named `column_<n>` (#1432).
+  Migration: callers that caught the `ValueError` to detect ragged sheets
+  should check for `column_<n>` names or `""` padding instead.
 
 ### Security
 
