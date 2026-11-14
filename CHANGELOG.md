@@ -1436,6 +1436,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     success with 0 updated. Unmatched districts are counted in
     `records_skipped`, and a partial match adds a warning. Pass the CVAP
     level whose GEOIDs equal your plan's district GEOIDs.
+- `CensusAPI` response processing maps all nine ACS jam sentinel values to NaN
+  in ACS detailed-table estimate/MOE columns, using the same sentinel sets as
+  the bulk source. Geography components (e.g. `zip code tabulation area`,
+  `congressional district`), `GEO_ID` and annotation variables (`..._EA`,
+  `..._MA`) keep their text and leading zeros. Every other variable column,
+  including decennial (`dataset='dec'`) and PEP (`dataset='pep'`) variables,
+  is still converted to numbers (#1403).
+  Migration: code that compared ACS values against jam codes such as
+  `-666666666` should test `isna()`; code that relied on numeric geography
+  components or annotations should cast them explicitly (e.g.
+  `df['zip code tabulation area'].astype(int)`).
 
 ### Security
 

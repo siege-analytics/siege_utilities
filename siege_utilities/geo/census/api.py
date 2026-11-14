@@ -8,6 +8,7 @@ retry logic, and DataFrame post-processing.
 import hashlib
 import logging
 import os
+import re
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -23,7 +24,7 @@ from siege_utilities.config import (
 )
 from siege_utilities.config.user_config import get_user_config
 from siege_utilities.core._http import redact_url_secrets
-from .variable_registry import VariableRegistry
+from .variable_registry import ACS_SENTINELS, ACS_SENTINEL_STRINGS, VariableRegistry
 from .dataset_selector import DatasetSelector
 
 from siege_utilities.files.operations import atomic_write_path
@@ -45,6 +46,29 @@ CENSUS_API_DEFAULT_TIMEOUT = 30  # seconds
 
 # Rate limit handling
 CENSUS_API_RATE_LIMIT_RETRY_DELAY = 60  # seconds
+
+# ACS detailed-table estimates and MOEs: the only columns carrying jam values.
+_ACS_ESTIMATE_OR_MOE = re.compile(r'[BC][0-9]{5}[A-Z]*_[0-9]{3}[EM]')
+# Annotation variables (estimate/MOE annotations, incl. profile percent ones).
+_ANNOTATION_VARIABLE = re.compile(r'.+_[0-9]{3,4}P?[EM]A')
+# Identifier columns that are uppercase like variables but are not data.
+_IDENTIFIER_COLUMNS = frozenset({'GEOID', 'NAME', 'GEO_ID', 'UCGID'})
+
+
+def _is_census_variable_column(col: Any) -> bool:
+    """True for Census data variables (uppercase codes such as ``P1_001N``).
+
+    The Census API returns requested variables under their uppercase codes and
+    geography components under lowercase names (``'state'``, ``'us'``,
+    ``'zip code tabulation area'``), so any column with a lowercase letter is a
+    geography component or other non-variable field.
+    """
+    name = str(col)
+    if name.upper() in _IDENTIFIER_COLUMNS:
+        return False
+    if name != name.upper():
+        return False
+    return _ANNOTATION_VARIABLE.fullmatch(name) is None
 
 
 class CensusAPI:
@@ -342,13 +366,26 @@ class CensusAPI:
 
     @staticmethod
     def _convert_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
+        """Convert Census variables to numbers, preserving identifiers and annotations.
+
+        Every variable column of every dataset (``B01001_001E``, ``P1_001N``,
+        ``POP_2020``) becomes numeric. Identifier columns (``GEOID``, ``NAME``,
+        ``GEO_ID``, ``ucgid``), geography components (the API names them in
+        lowercase, e.g. ``'zip code tabulation area'``) and annotation
+        variables (``..._001EA`` / ``..._001MA``) keep their text. ACS jam
+        values become NaN only in ACS detailed-table estimate/MOE columns;
+        values that are not numbers become NaN, as on v4.0.0.
+        """
         df = df.copy()
-        skip_cols = {'GEOID', 'NAME'}
         for col in df.columns:
-            if col in skip_cols:
+            if not _is_census_variable_column(col):
                 continue
             try:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+                raw = df[col]
+                if _ACS_ESTIMATE_OR_MOE.fullmatch(str(col)):
+                    is_sentinel = raw.isin(ACS_SENTINEL_STRINGS) | raw.isin(ACS_SENTINELS)
+                    raw = raw.where(~is_sentinel)
+                df[col] = pd.to_numeric(raw, errors='coerce')
             except (ValueError, TypeError) as exc:
                 log.warning(
                     "Could not convert column %s to numeric: %s",
