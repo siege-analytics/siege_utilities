@@ -1436,6 +1436,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     success with 0 updated. Unmatched districts are counted in
     `records_skipped`, and a partial match adds a warning. Pass the CVAP
     level whose GEOIDs equal your plan's district GEOIDs.
+- PL 94-171 parsing names geographic header fields from the 2020 schema, so
+  GEOIDs use STATE instead of DIVISION. H1 is read after P3/P4 in segment 2, as
+  specified by the Census technical documentation; segment 1 contains P1/P2 and
+  segment 3 contains P5. This restores housing columns and fixes P3/P4 requests
+  failing with a column-count mismatch. Malformed segment widths and segments
+  missing from the archive raise `ValueError`, repeated linking fields no longer
+  collide when merging all tables, and old parsed caches are bypassed. Parsing
+  2010 files raises `ValueError` explaining their fixed-width geographic headers
+  and comma-delimited data segments; raw archive downloads remain supported.
+  `get_data` downloads each state archive at most once per call, streamed to a
+  temporary file. `P1_009N`–`P1_011N` labels match the 2020 table (#1488).
+  Migration: GEOIDs from v4.0.0 PL results (e.g. `09037101110` for a California
+  tract) were wrong and should be regenerated; code that caught a `KeyError` or
+  merge failure for 2010, or relied on an empty frame for a missing segment,
+  should catch `ValueError`.
 
 ### Security
 
