@@ -187,7 +187,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Render analytics and comprehensive PDF report sections, including chart lists,
   insight and recommendation bullets, title-page details, a table of contents
   with page numbers, and appendix dividers. Normalize table record dictionaries
-  into column-aligned values. Reject unsupported section shapes
+  into column-aligned values; `add_table_section` raises `ValueError` when a
+  header is not a key of the records, or when a list whose first row is a
+  dictionary contains a row that is not. Reject unsupported section shapes
   and warn about empty content or missing chart images. Continue content-page
   paragraphs, tables and bullet lists across page breaks, repeating table
   headers and raising when a fragment cannot fit, instead of silently
@@ -641,7 +643,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a mapping, whose data is not a list of rows or a DataFrame, or whose headers
   are not a list or tuple; chart content that is not a list, tuple or mapping,
   map content that is not a mapping (including a bare list), or a mapping
-  whose `charts`/`maps` value is not a list or tuple; a `title_page` section
+  whose `charts`/`maps` value is not a list, tuple or `None`; a `title_page` section
   with content, non-string fields or no title; a `table_of_contents` section
   with content; an `appendix_header` section with content or without a
   title; and a chart or map description that is neither `None` nor a string.
