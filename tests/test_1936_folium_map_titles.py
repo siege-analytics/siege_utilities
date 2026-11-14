@@ -65,6 +65,55 @@ def test_folium_map_without_title_adds_no_title(tmp_path, kind):
     assert "siege-map-title" not in html
 
 
+def _saved_heading(html):
+    """Return the title heading's text as a browser shows it."""
+    import html as html_lib
+    import re
+
+    match = re.search(r'<h3 class="siege-map-title"[^>]*>(.*?)</h3>', html, re.DOTALL)
+    assert match, "no title heading in the saved map"
+    return html_lib.unescape(match.group(1))
+
+
+@pytest.mark.parametrize("title", [
+    "Total {{ 7 * 191 }}",                 # an expression
+    "Region {% if true %}A{% endif %} map",  # a statement
+    "Region {# note #} map",               # a comment
+    "Region {{ undefined_name }} map",     # an undefined name
+    "Broken {{ map",                       # a malformed delimiter
+    "Ratio {7} and 50% }}",                # stray braces and percent
+])
+@pytest.mark.parametrize("kind", list(SAVED_AS))
+def test_title_is_shown_as_text_not_run_as_a_template(tmp_path, kind, title):
+    chart_gen = ChartGenerator(output_dir=tmp_path)
+
+    _make_map(chart_gen, kind, title=title)
+
+    html = (tmp_path / SAVED_AS[kind]).read_text()
+    assert _saved_heading(html) == title
+    assert "1337" not in html
+
+
+def test_title_with_quotes_is_escaped(tmp_path):
+    title = 'He said "hi" & \'bye\''
+    chart_gen = ChartGenerator(output_dir=tmp_path)
+
+    _make_map(chart_gen, "marker", title=title)
+
+    html = (tmp_path / SAVED_AS["marker"]).read_text()
+    assert _saved_heading(html) == title
+    assert '"hi"' not in html.split('class="siege-map-title"', 1)[1].split("</h3>", 1)[0]
+
+
+def test_marker_map_accepts_a_tile_provider_object(tmp_path):
+    xyzservices = pytest.importorskip("xyzservices")
+    chart_gen = ChartGenerator(output_dir=tmp_path)
+
+    chart_gen.create_marker_map(POINTS, "lat", "lon", map_style=xyzservices.providers.CartoDB.Positron)
+
+    assert "basemaps.cartocdn.com" in (tmp_path / SAVED_AS["marker"]).read_text()
+
+
 def test_marker_map_default_style_uses_openstreetmap_tiles(tmp_path):
     chart_gen = ChartGenerator(output_dir=tmp_path)
 

@@ -84,17 +84,31 @@ _FOLIUM_TILE_ALIASES = {
 }
 
 
-def _folium_tiles(map_style: str) -> str:
-    """Return the folium tile name for a documented map style."""
-    return _FOLIUM_TILE_ALIASES.get(map_style, map_style)
+def _folium_tiles(map_style):
+    """Return the folium tile name for a documented map style.
+
+    Only strings are looked up; anything else, such as an xyzservices
+    ``TileProvider``, is passed to folium unchanged.
+    """
+    if isinstance(map_style, str):
+        return _FOLIUM_TILE_ALIASES.get(map_style, map_style)
+    return map_style
 
 
 def _add_map_title(folium_map, title: str) -> None:
-    """Show *title*, HTML-escaped, above a Folium map. No title adds nothing."""
+    """Show *title* as text in a heading above a Folium map. No title adds nothing.
+
+    ``folium.Element`` compiles the string it is given as a Jinja2 template,
+    so the title must not reach it as template code. It is HTML-escaped,
+    quotes included, and its braces are written as the character references
+    ``&#123;`` and ``&#125;``. Every Jinja2 delimiter (``{{``, ``{%``,
+    ``{#``) starts with a brace, so the escaped title holds none, and a
+    browser still shows the braces as typed.
+    """
     if title:
+        text = escape(str(title), quote=True).replace("{", "&#123;").replace("}", "&#125;")
         folium_map.get_root().html.add_child(folium.Element(
-            '<h3 class="siege-map-title" style="text-align:center;margin:8px 0;">'
-            f'{escape(str(title))}</h3>'
+            f'<h3 class="siege-map-title" style="text-align:center;margin:8px 0;">{text}</h3>'
         ))
 
 

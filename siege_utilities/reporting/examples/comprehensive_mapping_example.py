@@ -24,6 +24,14 @@ the interactive (Folium) maps to ``interactive_maps/`` under it.
 from pathlib import Path
 
 import pandas as pd
+
+try:
+    from reportlab.platypus.doctemplate import LayoutError
+except ImportError:
+    # Without ReportLab the PDF step raises ImportError, which main() reports
+    # as well; there is no layout error to catch.
+    LayoutError = ImportError
+
 # Import siege_utilities components
 from siege_utilities.reporting.chart_generator import ChartGenerator
 from siege_utilities.reporting.report_generator import ReportGenerator
@@ -571,10 +579,13 @@ def main():
         print("   4. Apply client branding and customization")
         print("   5. Deploy in production reporting workflows")
         
-    except (RuntimeError, ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
+    except (RuntimeError, ValueError, TypeError, KeyError, IndexError, AttributeError, OSError,
+            ImportError, LayoutError) as e:
         # Say which step failed, then let the error propagate so the script
         # exits non-zero with its traceback instead of looking like it ran.
-        # The chart engine reports map failures as RuntimeError.
+        # The chart engine reports map failures as RuntimeError; a missing
+        # optional dependency raises ImportError, and a flowable too large for
+        # the PDF page raises ReportLab's LayoutError.
         print(f"\n❌ Error while {step}: {e}")
         raise
 

@@ -176,9 +176,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default style. With folium 0.18 and later, the title was added as an empty
   tile layer without an attribution, and the default style
   `"open-street-map"` is not a tile provider name, so folium rejected both and
-  the map raised `RuntimeError`. The title is now an HTML-escaped heading in
-  the saved map, the default style is `"OpenStreetMap"`, and the documented
-  `"open-street-map"` style is mapped to it (#1936).
+  the map raised `RuntimeError`. The title is now a heading in the saved map,
+  shown as text: it is HTML-escaped, quotes included, and its braces are
+  written as character references, because the heading is built with
+  `folium.Element`, which reads its string as a Jinja2 template. A title such
+  as `{{ 7 * 191 }}` therefore appears as typed instead of being evaluated,
+  and no title can raise a template error. The default style is
+  `"OpenStreetMap"`, the documented `"open-street-map"` style is mapped to it,
+  and a tile provider object such as an xyzservices `TileProvider` is passed
+  to folium unchanged (#1936).
 - The shipped example
   `siege_utilities/reporting/examples/comprehensive_mapping_example.py` now
   runs end to end. Its choropleth maps get region boundaries built in memory
@@ -187,9 +193,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   report page, which previously overflowed it; and its interactive maps are
   saved under the working directory, in `interactive_maps/`, instead of in
   `~/.siege_utilities` in the user's home directory. Its cluster map no longer
-  names a `region` column the city data does not have. `main()` now prints
-  which step failed and re-raises, so the script exits with an error instead
-  of returning normally after a failure. Its four interactive maps still reach
+  names a `region` column the city data does not have. When a step fails,
+  `main()` now prints `Error while <step>: <error>`, where the step is
+  creating the maps, the PDF report or the PowerPoint presentation, and
+  re-raises, so the script exits with an error instead of returning normally.
+  It does this for the chart engine's `RuntimeError`, `ImportError`,
+  ReportLab's `LayoutError` and the `ValueError`, `TypeError`, `KeyError`,
+  `IndexError`, `AttributeError` and `OSError` it already caught, where before
+  it swallowed those and missed the rest. Its four interactive maps still reach
   the PDF and slides as "saved to" placeholder images, tracked in #1937
   (#1931).
 - Package introspection (`analyze_package_structure`, `analyze_module` and

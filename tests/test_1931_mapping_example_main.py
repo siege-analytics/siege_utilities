@@ -9,7 +9,9 @@ import pytest
 pytest.importorskip("geopandas")
 pytest.importorskip("shapely")
 pytest.importorskip("matplotlib")
+pytest.importorskip("folium")
 pytest.importorskip("reportlab")
+PILImage = pytest.importorskip("PIL.Image")
 PdfReader = pytest.importorskip("PyPDF2").PdfReader
 pptx = pytest.importorskip("pptx")
 
@@ -67,10 +69,15 @@ def test_choropleth_without_boundaries_raises_runtime_error(tmp_path, method, kw
 
 
 def test_every_map_is_an_image(demo):
-    # Every map is a ReportLab Image holding PNG data, not None or a stub.
+    # Every map is a ReportLab Image holding a real PNG, not None, a stub, or
+    # the engine's 1x1 fallback image.
+    import io
+
     for key in PDF_MAP_KEYS + ("advanced_choropleth",):
         png = decode_rl_image(demo["maps"][key])
         assert png is not None and png.startswith(b"\x89PNG"), key
+        width, height = PILImage.open(io.BytesIO(png)).size
+        assert width > 1 and height > 1, key
 
 
 def test_interactive_maps_are_written_under_the_working_directory(demo):
@@ -127,6 +134,6 @@ def test_main_names_the_step_and_reraises_a_later_step_error(tmp_path, monkeypat
     monkeypatch.setattr(example, "demonstrate_comprehensive_mapping", lambda: {})
 
     # The PDF step needs the maps; a missing one must stop the script.
-    with pytest.raises(KeyError):
+    with pytest.raises(KeyError, match="bivariate_map"):
         example.main()
     assert "Error while creating the PDF report:" in capsys.readouterr().out
