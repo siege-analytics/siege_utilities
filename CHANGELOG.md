@@ -943,6 +943,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `median_household_income` and `median_age` instead of raising
   `IntegrityError` and rolling back the group load; the raw value stays in
   `values` (#1550).
+- Place history reverse lineage uses `CrosswalkRecord.reverse_weight`, also
+  accepted by `DictCrosswalkProvider.add`, for step weights, cumulative target
+  shares, and `min_weight` pruning, so reverse-lineage steps and weights differ
+  from v4.0.0. Steps pair GEOIDs with their correct vintage years, and
+  `Lineage.terminal_weights` sums paths reaching the same terminal GEOID while
+  preserving `terminal_geoids`. If any retained reverse terminal path lacks a
+  reverse share, the entire `terminal_weights` dictionary is empty; ancestry and
+  the legacy forward allocation on those steps remain available. Forward
+  traversal now skips nonpositive and nonfinite record weights, and terminal
+  totals contain only finite, positive values. **Migration:** supply
+  `reverse_weight` on crosswalk records (and to `DictCrosswalkProvider.add`)
+  wherever reverse shares or `min_weight` pruning matter; treat an empty
+  `terminal_weights` as "reverse shares incomplete", not as zero weight, and
+  read `terminal_geoids` for ancestry; and re-check any code that read the step
+  years or terminal totals from the old output (#1434).
 - Bulk loaders now set the fields `save()` derives. Census boundaries get
   `feature_id`, `boundary_id` and `source`; NCES locale boundaries, school
   locations and timezones get `feature_id`/`source`; `DemographicSnapshot`
