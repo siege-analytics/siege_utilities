@@ -240,6 +240,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replaced by the computed distance. Input `index_right` and duplicate output
   names, including suffix collisions, raise `ValueError`. Drop or rename a
   previous result's `index_right` before another nearest join (#1463).
+- Narrow the engines/01 notebook's teaching claim to result parity across
+  pandas and DuckDB using different query implementations. Keep the existing
+  queries and results comparison, with a regression test for the claim. Correct
+  the synthetic data description to 5 TX counties and test it against the
+  generator (#1663).
 - Sanitize CRM upsert payloads for Salesforce, HubSpot, Zoho, and Dynamics:
   omit top-level missing fields to preserve existing values, serialize dates and
   timestamps as ISO 8601 strings, and convert numpy scalars to native types.
