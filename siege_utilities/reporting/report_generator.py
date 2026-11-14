@@ -5,6 +5,7 @@ Orchestrates the creation of comprehensive reports with charts, tables, and bran
 
 import logging
 import os
+import re
 import uuid
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
@@ -699,10 +700,19 @@ class ReportGenerator:
         title = section.get('title', '')
         level = section.get('level', 1)
         if title:
-            heading_style = styles.get(f'Heading{level}', styles['Heading1'])
+            # As in 4.0.0, the level only names a heading style: "2" or 2
+            # selects Heading2, and any level without such a style (None,
+            # "abc", 2.5) falls back to Heading1. The table-of-contents level
+            # follows the style actually used, so no level value raises.
+            heading_name = f'Heading{level}'
+            if heading_name not in styles:
+                heading_name = 'Heading1'
+            heading_style = styles[heading_name]
             heading = Paragraph(_escape_paragraph(title), heading_style)
             if section_type != 'table_of_contents':
-                heading._toc_entry = (max(0, level - 1), _escape_paragraph(title))
+                number = re.fullmatch(r'Heading(\d+)', heading_name)
+                toc_level = max(0, int(number.group(1)) - 1) if number else 0
+                heading._toc_entry = (toc_level, _escape_paragraph(title))
             story.append(heading)
             story.append(Spacer(1, 12))
 
@@ -800,6 +810,10 @@ class ReportGenerator:
                 charts = list(content)
             elif isinstance(content, dict):
                 charts = content.get(key, [])
+                # As in 4.0.0, None under the key means no images; the
+                # heading and description still render.
+                if charts is None:
+                    charts = []
                 # As in 4.0.0, a None description means no description.
                 description = content.get('description')
                 if description is None:
@@ -808,7 +822,7 @@ class ReportGenerator:
                 # mapping is not a list of images, so it is rejected rather
                 # than iterated.
                 if not isinstance(charts, (list, tuple)):
-                    invalid_content(f'a list or tuple under {key!r}')
+                    invalid_content(f'a list, tuple or None under {key!r}')
                 charts = list(charts)
                 if key == 'charts' and content.get('image_path'):
                     charts = [content['image_path']] + charts

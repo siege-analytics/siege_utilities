@@ -10,6 +10,7 @@ pytest.importorskip("pandas")
 PdfReader = pytest.importorskip("PyPDF2").PdfReader
 PILImage = pytest.importorskip("PIL.Image")
 
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfgen.canvas import Canvas
 
 from siege_utilities.reporting.report_generator import ReportGenerator
@@ -125,11 +126,11 @@ TEXT_EXPECTED = "a string or a mapping with a text string"
     ({"type": "charts", "content": "lost"},
      "'charts' section: expected a chart list or an image mapping"),
     ({"type": "charts", "content": {"charts": "lost"}},
-     "'charts' section: expected a list or tuple under 'charts'"),
+     "'charts' section: expected a list, tuple or None under 'charts'"),
     ({"type": "charts", "content": {"charts": b"lost"}},
-     "'charts' section: expected a list or tuple under 'charts'"),
+     "'charts' section: expected a list, tuple or None under 'charts'"),
     ({"type": "charts", "content": {"charts": {"image_path": "lost"}}},
-     "'charts' section: expected a list or tuple under 'charts'"),
+     "'charts' section: expected a list, tuple or None under 'charts'"),
     ({"type": "table", "content": []}, "'table' section: expected a mapping with table data"),
     ({"type": "maps", "content": ["lost"]}, "'maps' section: expected a maps mapping"),
     ({"type": "map", "content": ["lost"]}, "'map' section: expected a maps mapping"),
@@ -334,3 +335,61 @@ def test_bullet_list_overflow_preserves_every_item(tmp_path):
     canvas.save()
     text = "\n".join(page.extract_text() for page in PdfReader(output).pages)
     assert re.findall(r"bul\d{4}", text) == items
+
+
+class _SampleStyles:
+    """The stylesheet a report template provides (getSampleStyleSheet)."""
+
+    styles = getSampleStyleSheet()
+
+
+@pytest.mark.parametrize("level, style, toc_level", [
+    ("2", "Heading2", 1),
+    (2, "Heading2", 1),
+    (None, "Heading1", 0),
+    ("abc", "Heading1", 0),
+    (2.5, "Heading1", 0),
+    # Levels without a sample heading style render as Heading1, and the
+    # contents entry follows the style actually used.
+    (7, "Heading1", 0),
+    (0, "Heading1", 0),
+    (-1, "Heading1", 0),
+    (True, "Heading1", 0),
+])
+def test_section_level_selects_heading_as_in_4_0_0(generator, level, style, toc_level):
+    # 4.0.0 formatted the level into a style name and fell back to Heading1
+    # for any name the stylesheet lacks, so no level value raised.
+    story = generator._build_section_content(
+        {"type": "text", "title": "Levels", "level": level, "content": "Body"}, _SampleStyles(),
+    )
+    heading = story[0]
+    assert heading.style.name == style
+    assert heading._toc_entry[0] == toc_level
+
+
+def test_report_with_string_and_none_levels_renders_with_contents(generator, tmp_path):
+    report = generator.create_comprehensive_report("Levels", sections=[
+        {"type": "text", "title": "Second level", "level": "2", "content": "Body two"},
+        {"type": "text", "title": "Default level", "level": None, "content": "Body one"},
+        {"type": "text", "title": "Odd level", "level": "abc", "content": "Body odd"},
+    ])
+    output = tmp_path / "levels.pdf"
+    generator.generate_pdf_report(report, str(output))
+    text = "\n".join(page.extract_text() for page in PdfReader(output).pages)
+    for expected in ("Second level", "Default level", "Odd level", "Body two"):
+        assert expected in text
+
+
+@pytest.mark.parametrize("section_type, key", [("charts", "charts"), ("maps", "maps")])
+def test_none_images_render_heading_and_description_as_in_4_0_0(
+    generator, tmp_path, section_type, key,
+):
+    output = tmp_path / f"{key}-none.pdf"
+    generator.generate_pdf_report({"sections": [{
+        "type": section_type, "title": "Image heading",
+        "content": {key: None, "description": "Image description"},
+    }]}, str(output))
+    reader = PdfReader(output)
+    text = "\n".join(page.extract_text() for page in reader.pages)
+    assert "Image heading" in text and "Image description" in text
+    assert image_count(reader) == 0
