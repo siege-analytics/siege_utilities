@@ -1238,6 +1238,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `create_spark_session_with_databases` upgrades pgjdbc to 42.7.14, MySQL
+  Connector/J to 26.7.0, and Oracle ojdbc8 to 23.26.3.0.0 past known CVEs
+  (security fix, #1483). MySQL's Maven coordinate moves from
+  `mysql:mysql-connector-java` to `com.mysql:mysql-connector-j`. Defaults now
+  live in one coordinate map; callers can replace the package list through
+  `conf.settings.SPARK_JDBC_PACKAGES` (a list or comma-separated string).
+  Without an override, empty/None `database_names` adds no JDBC driver, where
+  v4.0.0 added the PostgreSQL driver. The new MySQL default requires MySQL
+  Server 8.4+; Oracle 23.x supports Database 19c+. **Migration:** callers
+  relying on the former implicit PostgreSQL driver must supply database names
+  or a package override, and older server deployments must choose compatible
+  patched overrides through `SPARK_JDBC_PACKAGES`.
 - `groupby_agg` on PandasEngine, DuckDBEngine and PostGISEngine now keeps
   NULL-key groups (pandas `dropna=False`, matching SQL and SparkEngine);
   previously rows with a NULL group key were silently dropped, so totals
