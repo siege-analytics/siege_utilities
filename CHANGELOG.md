@@ -909,6 +909,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `BoundaryConfigurationError`. `rails` with `state_fips` now fails with
   `STATE_FILTER_UNAVAILABLE` (the national file has no state column) instead
   of building a per-state URL that 404'd (#1464).
+- Batch geocoder normalization now restores leading zeros in numeric ZIPs,
+  preserves string ZIPs (including ZIP+4), converts dictionary fields to strings,
+  and treats NaN/None and pandas NA/NaT as empty values, so the same input rows
+  produce different query strings and results than on v4.0.0.
+  Numeric ZIP+4 values are padded to nine digits; invalid numeric ZIPs
+  (negative, fractional, boolean, non-finite, or over nine digits) become empty
+  values. The public Census `geocode_batch` / `geocode_batch_chunked`
+  dictionary path uses the same normalization. Mixed address lists and
+  non-string `AddressInput.one_line` components no longer crash. Nominatim and
+  TAMU query construction failures now produce one unmatched row instead of
+  aborting the whole batch and causing the composite geocoder to silently drop
+  the backend. Per-row failures are reported in `BatchGeocodingResult.errors`
+  by input ID and exception type, without address text; the composite
+  preserves backend errors. `concatenate_addresses` also skips missing
+  components and normalizes numeric postal codes. Directly constructed
+  `AddressInput` objects normalize their ZIP codes.
+  `GeocodingResult.input_id` is now always `str` for dictionary inputs on the
+  Nominatim, TAMU and composite geocoders. **Migration:** key on `str(id)`
+  where callers keyed on integer IDs; re-key any
+  stored geocoding results that were keyed on a ZIP with its leading zero
+  dropped (for example `2101`, now `02101`); expect an empty ZIP, not a
+  guessed one, where a numeric ZIP is invalid; and read `errors` on the batch
+  result instead of relying on an exception or a silently missing backend to
+  detect a failed row (#1526).
 - `populate_demographics --variables all` stores every variable group. A
   group whose snapshot already exists is merged into it instead of being
   skipped, so income, education, housing and the other groups are no longer

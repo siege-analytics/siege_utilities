@@ -702,8 +702,12 @@ def test_tamu_request_error_redacts_api_key(monkeypatch, caplog, failure):
     result = client.geocode([addr])
 
     assert_safe_diagnostics(caught.value, caplog)
-    assert "TAMU geocode failed" in caplog.text
-    assert "apiKey=[REDACTED]" in caplog.text
+    assert "apiKey=[REDACTED]" in str(caught.value)
+    assert result.errors == ["TAMU geocode failed for test: RuntimeError"]
+    assert result.errors[0] in caplog.text
+    assert "apiKey" not in caplog.text
+    assert "123 Main St" not in caplog.text
+    assert "123+Main+St" not in caplog.text
     assert len(calls) == 4
     assert result.total == 1
     assert not result.results[0].matched
@@ -720,5 +724,7 @@ def test_tamu_batch_warning_redacts_api_key(monkeypatch, caplog):
     assert result.total == 1
     assert not result.results[0].matched
     assert_safe_diagnostics(None, caplog)
-    assert "TAMU geocode failed" in caplog.text
-    assert "apiKey=[REDACTED]" in caplog.text
+    assert result.errors == ["TAMU geocode failed for 0: URLError"]
+    assert result.errors[0] in caplog.text
+    assert "apiKey" not in caplog.text
+    assert "https://h/p" not in caplog.text

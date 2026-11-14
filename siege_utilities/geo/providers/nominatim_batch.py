@@ -95,7 +95,7 @@ class NominatimBatchGeocoder(BatchGeocoder):
             if elapsed < self._rate_limit:
                 time.sleep(self._rate_limit - elapsed)
 
-            gr = self._geocode_single(addr)
+            gr = self._geocode_single(addr, result.errors)
             result.results.append(gr)
             last_request_time = time.monotonic()
 
@@ -107,19 +107,14 @@ class NominatimBatchGeocoder(BatchGeocoder):
         )
         return result
 
-    def _geocode_single(self, addr: AddressInput) -> GeocodingResult:
+    def _geocode_single(
+        self, addr: AddressInput, errors: Optional[list[str]] = None,
+    ) -> GeocodingResult:
         """Geocode a single address via Nominatim HTTP API."""
-        query = addr.one_line
-        if not query:
-            return GeocodingResult(
-                input_address=query,
-                input_id=addr.input_id,
-                match_quality=MatchQuality.NO_MATCH.value,
-                backend=self.backend_name,
-            )
-
+        query = ""
         try:
-            coords = self._nominatim_request(query)
+            query = addr.one_line
+            coords = self._nominatim_request(query) if query else None
             if coords is not None:
                 lat, lon = coords
                 return GeocodingResult(
@@ -131,9 +126,11 @@ class NominatimBatchGeocoder(BatchGeocoder):
                     backend=self.backend_name,
                 )
         except Exception as exc:
-            # Batch robustness: any failure on one address is logged and
-            # recorded as an unmatched result so the rest of the batch proceeds.
-            log.warning("Nominatim geocode failed for %s: %s", addr.input_id, exc)
+            # Exception text may contain the address or request URL.
+            error = f"Nominatim geocode failed for {addr.input_id}: {type(exc).__name__}"
+            log.warning("%s", error)
+            if errors is not None:
+                errors.append(error)
 
         return GeocodingResult(
             input_address=query,
