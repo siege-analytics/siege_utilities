@@ -304,6 +304,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (PostgreSQL 15+). Widen congressional-terms uniqueness to
   `(congress_number, seat_id, office_term_id)` so a successor can serve the
   same seat in the same Congress (#1468).
+- Label `analytics/02_ga_end_to_end.ipynb` and its chart, PDF and sharing
+  example as an offline fixed-date demo. The April 2026 fixture and fixed
+  prior-week comparison no longer appear to be queried GA results. Document
+  a separate credentialed two-week query that raises on failed or malformed
+  results, and test the offline output and documented recipe. Note that GA
+  may still be processing recent days, so the latest queried week can be
+  understated. Run the credential-free notebook in pure notebook CI, keep
+  PyPDF2 optional during test collection, and label inbound links as the
+  offline fixed-date demo (#1662).
 - Docstring generation inserts lines without rewriting existing comments or
   formatting, handles async definitions, and extracts signature details without
   importing target files. File exclusions match path components and include

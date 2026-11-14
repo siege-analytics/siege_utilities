@@ -48,7 +48,7 @@ introduces both and proves the wire-up by rendering the same chart under each br
 | spatial | 06 | GeoDjango API for TX-32 precincts | ElectInfo |
 | spatial | 07 | Natural-language spatial filters resolved to fixture geometry and GeoPandas handoff | ElectInfo |
 | analytics | 01 | Three connectors, one call-shape pattern | Masai |
-| analytics | 02 | Weekly GA digest PDF | Masai |
+| analytics | 02 | Offline fixed-date GA demo: synthetic fixture, chart, PDF | Masai |
 | analytics | 03 | Social media fixture analytics and report payload assembly | Masai |
 | analytics | 04 | CRM pipeline deduplication, geographic preparation, and write-back planning | Masai |
 | analytics | 05 | CRM sales reporting fixtures, charts, and report planning | Masai |
@@ -102,7 +102,8 @@ not credentials are present.
 | Credential | Used by | Absent behavior |
 |---|---|---|
 | `CENSUS_API_KEY` | `spatial/01` (ACS demographics) | Skip income join, render boundary map without overlay |
-| `GOOGLE_APPLICATION_CREDENTIALS` | `analytics/01`, `analytics/02` | Call shape printed; analysis runs on fixture |
+| `GOOGLE_APPLICATION_CREDENTIALS` | `analytics/01` | Call shape printed; analysis runs on fixture |
+| `GOOGLE_APPLICATION_CREDENTIALS` | `analytics/02` (opt-in `live-recipe` cell) | Demo always offline on the synthetic fixture; the `live-recipe` cell is the opt-in credentialed path |
 | `SNOWFLAKE_CONFIG_FILE` | `analytics/01` | Call shape printed |
 | `DW_AUTH_TOKEN` | `analytics/01` | Call shape printed |
 | RDH API | `spatial/04` | Synthetic stand-in polygons with call shape in comments |
