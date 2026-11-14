@@ -1190,6 +1190,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was applied twice), and crosswalk-mode targets are now `target_level`
   GEOIDs; snapshots previously written with source-level GEOIDs under the
   target content type are wrong and should be deleted and recomputed (#1604).
+- RDH compactness scores now use the true minimum bounding circle for Reock
+  and a per-district local AEQD projection for Polsby-Popper, Reock and
+  Schwartzberg, correcting the previous rectangle-based Reock estimate and
+  Mollweide shape distortion. The numeric scores therefore differ from v4.0.0
+  for the same districts. `compare_plans` uses the same scoring as
+  `compute_compactness` and adds mean Reock and Schwartzberg fields.
+  **Migration:** recompute any stored compactness scores, and re-check any
+  threshold or ranking that was tuned on the old Reock or Mollweide-based
+  values; read the added mean Reock and Schwartzberg fields from `compare_plans`
+  if comparing plans (#1467).
 - Block-group crosswalks are stored with `source_type`/`target_type`
   `"block_group"` instead of `"blockgroup"`. Rename existing rows, e.g.
   `TemporalCrosswalk.objects.filter(source_type="blockgroup").update(source_type="block_group", target_type="block_group")`.
