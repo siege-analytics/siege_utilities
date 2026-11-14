@@ -146,6 +146,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `create_bivariate_choropleth`) no longer crash on tied data: they spread
   each variable's actual classes across the 3x3 palette and raise a clear
   error when a variable has fewer than two classes (#1462).
+- The reporting map engine's Folium maps (`create_marker_map`,
+  `create_heatmap_map`, `create_cluster_map` and `create_flow_map`) no longer
+  raise when given a title, and `create_marker_map` no longer raises with its
+  default style. With folium 0.18 and later, the title was added as an empty
+  tile layer without an attribution, and the default style
+  `"open-street-map"` is not a tile provider name, so folium rejected both and
+  the map raised `RuntimeError`. The title is now an HTML-escaped heading in
+  the saved map, the default style is `"OpenStreetMap"`, and the documented
+  `"open-street-map"` style is mapped to it (#1936).
+- The shipped example
+  `siege_utilities/reporting/examples/comprehensive_mapping_example.py` now
+  runs end to end. Its choropleth maps get region boundaries built in memory
+  (simplified rectangles, no data file or network access) instead of
+  `geodata=None`, which raised `RuntimeError`; its maps are scaled to fit the
+  report page, which previously overflowed it; and its interactive maps are
+  saved under the working directory, in `interactive_maps/`, instead of in
+  `~/.siege_utilities` in the user's home directory. Its cluster map no longer
+  names a `region` column the city data does not have. `main()` now prints
+  which step failed and re-raises, so the script exits with an error instead
+  of returning normally after a failure. Its four interactive maps still reach
+  the PDF and slides as "saved to" placeholder images, tracked in #1937
+  (#1931).
 - Package introspection (`analyze_package_structure`, `analyze_module` and
   `generate_architecture_diagram`) now recurses only into `siege_utilities`
   submodules, chosen by module name instead of a file-path substring, and

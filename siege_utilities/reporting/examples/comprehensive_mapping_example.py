@@ -13,9 +13,15 @@ reporting features in siege_utilities, including:
 
 Requirements:
 - siege_utilities with enhanced mapping capabilities
-- Required dependencies installed
-- Sample data files (or will create synthetic data)
+- geopandas and shapely for the regional (choropleth) maps
+- No data files: all sample data, including the region boundaries, is built
+  in memory
+
+The example writes its PDF and PowerPoint files to the current directory and
+the interactive (Folium) maps to ``interactive_maps/`` under it.
 """
+
+from pathlib import Path
 
 import pandas as pd
 # Import siege_utilities components
@@ -26,6 +32,7 @@ from siege_utilities.reporting.powerpoint_generator import PowerPointGenerator
 __all__ = [
     'create_sample_geographic_data',
     'create_sample_regional_data',
+    'create_sample_region_boundaries',
     'create_sample_flow_data',
     'demonstrate_comprehensive_mapping',
     'create_comprehensive_pdf_report',
@@ -79,6 +86,40 @@ def create_sample_regional_data():
     
     return pd.DataFrame(regional_data)
 
+def create_sample_region_boundaries():
+    """Create boundary polygons for the sample regions, for the choropleth maps.
+
+    Each region in ``create_sample_regional_data`` gets one rectangle in
+    longitude and latitude (EPSG:4326), keyed by the same ``region`` column.
+    The rectangles are a simplified stand-in for real boundaries, built in
+    memory so the example needs no data file or network access.
+
+    Raises:
+        ImportError: geopandas or shapely is not installed.
+    """
+    try:
+        import geopandas as gpd
+        from shapely.geometry import box
+    except ImportError as e:
+        raise ImportError(
+            "The regional maps need geopandas and shapely: pip install geopandas shapely"
+        ) from e
+
+    # (west, south, east, north) in degrees; adjacent rectangles share edges.
+    extents = {
+        'Northeast': (-80.0, 39.0, -67.0, 47.5),
+        'Southeast': (-92.0, 25.0, -75.0, 39.0),
+        'Midwest': (-104.0, 39.0, -80.0, 49.0),
+        'Southwest': (-117.0, 26.0, -92.0, 39.0),
+        'West Coast': (-125.0, 32.0, -117.0, 49.0),
+        'Mountain West': (-117.0, 39.0, -104.0, 49.0),
+    }
+    return gpd.GeoDataFrame(
+        {'region': list(extents)},
+        geometry=[box(*bounds) for bounds in extents.values()],
+        crs="EPSG:4326",
+    )
+
 def create_sample_flow_data():
     """Create sample flow data for flow maps."""
     
@@ -100,24 +141,30 @@ def demonstrate_comprehensive_mapping():
     
     print("🚀 Creating comprehensive mapping demonstration...")
     
-    # Initialize chart generator
-    chart_gen = ChartGenerator()
-    
+    # Initialize chart generator. Interactive (Folium) maps are saved as HTML
+    # under the current directory, next to the PDF and PowerPoint files. The
+    # maximum size scales each map, keeping its shape, to fit a letter page
+    # (6.5 inches wide inside 1-inch margins) with room for its heading.
+    chart_gen = ChartGenerator(
+        output_dir=Path("interactive_maps"), max_chart_width=6.5, max_chart_height=6.0,
+    )
+
     # Create sample data
     cities_df = create_sample_geographic_data()
     regional_df = create_sample_regional_data()
+    region_boundaries = create_sample_region_boundaries()
     flow_df = create_sample_flow_data()
-    
+
     print("📊 Generated sample data:")
     print(f"   - Cities: {len(cities_df)} locations")
-    print(f"   - Regions: {len(regional_df)} regions")
+    print(f"   - Regions: {len(regional_df)} regions, {len(region_boundaries)} boundaries")
     print(f"   - Flows: {len(flow_df)} connections")
-    
+
     # 1. Bivariate Choropleth Map
     print("\n🗺️  Creating bivariate choropleth map...")
     bivariate_map = chart_gen.create_bivariate_choropleth_matplotlib(
         data=regional_df,
-        geodata=None,  # Will use simple location-based approach
+        geodata=region_boundaries,
         location_column='region',
         value_column1='population',
         value_column2='median_income',
@@ -169,9 +216,8 @@ def demonstrate_comprehensive_mapping():
         data=cities_df,
         latitude_column='latitude',
         longitude_column='longitude',
-        cluster_column='region',
         label_column='city',
-        title="City Clusters by Region",
+        title="City Clusters",
         width=12.0,
         height=10.0
     )
@@ -194,7 +240,7 @@ def demonstrate_comprehensive_mapping():
     print("🎨 Creating advanced choropleth...")
     advanced_choropleth = chart_gen.create_advanced_choropleth(
         data=regional_df,
-        geodata=None,
+        geodata=region_boundaries,
         location_column='region',
         value_column='gdp_growth',
         title="GDP Growth by Region (Natural Breaks)",
@@ -490,14 +536,17 @@ def main():
     print("in siege_utilities, including multiple map types and comprehensive document generation.")
     print()
     
+    step = "creating the maps"
     try:
         # Step 1: Create all map types
         maps_dict = demonstrate_comprehensive_mapping()
-        
+
         # Step 2: Generate comprehensive PDF report
+        step = "creating the PDF report"
         pdf_success = create_comprehensive_pdf_report(maps_dict)
-        
+
         # Step 3: Generate comprehensive PowerPoint presentation
+        step = "creating the PowerPoint presentation"
         ppt_success = create_comprehensive_powerpoint(maps_dict)
         
         # Summary
@@ -522,10 +571,12 @@ def main():
         print("   4. Apply client branding and customization")
         print("   5. Deploy in production reporting workflows")
         
-    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
-        print(f"\n❌ Error during demonstration: {e}")
-        import traceback
-        traceback.print_exc()
+    except (RuntimeError, ValueError, TypeError, KeyError, IndexError, AttributeError, OSError) as e:
+        # Say which step failed, then let the error propagate so the script
+        # exits non-zero with its traceback instead of looking like it ran.
+        # The chart engine reports map failures as RuntimeError.
+        print(f"\n❌ Error while {step}: {e}")
+        raise
 
 if __name__ == "__main__":
     main()

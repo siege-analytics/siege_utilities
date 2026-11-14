@@ -74,6 +74,29 @@ __all__ = [
     "MapChartMixin",
 ]
 
+# Documented map style names that folium does not resolve to a tile provider.
+# folium matches provider names ignoring case and hyphens, so
+# "cartodb-positron" already resolves, but "open-street-map" becomes
+# "openstreetmap", a provider group rather than a provider. An unresolved name
+# is taken as a custom tile URL, which folium rejects without an attribution.
+_FOLIUM_TILE_ALIASES = {
+    "open-street-map": "OpenStreetMap",
+}
+
+
+def _folium_tiles(map_style: str) -> str:
+    """Return the folium tile name for a documented map style."""
+    return _FOLIUM_TILE_ALIASES.get(map_style, map_style)
+
+
+def _add_map_title(folium_map, title: str) -> None:
+    """Show *title*, HTML-escaped, above a Folium map. No title adds nothing."""
+    if title:
+        folium_map.get_root().html.add_child(folium.Element(
+            '<h3 class="siege-map-title" style="text-align:center;margin:8px 0;">'
+            f'{escape(str(title))}</h3>'
+        ))
+
 
 class MapChartMixin:
     """Geographic map chart methods (choropleth, marker, 3D, heatmap, cluster, flow)."""
@@ -480,7 +503,7 @@ class MapChartMixin:
                           latitude_column: str, longitude_column: str,
                           value_column: str = None, label_column: str = None,
                           title: str = "", width: float = 10.0, height: float = 8.0,
-                          map_style: str = "open-street-map", zoom_level: int = 10) -> Image:
+                          map_style: str = "OpenStreetMap", zoom_level: int = 10) -> Image:
         """
         Create a map with markers showing point locations.
 
@@ -493,7 +516,9 @@ class MapChartMixin:
             title: Map title
             width: Map width in inches
             height: Map height in inches
-            map_style: Map tile style ('open-street-map', 'cartodb-positron', 'stamen-terrain')
+            map_style: Map tile style: a folium tile provider name such as
+                'OpenStreetMap' or 'CartoDB positron'. The hyphenated
+                'open-street-map' and 'cartodb-positron' are also accepted.
             zoom_level: Initial zoom level for the map
 
         Returns:
@@ -517,7 +542,7 @@ class MapChartMixin:
             m = folium.Map(
                 location=[center_lat, center_lon],
                 zoom_start=zoom_level,
-                tiles=map_style
+                tiles=_folium_tiles(map_style)
             )
 
             # Add markers
@@ -555,15 +580,7 @@ class MapChartMixin:
                     weight=2
                 ).add_to(m)
 
-            # Add title
-            if title:
-                folium.TileLayer(
-                    tiles='',
-                    attr='',
-                    name=title,
-                    overlay=True,
-                    control=False
-                ).add_to(m)
+            _add_map_title(m, title)
 
             # Add layer control
             folium.LayerControl().add_to(m)
@@ -718,15 +735,7 @@ class MapChartMixin:
                 gradient={0.2: 'blue', 0.4: 'lime', 0.6: 'orange', 1: 'red'}
             ).add_to(m)
 
-            # Add title
-            if title:
-                folium.TileLayer(
-                    tiles='',
-                    attr='',
-                    name=title,
-                    overlay=True,
-                    control=False
-                ).add_to(m)
+            _add_map_title(m, title)
 
             return self._save_folium_map(m, "temp_heatmap.html",
                                         "Heatmap", width, height)
@@ -817,15 +826,7 @@ class MapChartMixin:
             # Add cluster to map
             marker_cluster.add_to(m)
 
-            # Add title
-            if title:
-                folium.TileLayer(
-                    tiles='',
-                    attr='',
-                    name=title,
-                    overlay=True,
-                    control=False
-                ).add_to(m)
+            _add_map_title(m, title)
 
             # Add layer control
             folium.LayerControl().add_to(m)
@@ -932,15 +933,7 @@ class MapChartMixin:
                     popup="Destination"
                 ).add_to(m)
 
-            # Add title
-            if title:
-                folium.TileLayer(
-                    tiles='',
-                    attr='',
-                    name=title,
-                    overlay=True,
-                    control=False
-                ).add_to(m)
+            _add_map_title(m, title)
 
             return self._save_folium_map(m, "temp_flow_map.html",
                                         "Flow Map", width, height)
