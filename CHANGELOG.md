@@ -1097,6 +1097,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `median_age` are NULL when the source estimate is a negative Census
   sentinel or not numeric. Fractional estimates (for example rollup
   averages) are rounded to the nearest integer instead of truncated (#1550).
+- Pandas geocode validation uses world ranges for geographic CRSs, retaining
+  NAD83/EPSG:4269 coordinates on both sides of the antimeridian and in Guam,
+  American Samoa and Saipan. Projected bounds use densified area-of-use edges
+  in CRS units, retaining southern CONUS points in EPSG:5070 and EPSG:5069.
+  Both filtering and validity marking reject the exact geographic `(0, 0)`
+  failed-geocode sentinel while accepting single-zero coordinates and valid
+  projected origins. Failed projected-bound transformations log a warning
+  and accept finite coordinates instead of comparing them to degrees. Spark
+  `validate_geocode_data` and `mark_valid_geocode_data` now reject the exact
+  geographic `(0, 0)` sentinel, matching pandas; single-zero coordinates within
+  world ranges remain valid. Which rows are kept or marked valid therefore
+  differs from v4.0.0: rows at the `(0, 0)` sentinel are dropped or marked
+  invalid, and coordinates v4.0.0 wrongly dropped are kept. **Migration:**
+  re-check any count or join that depended on which geocodes passed
+  validation; to retain sentinel rows for inspection, use the marking function
+  instead of the filtering function (#1459).
 - `records_created` from the demographic, rollup, timeseries, crosswalk,
   NCES and timezone loaders and `populate_pl_demographics` counts only rows
   inserted: rows dropped by `ON CONFLICT DO NOTHING` (concurrent loads,
