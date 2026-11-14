@@ -1150,6 +1150,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   names are canonicalised through `resolve_geographic_level`, so block-group
   crosswalks are requested and stored as `block_group`; `populate_crosswalks
   --type` accepts `block_group` and keeps `blockgroup` as an alias (#1613).
+- `LongitudinalAligner.align` falls back to areal interpolation only when the
+  crosswalk client explicitly reports unavailable coverage. Other crosswalk
+  errors propagate unchanged, where v4.0.0 fell back to areal interpolation.
+  If areal interpolation also fails, alignment raises with the transition and
+  both causes instead of returning partial data. **Migration:** handle
+  exceptions from `align` instead of checking `method="failed"`, and do not
+  rely on an areal fallback after a crosswalk error other than unavailable
+  coverage (#1408).
 - `DemographicRollupService.rollup` no longer overwrites a target snapshot
   that already holds the variable, and reports writes to existing snapshots
   in the new `RollupResult.records_updated` instead of `records_skipped`.
