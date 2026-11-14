@@ -222,8 +222,8 @@ def create_comprehensive_pdf_report(maps_dict):
     
     print("\n📄 Creating comprehensive PDF report...")
     
-    # Initialize report generator
-    report_gen = ReportGenerator()
+    # Initialize report generator (the client name drives branding)
+    report_gen = ReportGenerator("Geographic Research Institute")
     
     # Create comprehensive report structure
     report_content = report_gen.create_comprehensive_report(
@@ -347,13 +347,13 @@ def create_comprehensive_pdf_report(maps_dict):
         level=1
     )
     
-    # Add data appendix
+    # Add the raw data as a table section: appendix content must be text, so
+    # tabular data goes through add_table_section.
     cities_df = create_sample_geographic_data()
-    report_content = report_gen.add_appendix(
+    report_content = report_gen.add_table_section(
         report_content,
         "Raw Data Tables",
         cities_df,
-        appendix_type="data"
     )
     
     # Generate PDF report
@@ -368,8 +368,8 @@ def create_comprehensive_powerpoint(maps_dict):
     
     print("\n📊 Creating comprehensive PowerPoint presentation...")
     
-    # Initialize PowerPoint generator
-    ppt_gen = PowerPointGenerator()
+    # Initialize PowerPoint generator (the client name drives branding)
+    ppt_gen = PowerPointGenerator("Geographic Research Institute")
     
     # Create comprehensive presentation structure
     presentation_content = ppt_gen.create_comprehensive_presentation(
@@ -428,11 +428,15 @@ def create_comprehensive_powerpoint(maps_dict):
     presentation_content = ppt_gen.add_comparison_slide(
         presentation_content,
         "Map Type Comparison",
+        # Each column is rendered as one text block, so its heading is the
+        # first line and the items follow on separate lines.
         {
-            'left_title': 'Static Maps',
-            'left_content': ['Choropleth', '3D Visualization', 'Advanced Classification'],
-            'right_title': 'Interactive Maps',
-            'right_content': ['Marker Maps', 'Heatmaps', 'Flow Maps', 'Cluster Maps']
+            'left_content': '\n'.join(
+                ['Static Maps', 'Choropleth', '3D Visualization', 'Advanced Classification']
+            ),
+            'right_content': '\n'.join(
+                ['Interactive Maps', 'Marker Maps', 'Heatmaps', 'Flow Maps', 'Cluster Maps']
+            ),
         },
         level=1
     )

@@ -44,7 +44,7 @@ class SeatAssignment:
         plan_name: Name of the redistricting plan.
         plan_year: Year the plan took effect.
         from_year: Start year of this assignment.
-        to_year: End year of this assignment.
+        to_year: End year of this assignment (None = ongoing).
         containment_pct: Fraction of the queried geography in this district.
     """
 
@@ -59,6 +59,27 @@ class SeatAssignment:
     containment_pct: float = 1.0
 
 
+def _current_districts_at(
+    assignments: list[SeatAssignment], reference_year: int,
+) -> list[SeatAssignment]:
+    """Choose a covering start-year group, preferring groups with ongoing rows."""
+    candidates = [
+        a for a in assignments
+        if (a.from_year or 0) <= reference_year
+        and (a.to_year is None or reference_year <= a.to_year)
+    ]
+    if not candidates:
+        return []
+    groups: dict[int, list[SeatAssignment]] = {}
+    for assignment in candidates:
+        groups.setdefault(assignment.from_year or 0, []).append(assignment)
+    ongoing_starts = [
+        start for start, group in groups.items()
+        if any(a.to_year is None for a in group)
+    ]
+    return groups[max(ongoing_starts or groups)]
+
+
 @dataclass
 class SeatsOverlayResult:
     """Result of the seats overlay query.
@@ -66,7 +87,7 @@ class SeatsOverlayResult:
     Attributes:
         geoid: Queried GEOID.
         assignments: Seat assignments ordered by time.
-        current_districts: Districts containing the GEOID now.
+        current_districts: All current district memberships in each office's latest period.
     """
 
     geoid: str = ""
@@ -74,15 +95,31 @@ class SeatsOverlayResult:
 
     @property
     def current_districts(self) -> list[SeatAssignment]:
+        """Select current districts per office at one shared reference year.
+
+        The reference is the latest end year (or start year for an ongoing row)
+        across all assignments and can be in the past. Within each office,
+        group rows covering that year by start year, including finite rows at
+        their end year. Choose the newest group containing an ongoing row, or
+        the newest group if none contains an ongoing row. Keep every district
+        in that group, finite or ongoing. Omit offices with no covering row,
+        treating an unknown start as earlier than a known start.
+        Preserve first-seen office order and row order within each office.
+        An ongoing assignment is not displaced by a later-starting finite one; close stale ongoing records at the data source.
+        """
         if not self.assignments:
             return []
-        max_year = max(
-            (a.to_year or a.from_year or 0) for a in self.assignments
+        reference_year = max(
+            a.to_year if a.to_year is not None else (a.from_year or 0)
+            for a in self.assignments
         )
-        return [
-            a for a in self.assignments
-            if (a.to_year or a.from_year or 0) == max_year
-        ]
+        assignments_by_office: dict[str, list[SeatAssignment]] = {}
+        for assignment in self.assignments:
+            assignments_by_office.setdefault(assignment.office, []).append(assignment)
+        result = []
+        for assignments in assignments_by_office.values():
+            result.extend(_current_districts_at(assignments, reference_year))
+        return result
 
     @property
     def offices(self) -> list[str]:

@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `TemporalTimeseriesBuilder.build` groups the snapshot frame by
+  `boundary_id` once and reuses each boundary's row positions for every
+  requested variable, instead of filtering the whole frame once per boundary
+  per variable. Output is unchanged for the `boundary_id` types covered by the
+  equivalence tests (integer, float with NaN, string, mixed integer/string,
+  datetime, categorical, and missing ids): the same series in the same
+  first-appearance boundary order, with the same years, values, MOEs,
+  statistics and created/skipped counts; a missing `boundary_id` or `year`
+  column still raises `KeyError` at the same point. An equivalence test
+  compares the new builder with the previous loop field by field (#1891).
+  Exotic id types (overlapping intervals, mixed `Timestamp`/`np.datetime64`
+  objects in one column) and further dtype coverage are tracked in #1897.
+- Importing `siege_utilities.geo.django` no longer raises when Django is
+  installed but the GDAL C library is not. The GeoDjango availability check now
+  also catches `ImproperlyConfigured`, so `_gis_available` is `False`, and
+  `get_model()` and `get_service()` raise the existing `ImportError` from the
+  dependency check. Importing the `models` package, or using a service that
+  loads GeoDjango, still raises Django's `ImproperlyConfigured`. Django remains
+  optional (#1889).
 - Correct the geocoding notebook's cache-hit claim: the timed cell scans
   already-collected results in memory to select matched input IDs. Add a
   narrative regression test and offline execution coverage for the geo notebook
@@ -115,9 +134,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   if a member would create such a directory. New components containing a lone surrogate, which is
   how undecodable (non-UTF-8) bytes reach Python, are refused as well. The
   check is public as `reject_unsafe_new_directory_names` (#1716).
+- `ReportGenerator.add_text_section` and `ReportGenerator.add_map_section`
+  accept `page_break_before` and `page_break_after` (both default `False`),
+  passed through to `add_section`, so a text or map section can start on a
+  new page or end its page. Calls without them behave as before (#1927).
 
 ### Fixed
 
+- The reporting map engine's bivariate maps
+  (`create_bivariate_choropleth_matplotlib` and the folium
+  `create_bivariate_choropleth`) no longer crash on tied data: they spread
+  each variable's actual classes across the 3x3 palette and raise a clear
+  error when a variable has fewer than two classes (#1462).
+- `PowerPointGenerator` map slides now show their description and the maps
+  given as image paths or as the library's own map images (the ReportLab
+  Images that the chart and map engines return, which map and chart slides
+  now embed from their PNG data). `add_map_slide` stores its images under
+  `maps`, but map slides were built by the chart builder, which reads
+  `charts`, so every map slide came out with only its title and nothing was
+  logged. A map slide now places one map full width, two side by side and
+  three or four in a grid, and puts maps beyond the fourth on a slide titled
+  "<title> (continued)". A map slide with no maps logs a warning. On map and chart
+  slides, an image path that does not exist, a ReportLab Image without
+  embedded image data, or a map or chart that is none of these nor a
+  described chart, still gets a labeled placeholder and now also logs a
+  warning naming it and the slide title. An image file or embedded image
+  that cannot be decoded raises an error naming the file, if any, and the
+  slide title: a decoding `OSError` such as PIL's `UnidentifiedImageError`
+  keeps its type, and a `ValueError` (invalid base64 or an unsupported
+  format) reaches the caller as `RuntimeError`, as slide-building errors
+  already did. An error opening the file is raised unchanged.
+  `create_comprehensive_presentation` documents that its table of contents
+  and agenda list only the `sections` passed to it, not slides added later,
+  and logs a warning when either is requested without sections. Chart slides
+  that drop their description or an under-filled layout, callers that build
+  empty contents and agenda slides, and image objects that point at a file
+  are tracked in #1934 (#1933).
 - Package introspection (`analyze_package_structure`, `analyze_module` and
   `generate_architecture_diagram`) now recurses only into `siege_utilities`
   submodules, chosen by module name instead of a file-path substring, and
@@ -151,6 +203,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   views, followers and interactions, respectively. A Page Insights response
   with an insight that has no metric name raises `ValueError` instead of
   silently dropping its values (#1474).
+- Social media reports no longer crash or display `nan` when follower or
+  following counts are NaN, text, unparseable or infinite: numeric text such
+  as `"1200"` counts as a number, and other values render as `unavailable`.
+  Like counts that are NaN or non-numeric text are left out of like totals,
+  averages and the top-post pick instead of crashing; the top-posts table
+  shows a missing like or comment count as `unavailable` and other values as
+  returned, with whole-number floats shown as integers. The top-post insight
+  no longer crashes when a connector's posts frame repeats index labels.
+  Daily metric charts include nullable and narrower numeric dtypes (#1469).
+- Render analytics and comprehensive PDF report sections, including chart lists,
+  insight and recommendation bullets, title-page details, a table of contents
+  with page numbers, and appendix dividers. Normalize table record dictionaries
+  into column-aligned values; `add_table_section` raises `ValueError` when a
+  header is not a key of the records, or when a list whose first row is a
+  dictionary contains a row that is not. Reject unsupported section shapes
+  and warn about empty content or missing chart images. Continue content-page
+  paragraphs, tables and bullet lists across page breaks, repeating table
+  headers and raising when a fragment cannot fit, instead of silently
+  discarding content. `ContentPageTemplate.add_bullet_list` now renders each
+  item as a wrapped, paginating flowable rather than a fixed-height canvas line
+  that dropped items past the page bottom (#1485).
+- In the shipped example
+  `siege_utilities/reporting/examples/comprehensive_mapping_example.py`,
+  `create_comprehensive_pdf_report` and `create_comprehensive_powerpoint` now
+  run: they pass the client name that `ReportGenerator` and
+  `PowerPointGenerator` require, the page breaks they request work, and the
+  PowerPoint comparison slide passes its columns as text. Both had failed on
+  their first call since the example was added. The example's
+  `demonstrate_comprehensive_mapping` step, and so `main()`, still fails
+  because it passes no boundary data to the map functions, tracked in #1931
+  (#1927).
 - `DatabaseConnection` validates settings by database type so the shipped
   PostgreSQL and DuckDB defaults load through Hydra. Accept IPv6 hosts and
   file database paths, and allow file connections without server credentials.
@@ -215,6 +298,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Keeping `id: None` is serialization fidelity only and does not solve the B3b
   identity concern. Provider/field identity and control validation is a separate
   follow-up. Refs #1816.
+- `SalesforceConnector.get_objects()` resolves dotted relationship fields and
+  matches each field segment case-insensitively, so requests such as
+  `Account.Name` and `name` return values instead of all-null columns. Output
+  labels keep the caller's spelling; absent fields and relationships remain
+  null, and empty results keep the requested columns (#1428).
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
@@ -328,6 +416,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   0600 throughout. Spark staged exports finish copying beside the destination
   before publication, preserving existing data on copy failures (#1509).
 
+- `RDHClient.download_dataset` streams to a temporary file beside the cache
+  entry and publishes it with `os.replace` only after the byte count matches
+  `Content-Length` when present, requesting identity encoding so the length
+  describes the stored bytes. For a response the server still content-encodes,
+  the bytes received on the wire are compared instead, since requests may
+  store them decoded; an encoded response whose received size cannot be
+  determined is rejected, and a malformed `Content-Length` raises
+  `requests.RequestException`. The file is fsynced before it is published,
+  and on POSIX the directory after, best effort: a failed directory sync is
+  logged, not raised. An interrupted or short download raises,
+  removes its temporary file, and leaves any existing cache entry intact;
+  v4.0.0 wrote the cache path directly and later reused the truncated file. A
+  new entry gets the umask-derived mode of any new file and a refresh keeps the
+  replaced entry's permission bits, as v4.0.0's in-place write did. Cache
+  entries already truncated by v4.0.0 are still served, because a cache hit
+  checks only that the file exists; delete them, or pass `use_cache=False`
+  once after upgrading. ZIP extraction is not yet atomic; #1925 tracks it
+  (#1415).
+
 - Attach `BoundaryManager` to all boundary models so the documented
   `.objects.containing_point/nearest/for_state/for_year` API works. Distance
   filters on SRID-4326 geometry now cast to geography to honor meters, and
@@ -413,6 +520,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `test-postgis`, whose install uses shorter limits (worst case 851 seconds)
     so a slow mirror fails the step and leaves 5 minutes of the 20-minute job
     instead of cancelling it. Job timeouts are unchanged.
+- Place-history overlays apply the `state_fips` filter to election results and
+  redistricting assignments, including numeric FIPS codes. Reversed year
+  ranges are handled and empty half-open redistricting spans are excluded.
+  The state filter runs before span validation, so an inverted span in
+  another state does not abort a state-scoped provider query, overlay fetch,
+  or `place_history` result. Seats use inclusive years; plans use half-open
+  dates (#1466).
 
 ### BREAKING
 
@@ -420,8 +534,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of `0`; in v4.0.0 an omitted follower, like, comment or impression
   count, and an Instagram media or story insight without a value, became 0.
   Instagram media insights read `total_value` and keep a missing value as
-  `None`, and Facebook Page Insights keep a missing daily value as `None`
-  instead of `0` (#1474). Post frames keep their existing columns, add a `metrics`
+  `None`, and Facebook Page Insights report a missing daily value as
+  unavailable (NaN) instead of `0` (#1474, #1435). Post frames keep their existing columns, add a `metrics`
   dictionary and return `published_at` as a UTC-aware timestamp (NaT if
   unavailable) instead of the API's string, with a stable schema for empty
   results. When a later page stays throttled, the posts collected so far are
@@ -501,6 +615,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   also catch `BoundaryFetchError` (a `RuntimeError`). Re-check stored
   `state_senate`/`state_house` results fetched with 4.0.0, which may hold the
   other chamber's plan (#1480).
+- `place_history` and longitudinal boundary normalization now raise `ValueError`
+  when CT county-equivalent, tract, block-group, or block GEOIDs cross the 2022
+  planning-region recode, including normalization to a target across 2022.
+  The error names the required CT 2020->2022 crosswalk. In 4.0.0 these queries
+  returned a result, reporting unchanged lineage or merging incompatible GEOIDs
+  silently. Normalization checks only those levels, so CT SLDU/SLDL frames,
+  whose 5-digit GEOIDs collide with the county codes, pass unchanged. A
+  nationwide frame at an affected level that contains any CT row raises for
+  the whole request. **Migration:** keep CT county, tract, block-group and
+  block queries on one side of 2022, or drop CT rows (state FIPS `09`) from
+  nationwide frames that cross 2022 and handle them separately until the CT
+  2020->2022 crosswalk is supported; that work is tracked in #1795 (#1437).
+- `SocialMediaReportGenerator.create_social_media_report` raises
+  `SocialMediaError` naming the platform, the failed operation and the error
+  type when a connector's account info, insights or posts call fails. In 4.0.0
+  it logged a warning and built the PDF from empty data. The connector's error
+  text is not included, and the connector error is neither chained as the
+  cause nor reachable from the raised error's context (`__cause__` and
+  `__context__` are both `None`), because it can carry access tokens in
+  request URLs or headers. **Migration:** catch `SocialMediaError`
+  around `create_social_media_report`, or drop the failing connector from
+  `connectors` and regenerate, if a partial report is acceptable (#1469).
+- Social media reports show an unavailable count as `unavailable` (metrics,
+  comparison table, insights) or `None` (chart and daily-series data) instead
+  of `0`. This covers a missing `followers_count` or `following_count` and a
+  missing `like_count` column. Totals sum only known values and are
+  `unavailable` when none is known; the largest-audience insight ranks known
+  audiences only; average likes use known counts only. Known zeros stay `0`.
+  Post metrics describe the analyzed sample: `create_social_media_report`
+  takes a keyword-only `posts_limit` (default 50, the 4.0.0 fixed limit). The
+  posts metric keys, the comparison table's posts header and the executive
+  summary now say "analyzed" and name the limit; the likes chart title, the
+  top-posts table titles and the average-likes and top-post insights now say
+  "analyzed" without naming it. **Migration:** treat `None` and
+  `unavailable` as unknown rather than zero; if a zero is required, have the
+  connector return an explicit `0`. Code that reads the private report
+  builders' metric keys or titles must use the new labels (#1469).
+- Bivariate choropleths in `siege_utilities.geo.choropleth` with tied values
+  use the actual quantile grid and preserve the palette's low and high colors.
+  Crosstab dimensions and legend ticks match the retained breaks.
+  `verify_bivariate_classification` reports a reduced class count as an
+  error, and also a variable with fewer populated classes than requested
+  (for example, 2 units classified into 3 classes). Rendering raises a clear
+  `ValueError` if ties leave fewer than two bins on an axis, unless one class
+  was requested, and `create_bivariate_crosstab` raises `ValueError` for a
+  variable with zero classes (all values identical or missing) instead of
+  returning an empty table. In 4.0.0 these functions classified with
+  `qcut(..., duplicates="drop")` and labelled the legend with one tick per
+  requested class boundary but one label per retained break. When ties
+  collapsed a quantile boundary, `create_bivariate_choropleth` and
+  `create_bivariate_analysis` raised matplotlib's `ValueError` that the number
+  of tick locations does not match the number of labels, and
+  `create_bivariate_crosstab` raised `ValueError` (`Length mismatch`, or a
+  pandas error for a constant variable); 5.0.0 renders and tabulates the
+  actual grid. Ties that left every boundary distinct rendered in 4.0.0 and
+  still do. This 4.0.0 behaviour is derived from source (v4.0.0
+  `choropleth.py` lines 220-228, 505-512 and 856, with matplotlib 3.7.5 or
+  later), not executed. **Migration:** `verify_bivariate_classification` now
+  returns `valid: False` for a reduced or unpopulated class count where 4.0.0
+  returned `valid: True`; treat those results as errors. Callers that caught
+  the 4.0.0 matplotlib error on such data now get a figure (#1462).
+- `generate_pdf_report` now raises `ValueError` for a section `type` outside
+  the supported set (`text`, `executive_summary`, `methodology`,
+  `data_summary`, `appendix`, `insights`, `recommendations`, `title_page`,
+  `table_of_contents`, `appendix_header`, `table`, `chart`, `charts`, `map`,
+  `maps`), and for non-string content in the
+  `text`/`executive_summary`/`methodology`/`data_summary`/`appendix` sections.
+  It also raises `ValueError` for these shapes: `insights` or `recommendations`
+  content that is not a list of nonempty strings; `table` content that is not
+  a mapping, whose data is not a list of rows or a DataFrame, or whose headers
+  are not a list or tuple; chart content that is not a list, tuple or mapping,
+  map content that is not a mapping (including a bare list), or a mapping
+  whose `charts`/`maps` value is not a list, tuple or `None`; a `title_page` section
+  with content, non-string fields or no title; a `table_of_contents` section
+  with content; an `appendix_header` section with content or without a
+  title; and a chart or map description that is neither `None` nor a string.
+  A chart or map section with no renderable image still renders, with a
+  warning. `ContentPageTemplate` raises `ValueError` for table rows of
+  differing lengths or with no columns, and for a non-positive paragraph font
+  size or line spacing. `executive_summary`, `methodology`, `data_summary` and
+  `appendix` text is now split into lines with `- `/`* ` bullet detection, as
+  `text` already was; 4.0.0 rendered it as one paragraph. A report with a top-level `title` and no `title_page` section
+  now gets a title page (#1485).
+  **Migration:** callers that relied on a custom `add_section` type, a
+  DataFrame `add_appendix`, or `None` text must change: put custom prose in a
+  `text` section and tabular appendices in a `table` section through
+  `add_table_section`. An explicit `title_page` section replaces the
+  automatic title page, and a report with no `title` in its content or
+  metadata gets none.
 - `DatabaseConnection` no longer enforces a password-strength or length
   policy. Server connections still require a non-empty password, and stored
   passwords load as given. In 4.0.0 the model required at least 8
@@ -511,6 +714,205 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `DatabaseConnection` to enforce password strength must validate passwords
   themselves before constructing it (#1490).
 
+- CRM transport and server-error retries are limited to GET, PUT and DELETE.
+  POST and PATCH requests are sent once, avoiding duplicate creates after a
+  lost response; in v4.0.0 they were retried. HTTP 429 responses wait for
+  `Retry-After` (seconds or HTTP date), falling back to the configured
+  backoff; only idempotent methods retry. Every wait is capped by the new
+  `max_retry_wait=900.0` setting: over-cap and non-finite hints raise
+  `ConnectorRateLimitError` with `retry_after` and do not sleep, fallback waits
+  are bounded, and wait settings must be finite and nonnegative. Auth and
+  rate-limit errors stop batch upserts, and failed HubSpot token validation
+  leaves the connector disconnected. Dynamics batch upserts inspect inner
+  responses, report missing responses as failures, and mark every record in a
+  rolled-back changeset as failed (#1417). **Migration:** a POST or PATCH that
+  fails in transport now raises after one attempt; retry it yourself only after
+  checking whether the record was created. Code that relied on long
+  `Retry-After` sleeps must catch `ConnectorRateLimitError` and reschedule from
+  `retry_after`, or pass a larger `max_retry_wait`. v3.23.0 had no connector
+  implementations.
+- Zoho canonical contacts and opportunities take account and owner
+  relationships from the lookup ID (`Account_Name_id`, `Owner_id`, or the raw
+  lookup's `id`) instead of display names or missing IDs; in v4.0.0 `owner_id`
+  could hold the owner's display name and a flattened account lookup gave no
+  `account_id`. `CRMOpportunity` probability uses a documented 0-100
+  percentage scale: HubSpot's 0-1 fraction is multiplied by 100 in decimal
+  arithmetic, so `0.29` becomes exactly `29.0`, while
+  Salesforce, Zoho and Dynamics keep their percentage values. Dynamics requests
+  formatted-value annotations on every page and uses the industry label when
+  present; without a label, industry remains the option-set code as a string
+  (#1426). **Migration:** code that read Zoho `owner_id` as a name must look
+  the owner up by ID; code that multiplied HubSpot `probability` by 100 must
+  stop; code that matched Dynamics `industry` option-set codes must match
+  labels when one is returned. v3.23.0 had no implementations of these
+  connectors.
+- `DynamicsConnector.create_record()` returns the new record ID from the
+  `OData-EntityId` header on a 204 response; in v4.0.0 it returned an empty
+  string. Representation responses keep the edit-link and primary-key
+  fallbacks, with the correct keys for all standard entities, including
+  `opportunityid` and activity `activityid`. A response without a record ID
+  raises `ConnectorError` instead of returning an empty string (#1427).
+  **Migration:** code that tested the result for `""` must catch
+  `ConnectorError` instead.
+- HubSpot, Zoho and Dynamics return zero rows without a data request for
+  `limit=0`; in v4.0.0 `limit=0` fetched every record. `None` remains
+  unlimited. Zoho COQL stops at the requested count, and record listing uses
+  continuation tokens past 2,000 rows. Dynamics FetchXML follows paging
+  cookies and raises on missing, invalid or repeated cookies when more rows
+  remain. HubSpot search raises a clear error before paging beyond its
+  10,000-result cap (#1429). **Migration:** pass `limit=None`, not `0`, for no
+  limit; narrow HubSpot search filters or use unfiltered listing for more than
+  10,000 results. v3.23.0 had no connector implementations.
+- Salesforce, HubSpot, Zoho and Dynamics `to_crm_*` helpers map missing
+  numeric, date and string values (`None`, NaN, NaT and `pd.NA`) to `None`
+  before conversion. Missing required account and opportunity names become an
+  empty string, so unnamed records stay in the result instead of aborting the
+  whole list. Valid values and zeros are preserved (#1425). **Migration:** to
+  drop unnamed accounts or opportunities, filter on `name == ""`. v3.23.0 had
+  no implementations of these connectors.
+- Salesforce, HubSpot and Zoho authorization URLs percent-encode OAuth
+  parameters, preserving redirect URI queries and state values containing
+  reserved characters. HubSpot scope separators use `%20` (#1431); in v4.0.0
+  parameters were joined without encoding. **Migration:** pass redirect URIs,
+  scopes and state as plain values; do not encode them before calling
+  `get_authorization_url()`, or they will be encoded twice. v3.23.0 had no
+  connector implementations.
+- Salesforce, HubSpot, Zoho and Dynamics renew credentials once after HTTP 401
+  and replay the rejected request once when renewal is available, including
+  Dynamics public batch upserts and Salesforce CSV uploads and result
+  downloads. Persistent authentication failures raise `ConnectorAuthError`;
+  result-download errors and incomplete result IDs cannot become successful
+  upsert results. Transport and server-error retry limits remain in place.
+  Known token lifetimes use timezone-aware UTC with a 60-second refresh
+  margin. Salesforce does not report an access-token lifetime, so its expiry
+  stays unknown and renewal happens on 401; v4.0.0 assumed two hours from
+  issue. Dynamics renewal clears cached client-credential tokens before
+  acquiring a replacement (#1436). **Migration:** remove caller-side
+  re-authentication around HTTP 401, which the connector now handles once per
+  request. Salesforce `is_connected()` no longer turns False two hours after
+  issue; it stays True until a request is rejected, so code that polled it to
+  decide when to re-authenticate must instead handle `ConnectorAuthError`.
+  v3.23.0 had no connector implementations.
+- Exceptions leaving a public CRM connector method are rebuilt with a
+  sanitized message: the same exception type where it can be built from one
+  message, otherwise `ConnectorError` whose text is `"<original type>:
+  <sanitized message>"` and whose `original_type` names the original class
+  (for example pydantic `ValidationError` or `json.JSONDecodeError`). Only the
+  validated `status_code`, `status` and `retry_after` attributes are carried
+  over; all other attributes of the original exception are dropped. The
+  original is never chained as the cause and is not shown in tracebacks (#1846).
+  **Migration:** code that caught `pydantic.ValidationError`,
+  `json.JSONDecodeError`, `UnicodeDecodeError`, or their base `ValueError`, from
+  a connector method must catch `ConnectorError` and check `original_type`. Read
+  the field or position from the message text instead of exception attributes;
+  when a configured credential is shorter than eight characters or cannot be
+  collected, the text is only the type name.
+- DuckDB `query` binds `parameters` (or `params`) and rejects unknown keywords
+  and parameterized multi-statement SQL before execution; in v4.0.0 keywords
+  other than `table` and `df` were silently ignored. WKB materialization
+  retains per-column CRS in pandas attrs, including empty results; unknown CRS
+  remains `None`. DuckDB `read_spatial` preserves file CRS and coordinates by
+  default and reprojects only when a target is requested, rejecting
+  reprojection when the source CRS is unknown; in v4.0.0 it returned EPSG:4326
+  by default (#1412). **Migration:** pass only `parameters`/`params` (plus
+  `table`/`df`) to `query` and run parameterized statements one at a time;
+  pass `crs="EPSG:4326"` to DuckDB `read_spatial` to keep the previous output
+  CRS.
+- Pandas, DuckDB and PostGIS `to_geodataframe` preserve an existing
+  GeoDataFrame's CRS when no target is supplied; in v4.0.0 they reprojected to
+  EPSG:4326. Base nearest, apportion and dissolve retain projected inputs;
+  their new `crs` argument reprojects on request. Nearest distances and
+  apportion area shares use projected units, and geographic, unknown or
+  mismatched measurement CRSes raise `ValueError` in apportion on every engine
+  and in nearest on the Pandas, DuckDB and PostGIS engines; v4.0.0 imposed no
+  CRS requirement and measured in the EPSG:4326 frame that `to_geodataframe`
+  returned (on Spark, the stored coordinates labelled EPSG:4326), so a v4.0.0
+  call with geographic input now raises. `SparkEngine.nearest` is unchanged
+  from v4.0.0: it measures in the stored coordinates' units with no CRS check,
+  and its new `crs` keyword raises `NotImplementedError`. Plain geometry with
+  no CRS metadata is read in the default CRS (EPSG:4326 unless changed with
+  `set_default_crs`) on the Pandas, DuckDB and PostGIS engines: WKT text,
+  Shapely objects such as `load_points` output, and all-null columns.
+  In nearest, apportion and dissolve a requested `crs` reprojects it rather
+  than relabelling lon/lat values, while `to_geodataframe(crs=...)` labels it
+  with that CRS (#1497, #1852). DuckDB `buffer` with `crs` likewise treats
+  plain Shapely geometry as the default CRS and reprojects the result.
+  DuckDB WKB bytes and hex WKB without CRS metadata have an unknown CRS,
+  which `crs` declares. On `SparkEngine`,
+  which stores no source CRS, `crs` on `apportion` and `dissolve` declares the
+  CRS the stored coordinates are already in and does not reproject, matching
+  `SparkEngine.to_geodataframe`. Reproject through
+  `read_spatial(crs=<projected>)`, or `to_geodataframe(crs=<actual CRS>)` then
+  `to_crs` and the Pandas engine; `to_pandas` returns plain WKT text, which has
+  no `to_crs`.
+  **Migration:** pass `crs="EPSG:4326"` to
+  `to_geodataframe` for the previous output CRS; give nearest and apportion
+  inputs in one projected CRS, or pass a projected `crs=`, and read distances
+  in that CRS's units. In nearest, apportion and dissolve, `crs=` transforms
+  only inputs whose CRS is known (including plain WKT and plain Shapely
+  geometry, both read in the default CRS); on `SparkEngine` frames and
+  no-CRS geometry (including DuckDB
+  WKB without CRS metadata) it declares the CRS the stored coordinates are
+  already in and does not reproject, so never declare lon/lat degrees as
+  projected. A call without `crs` on Spark frames, plain WKT or plain Shapely
+  geometry, which v4.0.0 ran on the stored coordinates, now raises under the
+  EPSG:4326 default. For plain lon/lat WKT or Shapely geometry on the Pandas,
+  DuckDB and PostGIS engines, pass a projected `crs` to reproject it. For
+  Spark frames, reproject upstream (for example
+  `read_spatial(crs=<projected>)`), or pass the projected CRS the stored
+  coordinates are truly in. A configured projected default (for
+  example `set_default_crs("EPSG:5070")`) runs without `crs`.
+- Spark spatial joins and boundary assignments keep one left geometry and
+  suffix shared attributes with `_left`/`_right`, matching the join invariant
+  and nearest contract; in v4.0.0 the join returned every left and right
+  column (`l.*, r.*`), including both geometries and duplicate names.
+  Multi-layer assignment prefixes polygon attributes before joining, preserves
+  point names, drops the generated right index, and keeps Spark frames native
+  between layers without collecting to the driver (#1479). On Spark, because
+  the result keeps only the left geometry, `spatial_join` and
+  `assign_boundaries` accept
+  `how="inner"` or `how="left"` only; `right`, `outer` and `full` raise
+  `ValueError` before any temp view is registered, where v4.0.0 ran them
+  (#1852). **Migration:** read shared attributes by their `_left`/`_right`
+  names; select a right-side geometry under another name before joining if you
+  need it; for a right join, swap the inputs, use `how="left"` and reverse a
+  directional predicate (`within` and `contains` swap; `intersects`,
+  `touches`, `crosses` and `overlaps` are symmetric). For `assign_boundaries`
+  with `how="right"`, call `spatial_join(polygons, points, how="left",
+  predicate="contains")`.
+- On the Pandas, DuckDB and PostGIS engines, `multi_assign` prefixes each
+  layer's attributes before joining, resets the layer's index, keeps the
+  layer's active geometry column under its own name and drops the generated
+  right index. It converts a non-GeoDataFrame layer with `to_geodataframe`.
+  A layer of WKT text, Shapely objects or all-null values without CRS
+  metadata keeps the default CRS that conversion gives it, as a direct
+  `spatial_join` would, unless the points have a different known CRS; then
+  the layer joins with an unknown CRS, so there is no false mismatch, and
+  geopandas warns about the CRS difference as v4.0.0 did. A DuckDB layer of
+  WKB without CRS metadata stays unknown, so geopandas warns even for
+  default-CRS points, where v4.0.0 labelled it EPSG:4326 and was silent. On
+  Pandas, a non-GeoDataFrame layer and a layer whose active geometry is not
+  named `geometry` now join, where v4.0.0 failed. A prefixed layer column
+  that collides with a point column, for example when `multi_assign` runs
+  again with the same layer name, raises `ValueError`; v4.0.0 silently
+  produced duplicate column labels. PostGIS `multi_assign` now returns a
+  GeoDataFrame, where v4.0.0 returned a plain DataFrame (#1852).
+  **Migration:** v4.0.0's `{layer}_index_right` column is no longer
+  returned. A column that both the points and the first layer sharing it
+  have, which v4.0.0 returned as `{layer}_{col}_left` and
+  `{layer}_{col}_right` (later layers already used `{layer}_{col}`), is now
+  `{col}` (the points' value) and `{layer}_{col}` (the layer's value).
+- `DuckDBEngine.join` resolves a coalesced geometry join key by source (the
+  left frame's CRS for inner and left joins, the right frame's for a right
+  join), rejects two conflicting known CRSes before the merge in every join
+  mode with a `ValueError` naming both, and rejects a known-vs-unknown key CRS
+  for outer joins. The rule applies to GeoDataFrame inputs as well as raw-WKB
+  frames, resolving each key from the live GeoSeries CRS. None/None stays None
+  and non-key geometry keeps its own CRS under its suffix. CRS is compared
+  semantically (EPSG/WKT/PROJJSON/proj4 canonicalized). Previously mixed CRS
+  was accepted, a GeoDataFrame join bypassed the rule, and the result was
+  mislabelled EPSG:4326 (#1852). **Migration:** reproject both inputs to one
+  CRS before joining on a geometry key.
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
   request for an unpublished year now returns `success=False`,
@@ -590,6 +992,136 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `TIMESTAMP_NTZ`. Drop casts that compensated for `VARCHAR`. To keep the
   v4.0.0 column types, create the table yourself and pass
   `auto_create_table=False`.
+- A redistricting assignment in the queried state whose span is inverted
+  (`from_date` after `to_date`) now raises `ValueError` from the redistricting
+  provider, `RedistrictingOverlay.fetch` and `active_at`; 4.0.0 raised no
+  error for such rows. Assignments in other states are filtered out before
+  this check. **Migration:** close or correct inverted rows at the data
+  source, or catch `ValueError` around state-scoped redistricting queries
+  (#1466).
+- This qualifies the entry above: the inverted-span check reaches callers in
+  three different ways. Only
+  `DictRedistrictingDataProvider.get_district_assignments` and
+  `RedistrictingOverlayResult.active_at` perform it;
+  `RedistrictingOverlay.fetch` raises only when its provider does. The Dict
+  provider checks spans before applying the year range, so a row outside the
+  queried years can still raise; it skips rows for other states first only
+  when `state_fips` is passed, and without it checks every stored row.
+  `active_at` checks every assignment in the result, whatever its state or
+  dates. `place_history` does not raise when the overlay's
+  provider does: it records the failure in `result.errors` ("Overlay
+  '<name>' failed: ...") and leaves that overlay out of `result.overlays`.
+  **Migration:** with `place_history`, check `result.errors` for a failed
+  redistricting overlay; around direct provider calls, `fetch` and
+  `active_at`, catch `ValueError` (#1466).
+- `SeatsOverlayResult.current_districts` keeps every row of the chosen
+  start-year group: two same-office seats starting in the same year, one
+  finite and one ongoing, are both returned (4.0.0 returned only the finite
+  one), so split districts are retained. Among the seats covering the shared
+  reference year, the newest start-year group that contains an ongoing seat
+  wins, so an older ongoing seat is kept over a newer finite one.
+  **Migration:** treat `current_districts` as a list of one or more rows per
+  office, and do not assume the newest finite seat is the current one
+  (#1466).
+- Redistricting `to_date` is now exclusive.
+  `RedistrictingOverlayResult.active_at` no longer returns an assignment on
+  its `to_date`, and
+  `DictRedistrictingDataProvider.get_district_assignments` no longer returns
+  an assignment whose `to_date` is January 1 of the earliest queried year.
+  4.0.0 treated `to_date` as the last active day. Data stored with an
+  inclusive last day, such as a plan ending December 31 followed by one
+  starting January 1, now has no active plan on December 31, and no error is
+  raised. A one-day assignment stored with `from_date` equal to `to_date` is
+  now an empty span, which `active_at` and the Dict provider skip.
+  **Migration:** store the day after the last effective day as `to_date`
+  (#1466).
+- The state filters in `DictElectionDataProvider` and
+  `DictRedistrictingDataProvider` now map a recognised two-digit FIPS
+  `state_fips` to its abbreviation before comparing it, case-insensitively,
+  with each row's `state`; the row value is not mapped. 4.0.0 compared the
+  two values case-insensitively without mapping, so a row whose `state` held
+  a FIPS code matched the same code in `state_fips`. Such rows no longer
+  match a recognised FIPS query, and no error is raised. **Migration:** store
+  `state` as the two-letter state abbreviation (#1466).
+- A reversed year range (`from_year` after `to_year`) now covers the same
+  years as the ordered range in `DictElectionDataProvider` and
+  `DictRedistrictingDataProvider`. For a reversed range, 4.0.0 returned no
+  election results, and only the redistricting assignments that began by
+  the end of the earlier year and lasted at least to the start of the later
+  year. **Migration:** if code relied on an empty or partial result for a
+  reversed range, check the order before querying (#1466).
+- `SeatsOverlayResult.current_districts` now selects within each office at a
+  shared reference year: the latest end year across all rows, counting an
+  ongoing row by its start year. 4.0.0 kept only rows whose end year (or
+  start year, for an ongoing row) equalled that latest year, so it dropped
+  any office whose latest year was earlier, including an office served only
+  by an ongoing seat that started earlier. Now every office with a row
+  covering the reference year contributes its chosen start-year group, and
+  only that group: where 4.0.0 returned two overlapping periods of one office
+  because both ended (or, if ongoing, started) in that year, one group is
+  returned now. Rows come back grouped by office in first-seen order instead
+  of input order. A row whose `from_year` is after its `to_year` is never
+  returned (4.0.0 returned it when its `to_year` was the latest year), but
+  its `to_year` still sets the reference year, so it can leave its own and
+  other offices with no current district. An ongoing row with no
+  `from_year` is treated as starting before every known year: it always
+  covers the reference year, and unless another ongoing row of the same
+  office has a known `from_year`, its group is chosen over that office's
+  finite rows. 4.0.0 dropped such a row unless no row in the result had a
+  known end or start year. **Migration:** expect rows for more offices, do
+  not rely on row order across offices, read `assignments` to see every
+  period of an office with overlapping periods, correct inverted seat rows
+  at the data source, and set `from_year` on ongoing seat rows (#1466).
+- DuckDB and PostGIS `spatial_join`, along with `point_in_polygon`,
+  `assign_boundaries`, `intersect_boundaries`, and `multi_assign`, now raise
+  `ValueError` on mismatched known CRS like PandasEngine. The check reads
+  the CRS of the inputs as passed: a frame without CRS metadata, such as a
+  pandas frame of WKT or a DuckDB query result, counts as unknown CRS and
+  joins as before. A CRS recorded per geometry column in a DuckDB frame's
+  pandas attrs is not read by the check, so such a frame also counts as
+  unknown. On the Pandas, DuckDB and PostGIS engines, `multi_assign` checks
+  every boundary layer against points with a known CRS; points without CRS
+  metadata stay unknown for every layer, and a layer without CRS metadata
+  is not compared against points in another known CRS (#1898, #1852). On
+  Spark, only `spatial_join` and the
+  `point_in_polygon` and `intersect_boundaries` helpers that delegate to it
+  run the check, and only when both frames carry an explicit `crs`
+  attribute; Spark `assign_boundaries` and `multi_assign` do not check
+  (#1896). Known CRS values are compared as coordinate reference systems
+  through pyproj when it is installed, so `"EPSG:4326"` and `"epsg:4326"`
+  match; without pyproj they are compared literally, with a warning when
+  they differ. Matching and unknown CRS retain their existing behavior
+  (#1619). **Migration:** inputs with mismatched known CRS used to join raw
+  coordinates on DuckDB and PostGIS, and on Spark through the three checked
+  methods, and now raise; reproject one input to match the other before
+  calling them (for example `right.to_crs(left.crs)` for GeoDataFrames;
+  after reprojecting a Spark frame, update or remove its `crs` attribute).
+- Codification recency and demographic metrics return corrected values for
+  the same input (#1492):
+  - `compute_recency` and `AddressVintage.is_new_construction` measure new
+    construction against the latest TIGER vintage (`TIGER_VINTAGES[-1]`)
+    instead of the area's own newest first year or an address's last
+    observation. An all-2010 area now reports `new_construction_pct` 0
+    instead of 1.0, and an address seen only in 2010 is no longer new.
+  - An even-count `median_vintage` is the lower central observed vintage, so
+    it is always a real vintage year; v4.0.0 averaged the two, giving years
+    such as 2011.
+  - `compute_demographic_signature` keeps zero-population blocks for the
+    housing rates, and divides `pct_housing_occupied` and
+    `pct_housing_vacant` by the addresses in blocks with `housing_total > 0`,
+    so group-quarters blocks no longer deflate them. `weighted_blocks` now
+    counts every matched block, including zero-population ones. Population
+    rates keep their nonzero-population denominator.
+    When no matched block has any addresses, `weighted_blocks` and
+    `total_block_population` still count those blocks and their population,
+    and every rate is 0.0; 4.0.0 returned all defaults in that case.
+
+  **Migration:** recompute any stored portraits or headline metrics.
+  Expect lower `new_construction_pct` for established areas, observed-year
+  medians, and higher housing occupancy where group-quarters blocks were
+  present. Code that relied on `weighted_blocks` excluding zero-population
+  blocks must filter those blocks itself.
+  Do not treat `weighted_blocks > 0` as a sign that the rates have data.
 
 ### BREAKING
 
@@ -621,6 +1153,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Nothing repairs them automatically. Run
   `python manage.py backfill_derived_fields --dry-run --strip-name` to see
   the counts, then the same command without `--dry-run` (#1539, #1550).
+- Facebook page insights now merge every metric's daily values by measured day.
+  For `period=day`, `date` is a `YYYY-MM-DD` string: `end_time` normalized to
+  UTC (an `end_time` without an offset is read as UTC, not host local time),
+  minus one day. The frame always has the columns `date` plus the requested
+  metrics in requested order; a requested metric absent from the response is a
+  column of NaN, and an empty response, or one holding only metrics that were
+  not requested, is a zero-row frame with those columns. Returned metrics that
+  were not requested are dropped. Missing per-day values and metric/day pairs
+  are NaN, not zero; a reported 0 stays 0. An insight without a metric name
+  raises `ValueError`, even when it has no values. Each connector uses its own
+  API session for page, ad, business, and account calls, preventing token sharing while preserving any existing SDK default API.
+  Facebook ad insights now request daily rows (`time_increment=1`) and include
+  `ad_id`, `ad_name`, `date_start`, and `date_stop`, including when callers
+  supply custom fields; missing ad and business metrics are NaN instead of
+  zero. `batch_retrieve_facebook_data` documents its accepted `data_types` as
+  `ad_account`, `page`, and `business` and accepts `config_directory` to load
+  the client profiles used by all three retrieval paths. **Migration:** parse
+  page-insight `date` as a `YYYY-MM-DD` string for the UTC day before
+  `end_time` (it was the raw `end_time` string in v4.0.0), and re-check any
+  code that assumed the old date value; select page-insight columns by the
+  metric names you requested, since unrequested metrics are no longer returned;
+  handle `ValueError` for a response with an unnamed insight; treat NaN as "no
+  value" and fill it explicitly if zero was intended; expect one row per day
+  from ad insights and the added `ad_id`, `ad_name`, `date_start` and
+  `date_stop` columns (#1435).
 - `CrosswalkPopulationService.populate` (and `populate_crosswalks`) now loads
   crosswalks: it calls `get_crosswalk(geography_level=...)` instead of the
   nonexistent `geography_type=` keyword, which raised `TypeError` on every
@@ -716,6 +1273,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `by_population(..., dataset="acs5")` now scopes by content type and dataset and
   selects the newest data year when no year is specified. GFK-specific relation
   introspection/prefetch APIs no longer apply. (#1560)
+
+- `TimeseriesService.populate_timeseries` computes CAGR per calendar year:
+  the exponent is the elapsed span `end_year - start_year` instead of the
+  number of observation gaps, so sparse series no longer overstate annual
+  growth by roughly the observation spacing (values 1000, 1100 and 1210 for
+  2000, 2010 and 2020 now store about 0.0096 instead of 0.10). A missing MOE
+  is stored as `None` in `moe_values` instead of being dropped, so `years`,
+  `values` and `moe_values` stay positionally aligned; a series with no MOEs
+  now stores a list of `None` instead of `[]`. Snapshots and existing series
+  are read once per variable instead of once per GEOID; `years` and `values`
+  are unchanged. A negative end value, such as a raw Census sentinel
+  (`-666666666`) kept in a snapshot, now stores `cagr` as `None`: earlier
+  versions stored a meaningless negative rate for a two-observation series
+  and failed to save longer series, because the fractional power of a
+  negative number is complex (#1622).
+  **Migration:** no schema migration is needed. Rows written by earlier
+  versions keep the old CAGR and compacted `moe_values` until
+  `populate_timeseries(..., update_existing=True)` recomputes them. It
+  rewrites a stored row only when the geography level, GEOID, variable,
+  dataset and start and end years all match a recomputed series, so
+  snapshots for both stored endpoint years must still exist and be among
+  the requested years. Affected rows have
+  `end_year - start_year != len(years) - 1`,
+  `len(moe_values) != len(years)` or a negative last value. Treat `None` in
+  `moe_values` as an unavailable MOE and `None` in `cagr` as undefined.
 
 - `ConfigurationMigrator.migrate_user_profile` and `migrate_client_profile`
   in both `config.enhanced_config` and `config.migration` now propagate file,
@@ -922,6 +1504,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   DEBUG level include each request's full path and query string. Proxies,
   load balancers and CDNs in front of graph.facebook.com still see the full
   URL and must redact `/oauth/access_token` query strings themselves (#1812).
+- CRM connectors redact sensitive URL, header, form and JSON values from
+  exceptions, tracebacks, log records and upsert result representations, and
+  keep raw transport exceptions out of displayed exception chains, including
+  Dynamics batch errors. Redacted connector log records keep the real
+  caller's file, line and function, and a log template that does not match
+  its arguments logs a marked fallback instead of raising into the caller.
+  Quoted JSON secret redaction runs in linear time, so a long run of
+  backslashes in an error body cannot stall it. HubSpot, Zoho and Salesforce
+  token failures whose JSON body is not an object raise `ConnectorAuthError`
+  instead of `AttributeError`. An `UpsertResult` pickles without the
+  connector's redactor, so a pickled result never carries the connector or its
+  credentials; after unpickling its repr uses key-based redaction. Credentials
+  supplied per call are redacted too:
+  a `DynamicsConnector.request(headers=...)` credential header and the code
+  passed to HubSpot, Salesforce and Zoho `authenticate_with_code` are removed
+  from that call's exceptions and log records, including a nested token
+  refresh. A short or unreadable one, or a `str` or `bytes` subclass (whose
+  sent value cannot be known from the object), leaves only the error type and
+  HTTP status. The values sent are unchanged and are not kept after the call
+  (#1846).
 - Credential files are written with mode 0600 before writing their payload,
   including existing files, with no write-then-chmod race. Missing parent
   directories are created with mode 0700. Profile defaults use per-user paths;

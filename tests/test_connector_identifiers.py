@@ -119,7 +119,7 @@ def test_zoho_valid_relationship_identifiers():
     )
     assert connector.request.call_args.kwargs["json_body"]["select_query"] == (
         "select Account.Name, Custom__c, A.B.C from Custom_Module "
-        "where Account.Owner.Name = 'Alice' and _custom2 is null"
+        "where Account.Owner.Name = 'Alice' and _custom2 is null limit 0, 200"
     )
 
 
