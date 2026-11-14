@@ -114,7 +114,8 @@ def test_intensive_no_coverage_is_nan_but_covered_zero_stays_zero(monkeypatch, b
         source, target, extensive_variables=["pop"], intensive_variables=["rate"],
     )
     expected = [np.nan, np.nan] if no_intersections else [0.0, 0.0, np.nan, np.nan]
-    np.testing.assert_allclose(result.data["rate"], expected)
+    # Equal-area reprojection can leave roundoff when opposite rates cancel.
+    np.testing.assert_allclose(result.data["rate"], expected, atol=1e-14)
     np.testing.assert_allclose(result.data["pop"], [0, 0] if no_intersections else [10, 20, 0, 0])
 
 

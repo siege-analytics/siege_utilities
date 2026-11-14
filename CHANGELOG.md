@@ -1436,6 +1436,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     success with 0 updated. Unmatched districts are counted in
     `records_skipped`, and a partial match adds a warning. Pass the CVAP
     level whose GEOIDs equal your plan's district GEOIDs.
+- `interpolate_areal` (and `interpolate_extensive` / `interpolate_intensive`)
+  measures source and overlap areas in an equal-area CRS on every backend
+  (tobler, DuckDB and Shapely), correcting latitude-biased extensive
+  allocations and intensive averages. The CRS is the new keyword-only
+  `area_crs` (default World Mollweide, `ESRI:54009`); a geographic or invalid
+  value raises `ValueError`, and the CRS used is recorded in the new
+  `ArealInterpolationResult.area_crs`. Output geometries default to the
+  original source CRS, as documented, or use the explicit `crs` argument;
+  source CRS metadata also retains the original input CRS (#1407).
+  Migration: allocations change for geographic inputs (e.g. a 30–45°N source
+  split by latitude now gives 525.2/474.8 instead of 500/500), including on
+  the tobler backend, which no longer warns about a geographic CRS; callers
+  that need another equal-area projection pass `area_crs`, and callers that
+  relied on the library-default output CRS pass `crs` explicitly.
+  `ArealInterpolationResult` is a plain dataclass that gains a trailing
+  `area_crs` field with a default: keyword and positional construction keep
+  working, but `dataclasses.astuple()` / `asdict()` output gains one element /
+  key and equality now also compares `area_crs`.
 
 ### Security
 
