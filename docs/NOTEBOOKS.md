@@ -107,15 +107,17 @@ not credentials are present.
 | `DW_AUTH_TOKEN` | `analytics/01` | Call shape printed |
 | RDH API | `spatial/04` | Synthetic stand-in polygons with call shape in comments |
 | Azure Databricks workspace | `engines/03` | Pure-Python URL / SQL builder cells run; cluster-dependent cells conceptual |
-| Local PostGIS | `spatial/06` | Full call-shape recipe, not executed inline (needs live DB) |
+| Local PostGIS | `spatial/06` | Schematic GeoDjango call shapes; markdown-only, no code cells execute |
 
 ## Why `engines/02` and `spatial/06` don't execute their primary cells
 
 Local Spark inside nbconvert is fragile (JVM startup, Py4J gateway lifetime,
 serializer registration). Likewise a Django + PostGIS server spun up inside a
-notebook is unsafe to provision from CI. Both notebooks ship complete,
-copy-pasteable call shapes rather than fake execution. The analysis pattern
-is the point; provisioning is out-of-band.
+notebook is unsafe to provision from CI. Both notebooks are schematic: their
+Spark/Sedona and GeoDjango sections document call shapes, not runnable copy-paste
+recipes. engines/02 executes only an import smoke cell; spatial/06 is markdown-only
+and has no code cells to execute. The documented patterns require separately
+configured runtimes, data, and services.
 
 ## Inventory, capability coverage, and CI truth checks
 
@@ -126,11 +128,21 @@ python3 scripts/check_notebook_inventory.py --json
 python3 scripts/check_notebook_inventory.py --check
 ```
 
-The strict all-live-governed gate now enforces that every live notebook is listed
-in both governance files:
+The strict all-live-governed gate enforces that every live notebook is listed
+in the hygiene or execution lists; it checks list membership only. Markdown-only
+schematics are listed separately in `SCHEMATIC_MARKDOWN_ONLY` in
+`tests/test_notebooks.py` and remain covered by `tests/test_notebook_hygiene.py`.
 
 ```bash
 python3 scripts/check_notebook_inventory.py --check --require-all-live-governed
+```
+
+Every notebook in `NOTEBOOK_GROUPS` must have at least one code cell, and every
+notebook in `SCHEMATIC_MARKDOWN_ONLY` must contain only markdown cells. The
+inventory gate does not inspect cells; these pytest checks enforce both rules:
+
+```bash
+pytest tests/test_notebooks.py -k "test_execution_notebook_has_code_cells or test_schematic_notebook_is_markdown_only"
 ```
 
 Notebook capability coverage is also explicit and machine-readable in
@@ -174,9 +186,10 @@ python3 scripts/check_notebook_capability_coverage.py --check
 ```
 
 Notebook execution gating must become tier-complete, not decorative smoke.
-Every live notebook needs an assigned execution tier and command; PRs touching
+Every executable live notebook needs an assigned execution tier and command; PRs touching
 notebooks or public APIs used by notebooks must run the impacted tier or expose
 an explicit tracked external-service skip with a fixture-backed offline path.
+Markdown-only schematics require structural hygiene and documentation contract checks.
 See #1224 and #1227.
 
 ## See also
