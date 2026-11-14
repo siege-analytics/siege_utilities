@@ -170,6 +170,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that drop their description or an under-filled layout, callers that build
   empty contents and agenda slides, and image objects that point at a file
   are tracked in #1934 (#1933).
+- `PowerPointGenerator` chart slides no longer drop charts or produce an
+  empty slide without saying so. They show the description that
+  `add_chart_slide` stores. A layout with fewer charts than it holds
+  (`two_charts` with one chart, `grid` with one to three) places the charts
+  it has instead of none, and charts beyond what a layout holds (a second
+  chart on `single_chart`, a third on `two_charts`, a fifth on `grid`)
+  continue on slides titled "<title> (continued)" instead of being dropped.
+  Chart positions and the slide layout are unchanged, so a single chart on the
+  default layout without a description produces the same slide. A chart slide
+  with no charts, including `None` under `charts`, logs a warning, and so does
+  a chart given as a mapping whose `image_path` or `path` is empty.
+  Placeholder warnings on chart and map slides now name a missing path, but
+  for any other item give only its type name, or a mapping's sorted keys,
+  never its values (#1934).
 - Package introspection (`analyze_package_structure`, `analyze_module` and
   `generate_architecture_diagram`) now recurses only into `siege_utilities`
   submodules, chosen by module name instead of a file-path substring, and
@@ -524,6 +538,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `PowerPointGenerator.add_chart_slide` raises `ValueError` for a `layout`
+  other than `"single_chart"`, `"two_charts"` or `"grid"`, naming the layout
+  and listing the valid ones, and for `charts` that are not a list, tuple or
+  `None` (for example a single path string, bytes or a mapping), naming the
+  slide and the type. A chart slide section built by hand with either raises
+  when the presentation is generated, as `RuntimeError` with the same
+  message, as other slide-building errors do. In v4.0.0 an unknown layout was
+  accepted and produced a slide with only its title, placing no chart, and a
+  single path string produced one slide with a placeholder for its first
+  character (#1934). **Migration:** use one of the three layouts
+  (`"single_chart"` is the default; charts beyond what a layout holds now
+  continue on further slides), and pass charts as a list, for example
+  `["chart.png"]` instead of `"chart.png"`.
 - Instagram and X return missing account, post and insight metrics as `None`
   instead of `0`; in v4.0.0 an omitted follower, like, comment or impression
   count, and an Instagram media or story insight without a value, became 0.
