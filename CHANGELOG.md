@@ -1436,6 +1436,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     success with 0 updated. Unmatched districts are counted in
     `records_skipped`, and a partial match adds a warning. Pass the CVAP
     level whose GEOIDs equal your plan's district GEOIDs.
+- `siege_utilities.geo.plan_lifecycle`: court-stayed plans are no longer in
+  effect. `ACTIVE_STATUSES` no longer contains `PlanLifecycleStatus.STAYED`, so
+  `is_active`, `was_active_at`, `PlanLineage.plan_at` and `resolve_plan_at` stop
+  returning stayed plans; challenged plans remain active, and `resolve_plan_at`
+  falls back to an older plan only if its own lifecycle still marks it enacted
+  or challenged. Same-date lifecycle events now resolve to the most advanced
+  stage in both `status_at` and `latest_event`, so a plan adopted and enacted on
+  the same day is returned by `resolve_plan_at`. Effective date remains the
+  primary ordering key (#1442).
+  Migration: code that must still treat a stayed plan as in effect should test
+  `plan.status_at(d) in ACTIVE_STATUSES | {PlanLifecycleStatus.STAYED}` instead of
+  `was_active_at(d)`; code that relied on the first same-date event should
+  select from `plan.events` explicitly.
 
 ### Security
 
