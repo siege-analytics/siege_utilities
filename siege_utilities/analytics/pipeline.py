@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import warnings
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +83,8 @@ class PipelineItem:
         Item value (dollars, record count, etc.).
     entered_stage : datetime | None
         When the item entered this stage. Required for velocity metrics.
+        Naive timestamps are interpreted as host-local times. All timestamps
+        in one analysis, including as_of, must have the same awareness.
     """
 
     item_id: str
@@ -167,7 +169,10 @@ class PipelineAnalyzer:
             Items currently in the pipeline.
         as_of : datetime, optional
             Reference time for velocity calculation.
-            Defaults to datetime.now().
+            Defaults to datetime.now() for naive host-local timestamps or
+            datetime.now(timezone.utc) for aware timestamps. Aware values
+            are normalized to UTC before calculating elapsed time. Must
+            have the same awareness as the entered_stage timestamps.
 
         Returns
         -------
@@ -176,20 +181,47 @@ class PipelineAnalyzer:
         Raises
         ------
         ValueError
-            If items is empty or contains unknown stages.
+            If items is empty, contains unknown stages, or mixes naive and
+            aware timestamps (including as_of). Timestamp errors identify
+            the offending items.
         """
         if not items:
             raise ValueError("At least one pipeline item is required")
 
+        naive_items = []
+        aware_items = []
         for item in items:
             if item.stage not in self._stages:
                 raise ValueError(
                     f"Unknown stage {item.stage!r} for item {item.item_id!r}. "
                     f"Valid stages: {self._stages}"
                 )
+            if item.entered_stage is not None:
+                if item.entered_stage.utcoffset() is None:
+                    naive_items.append(item.item_id)
+                else:
+                    aware_items.append(item.item_id)
+
+        if naive_items and aware_items:
+            raise ValueError(
+                "Mixed naive and aware entered_stage timestamps: "
+                f"naive items {naive_items!r}; aware items {aware_items!r}"
+            )
 
         if as_of is None:
-            as_of = datetime.now()
+            as_of = datetime.now(timezone.utc) if aware_items else datetime.now()
+        if as_of.utcoffset() is not None:
+            if naive_items:
+                raise ValueError(
+                    "as_of is aware but entered_stage is naive for items "
+                    f"{naive_items!r}"
+                )
+            as_of = as_of.astimezone(timezone.utc)
+        elif aware_items:
+            raise ValueError(
+                "as_of is naive but entered_stage is aware for items "
+                f"{aware_items!r}"
+            )
 
         stage_metrics = self._compute_stage_metrics(items)
         conversions = self._compute_conversions(stage_metrics)
@@ -289,7 +321,10 @@ class PipelineAnalyzer:
         for item in items:
             if item.entered_stage is None:
                 continue
-            days = (as_of - item.entered_stage).total_seconds() / 86400
+            entered_stage = item.entered_stage
+            if entered_stage.utcoffset() is not None:
+                entered_stage = entered_stage.astimezone(timezone.utc)
+            days = (as_of - entered_stage).total_seconds() / 86400
             stage_durations[item.stage].append((item.item_id, max(days, 0)))
 
         results = []

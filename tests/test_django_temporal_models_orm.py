@@ -23,7 +23,7 @@ try:
         Point,
         Polygon,
     )
-    from django.db import IntegrityError
+    from django.db import IntegrityError, transaction
 
     HAS_GDAL = True
 except (ImportError, RuntimeError, ImproperlyConfigured, OSError):
@@ -223,23 +223,82 @@ class TestSeatORM:
         assert s.senate_class == 2
         assert s.district_label == ""
 
+    def test_senate_classes_coexist(self, state_tx):
+        from siege_utilities.geo.django.models import Seat
+
+        first = Seat.objects.create(
+            office="US_SENATE", state=state_tx, senate_class=1,
+        )
+        second = Seat.objects.create(
+            office="US_SENATE", state=state_tx, senate_class=2,
+        )
+
+        assert first.pk != second.pk
+        assert list(
+            Seat.objects.filter(office="US_SENATE", state=state_tx)
+            .order_by("senate_class")
+            .values_list("district_label", "senate_class")
+        ) == [("", 1), ("", 2)]
+
     def test_create_president_no_state(self, db):
         from siege_utilities.geo.django.models import Seat
 
         s = Seat.objects.create(office="PRESIDENT")
         assert s.state is None
 
+    def test_president_is_unique(self, db):
+        from siege_utilities.geo.django.models import Seat
+
+        Seat.objects.create(office="PRESIDENT")
+        with pytest.raises(IntegrityError):
+            with transaction.atomic():
+                Seat.objects.create(office="PRESIDENT")
+
+        assert Seat.objects.filter(office="PRESIDENT").count() == 1
+
+    def test_president_unique_regardless_of_other_fields(self, state_tx):
+        from siege_utilities.geo.django.models import Seat
+
+        Seat.objects.create(office="PRESIDENT")
+        with pytest.raises(IntegrityError):
+            with transaction.atomic():
+                Seat.objects.create(
+                    office="PRESIDENT", state=state_tx,
+                    district_label="national", senate_class=1,
+                )
+
+        assert Seat.objects.filter(office="PRESIDENT").count() == 1
+
     def test_str_output(self, seat):
         s = str(seat)
         assert "U.S. House" in s
 
-    def test_unique_together(self, seat, state):
+    @pytest.mark.parametrize(
+        "office,district_label,senate_class",
+        [
+            ("US_SENATE", "", 1),
+            ("US_SENATE", "", None),
+            ("US_HOUSE", "12", None),
+            ("GOVERNOR", "", None),
+            ("STATE_SENATE", "1", None),
+            ("STATE_HOUSE", "1", None),
+        ],
+    )
+    def test_duplicate_seat_identity(self, state, office, district_label, senate_class):
         from siege_utilities.geo.django.models import Seat
 
+        fields = {
+            "office": office,
+            "state": state,
+            "district_label": district_label,
+            "senate_class": senate_class,
+        }
+        Seat.objects.create(**fields)
         with pytest.raises(IntegrityError):
-            Seat.objects.create(
-                office="US_HOUSE", state=state, district_label="12",
-            )
+            with transaction.atomic():
+                Seat.objects.create(**fields)
+
+        assert Seat.objects.filter(**fields).count() == 1
 
 
 # ---------------------------------------------------------------------------

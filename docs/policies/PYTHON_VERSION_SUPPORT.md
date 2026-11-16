@@ -4,7 +4,7 @@
 
 | Version | Status | CI | Notes |
 |---------|--------|-----|-------|
-| 3.11 | **Fully supported** (floor) | Required pass | Minimum required version |
+| 3.11 | **Fully supported** (floor) | Required pass | Minimum required version; 3.11.5+ for the soupsieve CVE-2026-126190 fix (see below) |
 | 3.12 | **Fully supported** | Required pass | |
 | 3.13 | **Supported** | Allow-failure | `continue-on-error` in CI while ecosystem stabilizes |
 | 3.14 | **Experimental** | Not in CI | Awaiting C-extension wheel availability |
@@ -17,6 +17,8 @@ Python 3.11 is the floor because:
 - It is the oldest version still receiving security updates
 - It introduced `tomllib`, `ExceptionGroup`, and other stdlib improvements we rely on
 - Our deployment targets (Databricks, enterprise Django) run 3.11+
+
+The `geo`, `web` and `all` extras require `soupsieve>=4.0.0` (the CVE-2026-126190 fix) only on Python 3.11.5 and newer, because soupsieve 4.0 and 4.1 cannot install on earlier 3.11 patch releases; users on 3.11.0 to 3.11.4 should upgrade their patch release to receive the fix (#1895).
 
 ## C-Extension Dependencies
 
