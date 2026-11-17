@@ -251,7 +251,8 @@ class GoogleAnalyticsConnector:
             end_date: End date, same format / TZ rules as ``start_date``.
             metrics: List of metrics to retrieve
             dimensions: List of dimensions to retrieve
-            row_limit: Maximum rows to retrieve
+            row_limit: Maximum rows per API request. All report rows are
+                retrieved using offsets, even when the total exceeds this.
 
         Returns:
             Pandas DataFrame with GA4 data
@@ -261,6 +262,8 @@ class GoogleAnalyticsConnector:
                 ``YYYY-MM-DD`` date or recognized GA4 relative keyword.
                 Previously, malformed dates were forwarded raw to the GA
                 API and returned an opaque 400 hours later in a batch run.
+            RuntimeError: If an empty page arrives before the advertised
+                row count is reached, leaving an incomplete report.
         """
         self._validate_ga_date(start_date, "start_date")
         self._validate_ga_date(end_date, "end_date")
@@ -274,7 +277,8 @@ class GoogleAnalyticsConnector:
                 date_ranges=[DateRange(start_date=start_date, end_date=end_date)],
                 metrics=[Metric(name=metric) for metric in metrics],
                 dimensions=[Dimension(name=dim) for dim in (dimensions or [])],
-                limit=row_limit
+                limit=row_limit,
+                offset=0,
             )
 
             # Execute request
@@ -284,13 +288,27 @@ class GoogleAnalyticsConnector:
             dimension_headers = [h.name for h in response.dimension_headers]
             metric_headers = [h.name for h in response.metric_headers]
             data = []
-            for row in response.rows:
-                row_data = {}
-                for i, dim_value in enumerate(row.dimension_values):
-                    row_data[dimension_headers[i]] = dim_value.value
-                for i, metric_value in enumerate(row.metric_values):
-                    row_data[metric_headers[i]] = metric_value.value
-                data.append(row_data)
+            # Lightweight clients may omit row_count for unpaginated results.
+            row_count = getattr(response, "row_count", len(response.rows))
+            while True:
+                for row in response.rows:
+                    row_data = {}
+                    for i, dim_value in enumerate(row.dimension_values):
+                        row_data[dimension_headers[i]] = dim_value.value
+                    for i, metric_value in enumerate(row.metric_values):
+                        row_data[metric_headers[i]] = metric_value.value
+                    data.append(row_data)
+
+                log_debug(f"Retrieved {len(data)} of {row_count} rows from GA4 property {property_id}")
+                if len(data) >= row_count:
+                    break
+                if not response.rows:
+                    raise RuntimeError(
+                        f"Incomplete GA4 report: received {len(data)} of "
+                        f"{row_count} rows before an empty page."
+                    )
+                request.offset = len(data)
+                response = self.ga4_client.run_report(request)
 
             df = pd.DataFrame(data)
             # GA4 API returns all values as strings; coerce metric columns to numeric

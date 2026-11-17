@@ -60,12 +60,17 @@ if "GEOS_LIBRARY_PATH" not in os.environ and platform.system() == "Darwin":
             break
 
 if _django_available:
+    # Imported here so that Django stays an optional dependency.
+    from django.core.exceptions import ImproperlyConfigured
+
     try:
         import django.contrib.gis.db.models  # noqa: F401
         _gis_available = True
-    except (ImportError, RuntimeError):
-        # ImportError: django.contrib.gis not installed
-        # ImproperlyConfigured: GDAL C library not found on system
+    except (ImportError, RuntimeError, ImproperlyConfigured):
+        # ImportError: django.contrib.gis cannot be imported.
+        # RuntimeError: kept from the earlier handler.
+        # ImproperlyConfigured: Django could not load the GDAL C library
+        # (for example, GDAL is not installed on the system).
         _gis_available = False
 
 
