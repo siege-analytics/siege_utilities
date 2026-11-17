@@ -18,6 +18,7 @@ Usage:
 """
 
 import logging
+import math
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
@@ -325,8 +326,11 @@ def write_dataframe(
 
     Raises:
         ValueError: If ``value_input_option`` is not ``"RAW"`` or
-            ``"USER_ENTERED"``. Raised before any request, so the tab is
-            not cleared.
+            ``"USER_ENTERED"``, or if a cell holds a non-finite number
+            (positive or negative infinity, native or numpy), which the
+            Sheets API cannot store. Both are raised before any request, so
+            the tab is not cleared. Missing values (including NaN) are
+            written as empty strings, not rejected.
     """
     if value_input_option not in _VALUE_INPUT_OPTIONS:
         raise ValueError(
@@ -340,8 +344,18 @@ def write_dataframe(
     if include_header:
         values.append([str(c) for c in df.columns.tolist()])
 
-    for row in df.itertuples(index=False, name=None):
-        values.append([_serialize_dataframe_cell(value) for value in row])
+    # Build and check the whole payload before any request: the tab is cleared
+    # first, so a value that Sheets would reject must fail here, not after.
+    for position, row in enumerate(df.itertuples(index=False, name=None)):
+        cells = [_serialize_dataframe_cell(value) for value in row]
+        for column, cell in zip(df.columns, cells):
+            if isinstance(cell, float) and not math.isfinite(cell):
+                raise ValueError(
+                    f"write_dataframe: row {df.index[position]!r} (position {position}), "
+                    f"column {column!r}, holds the non-finite number {cell!r}; Sheets "
+                    "values must be finite. Nothing was cleared or written."
+                )
+        values.append(cells)
 
     # Quote the tab to avoid resolving a cell reference or same-named range.
     quoted_sheet = "'" + sheet_name.replace("'", "''") + "'"

@@ -1466,9 +1466,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Any other value raises `ValueError` before any request. Dates and datetimes
   are serialized as ISO-8601 strings, numpy scalars become native Python
   values without row-wise integer-to-float coercion, missing values become
-  empty strings, and other objects are stringified (#1432).
+  empty strings, and other objects are stringified (#1432). Non-finite
+  numbers (`inf`, `-inf`, including numpy floats) raise `ValueError` naming
+  the row and column before anything is cleared or written; `NaN` is still
+  written as an empty string.
   Migration: callers that relied on formulas or on Sheets parsing numbers
-  and dates pass `value_input_option="USER_ENTERED"`.
+  and dates pass `value_input_option="USER_ENTERED"`. Callers whose frames
+  can hold infinities replace them before writing, for example
+  `df.replace([np.inf, -np.inf], np.nan)`; the tab is left untouched when
+  the check fails.
 - `google_sheets.write_dataframe` clears all values in the selected tab before
   writing, including cells outside the new DataFrame footprint and before
   `start_cell`, so smaller replacements leave no stale rows or columns.

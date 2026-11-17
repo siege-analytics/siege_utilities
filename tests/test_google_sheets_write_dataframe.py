@@ -197,3 +197,41 @@ def test_invalid_value_input_option_raises_before_any_request(sheets_client, bad
 
     values_api.clear.assert_not_called()
     values_api.update.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "value",
+    [float("inf"), float("-inf"), np.float32("inf"), np.float64("-inf")],
+    ids=["positive-inf", "negative-inf", "numpy-float32-inf", "numpy-float64-inf"],
+)
+def test_non_finite_number_raises_before_the_tab_is_cleared(sheets_client, value):
+    """Sheets values must be finite; an invalid payload must not erase the tab first."""
+    client, values_api = sheets_client
+    index = ["a", "b"]
+    df = pd.DataFrame(
+        {"id": [1, 2], "value": pd.Series([0.5, value], index=index, dtype=object)}, index=index,
+    )
+
+    with pytest.raises(
+        ValueError, match=r"row 'b' \(position 1\), column 'value', holds .*inf"
+    ):
+        write_dataframe(client, "ss_123", df)
+
+    values_api.clear.assert_not_called()
+    values_api.update.assert_not_called()
+
+
+def test_finite_and_missing_values_still_write_after_the_check(sheets_client):
+    """Control: finite numbers pass the check, and missing values stay empty strings."""
+    client, values_api = sheets_client
+    df = pd.DataFrame({
+        "big": [np.float64(1.5e308), np.float32(-2.5)],
+        "missing": [float("nan"), np.float32("nan")],
+    })
+
+    write_dataframe(client, "ss_123", df)
+
+    values_api.clear.assert_called_once()
+    assert values_api.update.call_args.kwargs["body"]["values"] == [
+        ["big", "missing"], [1.5e308, ""], [-2.5, ""],
+    ]
