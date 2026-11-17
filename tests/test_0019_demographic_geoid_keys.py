@@ -37,7 +37,8 @@ def legacy_demographics(transactional_db, monkeypatch):
     finally:
         with monkeypatch.context() as cleanup:
             cleanup.setenv("SIEGE_DEMOGRAPHIC_GEOID_ALLOW_QUARANTINE", "1")
-            MigrationExecutor(connection).migrate([CURRENT])
+            restore = MigrationExecutor(connection)
+            restore.migrate(restore.loader.graph.leaf_nodes("siege_geo"))
         ContentType.objects.clear_cache()
 
 

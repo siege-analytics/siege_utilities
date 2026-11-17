@@ -13,7 +13,7 @@ import json
 import logging
 import pathlib
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List
 import pandas as pd
 
@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 try:
     import facebook_business
     from facebook_business.api import FacebookAdsApi
+    from facebook_business.session import FacebookSession
     from facebook_business.adobjects.adaccount import AdAccount
     from facebook_business.adobjects.page import Page
     from facebook_business.adobjects.business import Business
@@ -64,6 +65,24 @@ __all__ = [
 ]
 
 
+def _page_insight_measured_day(end_time: str) -> str:
+    """Return the measured day (YYYY-MM-DD) for a period=day Page Insights value.
+
+    Facebook stamps each daily value with the end of its period. The end_time
+    is normalized to UTC first, so equivalent instants get the same label on
+    any host: a naive timestamp is read as UTC, never as host local time. One
+    calendar day is then subtracted. An empty end_time stays empty rather than
+    being given a fabricated date; an unparseable one raises ValueError.
+    """
+    if not end_time:
+        return end_time
+    moment = datetime.fromisoformat(end_time)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    measured_day = moment.astimezone(timezone.utc).date() - timedelta(days=1)
+    return measured_day.isoformat()
+
+
 class FacebookBusinessConnector:
     """Facebook Business connection and data retrieval manager."""
 
@@ -82,15 +101,10 @@ class FacebookBusinessConnector:
         self.access_token = access_token
         self.app_id = app_id
         self.app_secret = app_secret
-        self.api = None
-
-        # Initialize Facebook API
-        if app_id and app_secret:
-            FacebookAdsApi.init(app_id, app_secret, access_token)
-        else:
-            FacebookAdsApi.init(access_token=access_token)
-
-        self.api = FacebookAdsApi.get_default_api()
+        # Own the session without replacing the SDK's process-wide default.
+        self.api = FacebookAdsApi(FacebookSession(
+            app_id=app_id, app_secret=app_secret, access_token=access_token,
+        ))
         log_info("Initialized Facebook Business connector")
 
     def get_ad_accounts(self) -> List[Dict[str, Any]]:
@@ -101,7 +115,7 @@ class FacebookBusinessConnector:
             List of ad account information
         """
         try:
-            me = facebook_business.adobjects.user.User(fbid='me')
+            me = facebook_business.adobjects.user.User(fbid='me', api=self.api)
             ad_accounts = me.get_ad_accounts()
 
             accounts = []
@@ -131,11 +145,13 @@ class FacebookBusinessConnector:
             ad_account_id: Facebook ad account ID
             start_date: Start date (YYYY-MM-DD)
             end_date: End date (YYYY-MM-DD)
-            fields: List of insight fields to retrieve
+            fields: List of insight fields to retrieve; ad identifiers and dates
+                are always included
             breakdowns: List of breakdowns to apply
 
         Returns:
-            Pandas DataFrame with ad insights
+            Pandas DataFrame with daily ad insights, including ad_id, ad_name,
+            date_start, and date_stop. Missing metrics are NaN.
         """
         try:
             if not fields:
@@ -143,8 +159,11 @@ class FacebookBusinessConnector:
                     'impressions', 'clicks', 'spend', 'reach', 'frequency',
                     'cpm', 'cpc', 'ctr', 'actions', 'action_values'
                 ]
+            fields = list(dict.fromkeys([
+                *fields, 'ad_id', 'ad_name', 'date_start', 'date_stop',
+            ]))
 
-            ad_account = AdAccount(ad_account_id)
+            ad_account = AdAccount(ad_account_id, api=self.api)
             insights = ad_account.get_insights(
                 fields=fields,
                 params={
@@ -153,7 +172,8 @@ class FacebookBusinessConnector:
                         'until': end_date
                     },
                     'breakdowns': breakdowns or [],
-                    'level': 'ad'
+                    'level': 'ad',
+                    'time_increment': 1
                 }
             )
 
@@ -162,7 +182,7 @@ class FacebookBusinessConnector:
             for insight in insights:
                 insight_data = {}
                 for field in fields:
-                    insight_data[field] = insight.get(field, 0)
+                    insight_data[field] = insight.get(field, float('nan'))
 
                 # Add breakdown data
                 if breakdowns:
@@ -191,41 +211,73 @@ class FacebookBusinessConnector:
             metrics: List of metrics to retrieve
 
         Returns:
-            Pandas DataFrame with page insights
+            Pandas DataFrame with columns ``['date', *metrics]`` in requested
+            order and one row per measured day. The date column is YYYY-MM-DD:
+            end_time normalized to UTC (a naive end_time is read as UTC), minus
+            one day, for period=day. Missing values and metric/day pairs are
+            NaN; a known 0 stays 0. Returned metrics that were not requested
+            are dropped, and an empty response gives a zero-row frame with the
+            same columns.
+
+        Raises:
+            ValueError: an insight in the response has no metric name, even
+                when its values list is empty.
         """
         try:
             if not metrics:
+                # Current Page Insights names supported by Graph v22.0+,
+                # reviewed 2026-10-18; the installed Business SDK selects the
+                # API version. Follows count followers, and post engagements
+                # count interactions rather than unique engaged users.
                 metrics = [
-                    'page_impressions', 'page_engaged_users', 'page_post_engagements',
-                    'page_fans', 'page_views_total', 'page_actions_post_reactions_total'
+                    'page_media_view', 'page_post_engagements', 'page_follows',
+                    'page_views_total', 'page_actions_post_reactions_total'
                 ]
 
-            page = Page(page_id)
+            page = Page(page_id, api=self.api)
             insights = page.get_insights(
-                fields=metrics,
                 params={
+                    # Page Insights expects comma-separated metric names; the
+                    # SDK would JSON-encode a Python list.
+                    'metric': ','.join(metrics),
                     'period': 'day',
                     'since': start_date,
                     'until': end_date
                 }
             )
 
-            # Convert to DataFrame
-            data = []
-            for insight in insights:
-                insight_data = {}
-                for metric in metrics:
-                    values = insight.get('values', [])
-                    if values:
-                        insight_data['date'] = values[0].get('end_time', '')
-                        insight_data[metric] = values[0].get('value', 0)
-                    else:
-                        insight_data['date'] = ''
-                        insight_data[metric] = 0
+            # The response holds one insight object per metric, each with one
+            # value entry per day. Key every value by its insight's own metric
+            # name and its measured day; never collapse to values[0] or copy
+            # one metric's number into another column (#1812, #1435).
+            insight_list = list(insights)
+            # Validate every name before projecting any value, so an unnamed
+            # insight raises even when its values list is empty (#1474).
+            for insight in insight_list:
+                if not insight.get('name'):
+                    raise ValueError(
+                        f"Facebook Page Insights for page {page_id} returned an "
+                        "insight without a metric name; its values cannot be attributed."
+                    )
+            requested = set(metrics)
+            data_by_date = {}
+            for insight in insight_list:
+                metric = insight.get('name')
+                if metric not in requested:
+                    # Named but not requested: dropped without creating rows
+                    # or reading its values.
+                    continue
+                for entry in insight.get('values') or []:
+                    date = _page_insight_measured_day(entry.get('end_time', ''))
+                    row = data_by_date.setdefault(date, {'date': date})
+                    # A missing value is unavailable (NaN); a known 0 stays 0.
+                    value = entry.get('value')
+                    row[metric] = float('nan') if value is None else value
 
-                data.append(insight_data)
-
-            df = pd.DataFrame(data)
+            # Fixed schema: 'date' plus the requested metrics in requested
+            # order; an absent metric is a column of NaN and an empty or
+            # unrequested-only response is a zero-row frame with this schema.
+            df = pd.DataFrame(list(data_by_date.values()), columns=['date', *metrics])
             log_info(f"Retrieved {len(df)} page insights from page {page_id}")
             return df
 
@@ -245,7 +297,7 @@ class FacebookBusinessConnector:
             metrics: List of metrics to retrieve
 
         Returns:
-            Pandas DataFrame with business insights
+            Pandas DataFrame with business insights. Missing metrics are NaN.
         """
         try:
             if not metrics:
@@ -254,7 +306,7 @@ class FacebookBusinessConnector:
                     'cpm', 'cpc', 'ctr', 'actions', 'action_values'
                 ]
 
-            business = Business(business_id)
+            business = Business(business_id, api=self.api)
             insights = business.get_insights(
                 fields=metrics,
                 params={
@@ -271,7 +323,7 @@ class FacebookBusinessConnector:
             for insight in insights:
                 insight_data = {}
                 for metric in metrics:
-                    insight_data[metric] = insight.get(metric, 0)
+                    insight_data[metric] = insight.get(metric, float('nan'))
                 data.append(insight_data)
 
             df = pd.DataFrame(data)
@@ -470,7 +522,8 @@ def list_facebook_accounts_for_client(client_id: str,
 
 def batch_retrieve_facebook_data(client_id: str, start_date: str, end_date: str,
                                  data_types: List[str] = None, output_format: str = 'pandas',
-                                 output_directory: str = "output/facebook_data") -> Dict[str, Any]:
+                                 output_directory: str = "output/facebook_data",
+                                 config_directory: str | None = None) -> Dict[str, Any]:
     """
     Batch retrieve Facebook data for all accounts associated with a client.
 
@@ -478,16 +531,19 @@ def batch_retrieve_facebook_data(client_id: str, start_date: str, end_date: str,
         client_id: Client ID to retrieve data for
         start_date: Start date for data retrieval
         end_date: End date for data retrieval
-        data_types: Types of data to retrieve (ads, pages, business)
+        data_types: Types of data to retrieve (ad_account, page, business)
         output_format: Output format (pandas, spark, or both)
         output_directory: Directory to save output files
+        config_directory: Config root for all account types; defaults to ~/.siege_utilities
 
     Returns:
         Dictionary with retrieval results
     """
     try:
         # Get client's Facebook accounts
-        accounts = list_facebook_accounts_for_client(client_id)
+        accounts = list_facebook_accounts_for_client(
+            client_id, config_directory=config_directory,
+        )
 
         if not accounts:
             return {

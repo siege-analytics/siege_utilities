@@ -6,16 +6,27 @@ Tests all functionality including logger management, configuration, and convenie
 import pytest
 import tempfile
 import shutil
+import threading
 from pathlib import Path
 import logging
 from unittest.mock import patch
 
+import siege_utilities.core.logging as core_logging
 from siege_utilities.core.logging import (
     LoggerManager, LoggingConfig, configure_shared_logging,
     get_logger, init_logger, cleanup_logger, cleanup_all_loggers,
     set_default_logger_name, log_debug, log_info, log_warning,
     log_error, log_critical
 )
+
+
+def _patch_logger_method(level, logger_name=None):
+    """Patch ``level`` on the logger the convenience functions use (#1904).
+
+    Patching the ``logging.Logger`` class would replace the method for every
+    logger in every thread, so calls from other libraries were counted too.
+    """
+    return patch.object(get_logger(logger_name), level)
 
 
 class TestLoggingConfig:
@@ -232,45 +243,81 @@ class TestConvenienceLoggingFunctions:
     
     def test_log_debug(self):
         """Test log_debug function."""
-        with patch('logging.Logger.debug') as mock_debug:
+        with _patch_logger_method("debug") as mock_debug:
             result = log_debug("Debug message")
             mock_debug.assert_called_once_with("Debug message")
             assert result is None
 
     def test_log_info(self):
         """Test log_info function."""
-        with patch('logging.Logger.info') as mock_info:
+        with _patch_logger_method("info") as mock_info:
             result = log_info("Info message")
             mock_info.assert_called_once_with("Info message")
             assert result is None
 
     def test_log_warning(self):
         """Test log_warning function."""
-        with patch('logging.Logger.warning') as mock_warning:
+        with _patch_logger_method("warning") as mock_warning:
             result = log_warning("Warning message")
             mock_warning.assert_called_once_with("Warning message")
             assert result is None
 
     def test_log_error(self):
         """Test log_error function."""
-        with patch('logging.Logger.error') as mock_error:
+        with _patch_logger_method("error") as mock_error:
             result = log_error("Error message")
             mock_error.assert_called_once_with("Error message")
             assert result is None
 
     def test_log_critical(self):
         """Test log_critical function."""
-        with patch('logging.Logger.critical') as mock_critical:
+        with _patch_logger_method("critical") as mock_critical:
             result = log_critical("Critical message")
             mock_critical.assert_called_once_with("Critical message")
             assert result is None
 
     def test_log_with_specific_logger(self):
         """Test logging with specific logger name."""
-        with patch('logging.Logger.info') as mock_info:
+        with _patch_logger_method("info", logger_name="specific_logger") as mock_info:
             result = log_info("Message", logger_name="specific_logger")
             mock_info.assert_called_once_with("Message")
             assert result is None
+
+    @pytest.mark.parametrize("logger_name", [None, "specific_logger"])
+    def test_patch_helper_targets_the_logger_the_functions_use(
+        self, monkeypatch, logger_name,
+    ):
+        """The helper patches the same logger instance the functions log to."""
+        real_get_logger = core_logging.get_logger
+        used = []
+
+        def recording_get_logger(name=None):
+            logger = real_get_logger(name)
+            used.append(logger)
+            return logger
+
+        monkeypatch.setattr(core_logging, "get_logger", recording_get_logger)
+        with _patch_logger_method("debug", logger_name=logger_name) as mock_debug:
+            log_debug("Identity check", logger_name=logger_name)
+
+            assert len(used) == 1
+            assert used[0].debug is mock_debug
+        mock_debug.assert_called_once_with("Identity check")
+
+    def test_other_loggers_and_threads_are_not_counted(self):
+        """#1904: debug calls from other loggers or threads are not counted."""
+        def log_from_another_thread():
+            logging.getLogger("py4j.clientserver").debug("Command to send")
+
+        with _patch_logger_method("debug") as mock_debug:
+            worker = threading.Thread(target=log_from_another_thread)
+            worker.start()
+            worker.join(timeout=10)
+            assert not worker.is_alive()
+            logging.getLogger("another.library").debug("Answer received")
+            log_debug("Debug message")
+
+        mock_debug.assert_called_once_with("Debug message")
 
 
 class TestIntegration:

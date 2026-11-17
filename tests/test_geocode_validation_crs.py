@@ -3,6 +3,7 @@
 import logging
 from unittest.mock import Mock
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -169,20 +170,15 @@ def test_projected_origin_is_not_a_geographic_sentinel(check_coordinates):
     check_coordinates(df, [True, True], crs=3857)
 
 
-@pytest.mark.parametrize("failure", ["constructor", "transform", "nonfinite"])
+@pytest.mark.parametrize("failure", ["constructor", "transform"])
 def test_projected_transform_failure_keeps_finite_coordinates(
     check_coordinates, monkeypatch, caplog, failure,
 ):
     pyproj = pytest.importorskip("pyproj")
     transformer = Mock()
-    if failure == "nonfinite":
-        transformer.transform_bounds.return_value = (
-            float("inf"), float("nan"), float("inf"), float("nan"),
-        )
-    else:
-        transformer.transform_bounds.side_effect = pyproj.exceptions.ProjError(
-            "transform unavailable"
-        )
+    transformer.transform.side_effect = pyproj.exceptions.ProjError(
+        "transform unavailable"
+    )
     factory = Mock(return_value=transformer)
     if failure == "constructor":
         factory.side_effect = pyproj.exceptions.ProjError(
@@ -202,6 +198,22 @@ def test_projected_transform_failure_keeps_finite_coordinates(
     assert "skipping bounds validation" in caplog.text
 
 
+def test_projected_points_with_non_finite_inverse_are_invalid(
+    check_coordinates, monkeypatch, caplog,
+):
+    pyproj = pytest.importorskip("pyproj")
+    nan_pair = (np.array([np.nan, np.nan]), np.array([np.nan, np.nan]))
+    transformer = Mock()
+    transformer.transform.return_value = nan_pair
+    monkeypatch.setattr(pyproj.Transformer, "from_crs", Mock(return_value=transformer))
+    df = pd.DataFrame({"lat": [1_937_334.61, 0], "lon": [1_619_396.69, 0]})
+
+    # A point that cannot be inverse-projected is outside the CRS domain, so it
+    # is invalid; the transformation itself worked, so nothing is skipped.
+    check_coordinates(df, [False, False], crs=5070)
+    assert "skipping bounds validation" not in caplog.text
+
+
 def test_projected_crs_without_area_of_use_keeps_finite_coordinates(
     check_coordinates, caplog,
 ):
@@ -214,3 +226,61 @@ def test_projected_crs_without_area_of_use_keeps_finite_coordinates(
 
     check_coordinates(df, [True, True, False], crs=crs)
     assert "skipping bounds validation" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "epsg,longitude,latitude",
+    [
+        # Projection extrema strictly inside the area of use. A bounding box
+        # sampled from the area's edges misses these y minima (Albers) and the
+        # x extent near lat 60 (polar stereographic).
+        (5070, -96.0, 24.41001),
+        (5069, -96.0, 24.41001),
+        (3413, 45.0, 60.001),
+    ],
+)
+def test_projected_extrema_inside_area_of_use_are_valid(
+    check_coordinates, epsg, longitude, latitude,
+):
+    pyproj = pytest.importorskip("pyproj")
+    crs = pyproj.CRS(epsg)
+    area = crs.area_of_use
+    assert area.west < longitude < area.east
+    assert area.south < latitude < area.north
+    x, y = pyproj.Transformer.from_crs(4326, crs, always_xy=True).transform(
+        longitude, latitude, errcheck=True,
+    )
+    df = pd.DataFrame({"lat": [y], "lon": [x], "payload": ["must survive"]})
+
+    check_coordinates(df, [True], crs=epsg)
+
+
+@pytest.mark.parametrize(
+    "epsg,longitude,latitude",
+    [
+        (5070, -96.0, 20.0),   # south of the CONUS Albers area of use
+        (3413, 45.0, 50.0),    # south of the polar stereographic area
+    ],
+)
+def test_projected_points_outside_area_of_use_are_invalid(
+    check_coordinates, epsg, longitude, latitude,
+):
+    pyproj = pytest.importorskip("pyproj")
+    crs = pyproj.CRS(epsg)
+    area = crs.area_of_use
+    assert not (area.south <= latitude <= area.north)
+    x, y = pyproj.Transformer.from_crs(4326, crs, always_xy=True).transform(
+        longitude, latitude, errcheck=True,
+    )
+    df = pd.DataFrame({"lat": [y], "lon": [x]})
+
+    check_coordinates(df, [False], crs=epsg)
+
+
+def test_projected_x_beyond_domain_does_not_wrap_into_area(check_coordinates):
+    pytest.importorskip("pyproj")
+    # Web Mercator x is bounded by about +/-20,037,508 m. An x of 1e9 must not
+    # be accepted by wrapping its inverse longitude back into -180..180.
+    df = pd.DataFrame({"lat": [0.0, 1_000.0], "lon": [1e9, -1e9]})
+
+    check_coordinates(df, [False, False], crs=3857)

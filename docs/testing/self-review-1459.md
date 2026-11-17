@@ -46,4 +46,37 @@ Governing ticket: #1459 (the #1398 epic is context only and is not a governing t
 
 ## Lead review
 
-The change is additive and reverts with one commit. No behavior change. No claim in this artifact exceeds what was observed.
+The change alters which geocodes pass validation (see the BREAKING classification above), and it reverts with one commit. No claim in this artifact exceeds what was observed.
+
+## Fix round after review of cb7423e0 (2026-11-17)
+
+Earlier sections describe head 402a74bc and its `[4.1.0]` placement. They are kept as written.
+
+- **Review finding (S2):** at `cb7423e0`, projected bounds were an x/y envelope sampled from the area-of-use edges (`transform_bounds(..., densify_pts=21)`) and used as an exact rejection boundary. Sampling misses projection extrema, so valid interior points were rejected: EPSG:5070 and EPSG:5069 at lon -96, lat 24.41001, and EPSG:3413 at lon 45, lat 60.001, through both public pandas validators.
+- **Fix:** `_projected_area_of_use_mask` inverse-projects each candidate point to WGS84 lon/lat and tests membership in the CRS area of use.
+  - The area is widened by 0.01 degrees, the precision of published EPSG area-of-use bounds, which also covers the difference between a CRS's datum and WGS84.
+  - The point must project back to its input within 1 km on the ground, converted to CRS units through the axis unit factor. This rejects points beyond the projection's domain whose inverse longitude wraps around.
+  - Every point inside the area of use passes, so the check is conservative for legitimate points.
+  - A missing area of use or a failed transformation still logs "skipping bounds validation" and accepts finite coordinates.
+  - `_get_crs_bounds` now returns unbounded x/y for projected CRSs.
+- **Why these tolerances, with the observed evidence.** A first implementation used a 1e-7 degree membership margin and a 1 mm round-trip tolerance.
+  - On EPSG:5069 (NAD27 / CONUS Albers), it rejected two legitimate points through both public APIs:
+    - Miami (lat 25.7617, lon -80.1918), well inside the area of use, in the existing `test_albers_validators_keep_southern_conus_points`;
+    - the extremum point at lon -96, lat 24.41001.
+  - The same code accepted every EPSG:5070 (NAD83) and EPSG:3413 (WGS84) case.
+  - Miami is far from every area-of-use edge, so membership cannot have rejected it. The failure was in the round trip.
+  - Inference, not measured per point: the 5069 transforms to and from WGS84 cross a NAD27 datum shift, and PROJ can choose different operations in the two directions, so the round trip drifts by metres rather than sub-millimetres.
+  - The final tolerances follow from that, not from tuning to the test:
+    - 0.01 degrees covers the published rounding of EPSG area-of-use bounds and the NAD27 to WGS84 difference (tens to a few hundred metres);
+    - 1 km on the ground covers datum-operation drift, while a longitude wrap-around misses by thousands of kilometres. It is scaled to CRS units by the first axis's unit factor, so feet-based CRSs get the same ground distance.
+- **Tests (pytest on the PR worktree):**
+  - `test_projected_extrema_inside_area_of_use_are_valid` covers the three extrema through both APIs. RED at `cb7423e0`: 6 failed, while the 6 new negative tests passed.
+  - `test_projected_points_outside_area_of_use_are_invalid`, `test_projected_x_beyond_domain_does_not_wrap_into_area` and `test_projected_points_with_non_finite_inverse_are_invalid` are negative tests.
+  - The mocked transform-failure test now mocks `transform` instead of `transform_bounds`. Its former non-finite-bounds case is replaced by the non-finite-inverse test, because a point that cannot be inverse-projected is outside the CRS domain.
+  - GREEN: `tests/test_geocode_validation_crs.py` and `tests/test_geocode_validation_pandas.py`: 57 passed.
+- **Guards:**
+  - `scripts/check_exception_contracts.py --list`: 0 unlisted, 0 stale (`_get_crs_bounds` keeps an explicit return in its handler).
+  - `ruff check --select F,E9` on `geocoding.py` and the test file: no findings.
+- **CHANGELOG:** after the develop merge the #1459 entry sits under `[5.0.0]` -> `### BREAKING`, because develop renamed the former `[4.1.0]` section. Its projected-bounds sentences and Migration line now describe the area-of-use rule.
+- **Notebook:** `notebooks/playground/01_geocoding_data_quality.ipynb` calls both pandas validators and its fixture outputs remain valid. Its narrative does not yet explain the Null Island policy or the CRS-bounds rule, and it has no sentinel example. That update is tracked in #1943.
+- **Commit layout:** one commit carries the develop `2c51af86` merge and this fix round. Against git's own merge result for `cb7423e0` and `2c51af86`, the fix is exactly four files: `siege_utilities/geo/geocoding.py`, `tests/test_geocode_validation_crs.py`, `CHANGELOG.md` and this document.

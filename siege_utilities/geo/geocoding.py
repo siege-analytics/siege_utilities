@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+import numpy as np
 import pandas as pd
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
@@ -135,7 +136,94 @@ def _pandas_coordinate_mask(df: pd.DataFrame, lat_col: str, lon_col: str, crs=No
         # Exact (0, 0) is the Null Island failed-geocode sentinel only in
         # geographic coordinates; a projected CRS may have a valid origin.
         mask &= ~((lat_values == 0) & (lon_values == 0))
+    else:
+        mask &= _projected_area_of_use_mask(crs, lon_values, lat_values, mask)
     return mask
+
+
+# Tolerances for the projected area-of-use check.
+# - Membership margin: EPSG publishes area-of-use bounds rounded to 0.01
+#   degrees, and the WGS84 frame used for the check differs from a CRS's own
+#   datum by well under 1 km (for example NAD27 by tens to a few hundred
+#   metres). A 0.01 degree margin keeps every point inside the published area.
+# - Round trip: points inside the domain return to their input within the
+#   accuracy of the datum transformation (metres); a point beyond the domain
+#   whose inverse longitude wraps around misses by a projection period
+#   (thousands of km). 1 km on the ground separates the two cases.
+_AREA_OF_USE_MARGIN_DEG = 0.01
+_ROUND_TRIP_TOLERANCE_M = 1000.0
+
+
+def _metres_per_crs_unit(crs) -> float:
+    """Return metres per unit of the CRS's first axis (1.0 if unknown)."""
+    axes = getattr(crs, "axis_info", None) or []
+    factor = getattr(axes[0], "unit_conversion_factor", None) if axes else None
+    if isinstance(factor, (int, float)) and math.isfinite(factor) and factor > 0:
+        return float(factor)
+    return 1.0
+
+
+def _projected_area_of_use_mask(crs, x_values: pd.Series, y_values: pd.Series,
+                                candidates: pd.Series) -> pd.Series:
+    """Return True where a projected (x, y) lies in the CRS area of use.
+
+    The area of use is a geographic lon/lat box. Each candidate point is
+    inverse-projected to WGS84 lon/lat and tested for membership in that box,
+    widened by ``_AREA_OF_USE_MARGIN_DEG`` (the precision of published EPSG
+    bounds, which also covers datum differences). It is then projected forward
+    again and compared with the input within ``_ROUND_TRIP_TOLERANCE_M``, so a
+    point beyond the projection's domain cannot pass through longitude
+    wrap-around. Every point inside the area of use passes, including
+    projection extrema that an x/y envelope sampled from the area's edges can
+    miss. Points outside the widened area, or whose inverse is not finite, are
+    invalid.
+
+    If the CRS, its area of use or the transformation is unavailable, log a
+    warning and accept every candidate rather than comparing projected
+    coordinates against degrees.
+    """
+    try:
+        from pyproj import CRS as ProjCRS
+        from pyproj import Transformer
+
+        if not isinstance(crs, ProjCRS):
+            crs = ProjCRS.from_user_input(crs)
+        aou = crs.area_of_use
+        if aou is None:
+            raise ValueError("CRS has no area of use")
+        inverse = Transformer.from_crs(crs, 4326, always_xy=True)
+        forward = Transformer.from_crs(4326, crs, always_xy=True)
+        result = pd.Series(False, index=x_values.index)
+        if not candidates.any():
+            return result
+        x = x_values[candidates].to_numpy(dtype=float)
+        y = y_values[candidates].to_numpy(dtype=float)
+        lon, lat = inverse.transform(x, y)
+        x_back, y_back = forward.transform(lon, lat)
+    except (ValueError, TypeError, RuntimeError, AttributeError) as exc:
+        logger.warning(
+            "Could not derive bounds from CRS %r, skipping bounds validation: %s",
+            crs, exc,
+        )
+        return pd.Series(True, index=x_values.index)
+
+    lon, lat = np.asarray(lon, dtype=float), np.asarray(lat, dtype=float)
+    x_back = np.asarray(x_back, dtype=float)
+    y_back = np.asarray(y_back, dtype=float)
+    margin = _AREA_OF_USE_MARGIN_DEG
+    in_lat = (lat >= aou.south - margin) & (lat <= aou.north + margin)
+    if aou.west <= aou.east:
+        in_lon = (lon >= aou.west - margin) & (lon <= aou.east + margin)
+    else:  # The area of use crosses the antimeridian.
+        in_lon = (lon >= aou.west - margin) | (lon <= aou.east + margin)
+    round_trip_tol = _ROUND_TRIP_TOLERANCE_M / _metres_per_crs_unit(crs)
+    round_trip = (
+        np.isclose(x_back, x, rtol=0.0, atol=round_trip_tol)
+        & np.isclose(y_back, y, rtol=0.0, atol=round_trip_tol)
+    )
+    inside = np.isfinite(lon) & np.isfinite(lat) & in_lat & in_lon & round_trip
+    result.loc[candidates] = inside
+    return result
 
 
 def get_coordinates(query_address, country_codes=None, max_retries=3, server_url=None):
@@ -462,10 +550,9 @@ def _get_crs_bounds(crs) -> Tuple[float, float, float, float, bool]:
     """Return (y_min, y_max, x_min, x_max, is_geographic) in CRS units.
 
     Geographic CRSs use world ranges rather than their area of use so NAD83
-    coordinates in US Pacific territories remain valid. For non-geographic
-    CRSs, densify the geographic area-of-use edges to derive an x/y envelope.
-    If those bounds cannot be derived, log a warning and leave them unbounded
-    rather than comparing projected coordinates against degrees.
+    coordinates in US Pacific territories remain valid. Projected CRSs return
+    unbounded x/y ranges here; ``_projected_area_of_use_mask`` then accepts a
+    point only if it inverse-projects into the CRS area of use.
 
     Parameters:
         crs: A pyproj CRS, an EPSG integer, or a string accepted by
@@ -475,45 +562,22 @@ def _get_crs_bounds(crs) -> Tuple[float, float, float, float, bool]:
         Bounds and a geographic flag. Geographic CRSs and invalid CRS inputs
         use WGS84 world bounds.
     """
-    is_geographic = True
     try:
         from pyproj import CRS as ProjCRS
-        from pyproj import Transformer
 
         if not isinstance(crs, ProjCRS):
             crs = ProjCRS.from_user_input(crs)
-        is_geographic = crs.is_geographic
-        if is_geographic:
+        if crs.is_geographic:
             # Area of use describes the CRS, not all valid geocode locations:
             # TIGER also supplies NAD83 coordinates for US Pacific territories.
             return (-90.0, 90.0, -180.0, 180.0, True)
-        else:
-            aou = crs.area_of_use
-            if aou is None:
-                raise ValueError("CRS has no area of use")
-            # area_of_use is a geographic lon/lat box, even for projected CRSs.
-            # Densify its edges because conic projections bow between corners.
-            transformer = Transformer.from_crs(4326, crs, always_xy=True)
-            x_min, y_min, x_max, y_max = transformer.transform_bounds(
-                aou.west, aou.south, aou.east, aou.north,
-                densify_pts=21,
-                errcheck=True,
-            )
-            if not all(math.isfinite(value) for value in (x_min, y_min, x_max, y_max)):
-                raise ValueError("Transformed CRS bounds are non-finite")
-            return (y_min, y_max, x_min, x_max, False)
+        return (-math.inf, math.inf, -math.inf, math.inf, False)
     except (ValueError, TypeError, RuntimeError, AttributeError) as exc:
-        if not is_geographic:
-            logger.warning(
-                "Could not derive bounds from CRS %r, skipping bounds validation: %s",
-                crs, exc,
-            )
-            return (-math.inf, math.inf, -math.inf, math.inf, False)
         logger.warning(
             "Could not derive bounds from CRS %r, falling back to world bounds: %s",
             crs, exc,
         )
-    return (-90.0, 90.0, -180.0, 180.0, True)
+        return (-90.0, 90.0, -180.0, 180.0, True)
 
 
 def validate_geocode_data_pandas(
@@ -532,9 +596,10 @@ def validate_geocode_data_pandas(
         lon_col: Name of the longitude (or projected x) column.
         crs: Optional CRS (pyproj CRS, EPSG int, or string). Geographic CRSs
              use world ranges (-90..90, -180..180), not area-of-use limits,
-             to retain US Pacific territories in NAD83. Projected bounds use
-             densified area-of-use edges transformed to CRS units. If that
-             transform fails, finite coordinates are accepted with a warning.
+             to retain US Pacific territories in NAD83. Projected coordinates
+             are valid when they inverse-project into the CRS area of use.
+             If the CRS has no area of use or the transformation fails,
+             finite coordinates are accepted with a warning.
              Defaults to WGS84. Geographic (0, 0) is always invalid.
 
     Returns:
@@ -562,9 +627,10 @@ def mark_valid_geocode_data_pandas(
         output_col: Name of the boolean column to add.
         crs: Optional CRS (pyproj CRS, EPSG int, or string). Geographic CRSs
              use world ranges (-90..90, -180..180), not area-of-use limits,
-             to retain US Pacific territories in NAD83. Projected bounds use
-             densified area-of-use edges transformed to CRS units. If that
-             transform fails, finite coordinates are accepted with a warning.
+             to retain US Pacific territories in NAD83. Projected coordinates
+             are valid when they inverse-project into the CRS area of use.
+             If the CRS has no area of use or the transformation fails,
+             finite coordinates are accepted with a warning.
              Defaults to WGS84. Geographic (0, 0) is always invalid.
 
     Returns:
