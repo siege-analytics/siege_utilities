@@ -3,6 +3,7 @@ PowerPoint generation utilities for siege_utilities reporting system.
 Creates presentations from analytics data and report configurations.
 """
 
+import io
 import logging
 import uuid
 from pathlib import Path
@@ -254,17 +255,31 @@ class PowerPointGenerator:
             author: Presentation author
             client: Client name
             presentation_type: Type of presentation
-            sections: List of presentation sections
+            sections: List of presentation sections. The table of contents
+                and agenda slides list the titles of these sections, fixed
+                when this method runs; slides added afterwards with the
+                ``add_*_slide`` methods are not listed. A warning is logged
+                when either slide is requested and no sections are given.
             slide_layouts: Custom slide layouts for different section types
             include_toc: Include table of contents slide
             include_agenda: Include agenda slide
-            
+
         Returns:
             Dictionary containing complete presentation structure
         """
         sections = sections or []
         slide_layouts = slide_layouts or {}
-        
+
+        if not sections and (include_toc or include_agenda):
+            requested = " and ".join(
+                name for name, wanted in (("table of contents", include_toc), ("agenda", include_agenda)) if wanted
+            )
+            log.warning(
+                f"Presentation {title!r}: no sections were given, so the {requested} will have no entries. "
+                f"They list only the sections passed to create_comprehensive_presentation, "
+                f"not slides added later with the add_*_slide methods."
+            )
+
         presentation_structure = {
             'title': title,
             'type': 'comprehensive_presentation',
@@ -954,19 +969,42 @@ class PowerPointGenerator:
             paragraph.font.size = Pt(14)
         return slide
 
-    def _add_chart_to_slide(self, chart_config, slide, left, top, width, height) -> Any:
-        """Add a chart to a slide, either as an embedded image or text description.
+    def _add_chart_to_slide(self, chart_config, slide, left, top, width, height,
+                            kind: str = "Chart") -> Any:
+        """Add a chart or map to a slide, either as an embedded image or text description.
+
+        A dict with only 'title'/'type' keys is described in a labeled
+        textbox. Anything else that cannot be embedded, such as an image
+        path that does not exist, a ReportLab Image without embedded image
+        data, or an object that is neither, also gets the labeled textbox,
+        and a warning naming it and the slide title is logged so the
+        placeholder is never silent.
 
         Args:
-            chart_config: dict with 'image_path' (str/Path) or 'title'/'type' keys
+            chart_config: dict with 'image_path' (str/Path) or 'title'/'type'
+                keys, an image path (str/Path), or a ReportLab Image as
+                returned by the chart and map engines, whose ``filename``
+                holds the PNG as a base64 data URI
             slide: pptx Slide object
             left, top, width, height: position/size in EMU or Inches
+            kind: label for the placeholder textbox, e.g. "Chart" or "Map"
 
         Returns:
             The added shape (python-pptx Picture when an image was embedded,
             else the fallback textbox). Per writing-code:11 floor (a):
             distinguishes 'embedded image' from 'fallback textbox' for the
             caller without requiring a separate side-channel.
+
+        Raises:
+            OSError: the image file exists but cannot be opened (the original
+                error, which names the file) or decoded (the original type,
+                e.g. PIL's UnidentifiedImageError, with the file and the
+                slide title added to the message).
+            ValueError: the image is in a format PowerPoint does not accept,
+                or a ReportLab Image's data URI is not valid base64; the
+                message names the file, if any, and the slide title. When raised
+                while generating a presentation, ``_create_slide_from_section``
+                wraps it in a RuntimeError that keeps the message.
         """
         image_path = None
         if isinstance(chart_config, dict):
@@ -974,19 +1012,64 @@ class PowerPointGenerator:
         elif isinstance(chart_config, (str, Path)):
             image_path = chart_config
 
-        if image_path and Path(str(image_path)).exists():
-            return slide.shapes.add_picture(str(image_path), left, top, width, height)
+        slide_title = slide.shapes.title.text if slide.shapes.title is not None else ''
+        if image_path:
+            path = Path(str(image_path))
+            if path.exists():
+                message = f"Could not embed image {str(path)!r} on slide {slide_title!r}"
+                try:
+                    return slide.shapes.add_picture(str(path), left, top, width, height)
+                except OSError as e:
+                    if e.errno is not None:
+                        # A filesystem error from opening the file already
+                        # names it; keep it intact, errno included.
+                        raise
+                    # A decoding error such as PIL's UnidentifiedImageError
+                    # does not name the file; keep its type and add the names.
+                    raise type(e)(f"{message}: {e}") from e
+                except ValueError as e:
+                    raise ValueError(f"{message}: {e}") from e
+            log.warning(
+                f"Image {str(path)!r} for slide {slide_title!r} was not found; "
+                f"a placeholder is shown instead"
+            )
+        elif hasattr(chart_config, 'filename'):
+            # The library's chart and map engines return ReportLab Images
+            # whose .filename holds the PNG as a base64 data URI.
+            from siege_utilities.reporting.image_utils import decode_rl_image
+            message = f"Could not embed {kind.lower()} image on slide {slide_title!r}"
+            try:
+                png = decode_rl_image(chart_config)
+                if png is not None:
+                    return slide.shapes.add_picture(io.BytesIO(png), left, top, width, height)
+            except OSError as e:
+                # Corrupt image data, e.g. PIL's UnidentifiedImageError:
+                # keep its type and name the slide.
+                raise type(e)(f"{message}: {e}") from e
+            except ValueError as e:
+                # Invalid base64 or an unsupported image format.
+                raise ValueError(f"{message}: {e}") from e
+            log.warning(
+                f"{kind} image {chart_config!r} for slide {slide_title!r} does not hold its "
+                f"image as a base64 data URI, so it cannot be embedded; pass the image file "
+                f"path instead. A placeholder is shown"
+            )
+        elif not (isinstance(chart_config, dict) and ('title' in chart_config or 'type' in chart_config)):
+            log.warning(
+                f"{kind} {chart_config!r} for slide {slide_title!r} is not an image path "
+                f"or a described chart; a placeholder is shown instead"
+            )
 
         # Graceful fallback: add a labeled textbox
         label = ''
         if isinstance(chart_config, dict):
-            label = chart_config.get('title', chart_config.get('type', 'Chart'))
+            label = chart_config.get('title', chart_config.get('type', kind))
         else:
             label = str(chart_config)
         box = slide.shapes.add_textbox(left, top, width, height)
         tf = box.text_frame
         tf.word_wrap = True
-        tf.text = f"[Chart: {label}]"
+        tf.text = f"[{kind}: {label}]"
         for paragraph in tf.paragraphs:
             paragraph.font.size = Pt(12)
         return box
@@ -1373,9 +1456,55 @@ class PowerPointGenerator:
         return slide
 
     def _create_map_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:
-        """Create a map slide."""
-        # Similar to chart slide but optimized for maps
-        return self._create_chart_slide(section, prs)
+        """Create a map slide with its title, description and up to four maps.
+
+        Reads the ``maps`` and ``description`` that ``add_map_slide`` stores.
+        One map fills the slide, two sit side by side, and three or four
+        form a 2x2 grid. Maps beyond the fourth continue on further slides
+        titled "<title> (continued)". Each map goes through
+        ``_add_chart_to_slide``, so a missing image gets a labeled
+        placeholder and a warning, and an unreadable image raises.
+
+        Returns:
+            The first slide, which carries the section's speaker notes.
+        """
+        content = section.get('content', {})
+        title = section.get('title', '')
+        description = content.get('description', '')
+        maps = content.get('maps', [])
+        if not maps:
+            log.warning(f"Map slide {title!r} has no maps")
+
+        # (left, top, width, height) in inches, below the description.
+        positions_by_count = {
+            1: [(1.0, 2.1, 8.0, 5.0)],
+            2: [(0.5, 2.1, 4.25, 4.25), (5.25, 2.1, 4.25, 4.25)],
+            4: [(0.5, 2.1, 4.25, 2.45), (5.25, 2.1, 4.25, 2.45),
+                (0.5, 4.7, 4.25, 2.45), (5.25, 4.7, 4.25, 2.45)],
+        }
+        maps_per_slide = 4
+        groups = [maps[i:i + maps_per_slide] for i in range(0, len(maps), maps_per_slide)] or [[]]
+
+        slides = []
+        for index, group in enumerate(groups):
+            slide = prs.slides.add_slide(prs.slide_layouts[self.slide_layouts['title_only']])
+            slide.shapes.title.text = title if index == 0 else f"{title} (continued)"
+
+            if description and index == 0:
+                box = slide.shapes.add_textbox(Inches(0.5), Inches(1.55), Inches(9.0), Inches(0.5))
+                box.text_frame.word_wrap = True
+                box.text_frame.text = description
+                for paragraph in box.text_frame.paragraphs:
+                    paragraph.font.size = Pt(14)
+
+            positions = positions_by_count.get(len(group), positions_by_count[maps_per_slide])
+            for map_config, (left, top, width, height) in zip(group, positions):
+                self._add_chart_to_slide(
+                    map_config, slide, Inches(left), Inches(top), Inches(width), Inches(height), kind="Map",
+                )
+            slides.append(slide)
+
+        return slides[0]
 
     def _create_table_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:
         """Create a table slide."""
