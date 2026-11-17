@@ -75,14 +75,23 @@ def _saved_heading(html):
     return html_lib.unescape(match.group(1))
 
 
-@pytest.mark.parametrize("title", [
-    "Total {{ 7 * 191 }}",                 # an expression
+# What the expression title below renders to if it is evaluated as a template.
+# It holds letters that are not hex digits, so it cannot occur by chance in
+# the random hex ids folium gives map elements; a number could.
+EVALUATED = "QZXEVAL"
+
+TEMPLATE_TITLES = [
+    "Total {{ 'QZX' ~ 'EVAL' }}",          # an expression with a letter result
+    "Total {{ 7 * 191 }}",                 # an expression with a number result
     "Region {% if true %}A{% endif %} map",  # a statement
     "Region {# note #} map",               # a comment
     "Region {{ undefined_name }} map",     # an undefined name
     "Broken {{ map",                       # a malformed delimiter
     "Ratio {7} and 50% }}",                # stray braces and percent
-])
+]
+
+
+@pytest.mark.parametrize("title", TEMPLATE_TITLES)
 @pytest.mark.parametrize("kind", list(SAVED_AS))
 def test_title_is_shown_as_text_not_run_as_a_template(tmp_path, kind, title):
     chart_gen = ChartGenerator(output_dir=tmp_path)
@@ -90,8 +99,26 @@ def test_title_is_shown_as_text_not_run_as_a_template(tmp_path, kind, title):
     _make_map(chart_gen, kind, title=title)
 
     html = (tmp_path / SAVED_AS[kind]).read_text()
+    # The heading shows the title exactly as typed, so nothing was evaluated,
+    # dropped or rewritten; this does not depend on the rest of the page.
     assert _saved_heading(html) == title
-    assert "1337" not in html
+    assert EVALUATED not in html
+
+
+def test_template_check_ignores_digits_in_element_ids(tmp_path, monkeypatch):
+    # Folium names elements with random hex ids; force every id to contain
+    # the digits an evaluated "{{ 7 * 191 }}" would give.
+    from branca.element import Element
+
+    monkeypatch.setattr(Element, "_generate_id", classmethod(lambda cls: "1337" * 8))
+    title = "Total {{ 7 * 191 }}"
+    chart_gen = ChartGenerator(output_dir=tmp_path)
+
+    _make_map(chart_gen, "cluster", title=title)
+
+    html = (tmp_path / SAVED_AS["cluster"]).read_text()
+    assert "1337" in html  # a check on the whole page for the number would fail here
+    assert _saved_heading(html) == title
 
 
 def test_title_with_quotes_is_escaped(tmp_path):
