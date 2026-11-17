@@ -128,7 +128,7 @@ _register([
 
 # --- census_api_client ---
 _register([
-    'CensusAPIClient', 'CensusAPIError', 'CensusAPIKeyError',
+    'CensusAPIClient', 'CensusAPIError', 'CensusAPIKeyError', 'CensusServerError',
     'CensusRateLimitError', 'CensusVariableError', 'CensusGeographyError',
     'VARIABLE_GROUPS', 'VARIABLE_DESCRIPTIONS',
     'get_demographics', 'get_population', 'get_income_data',

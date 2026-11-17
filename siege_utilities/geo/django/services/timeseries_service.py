@@ -111,65 +111,76 @@ class TimeseriesService:
         years_sorted = sorted(years)
         results = []
 
+        # Resolve distinct GEOIDs once, even when multiple vintages are loaded.
+        qs = model_cls.objects.all()
+        if state_fips and hasattr(model_cls, "state_fips"):
+            qs = qs.filter(state_fips=state_fips)
+        geoid_query = qs.values_list("geoid", flat=True).distinct()
+        geoids = list(geoid_query)
+
         for variable in variables:
             result = TimeseriesResult(
                 variable_code=variable,
                 geography_level=geography_level,
             )
 
-            # Get all boundaries for this level
-            qs = model_cls.objects.all()
-            if state_fips and hasattr(model_cls, "state_fips"):
-                qs = qs.filter(state_fips=state_fips)
+            # One snapshot read per variable/level. Retain only this variable's
+            # values instead of caching every snapshot's full JSON payload.
+            snapshots = DemographicSnapshot.objects.filter(
+                content_type=content_type,
+                object_id__in=geoid_query,
+                dataset=self.dataset,
+                year__in=years_sorted,
+            ).order_by("year")
+            observations = {}
+            for snap in snapshots.iterator():
+                val = snap.values.get(variable)
+                if val is not None:
+                    observations.setdefault(snap.object_id, {})[snap.year] = (
+                        val, snap.moe_values.get(variable),
+                    )
 
-            geoids = list(qs.values_list("geoid", flat=True).distinct())
+            # Match the complete interval key: different variables/GEOIDs can
+            # have different available endpoints within the requested years.
+            existing_by_key = {
+                (series.object_id, series.start_year, series.end_year): series
+                for series in DemographicTimeSeries.objects.filter(
+                    content_type=content_type,
+                    object_id__in=geoid_query,
+                    variable_code=variable,
+                    dataset=self.dataset,
+                    start_year__in=years_sorted,
+                    end_year__in=years_sorted,
+                ).iterator()
+            }
             to_create = []
+            cagr_undefined = 0
 
             for geoid in geoids:
-                # Gather snapshots for this boundary across years
-                snapshots = DemographicSnapshot.objects.filter(
-                    content_type=content_type,
-                    object_id=geoid,
-                    dataset=self.dataset,
-                    year__in=years_sorted,
-                ).order_by("year")
-
-                values_by_year = {}
-                moe_by_year = {}
-                for snap in snapshots:
-                    val = snap.values.get(variable)
-                    if val is not None:
-                        values_by_year[snap.year] = val
-                        moe_val = snap.moe_values.get(variable)
-                        if moe_val is not None:
-                            moe_by_year[snap.year] = moe_val
-
-                if len(values_by_year) < 2:
+                by_year = observations.get(geoid, {})
+                if len(by_year) < 2:
                     result.records_skipped += 1
                     continue
 
-                series_years = sorted(values_by_year.keys())
-                series_values = [values_by_year[y] for y in series_years]
-                series_moe = [moe_by_year.get(y) for y in series_years]
+                series_years = sorted(by_year)
+                series_values = [by_year[y][0] for y in series_years]
+                series_moe = [by_year[y][1] for y in series_years]
 
                 # Compute statistics
                 mean_val = sum(series_values) / len(series_values)
                 std_dev = self._std_dev(series_values, mean_val)
                 try:
-                    cagr = self._cagr(series_values[0], series_values[-1], len(series_years) - 1)
+                    cagr = self._cagr(
+                        series_values[0], series_values[-1], series_years[-1] - series_years[0],
+                    )
                 except ValueError:
-                    cagr = None  # start_value <= 0 — CAGR undefined
+                    # Non-positive start or negative end (e.g. a Census
+                    # sentinel): CAGR is undefined and stored as None.
+                    cagr = None
+                    cagr_undefined += 1
                 trend = self._trend_direction(series_values)
 
-                # Check for existing
-                existing = DemographicTimeSeries.objects.filter(
-                    content_type=content_type,
-                    object_id=geoid,
-                    variable_code=variable,
-                    dataset=self.dataset,
-                    start_year=series_years[0],
-                    end_year=series_years[-1],
-                ).first()
+                existing = existing_by_key.get((geoid, series_years[0], series_years[-1]))
 
                 if existing and not update_existing:
                     result.records_skipped += 1
@@ -178,7 +189,7 @@ class TimeseriesService:
                 if existing and update_existing:
                     existing.years = series_years
                     existing.values = series_values
-                    existing.moe_values = [m for m in series_moe if m is not None]
+                    existing.moe_values = series_moe
                     existing.mean_value = mean_val
                     existing.std_dev = std_dev
                     existing.cagr = cagr
@@ -197,7 +208,7 @@ class TimeseriesService:
                         end_year=series_years[-1],
                         years=series_years,
                         values=series_values,
-                        moe_values=[m for m in series_moe if m is not None],
+                        moe_values=series_moe,
                         mean_value=mean_val,
                         std_dev=std_dev,
                         cagr=cagr,
@@ -223,7 +234,8 @@ class TimeseriesService:
             results.append(result)
             log.info(
                 f"Timeseries {variable}: created={result.records_created}, "
-                f"updated={result.records_updated}, skipped={result.records_skipped}"
+                f"updated={result.records_updated}, skipped={result.records_skipped}, "
+                f"cagr_undefined={cagr_undefined}"
             )
 
         return results
@@ -274,13 +286,16 @@ class TimeseriesService:
         Args:
             start_value: Starting value (must be > 0).
             end_value: Ending value.
-            periods: Number of periods (must be > 0).
+            periods: Elapsed calendar years (must be > 0).
 
         Returns:
             The compound annual growth rate.
 
         Raises:
-            ValueError: When inputs violate constraints.
+            ValueError: When inputs violate constraints, including a negative
+                end value (for example a raw Census sentinel such as
+                ``-666666666``), whose fractional power would be a complex
+                number that the ``cagr`` FloatField cannot store.
         """
         if periods <= 0:
             raise ValueError(
@@ -290,8 +305,14 @@ class TimeseriesService:
             raise ValueError(
                 f"CAGR requires start_value > 0; got {start_value}"
             )
+        ratio = end_value / start_value
+        if ratio < 0:
+            raise ValueError(
+                f"CAGR is undefined for a negative end/start ratio: "
+                f"start={start_value}, end={end_value}, periods={periods}"
+            )
         try:
-            return (end_value / start_value) ** (1 / periods) - 1
+            return ratio ** (1 / periods) - 1
         except (ZeroDivisionError, ValueError) as exc:
             raise ValueError(
                 f"CAGR computation failed for start={start_value}, "

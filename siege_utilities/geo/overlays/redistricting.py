@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Optional
 
+from siege_utilities.config.census_registry import FIPS_TO_STATE
 from siege_utilities.geo.overlay_registry import PlaceHistoryOverlay
 
 log = logging.getLogger(__name__)
@@ -35,8 +36,8 @@ class DistrictAssignment:
         plan_type: Congressional, state senate, or state house.
         district_id: District identifier (e.g., "TX-28").
         state: State abbreviation.
-        from_date: When this assignment began.
-        to_date: When this assignment ended (None = still active).
+        from_date: Inclusive start date (None = no lower bound).
+        to_date: Exclusive end date (None = still active).
         enacted_by: Who enacted the plan.
         court_case: Court case if court-ordered.
         containment_pct: Fraction of queried geography in this district.
@@ -52,6 +53,15 @@ class DistrictAssignment:
     enacted_by: str = ""
     court_case: str = ""
     containment_pct: float = 1.0
+
+
+def _has_nonempty_span(assignment: DistrictAssignment) -> bool:
+    """Skip empty half-open spans and reject inverted bounds when queried."""
+    if assignment.from_date is None or assignment.to_date is None:
+        return True
+    if assignment.from_date > assignment.to_date:
+        raise ValueError("DistrictAssignment.from_date must not be after to_date")
+    return assignment.from_date < assignment.to_date
 
 
 @dataclass
@@ -84,11 +94,17 @@ class RedistrictingOverlayResult:
         return [a for a in self.assignments if a.plan_type == plan_type]
 
     def active_at(self, when: date) -> list[DistrictAssignment]:
+        """Return assignments active in [from_date, to_date); None is unbounded.
+
+        Empty spans never apply. Inverted bounds raise ValueError.
+        """
         result = []
         for a in self.assignments:
+            if not _has_nonempty_span(a):
+                continue
             if a.from_date and a.from_date > when:
                 continue
-            if a.to_date and a.to_date < when:
+            if a.to_date and a.to_date <= when:
                 continue
             result.append(a)
         return result
@@ -124,13 +140,27 @@ class DictRedistrictingDataProvider(RedistrictingDataProvider):
         to_year: int,
         state_fips: Optional[str] = None,
     ) -> list[DistrictAssignment]:
-        from_date = date(from_year, 1, 1)
-        to_date = date(to_year, 12, 31)
+        """Return assignments overlapping the inclusive years, in either order.
+
+        Assignments use [from_date, to_date), with None for an unbounded end.
+        Empty spans never apply. The state filter accepts FIPS codes or
+        abbreviations and is applied before span validation, so inverted bounds
+        raise ValueError only for assignments within the queried state; rows for
+        other states are filtered out first.
+        """
+        from_date = date(min(from_year, to_year), 1, 1)
+        to_date = date(max(from_year, to_year), 12, 31)
+        state = FIPS_TO_STATE.get(state_fips, state_fips.upper()) if state_fips else None
         results = []
         for a in self._assignments:
-            if state_fips and a.state.upper() != state_fips.upper():
+            # Scope to the queried state before validating spans, so an invalid
+            # span in an unrelated state cannot abort a valid in-state query.
+            # A queried-state inverted span still raises in _has_nonempty_span.
+            if state and a.state.upper() != state:
                 continue
-            if a.to_date and a.to_date < from_date:
+            if not _has_nonempty_span(a):
+                continue
+            if a.to_date and a.to_date <= from_date:
                 continue
             if a.from_date and a.from_date > to_date:
                 continue
