@@ -2,21 +2,32 @@
 Cross-backend readers for siege_utilities.political tables.
 
 PostgreSQL is the canonical write/DDL home for political schema (raw
-SQL migrations under migrations/). READ access is available through
-any :class:`~siege_utilities.engines.dataframe_engine.DataFrameEngine`
-backend by routing the query through ``engine.query(sql)``:
+SQL migrations under migrations/). These helpers route READ queries
+through a :class:`~siege_utilities.engines.dataframe_engine.DataFrameEngine`
+backend with ``engine.query(sql, params=...)``. The intended routes are
+below; see **Parameter binding** for which of them currently fail through
+these helpers:
 
-- ``PostGISEngine`` — direct psycopg/SQLAlchemy query against the PG DB
-- ``SparkEngine`` — JDBC read via PostgreSQL JDBC driver; Sedona for
-  spatial ops on PG-sourced rows
-- ``DuckDBEngine`` — ``postgres_scanner`` extension (ATTACH plus query)
-- ``PandasEngine`` — falls back to SQLAlchemy + pandas.read_sql
+- ``PostGISEngine``: direct SQLAlchemy query against the PG DB (filtered
+  reads untested)
+- ``SparkEngine``: JDBC read via the PostgreSQL JDBC driver (currently
+  fails through these helpers)
+- ``DuckDBEngine``: ``postgres_scanner`` extension (ATTACH plus query;
+  filtered reads currently fail)
+- ``PandasEngine``: SQLAlchemy plus pandas.read_sql (currently fails
+  through these helpers)
 
-**Parameter binding:** Readers pass ``params=`` to ``engine.query()``.
-This works correctly on ``PostGISEngine`` (psycopg) and ``PandasEngine``
-(SQLAlchemy). ``SparkEngine`` and ``DuckDBEngine`` currently ignore the
-``params`` kwarg — callers targeting those backends must apply filters
-through the engine's own mechanisms rather than relying on these helpers.
+**Parameter binding:** Readers build psycopg-style ``%s`` placeholders and
+always pass ``params=`` (a list, empty when no filter is given) to
+``engine.query()``. ``PostGISEngine.query`` forwards the list to
+``pandas.read_sql`` over its SQLAlchemy engine; no test exercises a
+filtered read there. ``DuckDBEngine.query`` binds only ``?``, ``$n`` and
+``$name`` placeholders, so a filtered read fails there; unfiltered reads
+are untested. Every call fails on ``PandasEngine``,
+whose ``query`` requires a ``connection`` keyword these readers do not
+pass, and on ``SparkEngine``, whose ``query`` raises
+``NotImplementedError`` for any keyword. Apply filters through the engine's
+own mechanisms rather than relying on these helpers where binding fails.
 
 Callers hand an already-configured engine to these readers; engine
 construction (connection strings, Spark sessions, DuckDB ATTACH) stays
@@ -60,8 +71,9 @@ def seats(
     """Read ``political.seats`` via the given engine.
 
     Optional filters build a parameterized WHERE clause. Returns
-    whatever the engine's ``query`` method returns (pandas/geopandas
-    DataFrame, Spark DataFrame, DuckDB relation).
+    whatever the engine's ``query`` method returns (a pandas DataFrame on
+    the PostGIS and DuckDB engines); see the module docstring for the
+    engines on which these helpers currently fail.
     """
     clauses = []
     params: list[Any] = []

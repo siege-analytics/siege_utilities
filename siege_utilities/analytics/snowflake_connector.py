@@ -333,21 +333,47 @@ class SnowflakeConnector:
         log.info(f"Created table {table_name} with {len(columns)} columns")
 
     def _map_pandas_to_snowflake_type(self, pandas_dtype) -> str:
-        """Map pandas data types to Snowflake data types."""
-        dtype_str = str(pandas_dtype)
+        """Map a pandas dtype to the Snowflake column type used by auto-create.
 
-        if 'int' in dtype_str:
-            return 'NUMBER(38,0)'
-        elif 'float' in dtype_str:
-            return 'FLOAT'
-        elif 'bool' in dtype_str:
+        Uses ``pandas.api.types`` predicates rather than matching the dtype's
+        name, so pandas nullable dtypes map like their NumPy counterparts:
+
+        * booleans (``bool``, ``boolean``) -> ``BOOLEAN``;
+        * integers, signed or unsigned, including nullable ``Int64`` ->
+          ``NUMBER(38,0)``;
+        * floats, including nullable ``Float64`` -> ``FLOAT``;
+        * timezone-aware datetimes (pandas ``DatetimeTZDtype``) ->
+          ``TIMESTAMP_TZ``, naive NumPy ``datetime64`` -> ``TIMESTAMP_NTZ``.
+          These are the tested datetime families. Arrow-backed timestamp
+          dtypes (for example from ``convert_dtypes(dtype_backend="pyarrow")``)
+          are not recognised and fall back to ``VARCHAR(16777216)``, as in
+          v4.0.0; no native Arrow loading or round-trip is claimed;
+        * categoricals -> the type of their categories (integer categories ->
+          ``NUMBER(38,0)``, string categories -> ``VARCHAR``).
+
+        Timedeltas map to ``VARCHAR(16777216)``, as in v4.0.0, because Snowflake
+        has no ``INTERVAL`` column type. This method only chooses the column
+        type; it does not serialize values. Callers who need durations in a
+        usable form should serialize them before upload (for example
+        ``.dt.total_seconds()``) or pre-create the table and pass
+        ``auto_create_table=False``. Everything else (strings, objects,
+        intervals, periods) maps to ``VARCHAR(16777216)``.
+        """
+        if isinstance(pandas_dtype, pd.CategoricalDtype):
+            return self._map_pandas_to_snowflake_type(pandas_dtype.categories.dtype)
+        if pd.api.types.is_bool_dtype(pandas_dtype):
             return 'BOOLEAN'
-        elif 'datetime' in dtype_str:
+        if pd.api.types.is_integer_dtype(pandas_dtype):
+            return 'NUMBER(38,0)'
+        if pd.api.types.is_float_dtype(pandas_dtype):
+            return 'FLOAT'
+        if isinstance(pandas_dtype, pd.DatetimeTZDtype):
+            return 'TIMESTAMP_TZ'
+        if pd.api.types.is_datetime64_dtype(pandas_dtype):
             return 'TIMESTAMP_NTZ'
-        elif 'object' in dtype_str:
+        if pd.api.types.is_timedelta64_dtype(pandas_dtype):
             return 'VARCHAR(16777216)'
-        else:
-            return 'VARCHAR(16777216)'
+        return 'VARCHAR(16777216)'
 
     def get_table_info(self, table_name: str, database: Optional[str] = None, schema: Optional[str] = None) -> Dict[str, Any]:
         """
