@@ -200,17 +200,18 @@ class TestPydanticModels:
         assert conn.get_connection_string().startswith("postgresql://")
     
     def test_database_connection_weak_password(self):
-        """Test DatabaseConnection password validation."""
-        with pytest.raises(Exception, match="String should have at least 8 characters"):
-            DatabaseConnection(
-                name="test_db",
-                connection_type="postgresql",
-                host="localhost",
-                port=5432,
-                database="testdb",
-                username="testuser",
-                password="123"
-            )
+        """A stored short password loads (#1490) and stays redacted."""
+        conn = DatabaseConnection(
+            name="test_db",
+            connection_type="postgresql",
+            host="localhost",
+            port=5432,
+            database="testdb",
+            username="testuser",
+            password="123"
+        )
+        assert conn.password.get_secret_value() == "123"
+        assert "123" not in repr(conn.password)
     
     def test_branding_config_validation(self):
         """Test BrandingConfig validation."""
