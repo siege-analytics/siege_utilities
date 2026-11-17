@@ -1036,10 +1036,41 @@ class RDHClient:
 _EQUAL_AREA_CRS = "ESRI:54009"
 
 
-def _reproject_geometry(geom, source_crs, target_crs=_EQUAL_AREA_CRS):
-    """Reproject a single Shapely geometry between CRS."""
+def _reproject_geometry(geom, source_crs, target_crs=None):
+    """Project to a centroid-centred local AEQD unless a target CRS is given.
+
+    Geometries without CRS metadata are treated as already planar. Empty and
+    missing geometries pass through for the metric functions' NaN handling.
+    """
+    if source_crs is None or geom is None or geom.is_empty:
+        return geom
+
     from pyproj import Transformer
     from shapely.ops import transform
+
+    if target_crs is None:
+        from pyproj import CRS
+
+        to_geographic = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
+        if CRS.from_user_input(source_crs).is_projected:
+            # Projected coordinates are continuous across the antimeridian.
+            # Transforming the whole ring to longitude/latitude would wrap it
+            # at +/-180 degrees and move a planar centroid of the wrapped ring
+            # far from the shape, so take the centroid in the source CRS and
+            # convert only that point.
+            planar_centre = geom.centroid
+            lon, lat = to_geographic.transform(planar_centre.x, planar_centre.y)
+        else:
+            # Geographic, geocentric and any other non-projected source: the
+            # source XY is not a plane (geocentric XY drops the Z axis, which
+            # carries the latitude), so convert the whole ring to
+            # longitude/latitude and take its centroid there.
+            centre = transform(to_geographic.transform, geom).centroid
+            lon, lat = centre.x, centre.y
+        target_crs = (
+            f"+proj=aeqd +lat_0={lat} +lon_0={lon} "
+            "+datum=WGS84 +units=m"
+        )
 
     transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
     return transform(transformer.transform, geom)
@@ -1062,18 +1093,16 @@ def polsby_popper(geometry, source_crs=None) -> float:
     Parameters
     ----------
     geometry : shapely geometry
-        Must be in a projected (equal-area) CRS for meaningful results.
+        Must use a shape-faithful local projection when source_crs is omitted.
     source_crs : optional
-        If provided and geographic, geometry is reprojected to equal-area
-        before calculation. Pass the CRS (e.g., "EPSG:4326") when calling
-        with unprojected data.
+        If provided, geometry is reprojected to a centroid-centred local
+        azimuthal equidistant (AEQD) CRS before calculation.
     """
     import math
 
     if geometry is None or geometry.is_empty:
         return float("nan")
-    if source_crs is not None and _is_geographic_crs(source_crs):
-        geometry = _reproject_geometry(geometry, source_crs)
+    geometry = _reproject_geometry(geometry, source_crs)
     area = geometry.area
     perimeter = geometry.length
     if perimeter == 0:
@@ -1090,30 +1119,18 @@ def reock(geometry, source_crs=None) -> float:
     Parameters
     ----------
     geometry : shapely geometry
-        Must be in a projected (equal-area) CRS for meaningful results.
+        Must use a shape-faithful local projection when source_crs is omitted.
     source_crs : optional
-        If provided and geographic, geometry is reprojected to equal-area.
+        If provided, geometry is reprojected to a centroid-centred local AEQD CRS.
     """
     import math
+    from shapely import minimum_bounding_radius
 
     if geometry is None or geometry.is_empty:
         return float("nan")
-    if source_crs is not None and _is_geographic_crs(source_crs):
-        geometry = _reproject_geometry(geometry, source_crs)
+    geometry = _reproject_geometry(geometry, source_crs)
     area = geometry.area
-    mrr = geometry.minimum_rotated_rectangle
-    if mrr is None or mrr.is_empty:
-        return float("nan")
-    coords = list(mrr.exterior.coords)
-    if len(coords) < 4:
-        return float("nan")
-    from shapely.geometry import Point
-
-    p0, p1, p2 = Point(coords[0]), Point(coords[1]), Point(coords[2])
-    side1 = p0.distance(p1)
-    side2 = p1.distance(p2)
-    diameter = max(side1, side2, (side1**2 + side2**2)**0.5)
-    radius = diameter / 2.0
+    radius = minimum_bounding_radius(geometry)
     circle_area = math.pi * radius**2
     if circle_area == 0:
         return float("nan")
@@ -1136,7 +1153,7 @@ def convex_hull_ratio(geometry, source_crs=None) -> float:
     if geometry is None or geometry.is_empty:
         return float("nan")
     if source_crs is not None and _is_geographic_crs(source_crs):
-        geometry = _reproject_geometry(geometry, source_crs)
+        geometry = _reproject_geometry(geometry, source_crs, _EQUAL_AREA_CRS)
     hull = geometry.convex_hull
     if hull.is_empty or hull.area == 0:
         return float("nan")
@@ -1152,22 +1169,32 @@ def schwartzberg(geometry, source_crs=None) -> float:
     Parameters
     ----------
     geometry : shapely geometry
-        Must be in a projected (equal-area) CRS for meaningful results.
+        Must use a shape-faithful local projection when source_crs is omitted.
     source_crs : optional
-        If provided and geographic, geometry is reprojected to equal-area.
+        If provided, geometry is reprojected to a centroid-centred local AEQD CRS.
     """
     import math
 
     if geometry is None or geometry.is_empty:
         return float("nan")
-    if source_crs is not None and _is_geographic_crs(source_crs):
-        geometry = _reproject_geometry(geometry, source_crs)
+    geometry = _reproject_geometry(geometry, source_crs)
     area = geometry.area
     perimeter = geometry.length
     if perimeter == 0 or area == 0:
         return float("nan")
     circle_circumference = 2.0 * math.pi * math.sqrt(area / math.pi)
     return circle_circumference / perimeter
+
+
+def _compactness_scores(geometry, source_crs):
+    """Share district projection and metric definitions across plan APIs."""
+    local_geometry = _reproject_geometry(geometry, source_crs)
+    return {
+        "polsby_popper": polsby_popper(local_geometry),
+        "reock": reock(local_geometry),
+        "convex_hull_ratio": convex_hull_ratio(geometry, source_crs=source_crs),
+        "schwartzberg": schwartzberg(local_geometry),
+    }
 
 
 def compute_compactness(
@@ -1177,8 +1204,10 @@ def compute_compactness(
 ) -> "pd.DataFrame":
     """Compute all compactness metrics for a GeoDataFrame of districts.
 
-    Automatically reprojects to an equal-area CRS (Mollweide) before
-    calculating area-dependent metrics.
+    With CRS metadata, each district is projected to its own centroid-centred
+    local AEQD CRS for Polsby-Popper, Reock and Schwartzberg. Convex hull ratio
+    uses an equal-area CRS for geographic input. Without CRS metadata,
+    coordinates are treated as already planar.
 
     Parameters
     ----------
@@ -1197,19 +1226,12 @@ def compute_compactness(
     if not HAS_PANDAS:
         raise ImportError("pandas is required")
 
-    projected = gdf
-    if gdf.crs is not None and _is_geographic_crs(gdf.crs):
-        projected = gdf.to_crs(_EQUAL_AREA_CRS)
-
     records = []
-    for _, row in projected.iterrows():
+    for _, row in gdf.iterrows():
         geom = row[geometry_col]
         records.append({
             "district_id": row[district_id_col],
-            "polsby_popper": polsby_popper(geom),
-            "reock": reock(geom),
-            "convex_hull_ratio": convex_hull_ratio(geom),
-            "schwartzberg": schwartzberg(geom),
+            **_compactness_scores(geom, gdf.crs),
         })
 
     return pd.DataFrame(records)
@@ -1238,7 +1260,11 @@ def compare_plans(
 
     Returns
     -------
-    dict with comparison metrics.
+    dict with comparison metrics. Each plan includes ``compactness_mean_pp``,
+    ``compactness_mean_reock`` and ``compactness_mean_schwartzberg``, rounded
+    to four decimals, using the same per-district projections as
+    :func:`compute_compactness`. ``compactness_delta`` compares mean
+    Polsby-Popper scores.
     """
     if not HAS_PANDAS:
         raise ImportError("pandas is required")
@@ -1253,6 +1279,9 @@ def compare_plans(
             raise ValueError(
                 f"Cannot compute plan stats: '{label}' has zero total population"
             )
+        scores = pd.DataFrame([
+            _compactness_scores(geom, gdf.crs) for geom in gdf.geometry
+        ])
         return {
             "label": label,
             "num_districts": num_districts,
@@ -1262,8 +1291,10 @@ def compare_plans(
             "min_deviation": round((pops.min() - ideal) / ideal * 100, 2),
             "range_pct": round((pops.max() - pops.min()) / ideal * 100, 2),
             "std_dev": round(pops.std(), 1),
-            "compactness_mean_pp": round(
-                gdf.geometry.apply(polsby_popper).mean(), 4
+            "compactness_mean_pp": round(scores["polsby_popper"].mean(), 4),
+            "compactness_mean_reock": round(scores["reock"].mean(), 4),
+            "compactness_mean_schwartzberg": round(
+                scores["schwartzberg"].mean(), 4
             ),
         }
 
