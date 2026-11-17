@@ -23,6 +23,7 @@ Example usage:
     blocks = get_pl_blocks(state='CA', county='037', year=2020)
 """
 
+import csv
 import io
 import logging
 import os
@@ -76,8 +77,16 @@ PL_2010_BASE_URL = "https://www2.census.gov/census_2010/01-Redistricting_File--P
 PL_CACHE_TIMEOUT_DAYS = 30
 DEFAULT_CACHE_DIR = Path.home() / '.siege_utilities' / 'cache' / 'pl_files'
 
-# Parsed caches from earlier schemas contain incorrect STATE/table columns.
-_PL_CACHE_SCHEMA_VERSION = 2
+# Parsed caches from earlier schemas contain incorrect STATE/table columns (v1)
+# or were decoded as Latin-1 and could hold NaN-padded short records (v2).
+_PL_CACHE_SCHEMA_VERSION = 3
+
+# The Census 2020 PL 94-171 files are UTF-8 text (2020 PL readme, p. 2).
+_PL_TEXT_ENCODING = 'utf-8'
+
+# The five linking fields that open every data-segment record; the fields after
+# them are table counts. (The CHAESSION spelling is tracked in #1944.)
+_PL_LINKING_COLUMNS = ['FILEID', 'STUSAB', 'CHAESSION', 'CIFSN', 'LOGRECNO']
 
 # Request timeout
 PL_REQUEST_TIMEOUT = 300  # 5 minutes - files can be large
@@ -99,6 +108,142 @@ def _validate_parse_year(year: int) -> None:
         )
     if year != 2020:
         raise ValueError(f"PL data parsing is only available for 2020, not {year}")
+
+
+class _ValidatedPipeText(io.TextIOBase):
+    """Validated, read-only text view of one PL zip member, for pandas to parse.
+
+    This stream is the single tokenizer for PL files, so the field counts it
+    checks are exactly the fields pandas receives:
+
+    - the member is decoded as strict UTF-8;
+    - lines that are empty or whitespace-only are skipped, as pandas skipped
+      them in v4.0.0; any other line, including a delimiter-only line, is a
+      record;
+    - each record is split on every ``|`` and must have the first record's
+      field count;
+    - in a data segment, every field after the linking fields is a count and
+      must be empty or ASCII digits, so a malformed count cannot become a
+      silent missing value downstream.
+
+    pandas then reads only these validated records with quoting turned off,
+    so it cannot merge, split or pad fields. The member is consumed in bounded
+    chunks and never read whole. Errors are raised while pandas reads, which
+    is before the affected file's parsed cache is written.
+
+    Raises (while being read):
+        ValueError: If the member is not valid UTF-8, a record's field count
+            differs from the first record's, or a data-segment count field is
+            neither empty nor digits.
+    """
+
+    def __init__(
+        self,
+        member,
+        member_name: str,
+        label: str,
+        count_columns: Optional[List[str]] = None,
+    ) -> None:
+        super().__init__()
+        self._records = self._validated_records(member, member_name, label, count_columns)
+        self._buffer = ''
+
+    def readable(self) -> bool:
+        return True
+
+    def read(self, size: Optional[int] = -1) -> str:
+        if size is None or size < 0:
+            data = self._buffer + ''.join(self._records)
+            self._buffer = ''
+            return data
+        parts = [self._buffer]
+        length = len(self._buffer)
+        while length < size:
+            record = next(self._records, None)
+            if record is None:
+                break
+            parts.append(record)
+            length += len(record)
+        data = ''.join(parts)
+        self._buffer = data[size:]
+        return data[:size]
+
+    @staticmethod
+    def _validated_records(member, member_name, label, count_columns):
+        text = io.TextIOWrapper(member, encoding=_PL_TEXT_ENCODING, errors='strict', newline='')
+        expected = None
+        record = 0
+        try:
+            for line_number, line in enumerate(text, start=1):
+                if not line.strip():
+                    continue
+                content = line.rstrip('\r\n')
+                fields = content.split('|')
+                record += 1
+                if expected is None:
+                    expected = len(fields)
+                elif len(fields) != expected:
+                    raise ValueError(
+                        f"{label} record {record} (line {line_number}) has {len(fields)} "
+                        f"fields; the first record has {expected}"
+                    )
+                if count_columns is not None:
+                    for index in range(len(_PL_LINKING_COLUMNS), len(fields)):
+                        value = fields[index]
+                        if value and not (value.isascii() and value.isdigit()):
+                            column = (
+                                count_columns[index] if index < len(count_columns)
+                                else f"field {index + 1}"
+                            )
+                            raise ValueError(
+                                f"{label} record {record} (line {line_number}) column "
+                                f"{column} has a non-numeric count {value!r}"
+                            )
+                yield content + '\n'
+        except UnicodeDecodeError as exc:
+            raise ValueError(
+                f"{label} in {member_name} is not valid UTF-8 ({exc.reason}); "
+                "the Census 2020 PL files are UTF-8 text"
+            ) from exc
+
+
+def _segment_columns(file_type: str) -> Optional[List[str]]:
+    """Return the 2020 column names of a data segment, or None for an unknown one."""
+    # Column positions vary by file segment
+    # File 1 (pl1): P1 (race) and P2 (Hispanic) tables
+    # File 2 (pl2): P3 (race 18+), P4 (Hispanic 18+) and H1 (housing)
+    # File 3 (pl3): P5 (group quarters)
+    # Census 2020 PL Technical Documentation, pp. 2-4 and 6-38.
+    if file_type == 'pl1':
+        # P1 has 71 cells and P2 has 73 cells.
+        p1_cols = [f'P1_{str(i).zfill(3)}N' for i in range(1, 72)]
+        p2_cols = [f'P2_{str(i).zfill(3)}N' for i in range(1, 74)]
+        return _PL_LINKING_COLUMNS + p1_cols + p2_cols
+    if file_type == 'pl2':
+        p3_cols = [f'P3_{str(i).zfill(3)}N' for i in range(1, 72)]
+        p4_cols = [f'P4_{str(i).zfill(3)}N' for i in range(1, 74)]
+        h1_cols = ['H1_001N', 'H1_002N', 'H1_003N']
+        return _PL_LINKING_COLUMNS + p3_cols + p4_cols + h1_cols
+    if file_type == 'pl3':
+        p5_cols = [f'P5_{str(i).zfill(3)}N' for i in range(1, 11)]
+        return _PL_LINKING_COLUMNS + p5_cols
+    return None
+
+
+def _read_pl_member(stream: _ValidatedPipeText) -> pd.DataFrame:
+    """Parse validated PL records with pandas, without any CSV reinterpretation."""
+    # Quoting is off so every '|' separates fields exactly as the stream counted
+    # them, and only an empty field becomes missing (no "NA"/"NULL" guessing).
+    return pd.read_csv(
+        stream,
+        sep='|',
+        dtype=str,
+        header=None,
+        quoting=csv.QUOTE_NONE,
+        keep_default_na=False,
+        na_values=[''],
+        low_memory=False,
+    )
 
 
 def _stream_download_to_file(
@@ -340,8 +485,10 @@ class PLFileDownloader:
 
         Raises:
             ValueError: For the unsupported 2010 file layout, an unknown
-                geography, a segment missing from the archive, or a segment
-                whose width does not match the 2020 layout.
+                geography, a segment missing from the archive, a segment
+                whose width does not match the 2020 layout, a record whose
+                field count differs from the first record's, or file text
+                that is not valid UTF-8.
         """
         _validate_parse_year(year)
 
@@ -545,15 +692,17 @@ class PLFileDownloader:
             if geo_filename is None:
                 raise ValueError(f"Could not find geographic file in {url}")
 
-            # The 2020 geographic header is pipe-delimited. Stream the member
-            # instead of decoding it whole in memory.
+            # Permissive prefix parsing, not full publisher-schema validation:
+            # the Census 2020 PL technical documentation, Chapter 2 (pp. 2-1,
+            # 2-4; Figure 2-4, pp. 2-7 to 2-10), defines the full geographic
+            # header, but GEO_COLUMNS_2020 names only its leading fields. So
+            # the header is held to a uniform record width while streaming,
+            # and to the required named fields below, rather than to an exact
+            # field count. Its text fields are kept literally (quotes included).
+            # The member is streamed rather than decoded whole in memory.
             with zf.open(geo_filename) as member:
-                df = pd.read_csv(
-                    io.TextIOWrapper(member, encoding='latin-1', newline=''),
-                    sep='|',
-                    dtype=str,
-                    header=None,
-                    low_memory=False
+                df = _read_pl_member(
+                    _ValidatedPipeText(member, geo_filename, f"{year} PL geographic header")
                 )
 
         # Name the documented prefix once, so GEOID construction reads STATE
@@ -607,14 +756,15 @@ class PLFileDownloader:
                     f"archive members: {sorted(zf.namelist())}"
                 )
 
-            # Parse the pipe-delimited segment from the member stream.
+            # Every record must have the first record's width and digit-only
+            # (or empty) counts; the exact segment width is checked in
+            # _assign_data_columns. The member is streamed, not read whole.
             with zf.open(data_filename) as member:
-                df = pd.read_csv(
-                    io.TextIOWrapper(member, encoding='latin-1', newline=''),
-                    sep='|',
-                    dtype=str,
-                    header=None,
-                    low_memory=False
+                df = _read_pl_member(
+                    _ValidatedPipeText(
+                        member, data_filename, f"{year} PL {file_type}",
+                        count_columns=_segment_columns(file_type),
+                    )
                 )
 
         # Assign column names based on file type
@@ -630,30 +780,8 @@ class PLFileDownloader:
     ) -> pd.DataFrame:
         """Assign column names to data segment."""
         _validate_parse_year(year)
-        # Column positions vary by file segment
-        # File 1 (pl1): P1 (race) and P2 (Hispanic) tables
-        # File 2 (pl2): P3 (race 18+), P4 (Hispanic 18+) and H1 (housing)
-        # File 3 (pl3): P5 (group quarters)
-        # Census 2020 PL Technical Documentation, pp. 2-4 and 6-38.
-        base_cols = ['FILEID', 'STUSAB', 'CHAESSION', 'CIFSN', 'LOGRECNO']
-
-        if file_type == 'pl1':
-            # P1 has 71 cells and P2 has 73 cells.
-            p1_cols = [f'P1_{str(i).zfill(3)}N' for i in range(1, 72)]
-            p2_cols = [f'P2_{str(i).zfill(3)}N' for i in range(1, 74)]
-            all_cols = base_cols + p1_cols + p2_cols
-
-        elif file_type == 'pl2':
-            p3_cols = [f'P3_{str(i).zfill(3)}N' for i in range(1, 72)]
-            p4_cols = [f'P4_{str(i).zfill(3)}N' for i in range(1, 74)]
-            h1_cols = ['H1_001N', 'H1_002N', 'H1_003N']
-            all_cols = base_cols + p3_cols + p4_cols + h1_cols
-
-        elif file_type == 'pl3':
-            p5_cols = [f'P5_{str(i).zfill(3)}N' for i in range(1, 11)]
-            all_cols = base_cols + p5_cols
-
-        else:
+        all_cols = _segment_columns(file_type)
+        if all_cols is None:
             return df
 
         if len(df.columns) != len(all_cols):
@@ -759,7 +887,9 @@ def get_pl_data(
 
     Raises:
         ValueError: For the unsupported 2010 file layout, a segment missing
-            from the archive, or a segment width that does not match 2020.
+            from the archive, a segment width that does not match 2020, a
+            record whose field count differs from the first record's, or file
+            text that is not valid UTF-8.
 
     Example:
         # Get California tract data

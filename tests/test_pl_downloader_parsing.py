@@ -1,6 +1,7 @@
 """Synthetic, offline regression tests for PL 94-171 parsing (#1488)."""
 
 from io import BytesIO
+import re
 import zipfile
 
 import pandas as pd
@@ -290,11 +291,260 @@ def test_p1_labels_match_the_2020_table():
     assert labels["P1_011N"] == "White; Black or African American"
 
 
-def test_latin1_geo_fields_survive_streaming(install_archive):
+def _geo_row(logrecno, delta=0):
+    """Geographic record with its own LOGRECNO; delta drops or adds trailing fields."""
+    fields = _geo_record().rstrip("\n").split("|")
+    fields[7] = logrecno
+    fields = fields[:delta] if delta < 0 else fields + ["X"] * delta
+    return "|".join(fields) + "\n"
+
+
+def _segment_row(record, logrecno, delta=0):
+    """Copy of a segment record with a new LOGRECNO; delta drops or adds trailing fields."""
+    fields = record.rstrip("\n").split("|")
+    fields[4] = logrecno
+    fields = fields[:delta] if delta < 0 else fields + ["999"] * delta
+    return "|".join(fields) + "\n"
+
+
+def _parsed_caches(downloader, kind):
+    return sorted(path.name for path in downloader.cache_dir.glob(f"{kind}_v*.parquet"))
+
+
+_SEGMENTS = {
+    1: ("P1", ((1000, 71), (2000, 73))),
+    2: ("H1", ((3000, 71), (4000, 73), (6000, 3))),
+    3: ("P5", ((5000, 10),)),
+}
+
+
+@pytest.mark.parametrize("segment", sorted(_SEGMENTS))
+@pytest.mark.parametrize("delta", [-1, 1], ids=["truncated", "oversized"])
+def test_ragged_segment_record_raises_and_is_not_cached(install_archive, segment, delta):
+    """A full-width record followed by a short or long one must not be padded or parsed."""
+    table, tables = _SEGMENTS[segment]
+    valid = _segment_record(segment, *tables)
+    width = len(valid.rstrip("\n").split("|"))
+    downloader = install_archive({
+        "cageo2020.pl": _geo_row("0000001") + _geo_row("0000002"),
+        f"ca0000{segment}2020.pl": valid + _segment_row(valid, "0000002", delta),
+    })
+
+    with pytest.raises(
+        ValueError,
+        match=rf"2020 PL pl{segment} record 2 \(line 2\) has {width + delta} fields; "
+              rf"the first record has {width}",
+    ):
+        pl_downloader.get_pl_data("CA", geography="tract", tables=[table])
+    assert _parsed_caches(downloader, "data") == []
+
+
+@pytest.mark.parametrize("delta", [-1, 1], ids=["truncated", "oversized"])
+def test_ragged_geographic_record_raises_and_is_not_cached(install_archive, delta):
+    downloader = install_archive({
+        "cageo2020.pl": _geo_row("0000001") + _geo_row("0000002", delta),
+        "ca000012020.pl": _segment_record(1, (1000, 71), (2000, 73)),
+    })
+
+    with pytest.raises(
+        ValueError,
+        match=rf"2020 PL geographic header record 2 \(line 2\) has {37 + delta} fields; "
+              r"the first record has 37",
+    ):
+        pl_downloader.get_pl_data("CA", tables=["P1"])
+    assert _parsed_caches(downloader, "geo") == []
+
+
+def test_legitimately_empty_fields_and_blank_lines_still_parse(install_archive):
+    """Field-count validation is not a missing-value check: empty fields stay valid."""
+    valid = _segment_record(2, (3000, 71), (4000, 73), (6000, 3))
+    fields = _segment_row(valid, "0000002").rstrip("\n").split("|")
+    fields[-1] = ""
+    install_archive({
+        "cageo2020.pl": _geo_row("0000001") + _geo_row("0000002"),
+        "ca000022020.pl": valid + "|".join(fields) + "\n\n",
+    })
+
+    result = pl_downloader.get_pl_data("CA", geography="tract", tables=["H1"]).set_index("LOGRECNO")
+
+    assert result.loc["0000001", "H1_003N"] == "6003"
+    assert pd.isna(result.loc["0000002", "H1_003N"])
+
+
+def test_utf8_geo_text_is_preserved_through_parse_and_cache(install_archive, monkeypatch):
+    """The Census 2020 PL files are UTF-8; non-ASCII names must not become mojibake."""
     fields = _geo_record().rstrip("\n").split("|")
     fields[36] = "Cañada"
-    downloader = install_archive({"cageo2020.pl": ("|".join(fields) + "\n").encode("latin-1")})
+    downloader = install_archive({
+        "cageo2020.pl": ("|".join(fields) + "\n").encode("utf-8"),
+        "ca000012020.pl": _segment_record(1, (1000, 71), (2000, 73)),
+    })
 
     parsed = downloader._download_and_parse_geo("fixture.zip", 2020)
-
     assert parsed.iloc[0, 36] == "Cañada"
+
+    column = parsed.columns[36]
+    first = pl_downloader.get_pl_data("CA", tables=["P1"])
+    assert first.loc[0, column] == "Cañada"
+
+    def no_download(url, dest):
+        pytest.fail("The parsed cache should be reused")
+
+    monkeypatch.setattr(downloader, "_download_archive", no_download)
+    assert pl_downloader.get_pl_data("CA", tables=["P1"]).loc[0, column] == "Cañada"
+
+
+def test_invalid_utf8_raises_value_error_and_is_not_cached(install_archive):
+    fields = _geo_record().rstrip("\n").split("|")
+    fields[36] = "CaNada"
+    # A Latin-1 encoded n-tilde is not valid UTF-8.
+    payload = ("|".join(fields) + "\n").encode("utf-8").replace(b"CaNada", b"Ca\xf1ada")
+    downloader = install_archive({
+        "cageo2020.pl": payload,
+        "ca000012020.pl": _segment_record(1, (1000, 71), (2000, 73)),
+    })
+
+    with pytest.raises(ValueError, match=r"2020 PL geographic header in cageo2020\.pl is not valid UTF-8"):
+        pl_downloader.get_pl_data("CA", tables=["P1"])
+    assert _parsed_caches(downloader, "geo") == []
+
+
+def test_parsed_caches_from_schema_v2_are_not_reused(install_archive):
+    """v2 caches were decoded as Latin-1 and could hold padded short rows."""
+    downloader = install_archive({
+        "cageo2020.pl": _geo_record(),
+        "ca000012020.pl": _segment_record(1, (1000, 71), (2000, 73)),
+    })
+    pd.DataFrame({
+        "LOGRECNO": ["0000001"], "SUMLEV": ["140"], "STATE": ["09"],
+        "COUNTY": ["037"], "TRACT": ["101110"],
+    }).to_parquet(downloader.cache_dir / "geo_v2_CA_2020.parquet")
+    pd.DataFrame({"LOGRECNO": ["0000001"], "P1_001N": ["-1"]}).to_parquet(
+        downloader.cache_dir / "data_v2_pl1_CA_2020.parquet"
+    )
+
+    result = pl_downloader.get_pl_data("CA", tables=["P1"])
+
+    assert result.loc[0, "GEOID"] == "06037101110"
+    assert result.loc[0, "P1_001N"] == "1001"
+    assert downloader.download_calls
+
+
+# The validating stream is the only tokenizer: pandas reads exactly the records it
+# accepted, with quoting off, so pandas cannot merge, split or pad fields.
+
+@pytest.mark.parametrize("blank", [" \n", "\t\n", " \r\n"], ids=["space", "tab", "space-crlf"])
+@pytest.mark.parametrize("member", ["geo", "pl1", "pl2", "pl3"])
+def test_whitespace_only_lines_are_skipped(install_archive, member, blank):
+    """Whitespace-only lines are skipped, as v4.0.0 (pandas) skipped them."""
+    segment = 1 if member == "geo" else int(member[-1])
+    table, tables = _SEGMENTS[segment]
+    valid = _segment_record(segment, *tables)
+    geo = _geo_row("0000001") + _geo_row("0000002")
+    data = valid + _segment_row(valid, "0000002")
+    if member == "geo":
+        geo = _geo_row("0000001") + blank + _geo_row("0000002") + blank
+    else:
+        data = valid + blank + _segment_row(valid, "0000002") + blank
+    install_archive({"cageo2020.pl": geo, f"ca0000{segment}2020.pl": data})
+
+    result = pl_downloader.get_pl_data("CA", geography="tract", tables=[table])
+
+    assert sorted(result["LOGRECNO"]) == ["0000001", "0000002"]
+
+
+@pytest.mark.parametrize("member", ["geo", "pl2"])
+def test_delimiter_only_line_is_a_record_and_fails_the_width_check(install_archive, member):
+    valid = _segment_record(2, (3000, 71), (4000, 73), (6000, 3))
+    geo = _geo_row("0000001")
+    data = valid
+    if member == "geo":
+        geo += "||||\n"
+        label, width = "geographic header", 37
+    else:
+        data += "||||\n"
+        label, width = "pl2", 152
+    downloader = install_archive({"cageo2020.pl": geo, "ca000022020.pl": data})
+
+    with pytest.raises(
+        ValueError,
+        match=rf"2020 PL {label} record 2 \(line 2\) has 5 fields; the first record has {width}",
+    ):
+        pl_downloader.get_pl_data("CA", geography="tract", tables=["H1"])
+    assert _parsed_caches(downloader, "data") == []
+
+
+@pytest.mark.parametrize("segment", sorted(_SEGMENTS))
+@pytest.mark.parametrize("kind", ["quote-wrapped", "letter"])
+def test_non_numeric_count_raises_naming_the_column(install_archive, segment, kind):
+    """A count that is not empty or digits would otherwise become silent missing data."""
+    table, tables = _SEGMENTS[segment]
+    valid = _segment_record(segment, *tables)
+    fields = _segment_row(valid, "0000002").rstrip("\n").split("|")
+    if kind == "quote-wrapped":
+        # Raw field count stays correct; CSV quoting would have merged the last two fields.
+        fields[-2], fields[-1] = '"' + fields[-2], fields[-1] + '"'
+        bad_index = len(fields) - 2
+    else:
+        fields[-1] = "12a"
+        bad_index = len(fields) - 1
+    column = pl_downloader._segment_columns(f"pl{segment}")[bad_index]
+    downloader = install_archive({
+        "cageo2020.pl": _geo_row("0000001") + _geo_row("0000002"),
+        f"ca0000{segment}2020.pl": valid + "|".join(fields) + "\n",
+    })
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            f"2020 PL pl{segment} record 2 (line 2) column {column} has a non-numeric "
+            f"count {fields[bad_index]!r}"
+        ),
+    ):
+        pl_downloader.get_pl_data("CA", geography="tract", tables=[table])
+    assert _parsed_caches(downloader, "data") == []
+
+
+def test_geo_text_is_literal_including_quotes_and_na_tokens(install_archive, monkeypatch):
+    """Geographic text fields keep quotes, and only an empty field becomes missing."""
+    first = _geo_row("0000001").rstrip("\n").split("|")
+    first[35], first[36] = "NA", "NULL"
+    second = _geo_row("0000002").rstrip("\n").split("|")
+    second[35], second[36] = '"left', 'right"'
+    downloader = install_archive({
+        "cageo2020.pl": "|".join(first) + "\n" + "|".join(second) + "\n",
+        "ca000012020.pl": _segment_record(1, (1000, 71), (2000, 73))
+        + _segment_row(_segment_record(1, (1000, 71), (2000, 73)), "0000002"),
+    })
+
+    parsed = downloader._download_and_parse_geo("fixture.zip", 2020)
+    columns = list(parsed.columns[35:37])
+    assert parsed.loc[0, columns].tolist() == ["NA", "NULL"]
+    assert parsed.loc[1, columns].tolist() == ['"left', 'right"']
+    assert pd.isna(parsed.loc[0, "COUNTYCC"])  # an empty field is still missing
+
+    first_call = pl_downloader.get_pl_data("CA", tables=["P1"]).set_index("LOGRECNO")
+
+    def no_download(url, dest):
+        pytest.fail("The parsed cache should be reused")
+
+    monkeypatch.setattr(downloader, "_download_archive", no_download)
+    cached_call = pl_downloader.get_pl_data("CA", tables=["P1"]).set_index("LOGRECNO")
+    for result in (first_call, cached_call):
+        assert result.loc["0000001", columns].tolist() == ["NA", "NULL"]
+        assert result.loc["0000002", columns].tolist() == ['"left', 'right"']
+
+
+def test_failing_segment_does_not_remove_an_already_valid_geo_cache(install_archive):
+    """Validation happens before the affected file's parsed cache is written."""
+    valid = _segment_record(2, (3000, 71), (4000, 73), (6000, 3))
+    downloader = install_archive({
+        "cageo2020.pl": _geo_row("0000001") + _geo_row("0000002"),
+        "ca000022020.pl": valid + _segment_row(valid, "0000002", -1),
+    })
+
+    with pytest.raises(ValueError, match=r"2020 PL pl2 record 2"):
+        pl_downloader.get_pl_data("CA", geography="tract", tables=["H1"])
+
+    assert _parsed_caches(downloader, "geo") == [f"geo_v{pl_downloader._PL_CACHE_SCHEMA_VERSION}_CA_2020.parquet"]
+    assert _parsed_caches(downloader, "data") == []

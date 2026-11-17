@@ -1464,9 +1464,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   GEOIDs use STATE instead of DIVISION. H1 is read after P3/P4 in segment 2, as
   specified by the Census technical documentation; segment 1 contains P1/P2 and
   segment 3 contains P5. This restores housing columns and fixes P3/P4 requests
-  failing with a column-count mismatch. Malformed segment widths and segments
-  missing from the archive raise `ValueError`, repeated linking fields no longer
-  collide when merging all tables, and old parsed caches are bypassed. Parsing
+  failing with a column-count mismatch. Malformed segment widths, a record whose
+  field count differs from the first record of its file, a data-segment count
+  that is neither empty nor digits, text that is not valid UTF-8, and segments
+  missing from the archive raise `ValueError`, before the affected file's parsed
+  cache is written (a header or segment already parsed in the same call keeps
+  its valid cache). Fields are split on every `|` and quote characters are kept
+  as data, so a record is never padded with missing values or collapsed into
+  fewer fields; only an empty field becomes a missing value, and whitespace-only
+  lines are skipped. PL text is decoded as UTF-8, as the Census 2020 files are
+  encoded, so accented place names are no longer misread as Latin-1. Repeated linking fields no
+  longer collide when merging all tables, and old parsed caches are bypassed. Parsing
   2010 files raises `ValueError` explaining their fixed-width geographic headers
   and comma-delimited data segments; raw archive downloads remain supported.
   `get_data` downloads each state archive at most once per call, streamed to a
@@ -1474,7 +1482,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Migration: GEOIDs from v4.0.0 PL results (e.g. `09037101110` for a California
   tract) were wrong and should be regenerated; code that caught a `KeyError` or
   merge failure for 2010, or relied on an empty frame for a missing segment,
-  should catch `ValueError`.
+  should catch `ValueError`. Geographic header columns are named (`FILEID`,
+  `STUSAB`, `SUMLEV`, `LOGRECNO`, `STATE`, and so on; fields after the named
+  prefix are `GEO_EXTRA_<n>`) instead of integer labels, so select them by
+  name. Joined results carry a single `STUSAB` (and `FILEID`, `CHAESSION`,
+  `CIFSN`) from the geographic header instead of suffixed pairs such as
+  `STUSAB_x`/`STUSAB_y`; replace suffixed selections with the single name.
+  Code that matched accented place names as v4.0.0 misread them must match the
+  correct UTF-8 text. A record with the wrong field count, or a count field
+  holding anything but digits, now raises instead of being padded or dropped,
+  so repair the input file. Text such as `NA` or `NULL` in a geographic field
+  is kept as text rather than read as a missing value. Parsed caches from earlier versions
+  are not reused, so the first call after upgrading re-downloads and re-parses
+  each state archive.
 
 ### Security
 
