@@ -1048,10 +1048,26 @@ def _reproject_geometry(geom, source_crs, target_crs=None):
     from shapely.ops import transform
 
     if target_crs is None:
+        from pyproj import CRS
+
         to_geographic = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
-        centre = transform(to_geographic.transform, geom).centroid
+        if CRS.from_user_input(source_crs).is_projected:
+            # Projected coordinates are continuous across the antimeridian.
+            # Transforming the whole ring to longitude/latitude would wrap it
+            # at +/-180 degrees and move a planar centroid of the wrapped ring
+            # far from the shape, so take the centroid in the source CRS and
+            # convert only that point.
+            planar_centre = geom.centroid
+            lon, lat = to_geographic.transform(planar_centre.x, planar_centre.y)
+        else:
+            # Geographic, geocentric and any other non-projected source: the
+            # source XY is not a plane (geocentric XY drops the Z axis, which
+            # carries the latitude), so convert the whole ring to
+            # longitude/latitude and take its centroid there.
+            centre = transform(to_geographic.transform, geom).centroid
+            lon, lat = centre.x, centre.y
         target_crs = (
-            f"+proj=aeqd +lat_0={centre.y} +lon_0={centre.x} "
+            f"+proj=aeqd +lat_0={lat} +lon_0={lon} "
             "+datum=WGS84 +units=m"
         )
 

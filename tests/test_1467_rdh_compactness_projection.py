@@ -109,6 +109,91 @@ def test_each_district_uses_its_own_projection(source_crs):
     assert_geodataframe_equal(plan, original)
 
 
+def _local_circle(longitude, latitude):
+    """A 50 km circle in its own local AEQD, the planar truth for every metric."""
+    return gpd.GeoDataFrame(
+        {"GEOID": [f"{longitude},{latitude}"], "TOTPOP": [100_000]},
+        geometry=[Point(0, 0).buffer(50_000, quad_segs=256)],
+        crs=f"+proj=aeqd +lat_0={latitude} +lon_0={longitude} +datum=WGS84 +units=m",
+    )
+
+
+# Already-projected districts that straddle the antimeridian. Converting the
+# whole ring to longitude/latitude wraps it at +/-180 degrees, so a centroid of
+# the wrapped ring put the local projection far from the district.
+ANTIMERIDIAN_PLANS = {
+    "179.9E-alaska-albers": (179.9, 52, "EPSG:3338"),
+    "179.9W-alaska-albers": (-179.9, 52, "EPSG:3338"),
+    "180-pacific-mercator": (180.0, -17, "EPSG:3832"),
+}
+
+
+@pytest.fixture(params=list(ANTIMERIDIAN_PLANS), ids=list(ANTIMERIDIAN_PLANS))
+def antimeridian_plan(request):
+    longitude, latitude, stored_crs = ANTIMERIDIAN_PLANS[request.param]
+    local = _local_circle(longitude, latitude)
+    plan = local.to_crs(stored_crs)
+    assert plan.geometry.iloc[0].is_valid
+    return local, plan
+
+
+@pytest.mark.parametrize("api", ["scalar", "compute", "compare"])
+@pytest.mark.parametrize("metric,summary_metric,score_function", METRICS)
+def test_projected_antimeridian_district_keeps_local_shape(
+    antimeridian_plan, metric, summary_metric, score_function, api,
+):
+    local, plan = antimeridian_plan
+    truth = score_function(local.geometry.iloc[0])
+    assert truth == pytest.approx(1.0, abs=1e-3)
+    if api == "scalar":
+        score = score_function(plan.geometry.iloc[0], source_crs=plan.crs)
+    elif api == "compute":
+        score = compute_compactness(plan).iloc[0][metric]
+    else:
+        comparison = compare_plans(plan, plan)
+        score = comparison["plan_a"][summary_metric]
+        assert comparison["plan_b"][summary_metric] == score
+        assert comparison["compactness_delta"] == 0.0
+    assert score == pytest.approx(truth, abs=1e-3)
+
+
+@pytest.fixture
+def geocentric_plan():
+    """A 50 km circle stored in Earth-centred XYZ (EPSG:4978), which is not projected.
+
+    Its XY centroid alone drops the Z axis, which carries the latitude, so the
+    local projection must be centred from longitude/latitude instead.
+    """
+    from shapely import force_3d
+
+    local = _local_circle(-150, 61)
+    local = local.set_geometry([force_3d(local.geometry.iloc[0], z=0.0)], crs=local.crs)
+    plan = local.to_crs("EPSG:4978")
+    assert plan.crs.is_geocentric and not plan.crs.is_projected
+    assert plan.geometry.iloc[0].has_z and plan.geometry.iloc[0].is_valid
+    return local, plan
+
+
+@pytest.mark.parametrize("api", ["scalar", "compute", "compare"])
+@pytest.mark.parametrize("metric,summary_metric,score_function", METRICS)
+def test_geocentric_district_keeps_local_shape(
+    geocentric_plan, metric, summary_metric, score_function, api,
+):
+    local, plan = geocentric_plan
+    truth = score_function(local.geometry.iloc[0])
+    assert truth == pytest.approx(1.0, abs=1e-3)
+    if api == "scalar":
+        score = score_function(plan.geometry.iloc[0], source_crs=plan.crs)
+    elif api == "compute":
+        score = compute_compactness(plan).iloc[0][metric]
+    else:
+        comparison = compare_plans(plan, plan)
+        score = comparison["plan_a"][summary_metric]
+        assert comparison["plan_b"][summary_metric] == score
+        assert comparison["compactness_delta"] == 0.0
+    assert score == pytest.approx(truth, abs=1e-3)
+
+
 def test_missing_and_empty_geometries_keep_nan_scores(geodesic_plan):
     plan = gpd.GeoDataFrame(
         {"GEOID": ["circle", "missing", "empty"], "TOTPOP": [100_000, 0, 0]},
