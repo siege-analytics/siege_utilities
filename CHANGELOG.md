@@ -170,6 +170,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that drop their description or an under-filled layout, callers that build
   empty contents and agenda slides, and image objects that point at a file
   are tracked in #1934 (#1933).
+- `PowerPointGenerator` chart slides no longer drop charts or produce an
+  empty slide without saying so. They show the description that
+  `add_chart_slide` stores. A layout with fewer charts than it holds
+  (`two_charts` with one chart, `grid` with one to three) places the charts
+  it has instead of none, and charts beyond what a layout holds (a second
+  chart on `single_chart`, a third on `two_charts`, a fifth on `grid`)
+  continue on slides titled "<title> (continued)" instead of being dropped.
+  Chart positions and the slide layout are unchanged, so a single chart on the
+  default layout without a description produces the same slide. A chart slide
+  with no charts, including `None` under `charts`, logs a warning, and so does
+  a chart given as a mapping whose `image_path` or `path` is empty.
+  Placeholder warnings on chart and map slides now name a missing path, but
+  for any other item give only its type name, or a mapping's sorted keys,
+  never its values (#1934).
+- The reporting map engine's Folium maps (`create_marker_map`,
+  `create_heatmap_map`, `create_cluster_map` and `create_flow_map`) no longer
+  raise when given a title, and `create_marker_map` no longer raises with its
+  default style. With folium 0.18 and later, the title was added as an empty
+  tile layer without an attribution, and the default style
+  `"open-street-map"` is not a tile provider name, so folium rejected both and
+  the map raised `RuntimeError`. The title is now a heading in the saved map,
+  shown as text: it is HTML-escaped, quotes included, and its braces are
+  written as character references, because the heading is built with
+  `folium.Element`, which reads its string as a Jinja2 template. A title such
+  as `{{ 7 * 191 }}` therefore appears as typed instead of being evaluated,
+  and no title can raise a template error. The default style is
+  `"OpenStreetMap"`, the documented `"open-street-map"` style is mapped to it,
+  and a tile provider object such as an xyzservices `TileProvider` is passed
+  to folium unchanged (#1936).
+- The shipped example
+  `siege_utilities/reporting/examples/comprehensive_mapping_example.py` now
+  runs end to end. Its choropleth maps get region boundaries built in memory
+  (simplified rectangles, no data file or network access) instead of
+  `geodata=None`, which raised `RuntimeError`; its maps are scaled to fit the
+  report page, which previously overflowed it; and its interactive maps are
+  saved under the working directory, in `interactive_maps/`, instead of in
+  `~/.siege_utilities` in the user's home directory. Its cluster map no longer
+  names a `region` column the city data does not have. When a step fails,
+  `main()` now prints `Error while <step>: <error>`, where the step is
+  creating the maps, the PDF report or the PowerPoint presentation, and
+  re-raises, so the script exits with an error instead of returning normally.
+  It does this for the chart engine's `RuntimeError`, `ImportError`,
+  ReportLab's `LayoutError` and the `ValueError`, `TypeError`, `KeyError`,
+  `IndexError`, `AttributeError` and `OSError` it already caught, where before
+  it swallowed those and missed the rest. Its four interactive maps still reach
+  the PDF and slides as "saved to" placeholder images, tracked in #1937
+  (#1931).
 - Package introspection (`analyze_package_structure`, `analyze_module` and
   `generate_architecture_diagram`) now recurses only into `siege_utilities`
   submodules, chosen by module name instead of a file-path substring, and
@@ -234,6 +281,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `demonstrate_comprehensive_mapping` step, and so `main()`, still fails
   because it passes no boundary data to the map functions, tracked in #1931
   (#1927).
+- `DatabaseConnection` validates settings by database type so the shipped
+  PostgreSQL and DuckDB defaults load through Hydra. Accept IPv6 hosts and
+  file database paths, and allow file connections without server credentials.
+  A rejected assignment raises `ValidationError` and leaves the connection
+  unchanged. The stored-password policy change is listed under BREAKING
+  (#1490).
 - Instagram account insights now use UTC request boundaries regardless of
   the host timezone and label daily metrics with the day covered, one day
   before the end-of-period marker. X account snapshots use the UTC date.
@@ -524,6 +577,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `PowerPointGenerator.add_chart_slide` raises `ValueError` for a `layout`
+  other than `"single_chart"`, `"two_charts"` or `"grid"`, naming the layout
+  and listing the valid ones, and for `charts` that are not a list, tuple or
+  `None` (for example a single path string, bytes or a mapping), naming the
+  slide and the type. A chart slide section built by hand with either raises
+  when the presentation is generated, as `RuntimeError` with the same
+  message, as other slide-building errors do. In v4.0.0 an unknown layout was
+  accepted and produced a slide with only its title, placing no chart, and a
+  single path string produced one slide with a placeholder for its first
+  character (#1934). **Migration:** use one of the three layouts
+  (`"single_chart"` is the default; charts beyond what a layout holds now
+  continue on further slides), and pass charts as a list, for example
+  `["chart.png"]` instead of `"chart.png"`.
 - Instagram and X return missing account, post and insight metrics as `None`
   instead of `0`; in v4.0.0 an omitted follower, like, comment or impression
   count, and an Instagram media or story insight without a value, became 0.
@@ -698,6 +764,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `add_table_section`. An explicit `title_page` section replaces the
   automatic title page, and a report with no `title` in its content or
   metadata gets none.
+- `DatabaseConnection` no longer enforces a password-strength or length
+  policy. Server connections still require a non-empty password, and stored
+  passwords load as given. In 4.0.0 the model required at least 8
+  characters, an uppercase letter, a lowercase letter and a digit, and
+  rejected common passwords, on construction and on assignment
+  (`validate_assignment=True`); such a password now loads without
+  `ValidationError`. **Migration:** callers that relied on
+  `DatabaseConnection` to enforce password strength must validate passwords
+  themselves before constructing it (#1490).
 
 - CRM transport and server-error retries are limited to GET, PUT and DELETE.
   POST and PATCH requests are sent once, avoiding duplicate creates after a
@@ -1460,6 +1535,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     success with 0 updated. Unmatched districts are counted in
     `records_skipped`, and a partial match adds a warning. Pass the CVAP
     level whose GEOIDs equal your plan's district GEOIDs.
+- `siege_utilities.geo.plan_lifecycle`: court-stayed plans are no longer in
+  effect. `ACTIVE_STATUSES` no longer contains `PlanLifecycleStatus.STAYED`, so
+  `is_active`, `was_active_at`, `PlanLineage.plan_at` and `resolve_plan_at` stop
+  returning stayed plans; challenged plans remain active, and `resolve_plan_at`
+  falls back to an older plan only if its own lifecycle still marks it enacted
+  or challenged. Same-date lifecycle events now resolve to the most advanced
+  stage in both `status_at` and `latest_event`, so a plan adopted and enacted on
+  the same day is returned by `resolve_plan_at`. Effective date remains the
+  primary ordering key (#1442).
+  Migration: code that must still treat a stayed plan as in effect should test
+  `plan.status_at(d) in ACTIVE_STATUSES | {PlanLifecycleStatus.STAYED}` instead of
+  `was_active_at(d)`; code that relied on the first same-date event should
+  select from `plan.events` explicitly.
+- PL 94-171 parsing names geographic header fields from the 2020 schema, so
+  GEOIDs use STATE instead of DIVISION. H1 is read after P3/P4 in segment 2, as
+  specified by the Census technical documentation; segment 1 contains P1/P2 and
+  segment 3 contains P5. This restores housing columns and fixes P3/P4 requests
+  failing with a column-count mismatch. Malformed segment widths, a record whose
+  field count differs from the first record of its file, a data-segment count
+  that is neither empty nor digits, text that is not valid UTF-8, and segments
+  missing from the archive raise `ValueError`, before the affected file's parsed
+  cache is written (a header or segment already parsed in the same call keeps
+  its valid cache). Fields are split on every `|` and quote characters are kept
+  as data, so a record is never padded with missing values or collapsed into
+  fewer fields; only an empty field becomes a missing value, and whitespace-only
+  lines are skipped. PL text is decoded as UTF-8, as the Census 2020 files are
+  encoded, so accented place names are no longer misread as Latin-1. Repeated linking fields no
+  longer collide when merging all tables, and old parsed caches are bypassed. Parsing
+  2010 files raises `ValueError` explaining their fixed-width geographic headers
+  and comma-delimited data segments; raw archive downloads remain supported.
+  `get_data` downloads each state archive at most once per call, streamed to a
+  temporary file. `P1_009N`–`P1_011N` labels match the 2020 table (#1488).
+  Migration: GEOIDs from v4.0.0 PL results (e.g. `09037101110` for a California
+  tract) were wrong and should be regenerated; code that caught a `KeyError` or
+  merge failure for 2010, or relied on an empty frame for a missing segment,
+  should catch `ValueError`. Geographic header columns are named (`FILEID`,
+  `STUSAB`, `SUMLEV`, `LOGRECNO`, `STATE`, and so on; fields after the named
+  prefix are `GEO_EXTRA_<n>`) instead of integer labels, so select them by
+  name. Joined results carry a single `STUSAB` (and `FILEID`, `CHAESSION`,
+  `CIFSN`) from the geographic header instead of suffixed pairs such as
+  `STUSAB_x`/`STUSAB_y`; replace suffixed selections with the single name.
+  Code that matched accented place names as v4.0.0 misread them must match the
+  correct UTF-8 text. A record with the wrong field count, or a count field
+  holding anything but digits, now raises instead of being padded or dropped,
+  so repair the input file. Text such as `NA` or `NULL` in a geographic field
+  is kept as text rather than read as a missing value. Parsed caches from earlier versions
+  are not reused, so the first call after upgrading re-downloads and re-parses
+  each state archive.
+- `CensusAPI` response processing maps all nine ACS jam sentinel values to NaN
+  in ACS detailed-table estimate/MOE columns, using the same sentinel sets as
+  the bulk source. Geography components (e.g. `zip code tabulation area`,
+  `congressional district`), `GEO_ID` and annotation variables (`..._EA`,
+  `..._MA`) keep their text and leading zeros. Every other variable column,
+  including decennial (`dataset='dec'`) and PEP (`dataset='pep'`) variables,
+  is still converted to numbers. Jam values are matched by numeric value
+  after parsing, in both `CensusAPI` and the bulk Summary File source, so
+  encodings such as `' -666666666 '`, `'-666666666.0'` and `'-6.66666666e+08'`
+  become NaN as well; before, only the canonical integer string was masked.
+  The processed-response cache key now includes a format version, so frames
+  cached by v4.0.0, with the jam values kept and leading zeros and
+  annotations lost, are no longer returned (#1403).
+  Migration: code that compared ACS values against jam codes such as
+  `-666666666` should test `isna()`; code that relied on numeric geography
+  components or annotations should cast them explicitly (e.g.
+  `df['zip code tabulation area'].astype(int)`). The first `fetch_data` call
+  for each request cached before this version makes one fresh API request
+  instead of reading the cache. The old Parquet cache files are left in
+  `cache_dir` and are no longer read; `clear_cache()` removes them. Legacy
+  Django cache entries are left in the backend and remain subject to its
+  configured TTL and eviction policy; entries stored without an expiry
+  persist until removed with the backend's own cleanup. The library does not
+  purge Django keys.
 - `google_sheets.write_dataframe` now writes with `RAW` input by default,
   preserving leading zeros and storing formula-like strings literally; pass
   `value_input_option="USER_ENTERED"` to have Sheets parse values as typed.
