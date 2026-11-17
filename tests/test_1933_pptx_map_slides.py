@@ -151,7 +151,9 @@ def test_image_object_without_embedded_data_shows_a_placeholder_and_warns(genera
     assert _pictures(slide) == []
     assert "[Map: <image without data>]" in _text(slide)
     warnings = [record.getMessage() for record in caplog.records if record.name == LOGGER and record.levelno == logging.WARNING]
-    assert any("<image without data>" in message and "Undecodable map" in message for message in warnings)
+    # The warning names the object's type, not its repr (#1934).
+    assert any("ImageWithoutData" in message and "Undecodable map" in message for message in warnings)
+    assert not any("<image without data>" in message for message in warnings)
 
 
 def test_image_object_with_corrupt_data_raises_naming_the_slide(generator, tmp_path):
@@ -194,7 +196,9 @@ def test_map_that_is_not_an_image_path_shows_a_placeholder_and_warns(generator, 
     assert _pictures(slide) == []
     assert "[Map: <in-memory map>]" in _text(slide)
     warnings = [record.getMessage() for record in caplog.records if record.name == LOGGER and record.levelno == logging.WARNING]
-    assert any("<in-memory map>" in message and "Object map" in message for message in warnings)
+    # The warning names the object's type, not its repr (#1934).
+    assert any("NotAPath" in message and "Object map" in message for message in warnings)
+    assert not any("<in-memory map>" in message for message in warnings)
 
 
 def test_map_slide_speaker_notes_go_on_the_first_slide(generator, make_png, tmp_path):
