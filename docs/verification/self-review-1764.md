@@ -15,7 +15,7 @@ Project-contribution: maps and heatmaps read the way their legends say.
 
 ## Investigation
 - At PR head `d7337a4b`, the heatmap legend bins, the bivariate legend orientation and the advanced choropleth's range legend are fixed and tested. `classification="natural_breaks"` still ran `pd.qcut` ("quantiles as approximation"), and `create_heatmap` still passed `center=0` with `YlOrRd`. The PR body called both "follow-ups" and left #1535 open.
-- `siege_utilities.geo.classification.classify_series(values, "natural_breaks", k)` already computes Fisher-Jenks (numpy, or mapclassify `FisherJenks` when installed; mapclassify is in the `geo` and `reporting` extras). It returns per-value class indices (`-1` for NaN) and k+1 edges.
+- `siege_utilities.geo.classification.classify_series(values, "natural_breaks", k)` already computes Fisher-Jenks (numpy, or mapclassify `FisherJenks` when installed; mapclassify is in the `geo` extra (and `all`), not `reporting`, so a reporting-only install uses the NumPy backend). It returns per-value class indices (`-1` for NaN) and k+1 edges.
 - Develop `2deb6a1f` changed none of the touched files since merge-base `7f534f6c`.
 
 ## Pre-mortem
@@ -193,9 +193,37 @@ An interior edge counted as shown when its label was within the smaller of 8 ulp
 - The review's 15-item falsifier for this round (`test_review_1764_round3_edges.py`, sha256 `82622e025127cc4802f17709f7bb65bee8b7b1c93707d12b99a1591051a474ac`) was copied unmodified and run against this tree. It fails at collection, before any test runs: line 7 imports `_interior_allowance` from `siege_utilities.reporting._range_labels`, and this round removes that function by design, so the run was 0 of 15 executed. Its near-zero case also expects the third fix round's output (`-0.100000`, `0.000000`, `0.100000` and an 8-ulp allowance), which conflicts with the cap-equivalent shortening this round adopts (`-0.1`, `0.0`, `0.1`). The other 14 items were not executed. That they would pass, because they cover the same cases as this round's passing regressions, is an inference only and is not claimed as a result.
 - The falsifiers, the base control, the reproducer, the frozen modules and a temporary probe test were removed from the worktree before staging.
 
+## Fifth fix round, 2026-11-17: nullable columns with missing values
+
+Automated review of head `cf6a5f3a` raised three threads: a nullable `Int64` column holding `pd.NA` fails on the supported pandas floor, the mapclassify extras statement on line 18 above was wrong, and the new tests lack type annotations. The annotations thread was declined (the project's mypy settings do not require them and the neighbouring tests are unannotated).
+
+### Cause
+- The natural-breaks branch passed the value column itself to `classify_series`, which converts it with `np.asarray(values, dtype=np.float64)`, and then called `to_numpy(dtype=float)` for the class maxima. In the pandas 2.0.0 source, `BaseMaskedArray.to_numpy` defaults `na_value` to `pd.NA` and raises `ValueError("cannot convert to '<dtype>'-dtype NumPy array with missing values. Specify an appropriate 'na_value' for this dtype.")`, and `__array__` calls `to_numpy(dtype=dtype)`. `pyproject.toml` allows `pandas>=2.0.0,<3.0`. Develop `63a2b66a` and v4.0.0 sent natural breaks through `pd.qcut`, so this branch introduced the exposure. Quantiles and equal interval still use the unchanged `pd.qcut` and `pd.cut` calls.
+- That pandas 2.0 behaviour was read from the source and was not executed here. The installed pandas 2.3.3 maps `pd.NA` to NaN in both conversions: on develop `63a2b66a`, the v4.0.0 `map_engine.py` and head `cf6a5f3a`, an `Int64` column with `pd.NA` rendered without error for quantiles, equal interval and natural breaks on both classifier backends (12 of 12).
+- Line 18 said mapclassify is in the `geo` and `reporting` extras. `pyproject.toml` lists `mapclassify>=2.5.0` in `geo` (line 71) and `all` (line 291), not in `reporting` (lines 131 to 145). The PR body said the same and is corrected with it.
+
+### Fix
+- The value column is converted once with `to_numpy(dtype=float, na_value=np.nan)`; that float64 array goes to `classify_series` and is reused for the class maxima. The class-maximum mask also excludes NaN explicitly (`classify_series` already gives NaN inputs class -1, so the classes do not change).
+- Line 18 now says mapclassify is in the `geo` extra (and `all`), not `reporting`, and that a reporting-only install uses the NumPy backend.
+- `CHANGELOG.md` is unchanged: the #1535 entry makes no claim about extras.
+
+### Tests (`tests/test_legend_data_accuracy.py`, 11 new)
+- Classifier contract, `Int64` and `Float64` with `pd.NA`: a spy on `classify_series` asserts it receives a float64 `numpy.ndarray` with NaN exactly at the missing position and the other values unchanged (2).
+- End to end, `Int64` and `Float64` with `pd.NA`, on the mapclassify and NumPy backends: three legend ranges, the same labels, swatches and polygon colours as the float64 NaN rendering, the missing polygon not drawn, and each other polygon in its range's swatch (4).
+- Emulation, not pandas 2.0 itself: a monkeypatch of `pd.arrays.IntegerArray.to_numpy` and `pd.arrays.FloatingArray.to_numpy` refuses a float conversion of a missing value without `na_value`, as pandas 2.0 did. One test checks the emulation raises for `np.asarray` and accepts `na_value=np.nan` (1); the end-to-end case renders under it on both backends for both dtypes (4).
+
+### Results
+- Red-first, against the unmodified `map_engine.py` at `cf6a5f3a`: 6 failed and 5 passed. The two contract tests failed with `classifier received Series`; the four emulated renders failed with `RuntimeError: Advanced Choropleth Error: cannot convert to 'float64'-dtype NumPy array with missing values`. The four end-to-end tests and the emulation check passed: on pandas 2.3.3 the end-to-end tests pass with or without the fix, because NA already converts to NaN there, and CI does not run the declared pandas floor (#1958). They guard the behaviour; the contract and emulation tests are the ones that fail without the fix.
+- After: the legend module passed 107 (96 earlier plus 11 new). With both bivariate tie modules, the map and stats error, mapping-wrapper, release-process, changelog-export, reporting-module, Folium title, mapping example, map slide and chart slide modules, and `tests/test_classification.py` and `tests/test_choropleth.py`: 480 passed and 1 existing skip in one run.
+- Missing values render as they did at `cf6a5f3a` on pandas 2.3.3. A temporary probe rendered `Int64` and `Float64` with `pd.NA`, float64 with NaN, a fractional `Float64` column with two missing values and a column with none, on both backends, through `cf6a5f3a`'s `map_engine.py` (a byte copy) and through this fix. Labels, swatches, polygon colours and the number of drawn polygons were identical in all 10 cases, and the missing polygons were not drawn in either.
+- `ruff check --select F,E9`: no findings. Exception-contract scanner: 0 unlisted, 0 stale. Test-file hygiene: pass.
+- Separately, `create_heatmap` fails on an `Int64` pivot holding `pd.NA` (`Heatmap Error: float() argument must be a string or a real number, not 'NAType'`) both on develop `63a2b66a` and at `cf6a5f3a`; this PR changes only the colour-scale centre there. #1957 tracks it.
+- Process: one command in this round was refused by the repository's mutation guard because it ran from a working directory outside this task's scope. The refusal was reported, and the tests were then run from this PR's worktree under the task's own scope. The probe, its byte copy of `cf6a5f3a`'s `map_engine.py`, and the investigation's earlier probe files were removed from the worktree before staging.
+
 ## Rework ledger
 - Pre-flight round, 2026-11-10: Fisher-Jenks natural breaks; heatmap centring removed; CHANGELOG entry; body classification and acceptance map.
 - Fix round, 2026-11-17: range-label decimals from edges as well as widths in both formatters, outward rounding of the outer bounds at the cap, 36 final-label regressions, CHANGELOG precision claims corrected.
 - Second fix round, 2026-11-17: per-edge exactness tolerance, exact decimal heatmap edges, unsigned zero, 18 regressions.
 - Third fix round, 2026-11-17: outer edges must read back as the same float, interior edges within a local ulp and class-width allowance, outward rounding from the exact binary value, 9 regressions.
 - Fourth fix round, 2026-11-17: every edge that can be written exactly within the cap is, others show their value at the cap with as few decimals as give it; the interior allowance removed; unsigned outward zero; CHANGELOG wording revised; 8 regressions.
+- Fifth fix round, 2026-11-17: natural breaks converts a nullable column once with `na_value=np.nan` and passes the float64 array to the classifier; the mapclassify extras statement corrected; 11 regressions (2 contract, 4 end to end, 5 labelled pandas 2.0 emulation).

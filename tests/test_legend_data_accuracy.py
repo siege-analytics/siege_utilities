@@ -688,3 +688,151 @@ def test_advanced_labels_contain_every_member_when_edges_are_representable(
         if not bounds[int(class_index)][0] <= value <= bounds[int(class_index)][1]
     ]
     assert outside == []
+
+
+# Nullable columns with a missing value. pandas 2.0 refuses to convert a masked
+# array holding NA to float unless na_value is given; later 2.x releases map NA
+# to NaN. CI does not run the declared pandas floor (#1958), so the end-to-end
+# tests below pass on newer pandas with or without the fix; the classifier
+# contract test and the labelled pandas 2.0 emulation are the ones that fail
+# without it.
+_PRESENT = [1, 2, 3, 50, 51, 52, 100, 101, 102]
+_MISSING_AT = 3
+
+
+def _with_missing(missing, dtype=None):
+    import pandas as pd
+
+    values = _PRESENT[:_MISSING_AT] + [missing] + _PRESENT[_MISSING_AT:]
+    return values if dtype is None else pd.array(values, dtype=dtype)
+
+
+def _use_backend(monkeypatch, backend):
+    from siege_utilities.geo import classification
+
+    if backend == "mapclassify":
+        pytest.importorskip("mapclassify")
+    else:
+        monkeypatch.setattr(classification, "_MAPCLASSIFY_AVAILABLE", False)
+
+
+@pytest.mark.parametrize("dtype", ["Int64", "Float64"])
+def test_natural_breaks_classifier_receives_float_array_with_nan_for_missing(
+    map_engine, monkeypatch, tmp_path, dtype,
+):
+    """The classifier gets float64 NaN for a missing value, never the nullable column."""
+    from siege_utilities.geo import classification
+
+    real = classification.classify_series
+    received = []
+
+    def spy(values, *args, **kwargs):
+        received.append(values)
+        return real(values, *args, **kwargs)
+
+    monkeypatch.setattr(classification, "classify_series", spy)
+    _render_advanced_choropleth(
+        monkeypatch, tmp_path, _with_missing(None, dtype), "natural_breaks", bins=3,
+    )
+
+    assert len(received) == 1
+    passed = received[0]
+    assert type(passed) is np.ndarray, f"classifier received {type(passed).__name__}"
+    assert passed.dtype == np.float64
+    expected_missing = [index == _MISSING_AT for index in range(len(_PRESENT) + 1)]
+    np.testing.assert_array_equal(np.isnan(passed), expected_missing)
+    np.testing.assert_array_equal(passed[~np.isnan(passed)], _PRESENT)
+
+
+def _legend_and_colours(ax):
+    legend = ax.get_legend()
+    return (
+        [text.get_text() for text in legend.get_texts()],
+        [patch.get_facecolor() for patch in legend.get_patches()],
+        ax.collections[0].get_facecolors(),
+    )
+
+
+@pytest.mark.parametrize("backend", ["mapclassify", "numpy"])
+@pytest.mark.parametrize("dtype", ["Int64", "Float64"])
+def test_natural_breaks_nullable_column_with_missing_value(
+    map_engine, monkeypatch, tmp_path, dtype, backend,
+):
+    """A nullable column with NA renders like float64 with NaN: same legend and colours."""
+    _use_backend(monkeypatch, backend)
+
+    labels, swatches, facecolors = _legend_and_colours(_render_advanced_choropleth(
+        monkeypatch, tmp_path, _with_missing(None, dtype), "natural_breaks", bins=3,
+    ))
+    reference = _legend_and_colours(_render_advanced_choropleth(
+        monkeypatch, tmp_path, _with_missing(float("nan")), "natural_breaks", bins=3,
+    ))
+
+    assert len(labels) == 3
+    assert not any("nan" in label.lower() for label in labels)
+    assert labels == reference[0]
+    np.testing.assert_allclose(swatches, reference[1])
+    # The missing polygon is left unclassified and is not drawn; every other
+    # polygon takes the swatch of its range.
+    assert len(facecolors) == len(_PRESENT)
+    np.testing.assert_allclose(facecolors, reference[2])
+    for class_index, facecolor in zip([0, 0, 0, 1, 1, 1, 2, 2, 2], facecolors):
+        np.testing.assert_allclose(facecolor, swatches[class_index])
+
+
+def _emulate_pandas_20_masked_float_conversion(monkeypatch):
+    """Emulation, not pandas 2.0 itself: refuse a float conversion of NA without na_value.
+
+    pandas 2.0's BaseMaskedArray.to_numpy defaulted na_value to pd.NA and raised
+    this ValueError, and its __array__ called to_numpy(dtype=dtype). Only that
+    float refusal is emulated here.
+    """
+    import pandas as pd
+
+    no_default = pd.api.extensions.no_default
+    for array_type in (pd.arrays.IntegerArray, pd.arrays.FloatingArray):
+        original = array_type.to_numpy
+
+        def to_numpy(self, dtype=None, copy=False, na_value=no_default, _original=original):
+            if (
+                na_value is no_default
+                and dtype is not None
+                and pd.api.types.is_float_dtype(dtype)
+                and self.isna().any()
+            ):
+                raise ValueError(
+                    f"cannot convert to '{np.dtype(dtype)}'-dtype NumPy array with missing "
+                    "values. Specify an appropriate 'na_value' for this dtype."
+                )
+            return _original(self, dtype=dtype, copy=copy, na_value=na_value)
+
+        monkeypatch.setattr(array_type, "to_numpy", to_numpy)
+
+
+def test_pandas_20_emulation_refuses_float_conversion_with_missing_values(monkeypatch):
+    import pandas as pd
+
+    _emulate_pandas_20_masked_float_conversion(monkeypatch)
+    column = pd.Series(_with_missing(None, "Int64"))
+    with pytest.raises(ValueError, match="Specify an appropriate 'na_value'"):
+        np.asarray(column, dtype=np.float64)
+    assert np.isnan(column.to_numpy(dtype=float, na_value=np.nan)[_MISSING_AT])
+
+
+@pytest.mark.parametrize("backend", ["mapclassify", "numpy"])
+@pytest.mark.parametrize("dtype", ["Int64", "Float64"])
+def test_natural_breaks_nullable_missing_value_under_pandas_20_emulation(
+    map_engine, monkeypatch, tmp_path, dtype, backend,
+):
+    """Emulated pandas 2.0 conversion: natural breaks still renders a nullable column with NA."""
+    _use_backend(monkeypatch, backend)
+    _emulate_pandas_20_masked_float_conversion(monkeypatch)
+
+    labels, swatches, facecolors = _legend_and_colours(_render_advanced_choropleth(
+        monkeypatch, tmp_path, _with_missing(None, dtype), "natural_breaks", bins=3,
+    ))
+
+    assert len(labels) == 3
+    assert len(facecolors) == len(_PRESENT)
+    for class_index, facecolor in zip([0, 0, 0, 1, 1, 1, 2, 2, 2], facecolors):
+        np.testing.assert_allclose(facecolor, swatches[class_index])

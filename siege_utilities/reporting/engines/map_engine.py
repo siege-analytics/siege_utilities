@@ -484,15 +484,17 @@ class MapChartMixin:
                 # and the legend agree; NaN inputs (bin -1) stay unclassified.
                 from siege_utilities.geo.classification import classify_series
 
-                result = classify_series(merged[value_column], "natural_breaks", k=bins)
+                # Convert once, mapping a nullable column's pd.NA to NaN:
+                # pandas 2.0 refuses a float conversion of NA without na_value.
+                values = merged[value_column].to_numpy(dtype=float, na_value=np.nan)
+                result = classify_series(values, "natural_breaks", k=bins)
                 # The backends report interior breaks differently (mapclassify:
                 # each class's upper bound; numpy: the next class's lower
                 # bound), but each assigns classes consistently with its own
                 # breaks. Keep the backend's classes and show every range
                 # upper-inclusively, ending at its class's largest value, so a
                 # value on a boundary is in the range the legend shows it in.
-                values = merged[value_column].to_numpy(dtype=float)
-                valid = result.bins >= 0
+                valid = (result.bins >= 0) & ~np.isnan(values)
                 class_count = len(result.breaks) - 1
                 uppers = [
                     values[valid & (result.bins == i)].max()
