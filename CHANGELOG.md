@@ -1196,6 +1196,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `median_age` are NULL when the source estimate is a negative Census
   sentinel or not numeric. Fractional estimates (for example rollup
   averages) are rounded to the nearest integer instead of truncated (#1550).
+- Pandas geocode validation uses world ranges for geographic CRSs, retaining
+  NAD83/EPSG:4269 coordinates on both sides of the antimeridian and in Guam,
+  American Samoa and Saipan. A projected coordinate is valid when it
+  inverse-projects into the CRS's published area of use (within 0.01 degrees,
+  the precision of EPSG area-of-use bounds) and projects back to itself, so
+  southern CONUS points and projection extrema in EPSG:5070, EPSG:5069 and
+  EPSG:3413 are kept and points outside the area of use are invalid.
+  Both filtering and validity marking reject the exact geographic `(0, 0)`
+  failed-geocode sentinel while accepting single-zero coordinates and valid
+  projected origins. If a projected CRS has no area of use or its
+  transformation fails, a warning is logged and finite coordinates are
+  accepted instead of being compared with degrees. Spark
+  `validate_geocode_data` and `mark_valid_geocode_data` now reject the exact
+  geographic `(0, 0)` sentinel, matching pandas; single-zero coordinates within
+  world ranges remain valid. Which rows are kept or marked valid therefore
+  differs from v4.0.0: rows at the `(0, 0)` sentinel are dropped or marked
+  invalid, coordinates v4.0.0 wrongly dropped are kept, and projected
+  coordinates outside the CRS area of use are invalid. **Migration:**
+  re-check any count or join that depended on which geocodes passed
+  validation; to retain sentinel or out-of-area rows for inspection, use the
+  marking function instead of the filtering function (#1459).
 - `records_created` from the demographic, rollup, timeseries, crosswalk,
   NCES and timezone loaders and `populate_pl_demographics` counts only rows
   inserted: rows dropped by `ON CONFLICT DO NOTHING` (concurrent loads,
