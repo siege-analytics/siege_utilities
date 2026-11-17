@@ -1694,6 +1694,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `area_crs` field with a default: keyword and positional construction keep
   working, but `dataclasses.astuple()` / `asdict()` output gains one element /
   key and equality now also compares `area_crs`.
+- `demographic_profile` assigns Census units by their representative interior
+  points, so units straddling district boundaries are counted once rather than
+  dropped; a point on a shared district edge goes to the first matching
+  district with a non-null ID in `plan_gdf` row order (rows without a district
+  ID are ignored). Every district in `plan_gdf` now appears in
+  the result, with zeros where no unit is assigned, and units whose interior
+  point intersects no district with a non-null ID raise a `UserWarning` stating
+  how many were excluded and their summed population (for population columns
+  of any dtype, including object and Arrow). Districts that receive no unit
+  are named in a `UserWarning` and listed, in plan order and as plain Python
+  values, in `result.attrs["districts_without_units"]`, so their zeros can be
+  told apart from real zero totals; this holds for categorical district IDs
+  too. Rows follow the first-occurrence order of district IDs in `plan_gdf`
+  (#1562).
+  Migration: district totals change wherever units straddle boundaries; to
+  recover v4.0.0's omission of empty districts, drop the districts listed in
+  `result.attrs["districts_without_units"]` (a `result[population_col] > 0`
+  filter also drops districts whose real total is zero), and treat the
+  warnings as the signal that census coverage and the plan do not match.
+  v4.0.0 returned rows sorted by district ID; call
+  `sort_values(district_id_col)` where order matters.
+  `RDHLoaderService.load_demographics_for_plan`
+  (`geo/django/services/rdh_loader.py`) still stores nothing for districts
+  that receive no census unit, as in v4.0.0, but now counts them in
+  `records_skipped` and reports them as a warning; a load in which no
+  district receives a unit now fails (`success` is False), where v4.0.0
+  reported success with nothing stored. The overlay's warnings are recorded
+  in the result's `warnings`.
 
 ### Security
 
