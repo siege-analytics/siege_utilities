@@ -1607,6 +1607,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   configured TTL and eviction policy; entries stored without an expiry
   persist until removed with the backend's own cleanup. The library does not
   purge Django keys.
+- `google_sheets.write_dataframe` now writes with `RAW` input by default,
+  preserving leading zeros and storing formula-like strings literally; pass
+  `value_input_option="USER_ENTERED"` to have Sheets parse values as typed.
+  Any other value raises `ValueError` before any request. Dates and datetimes
+  are serialized as ISO-8601 strings, numpy scalars become native Python
+  values without row-wise integer-to-float coercion, missing values become
+  empty strings, and other objects are stringified (#1432). Non-finite
+  numbers (`inf`, `-inf`, including numpy floats) raise `ValueError` naming
+  the row and column before anything is cleared or written; `NaN` is still
+  written as an empty string.
+  Migration: callers that relied on formulas or on Sheets parsing numbers
+  and dates pass `value_input_option="USER_ENTERED"`. Callers whose frames
+  can hold infinities replace them before writing, for example
+  `df.replace([np.inf, -np.inf], np.nan)`; the tab is left untouched when
+  the check fails.
+- `google_sheets.write_dataframe` clears all values in the selected tab before
+  writing, including cells outside the new DataFrame footprint and before
+  `start_cell`, so smaller replacements leave no stale rows or columns.
+  Formatting and other tabs are unaffected. Clear and update are separate
+  requests; an update failure after clearing leaves the previous values
+  removed (#1432).
+  Migration: use `write_values` for partial updates or to share a tab with
+  other tables; its `USER_ENTERED` default is unchanged.
+- `google_sheets.read_dataframe` no longer raises `ValueError` on ragged
+  sheets: with `has_header=True`, rows are right-padded with `""` and missing
+  trailing header cells are named `column_<n>` (#1432).
+  Migration: callers that caught the `ValueError` to detect ragged sheets
+  should check for `column_<n>` names or `""` padding instead.
 
 ### Security
 
