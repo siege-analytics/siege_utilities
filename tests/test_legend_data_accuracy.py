@@ -1,5 +1,7 @@
 """Behavioral regressions for map and heatmap legend accuracy (#1535)."""
 
+import math
+
 import pytest
 
 matplotlib = pytest.importorskip("matplotlib")
@@ -309,3 +311,380 @@ def test_heatmap_does_not_center_sequential_colormap(monkeypatch, tmp_path, colu
     assert len(calls) == 1
     assert calls[0]["cmap"] == "YlOrRd"
     assert "center" not in calls[0]
+
+
+# Decimals come from the edges as well as the widths. Width alone printed
+# 0.004..0.054 as "0.00 - 0.01 ... 0.04 - 0.05", leaving out the maximum.
+
+
+@pytest.mark.parametrize(
+    "minimum, maximum, levels, expected",
+    [
+        (0.004, 0.054, 5, ["Low: 0.004 - 0.014", "0.014 - 0.024", "0.024 - 0.034",
+                           "0.034 - 0.044", "High: 0.044 - 0.054"]),
+        (0.004, 0.014, 1, ["Low: 0.004 - 0.014"]),
+        (10.125, 10.625, 5, ["Low: 10.125 - 10.225", "10.225 - 10.325", "10.325 - 10.425",
+                             "10.425 - 10.525", "High: 10.525 - 10.625"]),
+        (0.006, 0.056, 5, ["Low: 0.006 - 0.016", "0.016 - 0.026", "0.026 - 0.036",
+                           "0.036 - 0.046", "High: 0.046 - 0.056"]),
+        (-0.054, -0.004, 5, ["Low: -0.054 - -0.044", "-0.044 - -0.034", "-0.034 - -0.024",
+                             "-0.024 - -0.014", "High: -0.014 - -0.004"]),
+    ],
+    ids=["offset-max", "single-bin-small-range", "offset-above-ten", "offset-min", "negative-offset"],
+)
+def test_heatmap_labels_keep_fractional_offsets(heatmap_legend, minimum, maximum, levels, expected):
+    labels, swatches = heatmap_legend(minimum, maximum, levels)
+    assert labels == expected
+    assert len(swatches) == levels
+    bounds = _heatmap_bounds(labels)
+    assert bounds[0][0] == minimum and bounds[-1][1] == maximum
+
+
+def test_heatmap_labels_round_outer_bounds_outward_at_the_cap(heatmap_legend):
+    """Past six decimals the outer bounds are widened so they still contain min and max."""
+    minimum, maximum = 0.0000013, 0.0000113
+    labels, _ = heatmap_legend(minimum, maximum, 5)
+    assert labels == [
+        "Low: 0.000001 - 0.000003", "0.000003 - 0.000005", "0.000005 - 0.000007",
+        "0.000007 - 0.000009", "High: 0.000009 - 0.000012",
+    ]
+    bounds = _heatmap_bounds(labels)
+    assert bounds[0][0] < minimum and bounds[-1][1] > maximum
+
+
+@pytest.mark.parametrize(
+    "minimum, maximum, levels, expected",
+    [
+        (0, 100, 5, ["Low: 0 - 20", "20 - 40", "40 - 60", "60 - 80", "High: 80 - 100"]),
+        (0, 1, 5, ["Low: 0.00 - 0.20", "0.20 - 0.40", "0.40 - 0.60", "0.60 - 0.80",
+                   "High: 0.80 - 1.00"]),
+        (0, 7.5, 5, ["Low: 0.0 - 1.5", "1.5 - 3.0", "3.0 - 4.5", "4.5 - 6.0", "High: 6.0 - 7.5"]),
+        (1000, 1e6, 4, ["Low: 1,000 - 250,750", "250,750 - 500,500", "500,500 - 750,250",
+                        "High: 750,250 - 1,000,000"]),
+        (0.25, 0.25, 3, ["Low: 0.25 - 0.25", "0.25 - 0.25", "High: 0.25 - 0.25"]),
+        # In floats the middle edge is 2.8e-17 and the others are off by an ulp.
+        (-0.2, 0.1, 3, ["Low: -0.20 - -0.10", "-0.10 - 0.00", "High: 0.00 - 0.10"]),
+        (0.3, 0.9, 6, ["Low: 0.30 - 0.40", "0.40 - 0.50", "0.50 - 0.60", "0.60 - 0.70",
+                       "0.70 - 0.80", "High: 0.80 - 0.90"]),
+    ],
+    ids=["integer", "unit", "step-over-one-fractional", "thousands", "zero-width",
+         "float-noise-crossing-zero", "float-noise-above-zero"],
+)
+def test_heatmap_labels_without_offsets_are_unchanged(heatmap_legend, minimum, maximum, levels, expected):
+    labels, _ = heatmap_legend(minimum, maximum, levels)
+    assert labels == expected
+
+
+def test_range_edges_round_outward_only_on_the_outer_bounds():
+    from siege_utilities.reporting._range_labels import format_range_edges
+
+    # Ordinary rounding would print 1/3 as 0.333333, below the true upper bound.
+    assert format_range_edges([-2 / 3, 0.1, 1 / 3], 2) == ["-0.666667", "0.100000", "0.333334"]
+    # Exact edges, including floating-point noise such as 0.1 + 0.2, are not widened.
+    assert format_range_edges([0.1, 0.1 + 0.2, 0.5], 1) == ["0.1", "0.3", "0.5"]
+
+
+def _advanced_labels(monkeypatch, tmp_path, values, classification, bins):
+    ax = _render_advanced_choropleth(monkeypatch, tmp_path, values, classification, bins)
+    return [text.get_text() for text in ax.get_legend().get_texts()]
+
+
+@pytest.mark.parametrize(
+    "classification, values, bins, expected",
+    [
+        ("quantiles", [0.0625, 5.0625, 10.0625, 15.0625], 3,
+         ["0.0625 – 5.0625", "5.0625 – 10.0625", "10.0625 – 15.0625"]),
+        ("equal_interval", [10.125, 12.125, 18.125, 20.125], 2,
+         ["10.115 – 15.125", "15.125 – 20.125"]),
+        ("natural_breaks", [0.0625, 1.0625, 10.0625, 11.0625, 20.0625, 21.0625], 3,
+         ["0.0625 – 1.0625", "1.0625 – 11.0625", "11.0625 – 21.0625"]),
+    ],
+    ids=["quantiles", "equal-interval", "natural-breaks"],
+)
+@pytest.mark.parametrize("backend", ["mapclassify", "numpy"])
+def test_advanced_labels_keep_fractional_offsets(
+    map_engine, monkeypatch, tmp_path, classification, values, bins, expected, backend,
+):
+    from siege_utilities.geo import classification as classifiers
+
+    if backend == "mapclassify":
+        pytest.importorskip("mapclassify")
+    else:
+        monkeypatch.setattr(classifiers, "_MAPCLASSIFY_AVAILABLE", False)
+    assert _advanced_labels(monkeypatch, tmp_path, values, classification, bins) == expected
+
+
+def test_advanced_labels_round_outer_bounds_outward_at_the_cap(map_engine, monkeypatch, tmp_path):
+    values = [1 / 3, 1, 2, 3, 4, 5, 6, 50 / 7]
+    labels = _advanced_labels(monkeypatch, tmp_path, values, "quantiles", 3)
+    assert labels == ["0.333333 – 2.333333", "2.333333 – 4.666667", "4.666667 – 7.142858"]
+    assert float(labels[0].split(" – ")[0]) < min(values)
+    assert float(labels[-1].split(" – ")[1]) > max(values)
+
+
+@pytest.mark.parametrize(
+    "classification, values, bins, expected",
+    [
+        ("quantiles", [100, 300, 600, 1000, 1500, 2100], 5,
+         ["100.0 – 300.0", "300.0 – 600.0", "600.0 – 1,000.0", "1,000.0 – 1,500.0",
+          "1,500.0 – 2,100.0"]),
+        ("equal_interval", [100, 300, 600, 1000, 1500, 2100], 5,
+         ["98.0 – 500.0", "500.0 – 900.0", "900.0 – 1,300.0", "1,300.0 – 1,700.0",
+          "1,700.0 – 2,100.0"]),
+        ("quantiles", [100, 100, 100, 100, 900], 5, ["100.0 – 260.0", "260.0 – 900.0"]),
+        ("quantiles", [0, 0.002, 0.004, 0.006, 0.008, 0.01], 5,
+         ["0.000 – 0.002", "0.002 – 0.004", "0.004 – 0.006", "0.006 – 0.008", "0.008 – 0.010"]),
+        ("natural_breaks", [0, 1, 2, 30, 31, 32, 60, 61, 62], 3,
+         ["0.0 – 2.0", "2.0 – 32.0", "32.0 – 62.0"]),
+        ("natural_breaks", [0.25] * 4, 3, ["0.25 – 0.25"]),
+    ],
+    ids=["quantiles", "equal-interval", "dropped-duplicate-edges", "small-fractions",
+         "natural-breaks", "zero-width"],
+)
+def test_advanced_labels_without_offsets_are_unchanged(
+    map_engine, monkeypatch, tmp_path, classification, values, bins, expected,
+):
+    assert _advanced_labels(monkeypatch, tmp_path, values, classification, bins) == expected
+
+
+# Exactness is judged per edge. A single tolerance for all edges, scaled by the
+# largest one, let an outlier at 1e12 make 1.0044 look exact at 1.004.
+CROSS_SCALE_EDGES = {
+    "small-positive-maximum": ([-1e12, 1.0044, 1.0064],
+                               ["-1,000,000,000,000.0000", "1.0044", "1.0064"]),
+    "small-negative-minimum": ([-1.0064, -1.0044, 1e12],
+                               ["-1.0064", "-1.0044", "1,000,000,000,000.0000"]),
+    "small-class-upper": ([1.0044, 1.0064, 1e12],
+                          ["1.0044", "1.0064", "1,000,000,000,000.0000"]),
+}
+
+
+@pytest.mark.parametrize("case", list(CROSS_SCALE_EDGES))
+def test_range_edges_keep_small_edge_digits_beside_a_distant_edge(case):
+    from siege_utilities.reporting._range_labels import format_range_edges
+
+    edges, expected = CROSS_SCALE_EDGES[case]
+    assert format_range_edges(edges, 3) == expected
+
+
+@pytest.mark.parametrize(
+    "edges, expected",
+    [
+        ([1.0044, 5e11, 1e12], ["1.0044", "500,000,000,000.0000", "1,000,000,000,000.0000"]),
+        ([-1e12, 1.0044, 1e12], ["-1,000,000,000,000.0000", "1.0044", "1,000,000,000,000.0000"]),
+        ([1.0044, 1e12], ["1.0044", "1,000,000,000,000.0000"]),
+    ],
+    ids=["only-neighbour-distant", "both-neighbours-distant", "two-edges"],
+)
+def test_range_edges_keep_digits_when_every_neighbour_is_distant(edges, expected):
+    from siege_utilities.reporting._range_labels import format_range_edges
+
+    assert format_range_edges(edges, 3) == expected
+
+
+def test_heatmap_single_level_keeps_small_minimum_beside_large_maximum(heatmap_legend):
+    labels, _ = heatmap_legend(1.0044, 1e12, 1)
+    assert labels == ["Low: 1.0044 - 1,000,000,000,000.0000"]
+
+
+def test_heatmap_wide_span_keeps_exact_small_minimum(heatmap_legend):
+    """A huge span must not make an exact minimum (0.875) print as 1; e6e43b1d printed these."""
+    labels, _ = heatmap_legend(0.875, 1e18, 5)
+    assert labels == [
+        "Low: 0.875 - 200,000,000,000,000,000.000",
+        "200,000,000,000,000,000.000 - 400,000,000,000,000,000.000",
+        "400,000,000,000,000,000.000 - 600,000,000,000,000,000.000",
+        "600,000,000,000,000,000.000 - 800,000,000,000,000,000.000",
+        "High: 800,000,000,000,000,000.000 - 1,000,000,000,000,000,000.000",
+    ]
+
+
+def test_range_edges_never_show_a_signed_zero():
+    from siege_utilities.reporting._range_labels import format_range_edges
+
+    noise = 0.1 + 0.2 - 0.3  # 5.6e-17: never written exactly within six places
+    labels = format_range_edges([-0.1, -noise, 0.1], 1)
+    # Its value at the cap is -0.000000, which "0.0" also reads as.
+    assert labels[1] == "0.0"
+    assert [float(label) for label in labels] == [-0.1, 0.0, 0.1]
+
+
+@pytest.mark.parametrize(
+    "values, expected",
+    [
+        ([-1e12, 1.0044, 1.0064],
+         ["-1,000,000,000,000.0000 – 1.0044", "1.0044 – 1.0064"]),
+        ([-1.0064, -1.0044, 1e12],
+         ["-1.0064 – -1.0044", "-1.0044 – 1,000,000,000,000.0000"]),
+        ([1.0044, 1.0064, 1e12],
+         ["1.0044 – 1.0064", "1.0064 – 1,000,000,000,000.0000"]),
+    ],
+    ids=list(CROSS_SCALE_EDGES),
+)
+def test_advanced_labels_contain_their_values_beside_a_distant_value(
+    map_engine, monkeypatch, tmp_path, values, expected,
+):
+    import pandas as pd
+
+    labels = _advanced_labels(monkeypatch, tmp_path, values, "quantiles", 2)
+    assert labels == expected
+    classes = pd.qcut(pd.Series(values), 2, labels=False, duplicates="drop")
+    bounds = [tuple(float(edge.replace(",", "")) for edge in label.split(" – ")) for label in labels]
+    for value, class_index in zip(values, classes):
+        lower, upper = bounds[int(class_index)]
+        assert lower <= value <= upper
+
+
+# "Shown exactly" means the label reads back as the identical float. At 1e12 a
+# unit in the last place (ulp) is 1.2e-4, so a class 16 ulps wide has real
+# digits in its fourth decimal; a tolerance of a few ulps hid them.
+_BIG = 1e12
+_ULP = math.ulp(_BIG)
+LARGE_ULP_EDGES = {
+    "large-final-class": (
+        [0.0, _BIG + 36 * _ULP, _BIG + 52 * _ULP],
+        ["0.0000", "1,000,000,000,000.0044", "1,000,000,000,000.0063"],
+    ),
+    "large-negative-minimum": (
+        [-_BIG - 52 * _ULP, -_BIG - 36 * _ULP, 0.0],
+        ["-1,000,000,000,000.0063", "-1,000,000,000,000.0044", "0.0000"],
+    ),
+    "large-inner-class": (
+        [_BIG + 36 * _ULP, _BIG + 52 * _ULP, 2 * _BIG],
+        ["1,000,000,000,000.0044", "1,000,000,000,000.0063", "2,000,000,000,000.0000"],
+    ),
+}
+
+
+@pytest.mark.parametrize("case", list(LARGE_ULP_EDGES))
+def test_range_edges_round_trip_large_magnitude_digits(case):
+    from siege_utilities.reporting._range_labels import format_range_edges
+
+    edges, expected = LARGE_ULP_EDGES[case]
+    labels = format_range_edges(edges, 3)
+    assert labels == expected
+    assert [float(label.replace(",", "")) for label in labels] == edges
+
+
+@pytest.mark.parametrize("case", list(LARGE_ULP_EDGES))
+def test_advanced_labels_contain_values_in_classes_a_few_ulps_wide(
+    map_engine, monkeypatch, tmp_path, case,
+):
+    import pandas as pd
+
+    values, _ = LARGE_ULP_EDGES[case]
+    labels = _advanced_labels(monkeypatch, tmp_path, values, "quantiles", 2)
+    classes = pd.qcut(pd.Series(values), 2, labels=False, duplicates="drop")
+    bounds = [tuple(float(edge.replace(",", "")) for edge in label.split(" – ")) for label in labels]
+    for value, class_index in zip(values, classes):
+        lower, upper = bounds[int(class_index)]
+        assert lower <= value <= upper
+
+
+def test_heatmap_large_offset_keeps_exact_binary_fraction(heatmap_legend):
+    """1e15 + 0.875 reads back from "...000.9"; rounding it to "...001" excluded it."""
+    low = 1e15 + 0.875
+    assert low - 1e15 == 0.875
+    labels, _ = heatmap_legend(low, low + 10, 5)
+    assert labels == [
+        "Low: 1,000,000,000,000,000.9 - 1,000,000,000,000,002.9",
+        "1,000,000,000,000,002.9 - 1,000,000,000,000,004.9",
+        "1,000,000,000,000,004.9 - 1,000,000,000,000,006.9",
+        "1,000,000,000,000,006.9 - 1,000,000,000,000,008.9",
+        "High: 1,000,000,000,000,008.9 - 1,000,000,000,000,010.9",
+    ]
+    bounds = _heatmap_bounds(labels)
+    assert bounds[0][0] == low and bounds[-1][1] == low + 10
+
+
+def test_range_edges_interior_float_noise_is_not_an_outer_bound():
+    """A pandas quantile edge 1000.0000000000002 cannot be written exactly within
+    six places, so it shows as its value at the cap. Inside the legend that is
+    1,000.0; as an outer bound it is rounded outward, and a last edge keeps the
+    cap rather than being widened to 1,000.1."""
+    from siege_utilities.reporting._range_labels import format_range_edges
+
+    noisy = 1000.0000000000002
+    assert format_range_edges([100.0, noisy, 2100.0], 1) == ["100.0", "1,000.0", "2,100.0"]
+    first = format_range_edges([noisy, 2100.0], 1)
+    assert first == ["1,000.0", "2,100.0"]
+    assert float(first[0].replace(",", "")) <= noisy
+    last = format_range_edges([100.0, noisy], 1)
+    assert last == ["100.000000", "1,000.000001"]
+    assert float(last[1].replace(",", "")) >= noisy
+
+
+# An edge that can be written exactly within six places is written exactly,
+# however wide its classes are. A tolerance relative to class width let
+# 1000000000.100001 print as ...000.1 and put 20 of 21 class members outside
+# their own range.
+_X9 = 1e9 + 0.100001
+_X12 = 1e12 + 0.1001
+REPRESENTABLE_EDGES = {
+    "1e9-six-places": (
+        [0.0, _X9, 2e9],
+        ["0.000000", "1,000,000,000.100001", "2,000,000,000.000000"],
+    ),
+    "1e12-four-places": (
+        [0.0, _X12, 2e12],
+        ["0.0000", "1,000,000,000,000.1001", "2,000,000,000,000.0000"],
+    ),
+    "1e9-negative": (
+        [-2e9, -_X9, 0.0],
+        ["-2,000,000,000.000000", "-1,000,000,000.100001", "0.000000"],
+    ),
+}
+
+
+@pytest.mark.parametrize("case", list(REPRESENTABLE_EDGES))
+def test_range_edges_write_representable_interior_edges_exactly(case):
+    from siege_utilities.reporting._range_labels import format_range_edges
+
+    edges, expected = REPRESENTABLE_EDGES[case]
+    labels = format_range_edges(edges, 1)
+    assert labels == expected
+    assert [float(label.replace(",", "")) for label in labels] == edges
+
+
+def test_heatmap_outward_rounded_zero_is_unsigned(heatmap_legend):
+    """-1e-17 rounded up (outward) is Decimal("-0.00"); the label shows 0.00."""
+    labels, _ = heatmap_legend(-0.1, -1e-17, 1)
+    assert labels == ["Low: -0.10 - 0.00"]
+    assert _heatmap_bounds(labels)[0][1] >= -1e-17
+
+
+def test_advanced_near_zero_noise_edge_shows_its_value_at_the_cap(map_engine, monkeypatch, tmp_path):
+    """A declared approximation: the interior edge -4.16e-17 cannot be written
+    within six places; its value there is zero, so it shows as 0.00 (two
+    decimals is the width-based minimum, the class being 0.09999999999999996
+    wide). The member -n/2 lies 2.78e-17 below the second range's printed
+    lower bound."""
+    n = 0.1 + 0.2 - 0.3
+    labels = _advanced_labels(monkeypatch, tmp_path, [-0.1, -n, -n / 2, 0.1], "quantiles", 2)
+    assert labels == ["-0.10 – 0.00", "0.00 – 0.10"]
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        [0.0] + [_X9] * 20 + [2e9],
+        [0.0] + [_X12] * 20 + [2e12],
+        # The edge is -_X9; the upper class holds 9 values 4 ulps above it, which
+        # a lower bound printed as -...000.1 left below their own range.
+        [-2e9] * 10 + [-_X9] + [-_X9 + 4 * math.ulp(_X9)] * 9 + [0.0],
+    ],
+    ids=["1e9-six-places", "1e12-four-places", "1e9-negative-upper-class"],
+)
+def test_advanced_labels_contain_every_member_when_edges_are_representable(
+    map_engine, monkeypatch, tmp_path, values,
+):
+    import pandas as pd
+
+    labels = _advanced_labels(monkeypatch, tmp_path, values, "quantiles", 2)
+    classes = pd.qcut(pd.Series(values), 2, labels=False, duplicates="drop")
+    bounds = [tuple(float(edge.replace(",", "")) for edge in label.split(" – ")) for label in labels]
+    outside = [
+        value for value, class_index in zip(values, classes)
+        if not bounds[int(class_index)][0] <= value <= bounds[int(class_index)][1]
+    ]
+    assert outside == []

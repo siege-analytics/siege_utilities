@@ -7,8 +7,11 @@ from __future__ import annotations
 
 import logging
 import math
+from decimal import Decimal
 from typing import Dict, List, Any, Optional
 from enum import Enum
+
+from ._range_labels import format_range_edges
 
 # Core plotting libraries
 try:
@@ -176,22 +179,35 @@ class LegendManager:
 
         span = max_value - min_value
         step = abs(span / levels)
-        edges = [min_value + span * k / levels for k in range(levels + 1)]
+        if math.isfinite(min_value) and math.isfinite(max_value):
+            # The edges are min + k * (max - min) / levels in decimal, as a
+            # reader would compute them. Exact decimal arithmetic keeps float
+            # noise out (the middle edge of -0.2 to 0.1 in three levels is
+            # 2.8e-17 in floats, 0 here), so each edge is the float nearest
+            # its decimal value and reads back from that decimal in
+            # format_range_edges.
+            low, high = Decimal(repr(float(min_value))), Decimal(repr(float(max_value)))
+            edges = [float(low + (high - low) * k / levels) for k in range(levels + 1)]
+        else:
+            edges = [min_value + span * k / levels for k in range(levels + 1)]
         edges[-1] = max_value
+        # Width sets the minimum decimals; format_range_edges adds decimals
+        # until every edge, including a fractional offset such as 0.004, reads
+        # back as the same float, up to six decimals (or the width minimum if
+        # larger).
+        # Past that cap the outer bounds are rounded outward, so the labels
+        # still contain min and max but may show a slightly wider range.
         if step < 1:
-            precision = max(2, math.ceil(-math.log10(step))) if step else 2
+            minimum_decimals = max(2, math.ceil(-math.log10(step))) if step else 2
         else:
             # Steps of 1 or more can still produce fractional edges (0..7.5 in
-            # five levels is 0, 1.5, 3, ...): use the fewest decimals that
-            # show every edge exactly, up to six.
-            precision = next(
-                (d for d in range(7) if all(abs(round(e, d) - e) < 1e-9 for e in edges)),
-                6,
-            )
+            # five levels is 0, 1.5, 3, ...); the edge check adds those decimals.
+            minimum_decimals = 0
+        texts = format_range_edges(edges, minimum_decimals)
 
         bins = []
         for i in range(levels):
-            label = f"{edges[i]:,.{precision}f} - {edges[i + 1]:,.{precision}f}"
+            label = f"{texts[i]} - {texts[i + 1]}"
             if i == 0:
                 label = f"Low: {label}"
             elif i == levels - 1:

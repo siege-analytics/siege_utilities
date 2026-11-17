@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Dict, Any, Union
 
 from .._markup import _build_popup_html
+from .._range_labels import format_range_edges
 
 # Core plotting libraries
 try:
@@ -479,17 +480,25 @@ class MapChartMixin:
             class_count = len(bin_edges) - 1
             cmap = plt.get_cmap(color_scheme)
             norm = Normalize(vmin=0, vmax=max(class_count - 1, 1))
-            # Zero-width (constant data) and non-finite intervals carry no
-            # precision information; fall back to one decimal when none remain.
+            # Width sets the minimum decimals. Zero-width (constant data) and
+            # non-finite intervals carry no width information; fall back to one
+            # decimal when none remain. format_range_edges then adds decimals
+            # until every edge, including a fractional offset such as 0.0625,
+            # reads back as the same float (see _range_labels), up to six
+            # decimals (or the width minimum if larger). Past that cap the
+            # outer bounds are rounded outward, so the labels still contain the
+            # data but may show a slightly wider range. Class assignments and
+            # swatches are unaffected.
             widths = np.diff(bin_edges)
             positive_widths = widths[np.isfinite(widths) & (widths > 0)]
             smallest_width = positive_widths.min() if positive_widths.size else 1.0
-            precision = max(1, int(np.ceil(-np.log10(smallest_width))))
+            minimum_decimals = max(1, int(np.ceil(-np.log10(smallest_width))))
+            edge_texts = format_range_edges(bin_edges, minimum_decimals)
             legend_handles = [
                 Patch(
                     facecolor=cmap(norm(i)),
                     label=(f"{lower:,} – {upper:,}" if lower == upper
-                           else f"{lower:,.{precision}f} – {upper:,.{precision}f}"),
+                           else f"{edge_texts[i]} – {edge_texts[i + 1]}"),
                 )
                 for i, (lower, upper) in enumerate(zip(bin_edges[:-1], bin_edges[1:]))
             ]

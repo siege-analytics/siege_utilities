@@ -1461,9 +1461,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `records_skipped`, and a partial match adds a warning. Pass the CVAP
     level whose GEOIDs equal your plan's district GEOIDs.
 - Reporting legends and classification describe the data (#1535). Heatmap
-  legends show contiguous, closed bins covering the full data range, preserve
-  fractional edges with adaptive precision, and support a single bin in both
-  ReportLab tables and Matplotlib legends. Bivariate legends place the second
+  legends show contiguous bins covering the full data range, with both ends
+  shown, and support a single bin in both ReportLab tables and Matplotlib
+  legends. Bivariate legends place the second
   variable's High colors at the top, matching the map. Advanced choropleth
   legends show the actual classification ranges with matching swatches,
   including when duplicate bin edges are dropped. `create_advanced_choropleth`
@@ -1471,11 +1471,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `siege_utilities.geo.classification.classify_series` instead of quantiles;
   its legend ranges are upper-inclusive and end at each class's largest value
   on both classifier backends, and constant data no longer breaks the legend.
-  Heatmap legends keep fractional edges when the step is 1 or more (0–7.5 in
-  five levels reads 0.0–1.5, …). `create_heatmap` no longer centres its
+  Heatmap and advanced choropleth range labels take their decimals from the
+  bin edges as well as the bin widths. Decimals stop at six, or at the
+  width-based count if that is larger. Every edge that reads back as the same
+  float at up to that many decimals is written with at least that many, so
+  fractional offsets are kept (0.004 to 0.054 in five heatmap levels reads
+  0.004 - 0.014 up to 0.044 - 0.054, and 0 to 7.5 reads 0.0 - 1.5 up to
+  6.0 - 7.5). An edge that cannot be written exactly within that cap (1/3, or
+  0.0000013) is shown as its value at the cap, with only as many decimals as
+  give that value; a first or last edge of that kind is rounded outward, which
+  can take one more digit at the cap (1,000.000001) and can show a range
+  slightly wider than the data (0.0000013 to 0.0000113 reads from 0.000001 to
+  0.000012). Within the cap a value closer to an interior edge than the last
+  printed decimal can still sit on the printed edge rather than inside its own
+  range (an edge of -4.16e-17 prints as 0.00). Equal-interval legends show the
+  slightly lowered first edge that pandas uses to include the minimum (data
+  from 10.125 to 20.125 starts at 10.115). Zero-width advanced legend ranges
+  still print the value itself. `create_heatmap` no longer centres its
   sequential `YlOrRd` colormap at 0.
   Migration: legends, natural-breaks classes and heatmap colours change for the
-  same data; callers that relied on quantile classes should pass
+  same data; legend labels for fractional data can show more decimals than
+  before; callers that relied on quantile classes should pass
   `classification="quantiles"`, and images compared against v4.0.0 output need
   new baselines.
 
