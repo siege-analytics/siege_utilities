@@ -87,8 +87,13 @@ class SocialMediaProtocol(Protocol):
     """Read-only social media analytics contract.
 
     The protocol is intentionally narrow — seven methods, all read-only.
-    Backends handle OAuth token refresh, rate-limit backoff, and
-    pagination internally; callers just see this surface.
+    Backends handle bounded rate-limit backoff and pagination internally.
+    Token renewal depends on the backend and supplied credentials; expired
+    tokens that need a new login raise SocialMediaAuthError.
+
+    Instagram and X return collected posts with a warning when a later page
+    exhausts rate-limit retries, without a resume cursor. First-page failures
+    and other errors, including exhausted server retries, propagate.
 
     Each connector may expose platform-specific methods beyond the
     protocol (e.g., ``InstagramConnector.get_stories()``). The protocol

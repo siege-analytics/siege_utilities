@@ -234,8 +234,8 @@ def test_real_bulk_secondary_serves_after_primary_degrades(source, download):
     ).fetch(**REQUEST)
     assert frame["GEOID"].tolist() == ["06001", "06037", "06073"]
     assert frame["B01003_001E"].tolist() == [1628997, 9721138, 3276208]
-    assert provenance == Provenance("bulk", POPULATION_URL, 3, True)
-    assert api.fetch_data.call_args_list == [call(**REQUEST)] * 2
+    assert provenance == Provenance("bulk", POPULATION_URL, 2, True)
+    api.fetch_data.assert_called_once_with(**REQUEST)
     assert download.call_count == 1
 
 
@@ -366,7 +366,7 @@ def test_secondary_http_failure_is_not_a_valid_empty_result(source, monkeypatch)
     monkeypatch.setattr("requests.get", Mock(return_value=response_for(b"missing", status=404)))
     with pytest.raises(HTTPError, match="404"):
         DualSourceCensusClient(ApiSource(api), source).fetch(**REQUEST)
-    assert api.fetch_data.call_count == 3
+    api.fetch_data.assert_called_once_with(**REQUEST)
 
 
 # --- #1385 P2: malformed/corrupt Summary File records must raise, not coerce ---
