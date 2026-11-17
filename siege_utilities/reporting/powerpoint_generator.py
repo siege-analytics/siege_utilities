@@ -6,6 +6,7 @@ Creates presentations from analytics data and report configurations.
 import io
 import logging
 import uuid
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime
@@ -28,6 +29,60 @@ log = logging.getLogger(__name__)
 __all__ = [
     "PowerPointGenerator",
 ]
+
+# Chart positions for each chart slide layout, as (left, top, width, height)
+# in inches. A layout holds as many charts as it has positions; further
+# charts continue on "<title> (continued)" slides with the same layout.
+_CHART_LAYOUT_POSITIONS = {
+    'single_chart': [(1.0, 2.0, 8.0, 5.0)],
+    'two_charts': [(0.5, 2.0, 4.0, 4.0), (5.5, 2.0, 4.0, 4.0)],
+    'grid': [(0.5, 2.0, 3.5, 2.5), (4.5, 2.0, 3.5, 2.5),
+             (0.5, 4.8, 3.5, 2.5), (4.5, 4.8, 3.5, 2.5)],
+}
+
+
+def _chart_layout_positions(layout: str) -> List[tuple]:
+    """Return the chart positions for a chart slide layout.
+
+    Raises:
+        ValueError: the layout is not one of the chart slide layouts.
+    """
+    if not isinstance(layout, str) or layout not in _CHART_LAYOUT_POSITIONS:
+        raise ValueError(
+            f"Unknown chart slide layout {layout!r}; expected one of "
+            f"{', '.join(repr(name) for name in _CHART_LAYOUT_POSITIONS)}"
+        )
+    return _CHART_LAYOUT_POSITIONS[layout]
+
+
+def _chart_list(charts: Any, title: str) -> list:
+    """Return a chart slide's charts as a list; None means no charts.
+
+    A string, bytes or mapping is one item, not a list of charts, so it is
+    rejected rather than split into characters or keys.
+
+    Raises:
+        ValueError: ``charts`` is not a list, tuple or None.
+    """
+    if charts is None:
+        return []
+    if not isinstance(charts, (list, tuple)):
+        raise ValueError(
+            f"Invalid content for chart slide {title!r}: expected a list, tuple or None "
+            f"under 'charts', got {type(charts).__name__}"
+        )
+    return list(charts)
+
+
+def _describe_item(item: Any) -> str:
+    """Name an unexpected chart or map item for a log message.
+
+    Gives a mapping's sorted keys, or any other object's type name, never
+    their values, as report_generator.py does.
+    """
+    if isinstance(item, Mapping):
+        return f"mapping with keys {sorted(str(key) for key in item)}"
+    return f"{type(item).__name__} object"
 
 
 class PowerPointGenerator:
@@ -404,11 +459,19 @@ class PowerPointGenerator:
             charts: List of chart images
             description: Slide description
             level: Section level
-            layout: Chart layout ('single_chart', 'two_charts', 'grid')
-            
+            layout: Chart layout: 'single_chart' (one chart), 'two_charts'
+                (side by side) or 'grid' (2x2). Charts beyond what the
+                layout holds continue on "<title> (continued)" slides.
+
         Returns:
             Updated presentation content
+
+        Raises:
+            ValueError: ``layout`` is not one of the chart slide layouts, or
+                ``charts`` is not a list, tuple or None.
         """
+        _chart_layout_positions(layout)
+        _chart_list(charts, title)
         content = {
             'charts': charts,
             'description': description,
@@ -975,10 +1038,12 @@ class PowerPointGenerator:
 
         A dict with only 'title'/'type' keys is described in a labeled
         textbox. Anything else that cannot be embedded, such as an image
-        path that does not exist, a ReportLab Image without embedded image
-        data, or an object that is neither, also gets the labeled textbox,
-        and a warning naming it and the slide title is logged so the
-        placeholder is never silent.
+        path that does not exist, a dict whose 'image_path' or 'path' is
+        empty, a ReportLab Image without embedded image data, or an object
+        that is none of these, also gets the labeled textbox, and a warning
+        naming the slide title is logged so the placeholder is never silent.
+        The warning names a missing path; for anything else it gives the
+        type name, or a mapping's sorted keys, never the values.
 
         Args:
             chart_config: dict with 'image_path' (str/Path) or 'title'/'type'
@@ -1033,6 +1098,13 @@ class PowerPointGenerator:
                 f"Image {str(path)!r} for slide {slide_title!r} was not found; "
                 f"a placeholder is shown instead"
             )
+        elif isinstance(chart_config, dict) and ('image_path' in chart_config or 'path' in chart_config):
+            # The key shows an image was meant, but its value is empty, for
+            # example a path that came back None from a failed chart build.
+            log.warning(
+                f"{kind} for slide {slide_title!r} has an empty image path "
+                f"({_describe_item(chart_config)}); a placeholder is shown instead"
+            )
         elif hasattr(chart_config, 'filename'):
             # The library's chart and map engines return ReportLab Images
             # whose .filename holds the PNG as a base64 data URI.
@@ -1050,14 +1122,14 @@ class PowerPointGenerator:
                 # Invalid base64 or an unsupported image format.
                 raise ValueError(f"{message}: {e}") from e
             log.warning(
-                f"{kind} image {chart_config!r} for slide {slide_title!r} does not hold its "
-                f"image as a base64 data URI, so it cannot be embedded; pass the image file "
-                f"path instead. A placeholder is shown"
+                f"{kind} image ({_describe_item(chart_config)}) for slide {slide_title!r} "
+                f"does not hold its image as a base64 data URI, so it cannot be embedded; "
+                f"pass the image file path instead. A placeholder is shown"
             )
         elif not (isinstance(chart_config, dict) and ('title' in chart_config or 'type' in chart_config)):
             log.warning(
-                f"{kind} {chart_config!r} for slide {slide_title!r} is not an image path "
-                f"or a described chart; a placeholder is shown instead"
+                f"{kind} ({_describe_item(chart_config)}) for slide {slide_title!r} is not "
+                f"an image path or a described chart; a placeholder is shown instead"
             )
 
         # Graceful fallback: add a labeled textbox
@@ -1420,40 +1492,56 @@ class PowerPointGenerator:
         
         return slide
 
+    def _add_slide_description(self, slide, description: str) -> None:
+        """Show a slide's description between its title and its charts or maps."""
+        if description:
+            box = slide.shapes.add_textbox(Inches(0.5), Inches(1.55), Inches(9.0), Inches(0.45))
+            box.text_frame.word_wrap = True
+            box.text_frame.text = description
+            for paragraph in box.text_frame.paragraphs:
+                paragraph.font.size = Pt(14)
+
     def _create_chart_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:
-        """Create a chart slide."""
-        slide_layout = prs.slide_layouts[1]  # Title and content layout
-        slide = prs.slides.add_slide(slide_layout)
-        
-        # Set title
-        title = slide.shapes.title
-        title.text = section.get('title', '')
-        
-        # Add charts
-        charts = section.get('content', {}).get('charts', [])
-        layout = section.get('content', {}).get('layout', 'single_chart')
-        
-        if layout == 'single_chart' and charts:
-            # Single chart
-            chart = charts[0]
-            self._add_chart_to_slide(chart, slide, Inches(1), Inches(2), Inches(8), Inches(5))
-        elif layout == 'two_charts' and len(charts) >= 2:
-            # Two charts side by side
-            self._add_chart_to_slide(charts[0], slide, Inches(0.5), Inches(2), Inches(4), Inches(4))
-            self._add_chart_to_slide(charts[1], slide, Inches(5.5), Inches(2), Inches(4), Inches(4))
-        elif layout == 'grid' and len(charts) >= 4:
-            # 2x2 grid
-            positions = [
-                (Inches(0.5), Inches(2), Inches(3.5), Inches(2.5)),
-                (Inches(4.5), Inches(2), Inches(3.5), Inches(2.5)),
-                (Inches(0.5), Inches(4.8), Inches(3.5), Inches(2.5)),
-                (Inches(4.5), Inches(4.8), Inches(3.5), Inches(2.5))
-            ]
-            for i, chart in enumerate(charts[:4]):
-                left, top, width, height = positions[i]
-                self._add_chart_to_slide(chart, slide, left, top, width, height)
-        
-        return slide
+        """Create a chart slide with its title, description and charts.
+
+        Reads the ``charts``, ``description`` and ``layout`` that
+        ``add_chart_slide`` stores. Each layout has fixed chart positions
+        (``_CHART_LAYOUT_POSITIONS``): a layout with fewer charts than
+        positions fills the first ones, and charts beyond the last position
+        continue on further slides titled "<title> (continued)". A slide with
+        no charts logs a warning. Each chart goes through
+        ``_add_chart_to_slide``.
+
+        Returns:
+            The first slide, which carries the section's speaker notes.
+
+        Raises:
+            ValueError: the layout is not one of the chart slide layouts, or
+                ``charts`` is not a list, tuple or None.
+        """
+        content = section.get('content', {})
+        title = section.get('title', '')
+        description = content.get('description', '')
+        # None under 'charts' means no charts, as in 4.0.0.
+        charts = _chart_list(content.get('charts'), title)
+        positions = _chart_layout_positions(content.get('layout', 'single_chart'))
+        if not charts:
+            log.warning(f"Chart slide {title!r} has no charts")
+
+        per_slide = len(positions)
+        groups = [charts[i:i + per_slide] for i in range(0, len(charts), per_slide)] or [[]]
+
+        slides = []
+        for index, group in enumerate(groups):
+            slide = prs.slides.add_slide(prs.slide_layouts[1])  # Title and content layout
+            slide.shapes.title.text = title if index == 0 else f"{title} (continued)"
+            if index == 0:
+                self._add_slide_description(slide, description)
+            for chart, (left, top, width, height) in zip(group, positions):
+                self._add_chart_to_slide(chart, slide, Inches(left), Inches(top), Inches(width), Inches(height))
+            slides.append(slide)
+
+        return slides[0]
 
     def _create_map_slide(self, section: Dict[str, Any], prs: Presentation) -> Any:
         """Create a map slide with its title, description and up to four maps.
@@ -1490,12 +1578,8 @@ class PowerPointGenerator:
             slide = prs.slides.add_slide(prs.slide_layouts[self.slide_layouts['title_only']])
             slide.shapes.title.text = title if index == 0 else f"{title} (continued)"
 
-            if description and index == 0:
-                box = slide.shapes.add_textbox(Inches(0.5), Inches(1.55), Inches(9.0), Inches(0.5))
-                box.text_frame.word_wrap = True
-                box.text_frame.text = description
-                for paragraph in box.text_frame.paragraphs:
-                    paragraph.font.size = Pt(14)
+            if index == 0:
+                self._add_slide_description(slide, description)
 
             positions = positions_by_count.get(len(group), positions_by_count[maps_per_slide])
             for map_config, (left, top, width, height) in zip(group, positions):

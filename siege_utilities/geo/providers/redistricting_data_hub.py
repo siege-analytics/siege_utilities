@@ -35,6 +35,7 @@ import os
 import re
 import secrets
 import stat
+import warnings
 import zipfile
 from dataclasses import dataclass, field
 from enum import Enum
@@ -1484,6 +1485,23 @@ def fetch_demographic_summary(
     return c.load_csv(datasets[0])
 
 
+class _DistrictsWithoutUnitsWarning(UserWarning):
+    """``demographic_profile`` warning naming districts that received no unit.
+
+    A ``UserWarning`` for callers; the RDH loader recognises this category so it
+    can report those districts through its own skip accounting instead.
+    """
+
+
+def _python_scalar(value):
+    """Return a plain Python scalar for a column total of any pandas dtype.
+
+    A NumPy-backed sum has ``.item()``; object and Arrow-backed sums already
+    return Python scalars, which have no ``.item()``.
+    """
+    return value.item() if hasattr(value, "item") else value
+
+
 def demographic_profile(
     plan_gdf: "gpd.GeoDataFrame",
     census_gdf: "gpd.GeoDataFrame",
@@ -1492,8 +1510,22 @@ def demographic_profile(
 ) -> "pd.DataFrame":
     """Overlay Census ACS data onto a redistricting plan.
 
-    Performs a spatial join between district geometries and Census
-    block/tract geometries, then aggregates demographics per district.
+    Assigns each Census block/tract wholly to the district containing its
+    representative (interior) point, then aggregates demographics per district.
+    A point on a shared district edge goes to the first matching district with
+    a non-null ID in ``plan_gdf`` row order, so each unit is counted exactly
+    once. Plan rows without a district ID are ignored. Units whose interior
+    point intersects no district with a non-null ID are excluded, and a
+    ``UserWarning`` (also logged) reports how many were excluded and their
+    summed population per column. Every district in ``plan_gdf`` appears in
+    the result, with zeros where no unit is assigned. Districts that receive
+    no unit are named in a ``UserWarning`` (also logged) and listed, in plan
+    order, in ``result.attrs["districts_without_units"]`` (empty when every
+    district receives a unit), so their zeros can be told apart from real
+    zero totals. ``DataFrame.attrs`` may be dropped by later pandas
+    operations, so read it from the returned frame directly. Rows follow the
+    first-occurrence order of district IDs in ``plan_gdf``; v4.0.0 returned
+    them sorted by district ID.
 
     Parameters
     ----------
@@ -1508,7 +1540,8 @@ def demographic_profile(
 
     Returns
     -------
-    DataFrame with one row per district and summed demographic columns.
+    DataFrame with one row per district in ``plan_gdf`` and summed
+    demographic columns, with ``attrs["districts_without_units"]`` set.
     """
     if not HAS_GEOPANDAS:
         raise ImportError("geopandas is required for spatial overlay")
@@ -1532,9 +1565,63 @@ def demographic_profile(
     if plan_gdf.crs != census_gdf.crs:
         census_gdf = census_gdf.to_crs(plan_gdf.crs)
 
-    joined = gpd.sjoin(census_gdf, plan_gdf[[district_id_col, "geometry"]], predicate="within")
+    # Assign each unit to exactly one district via its interior point. A point
+    # on a shared district edge intersects both districts, so keep the first
+    # matching plan row: the unit is neither dropped nor counted twice.
+    census_points = gpd.GeoDataFrame(
+        census_gdf[population_cols].copy(),
+        geometry=census_gdf.representative_point(),
+        crs=census_gdf.crs,
+    )
+    census_points["_unit_row"] = range(len(census_points))
+    # Rows without a district ID cannot receive population (groupby drops a
+    # null key), so they must not win the first-match tie-break either.
+    plan_keys = plan_gdf.loc[
+        plan_gdf[district_id_col].notna(), [district_id_col, "geometry"]
+    ].copy()
+    plan_keys["_plan_row"] = range(len(plan_keys))
+    joined = gpd.sjoin(census_points, plan_keys, predicate="intersects")
+    joined = joined.sort_values(["_unit_row", "_plan_row"]).drop_duplicates(
+        "_unit_row", keep="first"
+    )
 
-    result = joined.groupby(district_id_col)[population_cols].sum().reset_index()
+    unmatched = ~census_points["_unit_row"].isin(joined["_unit_row"])
+    if unmatched.any():
+        excluded = {
+            col: _python_scalar(census_points.loc[unmatched, col].sum())
+            for col in population_cols
+        }
+        message = (
+            f"demographic_profile: {int(unmatched.sum())} census unit(s) have "
+            f"interior points that intersect no district with a non-null ID and are excluded; "
+            f"excluded totals: {excluded}"
+        )
+        log.warning(message)
+        warnings.warn(message, UserWarning, stacklevel=2)
+
+    # Every plan district appears, with zeros where no unit is assigned.
+    districts = pd.unique(plan_gdf[district_id_col].dropna())
+    # observed=True: with a categorical ID, the default would add every category
+    # with a zero total, hiding the districts that received no unit.
+    sums = joined.groupby(district_id_col, observed=True)[population_cols].sum()
+    # Plain Python values: attrs is serialized as JSON (e.g. by to_parquet), and
+    # integer IDs would otherwise be NumPy scalars.
+    without_units = [
+        _python_scalar(district) for district in districts if district not in sums.index
+    ]
+    if without_units:
+        named = ", ".join(str(district) for district in without_units[:5])
+        more = f" (and {len(without_units) - 5} more)" if len(without_units) > 5 else ""
+        message = (
+            f"demographic_profile: {len(without_units)} district(s) received no census "
+            f"unit and are reported with zero totals: {named}{more}"
+        )
+        log.warning(message)
+        warnings.warn(message, _DistrictsWithoutUnitsWarning, stacklevel=2)
+    result = sums.reindex(districts, fill_value=0)
+    result.index.name = district_id_col
+    result = result.reset_index()
+    result.attrs["districts_without_units"] = list(without_units)
     return result
 
 
