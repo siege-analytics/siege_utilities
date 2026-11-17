@@ -170,6 +170,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that drop their description or an under-filled layout, callers that build
   empty contents and agenda slides, and image objects that point at a file
   are tracked in #1934 (#1933).
+- `PowerPointGenerator` chart slides no longer drop charts or produce an
+  empty slide without saying so. They show the description that
+  `add_chart_slide` stores. A layout with fewer charts than it holds
+  (`two_charts` with one chart, `grid` with one to three) places the charts
+  it has instead of none, and charts beyond what a layout holds (a second
+  chart on `single_chart`, a third on `two_charts`, a fifth on `grid`)
+  continue on slides titled "<title> (continued)" instead of being dropped.
+  Chart positions and the slide layout are unchanged, so a single chart on the
+  default layout without a description produces the same slide. A chart slide
+  with no charts, including `None` under `charts`, logs a warning, and so does
+  a chart given as a mapping whose `image_path` or `path` is empty.
+  Placeholder warnings on chart and map slides now name a missing path, but
+  for any other item give only its type name, or a mapping's sorted keys,
+  never its values (#1934).
 - Package introspection (`analyze_package_structure`, `analyze_module` and
   `generate_architecture_diagram`) now recurses only into `siege_utilities`
   submodules, chosen by module name instead of a file-path substring, and
@@ -234,6 +248,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `demonstrate_comprehensive_mapping` step, and so `main()`, still fails
   because it passes no boundary data to the map functions, tracked in #1931
   (#1927).
+- `DatabaseConnection` validates settings by database type so the shipped
+  PostgreSQL and DuckDB defaults load through Hydra. Accept IPv6 hosts and
+  file database paths, and allow file connections without server credentials.
+  A rejected assignment raises `ValidationError` and leaves the connection
+  unchanged. The stored-password policy change is listed under BREAKING
+  (#1490).
 - Instagram account insights now use UTC request boundaries regardless of
   the host timezone and label daily metrics with the day covered, one day
   before the end-of-period marker. X account snapshots use the UTC date.
@@ -524,6 +544,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `PowerPointGenerator.add_chart_slide` raises `ValueError` for a `layout`
+  other than `"single_chart"`, `"two_charts"` or `"grid"`, naming the layout
+  and listing the valid ones, and for `charts` that are not a list, tuple or
+  `None` (for example a single path string, bytes or a mapping), naming the
+  slide and the type. A chart slide section built by hand with either raises
+  when the presentation is generated, as `RuntimeError` with the same
+  message, as other slide-building errors do. In v4.0.0 an unknown layout was
+  accepted and produced a slide with only its title, placing no chart, and a
+  single path string produced one slide with a placeholder for its first
+  character (#1934). **Migration:** use one of the three layouts
+  (`"single_chart"` is the default; charts beyond what a layout holds now
+  continue on further slides), and pass charts as a list, for example
+  `["chart.png"]` instead of `"chart.png"`.
 - Instagram and X return missing account, post and insight metrics as `None`
   instead of `0`; in v4.0.0 an omitted follower, like, comment or impression
   count, and an Instagram media or story insight without a value, became 0.
@@ -698,6 +731,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `add_table_section`. An explicit `title_page` section replaces the
   automatic title page, and a report with no `title` in its content or
   metadata gets none.
+- `DatabaseConnection` no longer enforces a password-strength or length
+  policy. Server connections still require a non-empty password, and stored
+  passwords load as given. In 4.0.0 the model required at least 8
+  characters, an uppercase letter, a lowercase letter and a digit, and
+  rejected common passwords, on construction and on assignment
+  (`validate_assignment=True`); such a password now loads without
+  `ValidationError`. **Migration:** callers that relied on
+  `DatabaseConnection` to enforce password strength must validate passwords
+  themselves before constructing it (#1490).
 
 - CRM transport and server-error retries are limited to GET, PUT and DELETE.
   POST and PATCH requests are sent once, avoiding duplicate creates after a
@@ -1460,6 +1502,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     success with 0 updated. Unmatched districts are counted in
     `records_skipped`, and a partial match adds a warning. Pass the CVAP
     level whose GEOIDs equal your plan's district GEOIDs.
+- `siege_utilities.geo.plan_lifecycle`: court-stayed plans are no longer in
+  effect. `ACTIVE_STATUSES` no longer contains `PlanLifecycleStatus.STAYED`, so
+  `is_active`, `was_active_at`, `PlanLineage.plan_at` and `resolve_plan_at` stop
+  returning stayed plans; challenged plans remain active, and `resolve_plan_at`
+  falls back to an older plan only if its own lifecycle still marks it enacted
+  or challenged. Same-date lifecycle events now resolve to the most advanced
+  stage in both `status_at` and `latest_event`, so a plan adopted and enacted on
+  the same day is returned by `resolve_plan_at`. Effective date remains the
+  primary ordering key (#1442).
+  Migration: code that must still treat a stayed plan as in effect should test
+  `plan.status_at(d) in ACTIVE_STATUSES | {PlanLifecycleStatus.STAYED}` instead of
+  `was_active_at(d)`; code that relied on the first same-date event should
+  select from `plan.events` explicitly.
 - PL 94-171 parsing names geographic header fields from the 2020 schema, so
   GEOIDs use STATE instead of DIVISION. H1 is read after P3/P4 in segment 2, as
   specified by the Census technical documentation; segment 1 contains P1/P2 and
