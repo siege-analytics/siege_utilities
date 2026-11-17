@@ -103,7 +103,7 @@ not credentials are present.
 |---|---|---|
 | `CENSUS_API_KEY` | `spatial/01` (ACS demographics) | Skip income join, render boundary map without overlay |
 | `GOOGLE_APPLICATION_CREDENTIALS` | `analytics/01` | Call shape printed; analysis runs on fixture |
-| `GOOGLE_APPLICATION_CREDENTIALS` | `analytics/02` (opt-in `live-recipe` cell) | Demo always offline on the synthetic fixture; the `live-recipe` cell is the opt-in credentialed path |
+| `GOOGLE_APPLICATION_CREDENTIALS` | `analytics/02` (documentation-only `live-recipe` cell) | Demo always offline on the synthetic fixture; the `live-recipe` markdown cell documents the credentialed path and does not run |
 | `SNOWFLAKE_CONFIG_FILE` | `analytics/01` | Call shape printed |
 | `DW_AUTH_TOKEN` | `analytics/01` | Call shape printed |
 | RDH API | `spatial/04` | Synthetic stand-in polygons with call shape in comments |

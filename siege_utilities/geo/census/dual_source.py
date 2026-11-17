@@ -23,6 +23,7 @@ from requests.exceptions import Timeout
 from siege_utilities.geo.census_api_client import (
     CensusAPIError,
     CensusRateLimitError,
+    CensusServerError,
 )
 from .api import CensusAPI
 from .dataset_selector import DatasetSelector
@@ -110,10 +111,10 @@ class ApiSource:
     def fetch(self, **request: Any) -> tuple[pd.DataFrame, Provenance]:
         """Forward the request and report one source call, or raise its error.
 
-        CensusAPI wraps exhausted transport timeouts in CensusAPIError.
-        Expose that Timeout cause so the default fallback policy recognizes
-        it; other API errors propagate unchanged. The API does not expose
-        the served URL/cache path, so ``url_or_path`` is None.
+        CensusAPI reports exhausted server/transport failures as
+        CensusServerError. Also recognize wrapped Timeout causes from
+        injected clients. The API does not expose the served URL/cache
+        path, so ``url_or_path`` is None.
         """
         log.debug("Fetching Census tabular data through the API source")
         try:
@@ -382,16 +383,19 @@ class BulkFileSource:
 class AlternationPolicy:
     """Pure configuration for a bounded primary-then-secondary attempt order.
 
-    ``max_api_attempts`` is a positive source-call budget for the primary.
-    Only ``fallback_on`` errors consume that retry budget; other errors
-    propagate immediately. An empty tuple disables retries and fallback.
+    ``max_api_attempts`` is a positive source-call budget for primaries other
+    than ``ApiSource``. ``ApiSource`` is called once because ``CensusAPI``
+    owns its transport retries and delays. Only ``fallback_on`` errors
+    consume the source-call budget; other errors propagate immediately.
+    An empty tuple disables source retries and fallback, but does not
+    change retries inside ``CensusAPI``.
     ``alternate_under_sustained_pressure`` defaults to False and is reserved
     for a future cross-request scheduling policy. This framework does not
     track pressure across requests; each fetch starts with the primary.
     """
 
     max_api_attempts: int = 3
-    fallback_on: tuple[type[Exception], ...] = (CensusRateLimitError, Timeout)
+    fallback_on: tuple[type[Exception], ...] = (CensusRateLimitError, Timeout, CensusServerError)
     alternate_under_sustained_pressure: bool = False
 
     def __post_init__(self) -> None:
@@ -409,6 +413,7 @@ class DualSourceCensusClient:
     The last retrieval error propagates if no source succeeds. Each return
     includes provenance with this request's total source-call count.
     Source frames, source names, and locations are preserved.
+    ``ApiSource`` owns retries through ``CensusAPI`` and is called once.
     """
 
     def __init__(
@@ -427,22 +432,23 @@ class DualSourceCensusClient:
         Forward the same CensusAPI.fetch_data keyword arguments to each
         attempted source. Secondary errors propagate without retrying.
         """
+        max_attempts = 1 if isinstance(self.primary, ApiSource) else self.policy.max_api_attempts
         attempt = 0
         while True:
             attempt += 1
             log.debug(
                 "Fetching Census data from %s (attempt %s/%s)",
-                self.primary.name, attempt, self.policy.max_api_attempts,
+                self.primary.name, attempt, max_attempts,
             )
             try:
                 frame, provenance = self.primary.fetch(**request)
             except self.policy.fallback_on as error:
                 log.warning(
                     "Census source %s attempt %s/%s failed (%s)",
-                    self.primary.name, attempt, self.policy.max_api_attempts,
+                    self.primary.name, attempt, max_attempts,
                     type(error).__name__,
                 )
-                if attempt == self.policy.max_api_attempts:
+                if attempt == max_attempts:
                     log.warning(
                         "Falling back to Census source %s",
                         self.secondary.name,

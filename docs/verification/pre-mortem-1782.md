@@ -8,7 +8,7 @@ propagation-deferred: "Repo-resident pre-mortem for PR #1782 (#1662); travels wi
 The GA end-to-end notebook presented a fixed April fixture as a live or weekly client digest, and inbound references in other notebooks and the notebook guide repeated that claim. The neighboring PR #1787 edits the same first cell of the reports/01 notebook.
 
 ## Approach
-Label the notebook an offline fixed-date demo, document a separate credentialed recipe with tests, reword every inbound reference, drop `analytics/02` from the credential row, run the credential-free notebook in the pure notebook lane, and place the release note in `[4.1.0]`.
+Label the notebook an offline fixed-date demo, document a separate credentialed recipe with tests, reword every inbound reference, keep `analytics/02` in the credential row framed as an always-offline demo with a documentation-only `live-recipe` cell, run the credential-free notebook in the pure notebook lane, and place the release note in `[5.0.0]` (develop renamed the former `[4.1.0]` section).
 
 ## Risks
 ### R1: overlap with #1787 in the reports/01 first cell

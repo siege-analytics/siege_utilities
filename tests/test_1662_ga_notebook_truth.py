@@ -118,12 +118,19 @@ def test_pure_offline_cells_generate_a_labelled_pdf(monkeypatch):
     with patch(GA_FACTORY, side_effect=AssertionError("Offline demo attempted authentication")):
         namespace = _run_cells(*indices)
     reader = PdfReader(namespace["pdf_path"])
-    assert len(reader.pages) == 1
-    text = reader.pages[0].extract_text().lower()
+    # A titled report starts with a title page (#1485); the digest follows on
+    # one page.
+    assert len(reader.pages) == 2
+    title_page = reader.pages[0].extract_text().lower()
+    assert "client x: offline fixed-date ga demo" in title_page
+    text = reader.pages[1].extract_text().lower()
     assert "offline" in text and "fixed-date" in text and "fixture" in text
     assert "2026-04-17" in text and "2026-04-23" in text
     assert "3000" in text and "11.8%" in text
-    assert not re.search(r"\b(live|current|last\s+7\s+days)\b", text)
+    for page in reader.pages:
+        assert not re.search(
+            r"\b(live|current|last\s+7\s+days)\b", page.extract_text().lower()
+        )
     chart_title = namespace["ax"].get_title().lower()
     assert "offline" in chart_title and "2026-04-17" in chart_title
     assert "offline" in namespace["pdf_path"].name
