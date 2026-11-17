@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -128,6 +128,10 @@ class TemporalTimeseriesBuilder:
             snapshots_df = _pd.concat(frames, ignore_index=True)
 
         results = []
+        # Grouped once, on the first variable, and reused for every variable,
+        # instead of filtering the whole frame per boundary per variable (#1891).
+        boundary_ids = None
+        boundary_positions: list[list[int]] = []
         for variable in variables:
             result = TimeseriesBuildResult(
                 variable_code=variable,
@@ -135,9 +139,15 @@ class TemporalTimeseriesBuilder:
             )
             series_list: list[DemographicTimeSeriesSchema] = []
 
-            boundary_ids = snapshots_df["boundary_id"].unique()
-            for bid in boundary_ids:
-                bid_rows = snapshots_df[snapshots_df["boundary_id"] == bid]
+            if boundary_ids is None:
+                boundary_ids = snapshots_df["boundary_id"].unique()
+                boundary_positions = self._positions_by_boundary(
+                    snapshots_df, boundary_ids
+                )
+            for bid, positions in zip(boundary_ids, boundary_positions):
+                # A missing id (None/NaN) gets no positions and so no rows, as
+                # the previous ``== bid`` filter matched none for it.
+                bid_rows = snapshots_df.take(positions)
 
                 values_by_year: dict[int, float | int] = {}
                 moe_by_year: dict[int, float | int] = {}
@@ -198,6 +208,32 @@ class TemporalTimeseriesBuilder:
             )
 
         return results
+
+    @staticmethod
+    def _positions_by_boundary(
+        snapshots_df: "pd.DataFrame", boundary_ids: Any
+    ) -> list[list[int]]:
+        """Row positions for each entry of ``boundary_ids``, in frame order.
+
+        One pass over the ``boundary_id`` column replaces a full-frame filter
+        per boundary. ``pd.factorize`` (unsorted) groups equal ids with the
+        same hash-table equivalence ``unique()`` uses and gives missing ids
+        (None/NaN) no group. Each entry of ``boundary_ids`` is matched to its
+        group with ``Index.get_indexer`` (pandas' own lookup, so numpy and
+        pandas scalar types of the same id match); a missing id matches no
+        group and gets an empty list. Only integer positions are kept; callers
+        ``take()`` them, which keeps the frame's columns and dtypes exactly as
+        the previous boolean-filtered sub-frame did.
+        """
+        import pandas as _pd
+
+        codes, uniques = _pd.factorize(snapshots_df["boundary_id"], sort=False)
+        groups: list[list[int]] = [[] for _ in range(len(uniques))]
+        for pos, code in enumerate(codes):
+            if code >= 0:
+                groups[code].append(pos)
+        group_of_id = _pd.Index(uniques).get_indexer(boundary_ids)
+        return [groups[g] if g >= 0 else [] for g in group_of_id]
 
     @staticmethod
     def _std_dev(values: list, mean: float) -> float:
