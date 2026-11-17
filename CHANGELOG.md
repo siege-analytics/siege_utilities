@@ -170,6 +170,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that drop their description or an under-filled layout, callers that build
   empty contents and agenda slides, and image objects that point at a file
   are tracked in #1934 (#1933).
+- `PowerPointGenerator` chart slides no longer drop charts or produce an
+  empty slide without saying so. They show the description that
+  `add_chart_slide` stores. A layout with fewer charts than it holds
+  (`two_charts` with one chart, `grid` with one to three) places the charts
+  it has instead of none, and charts beyond what a layout holds (a second
+  chart on `single_chart`, a third on `two_charts`, a fifth on `grid`)
+  continue on slides titled "<title> (continued)" instead of being dropped.
+  Chart positions and the slide layout are unchanged, so a single chart on the
+  default layout without a description produces the same slide. A chart slide
+  with no charts, including `None` under `charts`, logs a warning, and so does
+  a chart given as a mapping whose `image_path` or `path` is empty.
+  Placeholder warnings on chart and map slides now name a missing path, but
+  for any other item give only its type name, or a mapping's sorted keys,
+  never its values (#1934).
+- The reporting map engine's Folium maps (`create_marker_map`,
+  `create_heatmap_map`, `create_cluster_map` and `create_flow_map`) no longer
+  raise when given a title, and `create_marker_map` no longer raises with its
+  default style. With folium 0.18 and later, the title was added as an empty
+  tile layer without an attribution, and the default style
+  `"open-street-map"` is not a tile provider name, so folium rejected both and
+  the map raised `RuntimeError`. The title is now a heading in the saved map,
+  shown as text: it is HTML-escaped, quotes included, and its braces are
+  written as character references, because the heading is built with
+  `folium.Element`, which reads its string as a Jinja2 template. A title such
+  as `{{ 7 * 191 }}` therefore appears as typed instead of being evaluated,
+  and no title can raise a template error. The default style is
+  `"OpenStreetMap"`, the documented `"open-street-map"` style is mapped to it,
+  and a tile provider object such as an xyzservices `TileProvider` is passed
+  to folium unchanged (#1936).
+- The shipped example
+  `siege_utilities/reporting/examples/comprehensive_mapping_example.py` now
+  runs end to end. Its choropleth maps get region boundaries built in memory
+  (simplified rectangles, no data file or network access) instead of
+  `geodata=None`, which raised `RuntimeError`; its maps are scaled to fit the
+  report page, which previously overflowed it; and its interactive maps are
+  saved under the working directory, in `interactive_maps/`, instead of in
+  `~/.siege_utilities` in the user's home directory. Its cluster map no longer
+  names a `region` column the city data does not have. When a step fails,
+  `main()` now prints `Error while <step>: <error>`, where the step is
+  creating the maps, the PDF report or the PowerPoint presentation, and
+  re-raises, so the script exits with an error instead of returning normally.
+  It does this for the chart engine's `RuntimeError`, `ImportError`,
+  ReportLab's `LayoutError` and the `ValueError`, `TypeError`, `KeyError`,
+  `IndexError`, `AttributeError` and `OSError` it already caught, where before
+  it swallowed those and missed the rest. Its four interactive maps still reach
+  the PDF and slides as "saved to" placeholder images, tracked in #1937
+  (#1931).
 - Package introspection (`analyze_package_structure`, `analyze_module` and
   `generate_architecture_diagram`) now recurses only into `siege_utilities`
   submodules, chosen by module name instead of a file-path substring, and
@@ -310,6 +357,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (PostgreSQL 15+). Widen congressional-terms uniqueness to
   `(congress_number, seat_id, office_term_id)` so a successor can serve the
   same seat in the same Congress (#1468).
+- Label `analytics/02_ga_end_to_end.ipynb` and its chart, PDF and sharing
+  example as an offline fixed-date demo. The April 2026 fixture and fixed
+  prior-week comparison no longer appear to be queried GA results. Document
+  a separate credentialed two-week query that raises on failed or malformed
+  results, and test the offline output and documented recipe. Note that GA
+  may still be processing recent days, so the latest queried week can be
+  understated. Run the credential-free notebook in pure notebook CI, keep
+  PyPDF2 optional during test collection, and label inbound links as the
+  offline fixed-date demo (#1662).
 - Docstring generation inserts lines without rewriting existing comments or
   formatting, handles async definitions, and extracts signature details without
   importing target files. File exclusions match path components and include
@@ -530,6 +586,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `PowerPointGenerator.add_chart_slide` raises `ValueError` for a `layout`
+  other than `"single_chart"`, `"two_charts"` or `"grid"`, naming the layout
+  and listing the valid ones, and for `charts` that are not a list, tuple or
+  `None` (for example a single path string, bytes or a mapping), naming the
+  slide and the type. A chart slide section built by hand with either raises
+  when the presentation is generated, as `RuntimeError` with the same
+  message, as other slide-building errors do. In v4.0.0 an unknown layout was
+  accepted and produced a slide with only its title, placing no chart, and a
+  single path string produced one slide with a placeholder for its first
+  character (#1934). **Migration:** use one of the three layouts
+  (`"single_chart"` is the default; charts beyond what a layout holds now
+  continue on further slides), and pass charts as a list, for example
+  `["chart.png"]` instead of `"chart.png"`.
 - Instagram and X return missing account, post and insight metrics as `None`
   instead of `0`; in v4.0.0 an omitted follower, like, comment or impression
   count, and an Instagram media or story insight without a value, became 0.
@@ -1136,6 +1205,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `median_age` are NULL when the source estimate is a negative Census
   sentinel or not numeric. Fractional estimates (for example rollup
   averages) are rounded to the nearest integer instead of truncated (#1550).
+- Pandas geocode validation uses world ranges for geographic CRSs, retaining
+  NAD83/EPSG:4269 coordinates on both sides of the antimeridian and in Guam,
+  American Samoa and Saipan. A projected coordinate is valid when it
+  inverse-projects into the CRS's published area of use (within 0.01 degrees,
+  the precision of EPSG area-of-use bounds) and projects back to itself, so
+  southern CONUS points and projection extrema in EPSG:5070, EPSG:5069 and
+  EPSG:3413 are kept and points outside the area of use are invalid.
+  Both filtering and validity marking reject the exact geographic `(0, 0)`
+  failed-geocode sentinel while accepting single-zero coordinates and valid
+  projected origins. If a projected CRS has no area of use or its
+  transformation fails, a warning is logged and finite coordinates are
+  accepted instead of being compared with degrees. Spark
+  `validate_geocode_data` and `mark_valid_geocode_data` now reject the exact
+  geographic `(0, 0)` sentinel, matching pandas; single-zero coordinates within
+  world ranges remain valid. Which rows are kept or marked valid therefore
+  differs from v4.0.0: rows at the `(0, 0)` sentinel are dropped or marked
+  invalid, coordinates v4.0.0 wrongly dropped are kept, and projected
+  coordinates outside the CRS area of use are invalid. **Migration:**
+  re-check any count or join that depended on which geocodes passed
+  validation; to retain sentinel or out-of-area rows for inspection, use the
+  marking function instead of the filtering function (#1459).
 - `records_created` from the demographic, rollup, timeseries, crosswalk,
   NCES and timezone loaders and `populate_pl_demographics` counts only rows
   inserted: rows dropped by `ON CONFLICT DO NOTHING` (concurrent loads,
@@ -1485,6 +1575,163 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     success with 0 updated. Unmatched districts are counted in
     `records_skipped`, and a partial match adds a warning. Pass the CVAP
     level whose GEOIDs equal your plan's district GEOIDs.
+- `siege_utilities.geo.plan_lifecycle`: court-stayed plans are no longer in
+  effect. `ACTIVE_STATUSES` no longer contains `PlanLifecycleStatus.STAYED`, so
+  `is_active`, `was_active_at`, `PlanLineage.plan_at` and `resolve_plan_at` stop
+  returning stayed plans; challenged plans remain active, and `resolve_plan_at`
+  falls back to an older plan only if its own lifecycle still marks it enacted
+  or challenged. Same-date lifecycle events now resolve to the most advanced
+  stage in both `status_at` and `latest_event`, so a plan adopted and enacted on
+  the same day is returned by `resolve_plan_at`. Effective date remains the
+  primary ordering key (#1442).
+  Migration: code that must still treat a stayed plan as in effect should test
+  `plan.status_at(d) in ACTIVE_STATUSES | {PlanLifecycleStatus.STAYED}` instead of
+  `was_active_at(d)`; code that relied on the first same-date event should
+  select from `plan.events` explicitly.
+- PL 94-171 parsing names geographic header fields from the 2020 schema, so
+  GEOIDs use STATE instead of DIVISION. H1 is read after P3/P4 in segment 2, as
+  specified by the Census technical documentation; segment 1 contains P1/P2 and
+  segment 3 contains P5. This restores housing columns and fixes P3/P4 requests
+  failing with a column-count mismatch. Malformed segment widths, a record whose
+  field count differs from the first record of its file, a data-segment count
+  that is neither empty nor digits, text that is not valid UTF-8, and segments
+  missing from the archive raise `ValueError`, before the affected file's parsed
+  cache is written (a header or segment already parsed in the same call keeps
+  its valid cache). Fields are split on every `|` and quote characters are kept
+  as data, so a record is never padded with missing values or collapsed into
+  fewer fields; only an empty field becomes a missing value, and whitespace-only
+  lines are skipped. PL text is decoded as UTF-8, as the Census 2020 files are
+  encoded, so accented place names are no longer misread as Latin-1. Repeated linking fields no
+  longer collide when merging all tables, and old parsed caches are bypassed. Parsing
+  2010 files raises `ValueError` explaining their fixed-width geographic headers
+  and comma-delimited data segments; raw archive downloads remain supported.
+  `get_data` downloads each state archive at most once per call, streamed to a
+  temporary file. `P1_009N`–`P1_011N` labels match the 2020 table (#1488).
+  Migration: GEOIDs from v4.0.0 PL results (e.g. `09037101110` for a California
+  tract) were wrong and should be regenerated; code that caught a `KeyError` or
+  merge failure for 2010, or relied on an empty frame for a missing segment,
+  should catch `ValueError`. Geographic header columns are named (`FILEID`,
+  `STUSAB`, `SUMLEV`, `LOGRECNO`, `STATE`, and so on; fields after the named
+  prefix are `GEO_EXTRA_<n>`) instead of integer labels, so select them by
+  name. Joined results carry a single `STUSAB` (and `FILEID`, `CHAESSION`,
+  `CIFSN`) from the geographic header instead of suffixed pairs such as
+  `STUSAB_x`/`STUSAB_y`; replace suffixed selections with the single name.
+  Code that matched accented place names as v4.0.0 misread them must match the
+  correct UTF-8 text. A record with the wrong field count, or a count field
+  holding anything but digits, now raises instead of being padded or dropped,
+  so repair the input file. Text such as `NA` or `NULL` in a geographic field
+  is kept as text rather than read as a missing value. Parsed caches from earlier versions
+  are not reused, so the first call after upgrading re-downloads and re-parses
+  each state archive.
+- `CensusAPI` response processing maps all nine ACS jam sentinel values to NaN
+  in ACS detailed-table estimate/MOE columns, using the same sentinel sets as
+  the bulk source. Geography components (e.g. `zip code tabulation area`,
+  `congressional district`), `GEO_ID` and annotation variables (`..._EA`,
+  `..._MA`) keep their text and leading zeros. Every other variable column,
+  including decennial (`dataset='dec'`) and PEP (`dataset='pep'`) variables,
+  is still converted to numbers. Jam values are matched by numeric value
+  after parsing, in both `CensusAPI` and the bulk Summary File source, so
+  encodings such as `' -666666666 '`, `'-666666666.0'` and `'-6.66666666e+08'`
+  become NaN as well; before, only the canonical integer string was masked.
+  The processed-response cache key now includes a format version, so frames
+  cached by v4.0.0, with the jam values kept and leading zeros and
+  annotations lost, are no longer returned (#1403).
+  Migration: code that compared ACS values against jam codes such as
+  `-666666666` should test `isna()`; code that relied on numeric geography
+  components or annotations should cast them explicitly (e.g.
+  `df['zip code tabulation area'].astype(int)`). The first `fetch_data` call
+  for each request cached before this version makes one fresh API request
+  instead of reading the cache. The old Parquet cache files are left in
+  `cache_dir` and are no longer read; `clear_cache()` removes them. Legacy
+  Django cache entries are left in the backend and remain subject to its
+  configured TTL and eviction policy; entries stored without an expiry
+  persist until removed with the backend's own cleanup. The library does not
+  purge Django keys.
+- `google_sheets.write_dataframe` now writes with `RAW` input by default,
+  preserving leading zeros and storing formula-like strings literally; pass
+  `value_input_option="USER_ENTERED"` to have Sheets parse values as typed.
+  Any other value raises `ValueError` before any request. Dates and datetimes
+  are serialized as ISO-8601 strings, numpy scalars become native Python
+  values without row-wise integer-to-float coercion, missing values become
+  empty strings, and other objects are stringified (#1432). Non-finite
+  numbers (`inf`, `-inf`, including numpy floats) raise `ValueError` naming
+  the row and column before anything is cleared or written; `NaN` is still
+  written as an empty string.
+  Migration: callers that relied on formulas or on Sheets parsing numbers
+  and dates pass `value_input_option="USER_ENTERED"`. Callers whose frames
+  can hold infinities replace them before writing, for example
+  `df.replace([np.inf, -np.inf], np.nan)`; the tab is left untouched when
+  the check fails.
+- `google_sheets.write_dataframe` clears all values in the selected tab before
+  writing, including cells outside the new DataFrame footprint and before
+  `start_cell`, so smaller replacements leave no stale rows or columns.
+  Formatting and other tabs are unaffected. Clear and update are separate
+  requests; an update failure after clearing leaves the previous values
+  removed (#1432).
+  Migration: use `write_values` for partial updates or to share a tab with
+  other tables; its `USER_ENTERED` default is unchanged.
+- `google_sheets.read_dataframe` no longer raises `ValueError` on ragged
+  sheets: with `has_header=True`, rows are right-padded with `""` and missing
+  trailing header cells are named `column_<n>` (#1432).
+  Migration: callers that caught the `ValueError` to detect ragged sheets
+  should check for `column_<n>` names or `""` padding instead.
+- `interpolate_areal` (and `interpolate_extensive` / `interpolate_intensive`)
+  measures source and overlap areas in an equal-area CRS on every backend
+  (tobler, DuckDB and Shapely), correcting latitude-biased extensive
+  allocations and intensive averages. The CRS is the new keyword-only
+  `area_crs` (default World Mollweide, `ESRI:54009`); an invalid value, or
+  one that is not a projected CRS (geographic, or geocentric such as
+  `EPSG:4978`), raises `ValueError`, and the CRS used is recorded in the new
+  `ArealInterpolationResult.area_crs`. Whether a source and a target overlap
+  is decided per pair in the common working CRS before areas are measured,
+  and only overlapping pairs contribute on every backend: a pair that only
+  shares an edge adds no mass, no rate weight and, with tobler's
+  `allocate_total`, no share of the source's total, even where projecting
+  only vertices to `area_crs` leaves a thin sliver. A target with no
+  overlapping pair receives zero for extensive and NaN for intensive
+  variables, whatever the other targets in the call. Output geometries default to the
+  original source CRS, as documented, or use the explicit `crs` argument;
+  source CRS metadata also retains the original input CRS (#1407).
+  Migration: allocations change for geographic inputs (e.g. a 30–45°N source
+  split by latitude now gives 525.2/474.8 instead of 500/500), including on
+  the tobler backend, which no longer warns about a geographic CRS; callers
+  that need another equal-area projection pass `area_crs`, and callers that
+  relied on the library-default output CRS pass `crs` explicitly. A
+  geocentric or other non-projected `area_crs` must be replaced with a
+  projected equal-area CRS. On the tobler backend the area table is now built
+  by the library and passed to tobler, so `n_jobs` no longer has an effect.
+  `ArealInterpolationResult` is a plain dataclass that gains a trailing
+  `area_crs` field with a default: keyword and positional construction keep
+  working, but `dataclasses.astuple()` / `asdict()` output gains one element /
+  key and equality now also compares `area_crs`.
+- `demographic_profile` assigns Census units by their representative interior
+  points, so units straddling district boundaries are counted once rather than
+  dropped; a point on a shared district edge goes to the first matching
+  district with a non-null ID in `plan_gdf` row order (rows without a district
+  ID are ignored). Every district in `plan_gdf` now appears in
+  the result, with zeros where no unit is assigned, and units whose interior
+  point intersects no district with a non-null ID raise a `UserWarning` stating
+  how many were excluded and their summed population (for population columns
+  of any dtype, including object and Arrow). Districts that receive no unit
+  are named in a `UserWarning` and listed, in plan order and as plain Python
+  values, in `result.attrs["districts_without_units"]`, so their zeros can be
+  told apart from real zero totals; this holds for categorical district IDs
+  too. Rows follow the first-occurrence order of district IDs in `plan_gdf`
+  (#1562).
+  Migration: district totals change wherever units straddle boundaries; to
+  recover v4.0.0's omission of empty districts, drop the districts listed in
+  `result.attrs["districts_without_units"]` (a `result[population_col] > 0`
+  filter also drops districts whose real total is zero), and treat the
+  warnings as the signal that census coverage and the plan do not match.
+  v4.0.0 returned rows sorted by district ID; call
+  `sort_values(district_id_col)` where order matters.
+  `RDHLoaderService.load_demographics_for_plan`
+  (`geo/django/services/rdh_loader.py`) still stores nothing for districts
+  that receive no census unit, as in v4.0.0, but now counts them in
+  `records_skipped` and reports them as a warning; a load in which no
+  district receives a unit now fails (`success` is False), where v4.0.0
+  reported success with nothing stored. The overlay's warnings are recorded
+  in the result's `warnings`.
 
 ### Security
 

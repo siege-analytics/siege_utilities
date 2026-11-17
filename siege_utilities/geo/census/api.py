@@ -8,6 +8,7 @@ retry logic, and DataFrame post-processing.
 import hashlib
 import logging
 import os
+import re
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -23,7 +24,9 @@ from siege_utilities.config import (
 )
 from siege_utilities.config.user_config import get_user_config
 from siege_utilities.core._http import redact_url_secrets
-from .variable_registry import VariableRegistry
+from .variable_registry import (  # noqa: F401 -- the sentinel sets are re-exported here
+    ACS_SENTINELS, ACS_SENTINEL_STRINGS, VariableRegistry, _mask_acs_sentinels,
+)
 from .dataset_selector import DatasetSelector
 
 from siege_utilities.files.operations import atomic_write_path
@@ -45,6 +48,35 @@ CENSUS_API_DEFAULT_TIMEOUT = 30  # seconds
 
 # Rate limit handling
 CENSUS_API_RATE_LIMIT_RETRY_DELAY = 60  # seconds
+
+# ACS detailed-table estimates and MOEs: the only columns carrying jam values.
+_ACS_ESTIMATE_OR_MOE = re.compile(r'[BC][0-9]{5}[A-Z]*_[0-9]{3}[EM]')
+# Annotation variables (estimate/MOE annotations, incl. profile percent ones).
+_ANNOTATION_VARIABLE = re.compile(r'.+_[0-9]{3,4}P?[EM]A')
+# Identifier columns that are uppercase like variables but are not data.
+_IDENTIFIER_COLUMNS = frozenset({'GEOID', 'NAME', 'GEO_ID', 'UCGID'})
+# Version of the processed-response format, part of every cache key. Raise it
+# whenever _process_response changes what it returns, so frames cached by an
+# earlier version are not read back. Version 2: ACS jam values become NaN, and
+# identifiers, geography components and annotations keep their text (#1403);
+# version 4.0.0 keys carried no version.
+_PROCESSED_CACHE_VERSION = 2
+
+
+def _is_census_variable_column(col: Any) -> bool:
+    """True for Census data variables (uppercase codes such as ``P1_001N``).
+
+    The Census API returns requested variables under their uppercase codes and
+    geography components under lowercase names (``'state'``, ``'us'``,
+    ``'zip code tabulation area'``), so any column with a lowercase letter is a
+    geography component or other non-variable field.
+    """
+    name = str(col)
+    if name.upper() in _IDENTIFIER_COLUMNS:
+        return False
+    if name != name.upper():
+        return False
+    return _ANNOTATION_VARIABLE.fullmatch(name) is None
 
 
 class CensusAPI:
@@ -342,13 +374,27 @@ class CensusAPI:
 
     @staticmethod
     def _convert_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
+        """Convert Census variables to numbers, preserving identifiers and annotations.
+
+        Every variable column of every dataset (``B01001_001E``, ``P1_001N``,
+        ``POP_2020``) becomes numeric. Identifier columns (``GEOID``, ``NAME``,
+        ``GEO_ID``, ``ucgid``), geography components (the API names them in
+        lowercase, e.g. ``'zip code tabulation area'``) and annotation
+        variables (``..._001EA`` / ``..._001MA``) keep their text. ACS jam
+        values become NaN only in ACS detailed-table estimate/MOE columns;
+        values that are not numbers become NaN, as on v4.0.0.
+        """
         df = df.copy()
-        skip_cols = {'GEOID', 'NAME'}
         for col in df.columns:
-            if col in skip_cols:
+            if not _is_census_variable_column(col):
                 continue
             try:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+                parsed = pd.to_numeric(df[col], errors='coerce')
+                if _ACS_ESTIMATE_OR_MOE.fullmatch(str(col)):
+                    # By value after parsing, so padded, decimal and
+                    # scientific encodings of a jam value are masked too.
+                    parsed = _mask_acs_sentinels(parsed)
+                df[col] = parsed
             except (ValueError, TypeError) as exc:
                 log.warning(
                     "Could not convert column %s to numeric: %s",
@@ -376,6 +422,9 @@ class CensusAPI:
             geography,
             state_fips or '',
             county_fips or '',
+            # Frames cached before the current processed format have other
+            # keys, so they are re-fetched instead of returned unnormalized.
+            f'processed-v{_PROCESSED_CACHE_VERSION}',
         ]
         key_str = '|'.join(key_parts)
         # Known bandit B324 finding, suppressed here and tracked in #1754.
