@@ -1583,6 +1583,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is kept as text rather than read as a missing value. Parsed caches from earlier versions
   are not reused, so the first call after upgrading re-downloads and re-parses
   each state archive.
+- `CensusAPI` response processing maps all nine ACS jam sentinel values to NaN
+  in ACS detailed-table estimate/MOE columns, using the same sentinel sets as
+  the bulk source. Geography components (e.g. `zip code tabulation area`,
+  `congressional district`), `GEO_ID` and annotation variables (`..._EA`,
+  `..._MA`) keep their text and leading zeros. Every other variable column,
+  including decennial (`dataset='dec'`) and PEP (`dataset='pep'`) variables,
+  is still converted to numbers. Jam values are matched by numeric value
+  after parsing, in both `CensusAPI` and the bulk Summary File source, so
+  encodings such as `' -666666666 '`, `'-666666666.0'` and `'-6.66666666e+08'`
+  become NaN as well; before, only the canonical integer string was masked.
+  The processed-response cache key now includes a format version, so frames
+  cached by v4.0.0, with the jam values kept and leading zeros and
+  annotations lost, are no longer returned (#1403).
+  Migration: code that compared ACS values against jam codes such as
+  `-666666666` should test `isna()`; code that relied on numeric geography
+  components or annotations should cast them explicitly (e.g.
+  `df['zip code tabulation area'].astype(int)`). The first `fetch_data` call
+  for each request cached before this version makes one fresh API request
+  instead of reading the cache. The old Parquet cache files are left in
+  `cache_dir` and are no longer read; `clear_cache()` removes them. Legacy
+  Django cache entries are left in the backend and remain subject to its
+  configured TTL and eviction policy; entries stored without an expiry
+  persist until removed with the backend's own cleanup. The library does not
+  purge Django keys.
 
 ### Security
 
