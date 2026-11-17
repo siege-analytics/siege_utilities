@@ -73,6 +73,24 @@ class TestTimeseriesService:
         with pytest.raises(ValueError):
             TimeseriesService._cagr(0, 100, 5)
 
+    @pytest.mark.parametrize("periods", [1, 2, 10])
+    @pytest.mark.parametrize("end_value", [-666666666, -999999999, -1])
+    def test_cagr_negative_end_raises(self, end_value, periods):
+        from siege_utilities.geo.django.services.timeseries_service import TimeseriesService
+
+        # A raw Census sentinel kept as the last value gives a negative
+        # end/start ratio. Its fractional power is a complex number, which the
+        # cagr FloatField cannot store, so the helper must report the CAGR as
+        # undefined (ValueError) for the caller to store None (#1622).
+        with pytest.raises(ValueError, match="negative"):
+            TimeseriesService._cagr(1000, end_value, periods)
+
+    def test_cagr_zero_end_is_total_decline(self):
+        from siege_utilities.geo.django.services.timeseries_service import TimeseriesService
+
+        # A zero end is a real -100% rate, not undefined.
+        assert TimeseriesService._cagr(1000, 0, 10) == -1.0
+
     def test_trend_direction_increasing(self):
         from siege_utilities.geo.django.services.timeseries_service import TimeseriesService
 

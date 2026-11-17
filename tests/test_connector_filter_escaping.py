@@ -157,4 +157,4 @@ def test_zoho_query_escapes_criteria_values(value, escaped, as_list, monkeypatch
 
     criteria = f"Last_Name in ('{escaped}')" if as_list else f"Last_Name = '{escaped}'"
     query = request.call_args.kwargs["json_body"]["select_query"]
-    assert query == f"select Last_Name from Contacts where {criteria}"
+    assert query == f"select Last_Name from Contacts where {criteria} limit 0, 200"

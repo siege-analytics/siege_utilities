@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   static-guards:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: "static guards"
     # One job for the single-script guards, so a run holds 10 fewer runners
     # on the org's 20-job cap (#1729). Steps after the first run even when an
@@ -84,7 +84,7 @@ jobs:
         run: python scripts/check_lazy_imports.py
 
   test-file-hygiene:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: "test file hygiene"
 
     steps:
@@ -100,7 +100,7 @@ jobs:
         python scripts/check_test_file_hygiene.py
 
   notebook-governance:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: "notebook governance + pure execution"
     # E2E notebooks verified green on 3.13 and 3.14 in #1365. 3.11 and 3.13
     # block; 3.14 is non-blocking while its recently released native stack
@@ -119,10 +119,14 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install system geospatial libraries
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends \
-          gdal-bin libgdal-dev libgeos-dev libproj-dev
+      # Cached .deb archives, a fallback mirror on retry and a 45-minute budget
+      # for the final download (#1871); a 38-minute install on develop exited 0.
+      # The step timeout sits above the script's own bounded worst case (about
+      # 73 minutes), so the script reports first and the 6-hour default never applies.
+      timeout-minutes: 80
+      uses: ./.github/actions/apt-install
+      with:
+        packages: gdal-bin libgdal-dev libgeos-dev libproj-dev
 
     - name: Install UV
       run: |
@@ -159,7 +163,7 @@ jobs:
         if-no-files-found: ignore
 
   lint-ratchet:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: "lint ratchet"
     # Phase 1 and phases 2-4 in one job (#1729); every phase reports even
     # after an earlier one fails.
@@ -215,7 +219,7 @@ jobs:
         python scripts/check_lint_ratchet.py --phase phase4
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # 3.14 runs as a non-blocking gate while its recently released native stack
     # (numba / apache-sedona / pyspark wheels) stabilizes. 3.11-3.13 block.
     continue-on-error: ${{ matrix.python-version == '3.14' }}
@@ -227,10 +231,14 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Install system geospatial libraries
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends \
-          gdal-bin libgdal-dev libgeos-dev libproj-dev
+      # Cached .deb archives, a fallback mirror on retry and a 45-minute budget
+      # for the final download (#1871); a 38-minute install on develop exited 0.
+      # The step timeout sits above the script's own bounded worst case (about
+      # 73 minutes), so the script reports first and the 6-hour default never applies.
+      timeout-minutes: 80
+      uses: ./.github/actions/apt-install
+      with:
+        packages: gdal-bin libgdal-dev libgeos-dev libproj-dev
 
     - name: Set up Java 17
       uses: actions/setup-java@v4
@@ -307,7 +315,7 @@ jobs:
         uv run --no-sync pytest -o addopts= tests/test_pydantic_v1_compat.py -v
 
   test-postgis:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
       postgis:
@@ -343,10 +351,18 @@ jobs:
         python-version: "3.11"
 
     - name: Install system geospatial libraries
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends \
-          gdal-bin libgdal-dev libgeos-dev libproj-dev
+      # Cached .deb archives, a fallback mirror on retry and a bounded final
+      # download (#1871). Sized to this job's 20 minutes: the shorter limits
+      # bound the script at 851 s, under the 15-minute step, which leaves 5
+      # minutes for the other steps (they have taken at most 181 s), so a slow
+      # mirror fails this step cleanly instead of cancelling the job.
+      timeout-minutes: 15
+      uses: ./.github/actions/apt-install
+      with:
+        packages: gdal-bin libgdal-dev libgeos-dev libproj-dev
+        attempt-timeout: "60"
+        final-network-timeout: "240"
+        dpkg-timeout: "60"
 
     - name: Install UV
       run: |
@@ -409,7 +425,7 @@ jobs:
         PY
 
   test-core:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: "core-only (no heavy deps)"
 
     steps:
@@ -438,7 +454,7 @@ jobs:
         uv run pytest tests/test_backward_compat.py tests/test_pydantic_v1_compat.py tests/test_sql_safety.py -v --no-cov
 
   api-security-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: "api, security and build"
     # API contract regression, security and build share one runner (#1729).
     # Each part reports even after an earlier one fails; any failure fails the job.
@@ -494,9 +510,16 @@ jobs:
       if: ${{ !cancelled() }}
       # Resolves every pinned dependency of --extra all --extra dev without
       # installing it. PYSEC-2026-1835 (PyPDF2) is ignored until #1754.
+      # The audit targets 3.11.5, not a bare 3.11: uv treats an omitted patch
+      # as .0, and at 3.11.0 the soupsieve>=4.0.0 marker in the extras is off.
+      # 3.11.5 mirrors that marker floor; tests/test_1895_soupsieve_marker.py
+      # pins both to 3.11.5. This audits the 3.11.5 resolution on the Linux
+      # runner only, not the whole >=3.11 range: on 3.11.0 to 3.11.4 soupsieve
+      # <4 (affected by CVE-2026-126190) stays installable, and that range is
+      # not audited here (#1895).
       run: |
         python -m pip install uv
-        uv pip compile pyproject.toml --extra all --extra dev --python-version 3.11 -o security-requirements.txt
+        uv pip compile pyproject.toml --extra all --extra dev --python-version 3.11.5 -o security-requirements.txt
         pip-audit -r security-requirements.txt --no-deps --disable-pip --progress-spinner off \
           --ignore-vuln PYSEC-2026-1835 --format json --output pip-audit-report.json \
           || { pip-audit -r security-requirements.txt --no-deps --disable-pip --progress-spinner off --ignore-vuln PYSEC-2026-1835; exit 1; }
@@ -556,7 +579,7 @@ jobs:
         path: dist/
 
   test-geo-no-gdal:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: "geo without GDAL"
 
     steps:
@@ -607,7 +630,7 @@ jobs:
           --ignore=tests/test_demographics_overlay.py
 
   makemigrations-check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: "django models match migrations (siege_geo)"
     # Model-vs-migration drift is invisible to every other test job — a
     # model can declare Meta.indexes / fields without a companion
@@ -618,10 +641,14 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Install system geospatial libraries
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends \
-          gdal-bin libgdal-dev libgeos-dev libproj-dev
+      # Cached .deb archives, a fallback mirror on retry and a 45-minute budget
+      # for the final download (#1871); a 38-minute install on develop exited 0.
+      # The step timeout sits above the script's own bounded worst case (about
+      # 73 minutes), so the script reports first and the 6-hour default never applies.
+      timeout-minutes: 80
+      uses: ./.github/actions/apt-install
+      with:
+        packages: gdal-bin libgdal-dev libgeos-dev libproj-dev
 
     - name: Set up Python 3.11
       uses: actions/setup-python@v5
@@ -649,7 +676,7 @@ jobs:
         uv run python -m django makemigrations siege_geo --check --dry-run
 
   griffe-api-diff:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: "griffe api-diff (writing-releases:1)"
     # Griffe diffs the current public API against the baseline branch and
     # reports breaking changes at the symbol level (removed/renamed/
@@ -696,17 +723,21 @@ jobs:
           || echo "::warning::griffe found API changes vs base branch — review whether BREAKING changelog entry is needed (writing-releases:1)"
 
   battle-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: test
 
     steps:
     - uses: actions/checkout@v4
 
     - name: Install system geospatial libraries
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends \
-          gdal-bin libgdal-dev libgeos-dev libproj-dev
+      # Cached .deb archives, a fallback mirror on retry and a 45-minute budget
+      # for the final download (#1871); a 38-minute install on develop exited 0.
+      # The step timeout sits above the script's own bounded worst case (about
+      # 73 minutes), so the script reports first and the 6-hour default never applies.
+      timeout-minutes: 80
+      uses: ./.github/actions/apt-install
+      with:
+        packages: gdal-bin libgdal-dev libgeos-dev libproj-dev
 
     - name: Set up Java 17
       uses: actions/setup-java@v4
@@ -747,7 +778,7 @@ jobs:
         retention-days: 30
 
   documentation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.ref == 'refs/heads/main'
 
     steps:
