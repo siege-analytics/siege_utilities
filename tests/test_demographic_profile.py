@@ -233,3 +233,151 @@ def test_census_layer_carrying_its_own_district_id_column():
     pd.testing.assert_frame_equal(
         result, pd.DataFrame({"GEOID": ["D1", "D2"], "TOTPOP": [100, 200]})
     )
+
+
+@pytest.mark.geo
+def test_districts_without_units_are_named_in_a_warning_and_attrs():
+    """A zero row from no assigned unit must be distinguishable from a real zero."""
+    plan = gpd.GeoDataFrame(
+        {"GEOID": ["D1", "D2", "D3"]},
+        geometry=[box(0, 0, 10, 10), box(10, 0, 20, 10), box(20, 0, 30, 10)],
+        crs=5070,
+    )
+    census = gpd.GeoDataFrame(
+        {"TOTPOP": [100, 200]}, geometry=[box(1, 1, 2, 2), box(21, 1, 22, 2)], crs=5070,
+    )
+
+    with pytest.warns(
+        UserWarning,
+        match=r"1 district\(s\) received no census unit and are reported with zero totals: D2",
+    ):
+        result = demographic_profile(plan, census)
+
+    assert result.attrs["districts_without_units"] == ["D2"]
+    pd.testing.assert_frame_equal(
+        result, pd.DataFrame({"GEOID": ["D1", "D2", "D3"], "TOTPOP": [100, 0, 200]})
+    )
+
+
+@pytest.mark.geo
+def test_districts_all_receiving_units_report_none_without_units():
+    plan, census = _issue_probe()
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        result = demographic_profile(plan, census)
+
+    assert result.attrs["districts_without_units"] == []
+
+
+@pytest.mark.geo
+def test_rows_follow_plan_order_not_sorted_district_ids():
+    """v4.0.0 sorted rows by district ID; rows now follow plan first-occurrence order."""
+    plan = gpd.GeoDataFrame(
+        {"GEOID": ["B", "A"]}, geometry=[box(0, 0, 10, 10), box(10, 0, 20, 10)], crs=5070,
+    )
+    census = gpd.GeoDataFrame(
+        {"TOTPOP": [100, 200]}, geometry=[box(1, 1, 2, 2), box(11, 1, 12, 2)], crs=5070,
+    )
+
+    result = demographic_profile(plan, census)
+
+    assert result["GEOID"].tolist() == ["B", "A"]
+    assert result["TOTPOP"].tolist() == [100, 200]
+
+
+@pytest.mark.geo
+@pytest.mark.parametrize("dtype", ["object", "int64[pyarrow]"])
+def test_excluded_totals_support_non_numpy_population_dtypes(dtype):
+    """Summing an object or Arrow column yields no NumPy scalar (no ``.item()``)."""
+    if dtype.endswith("[pyarrow]"):
+        pytest.importorskip("pyarrow")
+    plan = gpd.GeoDataFrame({"district": ["A"]}, geometry=[box(0, 0, 10, 10)], crs="EPSG:3857")
+    census = gpd.GeoDataFrame(
+        {"residents": pd.Series([100, 300]).astype(dtype)},
+        geometry=[box(1, 1, 2, 2), box(9, 1, 14, 3)],
+        crs=plan.crs,
+    )
+
+    with pytest.warns(UserWarning, match=r"1 census unit\(s\).*'residents': 300"):
+        result = demographic_profile(
+            plan, census, district_id_col="district", population_cols=["residents"]
+        )
+
+    assert result["district"].tolist() == ["A"]
+    assert result.loc[0, "residents"] == 100
+
+
+def _two_district_plan(ids):
+    """Two districts; the census unit falls only in the first one."""
+    plan = gpd.GeoDataFrame(
+        {"district": ids}, geometry=[box(0, 0, 10, 10), box(10, 0, 20, 10)], crs=5070,
+    )
+    census = gpd.GeoDataFrame({"TOTPOP": [100]}, geometry=[box(4, 4, 6, 6)], crs=5070)
+    return plan, census
+
+
+@pytest.mark.geo
+@pytest.mark.parametrize("dtype", ["int64", "int32", "Int64"])
+def test_integer_district_ids_without_units_survive_a_parquet_round_trip(dtype, tmp_path):
+    """attrs is written as JSON by to_parquet, so it must hold plain Python values."""
+    pytest.importorskip("pyarrow")
+    plan, census = _two_district_plan(pd.Series([1, 2], dtype=dtype))
+
+    with pytest.warns(UserWarning, match=r"1 district\(s\) received no census unit.*: 2$"):
+        result = demographic_profile(plan, census, district_id_col="district")
+
+    assert result.attrs["districts_without_units"] == [2]
+    path = tmp_path / "profile.parquet"
+    result.to_parquet(path)
+    assert [type(value) for value in result.attrs["districts_without_units"]] == [int]
+    # Frames derived as the Migration advises keep attrs and must write too.
+    result[result["TOTPOP"] > 0].sort_values("district").to_parquet(tmp_path / "filtered.parquet")
+    loaded = pd.read_parquet(path)
+    assert loaded.attrs["districts_without_units"] == [2]
+    assert loaded["district"].tolist() == [1, 2]
+    assert loaded["TOTPOP"].tolist() == [100, 0]
+
+
+@pytest.mark.geo
+def test_categorical_district_ids_report_districts_without_units():
+    """groupby keeps unobserved categories by default; they must still be flagged."""
+    plan, census = _two_district_plan(pd.Categorical(["D1", "D2"]))
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        result = demographic_profile(plan, census, district_id_col="district")
+
+    messages = [str(w.message) for w in caught]
+    assert any("1 district(s) received no census unit" in m and m.endswith(": D2") for m in messages)
+    assert not [w for w in caught if issubclass(w.category, FutureWarning)]
+    assert result.attrs["districts_without_units"] == ["D2"]
+    assert result["district"].astype(str).tolist() == ["D1", "D2"]
+    assert result["TOTPOP"].tolist() == [100, 0]
+
+
+@pytest.mark.geo
+def test_many_districts_without_units_truncate_the_message_and_log_it(caplog):
+    """Seven of eight districts get no unit: five named, "(and 2 more)", attrs in plan order."""
+    ids = ["H", "C", "G", "A", "F", "B", "E", "D"]
+    plan = gpd.GeoDataFrame(
+        {"GEOID": ids},
+        geometry=[box(10 * i, 0, 10 * i + 10, 10) for i in range(len(ids))],
+        crs=5070,
+    )
+    # The only unit lies in "G", the third plan row.
+    census = gpd.GeoDataFrame({"TOTPOP": [100]}, geometry=[box(24, 4, 26, 6)], crs=5070)
+    expected = (
+        "demographic_profile: 7 district(s) received no census unit and are reported "
+        "with zero totals: H, C, A, F, B (and 2 more)"
+    )
+
+    with caplog.at_level("WARNING", logger="siege_utilities.geo.providers.redistricting_data_hub"):
+        with pytest.warns(UserWarning) as caught:
+            result = demographic_profile(plan, census)
+
+    assert [str(w.message) for w in caught] == [expected]
+    assert [record.getMessage() for record in caplog.records] == [expected]
+    assert result.attrs["districts_without_units"] == ["H", "C", "A", "F", "B", "E", "D"]
+    assert result["GEOID"].tolist() == ids
+    assert result["TOTPOP"].tolist() == [0, 0, 100, 0, 0, 0, 0, 0]
