@@ -537,6 +537,103 @@ class TestCensusAPIResponseNormalization:
 
         pd.testing.assert_frame_equal(api_result, bulk_result[list(raw.columns)])
 
+    # Encodings of a jam value that are numerically equal to it but are not
+    # its canonical integer string.
+    NON_CANONICAL_ENCODINGS = {
+        'padded': lambda value: f' {value} ',
+        'tab-padded': lambda value: f'\t{value}\t',
+        'decimal': lambda value: f'{value}.0',
+        'decimal-zeros': lambda value: f'{value}.000',
+        'scientific': lambda value: format(value, '.8e'),
+        'scientific-upper': lambda value: format(value, '.8E'),
+    }
+
+    def _api_and_bulk(self, values, tmp_path, monkeypatch):
+        from siege_utilities.geo.census.dual_source import BulkFileSource
+
+        raw = pd.DataFrame({'B01001_001E': values, 'B01001_001M': values})
+        bulk_raw = raw.copy()
+        bulk_raw.index = pd.Index(
+            [f'06{index:03d}' for index in range(1, len(values) + 1)], name='GEOID',
+        )
+        source = BulkFileSource(cache_dir=tmp_path)
+        monkeypatch.setattr(source, '_download', Mock(return_value=tmp_path / 'synthetic.dat'))
+        monkeypatch.setattr(source, '_read_table', Mock(return_value=bulk_raw))
+        api_result = CensusAPI._convert_numeric_columns(raw)
+        bulk_result, _ = source.fetch(
+            variables=list(raw.columns), year=2022, geography='county', state_fips='06',
+            include_moe=False,
+        )
+        return api_result, bulk_result[list(raw.columns)]
+
+    @pytest.mark.parametrize('encoding', list(NON_CANONICAL_ENCODINGS))
+    def test_numerically_equal_jam_encodings_become_nan_on_both_paths(
+        self, encoding, tmp_path, monkeypatch,
+    ):
+        encode = self.NON_CANONICAL_ENCODINGS[encoding]
+        values = [encode(value) for value in self.JAM_VALUES] + ['1234', '0', '12.5']
+
+        api_result, bulk_result = self._api_and_bulk(values, tmp_path, monkeypatch)
+
+        for result in (api_result, bulk_result):
+            assert result.iloc[:9].isna().all().all(), encoding
+            assert result['B01001_001E'].iloc[9:].tolist() == [1234.0, 0.0, 12.5]
+        pd.testing.assert_frame_equal(api_result, bulk_result)
+
+    def test_negative_values_near_jam_values_are_kept_on_both_paths(self, tmp_path, monkeypatch):
+        values = ['-666666666.5', '-66666666', '-6666666666', '-42']
+
+        api_result, bulk_result = self._api_and_bulk(values, tmp_path, monkeypatch)
+
+        for result in (api_result, bulk_result):
+            assert result['B01001_001E'].tolist() == [-666666666.5, -66666666.0, -6666666666.0, -42.0]
+        pd.testing.assert_frame_equal(api_result, bulk_result)
+
+    @staticmethod
+    def _v4_cache_key(variables, year, dataset, geography, state_fips, county_fips):
+        """The processed-response cache key exactly as v4.0.0 computed it."""
+        import hashlib
+
+        key_str = '|'.join([
+            ','.join(sorted(variables)), str(year), dataset, geography,
+            state_fips or '', county_fips or '',
+        ])
+        return hashlib.md5(key_str.encode()).hexdigest()
+
+    def test_cache_key_differs_from_v4_processed_cache_key(self, tmp_path):
+        api = CensusAPI(api_key='fixture', cache_dir=tmp_path)
+        params = (['B01001_001E'], 2022, 'acs5', 'zcta', None, None)
+
+        key = api._generate_cache_key(*params)
+
+        assert key != self._v4_cache_key(*params)
+        assert key == api._generate_cache_key(*params)
+
+    def test_v4_processed_cache_is_not_returned_by_fetch_data(self, tmp_path, monkeypatch):
+        # The frame v4.0.0 processed and cached for this response: the ZCTA
+        # component as a number, the jam value kept, the annotation lost.
+        v4_frame = pd.DataFrame({
+            'GEOID': ['02134'], 'NAME': ['Example'],
+            'zip code tabulation area': [2134], 'B01001_001E': [-666666666],
+            'B01001_001EA': [float('nan')],
+        })
+        legacy_key = self._v4_cache_key(['B01001_001E'], 2022, 'acs5', 'zcta', None, None)
+        v4_frame.to_parquet(tmp_path / f'{legacy_key}.parquet', index=False)
+        raw = pd.DataFrame({
+            'NAME': ['Example'], 'zip code tabulation area': ['02134'],
+            'B01001_001E': ['-666666666'], 'B01001_001EA': ['*'],
+        })
+        api = CensusAPI(api_key='fixture', cache_dir=tmp_path)
+        request = Mock(return_value=raw.copy(deep=True))
+        monkeypatch.setattr(api, '_make_request_with_retry', request)
+
+        result = api.fetch_data(['B01001_001E'], 2022, geography='zcta', include_moe=False)
+
+        assert request.call_count == 1
+        assert pd.isna(result.loc[0, 'B01001_001E'])
+        assert result.loc[0, 'zip code tabulation area'] == '02134'
+        assert result.loc[0, 'B01001_001EA'] == '*'
+
     def test_imports_share_canonical_sentinel_sets(self):
         import importlib
 

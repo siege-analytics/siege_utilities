@@ -63,5 +63,40 @@ Interpreter: local Python 3.11.11, run from the repository root.
 - Census-related run as in Gate 2: 806 passed, 29 deselected.
 - Normalization class: 9 failed / 27 passed on `72dd7b88`; new tests 7 failed / 7 passed on `v4.0.0`; 98 passed after in the client test file.
 
+## Fix round, 2026-11-17: whole-PR review findings
+
+The whole-PR review of head `241a65f3` failed with two S2 findings (https://github.com/siege-analytics/siege_utilities/pull/1765#issuecomment-6934256929).
+
+### S2-A: numerically equal jam encodings were not masked
+- **Cause.** Both `CensusAPI._convert_numeric_columns` and `BulkFileSource.fetch` matched jam values by exact string before parsing. So `' -666666666 '`, `'-666666666.0'` and `'-6.66666666e+08'` parsed to `-666666666.0` and were kept on both paths.
+- **Fix.** Both paths parse first, then mask with one shared helper, `variable_registry._mask_acs_sentinels`. It matches the nine `ACS_SENTINELS` by numeric value and returns a series without jam values unchanged, keeping its dtype.
+- **API path.** It still parses with `errors='coerce'`, as on v4.0.0, and masks only ACS estimate/MOE columns.
+- **Bulk path.** It still raises on empty and non-finite cells and on any non-numeric token. Jam values are finite numbers, so they parse and are masked after those checks.
+- **Unchanged.** The module-level sentinel sets and the bulk aliases stay as they were.
+
+### S2-B: v4.0.0 processed caches bypassed the normalization
+- **Cause.** `fetch_data` returns a cached processed frame before `_process_response`, and the cache key had the same parts and MD5 as v4.0.0, so a frame cached by v4.0.0 was returned unnormalized.
+- **Fix.** The key now includes `processed-v{_PROCESSED_CACHE_VERSION}` (version 2). A comment says to raise it whenever `_process_response` changes what it returns.
+- **Why a new key, not re-normalizing the old frame.** Re-normalizing a cached v4.0.0 frame cannot restore the leading zeros or annotation text it already lost.
+- **Backends.** The Parquet and Django backends share the key, so both bypass old entries.
+- **Cost.** Each request cached before this version makes one fresh API request on its first call. Old Parquet files stay in `cache_dir`, unread, until `clear_cache()`; Django entries expire. The CHANGELOG Migration line says so.
+
+### Tests and results
+New tests in `tests/test_census_api_client.py`:
+- six non-canonical encodings (space- and tab-padded, `.0`, `.000`, lower- and upper-case scientific) of all nine jam values, in estimate and MOE columns, on both paths, with the API and bulk frames equal;
+- genuine near-jam negatives (`-666666666.5`, eight- and ten-digit values) kept on both paths;
+- the cache key differs from the v4.0.0 formula;
+- a v4-shaped Parquet cache: the frame v4.0.0 produced, written under the v4.0.0 key formula. Public `fetch_data` makes one fresh request and returns NaN, `'02134'` and `'*'`.
+
+Results:
+- **Red, executed on `241a65f3`:** 8 failed and 1 passed. The six encodings, the key test and the cache test failed. The near-jam control passed.
+- **Green, executed:**
+  - the client test file: 107 passed;
+  - with the #1404 fallback, dual-source, Summary File, census key warning, Django and Parquet cache backend, variable registry and dataset selector error, variable group deprecation, credential URL, exception contract site, release and changelog tests: 690 passed;
+  - `ruff check --select F,E9`: no findings. Exception-contract scanner: 0 unlisted, 0 stale.
+- **Not run.** `tests/test_census_api_integration.py` is marked `integration` and calls the live Census API. Run here, its requests got a non-JSON response, so it is not counted.
+- **The reviewer's own counterexamples** load a frozen v4.0.0 module from outside this repository and were not run here. The tests above cover the same cases.
+
 ## Rework ledger
 - Pre-flight round, 2026-11-10: non-ACS conversion restored; a test that encoded the regression replaced; body classification, correction and hygiene.
+- Fix round, 2026-11-17: jam values matched by numeric value on both paths; processed-cache key versioned so v4.0.0 caches are not returned; tests for both.

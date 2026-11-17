@@ -24,7 +24,9 @@ from siege_utilities.config import (
 )
 from siege_utilities.config.user_config import get_user_config
 from siege_utilities.core._http import redact_url_secrets
-from .variable_registry import ACS_SENTINELS, ACS_SENTINEL_STRINGS, VariableRegistry
+from .variable_registry import (  # noqa: F401 -- the sentinel sets are re-exported here
+    ACS_SENTINELS, ACS_SENTINEL_STRINGS, VariableRegistry, _mask_acs_sentinels,
+)
 from .dataset_selector import DatasetSelector
 
 from siege_utilities.files.operations import atomic_write_path
@@ -53,6 +55,12 @@ _ACS_ESTIMATE_OR_MOE = re.compile(r'[BC][0-9]{5}[A-Z]*_[0-9]{3}[EM]')
 _ANNOTATION_VARIABLE = re.compile(r'.+_[0-9]{3,4}P?[EM]A')
 # Identifier columns that are uppercase like variables but are not data.
 _IDENTIFIER_COLUMNS = frozenset({'GEOID', 'NAME', 'GEO_ID', 'UCGID'})
+# Version of the processed-response format, part of every cache key. Raise it
+# whenever _process_response changes what it returns, so frames cached by an
+# earlier version are not read back. Version 2: ACS jam values become NaN, and
+# identifiers, geography components and annotations keep their text (#1403);
+# version 4.0.0 keys carried no version.
+_PROCESSED_CACHE_VERSION = 2
 
 
 def _is_census_variable_column(col: Any) -> bool:
@@ -381,11 +389,12 @@ class CensusAPI:
             if not _is_census_variable_column(col):
                 continue
             try:
-                raw = df[col]
+                parsed = pd.to_numeric(df[col], errors='coerce')
                 if _ACS_ESTIMATE_OR_MOE.fullmatch(str(col)):
-                    is_sentinel = raw.isin(ACS_SENTINEL_STRINGS) | raw.isin(ACS_SENTINELS)
-                    raw = raw.where(~is_sentinel)
-                df[col] = pd.to_numeric(raw, errors='coerce')
+                    # By value after parsing, so padded, decimal and
+                    # scientific encodings of a jam value are masked too.
+                    parsed = _mask_acs_sentinels(parsed)
+                df[col] = parsed
             except (ValueError, TypeError) as exc:
                 log.warning(
                     "Could not convert column %s to numeric: %s",
@@ -413,6 +422,9 @@ class CensusAPI:
             geography,
             state_fips or '',
             county_fips or '',
+            # Frames cached before the current processed format have other
+            # keys, so they are re-fetched instead of returned unnormalized.
+            f'processed-v{_PROCESSED_CACHE_VERSION}',
         ]
         key_str = '|'.join(key_parts)
         # Known bandit B324 finding, suppressed here and tracked in #1754.
