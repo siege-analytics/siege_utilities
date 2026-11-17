@@ -1519,16 +1519,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   measures source and overlap areas in an equal-area CRS on every backend
   (tobler, DuckDB and Shapely), correcting latitude-biased extensive
   allocations and intensive averages. The CRS is the new keyword-only
-  `area_crs` (default World Mollweide, `ESRI:54009`); a geographic or invalid
-  value raises `ValueError`, and the CRS used is recorded in the new
-  `ArealInterpolationResult.area_crs`. Output geometries default to the
+  `area_crs` (default World Mollweide, `ESRI:54009`); an invalid value, or
+  one that is not a projected CRS (geographic, or geocentric such as
+  `EPSG:4978`), raises `ValueError`, and the CRS used is recorded in the new
+  `ArealInterpolationResult.area_crs`. Whether a source and a target overlap
+  is decided per pair in the common working CRS before areas are measured,
+  and only overlapping pairs contribute on every backend: a pair that only
+  shares an edge adds no mass, no rate weight and, with tobler's
+  `allocate_total`, no share of the source's total, even where projecting
+  only vertices to `area_crs` leaves a thin sliver. A target with no
+  overlapping pair receives zero for extensive and NaN for intensive
+  variables, whatever the other targets in the call. Output geometries default to the
   original source CRS, as documented, or use the explicit `crs` argument;
   source CRS metadata also retains the original input CRS (#1407).
   Migration: allocations change for geographic inputs (e.g. a 30–45°N source
   split by latitude now gives 525.2/474.8 instead of 500/500), including on
   the tobler backend, which no longer warns about a geographic CRS; callers
   that need another equal-area projection pass `area_crs`, and callers that
-  relied on the library-default output CRS pass `crs` explicitly.
+  relied on the library-default output CRS pass `crs` explicitly. A
+  geocentric or other non-projected `area_crs` must be replaced with a
+  projected equal-area CRS. On the tobler backend the area table is now built
+  by the library and passed to tobler, so `n_jobs` no longer has an effect.
   `ArealInterpolationResult` is a plain dataclass that gains a trailing
   `area_crs` field with a default: keyword and positional construction keep
   working, but `dataclasses.astuple()` / `asdict()` output gains one element /

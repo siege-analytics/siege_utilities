@@ -39,6 +39,8 @@ def area_backend(request, monkeypatch):
         proxy.execute.side_effect = lambda sql: connection.execute(
             "LOAD spatial" if sql == "INSTALL spatial; LOAD spatial;" else sql
         )
+        # The finalizer closes the real connection, so a test may call the backend more than once.
+        proxy.close = Mock()
         monkeypatch.setattr(areal, "_duckdb", SimpleNamespace(connect=lambda: proxy))
         request.addfinalizer(connection.close)
     return areal
@@ -185,6 +187,183 @@ def test_geographic_or_invalid_area_crs_is_rejected(latitude_split, bad):
     source, target = latitude_split
     with pytest.raises(ValueError, match="area_crs"):
         areal.interpolate_areal(source, target, extensive_variables=["population"], area_crs=bad)
+
+
+def test_geocentric_area_crs_is_rejected(latitude_split):
+    """EPSG:4978 is not geographic, but it is not projected either: no planar areas."""
+    from siege_utilities.geo.interpolation import areal
+
+    source, target = latitude_split
+    with pytest.raises(ValueError, match=r"area_crs .*'EPSG:4978' is not projected \(geocentric\)"):
+        areal.interpolate_areal(
+            source, target, extensive_variables=["population"], area_crs="EPSG:4978",
+        )
+
+
+@pytest.mark.parametrize("bad", ["EPSG:4979", "EPSG:4978"], ids=["geographic-3d", "geocentric"])
+def test_validate_area_crs_rejects_every_non_projected_kind(bad):
+    from siege_utilities.geo.interpolation import areal
+
+    with pytest.raises(ValueError, match="area_crs must be a projected"):
+        areal._validate_area_crs(bad)
+
+
+@pytest.mark.parametrize(
+    "good", ["ESRI:54009", "EPSG:6933", "EPSG:3857", "EPSG:32631", "EPSG:7405"],
+    ids=["mollweide", "ease-grid", "web-mercator", "utm", "compound-projected"],
+)
+def test_validate_area_crs_keeps_accepting_projected_crs(good):
+    """Projected CRSs pass, including ones that are not equal-area and compound ones."""
+    from pyproj import CRS
+
+    from siege_utilities.geo.interpolation import areal
+
+    assert CRS.from_user_input(areal._validate_area_crs(good)) == CRS.from_user_input(good)
+
+
+# Boundary-only allocations are compared with this absolute tolerance, in
+# population units (the source total is 1000).
+_BOUNDARY_ATOL = 1e-9
+
+
+def _touching_frame(names, cells):
+    return gpd.GeoDataFrame({"name": names}, geometry=cells, crs="EPSG:4326")
+
+
+def test_boundary_only_target_is_zero_alone_and_with_an_overlapping_companion(
+    area_backend, latitude_split,
+):
+    """A target that only shares an edge with the source gets nothing, in any batch.
+
+    The source edge x=1 carries a vertex at latitude 37.5 that the touching box
+    lacks, so after vertex-only projection to the area CRS the two edges no
+    longer coincide and leave a positive-area sliver. The allocation must not
+    depend on whether an overlapping companion target is in the same call.
+    """
+    source, _ = latitude_split
+    east = box(1, 30, 2, 45)
+    south = box(-1, 30, 1, 37.5)
+
+    # Precondition: the fixture reproduces the projection sliver (about 0.2%).
+    source_ea = source.to_crs("ESRI:54009").geometry.iloc[0]
+    east_ea = _touching_frame(["east"], [east]).to_crs("ESRI:54009").geometry.iloc[0]
+    assert east.intersection(source.geometry.iloc[0]).area == 0.0
+    assert east_ea.intersection(source_ea).area / source_ea.area > 1e-3
+
+    alone = area_backend.interpolate_areal(
+        source, _touching_frame(["east"], [east]), extensive_variables=["population"],
+    )
+    batch = area_backend.interpolate_areal(
+        source, _touching_frame(["south", "east"], [south, east]),
+        extensive_variables=["population"],
+    )
+    companion_alone = area_backend.interpolate_areal(
+        source, _touching_frame(["south"], [south]), extensive_variables=["population"],
+    )
+
+    assert alone.data["population"].iloc[0] == pytest.approx(0.0, abs=_BOUNDARY_ATOL)
+    assert batch.data["population"].iloc[1] == pytest.approx(0.0, abs=_BOUNDARY_ATOL)
+    # The touching target must not change the companion's share either
+    # (tobler's allocate_total spreads each source over all its overlaps).
+    assert batch.data["population"].iloc[0] == pytest.approx(
+        companion_alone.data["population"].iloc[0], rel=_rtol(batch),
+    )
+    assert batch.data["population"].iloc[0] > 0
+
+
+def _west_east_sources(latitude_split, east_population, east_rate):
+    """The latitude_split polygon (vertex at 1, 37.5) plus an east box sharing x=1."""
+    whole, _ = latitude_split
+    return gpd.GeoDataFrame(
+        {"population": [1000.0, east_population], "rate": [100.0, east_rate]},
+        geometry=[whole.geometry.iloc[0], box(1, 30, 2, 45)],
+        crs="EPSG:4326", index=[7, 8],
+    )
+
+
+@pytest.mark.parametrize("allocate_total", [True, False])
+def test_touch_only_pair_contributes_nothing_when_the_target_overlaps_another_source(
+    area_backend, latitude_split, allocate_total,
+):
+    """Support is decided per source-target pair, not per target.
+
+    The east target overlaps source B (population 0, rate 0) and only touches
+    source A along x=1. Projecting vertices to the area CRS leaves an A sliver;
+    it must not count, and tobler's allocate_total must not normalize it to
+    all of A.
+    """
+    source = _west_east_sources(latitude_split, east_population=0.0, east_rate=0.0)
+    target = _touching_frame(["east"], [box(1, 30, 2, 45)])
+    assert target.geometry.iloc[0].intersection(source.geometry.iloc[0]).area == 0.0
+    assert target.geometry.iloc[0].intersection(source.geometry.iloc[1]).area > 0.0
+
+    result = area_backend.interpolate_areal(
+        source, target, extensive_variables=["population"], intensive_variables=["rate"],
+        allocate_total=allocate_total,
+    )
+
+    np.testing.assert_allclose(
+        result.data[["population", "rate"]].iloc[0].to_numpy(), [0.0, 0.0],
+        atol=_BOUNDARY_ATOL, rtol=0,
+    )
+
+
+def _pair_oracle(source, target, allocate_total, backend):
+    """Per-pair expectation: working-CRS support, Mollweide areas of the projected pieces."""
+    src_ea = source.to_crs("ESRI:54009").geometry.to_numpy()
+    tgt_ea = target.to_crs("ESRI:54009").geometry.to_numpy()
+    overlap = np.array([
+        [
+            t_ea.intersection(s_ea).area if t.intersection(s).area > 0 else 0.0
+            for t, t_ea in zip(target.geometry, tgt_ea)
+        ]
+        for s, s_ea in zip(source.geometry, src_ea)
+    ])
+    if backend == "tobler" and allocate_total:
+        denominator = overlap.sum(axis=1)
+    else:
+        denominator = np.array([g.area for g in src_ea])
+    population = (source["population"].to_numpy()[:, None] * overlap / denominator[:, None]).sum(0)
+    covered = overlap.sum(axis=0)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        rate = np.where(
+            covered > 0, (source["rate"].to_numpy()[:, None] * overlap).sum(0) / covered, np.nan,
+        )
+    return population, rate
+
+
+@pytest.mark.parametrize("allocate_total", [True, False])
+def test_true_partial_overlaps_keep_their_per_pair_shares(
+    area_backend, latitude_split, allocate_total,
+):
+    """Control: real overlaps on both sides of a shared edge, plus an edge-only target.
+
+    Target "straddle" overlaps A and B, "inner" lies inside B, and "west" only
+    touches A along x=-1 (where A carries a vertex at latitude 37.5).
+    """
+    source = _west_east_sources(latitude_split, east_population=500.0, east_rate=50.0)
+    target = _touching_frame(
+        ["straddle", "inner", "west"],
+        [box(0, 30, 1.5, 45), box(1.5, 30, 2, 45), box(-2, 30, -1, 45)],
+    )
+
+    result = area_backend.interpolate_areal(
+        source, target, extensive_variables=["population"], intensive_variables=["rate"],
+        allocate_total=allocate_total,
+    )
+
+    expected_population, expected_rate = _pair_oracle(
+        source, target, allocate_total, result.backend,
+    )
+    assert expected_population[0] > 0 and expected_population[1] > 0
+    assert expected_population[2] == 0.0 and np.isnan(expected_rate[2])
+    np.testing.assert_allclose(
+        result.data["population"], expected_population, rtol=_rtol(result), atol=_BOUNDARY_ATOL,
+    )
+    np.testing.assert_allclose(result.data["rate"], expected_rate, rtol=_rtol(result))
+    if result.backend == "tobler" and allocate_total:
+        # Every source is fully allocated over its supported targets only.
+        assert result.data["population"].sum() == pytest.approx(1500.0, rel=_rtol(result))
 
 
 def test_interpolate_extensive_passes_area_crs_through(area_backend, latitude_split):
