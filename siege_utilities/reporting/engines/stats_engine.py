@@ -89,9 +89,11 @@ class StatsChartMixin:
             # Create figure
             fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
 
-            # Create heatmap
-            sns.heatmap(pivot_data, annot=True, cmap='YlOrRd', center=0,
-                       square=True, linewidths=0.5, cbar_kws={"shrink": 0.8})
+            # Create heatmap. YlOrRd is sequential: span the data range rather
+            # than centring at 0, which would leave half the ramp unused for
+            # all-positive values (counts, shares).
+            sns.heatmap(pivot_data, annot=True, cmap='YlOrRd',
+                        square=True, linewidths=0.5, cbar_kws={"shrink": 0.8})
 
             # Customize chart
             ax.set_title(title or "Data Heatmap")

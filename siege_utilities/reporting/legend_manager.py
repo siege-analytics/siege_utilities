@@ -6,8 +6,12 @@ Provides comprehensive legend generation and management for charts, tables, and 
 from __future__ import annotations
 
 import logging
+import math
+from decimal import Decimal
 from typing import Dict, List, Any, Optional
 from enum import Enum
+
+from ._range_labels import format_range_edges
 
 # Core plotting libraries
 try:
@@ -166,6 +170,51 @@ class LegendManager:
         
         return rgb_to_hex(interpolated_rgb)
     
+    @staticmethod
+    def _heatmap_legend_bins(min_value: float, max_value: float,
+                             levels: int) -> List[tuple[float, str]]:
+        """Pair each swatch intensity with a closed, contiguous value range."""
+        if levels < 1:
+            raise ValueError("levels must be at least 1")
+
+        span = max_value - min_value
+        step = abs(span / levels)
+        if math.isfinite(min_value) and math.isfinite(max_value):
+            # The edges are min + k * (max - min) / levels in decimal, as a
+            # reader would compute them. Exact decimal arithmetic keeps float
+            # noise out (the middle edge of -0.2 to 0.1 in three levels is
+            # 2.8e-17 in floats, 0 here), so each edge is the float nearest
+            # its decimal value and reads back from that decimal in
+            # format_range_edges.
+            low, high = Decimal(repr(float(min_value))), Decimal(repr(float(max_value)))
+            edges = [float(low + (high - low) * k / levels) for k in range(levels + 1)]
+        else:
+            edges = [min_value + span * k / levels for k in range(levels + 1)]
+        edges[-1] = max_value
+        # Width sets the minimum decimals; format_range_edges adds decimals
+        # until every edge, including a fractional offset such as 0.004, reads
+        # back as the same float, up to six decimals (or the width minimum if
+        # larger).
+        # Past that cap the outer bounds are rounded outward, so the labels
+        # still contain min and max but may show a slightly wider range.
+        if step < 1:
+            minimum_decimals = max(2, math.ceil(-math.log10(step))) if step else 2
+        else:
+            # Steps of 1 or more can still produce fractional edges (0..7.5 in
+            # five levels is 0, 1.5, 3, ...); the edge check adds those decimals.
+            minimum_decimals = 0
+        texts = format_range_edges(edges, minimum_decimals)
+
+        bins = []
+        for i in range(levels):
+            label = f"{texts[i]} - {texts[i + 1]}"
+            if i == 0:
+                label = f"Low: {label}"
+            elif i == levels - 1:
+                label = f"High: {label}"
+            bins.append((i / max(levels - 1, 1), label))
+        return bins
+
     def create_heatmap_legend_table(self, min_value: float, max_value: float, 
                                   value_name: str = "Value", 
                                   color_scheme: ColorScheme = ColorScheme.BLUE,
@@ -191,19 +240,9 @@ class LegendManager:
 
         # Create legend data
         legend_data = [["Intensity", "Color", f"{value_name} Range"]]
-        
-        for i in range(levels):
-            intensity = i / (levels - 1)  # 0 to 1
-            value = min_value + (max_value - min_value) * intensity
-            
-            if i == 0:
-                range_text = f"Low: {min_value:,.0f} - {int(value):,}"
-            elif i == levels - 1:
-                range_text = f"High: {int(value):,}+"
-            else:
-                prev_value = min_value + (max_value - min_value) * ((i-1) / (levels-1))
-                range_text = f"{int(prev_value):,} - {int(value):,}"
-            
+        legend_bins = self._heatmap_legend_bins(min_value, max_value, levels)
+
+        for intensity, range_text in legend_bins:
             legend_data.append([f"{intensity*100:.0f}%", "█", range_text])
         
         # Create table
@@ -220,8 +259,7 @@ class LegendManager:
         ]
         
         # Add color backgrounds for legend
-        for i in range(1, levels + 1):
-            intensity = (i-1) / (levels-1)
+        for i, (intensity, _) in enumerate(legend_bins, start=1):
             heat_color = self.get_color_for_intensity(intensity, color_scheme)
             legend_style.append(('BACKGROUND', (1,i), (1,i), colors.HexColor(heat_color)))
         
@@ -326,19 +364,8 @@ class LegendManager:
         
         legend_elements = []
         
-        for i in range(levels):
-            intensity = i / (levels - 1)
-            value = min_value + (max_value - min_value) * intensity
+        for intensity, label in self._heatmap_legend_bins(min_value, max_value, levels):
             color = self.get_color_for_intensity(intensity, color_scheme)
-            
-            if i == 0:
-                label = f"Low: {min_value:,.0f} - {int(value):,}"
-            elif i == levels - 1:
-                label = f"High: {int(value):,}+"
-            else:
-                prev_value = min_value + (max_value - min_value) * ((i-1) / (levels-1))
-                label = f"{int(prev_value):,} - {int(value):,}"
-            
             legend_elements.append(mpatches.Patch(color=color, label=label))
         
         return legend_elements
