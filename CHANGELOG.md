@@ -807,6 +807,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ValidationError`. **Migration:** callers that relied on
   `DatabaseConnection` to enforce password strength must validate passwords
   themselves before constructing it (#1490).
+- GEOID utilities accept uppercase alphanumeric SLD and congressional district
+  codes, including undefined districts and Alaska senate letters; SLD codes
+  may also contain hyphens, as in Vermont's lower-chamber `50F-3`. Numeric
+  levels reject non-digit input; normalization converts integral floats and
+  checks state FIPS prefixes, preventing extra zero-padding from creating
+  state `00`. Float columns with missing values now retain valid join keys.
+  `normalize_geoid` and the column helpers return lowercase SLD and CD
+  district letters in canonical uppercase (`"0200a"` becomes `"0200A"`);
+  strict `validate_geoid` and `GEOIDValidator` require the uppercase form,
+  while `validate_geoid(..., strict=False)` accepts any value that
+  `normalize_geoid` accepts. `slug_to_geoid` returns CD and SLD district codes
+  in canonical uppercase and keeps hyphens inside an SLD code, so districts
+  such as `06ZZZ` and `50F-3` round trip through `geoid_to_slug`.
+  `can_normalize_geoid` now reports whether `normalize_geoid` succeeds, so for
+  VTD levels it follows the existing padding-only VTD normalization and
+  accepts non-digit values it previously rejected; VTD normalization and VTD
+  validation are unchanged. In 4.0.0 `normalize_geoid` only zero-padded:
+  `normalize_geoid("CA037", "county")` returned `"CA037"`,
+  `normalize_geoid("1001020100", "block_group")` returned `"001001020100"`
+  (state `00`), `normalize_geoid("0200a", "sldu")` returned `"0200a"`, and
+  `slug_to_geoid("ca-cd-zz")` returned `"06zz"`. **Migration:**
+  `normalize_geoid` and the column helpers now raise `ValueError` for
+  non-digit values at numeric levels and for values whose padding would
+  invent state `00`; clean or drop such numeric-level GEOIDs first. A value
+  missing only one leading zero, such as `"6037"` for a county, is still
+  padded. Valid SLD and CD district codes, including hyphenated SLD codes,
+  need no change. Compare or join normalized and `slug_to_geoid` district
+  output against uppercase codes. Code that used
+  `can_normalize_geoid(..., "vtd")` to reject non-digit VTDs must check
+  `str.isdigit()` itself (#1486).
 
 - CRM transport and server-error retries are limited to GET, PUT and DELETE.
   POST and PATCH requests are sent once, avoiding duplicate creates after a
