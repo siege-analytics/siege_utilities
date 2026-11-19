@@ -23,10 +23,13 @@ from requests.exceptions import Timeout
 from siege_utilities.geo.census_api_client import (
     CensusAPIError,
     CensusRateLimitError,
+    CensusServerError,
 )
 from .api import CensusAPI
 from .dataset_selector import DatasetSelector
-from .variable_registry import VariableRegistry
+from .variable_registry import (
+    ACS_SENTINELS, ACS_SENTINEL_STRINGS, VariableRegistry, _mask_acs_sentinels,
+)
 
 __all__ = [
     "Provenance",
@@ -50,8 +53,8 @@ _SUMMARY_LEVELS = {
     "block_group": ("150", 12),
     "place": ("160", 7),
 }
-_SENTINELS = frozenset(-int(str(digit) * 9) for digit in range(1, 10))
-_SENTINEL_STRINGS = frozenset(str(value) for value in _SENTINELS)
+_SENTINELS = ACS_SENTINELS
+_SENTINEL_STRINGS = ACS_SENTINEL_STRINGS
 
 
 def api_to_summary_variable(variable: str) -> str:
@@ -110,10 +113,10 @@ class ApiSource:
     def fetch(self, **request: Any) -> tuple[pd.DataFrame, Provenance]:
         """Forward the request and report one source call, or raise its error.
 
-        CensusAPI wraps exhausted transport timeouts in CensusAPIError.
-        Expose that Timeout cause so the default fallback policy recognizes
-        it; other API errors propagate unchanged. The API does not expose
-        the served URL/cache path, so ``url_or_path`` is None.
+        CensusAPI reports exhausted server/transport failures as
+        CensusServerError. Also recognize wrapped Timeout causes from
+        injected clients. The API does not expose the served URL/cache
+        path, so ``url_or_path`` is None.
         """
         log.debug("Fetching Census tabular data through the API source")
         try:
@@ -225,29 +228,31 @@ class BulkFileSource:
         frame = pd.concat(frames, axis=1).reset_index()
         for variable in concrete:
             raw = frame[variable]
-            # Known ACS missing-value sentinels become NaN. Any other
-            # non-numeric token -- garbage, or an empty cell from a truncated
-            # record -- means a corrupt or format-drifted file and must raise
-            # rather than silently coerce to NaN (SU-1: errors are not data).
-            is_sentinel = raw.isin(_SENTINEL_STRINGS)
+            # Any non-numeric token -- garbage, or an empty cell from a
+            # truncated record -- means a corrupt or format-drifted file and
+            # must raise rather than silently coerce to NaN (SU-1: errors are
+            # not data). ACS jam values are numbers, so they parse and are
+            # masked afterwards.
             # An empty/whitespace cell is a truncated or corrupt record, not a
             # value; pd.to_numeric would silently coerce it to NaN, so reject it
             # explicitly before the strict numeric parse.
-            empty = (~is_sentinel) & raw.astype(str).str.strip().eq("")
+            empty = raw.astype(str).str.strip().eq("")
             if empty.any():
                 raise ValueError(
                     f"Empty {variable} cell in Summary File (truncated or corrupt record)"
                 )
-            parsed = pd.to_numeric(raw.where(~is_sentinel), errors="raise")
+            parsed = pd.to_numeric(raw, errors="raise")
             # pd.to_numeric accepts "inf"/"-Infinity"/"nan" as non-finite floats.
-            # These are neither finite ACS values nor masked sentinels, so a file
+            # These are neither finite ACS values nor jam values, so a file
             # carrying them is corrupt and must raise (SU-1), not surface Inf/NaN.
-            nonfinite = (~is_sentinel) & ~np.isfinite(parsed)
+            nonfinite = ~np.isfinite(parsed)
             if nonfinite.any():
                 raise ValueError(
                     f"Non-finite {variable} value in Summary File (corrupt record)"
                 )
-            frame[variable] = parsed
+            # Known ACS missing-value sentinels become NaN, matched by value so
+            # padded, decimal and scientific encodings are masked too.
+            frame[variable] = _mask_acs_sentinels(parsed)
         frame.insert(1, "NAME", None)
         frame = frame[["GEOID", "NAME", *concrete]]
         log.info("Read %s %s rows from %s Summary File tables", len(frame), geography, len(tables))
@@ -382,16 +387,19 @@ class BulkFileSource:
 class AlternationPolicy:
     """Pure configuration for a bounded primary-then-secondary attempt order.
 
-    ``max_api_attempts`` is a positive source-call budget for the primary.
-    Only ``fallback_on`` errors consume that retry budget; other errors
-    propagate immediately. An empty tuple disables retries and fallback.
+    ``max_api_attempts`` is a positive source-call budget for primaries other
+    than ``ApiSource``. ``ApiSource`` is called once because ``CensusAPI``
+    owns its transport retries and delays. Only ``fallback_on`` errors
+    consume the source-call budget; other errors propagate immediately.
+    An empty tuple disables source retries and fallback, but does not
+    change retries inside ``CensusAPI``.
     ``alternate_under_sustained_pressure`` defaults to False and is reserved
     for a future cross-request scheduling policy. This framework does not
     track pressure across requests; each fetch starts with the primary.
     """
 
     max_api_attempts: int = 3
-    fallback_on: tuple[type[Exception], ...] = (CensusRateLimitError, Timeout)
+    fallback_on: tuple[type[Exception], ...] = (CensusRateLimitError, Timeout, CensusServerError)
     alternate_under_sustained_pressure: bool = False
 
     def __post_init__(self) -> None:
@@ -409,6 +417,7 @@ class DualSourceCensusClient:
     The last retrieval error propagates if no source succeeds. Each return
     includes provenance with this request's total source-call count.
     Source frames, source names, and locations are preserved.
+    ``ApiSource`` owns retries through ``CensusAPI`` and is called once.
     """
 
     def __init__(
@@ -427,22 +436,23 @@ class DualSourceCensusClient:
         Forward the same CensusAPI.fetch_data keyword arguments to each
         attempted source. Secondary errors propagate without retrying.
         """
+        max_attempts = 1 if isinstance(self.primary, ApiSource) else self.policy.max_api_attempts
         attempt = 0
         while True:
             attempt += 1
             log.debug(
                 "Fetching Census data from %s (attempt %s/%s)",
-                self.primary.name, attempt, self.policy.max_api_attempts,
+                self.primary.name, attempt, max_attempts,
             )
             try:
                 frame, provenance = self.primary.fetch(**request)
             except self.policy.fallback_on as error:
                 log.warning(
                     "Census source %s attempt %s/%s failed (%s)",
-                    self.primary.name, attempt, self.policy.max_api_attempts,
+                    self.primary.name, attempt, max_attempts,
                     type(error).__name__,
                 )
-                if attempt == self.policy.max_api_attempts:
+                if attempt == max_attempts:
                     log.warning(
                         "Falling back to Census source %s",
                         self.secondary.name,

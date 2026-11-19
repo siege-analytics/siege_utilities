@@ -364,3 +364,105 @@ def test_corrupted_submitted_ids_never_attach_another_inputs_data(corruption):
     assert [row.lon for row in rows] == [-1.0, -2.0, None]
     assert rows[2].match_quality == "error" and not rows[2].matched
     assert any("input_id 'c'" in error for error in result.errors)
+
+
+class ErrorRowBackend(BatchGeocoder):
+    """Return every row as a row-level error, with no batch-level message."""
+
+    backend_name = "error-rows"
+
+    def geocode(self, addresses):
+        return BatchGeocodingResult(backend=self.backend_name, results=[
+            GeocodingResult(
+                input_id=addr.input_id,
+                input_address=addr.one_line,
+                match_quality="error",
+                backend=self.backend_name,
+            )
+            for addr in addresses
+        ])
+
+
+class CentroidBackend(ReorderingBackend):
+    """Match every row at centroid quality, below the default threshold."""
+
+    def geocode(self, addresses):
+        result = super().geocode(addresses)
+        return replace(result, results=[
+            replace(row, match_quality="centroid") for row in result.results
+        ])
+
+
+def recovered_message(backend_name, caller_id):
+    return (
+        f"Backend {backend_name} returned an error result for input_id "
+        f"{caller_id!r}; a non-error result from another backend was kept"
+    )
+
+
+@pytest.mark.parametrize("caller_ids", [["a", "b"], ["a", "a"]], ids=["distinct", "duplicate"])
+@pytest.mark.parametrize("nested", [False, True])
+def test_recovered_error_row_stays_visible_in_errors(nested, caller_ids):
+    failing = ErrorRowBackend()
+    first = CompositeBatchGeocoder([failing]) if nested else failing
+    inputs = addresses(caller_ids)
+    result = CompositeBatchGeocoder([first, ReorderingBackend()]).geocode(inputs)
+
+    assert [row.input_id for row in result.results] == caller_ids
+    assert [row.input_address for row in result.results] == own_addresses(inputs)
+    assert [row.match_quality for row in result.results] == ["exact", "exact"]
+    assert [(row.lat, row.lon) for row in result.results] == [(1.0, -1.0), (2.0, -2.0)]
+    name = "composite" if nested else "error-rows"
+    assert result.errors == [recovered_message(name, caller_id) for caller_id in caller_ids]
+
+
+def test_error_row_recovered_below_threshold_stays_visible():
+    result = CompositeBatchGeocoder([ErrorRowBackend(), CentroidBackend()]).geocode(addresses(["a"]))
+
+    assert result.results[0].match_quality == "centroid"
+    assert result.errors == [recovered_message("error-rows", "a")]
+
+
+def test_error_after_an_earlier_kept_match_is_reported_without_claiming_a_later_recovery():
+    """The last backend fails after an earlier below-threshold match, which is kept."""
+    result = CompositeBatchGeocoder(
+        [CentroidBackend(), ErrorRowBackend()], min_quality="exact",
+    ).geocode(addresses(["a"]))
+
+    row = result.results[0]
+    assert row.input_id == "a"
+    assert row.match_quality == "centroid" and row.backend == "stub"
+    assert (row.lat, row.lon) == (1.0, -1.0)
+    assert result.errors == [
+        "Backend error-rows returned an error result for input_id 'a'; "
+        "a non-error result from another backend was kept"
+    ]
+
+
+def test_only_recovered_error_rows_are_reported():
+    result = CompositeBatchGeocoder([
+        ErrorRowBackend(), ReorderingBackend(drop="2"),
+    ]).geocode(addresses(["a", "b"]))
+
+    assert [row.match_quality for row in result.results] == ["exact", "error"]
+    assert result.errors == [
+        "Backend stub: missing result for input_id 'b'",
+        recovered_message("error-rows", "a"),
+    ]
+
+
+def test_unrecovered_error_row_adds_no_message():
+    result = CompositeBatchGeocoder([ErrorRowBackend()]).geocode(addresses(["a"]))
+
+    assert result.results[0].match_quality == "error"
+    assert not result.results[0].matched
+    assert result.errors == []
+
+
+def test_recovered_missing_row_is_reported_once():
+    result = CompositeBatchGeocoder([
+        ReorderingBackend(drop="1"), ReorderingBackend(),
+    ]).geocode(addresses(["a"]))
+
+    assert result.results[0].match_quality == "exact"
+    assert result.errors == ["Backend stub: missing result for input_id 'a'"]

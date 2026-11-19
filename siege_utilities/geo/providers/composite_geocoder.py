@@ -87,7 +87,11 @@ class CompositeBatchGeocoder(BatchGeocoder):
         exhausted. The best result is kept. Backends receive library IDs;
         caller IDs are restored on output. Backend failures and missing or
         ambiguous response rows are errors, distinct from a genuine no match.
-        Errors remain visible even if a later backend succeeds.
+        Errors remain visible when another backend's result is kept: a row
+        a backend returns as an error, with or without a batch-level
+        message, is reported in ``errors`` whenever the row's final result
+        is a non-error result from another backend, whichever backend ran
+        first.
         """
         normalized = normalize_addresses(addresses)
         if not normalized:
@@ -98,6 +102,10 @@ class CompositeBatchGeocoder(BatchGeocoder):
         available = self._get_available_backends()
         errors = [] if available else ["No available geocoding backends"]
         best: dict[str, GeocodingResult] = {}
+        # Error rows returned by a backend itself; reported if another backend's
+        # non-error result is kept, because the final row no longer shows the
+        # failure.
+        error_rows: dict[str, list[str]] = {}
         pending = set(inputs)
 
         for backend in available:
@@ -143,6 +151,12 @@ class CompositeBatchGeocoder(BatchGeocoder):
                         match_quality=MatchQuality.ERROR.value,
                         backend=backend.backend_name,
                     )
+                elif gr.match_quality == MatchQuality.ERROR.value:
+                    error_rows.setdefault(batch_id, []).append(
+                        f"Backend {backend.backend_name} returned an error result for "
+                        f"input_id {inputs[batch_id].input_id!r}; a non-error result "
+                        f"from another backend was kept"
+                    )
                 current_rank = _quality_rank(gr.match_quality)
                 prev = best.get(batch_id)
 
@@ -159,6 +173,8 @@ class CompositeBatchGeocoder(BatchGeocoder):
         results = []
         for batch_id, addr in inputs.items():
             if batch_id in best:
+                if best[batch_id].match_quality != MatchQuality.ERROR.value:
+                    errors.extend(error_rows.get(batch_id, []))
                 results.append(replace(best[batch_id], input_id=addr.input_id))
             else:
                 errors.append(f"No geocoding backend produced a result for input_id {addr.input_id!r}")

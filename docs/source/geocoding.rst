@@ -59,7 +59,7 @@ Batch geocoding:
 Provider batch alignment and errors
 -----------------------------------
 
-Starting in v4.1.0, ``CompositeBatchGeocoder`` and ``CensusBatchGeocoder``
+Starting in v5.0.0, ``CompositeBatchGeocoder`` and ``CensusBatchGeocoder``
 join responses using library-assigned unique IDs. Caller IDs are preserved
 as output metadata, including duplicates and blanks. Each input retains its
 own response when a backend reorders or omits rows. Custom backends must
@@ -70,7 +70,9 @@ substitute caller IDs or rely on response position.
 successful chunks. Failed or missing rows have ``MatchQuality.ERROR``
 (``"error"``) and ``matched=False``. Genuine service responses with no match
 still have ``NO_MATCH``. Inspect ``BatchGeocodingResult.errors`` for failure
-details. The composite retains these diagnostics even if fallback succeeds.
+details. The composite retains these diagnostics even if fallback succeeds,
+and a row a backend returns as an error without any message is reported
+there whenever another backend's non-error result for that row is kept.
 
 The low-level ``geocode_batch`` function uses the same internal IDs and
 returns caller IDs in ``CensusGeocodeResult.input_id``. Missing responses

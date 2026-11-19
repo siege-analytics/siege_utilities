@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -61,6 +61,37 @@ __all__ = [
 
 log = logging.getLogger(__name__)
 
+# Default equal-area CRS for measuring source and overlap areas (World Mollweide).
+_DEFAULT_AREA_CRS = "ESRI:54009"
+
+
+def _validate_area_crs(area_crs: Any) -> str:
+    """Return ``area_crs`` as an authority string, rejecting non-projected CRSs.
+
+    Geographic CRSs would measure areas in degrees, and geocentric or other
+    non-projected CRSs have no planar coordinates to measure at all. Projected
+    CRSs that are not equal-area are accepted (the property is not checked).
+    """
+    from pyproj import CRS
+    from pyproj.exceptions import CRSError
+
+    try:
+        parsed = CRS.from_user_input(area_crs)
+    except CRSError as exc:
+        raise ValueError(f"area_crs {area_crs!r} is not a valid CRS: {exc}") from exc
+    if parsed.is_geographic:
+        raise ValueError(
+            f"area_crs must be a projected equal-area CRS; {area_crs!r} is geographic "
+            "and would measure areas in degrees."
+        )
+    if not parsed.is_projected:
+        kind = "geocentric" if parsed.is_geocentric else parsed.type_name
+        raise ValueError(
+            f"area_crs must be a projected equal-area CRS; {area_crs!r} is not projected "
+            f"({kind}) and has no planar coordinates to measure areas in."
+        )
+    return parsed.to_string()
+
 
 @dataclass
 class ArealInterpolationResult:
@@ -76,6 +107,7 @@ class ArealInterpolationResult:
         n_target: Number of target polygons.
         warnings: Any warnings generated during interpolation.
         backend: Selected backend (not invoked when there is no overlap).
+        area_crs: CRS in which source and overlap areas were measured.
     """
 
     data: gpd.GeoDataFrame
@@ -87,6 +119,7 @@ class ArealInterpolationResult:
     n_target: int = 0
     warnings: list[str] = field(default_factory=list)
     backend: str = ""
+    area_crs: Optional[str] = None
 
 
 def _ensure_common_crs(
@@ -126,12 +159,37 @@ def _interpolate_tobler(
     intensive_variables: list[str],
     allocate_total: bool,
     n_jobs: int,
+    area_crs: str = _DEFAULT_AREA_CRS,
 ) -> gpd.GeoDataFrame:
+    from scipy.sparse import coo_matrix
+
+    # Tobler measures areas in the frames' own CRS; give it equal-area frames.
+    # Rows keep their order, and values are assigned back to the target by
+    # position, so the output geometry and CRS are unaffected.
+    source_ea = source.to_crs(area_crs)
+    target_ea = target.to_crs(area_crs)
+    # Tobler's own table would hold every pair that intersects in area_crs,
+    # including the sliver of a pair that only touches in the working CRS, and
+    # allocate_total divides each source by its row sum, so even a tiny sliver
+    # can receive the whole source. Pass the same source-by-target table tobler
+    # builds (float32 areas of the projected intersections), restricted to the
+    # pairs that overlap in the working CRS. With a precomputed table tobler
+    # does not build one, so n_jobs has no effect here.
+    src_pos, tgt_pos = _supported_pairs(source, target)
+    areas = source_ea.geometry.values[src_pos].intersection(
+        target_ea.geometry.values[tgt_pos]
+    ).area
+    table = coo_matrix(
+        (areas, (src_pos, tgt_pos)),
+        shape=(len(source_ea), len(target_ea)),
+        dtype=np.float32,
+    ).tocsr()
     result_gdf = _tobler_area_interpolate(
-        source_df=source,
-        target_df=target,
+        source_df=source_ea,
+        target_df=target_ea,
         extensive_variables=extensive_variables or None,
         intensive_variables=intensive_variables or None,
+        table=table,
         allocate_total=allocate_total,
         n_jobs=n_jobs,
     )
@@ -147,23 +205,35 @@ def _interpolate_duckdb(
     target: gpd.GeoDataFrame,
     extensive_variables: list[str],
     intensive_variables: list[str],
+    area_crs: str = _DEFAULT_AREA_CRS,
 ) -> gpd.GeoDataFrame:
-    """Area-weighted interpolation via DuckDB spatial SQL."""
+    """Area-weighted interpolation via DuckDB spatial SQL in an equal-area CRS."""
     import pandas as pd
+
+    # Project only the geometries used for area math; retain target geometry
+    # and attributes in the returned frame, as in compute_area_weights.
+    source_ea = source.to_crs(area_crs)
+    target_ea = target.to_crs(area_crs)
 
     con = _duckdb.connect()
     con.execute("INSTALL spatial; LOAD spatial;")
 
     src_df = pd.DataFrame(source.drop(columns="geometry"))
-    src_df["_geom_wkb"] = source.geometry.apply(lambda g: g.wkb_hex)
+    src_df["_geom_wkb"] = source_ea.geometry.apply(lambda g: g.wkb_hex)
     src_df["_src_idx"] = range(len(src_df))
 
     tgt_df = pd.DataFrame(target.drop(columns="geometry"))
-    tgt_df["_geom_wkb"] = target.geometry.apply(lambda g: g.wkb_hex)
+    tgt_df["_geom_wkb"] = target_ea.geometry.apply(lambda g: g.wkb_hex)
     tgt_df["_tgt_idx"] = range(len(tgt_df))
+
+    # Only pairs that overlap in the working CRS are measured (see
+    # _supported_pairs); a projected sliver of a touching pair is ignored.
+    src_pos, tgt_pos = _supported_pairs(source, target)
+    pair_df = pd.DataFrame({"_src_idx": src_pos.astype(np.int64), "_tgt_idx": tgt_pos.astype(np.int64)})
 
     con.register("source_tbl", src_df)
     con.register("target_tbl", tgt_df)
+    con.register("pair_tbl", pair_df)
 
     overlap_sql = """
         SELECT
@@ -175,12 +245,10 @@ def _interpolate_duckdb(
             )) AS overlap_area,
             ST_Area(ST_GeomFromWKB(UNHEX(s._geom_wkb))) AS src_area,
             ST_Area(ST_GeomFromWKB(UNHEX(t._geom_wkb))) AS tgt_area
-        FROM source_tbl s, target_tbl t
-        WHERE ST_Intersects(
-            ST_GeomFromWKB(UNHEX(s._geom_wkb)),
-            ST_GeomFromWKB(UNHEX(t._geom_wkb))
-        )
-        AND ST_Area(ST_Intersection(
+        FROM pair_tbl p
+        JOIN source_tbl s ON s._src_idx = p._src_idx
+        JOIN target_tbl t ON t._tgt_idx = p._tgt_idx
+        WHERE ST_Area(ST_Intersection(
             ST_GeomFromWKB(UNHEX(s._geom_wkb)),
             ST_GeomFromWKB(UNHEX(t._geom_wkb))
         )) > 0
@@ -230,12 +298,15 @@ def _interpolate_shapely(
     target: gpd.GeoDataFrame,
     extensive_variables: list[str],
     intensive_variables: list[str],
+    area_crs: str = _DEFAULT_AREA_CRS,
 ) -> gpd.GeoDataFrame:
     """Area-weighted interpolation via Shapely STRtree (no GDAL, no DuckDB)."""
-    src_geoms = source.geometry.values
-    tgt_geoms = target.geometry.values
-
-    tree = STRtree(src_geoms)
+    # Which pairs overlap is decided in the working CRS; how much they overlap
+    # is measured in area_crs, the same equal-area measure as the source areas,
+    # regardless of the common working CRS or the requested output CRS.
+    src_pos, tgt_pos = _supported_pairs(source, target)
+    src_geoms = source.to_crs(area_crs).geometry.values
+    tgt_geoms = target.to_crs(area_crs).geometry.values
 
     src_areas = np.array([g.area for g in src_geoms])
     n_tgt = len(tgt_geoms)
@@ -244,25 +315,19 @@ def _interpolate_shapely(
     int_weighted_sums = {v: np.zeros(n_tgt) for v in intensive_variables}
     int_total_overlaps = np.zeros(n_tgt)
 
-    for tgt_i, tgt_geom in enumerate(tgt_geoms):
-        candidates = tree.query(tgt_geom)
-        for src_i in candidates:
-            src_geom = src_geoms[src_i]
-            if not tgt_geom.intersects(src_geom):
-                continue
-            intersection = tgt_geom.intersection(src_geom)
-            ov_area = intersection.area
-            if ov_area <= 0:
-                continue
+    for src_i, tgt_i in zip(src_pos, tgt_pos):
+        ov_area = tgt_geoms[tgt_i].intersection(src_geoms[src_i]).area
+        if ov_area <= 0:
+            continue
 
-            src_frac = ov_area / src_areas[src_i] if src_areas[src_i] > 0 else 0.0
+        src_frac = ov_area / src_areas[src_i] if src_areas[src_i] > 0 else 0.0
 
-            for var in extensive_variables:
-                ext_results[var][tgt_i] += source[var].iat[src_i] * src_frac
+        for var in extensive_variables:
+            ext_results[var][tgt_i] += source[var].iat[src_i] * src_frac
 
-            for var in intensive_variables:
-                int_weighted_sums[var][tgt_i] += source[var].iat[src_i] * ov_area
-            int_total_overlaps[tgt_i] += ov_area
+        for var in intensive_variables:
+            int_weighted_sums[var][tgt_i] += source[var].iat[src_i] * ov_area
+        int_total_overlaps[tgt_i] += ov_area
 
     result_df = target.copy()
     for var in extensive_variables:
@@ -279,8 +344,44 @@ def _interpolate_shapely(
 
 
 # ---------------------------------------------------------------------------
-# Per-target overlap support
+# Pair and per-target overlap support
 # ---------------------------------------------------------------------------
+
+def _supported_pairs(
+    sources: gpd.GeoDataFrame,
+    target: gpd.GeoDataFrame,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Positions ``(source, target)`` of every pair with positive-area overlap.
+
+    Decided in the frames' common working CRS, where an edge shared by a source
+    and a target coincides exactly, so a pair that only touches is never
+    supported. Areas are measured later in ``area_crs``, but only for these
+    pairs: projecting vertices alone can turn a shared edge into a thin sliver,
+    and a sliver must not contribute mass, a rate weight, or (for tobler's
+    ``allocate_total``) a share of a source's denominator. Pairs are listed
+    target by target, in spatial-index candidate order.
+    """
+    src_pos: list[int] = []
+    tgt_pos: list[int] = []
+    src_geoms = sources.geometry.to_numpy()
+    tgt_geoms = target.geometry.to_numpy()
+    tree = STRtree(src_geoms) if _SHAPELY_AVAILABLE and len(src_geoms) else None
+
+    for ti, tgeom in enumerate(tgt_geoms):
+        if tgeom is None or tgeom.is_empty:
+            continue
+        # Without an STRtree, test every source (geopandas guarantees shapely,
+        # so this fallback is defensive rather than expected).
+        candidates = tree.query(tgeom) if tree is not None else range(len(src_geoms))
+        for si in candidates:
+            sgeom = src_geoms[si]
+            if sgeom is None or sgeom.is_empty:
+                continue
+            if tgeom.intersects(sgeom) and tgeom.intersection(sgeom).area > 0:
+                src_pos.append(int(si))
+                tgt_pos.append(ti)
+    return np.asarray(src_pos, dtype=np.intp), np.asarray(tgt_pos, dtype=np.intp)
+
 
 def _targets_with_valid_overlap(
     sources: gpd.GeoDataFrame,
@@ -292,40 +393,12 @@ def _targets_with_valid_overlap(
     Used to distinguish "a valid source actually contributes to this target"
     (keep the interpolated value) from "no valid source overlaps this target"
     (the value is undefined -> NaN, not the backend's fabricated 0.0). Boundary
-    touches (zero-area intersection) do not count as a contribution.
+    touches (zero-area intersection) do not count as a contribution. Uses the
+    same pair test as the backends (``_supported_pairs``).
     """
-    n_tgt = len(target)
-    mask = np.zeros(n_tgt, dtype=bool)
-    if len(sources) == 0 or n_tgt == 0:
-        return mask
-    src_geoms = sources.geometry.to_numpy()
-    tgt_geoms = target.geometry.to_numpy()
-
-    if _SHAPELY_AVAILABLE:
-        tree = STRtree(src_geoms)
-        for ti, tgeom in enumerate(tgt_geoms):
-            if tgeom is None or tgeom.is_empty:
-                continue
-            for si in tree.query(tgeom):
-                sgeom = src_geoms[si]
-                if sgeom is None or sgeom.is_empty:
-                    continue
-                if tgeom.intersects(sgeom) and tgeom.intersection(sgeom).area > 0:
-                    mask[ti] = True
-                    break
-        return mask
-
-    # Fallback without an STRtree: direct pairwise test (geopandas guarantees
-    # shapely, so this is defensive rather than expected).
-    for ti, tgeom in enumerate(tgt_geoms):
-        if tgeom is None or tgeom.is_empty:
-            continue
-        for sgeom in src_geoms:
-            if sgeom is None or sgeom.is_empty:
-                continue
-            if tgeom.intersects(sgeom) and tgeom.intersection(sgeom).area > 0:
-                mask[ti] = True
-                break
+    mask = np.zeros(len(target), dtype=bool)
+    _, tgt_pos = _supported_pairs(sources, target)
+    mask[tgt_pos] = True
     return mask
 
 
@@ -359,11 +432,16 @@ def interpolate_areal(
     n_jobs: int = 1,
     *,
     crs: str | None = None,
+    area_crs: str = _DEFAULT_AREA_CRS,
 ) -> ArealInterpolationResult:
     """Transfer attribute data between non-coincident geographies.
 
     Uses area-weighted interpolation to redistribute values from source
     polygons to target polygons based on the area of intersection.
+    Every backend (tobler, DuckDB, Shapely) measures source and overlap areas
+    in ``area_crs`` (default World Mollweide, ``ESRI:54009``), independently of
+    the input and output CRSs; the CRS used is recorded in
+    ``ArealInterpolationResult.area_crs``.
 
     Backend dispatch (in priority order):
     1. tobler (PySAL) — when tobler + geopandas are installed
@@ -380,24 +458,43 @@ def interpolate_areal(
         intensive_variables: Columns containing rates/densities.
             These are area-weighted averaged over non-missing sources. Targets
             with no positive overlap area from valid sources receive NaN.
-        allocate_total: If True, ensure 100% of source area is allocated
-            (only applies to tobler backend).
-        n_jobs: Number of parallel jobs (only applies to tobler backend).
+        allocate_total: If True, allocate 100% of each source across the
+            targets it overlaps (only applies to tobler backend). Only pairs
+            with positive-area overlap in the working CRS count, so a target
+            that merely touches a source never receives a share of it.
+        n_jobs: Accepted for compatibility; no longer has an effect. It used to
+            parallelize tobler's area-table construction, but the table is
+            now built here, restricted to pairs that overlap in the working
+            CRS, and passed to tobler.
         crs: Output CRS for the result GeoDataFrame (default: source CRS).
+        area_crs: Projected equal-area CRS in which areas are measured
+            (default ``"ESRI:54009"``, World Mollweide). A CRS that is not
+            projected (geographic, or geocentric such as ``EPSG:4978``) is
+            rejected; a projected CRS is not otherwise checked for the
+            equal-area property, so choose an equal-area projection.
 
     Returns:
-        ArealInterpolationResult with interpolated GeoDataFrame in *crs*.
+        ArealInterpolationResult with interpolated GeoDataFrame in *crs*,
+        or the original source CRS when *crs* is omitted.
         Target columns and row order are preserved; requested variables are
         floats that replace same-named target columns or are appended in
         extensive/intensive order.
-        An empty source or no positive-area overlap skips backend execution:
-        extensive values are zero and intensive values are NaN.
+        Positive-area overlap is decided per source-target pair in the common
+        working CRS, before areas are measured in ``area_crs``, and only those
+        pairs contribute on every backend. A pair that only touches along an
+        edge contributes nothing, even if projecting it to ``area_crs`` leaves a
+        thin sliver. A target with no overlapping pair is not sent to the
+        backend and gets zero extensive and NaN intensive values, whatever the
+        other targets in the call; an empty source or no overlap at all skips
+        backend execution.
 
     Raises:
         ImportError: If no suitable backend is available.
-        ValueError: If no variables are specified, columns are missing, or
-            the target GeoDataFrame is empty.
+        ValueError: If no variables are specified, columns are missing, the
+            target GeoDataFrame is empty, or ``area_crs`` is invalid or not a
+            projected CRS.
     """
+    area_crs = _validate_area_crs(area_crs)
     extensive_variables = extensive_variables or []
     intensive_variables = intensive_variables or []
 
@@ -426,25 +523,37 @@ def interpolate_areal(
         len(source), len(target), backend,
     )
 
-    def _run_backend(src, tgt, ext_vars, int_vars):
-        # Empty frames can retain a geometry dtype after conversion to WKB,
-        # which DuckDB cannot register. No positive-area overlap also means
-        # there is no mass/rate to interpolate, including boundary-only touches
-        # and per-variable valid-source subsets. Handle these before dispatch.
-        if not _targets_with_valid_overlap(src, tgt).any():
-            result = tgt.copy()
-            for v in ext_vars:
-                result[v] = 0.0
-            for v in int_vars:
-                result[v] = np.nan
-            return result
+    def _dispatch(src, tgt, ext_vars, int_vars):
         if backend == "tobler":
             return _interpolate_tobler(
-                src, tgt, ext_vars, int_vars, allocate_total, n_jobs,
+                src, tgt, ext_vars, int_vars, allocate_total, n_jobs, area_crs,
             )
         if backend == "duckdb":
-            return _interpolate_duckdb(src, tgt, ext_vars, int_vars)
-        return _interpolate_shapely(src, tgt, ext_vars, int_vars)
+            return _interpolate_duckdb(src, tgt, ext_vars, int_vars, area_crs)
+        return _interpolate_shapely(src, tgt, ext_vars, int_vars, area_crs)
+
+    def _run_backend(src, tgt, ext_vars, int_vars):
+        # Overlap is decided per pair in the working CRS, where shared edges
+        # coincide exactly (_supported_pairs); every backend measures only those
+        # pairs. Targets with no overlapping pair (including boundary-only
+        # touches) get zero mass and an undefined rate without dispatch, so the
+        # result does not depend on which other targets share the call. Empty
+        # frames are also kept away from DuckDB, which cannot register them
+        # after conversion to WKB.
+        has_overlap = _targets_with_valid_overlap(src, tgt)
+        result = tgt.copy()
+        ext_values = {v: np.zeros(len(tgt)) for v in ext_vars}
+        int_values = {v: np.full(len(tgt), np.nan) for v in int_vars}
+        if has_overlap.any():
+            # Backends return one row per target, in target order.
+            dispatched = _dispatch(src, tgt[has_overlap], ext_vars, int_vars)
+            for v in ext_vars:
+                ext_values[v][has_overlap] = dispatched[v].to_numpy(dtype=float)
+            for v in int_vars:
+                int_values[v][has_overlap] = dispatched[v].to_numpy(dtype=float)
+        for v, vals in {**ext_values, **int_values}.items():
+            result[v] = vals
+        return result
 
     # An intensive variable whose source values contain NaN must be computed on
     # the valid-source subset so the NaN source's area is excluded from BOTH
@@ -511,18 +620,19 @@ def interpolate_areal(
     output = target.copy()
     for v in extensive_variables + intensive_variables:
         output[v] = result_gdf[v].to_numpy(dtype=float, copy=True)
-    result_gdf = reproject_if_needed(output, crs)
+    result_gdf = reproject_if_needed(output, crs if crs is not None else source_gdf.crs)
 
     return ArealInterpolationResult(
         data=result_gdf,
         extensive_variables=extensive_variables,
         intensive_variables=intensive_variables,
-        source_crs=str(source.crs),
+        source_crs=str(source_gdf.crs),
         target_crs=str(target.crs),
         n_source=len(source),
         n_target=len(target),
         warnings=warnings,
         backend=backend,
+        area_crs=area_crs,
     )
 
 
@@ -534,6 +644,7 @@ def interpolate_extensive(
     n_jobs: int = 1,
     *,
     crs: str | None = None,
+    area_crs: str = _DEFAULT_AREA_CRS,
 ) -> ArealInterpolationResult:
     """Interpolate extensive (total/count) variables between geographies."""
     return interpolate_areal(
@@ -543,6 +654,7 @@ def interpolate_extensive(
         allocate_total=allocate_total,
         n_jobs=n_jobs,
         crs=crs,
+        area_crs=area_crs,
     )
 
 
@@ -554,6 +666,7 @@ def interpolate_intensive(
     n_jobs: int = 1,
     *,
     crs: str | None = None,
+    area_crs: str = _DEFAULT_AREA_CRS,
 ) -> ArealInterpolationResult:
     """Interpolate intensive (rate/density) variables between geographies."""
     return interpolate_areal(
@@ -563,6 +676,7 @@ def interpolate_intensive(
         allocate_total=allocate_total,
         n_jobs=n_jobs,
         crs=crs,
+        area_crs=area_crs,
     )
 
 
