@@ -19,12 +19,14 @@ def _patch_fb(monkeypatch):
     from siege_utilities.analytics import facebook_business as mod
 
     fake_api = MagicMock()
+    fake_session = MagicMock()
     fake_pkg = MagicMock()
     monkeypatch.setattr(mod, "FACEBOOK_BUSINESS_AVAILABLE", True)
     monkeypatch.setattr(mod, "FacebookAdsApi", fake_api, raising=False)
+    monkeypatch.setattr(mod, "FacebookSession", fake_session, raising=False)
     monkeypatch.setattr(mod, "facebook_business", fake_pkg, raising=False)
     fake_pkg.adobjects.user.User = MagicMock()
-    return {"api": fake_api, "pkg": fake_pkg}
+    return {"api": fake_api, "session": fake_session, "pkg": fake_pkg}
 
 
 def test_init_rejects_when_facebook_not_installed(monkeypatch):
@@ -38,8 +40,15 @@ def test_init_rejects_when_facebook_not_installed(monkeypatch):
 def test_init_uses_app_id_secret_when_provided(_patch_fb):
     from siege_utilities.analytics.facebook_business import FacebookBusinessConnector
 
-    FacebookBusinessConnector(access_token="tok", app_id="app", app_secret="sec")
-    _patch_fb["api"].init.assert_called_once_with("app", "sec", "tok")
+    connector = FacebookBusinessConnector(
+        access_token="tok", app_id="app", app_secret="sec",
+    )
+    _patch_fb["session"].assert_called_once_with(
+        app_id="app", app_secret="sec", access_token="tok",
+    )
+    _patch_fb["api"].assert_called_once_with(_patch_fb["session"].return_value)
+    assert connector.api is _patch_fb["api"].return_value
+    _patch_fb["api"].init.assert_not_called()
 
 
 def test_init_falls_back_to_token_only(_patch_fb):
@@ -47,8 +56,13 @@ def test_init_falls_back_to_token_only(_patch_fb):
     with just the access token (the supported token-only auth path)."""
     from siege_utilities.analytics.facebook_business import FacebookBusinessConnector
 
-    FacebookBusinessConnector(access_token="tok")
-    _patch_fb["api"].init.assert_called_once_with(access_token="tok")
+    connector = FacebookBusinessConnector(access_token="tok")
+    _patch_fb["session"].assert_called_once_with(
+        app_id=None, app_secret=None, access_token="tok",
+    )
+    _patch_fb["api"].assert_called_once_with(_patch_fb["session"].return_value)
+    assert connector.api is _patch_fb["api"].return_value
+    _patch_fb["api"].init.assert_not_called()
 
 
 def test_get_ad_accounts_propagates_errors(_patch_fb):
@@ -125,7 +139,9 @@ def test_get_page_insights_keys_by_metric_name_across_every_date(_patch_fb, monk
         metrics=["page_views_total", "page_follows"],
     )
 
-    assert list(df["date"]) == ["2026-01-01", "2026-01-02"]
+    # period=day values are labelled with the measured day, one day before
+    # the end-of-period marker (#1435).
+    assert list(df["date"]) == ["2025-12-31", "2026-01-01"]
     assert list(df["page_views_total"]) == [100, 200]
     assert list(df["page_follows"]) == [7, 8]
 

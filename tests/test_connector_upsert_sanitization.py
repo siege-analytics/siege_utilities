@@ -16,6 +16,7 @@ from siege_utilities.connectors.dynamics import DynamicsConnector
 from siege_utilities.connectors.hubspot import HubSpotConnector
 from siege_utilities.connectors.salesforce import SalesforceConnector
 from siege_utilities.connectors.zoho import ZohoConnector
+from tests.crm_connector_factories import record_test_thread_sleeps
 
 
 def _response(body, *, content_type="application/json", status=200):
@@ -25,6 +26,29 @@ def _response(body, *, content_type="application/json", status=200):
     text = json.dumps(body) if content_type == "application/json" else body
     response._content = text.encode("utf-8")
     return response
+
+
+def _batch_response(count):
+    parts = [
+        "--batch_response",
+        "Content-Type: multipart/mixed; boundary=changeset_response",
+        "",
+    ]
+    for content_id in range(1, count + 1):
+        parts.extend([
+            "--changeset_response",
+            "Content-Type: application/http",
+            f"Content-ID: {content_id}",
+            "",
+            "HTTP/1.1 204 No Content",
+            "",
+            "",
+        ])
+    parts.extend(["--changeset_response--", "--batch_response--"])
+    return _response(
+        "\r\n".join(parts),
+        content_type="multipart/mixed; boundary=batch_response", status=202,
+    )
 
 
 def _mock_http(monkeypatch, responses):
@@ -114,7 +138,7 @@ def test_upsert_records_sends_sanitized_json(provider, upsert_rows, monkeypatch)
         ]})
         object_type = "Contacts"
     else:
-        response = _response("", content_type="multipart/mixed", status=202)
+        response = _batch_response(2)
         object_type = "contacts"
     send = _mock_http(monkeypatch, [response])
 
@@ -167,16 +191,19 @@ def test_encoding_error_keeps_connector_error_contract(provider, object_type, mo
     connector._retry_attempts = 3
     connector._retry_backoff = 2
     send = Mock(side_effect=AssertionError("no HTTP expected"))
-    sleep = Mock(side_effect=AssertionError("no backoff expected"))
     monkeypatch.setattr(requests.Session, "send", send)
-    monkeypatch.setattr("time.sleep", sleep)
+    sleep = record_test_thread_sleeps(monkeypatch, side_effect=AssertionError("no backoff expected"))
     request = Mock(wraps=connector._session.request)
     monkeypatch.setattr(connector._session, "request", request)
 
     with pytest.raises(ConnectorError, match="JSON") as exc_info:
         connector.create_record(object_type, {"Name": "x", "AnnualRevenue": float("nan")})
 
-    assert isinstance(exc_info.value.__cause__, requests.exceptions.InvalidJSONError)
+    # The public-edge boundary (#1846 R-1846-5) re-raises a same-class,
+    # message-sanitized ConnectorError with the chain dropped, so a raw
+    # InvalidJSONError cause cannot leak through the formatted traceback.
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
     assert request.call_count == 1
     send.assert_not_called()
     sleep.assert_not_called()
@@ -186,19 +213,18 @@ def test_encoding_error_keeps_connector_error_contract(provider, object_type, mo
     ("salesforce", "Account"), ("hubspot", "contacts"),
     ("zoho", "Contacts"), ("dynamics", "contacts"),
 ])
-def test_transport_errors_keep_three_attempts_and_two_backoffs(provider, object_type, monkeypatch):
+def test_idempotent_transport_errors_keep_three_attempts_and_two_backoffs(provider, object_type, monkeypatch):
     connector = _connector(provider)
     connector._retry_attempts = 3
     connector._retry_backoff = 2
     send = Mock(side_effect=requests.exceptions.ConnectionError("connection failed"))
-    sleep = Mock()
     monkeypatch.setattr(requests.Session, "send", send)
-    monkeypatch.setattr("time.sleep", sleep)
+    sleep = record_test_thread_sleeps(monkeypatch)
     request = Mock(wraps=connector._session.request)
     monkeypatch.setattr(connector._session, "request", request)
 
     with pytest.raises(ConnectorError):
-        connector.create_record(object_type, {"name": "test"})
+        connector.request("GET", f"/{object_type}")
 
     assert request.call_count == 3
     assert send.call_count == 3
@@ -337,7 +363,7 @@ def test_nested_upsert_values_preserve_http_types(provider, monkeypatch):
             "status": "success", "action": "update", "details": {"id": "test"},
         }]})
     else:
-        response = _response("", content_type="multipart/mixed", status=202)
+        response = _batch_response(1)
     send = _mock_http(monkeypatch, [response])
     frame = pd.DataFrame([{
         "external_id": "test",

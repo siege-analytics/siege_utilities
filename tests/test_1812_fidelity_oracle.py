@@ -397,6 +397,94 @@ def test_numeric_unknown_like_count_stays_authorized(
     fidelity.audit()
 
 
+# #1469 baseline-wording manifest. Each seed changes the known-value baseline
+# and current reports the same way, so compare() still sees equal reports and
+# only the exact (case, rule, kind, path) manifest can catch it. These are
+# seeded sensitivity controls for the manifest, not product behavior.
+def _seed_known_reports(monkeypatch: pytest.MonkeyPatch, seed: Callable[[dict, bool], None]) -> None:
+    from siege_utilities.reporting import social_media_reports
+
+    def wrap(cls: type, baseline: bool) -> None:
+        real = cls._build_report_data
+
+        def build(self: Any, data: Any, start: Any, end: Any) -> Any:
+            report = real(self, data, start, end)
+            if all(d["account_info"]["followers_count"] is not None for d in data):
+                seed(report, baseline)
+            return report
+
+        monkeypatch.setattr(cls, "_build_report_data", build)
+
+    wrap(social_media_reports.SocialMediaReportGenerator, baseline=False)
+    real_old_module = fidelity.old_module
+
+    def old_module(module: Any) -> Any:
+        old = real_old_module(module)
+        if module is social_media_reports:
+            wrap(old.SocialMediaReportGenerator, baseline=True)
+        return old
+
+    monkeypatch.setattr(fidelity, "old_module", old_module)
+
+
+def _remove_expected(report: dict, baseline: bool) -> None:
+    del report["insights"][4]
+
+
+def _undeclared_path(report: dict, baseline: bool) -> None:
+    # Production relabels the extra field exactly as the rule would.
+    report["notes"] = "Top Posts — X Twitter" if baseline else "Top analyzed posts — X Twitter"
+
+
+def _moved_same_rule_total(report: dict, baseline: bool) -> None:
+    insights = report["insights"]
+    insights[0], insights[2] = insights[2], insights[0]
+
+
+def _excess_occurrence(report: dict, baseline: bool) -> None:
+    report["insights"].append(report["insights"][2])
+
+
+@pytest.mark.parametrize("seed,expected", [
+    (_remove_expected, "(('known[12, 3]', 'top post insight', 'value', 'report.insights[4]'), 1)"),
+    (_undeclared_path, "'report.notes'"),
+    (_moved_same_rule_total, "'report.insights[0]'"),
+    (_excess_occurrence, "'report.insights[5]'"),
+], ids=["removed-occurrence", "undeclared-path", "moved-same-rule-total", "excess-occurrence"])
+def test_1469_rewrite_manifest_rejects_seeded_changes(
+    monkeypatch: pytest.MonkeyPatch, seed: Callable[[dict, bool], None], expected: str,
+) -> None:
+    _seed_known_reports(monkeypatch, seed)
+    with pytest.raises(AssertionError, match="differ from the declared manifest") as caught:
+        fidelity.audit()
+    assert expected in str(caught.value)
+
+
+def test_1469_rewrite_counted_twice_at_one_path_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Multiplicity matters: a path set would lose this duplicate.
+    real = fidelity._reword_table_headers
+
+    def twice(report: dict, case: str, observed: Any) -> None:
+        real(report, case, observed)
+        observed[(case, "comparison table header", "header", "report.tables[0].headers[3]")] += 1
+
+    monkeypatch.setattr(fidelity, "_reword_table_headers", twice)
+    with pytest.raises(AssertionError, match="excess or undeclared") as caught:
+        fidelity.audit()
+    assert "'report.tables[0].headers[3]'), 1)" in str(caught.value)
+
+
+def test_1469_rewrite_manifest_is_literal_and_per_fixture() -> None:
+    manifest = fidelity._1469_EXPECTED_REWRITES
+    assert sum(manifest.values()) == len(manifest) == 24
+    for case in ("known[12, 3]", "known[0, 0]"):
+        assert sum(n for key, n in manifest.items() if key[0] == case) == 12
+    kinds = {key[2] for key in manifest}
+    assert kinds == {"key", "value", "header"}
+    assert ("known[12, 3]", "Total Likes by Platform", "value", "report.charts[1].title") in manifest
+    assert ("known[0, 0]", "Total Likes by Platform", "value", "report.charts[0].title") in manifest
+
+
 def test_text_like_count_is_still_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     _mutate_current_instagram(monkeypatch, _set_omitted_like_count(lambda index: pd.Series(["unknown"], index=index)))
     with pytest.raises(AssertionError):

@@ -11,12 +11,32 @@ from typing import Dict, List, Optional, Union, Any
 import pandas as pd
 
 __all__ = [
+    'ACS_SENTINELS',
+    'ACS_SENTINEL_STRINGS',
     'VARIABLE_GROUPS',
     'VARIABLE_DESCRIPTIONS',
     'VariableRegistry',
 ]
 
 log = logging.getLogger(__name__)
+
+# ACS jam values represent missing or annotated estimates/MOEs in both sources.
+ACS_SENTINELS = frozenset(-int(str(digit) * 9) for digit in range(1, 10))
+ACS_SENTINEL_STRINGS = frozenset(str(value) for value in ACS_SENTINELS)
+
+
+def _mask_acs_sentinels(values: pd.Series) -> pd.Series:
+    """Return already-parsed ACS estimates or MOEs with jam values set to NaN.
+
+    Matches by numeric value after parsing, so every encoding of a jam value
+    that parses to it (``'-666666666'``, ``' -666666666 '``, ``'-666666666.0'``,
+    ``'-6.66666666e+08'``) is masked, not only the canonical integer string.
+    A series without jam values is returned unchanged, keeping its dtype.
+    """
+    is_sentinel = values.isin(ACS_SENTINELS)
+    if not is_sentinel.any():
+        return values
+    return values.mask(is_sentinel)
 
 
 class _DeprecatedDict(dict):

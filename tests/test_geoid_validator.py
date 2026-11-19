@@ -123,7 +123,8 @@ class TestGEOIDValidator:
     @pytest.mark.parametrize(
         "geoid,level",
         [
-            ("CAZZZ", "sldu"), ("06zzZ", "sldl"), ("0600-", "sldu"),
+            ("CAZZZ", "sldu"), ("06zzZ", "sldl"), ("0600.", "sldu"),
+            ("06-1", "cd"),
             ("06ZZZZ", "sldl"), ("CAZZ", "cd"), ("06zz", "cd"),
             ("060/", "cd"), ("06ZZZ", "cd"), ("06\u00e9Z", "cd"),
             ("０６０３７", "county"),

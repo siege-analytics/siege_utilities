@@ -58,9 +58,15 @@ GEOID_LENGTHS = {
     if info.get('geoid_length') is not None
 }
 
+# SLD district codes may contain a hyphen (2024 Vermont SLDL codes such as
+# 50F-3); congressional district codes are letters and digits only.
+_DISTRICT_TAIL_CLASSES = {"sldu": "0-9A-Z-", "sldl": "0-9A-Z-", "cd": "0-9A-Z"}
+
 _DISTRICT_GEOID_PATTERNS = {
-    level: re.compile(rf"[0-9]{{2}}[0-9A-Z]{{{GEOID_LENGTHS[level] - 2}}}")
-    for level in ("sldu", "sldl", "cd")
+    level: re.compile(
+        rf"[0-9]{{2}}[{tail_class}]{{{GEOID_LENGTHS[level] - 2}}}"
+    )
+    for level, tail_class in _DISTRICT_TAIL_CLASSES.items()
 }
 
 _STATE_PREFIXED_LEVELS = frozenset({
@@ -121,9 +127,9 @@ class GEOIDValidator:
     Validates the length and alphabet for the given geography level.
     VTD GEOIDs have a five-digit FIPS prefix and six VTDST characters:
     ASCII digits, letters, periods, slashes, or hyphens. SLD and CD GEOIDs
-    have a two-digit state prefix and an uppercase alphanumeric district
-    code. Numeric levels require ASCII digits; VTD20 retains its existing
-    digits-only validation.
+    have a two-digit state prefix and a district code of uppercase ASCII
+    letters and digits; SLD codes may also contain hyphens. Numeric levels
+    require ASCII digits; VTD20 retains its existing digits-only validation.
 
     Usage in Django models:
         geoid = CharField(validators=[GEOIDValidator('tract')])
@@ -148,10 +154,15 @@ class GEOIDValidator:
                 )
         elif not _has_valid_geoid_characters(value, self.geography_level):
             if self.geography_level in _DISTRICT_GEOID_PATTERNS:
+                allowed = (
+                    "letters or digits"
+                    if self.geography_level == "cd"
+                    else "letters, digits, or hyphens"
+                )
                 raise ValidationError(
                     f"GEOID for {self.geography_level} must contain 2 state digits "
                     f"followed by {self.expected_length - 2} uppercase ASCII "
-                    f"letters or digits, got '{value}'"
+                    f"{allowed}, got '{value}'"
                 )
             raise ValidationError(
                 f"GEOID must contain only digits, got '{value}'"
@@ -195,9 +206,10 @@ def normalize_geoid(
 
     Integral floats are converted to integers before padding. State-prefixed
     GEOIDs must yield a recognized state FIPS code, so at most one missing
-    leading zero can be restored. SLD/CD district codes allow uppercase ASCII
-    letters and digits; numeric levels allow ASCII digits only. VTD levels
-    retain their existing string conversion and padding behavior.
+    leading zero can be restored. SLD/CD district codes allow ASCII letters
+    and digits, and SLD codes also allow hyphens; lowercase ASCII letters are
+    returned in canonical uppercase. Numeric levels allow ASCII digits only.
+    VTD levels retain their existing string conversion and padding behavior.
 
     Args:
         geoid: GEOID value (string, integer, or integral float)
@@ -234,6 +246,10 @@ def normalize_geoid(
             raise ValueError(f"GEOID '{geoid}' must be a finite integral number")
         geoid = int(geoid)
     geoid_str = str(geoid).strip()
+    if geography_lower in _DISTRICT_GEOID_PATTERNS and geoid_str.isascii():
+        # District letters are canonical uppercase; ASCII-only so that case
+        # mapping cannot change the length or admit non-ASCII letters.
+        geoid_str = geoid_str.upper()
 
     # Zero-pad to expected length
     normalized = geoid_str.zfill(expected_length)
@@ -542,8 +558,11 @@ def validate_geoid(
     VTD GEOIDs allow ASCII digits, letters, periods, slashes, and hyphens
     in the six-character VTDST tail after the five-digit FIPS prefix.
     SLD/CD GEOIDs allow uppercase ASCII letters and digits in the district
-    part after a two-digit state prefix. Numeric levels require ASCII digits;
-    VTD20 retains its existing digits-only validation.
+    part after a two-digit state prefix, and SLD codes also allow hyphens.
+    Strict validation requires the canonical uppercase form; with
+    ``strict=False`` a value is valid when normalize_geoid() accepts it,
+    including lowercase district letters. Numeric levels require ASCII
+    digits; VTD20 retains its existing digits-only validation.
 
     Args:
         geoid: GEOID string to validate
@@ -873,7 +892,11 @@ def slug_to_geoid(slug: str) -> str:
         elif geography_lower in ('cd', 'sldu', 'sldl'):
             # The slug was lowercased above; district codes are canonical
             # uppercase, so alphanumeric districts such as 06ZZZ round trip.
-            district = parts[level_idx + 1].upper()
+            # SLD codes may contain the slug separator (Vermont 50F-3 becomes
+            # vt-sldl-F-3), so the district is every part after the label.
+            if level_idx + 1 >= len(parts):
+                raise IndexError
+            district = "-".join(parts[level_idx + 1:]).upper()
             return state_fips + district
         elif geography_lower == 'vtd':
             county = parts[level_idx - 1]

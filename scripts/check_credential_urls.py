@@ -47,9 +47,10 @@ ALLOWLIST = {
         "copied into params before adding filters. Listing diagnostics are redacted "
         "and raise a fresh ConnectionError outside the handler; sentinel tests cover it.",
     ("geo/providers/redistricting_data_hub.py", "RDHClient.download_dataset",
-     "self._session.get(url, params=self._auth_params(url), timeout=300, stream=True)"):
+     "self._session.get(url, params=self._auth_params(url), timeout=300, stream=True, headers={'Accept-Encoding': 'identity'})"):
         "RDH requires query authentication on its host and subdomains. _auth_params "
-        "excludes unrelated hosts; download diagnostics are redacted and raise fresh exceptions "
+        "excludes unrelated hosts; the identity Accept-Encoding header carries no credentials. "
+        "Download diagnostics are redacted and raise fresh exceptions "
         "without credential-bearing request/response/context; sentinel tests cover it.",
     ("analytics/instagram.py", "InstagramConnector._request_url",
      "self._session.request(method, url, params=req_params, timeout=self._timeout, "
@@ -78,9 +79,10 @@ ALLOWLIST = {
         "request wrapper; this site does not insert credentials.",
     ("connectors/dynamics.py", "DynamicsConnector.request",
      "self._session.request(method, url, params=dict(params) if params else None, "
-     "json=json_body, timeout=self._timeout)"):
+     "json=json_body, timeout=self._timeout, **{'headers': dict(headers)} if headers is not None else {})"):
         "Dynamics installs OAuth credentials in Authorization; reviewed callers use "
-        "OData query fields. Caller-supplied secret params are not sanitized here.",
+        "OData query fields. Per-request headers add FetchXML paging annotations "
+        "without adding query credentials. Caller-supplied secret params are not sanitized here.",
     ("connectors/hubspot.py", "HubSpotConnector._list_objects",
      "self.request('GET', path, params=params)"):
         "Forwards limit/properties/after pagination fields to the header-authenticated "

@@ -303,6 +303,7 @@ def test_facebook_page_defaults_and_metric_parameter(monkeypatch, custom):
     # SDK is optional; intercept its boundary, with HTTP disabled by offline.
     monkeypatch.setattr(facebook_business, "FACEBOOK_BUSINESS_AVAILABLE", True)
     monkeypatch.setattr(facebook_business, "FacebookAdsApi", Mock(), raising=False)
+    monkeypatch.setattr(facebook_business, "FacebookSession", Mock(), raising=False)
     page = Mock()
     page.return_value.get_insights.return_value = []
     monkeypatch.setattr(facebook_business, "Page", page, raising=False)

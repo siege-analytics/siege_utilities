@@ -133,7 +133,7 @@ NOTEBOOK_GROUPS = {
     "spatial-gdal": ["spatial/03_choropleth_maps.ipynb", "spatial/04_redistricting.ipynb", ...],
     "spatial-django": ["spatial/06_geodjango.ipynb"],
     "analytics-pure": ["analytics/01_connectors.ipynb"],
-    "analytics-integration": ["analytics/02_ga_end_to_end.ipynb", ...],
+    "analytics-integration": ["analytics/02_ga_end_to_end.ipynb", ...],  # 02 is now the offline fixed-date GA demo and runs in the pure lane (#1662)
     "engines-pure": ["engines/01_multi_engine_dataframes.ipynb", "engines/04_statistics_primitives.ipynb"],
     "engines-spark": ["engines/02_distributed_spark.ipynb"],
     "engines-databricks": ["engines/03_databricks_geo.ipynb"],

@@ -314,14 +314,20 @@ class TestValidateGEOID:
     @pytest.mark.parametrize(
         "geoid,level",
         [
-            ("CAZZZ", "sldu"), ("06zzZ", "sldl"), ("0600-", "sldu"),
-            ("06ZZZZ", "sldl"), ("CAZZ", "cd"), ("06zz", "cd"),
+            ("CAZZZ", "sldu"), ("0600.", "sldu"),
+            ("06ZZZZ", "sldl"), ("CAZZ", "cd"), ("06-1", "cd"),
             ("060/", "cd"), ("06ZZZ", "cd"), ("06\u00e9Z", "cd"),
             ("０６０３７", "county"),
         ],
     )
     def test_validate_rejects_invalid_district_and_numeric_characters(self, geoid, level, strict):
         assert validate_geoid(geoid, level, strict=strict) is False
+
+    @pytest.mark.parametrize("geoid,level", [("06zzZ", "sldl"), ("06zz", "cd")])
+    def test_validate_lowercase_district_strict_rejects_lenient_normalizes(self, geoid, level):
+        """Strict validation needs canonical uppercase; lenient mode normalizes."""
+        assert validate_geoid(geoid, level) is False
+        assert validate_geoid(geoid, level, strict=False) is True
 
     def test_invalid_short_geoid_default(self):
         """Test that short GEOID missing leading zeros is invalid by default."""

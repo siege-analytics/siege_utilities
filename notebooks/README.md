@@ -86,7 +86,7 @@ notebooks/
 | File | Capability |
 |---|---|
 | [`01_connectors.ipynb`](./analytics/01_connectors.ipynb) | External analytics source zoo (GA, Facebook, Snowflake) |
-| [`02_ga_end_to_end.ipynb`](./analytics/02_ga_end_to_end.ipynb) | GA → report showcase |
+| [`02_ga_end_to_end.ipynb`](./analytics/02_ga_end_to_end.ipynb) | Offline fixed-date GA demo: synthetic fixture rendered to a PDF report |
 | [`03_social_media_analytics.ipynb`](./analytics/03_social_media_analytics.ipynb) | Social media fixture analytics and report payload assembly |
 | [`04_crm_pipeline.ipynb`](./analytics/04_crm_pipeline.ipynb) | CRM pipeline deduplication, geographic preparation, and write-back planning |
 | [`05_crm_sales_reports.ipynb`](./analytics/05_crm_sales_reports.ipynb) | CRM sales reporting fixtures, charts, and report planning |

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import re
+import warnings
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional
 
@@ -505,8 +506,14 @@ class RDHLoaderService:
         Returns
         -------
         RDHLoadResult
+            On the spatial path, a district that receives no census unit is
+            skipped (counted in ``records_skipped``) instead of being stored
+            with zero totals, and is reported as a warning, or as an error when
+            no district receives a unit. Warnings from the overlay are recorded
+            in ``warnings``.
         """
         from siege_utilities.geo.providers.redistricting_data_hub import (
+            _DistrictsWithoutUnitsWarning,
             demographic_profile,
             fetch_demographic_summary,
         )
@@ -571,15 +578,35 @@ class RDHLoaderService:
 
         # Spatial join path (when census_gdf is a GeoDataFrame)
         try:
-            profile_df = demographic_profile(
-                plan_gdf, census_gdf, district_id_col=district_id_col,
-            )
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                profile_df = demographic_profile(
+                    plan_gdf, census_gdf, district_id_col=district_id_col,
+                )
         except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
             result.errors.append(f"Spatial join failed: {e}")
             return result
 
+        # Report the overlay's warnings in the result. Districts without units
+        # are reported once, through the skip accounting below.
+        for caught_warning in caught:
+            if not issubclass(caught_warning.category, _DistrictsWithoutUnitsWarning):
+                result.warnings.append(str(caught_warning.message))
+        # Read straight from the returned frame: later pandas operations may drop attrs.
+        without_units = {
+            str(district) for district in profile_df.attrs.get("districts_without_units", [])
+        }
+        skipped_without_units = []
+
         for _, row in profile_df.iterrows():
-            district = districts_qs.filter(geoid=str(row[district_id_col])).first()
+            district_id = str(row[district_id_col])
+            if district_id in without_units:
+                # A zero row here means no unit was assigned, not a measured
+                # zero; storing it would overwrite earlier values with zeros.
+                skipped_without_units.append(district_id)
+                result.records_skipped += 1
+                continue
+            district = districts_qs.filter(geoid=district_id).first()
             if not district:
                 result.records_skipped += 1
                 continue
@@ -596,6 +623,11 @@ class RDHLoaderService:
                 defaults={"values": values},
             )
             result.records_created += 1
+
+        self._report_unmatched(
+            result, skipped_without_units, result.records_created,
+            "census units assigned by interior point",
+        )
 
         logger.info(
             "Loaded demographics for %d districts in plan %s",
