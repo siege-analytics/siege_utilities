@@ -19,6 +19,8 @@ from dataclasses import dataclass, field, asdict
 from enum import Enum
 from typing import Optional, Union
 
+from ..geocoding_core import _normalize_address_field
+
 log = logging.getLogger(__name__)
 
 __all__ = ["AddressInput", "BatchGeocoder", "BatchGeocodingResult", "GeocodingResult", "MatchQuality", "normalize_addresses"]
@@ -157,49 +159,52 @@ class AddressInput:
     zipcode: str = ""
     input_id: str = ""
 
+    def __post_init__(self) -> None:
+        self.zipcode = _normalize_field(self.zipcode, zipcode=True)
+
     @property
     def one_line(self) -> str:
         parts = [self.street, self.city, self.state, self.zipcode]
-        return ", ".join(p for p in parts if p)
+        return ", ".join(p for p in parts if isinstance(p, str) and p)
+
+
+def _normalize_field(value, *, zipcode: bool = False) -> str:
+    """Coerce a scalar field, restoring leading zeros only for numeric ZIPs."""
+    return _normalize_address_field(value, zipcode=zipcode)
 
 
 def normalize_addresses(
-    addresses: Union[list[dict], list[str], list[AddressInput]],
+    addresses: list[Union[dict, str, AddressInput]],
 ) -> list[AddressInput]:
     """Normalize address input to a list of AddressInput.
 
-    Accepts:
-    - List of dicts with keys: street, city, state, zipcode, id (optional)
-    - List of one-line address strings
-    - List of AddressInput instances (returned as-is)
+    Accepts a mixed list of dicts (street, city, state, zipcode, optional id),
+    one-line strings, and AddressInput instances (returned as-is). Dict fields
+    become strings, with None, numeric NaN, and pandas NA/NaT replaced by an
+    empty string. Numeric ZIPs are padded to five or nine digits; invalid
+    numeric ZIPs become empty strings. String ZIPs are preserved verbatim,
+    including ZIP+4 values.
     """
     if not addresses:
         return []
 
-    first = addresses[0]
-
-    if isinstance(first, AddressInput):
-        return list(addresses)
-
-    if isinstance(first, str):
-        return [
-            AddressInput(street=addr, input_id=str(i))
-            for i, addr in enumerate(addresses)
-        ]
-
-    if isinstance(first, dict):
-        result = []
-        for i, addr in enumerate(addresses):
+    result = []
+    for i, addr in enumerate(addresses):
+        if isinstance(addr, AddressInput):
+            result.append(addr)
+        elif isinstance(addr, str):
+            result.append(AddressInput(street=addr, input_id=str(i)))
+        elif isinstance(addr, dict):
             result.append(AddressInput(
-                street=addr.get("street", addr.get("address", "")),
-                city=addr.get("city", ""),
-                state=addr.get("state", ""),
-                zipcode=addr.get("zipcode", addr.get("zip", "")),
-                input_id=addr.get("id", addr.get("input_id", str(i))),
+                street=_normalize_field(addr.get("street", addr.get("address", ""))),
+                city=_normalize_field(addr.get("city", "")),
+                state=_normalize_field(addr.get("state", "")),
+                zipcode=_normalize_field(addr.get("zipcode", addr.get("zip", "")), zipcode=True),
+                input_id=_normalize_field(addr.get("id", addr.get("input_id", str(i)))),
             ))
-        return result
-
-    raise TypeError(f"Unsupported address type: {type(first)}")
+        else:
+            raise TypeError(f"Unsupported address type: {type(addr)}")
+    return result
 
 
 # ---------------------------------------------------------------------------
