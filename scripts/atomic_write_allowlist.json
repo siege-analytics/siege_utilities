@@ -207,73 +207,10 @@
     "reason": "Explicit branding export is separate from the create/update branding persistence sites listed in #1509; those two sites are converted. Existing three export branches are pinned."
   },
   {
-    "scope": "export_design_kit",
+    "scope": "export_design_kit._open_table",
     "rule": "open",
-    "sha256": "2fa00510f961c7daaf142785c3a3ba4ba0dbda04939e0576918d94f9eb53dd83",
-    "call": "open(tables_dir / 'daily_performance.csv', 'w', newline='', encoding='utf-8')",
-    "file": "reporting/examples/google_analytics_report_example.py",
-    "count": 1,
-    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
-  },
-  {
-    "scope": "export_design_kit",
-    "rule": "open",
-    "sha256": "6884857751f4582412a8e719ae1d4fa72950d7ef59d606b851589181293adf98",
-    "call": "open(tables_dir / 'traffic_sources.csv', 'w', newline='', encoding='utf-8')",
-    "file": "reporting/examples/google_analytics_report_example.py",
-    "count": 1,
-    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
-  },
-  {
-    "scope": "export_design_kit",
-    "rule": "open",
-    "sha256": "fb04812917e24cc80639bb93026ebdb1d4d2594169c076596febed9ca5ad69f4",
-    "call": "open(tables_dir / 'top_pages.csv', 'w', newline='', encoding='utf-8')",
-    "file": "reporting/examples/google_analytics_report_example.py",
-    "count": 1,
-    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
-  },
-  {
-    "scope": "export_design_kit",
-    "rule": "open",
-    "sha256": "476d5cb3a68f61d45c75abce48c83428fc85e76f776f9e5c219ca091f5c8cd61",
-    "call": "open(tables_dir / 'geographic.csv', 'w', newline='', encoding='utf-8')",
-    "file": "reporting/examples/google_analytics_report_example.py",
-    "count": 1,
-    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
-  },
-  {
-    "scope": "export_design_kit",
-    "rule": "open",
-    "sha256": "86ebcdc9c72944d1c54cf971815aafba93d89320d4527630908f20e86a368670",
-    "call": "open(tables_dir / 'devices.csv', 'w', newline='', encoding='utf-8')",
-    "file": "reporting/examples/google_analytics_report_example.py",
-    "count": 1,
-    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
-  },
-  {
-    "scope": "export_design_kit",
-    "rule": "open",
-    "sha256": "c719e664bc71ba8161c0aed5504460ca255cb9d93f6513a51b2432ce34d587ef",
-    "call": "open(tables_dir / 'kpi_summary.csv', 'w', newline='', encoding='utf-8')",
-    "file": "reporting/examples/google_analytics_report_example.py",
-    "count": 1,
-    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
-  },
-  {
-    "scope": "export_design_kit",
-    "rule": "open",
-    "sha256": "6384f8ba554f0b64325e1a7625de035a45a7f99bb64cc739125db033ff7588c0",
-    "call": "open(tables_dir / 'period_comparison.csv', 'w', newline='', encoding='utf-8')",
-    "file": "reporting/examples/google_analytics_report_example.py",
-    "count": 1,
-    "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
-  },
-  {
-    "scope": "export_design_kit",
-    "rule": "open",
-    "sha256": "ca3d6da219c1d9c9117b6e314a81e80ec836e9079c37becebf294881fe20c4ca",
-    "call": "open(tables_dir / 'year_over_year.csv', 'w', newline='', encoding='utf-8')",
+    "sha256": "537f41fd3d50cc5cc65c6b81bb52370e078538b7978f87d4f16b49c0662679b8",
+    "call": "open(tables_dir / name, 'w', newline='', encoding='utf-8')",
     "file": "reporting/examples/google_analytics_report_example.py",
     "count": 1,
     "reason": "Regenerable example design-kit CSV/text/metadata exports, outside the enumerated production writers in #1509."
