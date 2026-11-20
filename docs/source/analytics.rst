@@ -29,12 +29,13 @@ The following contracts change the behavior shipped in 4.0.0:
   ``ValueError``; all-zero categories and periods are omitted from the
   category breakdown and trend fit.
 * Trend analysis sorts labels lexicographically; use chronologically sortable
-  labels such as ``2026-Q1`` or ISO dates. OLS fits all valid period MAPEs with
-  equally spaced periods. The fitted change over the whole span determines
-  direction: below -1 percentage point is improving, above +1 is degrading,
-  and the inclusive interval between them is stable. Periods with all-zero
-  actuals or insufficient data are skipped; fewer than two valid periods gives
-  ``None`` for direction.
+  labels such as ``2026-Q1`` or ISO dates. OLS fits the reported two-decimal
+  period MAPEs exactly, with equally spaced periods. The fitted change over the
+  whole span determines direction: below -1 percentage point is improving,
+  above +1 is degrading, and the inclusive interval between them is stable, so
+  a reported change of exactly 1.00 point is stable. Periods with all-zero
+  actuals, insufficient data, or a MAPE or bias that overflows to a non-finite
+  value are skipped; fewer than two valid periods gives ``None`` for direction.
 * Health and risk tiers classify the reported two-decimal composite score.
   A raw score of 69.999 reported as 70.0 receives the tier for 70.0, including
   any corresponding risk intervention.

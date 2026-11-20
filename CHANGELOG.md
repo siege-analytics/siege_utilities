@@ -355,36 +355,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Account.Name` and `name` return values instead of all-null columns. Output
   labels keep the caller's spelling; absent fields and relationships remain
   null, and empty results keep the requested columns (#1428).
-- **Analytics behavior changes from v4.0.0 (#1422):** Pipeline snapshots now
-  report `PipelineReport.stage_ratios` containing `StageRatio.ratio`, replacing
-  `conversions`, `ConversionRate`, and `rate`. These are ratios of independent
-  stage counts, not cohort conversion rates; they may exceed 1.0 and are
-  `None` when the earlier stage is empty.
-- Pipeline `aging_threshold` now means an absolute number of days, defaulting
-  to 30, instead of the v4.0.0 multiplier of the stage average (default 2).
-  Items older than the bound are flagged even in stages with one or two
-  timed items. Callers supplying a multiplier must choose a day limit (#1422).
-- Forecast groups containing missing (`None`) or non-finite inputs now report
-  `grade="Insufficient data"`, `bias_direction="insufficient-data"`, and `None`
-  for MAPE and bias, replacing v4.0.0's misleading Poor/neutral result or
-  missing-value error. Such periods are omitted from trend fitting (#1422).
-- Forecast trends now sort period labels lexicographically and fit OLS over
-  every valid period's MAPE, treating periods as equally spaced. Direction
-  uses the fitted total change with a one-percentage-point stable band,
-  replacing v4.0.0's input-order endpoint comparison (#1422).
-- Health and risk tiers now use the reported two-decimal composite score,
-  so a raw score of 69.999 reported as 70.0 receives the tier for 70.0.
-  Risk interventions follow that tier, correcting v4.0.0 boundary results (#1422).
-- `ComparativeAnalyzer.__init__` rejects negative, non-finite, and zero-sum
-  weights with `ValueError` and normalizes accepted weights before `compare`
-  runs. Unlike v4.0.0, scaled versions
-  of the same weights yield the same totals on the 1-5 score scale (#1422).
-- Price sensitivity analysis now validates each respondent's
-  `too_cheap <= cheap <= expensive <= too_expensive` ordering before building
-  curves, allowing ties and raising `ValueError` with the zero-based response
-  index for inconsistent answers accepted in v4.0.0. Removed the ineffective
-  monotonicity guard on curves that are monotonic by construction (#1422).
-
 - Political schema migrations can now be applied: remove the trailing comma
   that prevented V0002 from parsing and blocked dependent V0003. Limit the
   composite foreign key's `ON DELETE SET NULL` to `(next_term_id)` so deleting
@@ -1121,12 +1091,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `bias_direction="insufficient-data"` and `None` MAPE/bias for groups with
   missing (`None`) or non-finite inputs, where v4.0.0 returned a Poor/neutral
   result for NaN or raised `TypeError` for `None`; such periods are left out of
-  trend fitting. Trends sort period labels lexicographically and fit OLS
-  across every valid period's MAPE as equally spaced periods, with a
-  one-percentage-point stable band, instead of comparing the first and last
-  periods in input order (#1422). **Migration:** handle the insufficient-data
-  grade and `None` metrics; use sortable period labels (for example `2026-01`,
-  not `Jan 2026`).
+  trend fitting, as are periods whose MAPE or bias overflows to a non-finite
+  value. Trends sort period labels lexicographically and fit OLS across the
+  reported two-decimal period MAPEs exactly, as equally spaced periods. A
+  reported change of exactly 1.00 percentage point is stable; direction uses
+  the fitted change with an inclusive one-percentage-point stable band,
+  instead of comparing the first and last periods in input order (#1422).
+  **Migration:** handle the insufficient-data grade and `None` metrics; use
+  sortable period labels (for example `2026-01`, not `Jan 2026`).
 - `HealthScorer.score`/`score_batch` and `RiskAnalyzer.assess`/`assess_batch`
   assign tiers (and risk interventions) from the reported two-decimal
   composite score, so 69.999 reported as 70.0 gets the 70.0 tier (#1422).
