@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "source_to_tests": {
+    "siege_utilities/connectors/dynamics.py": [
+      "tests/test_connectors_dynamics_errors.py",
+      "tests/test_connector_upsert_sanitization.py",
+      "tests/test_connector_filter_escaping.py",
+      "tests/test_connector_identifiers.py",
+      "tests/test_1449_msal_extra.py"
+    ]
+  }
+}
