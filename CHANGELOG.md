@@ -1037,6 +1037,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was accepted, a GeoDataFrame join bypassed the rule, and the result was
   mislabelled EPSG:4326 (#1852). **Migration:** reproject both inputs to one
   CRS before joining on a geometry key.
+- Batch geocoding joins responses to inputs by a library-assigned unique ID
+  through `CompositeBatchGeocoder`, `CensusBatchGeocoder` and the Census CSV
+  submission (`geocode_batch` / `geocode_batch_chunked`), never by position or
+  by caller ID. Caller `input_id` values, including duplicates and blanks, are
+  restored on the returned results. Reordered or dropped response rows can no
+  longer move coordinates to another address. `CensusBatchGeocoder.geocode`
+  handles failures per chunk: successful chunks are kept, and failed or missing
+  rows now have `match_quality == MatchQuality.ERROR` (`"error"`, new) with a
+  diagnostic in `errors`, where v4.0.0 reported them as `no_match` or lost
+  every chunk. `GeocodingResult.matched` is false for both `error` and
+  `no_match`. Composite fallback keeps every backend's errors in `errors` when
+  another backend's non-error result is kept, including an error row a backend
+  returns without a message. Low-level Census parsing marks a missing row
+  `match_type="Error"` and raises `CensusGeocodeError` for a non-list response,
+  a non-dict row, or an unknown or duplicate response ID; `chunk_size <= 0`
+  raises `ValueError`. `geocode_batch_chunked` still raises on request failure.
+  When no composite backend is available, `results` holds one `error` row per
+  input (caller ID, order and duplicates kept, no coordinates) and `errors`
+  holds the "No available geocoding backends" summary followed by one entry
+  per input naming its caller ID; v4.0.0 returned no rows and only the
+  summary. Composite per-row diagnostics for missing or duplicate backend rows
+  name the caller ID, not the internal batch ID (#1410). **Migration:** add
+  `"error"` to any exhaustive `match_quality` mapping; treat
+  `matched == False` as "no coordinates" and inspect `match_quality` to tell
+  errors from genuine no-match; custom `BatchGeocoder` backends and Census
+  `addressbatch` stand-ins must echo the `input_id` they were given (rows with
+  unknown or duplicate IDs are rejected); read per-row status separately from
+  the attempt history in `errors`; code that counted `errors` (for example
+  expecting exactly one entry when no backend is available) must expect the
+  summary plus one entry per input. The #1667 notebook test's `addressbatch`
+  stub now echoes the submitted IDs, and the #654 test
+  `test_all_unavailable_returns_error` now expects the per-input entry, for
+  these reasons.
+
 - `fetch_real_ga4_data` in `reporting/examples/google_analytics_report_example`
   converts each GA4 `bounceRate` ratio to a 0–100 percentage at its API read
   site, so `bounce_rate`, `avg_bounce_rate` and the report cards are no longer
