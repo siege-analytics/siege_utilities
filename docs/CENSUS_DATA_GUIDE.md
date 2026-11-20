@@ -792,6 +792,7 @@ from siege_utilities.geo import (
     normalize_to_year,
     identify_boundary_changes
 )
+from siege_utilities.geo.crosswalk import WeightMethod
 
 # Get crosswalk table
 crosswalk = get_crosswalk(
@@ -806,7 +807,8 @@ df_2020 = apply_crosswalk(
     df=df_2010,
     source_year=2010,
     target_year=2020,
-    weight_method='area'  # or 'population', 'housing'
+    weight_method=WeightMethod.AREA,
+    intensive_variables=['median_income'],  # if present in df_2010
 )
 
 # Normalize multiple years to common boundaries
@@ -822,6 +824,27 @@ changes = identify_boundary_changes(
     include_unchanged=False
 )
 ```
+
+`WeightMethod.AREA`, `WeightMethod.POPULATION` and `WeightMethod.HOUSING` use
+`area_weight`, `population_weight` and `housing_weight`, respectively, and raise
+`ValueError` naming the source and target for any missing weight on a matched
+row; POPULATION and HOUSING also require their column to be present. Sources
+absent from the crosswalk keep their values. The Census crosswalk client
+currently supplies area weights; use `WeightMethod.AREA` with that client. To use population or housing
+weights, supply an enriched crosswalk to `CrosswalkProcessor`. Valid strings
+such as `"population"` are converted through `WeightMethod`; unknown values raise
+an error.
+
+List rates, ratios, medians, and densities in `intensive_variables` to average
+them; unlisted numeric columns are allocated and summed. For
+`get_longitudinal_data`, pass the same names in `intensive_columns`. Transformed
+crosswalk outputs include `<col>_coverage`, the fraction of a target's
+contribution weight with non-missing values for that column. Coverage uses the
+selected allocation weights for extensive columns and overlap areas for
+intensive columns. All-missing targets and targets with no contribution weight
+have coverage `0.0`. With `aggregation_func='weighted_mean'`, rows whose value is
+missing are excluded from both the numerator and the denominator, so an
+all-missing target is NaN with coverage `0.0`.
 
 ---
 
