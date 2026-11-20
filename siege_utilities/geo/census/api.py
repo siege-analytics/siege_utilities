@@ -8,6 +8,7 @@ retry logic, and DataFrame post-processing.
 import hashlib
 import logging
 import os
+import re
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -23,7 +24,9 @@ from siege_utilities.config import (
 )
 from siege_utilities.config.user_config import get_user_config
 from siege_utilities.core._http import redact_url_secrets
-from .variable_registry import VariableRegistry
+from .variable_registry import (  # noqa: F401 -- the sentinel sets are re-exported here
+    ACS_SENTINELS, ACS_SENTINEL_STRINGS, VariableRegistry, _mask_acs_sentinels,
+)
 from .dataset_selector import DatasetSelector
 
 from siege_utilities.files.operations import atomic_write_path
@@ -45,6 +48,35 @@ CENSUS_API_DEFAULT_TIMEOUT = 30  # seconds
 
 # Rate limit handling
 CENSUS_API_RATE_LIMIT_RETRY_DELAY = 60  # seconds
+
+# ACS detailed-table estimates and MOEs: the only columns carrying jam values.
+_ACS_ESTIMATE_OR_MOE = re.compile(r'[BC][0-9]{5}[A-Z]*_[0-9]{3}[EM]')
+# Annotation variables (estimate/MOE annotations, incl. profile percent ones).
+_ANNOTATION_VARIABLE = re.compile(r'.+_[0-9]{3,4}P?[EM]A')
+# Identifier columns that are uppercase like variables but are not data.
+_IDENTIFIER_COLUMNS = frozenset({'GEOID', 'NAME', 'GEO_ID', 'UCGID'})
+# Version of the processed-response format, part of every cache key. Raise it
+# whenever _process_response changes what it returns, so frames cached by an
+# earlier version are not read back. Version 2: ACS jam values become NaN, and
+# identifiers, geography components and annotations keep their text (#1403);
+# version 4.0.0 keys carried no version.
+_PROCESSED_CACHE_VERSION = 2
+
+
+def _is_census_variable_column(col: Any) -> bool:
+    """True for Census data variables (uppercase codes such as ``P1_001N``).
+
+    The Census API returns requested variables under their uppercase codes and
+    geography components under lowercase names (``'state'``, ``'us'``,
+    ``'zip code tabulation area'``), so any column with a lowercase letter is a
+    geography component or other non-variable field.
+    """
+    name = str(col)
+    if name.upper() in _IDENTIFIER_COLUMNS:
+        return False
+    if name != name.upper():
+        return False
+    return _ANNOTATION_VARIABLE.fullmatch(name) is None
 
 
 class CensusAPI:
@@ -137,6 +169,10 @@ class CensusAPI:
 
         Delegates variable resolution to VariableRegistry and geography
         validation to DatasetSelector, then handles the HTTP round-trip.
+        Exhausted HTTP 5xx, connection/DNS failures, and timeouts raise
+        CensusServerError; rate limits raise CensusRateLimitError. Other
+        HTTP errors raise CensusAPIError. Retry delays occur only between
+        attempts.
 
         Args:
             variables: Variable name(s) to fetch (resolved via VariableRegistry).
@@ -211,8 +247,9 @@ class CensusAPI:
     # ------------------------------------------------------------------
 
     def _make_request_with_retry(self, url: str) -> pd.DataFrame:
+        # Import here to avoid a cycle with the CensusAPIClient facade.
         from siege_utilities.geo.census_api_client import (
-            CensusRateLimitError, CensusAPIError,
+            CensusRateLimitError, CensusAPIError, CensusServerError,
         )
         last_exception = None
 
@@ -235,30 +272,46 @@ class CensusAPI:
                 return df
 
             except (CensusAPIError, requests.exceptions.RequestException, ValueError) as e:
+                retry_delay = 2 ** attempt
                 if isinstance(e, CensusRateLimitError):
-                    log.warning(f"Rate limit hit, waiting {CENSUS_API_RATE_LIMIT_RETRY_DELAY}s...")
-                    time.sleep(CENSUS_API_RATE_LIMIT_RETRY_DELAY)
+                    log.warning(f"Rate limit hit (attempt {attempt + 1})")
+                    retry_delay = CENSUS_API_RATE_LIMIT_RETRY_DELAY
                     last_exception = CensusRateLimitError(
                         f"Census API rate limit exceeded after {attempt + 1} attempts"
                     )
                 elif isinstance(e, requests.exceptions.Timeout):
                     log.warning(f"Request timeout (attempt {attempt + 1})")
-                    last_exception = CensusAPIError(
+                    last_exception = CensusServerError(
                         f"Census API request timed out after {attempt + 1} attempts"
                     )
-                    time.sleep(2 ** attempt)
                 elif isinstance(e, requests.exceptions.RequestException):
                     log.warning(redact_url_secrets(f"Request failed: {e}"))
-                    last_exception = CensusAPIError(
+                    # 408 is a server-side request timeout: treat it like a
+                    # transport timeout so it retries and can fall back.
+                    is_server_error = isinstance(e, requests.exceptions.ConnectionError) or (
+                        isinstance(e, requests.exceptions.HTTPError)
+                        and e.response is not None
+                        and (500 <= e.response.status_code < 600 or e.response.status_code == 408)
+                    )
+                    error_type = CensusServerError if is_server_error else CensusAPIError
+                    last_exception = error_type(
                         redact_url_secrets(f"Census API request failed: {e}")
                     )
-                    time.sleep(2 ** attempt)
+                    # Other 4xx (429 is handled above) are permanent client
+                    # errors: retrying cannot change the answer.
+                    status = getattr(getattr(e, "response", None), "status_code", None)
+                    if not is_server_error and status is not None and 400 <= status < 500:
+                        break
                 elif isinstance(e, ValueError):
                     log.error(redact_url_secrets(f"Failed to parse API response: {e}"))
                     last_exception = CensusAPIError(redact_url_secrets(f"Invalid API response: {e}"))
                     break
                 else:
                     raise
+
+                if attempt + 1 < CENSUS_RETRY_ATTEMPTS:
+                    log.warning("Retrying Census API request in %ss", retry_delay)
+                    time.sleep(retry_delay)
 
         if last_exception:
             raise last_exception from None
@@ -321,13 +374,27 @@ class CensusAPI:
 
     @staticmethod
     def _convert_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
+        """Convert Census variables to numbers, preserving identifiers and annotations.
+
+        Every variable column of every dataset (``B01001_001E``, ``P1_001N``,
+        ``POP_2020``) becomes numeric. Identifier columns (``GEOID``, ``NAME``,
+        ``GEO_ID``, ``ucgid``), geography components (the API names them in
+        lowercase, e.g. ``'zip code tabulation area'``) and annotation
+        variables (``..._001EA`` / ``..._001MA``) keep their text. ACS jam
+        values become NaN only in ACS detailed-table estimate/MOE columns;
+        values that are not numbers become NaN, as on v4.0.0.
+        """
         df = df.copy()
-        skip_cols = {'GEOID', 'NAME'}
         for col in df.columns:
-            if col in skip_cols:
+            if not _is_census_variable_column(col):
                 continue
             try:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+                parsed = pd.to_numeric(df[col], errors='coerce')
+                if _ACS_ESTIMATE_OR_MOE.fullmatch(str(col)):
+                    # By value after parsing, so padded, decimal and
+                    # scientific encodings of a jam value are masked too.
+                    parsed = _mask_acs_sentinels(parsed)
+                df[col] = parsed
             except (ValueError, TypeError) as exc:
                 log.warning(
                     "Could not convert column %s to numeric: %s",
@@ -355,6 +422,9 @@ class CensusAPI:
             geography,
             state_fips or '',
             county_fips or '',
+            # Frames cached before the current processed format have other
+            # keys, so they are re-fetched instead of returned unnormalized.
+            f'processed-v{_PROCESSED_CACHE_VERSION}',
         ]
         key_str = '|'.join(key_parts)
         # Known bandit B324 finding, suppressed here and tracked in #1754.

@@ -1,16 +1,17 @@
 """
 Pipeline coverage and velocity metrics.
 
-Composable pipeline health metrics: coverage ratio, stage conversion
-rates, velocity, aging alerts, and concentration risk.
+Composable pipeline health metrics: coverage ratio, stage count ratios,
+velocity, aging alerts, and concentration risk.
 """
 
 from __future__ import annotations
 
 import logging
+import math
 import warnings
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +27,17 @@ class StageMetrics:
 
 
 @dataclass(frozen=True)
-class ConversionRate:
-    """Conversion rate between consecutive stages."""
+class StageRatio:
+    """Ratio of independent counts in consecutive stages.
+
+    This snapshot has no stage-transition history or shared cohort. The
+    ratio is next-stage count / current-stage count, can exceed 1.0, and
+    is None when the current stage is empty. It is not a conversion rate.
+    """
 
     from_stage: str
     to_stage: str
-    rate: float
+    ratio: float | None
     from_count: int
     to_count: int
 
@@ -62,7 +68,7 @@ class PipelineReport:
 
     coverage_ratio: float | None
     stage_metrics: list[StageMetrics]
-    conversions: list[ConversionRate]
+    stage_ratios: list[StageRatio]
     velocity: list[VelocityMetrics]
     concentration_alerts: list[ConcentrationAlert]
     total_value: float
@@ -83,6 +89,8 @@ class PipelineItem:
         Item value (dollars, record count, etc.).
     entered_stage : datetime | None
         When the item entered this stage. Required for velocity metrics.
+        Naive timestamps are interpreted as host-local times. All timestamps
+        in one analysis, including as_of, must have the same awareness.
     """
 
     item_id: str
@@ -111,7 +119,9 @@ class PipelineAnalyzer:
     target : float | None
         Target pipeline value for coverage ratio calculation.
     aging_threshold : float
-        Multiplier for aging alerts (default 2.0 = alert at 2x average).
+        Maximum days in a stage before an aging alert (default 30 days).
+        Items older than this bound trigger alerts, even in a one-item stage.
+        This absolute bound does not depend on the stage's sample average.
     concentration_threshold : float
         Maximum single-item share before alert (default 0.40 = 40%).
 
@@ -125,16 +135,16 @@ class PipelineAnalyzer:
         self,
         stages: list[str],
         target: float | None = None,
-        aging_threshold: float = 2.0,
+        aging_threshold: float = 30.0,
         concentration_threshold: float = 0.40,
     ) -> None:
         if not stages:
             raise ValueError("At least one stage is required")
         if len(stages) != len(set(stages)):
             raise ValueError("Stage names must be unique")
-        if aging_threshold <= 0:
+        if not math.isfinite(aging_threshold) or aging_threshold <= 0:
             raise ValueError(
-                f"aging_threshold must be positive, got {aging_threshold}"
+                f"aging_threshold must be positive and finite, got {aging_threshold}"
             )
         if not (0 < concentration_threshold <= 1):
             raise ValueError(
@@ -167,7 +177,10 @@ class PipelineAnalyzer:
             Items currently in the pipeline.
         as_of : datetime, optional
             Reference time for velocity calculation.
-            Defaults to datetime.now().
+            Defaults to datetime.now() for naive host-local timestamps or
+            datetime.now(timezone.utc) for aware timestamps. Aware values
+            are normalized to UTC before calculating elapsed time. Must
+            have the same awareness as the entered_stage timestamps.
 
         Returns
         -------
@@ -176,23 +189,50 @@ class PipelineAnalyzer:
         Raises
         ------
         ValueError
-            If items is empty or contains unknown stages.
+            If items is empty, contains unknown stages, or mixes naive and
+            aware timestamps (including as_of). Timestamp errors identify
+            the offending items.
         """
         if not items:
             raise ValueError("At least one pipeline item is required")
 
+        naive_items = []
+        aware_items = []
         for item in items:
             if item.stage not in self._stages:
                 raise ValueError(
                     f"Unknown stage {item.stage!r} for item {item.item_id!r}. "
                     f"Valid stages: {self._stages}"
                 )
+            if item.entered_stage is not None:
+                if item.entered_stage.utcoffset() is None:
+                    naive_items.append(item.item_id)
+                else:
+                    aware_items.append(item.item_id)
+
+        if naive_items and aware_items:
+            raise ValueError(
+                "Mixed naive and aware entered_stage timestamps: "
+                f"naive items {naive_items!r}; aware items {aware_items!r}"
+            )
 
         if as_of is None:
-            as_of = datetime.now()
+            as_of = datetime.now(timezone.utc) if aware_items else datetime.now()
+        if as_of.utcoffset() is not None:
+            if naive_items:
+                raise ValueError(
+                    "as_of is aware but entered_stage is naive for items "
+                    f"{naive_items!r}"
+                )
+            as_of = as_of.astimezone(timezone.utc)
+        elif aware_items:
+            raise ValueError(
+                "as_of is naive but entered_stage is aware for items "
+                f"{aware_items!r}"
+            )
 
         stage_metrics = self._compute_stage_metrics(items)
-        conversions = self._compute_conversions(stage_metrics)
+        stage_ratios = self._compute_stage_ratios(stage_metrics)
         velocity = self._compute_velocity(items, as_of)
         concentration_alerts = self._check_concentration(items)
         total_value = sum(item.value for item in items)
@@ -204,7 +244,7 @@ class PipelineAnalyzer:
         report = PipelineReport(
             coverage_ratio=coverage_ratio,
             stage_metrics=stage_metrics,
-            conversions=conversions,
+            stage_ratios=stage_ratios,
             velocity=velocity,
             concentration_alerts=concentration_alerts,
             total_value=total_value,
@@ -246,26 +286,26 @@ class PipelineAnalyzer:
 
         return results
 
-    def _compute_conversions(
+    def _compute_stage_ratios(
         self,
         stage_metrics: list[StageMetrics],
-    ) -> list[ConversionRate]:
-        conversions = []
+    ) -> list[StageRatio]:
+        ratios = []
         for i in range(len(stage_metrics) - 1):
             from_stage = stage_metrics[i]
             to_stage = stage_metrics[i + 1]
             if from_stage.count > 0:
-                rate = to_stage.count / from_stage.count
+                ratio = round(to_stage.count / from_stage.count, 4)
             else:
-                rate = 0.0
-            conversions.append(ConversionRate(
+                ratio = None
+            ratios.append(StageRatio(
                 from_stage=from_stage.stage,
                 to_stage=to_stage.stage,
-                rate=round(rate, 4),
+                ratio=ratio,
                 from_count=from_stage.count,
                 to_count=to_stage.count,
             ))
-        return conversions
+        return ratios
 
     def _compute_velocity(
         self,
@@ -289,7 +329,10 @@ class PipelineAnalyzer:
         for item in items:
             if item.entered_stage is None:
                 continue
-            days = (as_of - item.entered_stage).total_seconds() / 86400
+            entered_stage = item.entered_stage
+            if entered_stage.utcoffset() is not None:
+                entered_stage = entered_stage.astimezone(timezone.utc)
+            days = (as_of - entered_stage).total_seconds() / 86400
             stage_durations[item.stage].append((item.item_id, max(days, 0)))
 
         results = []
@@ -300,9 +343,8 @@ class PipelineAnalyzer:
             days_list = [d for _, d in durations]
             avg = sum(days_list) / len(days_list)
             max_d = max(days_list)
-            threshold = avg * self._aging_threshold
             aging = [
-                item_id for item_id, d in durations if d > threshold
+                item_id for item_id, d in durations if d > self._aging_threshold
             ]
             results.append(VelocityMetrics(
                 stage=stage,

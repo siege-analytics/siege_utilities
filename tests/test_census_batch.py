@@ -117,43 +117,44 @@ class TestCensusBatchGeocoder:
         result = g.geocode([])
         assert result.total == 0
 
-    @patch("siege_utilities.geo.providers.census_geocoder.geocode_batch_chunked")
-    def test_geocode_strings(self, mock_chunked):
-        mock_chunked.return_value = [
-            _MockCensusResult(input_address="123 Main St", input_id="0"),
+    @patch("siege_utilities.geo.providers.census_geocoder.geocode_batch")
+    def test_geocode_strings(self, mock_batch):
+        mock_batch.side_effect = lambda rows, **kw: [
+            _MockCensusResult(input_address="123 Main St", input_id=rows[0]["id"]),
         ]
         g = CensusBatchGeocoder()
         result = g.geocode(["123 Main St, Chicago, IL"])
         assert result.total == 1
         assert result.results[0].matched
-        mock_chunked.assert_called_once()
+        mock_batch.assert_called_once()
 
-    @patch("siege_utilities.geo.providers.census_geocoder.geocode_batch_chunked")
-    def test_geocode_dicts(self, mock_chunked):
-        mock_chunked.return_value = [
-            _MockCensusResult(input_address="123 Main St", input_id="ABC"),
+    @patch("siege_utilities.geo.providers.census_geocoder.geocode_batch")
+    def test_geocode_dicts(self, mock_batch):
+        mock_batch.side_effect = lambda rows, **kw: [
+            _MockCensusResult(input_address="123 Main St", input_id=rows[0]["id"]),
         ]
         g = CensusBatchGeocoder()
         result = g.geocode([
             {"street": "123 Main St", "city": "Chicago", "state": "IL", "zipcode": "60601", "id": "ABC"},
         ])
         assert result.total == 1
-        call_args = mock_chunked.call_args[0][0]
-        assert call_args[0]["id"] == "ABC"
+        call_args = mock_batch.call_args[0][0]
+        assert call_args[0]["id"] != "ABC"
+        assert result.results[0].input_id == "ABC"
 
-    @patch("siege_utilities.geo.providers.census_geocoder.geocode_batch_chunked")
-    def test_handles_api_error(self, mock_chunked):
-        mock_chunked.side_effect = RuntimeError("API down")
+    @patch("siege_utilities.geo.providers.census_geocoder.geocode_batch")
+    def test_handles_api_error(self, mock_batch):
+        mock_batch.side_effect = RuntimeError("API down")
         g = CensusBatchGeocoder()
         result = g.geocode(["123 Main St"])
-        assert len(result.errors) == 1
         assert "Census batch geocode error" in result.errors[0]
+        assert result.results[0].match_quality == MatchQuality.ERROR.value
 
-    @patch("siege_utilities.geo.providers.census_geocoder.geocode_batch_chunked")
-    def test_multiple_results(self, mock_chunked):
-        mock_chunked.return_value = [
-            _MockCensusResult(input_id="0", match_type="Exact"),
-            _MockCensusResult(input_id="1", match_type="No_Match", matched=False,
+    @patch("siege_utilities.geo.providers.census_geocoder.geocode_batch")
+    def test_multiple_results(self, mock_batch):
+        mock_batch.side_effect = lambda rows, **kw: [
+            _MockCensusResult(input_id=rows[0]["id"], match_type="Exact"),
+            _MockCensusResult(input_id=rows[1]["id"], match_type="No_Match", matched=False,
                               lat=None, lon=None, state_fips="", county_fips="",
                               tract="", block=""),
         ]
@@ -163,13 +164,12 @@ class TestCensusBatchGeocoder:
         assert result.matched_count == 1
         assert abs(result.match_rate - 0.5) < 0.01
 
-    @patch("siege_utilities.geo.providers.census_geocoder.geocode_batch_chunked")
-    def test_custom_chunk_size(self, mock_chunked):
-        mock_chunked.return_value = []
-        g = CensusBatchGeocoder(chunk_size=5000)
-        g.geocode(["addr"])
-        _, kwargs = mock_chunked.call_args
-        assert kwargs["chunk_size"] == 5000
+    @patch("siege_utilities.geo.providers.census_geocoder.geocode_batch")
+    def test_custom_chunk_size(self, mock_batch):
+        mock_batch.return_value = []
+        g = CensusBatchGeocoder(chunk_size=2)
+        g.geocode(["addr"] * 5)
+        assert [len(call.args[0]) for call in mock_batch.call_args_list] == [2, 2, 1]
 
     def test_is_available(self):
         g = CensusBatchGeocoder()
