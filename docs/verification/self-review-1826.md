@@ -56,5 +56,5 @@ Phase B verification (red/green): `tests/test_1422_analytics_correctness.py` cop
 | ID | Priority | Description | Resolution |
 |----|----------|-------------|------------|
 | F1 | P1 | Semantic conflict with develop's #1444 test (3 failures on the merged tree) | develop merged `0937d390`; test call pinned to `aging_threshold=14.0` with (a)/(b)/(c) evidence |
-| F2 | P2 | CHANGELOG bullets only in the PR body | restored under `[4.1.0] ### BREAKING`, each with Migration |
+| F2 | P2 | CHANGELOG bullets only in the PR body | restored under `[5.0.0] ### BREAKING`, each with Migration |
 | F3 | P3 | Tip lacked review trailers | this commit carries them |

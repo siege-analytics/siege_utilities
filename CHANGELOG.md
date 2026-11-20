@@ -375,8 +375,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Health and risk tiers now use the reported two-decimal composite score,
   so a raw score of 69.999 reported as 70.0 receives the tier for 70.0.
   Risk interventions follow that tier, correcting v4.0.0 boundary results (#1422).
-- Comparative analysis now rejects negative, non-finite, and zero-sum weights
-  and normalizes valid weights to sum to one. Unlike v4.0.0, scaled versions
+- `ComparativeAnalyzer.__init__` rejects negative, non-finite, and zero-sum
+  weights with `ValueError` and normalizes accepted weights before `compare`
+  runs. Unlike v4.0.0, scaled versions
   of the same weights yield the same totals on the 1-5 score scale (#1422).
 - Price sensitivity analysis now validates each respondent's
   `too_cheap <= cheap <= expensive <= too_expensive` ordering before building
@@ -1131,9 +1132,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   composite score, so 69.999 reported as 70.0 gets the 70.0 tier (#1422).
   **Migration:** none for callers that read `tier`; boundary results can
   differ from v4.0.0.
-- `ComparativeAnalyzer.compare` rejects negative, non-finite and zero-sum
-  weights with `ValueError` and normalizes valid weights to sum to one, so
-  scaled weights give the same totals (#1422). **Migration:** pass
+- `ComparativeAnalyzer.__init__` rejects negative, non-finite and zero-sum
+  weights with `ValueError` and normalizes valid weights before `compare` runs,
+  so scaled weights give the same totals (#1422). **Migration:** pass
   non-negative finite weights; totals computed from unnormalized v4.0.0
   weights change.
 - `analyze_price_sensitivity` raises `ValueError` naming the zero-based

@@ -6,8 +6,8 @@ Facebook Business API, Google Analytics, and Google Workspace write APIs (Sheets
 
 For Google Workspace (Sheets, Docs, Slides, Drive), see :doc:`google_workspace`.
 
-Statistical analytics behavior in 4.1.0
---------------------------------------
+Statistical analytics behavior in 5.0.0
+---------------------------------------
 
 The following contracts change the behavior shipped in 4.0.0:
 
@@ -25,7 +25,9 @@ The following contracts change the behavior shipped in 4.0.0:
   ``None`` MAPE and bias for the overall series and affected groups. Valid
   subsets are not used to grade an incomplete group. ``n_observations`` counts
   all pairs; ``n_excluded`` counts pairs with zero actuals or missing/non-finite
-  values. An all-zero group with no missing values still raises ``ValueError``.
+  values. An all-zero overall series with no missing values still raises
+  ``ValueError``; all-zero categories and periods are omitted from the
+  category breakdown and trend fit.
 * Trend analysis sorts labels lexicographically; use chronologically sortable
   labels such as ``2026-Q1`` or ISO dates. OLS fits all valid period MAPEs with
   equally spaced periods. The fitted change over the whole span determines
@@ -36,9 +38,9 @@ The following contracts change the behavior shipped in 4.0.0:
 * Health and risk tiers classify the reported two-decimal composite score.
   A raw score of 69.999 reported as 70.0 receives the tier for 70.0, including
   any corresponding risk intervention.
-* Comparative weights must be finite, non-negative, cover the dimensions,
-  and have a positive sum. They are normalized to sum to one, keeping weighted
-  totals on the 1-5 scale regardless of the scale of the input weights.
+* Constructing ``ComparativeAnalyzer`` validates weights. Invalid weights
+  raise ``ValueError``; accepted weights are normalized before ``compare``
+  runs, keeping totals on the 1-5 scale regardless of input scale.
 * Price sensitivity inputs must align respondents across all four sequences.
   Every respondent must satisfy
   ``too_cheap <= cheap <= expensive <= too_expensive``; ties are allowed.
