@@ -361,6 +361,13 @@ def list_database_configs(config_directory: str = "config") -> list:
     return databases
 
 
+_DEFAULT_JDBC_PACKAGES = {
+    'postgres': 'org.postgresql:postgresql:42.7.14',
+    'mysql': 'com.mysql:mysql-connector-j:26.7.0',
+    'oracle': 'com.oracle.database.jdbc:ojdbc8:23.26.3.0.0',
+}
+
+
 def create_spark_session_with_databases(app_name: str = "SiegeAnalytics",
                                         database_names: list = None,
                                         config_directory: str = "config"):
@@ -369,23 +376,42 @@ def create_spark_session_with_databases(app_name: str = "SiegeAnalytics",
 
     Args:
         app_name: Spark application name
-        database_names: List of database config names to prepare drivers for
+        database_names: List of database config names to prepare drivers for.
+            None or an empty list adds no JDBC packages by default.
         config_directory: Directory containing config files
 
+    Settings:
+        ``conf.settings.SPARK_JDBC_PACKAGES`` replaces the complete package
+        list when set to a list of Maven coordinates or a comma-separated
+        string (also supported via ``SIEGE_SPARK_JDBC_PACKAGES``). An empty
+        list or string disables package loading; None selects drivers from
+        ``database_names`` using ``_DEFAULT_JDBC_PACKAGES``. An override skips
+        database config loading and applies even without database names.
+        Choose override versions compatible with your JVM and database.
+        The default MySQL driver requires MySQL Server 8.4 or later; the
+        Oracle 23.x driver supports Oracle Database 19c or later and retains
+        the Java 8-compatible ``ojdbc8`` artifact.
+
     Returns:
-        Configured Spark session or None if PySpark not available
+        Configured Spark session
 
     Raises:
+        ImportError: If PySpark is not available.
         ValueError: If a database config declares a ``connection_type`` for which
             no JDBC driver is registered. Supported types: ``postgres``, ``mysql``,
             ``oracle``. The error names the offending type so callers can either
-            add a supported config or extend the dispatch.
+            add a supported config or supply ``SPARK_JDBC_PACKAGES``.
 
     Example:
         >>> spark = siege_utilities.create_spark_session_with_databases(  # doctest: +SKIP
         ...     "Analytics App",
         ...     ["analytics_db", "staging_db"]
         ... )
+        >>> from siege_utilities.conf import settings  # doctest: +SKIP
+        >>> with settings.override(SPARK_JDBC_PACKAGES=[  # doctest: +SKIP
+        ...     "org.postgresql:postgresql:42.7.14"
+        ... ]):
+        ...     spark = siege_utilities.create_spark_session_with_databases("Custom drivers")
     """
 
     try:
@@ -396,12 +422,20 @@ def create_spark_session_with_databases(app_name: str = "SiegeAnalytics",
             "Install with: pip install pyspark"
         ) from e
 
+    from siege_utilities.conf import settings
+
     builder = SparkSession.builder.appName(app_name)
 
     packages = []
-    supported_connection_types = ('postgres', 'mysql', 'oracle')
+    supported_connection_types = tuple(_DEFAULT_JDBC_PACKAGES)
+    jdbc_packages = getattr(settings, 'SPARK_JDBC_PACKAGES', None)
 
-    if database_names:
+    if jdbc_packages is not None:
+        if isinstance(jdbc_packages, str):
+            packages = [package.strip() for package in jdbc_packages.split(',') if package.strip()]
+        else:
+            packages = list(jdbc_packages)
+    elif database_names:
         for db_name in database_names:
             config = load_database_config(db_name, config_directory)
             if 'connection_type' not in config:
@@ -410,12 +444,8 @@ def create_spark_session_with_databases(app_name: str = "SiegeAnalytics",
                 )
             connection_type = config['connection_type'].lower()
 
-            if connection_type == 'postgres':
-                packages.append("org.postgresql:postgresql:42.3.1")
-            elif connection_type == 'mysql':
-                packages.append("mysql:mysql-connector-java:8.0.28")
-            elif connection_type == 'oracle':
-                packages.append("com.oracle.database.jdbc:ojdbc8:21.1.0.0")
+            if connection_type in _DEFAULT_JDBC_PACKAGES:
+                packages.append(_DEFAULT_JDBC_PACKAGES[connection_type])
             else:
                 raise ValueError(
                     f"Unsupported connection_type {connection_type!r} for "
@@ -425,10 +455,6 @@ def create_spark_session_with_databases(app_name: str = "SiegeAnalytics",
                     f"JDBC driver, which produced misleading connection "
                     f"errors at runtime."
                 )
-
-    # Add common packages if none specified
-    if not packages:
-        packages = ["org.postgresql:postgresql:42.3.1"]  # Default to PostgreSQL
 
     if packages:
         builder = builder.config("spark.jars.packages", ",".join(packages))
