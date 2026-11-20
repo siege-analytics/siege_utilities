@@ -9,6 +9,7 @@ construction, and gap analysis.
 from __future__ import annotations
 
 import logging
+import math
 import statistics
 from dataclasses import dataclass
 
@@ -69,12 +70,15 @@ class ComparativeAnalyzer:
         Dimension names for comparison.
     weights : dict[str, float] | None
         Optional dimension weights. If provided, must cover all
-        dimensions. If omitted, equal weights are used.
+        dimensions, be finite and non-negative, and have a positive sum.
+        Weights are normalized to sum to 1, so totals stay on the 1-5 scale.
+        If omitted, equal weights are used.
 
     Raises
     ------
     ValueError
-        If dimensions is empty or weights don't match dimensions.
+        If dimensions is empty, weights don't match dimensions, or weights
+        are negative, non-finite, or sum to zero.
     """
 
     def __init__(
@@ -97,7 +101,15 @@ class ComparativeAnalyzer:
             extra = set(weights.keys()) - set(dimensions)
             if extra:
                 raise ValueError(f"Weights for unknown dimensions: {extra}")
-            self._weights = dict(weights)
+            if any(not math.isfinite(w) or w < 0 for w in weights.values()):
+                raise ValueError("Weights must be finite and non-negative")
+            scale = max(weights.values())
+            if scale == 0:
+                raise ValueError("Weights must have a positive sum")
+            # Scale first so even large finite weights can be normalized.
+            scaled = {d: w / scale for d, w in weights.items()}
+            total = sum(scaled.values())
+            self._weights = {d: w / total for d, w in scaled.items()}
         else:
             equal_weight = 1.0 / len(dimensions)
             self._weights = {d: equal_weight for d in dimensions}
