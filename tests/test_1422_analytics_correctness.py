@@ -1,8 +1,13 @@
 """Offline regressions for the seven statistical defects in issue #1422."""
 
 from datetime import datetime, timedelta
+from decimal import Decimal
+from fractions import Fraction
+import logging
+import math
 import socket
 
+import numpy as np
 import pytest
 
 from siege_utilities.analytics.comparison import ComparativeAnalyzer, DimensionScore
@@ -107,6 +112,149 @@ def test_trend_sorts_periods_and_fits_middle_observations(middle, direction):
     assert ordered.trend == shuffled.trend
     assert [point.period for point in shuffled.trend] == [
         "2026-Q1", "2026-Q2", "2026-Q3", "2026-Q4",
+    ]
+
+
+def _exact_fitted_change(mapes):
+    """OLS fitted change in exact rational arithmetic, for comparison."""
+    xs = [Fraction(i) for i in range(len(mapes))]
+    ys = [Fraction(mape) for mape in mapes]
+    mean_x = sum(xs) / len(xs)
+    mean_y = sum(ys) / len(ys)
+    slope = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys)) / sum(
+        (x - mean_x) ** 2 for x in xs
+    )
+    return slope * (len(mapes) - 1)
+
+
+@pytest.mark.parametrize("forecasts,direction", [
+    ([0.8, 1.1], "degrading"),
+    ([1.1, 0.8], "improving"),
+    ([0.5, 0.8, 1.1], "degrading"),
+    ([1.1, 0.8, 0.5], "improving"),
+    # MAPEs [0, 0, 1.5e308, 1.5e308]: the exact fitted change, 1.8e308, is
+    # itself above the largest float.
+    ([1e-306, 1e-306, 1.5, 1.5], "degrading"),
+    ([1.5, 1.5, 1e-306, 1e-306], "improving"),
+])
+def test_trend_direction_survives_extreme_finite_mapes(forecasts, direction):
+    # Tiny actuals give finite period MAPEs near the largest float, so naive
+    # sums inside the OLS fit overflow even though every input is finite.
+    actuals = [1e-306] * len(forecasts)
+    report = ForecastAnalyzer(
+        actuals, forecasts, periods=[f"2026-{i + 1:02}" for i in range(len(forecasts))],
+    ).analyze()
+
+    mapes = [point.mape for point in report.trend]
+    assert len(mapes) == len(forecasts)
+    assert all(math.isfinite(mape) for mape in mapes)
+    exact = _exact_fitted_change(mapes)
+    assert (exact > 1) if direction == "degrading" else (exact < -1)
+    assert report.trend_direction == direction
+
+
+@pytest.mark.parametrize("large", [float(2**60), float(2**500), float(2**1000)])
+@pytest.mark.parametrize("middle,direction", [
+    ([110.0, 100.0], "improving"),
+    ([100.0, 110.0], "degrading"),
+])
+def test_small_middle_periods_survive_a_large_mean(large, middle, direction):
+    # MAPEs [M, 10, 0, M] (or [M, 0, 10, M]): the fitted change is exactly
+    # -3 (or +3) points, but a float fit centred on a mean near M/2 rounds
+    # 10 - mean and 0 - mean to the same value and loses the middle periods.
+    report = ForecastAnalyzer(
+        actuals=[100.0] * 4,
+        forecasts=[large, *middle, large],
+        periods=["Q1", "Q2", "Q3", "Q4"],
+    ).analyze()
+
+    mapes = [point.mape for point in report.trend]
+    assert len(mapes) == 4 and all(math.isfinite(mape) for mape in mapes)
+    assert mapes[1:3] == ([10.0, 0.0] if direction == "improving" else [0.0, 10.0])
+    assert _exact_fitted_change(mapes) == (-3 if direction == "improving" else 3)
+    assert report.trend_direction == direction
+
+
+@pytest.mark.parametrize("dtype", [
+    np.float16, np.float32, np.float64, np.longdouble, float, Decimal, Fraction,
+], ids=[
+    "float16", "float32", "float64", "longdouble", "python-float", "decimal",
+    "fraction",
+])
+@pytest.mark.parametrize("last,direction", [(111, "stable"), (112, "degrading")])
+def test_trend_accepts_numpy_float_mapes(dtype, last, direction):
+    # NumPy keeps the input dtype through the MAPE arithmetic, so the trend
+    # fit sees float16/float32/longdouble scalars, which Fraction() rejects.
+    # float64, Python float, Decimal and Fraction inputs are controls.
+    report = ForecastAnalyzer(
+        actuals=[dtype(100), dtype(100)],
+        forecasts=[dtype(110), dtype(last)],
+        periods=["Q1", "Q2"],
+    ).analyze()
+
+    assert [float(point.mape) for point in report.trend] == [10.0, last - 100.0]
+    assert report.trend_direction == direction
+
+
+@pytest.mark.parametrize("mapes,direction", [
+    ([0.01, 1.01], "stable"),
+    ([0.1, 1.1], "stable"),
+    ([0.3, 1.3], "stable"),
+    ([1.01, 0.01], "stable"),
+    ([1.1, 0.1], "stable"),
+    ([1.3, 0.3], "stable"),
+    ([0.1, 1.11], "degrading"),
+    ([1.11, 0.1], "improving"),
+])
+def test_trend_band_uses_the_reported_two_decimal_mapes(mapes, direction):
+    # The reported MAPEs differ by exactly 1.00, which is stable. Their
+    # binary floats differ by slightly more than 1 (Fraction(1.1) -
+    # Fraction(0.1) exceeds 1 by about 8e-17), so the band must be applied
+    # to the reported decimals, not the binary values.
+    report = ForecastAnalyzer(
+        actuals=[100.0, 100.0],
+        forecasts=[100.0 + mape for mape in mapes],
+        periods=["2026-01", "2026-02"],
+    ).analyze()
+
+    assert [point.mape for point in report.trend] == mapes
+    assert report.trend_direction == direction
+
+
+@pytest.mark.parametrize("errors,direction", [
+    ([10.0, 11.0], "stable"),
+    ([10.0, 11.01], "degrading"),
+    ([11.0, 10.0], "stable"),
+    ([11.01, 10.0], "improving"),
+])
+def test_trend_threshold_is_exactly_one_point(errors, direction):
+    # A fitted change of exactly 1.0 point is stable; 1.01 is not.
+    report = ForecastAnalyzer(
+        actuals=[100.0, 100.0],
+        forecasts=[100.0 + error for error in errors],
+        periods=["2026-01", "2026-02"],
+    ).analyze()
+
+    assert [point.mape for point in report.trend] == errors
+    assert report.trend_direction == direction
+
+
+def test_trend_skips_a_period_whose_mape_overflows(caplog):
+    # 1e10 / 1e-306 overflows to inf, so 2026-02 has no finite MAPE; the fit
+    # uses the two finite periods (10% then 20%).
+    logger_name = "siege_utilities.analytics.forecast"
+    with caplog.at_level(logging.WARNING, logger=logger_name):
+        report = ForecastAnalyzer(
+            actuals=[100.0, 1e-306, 100.0],
+            forecasts=[110.0, 1e10, 120.0],
+            periods=["2026-01", "2026-02", "2026-03"],
+        ).analyze()
+
+    assert [point.period for point in report.trend] == ["2026-01", "2026-03"]
+    assert report.trend_direction == "degrading"
+    assert "Period '2026-02' skipped: MAPE or bias is not finite" in [
+        record.getMessage() for record in caplog.records
+        if record.name == logger_name and record.levelno == logging.WARNING
     ]
 
 

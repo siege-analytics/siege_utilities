@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass
+from fractions import Fraction
 
 logger = logging.getLogger(__name__)
 
@@ -160,10 +161,12 @@ class ForecastAnalyzer:
     periods : list[str] | None
         Optional sortable time period labels (e.g. ISO dates or YYYY-Qn).
         Labels are sorted lexicographically and valid periods are treated as
-        equally spaced. Direction uses an OLS fit of all period MAPEs:
-        a fitted change below -1 percentage point is improving, above +1
-        is degrading, otherwise stable. Zero-only and insufficient-data
-        periods are omitted; fewer than two valid periods gives no direction.
+        equally spaced. Direction uses an exact OLS fit of the reported
+        (two-decimal) period MAPEs: a fitted change below -1 percentage
+        point is improving, above +1 is degrading, otherwise stable.
+        Zero-only and insufficient-data periods, and periods whose MAPE or
+        bias overflows to a non-finite value, are omitted; fewer than two
+        valid periods gives no direction.
 
     Raises
     ------
@@ -282,6 +285,13 @@ class ForecastAnalyzer:
                 if acc.mape is None or acc.bias is None:
                     logger.warning("Period %r skipped: insufficient data", period)
                     continue
+                if not (math.isfinite(acc.mape) and math.isfinite(acc.bias)):
+                    # Finite inputs can still overflow, e.g. a forecast of
+                    # 1e10 against an actual of 1e-306.
+                    logger.warning(
+                        "Period %r skipped: MAPE or bias is not finite", period
+                    )
+                    continue
                 points.append(TrendPoint(
                     period=period,
                     mape=acc.mape,
@@ -296,16 +306,26 @@ class ForecastAnalyzer:
             return points, None
 
         # OLS slope across every valid period, using equally spaced indices.
-        mean_x = (len(points) - 1) / 2
-        mean_y = sum(point.mape for point in points) / len(points)
-        slope = sum(
-            (i - mean_x) * (point.mape - mean_y)
-            for i, point in enumerate(points)
-        ) / sum((i - mean_x) ** 2 for i in range(len(points)))
-        fitted_change = slope * (len(points) - 1)
-        if fitted_change < -1.0:
+        # The fit is exact rational arithmetic on the reported MAPEs, so a
+        # large MAPE can neither overflow the sums nor cancel out the smaller
+        # periods. Each MAPE is read from its decimal string, the value the
+        # report shows (two decimal places after rounding), so the +/-1 band
+        # applies to reported values: 0.1 and 1.1 differ by exactly 1, while
+        # their binary floats differ by slightly more. str() also handles
+        # NumPy float16, float32 and longdouble scalars, which Fraction()
+        # rejects. The offsets 2*i - (n - 1) are integers that sum to zero,
+        # so the mean MAPE drops out of the slope; one period is two offset
+        # units.
+        n = len(points)
+        offsets = [2 * i - (n - 1) for i in range(n)]
+        slope = 2 * sum(
+            offset * Fraction(str(point.mape))
+            for offset, point in zip(offsets, points)
+        ) / sum(offset * offset for offset in offsets)
+        fitted_change = slope * (n - 1)
+        if fitted_change < -1:
             direction = "improving"
-        elif fitted_change > 1.0:
+        elif fitted_change > 1:
             direction = "degrading"
         else:
             direction = "stable"
