@@ -7,50 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- `TemporalTimeseriesBuilder.build` groups the snapshot frame by
-  `boundary_id` once and reuses each boundary's row positions for every
-  requested variable, instead of filtering the whole frame once per boundary
-  per variable. Output is unchanged for the `boundary_id` types covered by the
-  equivalence tests (integer, float with NaN, string, mixed integer/string,
-  datetime, categorical, and missing ids): the same series in the same
-  first-appearance boundary order, with the same years, values, MOEs,
-  statistics and created/skipped counts; a missing `boundary_id` or `year`
-  column still raises `KeyError` at the same point. An equivalence test
-  compares the new builder with the previous loop field by field (#1891).
-  Exotic id types (overlapping intervals, mixed `Timestamp`/`np.datetime64`
-  objects in one column) and further dtype coverage are tracked in #1897.
-- Importing `siege_utilities.geo.django` no longer raises when Django is
-  installed but the GDAL C library is not. The GeoDjango availability check now
-  also catches `ImproperlyConfigured`, so `_gis_available` is `False`, and
-  `get_model()` and `get_service()` raise the existing `ImportError` from the
-  dependency check. Importing the `models` package, or using a service that
-  loads GeoDjango, still raises Django's `ImproperlyConfigured`. Django remains
-  optional (#1889).
-- Correct the geocoding notebook's cache-hit claim: the timed cell scans
-  already-collected results in memory to select matched input IDs. Add a
-  narrative regression test and offline execution coverage for the geo notebook
-  group. Correct the related notebook descriptions to cover precinct-level
-  bivariate mapping and statistical primitives, and add regression coverage for
-  their cross-reference claims (#1667).
-- `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
-  `48-49` and excludes the `10` all-industry total that caused double-counting,
-  along with supersector aggregates. **Behavior change:** `parse()` and
-  `load()` now default to `own_code=5` (private) and `area_level="state"`
-  (statewide, `agglvl_code=54` at the default `naics_depth=2`), instead of
-  mixing ownerships and statewide/county rows. Callers can select another
-  ownership and `county`, `national`, or `msa` area level; the aggregation
-  code follows the requested NAICS depth. Suppressed rows (`disclosure_code`
-  of `N`) carry a boolean `is_suppressed` flag, so their source employment
-  and wage zeros can be excluded from calculations. When their source
-  disclosure columns exist, boolean `is_lq_suppressed` and `is_oty_suppressed`
-  flags separately identify `lq_disclosure_code` and `oty_disclosure_code`
-  values of `N`; corresponding `lq_*`/`oty_*` zeros are sentinels, not measured
-  zeros. The parser docstring now describes all preserved source columns
-  plus these flags (#1507).
-
-## [5.0.0]
+## [5.0.0] - 2026-11-20
 
 ### Changed
 
@@ -141,6 +98,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `TemporalTimeseriesBuilder.build` groups the snapshot frame by
+  `boundary_id` once and reuses each boundary's row positions for every
+  requested variable, instead of filtering the whole frame once per boundary
+  per variable. Output is unchanged for the `boundary_id` types covered by the
+  equivalence tests (integer, float with NaN, string, mixed integer/string,
+  datetime, categorical, and missing ids): the same series in the same
+  first-appearance boundary order, with the same years, values, MOEs,
+  statistics and created/skipped counts; a missing `boundary_id` or `year`
+  column still raises `KeyError` at the same point. An equivalence test
+  compares the new builder with the previous loop field by field (#1891).
+  Exotic id types (overlapping intervals, mixed `Timestamp`/`np.datetime64`
+  objects in one column) and further dtype coverage are tracked in #1897.
+- Importing `siege_utilities.geo.django` no longer raises when Django is
+  installed but the GDAL C library is not. The GeoDjango availability check now
+  also catches `ImproperlyConfigured`, so `_gis_available` is `False`, and
+  `get_model()` and `get_service()` raise the existing `ImportError` from the
+  dependency check. Importing the `models` package, or using a service that
+  loads GeoDjango, still raises Django's `ImproperlyConfigured`. Django remains
+  optional (#1889).
+- Correct the geocoding notebook's cache-hit claim: the timed cell scans
+  already-collected results in memory to select matched input IDs. Add a
+  narrative regression test and offline execution coverage for the geo notebook
+  group. Correct the related notebook descriptions to cover precinct-level
+  bivariate mapping and statistical primitives, and add regression coverage for
+  their cross-reference claims (#1667).
+- `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
+  `48-49` and excludes the `10` all-industry total that caused double-counting,
+  along with supersector aggregates. **Behavior change:** `parse()` and
+  `load()` now default to `own_code=5` (private) and `area_level="state"`
+  (statewide, `agglvl_code=54` at the default `naics_depth=2`), instead of
+  mixing ownerships and statewide/county rows. Callers can select another
+  ownership and `county`, `national`, or `msa` area level; the aggregation
+  code follows the requested NAICS depth. Suppressed rows (`disclosure_code`
+  of `N`) carry a boolean `is_suppressed` flag, so their source employment
+  and wage zeros can be excluded from calculations. When their source
+  disclosure columns exist, boolean `is_lq_suppressed` and `is_oty_suppressed`
+  flags separately identify `lq_disclosure_code` and `oty_disclosure_code`
+  values of `N`; corresponding `lq_*`/`oty_*` zeros are sentinels, not measured
+  zeros. The parser docstring now describes all preserved source columns
+  plus these flags (#1507).
 - The reporting map engine's bivariate maps
   (`create_bivariate_choropleth_matplotlib` and the folium
   `create_bivariate_choropleth`) no longer crash on tied data: they spread
