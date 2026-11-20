@@ -13,6 +13,9 @@ from siege_utilities.reporting.examples import google_analytics_report_example a
 from siege_utilities.reporting.idml_export import export_report_idml
 
 
+NO_RESPONSE = object()  # the prior-period query returns None instead of a frame
+
+
 def _daily_frame(sessions, bounce_rates, users=None, duration=120):
     return pd.DataFrame({
         'date': [f'2026-01-{i + 1:02d}' for i in range(len(sessions))],
@@ -49,6 +52,8 @@ def fetch(monkeypatch):
                 if dimension == ['date']:
                     if sum(call['dimensions'] == ['date'] for call in calls) == 1:
                         return daily.copy()
+                    if prior is NO_RESPONSE:
+                        return None
                     return prior.copy() if prior is not None else pd.DataFrame()
                 if dimension == ['sessionDefaultChannelGrouping']:
                     return pd.DataFrame([{'sessionDefaultChannelGrouping': 'Direct',
@@ -218,3 +223,102 @@ def test_idml_uses_percentage_scale_without_optional_metrics(fetch, tmp_path):
                             if name.startswith('Stories/'))
     assert 'Bounce Rate: 45.0%' in stories
     assert '0.5%' not in stories
+
+
+CURRENT_TABLES = [
+    'daily_performance.csv', 'devices.csv', 'geographic.csv',
+    'kpi_summary.csv', 'top_pages.csv', 'traffic_sources.csv',
+]
+COMPARISON_OUTPUTS = (
+    'tables/period_comparison.csv',
+    'charts/period_comparison.svg',
+    'charts-png/period_comparison.png',
+)
+
+
+def _previous_export_with_prior(fetch, root):
+    """Export with a real prior, then add the chart files a charting run writes."""
+    data, _ = fetch(prior=_daily_frame([80], [0.50], users=[50], duration=100))
+    report.export_design_kit(data, str(root))
+    (root / 'charts/period_comparison.svg').write_text('<svg>previous run</svg>')
+    (root / 'charts-png/period_comparison.png').write_bytes(b'previous run png')
+    (root / 'tables/notes.csv').write_text('owner,note\nuser,keep me\n')
+    (root / 'tables/year_over_year.csv').write_text('Year,Sessions\n2024,1\n')
+
+
+@pytest.mark.parametrize('missing', ['empty', 'none'])
+def test_design_kit_reexport_without_prior_drops_its_own_comparison_outputs(
+    fetch, tmp_path, no_charts, missing,
+):
+    root = tmp_path / 'kit'
+    _previous_export_with_prior(fetch, root)
+    assert all((root / path).exists() for path in COMPARISON_OUTPUTS)
+
+    data, _ = fetch(prior=None if missing == 'empty' else NO_RESPONSE)
+    report.export_design_kit(data, str(root))
+
+    assert not any((root / path).exists() for path in COMPARISON_OUTPUTS)
+    assert (root / 'tables/notes.csv').read_text() == 'owner,note\nuser,keep me\n'
+    assert (root / 'tables/year_over_year.csv').read_text() == 'Year,Sessions\n2024,1\n'
+    metadata = yaml.safe_load((root / 'metadata.yaml').read_text())
+    assert metadata['table_files'] == CURRENT_TABLES
+    assert all(value is None for value in metadata['changes_vs_prior'].values())
+    with (root / 'tables/kpi_summary.csv').open() as stream:
+        rows = {row[0]: row[1:] for row in csv.reader(stream)}
+    assert rows['Sessions'] == ['100', 'N/A']
+
+
+def test_design_kit_reexport_with_a_real_zero_prior_rewrites_the_comparison(
+    fetch, tmp_path, no_charts,
+):
+    root = tmp_path / 'kit'
+    _previous_export_with_prior(fetch, root)
+
+    data, _ = fetch(prior=_daily_frame([0], [0], duration=0))
+    report.export_design_kit(data, str(root))
+
+    with (root / 'tables/period_comparison.csv').open() as stream:
+        rows = {row[0]: row[1:] for row in csv.reader(stream)}
+    assert rows['Sessions'] == ['100', '0', 'N/A']
+    assert rows['Bounce Rate'] == ['45.0%', '0.0%', 'N/A']
+    assert (root / 'tables/notes.csv').exists()
+    metadata = yaml.safe_load((root / 'metadata.yaml').read_text())
+    assert metadata['table_files'] == sorted(CURRENT_TABLES + ['period_comparison.csv'])
+
+
+def test_design_kit_comparison_csv_never_fabricates_a_missing_prior_value(
+    fetch, tmp_path, no_charts,
+):
+    data, _ = fetch(prior=_daily_frame([80], [0.50], users=[50], duration=100))
+    del data['prior_period']['avg_bounce_rate']
+    del data['prior_period']['avg_session_duration']
+    report.export_design_kit(data, str(tmp_path))
+
+    with (tmp_path / 'tables/period_comparison.csv').open() as stream:
+        rows = {row[0]: row[1:] for row in csv.reader(stream)}
+    assert rows['Sessions'][:2] == ['100', '80']
+    assert rows['Users'][:2] == ['100', '50']
+    assert rows['Bounce Rate'][1] == 'N/A'
+    assert rows['Avg Duration'][1] == 'N/A'
+
+
+def test_pdf_comparison_table_never_shows_a_fabricated_zero_prior(
+    fetch, tmp_path, no_charts, monkeypatch,
+):
+    pytest.importorskip('reportlab')
+    data, _ = fetch(prior=_daily_frame([80], [0.50], users=[50], duration=100))
+    data['prior_period'] = {}
+    tables = []
+    original = report.Table
+
+    def capturing_table(rows, *args, **kwargs):
+        tables.append(rows)
+        return original(rows, *args, **kwargs)
+
+    monkeypatch.setattr(report, 'Table', capturing_table)
+    report.generate_ga_report_pdf(data, str(tmp_path / 'report.pdf'))
+
+    comparison = [rows for rows in tables
+                  if rows and rows[0] == ['Metric', 'Current Period', 'Prior Period', 'Change']]
+    assert len(comparison) == 1
+    assert [row[2] for row in comparison[0][1:]] == ['N/A', 'N/A', 'N/A', 'N/A']

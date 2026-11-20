@@ -42,9 +42,13 @@ class AddressVintage:
 
     @property
     def is_new_construction(self) -> bool:
+        """Whether the address first appeared in the latest TIGER vintage."""
         if not self.present_in:
             return False
-        return self.first_vintage == max(self.present_in)
+        # Rationale: prefer the latest vintage analysed when known. This record
+        # has presence observations, not an analysis window, so use the documented
+        # TIGER fallback; an address's last observation may predate demolition.
+        return self.first_vintage == TIGER_VINTAGES[-1]
 
 
 @dataclass
@@ -55,9 +59,9 @@ class RecencyAnalysis:
         total_analyzed: Total addresses with vintage data.
         vintage_distribution: Dict of vintage_year → count of addresses.
         vintage_pct: Dict of vintage_year → fraction of addresses.
-        new_construction_count: Addresses first appearing in most recent vintage.
+        new_construction_count: Addresses first appearing in the latest TIGER vintage.
         new_construction_pct: Fraction of addresses that are new construction.
-        median_vintage: Median first-appearance year.
+        median_vintage: Lower median first-appearance vintage (an observed year).
     """
 
     total_analyzed: int = 0
@@ -95,6 +99,10 @@ class DictAddressVintageProvider(AddressVintageProvider):
 def compute_recency(vintages: list[AddressVintage]) -> RecencyAnalysis:
     """Compute recency analysis from address vintages.
 
+    New construction uses ``TIGER_VINTAGES[-1]`` because these records do not
+    specify the analysis window. For even counts, the median is the lower of
+    the two central observed vintages.
+
     Args:
         vintages: List of AddressVintage with first_vintage set.
     """
@@ -111,13 +119,17 @@ def compute_recency(vintages: list[AddressVintage]) -> RecencyAnalysis:
     distribution = dict(sorted(counts.items()))
     pct = {yr: count / total for yr, count in distribution.items()}
 
-    most_recent = max(first_years)
+    # Rationale: prefer the latest vintage analysed when known. These records
+    # expose presence, not the full analysis window (including absent addresses),
+    # so use the same TIGER fallback as AddressVintage.is_new_construction.
+    most_recent = TIGER_VINTAGES[-1]
     new_count = counts[most_recent]
 
     sorted_years = sorted(first_years)
     mid = len(sorted_years) // 2
     if len(sorted_years) % 2 == 0:
-        median = (sorted_years[mid - 1] + sorted_years[mid]) // 2
+        # Choose the lower central vintage so the median is an observed year.
+        median = sorted_years[mid - 1]
     else:
         median = sorted_years[mid]
 

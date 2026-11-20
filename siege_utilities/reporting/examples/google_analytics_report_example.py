@@ -2289,15 +2289,16 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         prior_p = ga_data.get('prior_period', {})
         pop_table_data = [
             ['Metric', 'Current Period', 'Prior Period', 'Change'],
-            ['Sessions', f"{totals['sessions']:,}", f"{prior_p.get('sessions', 0):,}",
+            # A prior value the data does not carry is N/A, never a fabricated 0.
+            ['Sessions', f"{totals['sessions']:,}", _format_optional(prior_p.get('sessions'), ','),
              _format_optional(changes['sessions'], '+.1f', '%')],
-            ['Users', f"{totals['users']:,}", f"{prior_p.get('users', 0):,}",
+            ['Users', f"{totals['users']:,}", _format_optional(prior_p.get('users'), ','),
              _format_optional(changes['users'], '+.1f', '%')],
             ['Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%",
-             f"{prior_p.get('avg_bounce_rate', 0):.1f}%",
+             _format_optional(prior_p.get('avg_bounce_rate'), '.1f', '%'),
              _format_optional(changes['bounce_rate'], '+.1f', ' pts')],
             ['Avg Duration', f"{totals['avg_session_duration']:.0f}s",
-             f"{prior_p.get('avg_session_duration', 0):.0f}s",
+             _format_optional(prior_p.get('avg_session_duration'), '.0f', 's'),
              _format_optional(changes['duration'], '+.1f', '%')],
         ]
         pop_table = Table(pop_table_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
@@ -2582,7 +2583,8 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
         ('geo_city', create_geo_city_scatter),
         ('geo_continent', create_continent_donut_chart),
     ]
-    if ga_data.get('prior_daily_data', {}).get('sessions'):
+    has_prior_chart = bool(ga_data.get('prior_daily_data', {}).get('sessions'))
+    if has_prior_chart:
         chart_funcs.append(('period_comparison', create_period_comparison_chart))
 
     for name, func in chart_funcs:
@@ -2592,9 +2594,17 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
             shutil.copy2(chart_path, charts_png_dir / f'{name}.png')
 
     # ── 2. Tables (CSV) ──
+    # metadata lists only the tables this export writes, not every CSV that
+    # happens to be in the folder.
+    written_tables: List[str] = []
+
+    def _open_table(name: str):
+        written_tables.append(name)
+        return open(tables_dir / name, 'w', newline='', encoding='utf-8')
+
     # Daily performance
     daily = ga_data['daily_data']
-    with open(tables_dir / 'daily_performance.csv', 'w', newline='', encoding='utf-8') as f:
+    with _open_table('daily_performance.csv') as f:
         w = csv.writer(f)
         w.writerow(['Date', 'Sessions', 'Users', 'Pageviews', 'Bounce Rate (%)', 'Avg Duration (s)'])
         for i in range(len(daily['dates'])):
@@ -2603,7 +2613,7 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
                         f"{daily['avg_duration'][i]:.0f}"])
 
     # Traffic sources
-    with open(tables_dir / 'traffic_sources.csv', 'w', newline='', encoding='utf-8') as f:
+    with _open_table('traffic_sources.csv') as f:
         w = csv.writer(f)
         w.writerow(['Source', 'Medium', 'Sessions', 'Users', 'Bounce Rate (%)', 'Avg Duration (s)'])
         for src in sorted(ga_data['traffic_sources'], key=lambda x: x['sessions'], reverse=True):
@@ -2611,7 +2621,7 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
                         f"{src['bounce_rate']:.1f}", f"{src['avg_duration']:.1f}"])
 
     # Top pages
-    with open(tables_dir / 'top_pages.csv', 'w', newline='', encoding='utf-8') as f:
+    with _open_table('top_pages.csv') as f:
         w = csv.writer(f)
         w.writerow(['Page', 'Pageviews', 'Unique Views', 'Avg Time (s)', 'Bounce Rate (%)', 'Exit Rate (%)'])
         for p in ga_data['top_pages']:
@@ -2619,7 +2629,7 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
                         f"{p['avg_time']:.1f}", f"{p['bounce_rate']:.1f}", _format_optional(p.get('exit_rate'), '.1f')])
 
     # Geographic data
-    with open(tables_dir / 'geographic.csv', 'w', newline='', encoding='utf-8') as f:
+    with _open_table('geographic.csv') as f:
         w = csv.writer(f)
         w.writerow(['Country', 'Region', 'City', 'Continent', 'Sessions', 'Users'])
         for loc in sorted(ga_data['geo_data'], key=lambda x: x.get('sessions', 0), reverse=True):
@@ -2627,14 +2637,14 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
                         loc.get('continent', ''), loc.get('sessions', 0), loc.get('users', 0)])
 
     # Device breakdown
-    with open(tables_dir / 'devices.csv', 'w', newline='', encoding='utf-8') as f:
+    with _open_table('devices.csv') as f:
         w = csv.writer(f)
         w.writerow(['Device', 'Sessions', 'Bounce Rate (%)'])
         for d in ga_data['devices']:
             w.writerow([d['device'], d['sessions'], f"{d['bounce_rate']:.1f}"])
 
     # KPI summary
-    with open(tables_dir / 'kpi_summary.csv', 'w', newline='', encoding='utf-8') as f:
+    with _open_table('kpi_summary.csv') as f:
         w = csv.writer(f)
         w.writerow(['Metric', 'Value', 'Change vs Prior (%)'])
         w.writerow(['Sessions', totals['sessions'], _format_optional(changes['sessions'], '+.1f')])
@@ -2647,20 +2657,40 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
     # Period comparison (if available)
     prior = ga_data.get('prior_period')
     if prior:
-        with open(tables_dir / 'period_comparison.csv', 'w', newline='', encoding='utf-8') as f:
+        with _open_table('period_comparison.csv') as f:
             w = csv.writer(f)
             w.writerow(['Metric', 'Current Period', 'Prior Period', 'Change'])
-            w.writerow(['Sessions', totals['sessions'], prior.get('sessions', 0), _format_optional(changes['sessions'], '+.1f', '%')])
-            w.writerow(['Users', totals['users'], prior.get('users', 0), _format_optional(changes['users'], '+.1f', '%')])
+            # A prior value the data does not carry is N/A, never a fabricated 0.
+            w.writerow(['Sessions', totals['sessions'], _format_optional(prior.get('sessions'), ''),
+                        _format_optional(changes['sessions'], '+.1f', '%')])
+            w.writerow(['Users', totals['users'], _format_optional(prior.get('users'), ''),
+                        _format_optional(changes['users'], '+.1f', '%')])
             w.writerow(['Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%",
-                        f"{prior.get('avg_bounce_rate', 0):.1f}%", _format_optional(changes['bounce_rate'], '+.1f', ' pts')])
+                        _format_optional(prior.get('avg_bounce_rate'), '.1f', '%'),
+                        _format_optional(changes['bounce_rate'], '+.1f', ' pts')])
             w.writerow(['Avg Duration', f"{totals['avg_session_duration']:.0f}s",
-                        f"{prior.get('avg_session_duration', 0):.0f}s", _format_optional(changes['duration'], '+.1f', '%')])
+                        _format_optional(prior.get('avg_session_duration'), '.0f', 's'),
+                        _format_optional(changes['duration'], '+.1f', '%')])
+
+    # The period-comparison outputs at these exact paths belong to this
+    # function: the with-prior branches overwrite them on every export that has
+    # a prior. Without a prior, remove them so an earlier export's comparison is
+    # not shipped with this one. No other file in the folder is touched.
+    stale_outputs = []
+    if not prior:
+        stale_outputs.append(tables_dir / 'period_comparison.csv')
+    if not has_prior_chart:
+        stale_outputs += [charts_dir / 'period_comparison.svg',
+                          charts_png_dir / 'period_comparison.png']
+    for stale in stale_outputs:
+        if stale.exists():
+            stale.unlink()
+            log.info(f"Removed {stale} from an earlier export; this export has no prior period")
 
     # Longitudinal / YoY
     longitudinal = ga_data.get('longitudinal', {})
     if longitudinal:
-        with open(tables_dir / 'year_over_year.csv', 'w', newline='', encoding='utf-8') as f:
+        with _open_table('year_over_year.csv') as f:
             w = csv.writer(f)
             w.writerow(['Year', 'Sessions', 'Users', 'Pageviews'])
             for year in sorted(longitudinal.keys()):
@@ -2726,7 +2756,7 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
     lines.append("| geo_region | Sessions by state/region |")
     lines.append("| geo_city | City-level session distribution |")
     lines.append("| geo_continent | Continental traffic breakdown |")
-    if ga_data.get('prior_daily_data', {}).get('sessions'):
+    if has_prior_chart:
         lines.append("| period_comparison | Current vs prior period daily overlay |")
     lines.append("")
     lines.append("Charts are available as SVG (vector, editable) in `charts/` and PNG (raster, 300 DPI) in `charts-png/`.")
@@ -2753,7 +2783,7 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
             for key in ('sessions', 'users', 'pageviews', 'bounce_rate', 'duration')
         },
         'chart_files': [name for name, _ in chart_funcs],
-        'table_files': [f.name for f in sorted(tables_dir.glob('*.csv'))],
+        'table_files': sorted(written_tables),
     }
 
     if _has_yaml:

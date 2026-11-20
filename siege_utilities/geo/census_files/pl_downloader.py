@@ -5,10 +5,13 @@ This module downloads and processes PL 94-171 redistricting data files
 from the Census Bureau. Unlike the Census API, these files provide
 block-level data essential for redistricting.
 
-PL 94-171 File Structure:
+2020 PL 94-171 File Structure:
 - Files are distributed as pipe-delimited text files
 - Each state has separate files for geographic header and data segments
 - Data is organized by summary level (state, county, tract, block group, block)
+
+Parsing the 2010 fixed-width geographic headers and comma-delimited data
+segments is not implemented; raw 2010 archive downloads remain available.
 
 Example usage:
     from siege_utilities.geo.census_files import get_pl_data, get_pl_blocks
@@ -20,11 +23,14 @@ Example usage:
     blocks = get_pl_blocks(state='CA', county='037', year=2020)
 """
 
+import csv
+import io
 import logging
+import os
+import tempfile
 import threading
 import zipfile
 from datetime import datetime, timedelta
-from io import StringIO
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
@@ -71,6 +77,17 @@ PL_2010_BASE_URL = "https://www2.census.gov/census_2010/01-Redistricting_File--P
 PL_CACHE_TIMEOUT_DAYS = 30
 DEFAULT_CACHE_DIR = Path.home() / '.siege_utilities' / 'cache' / 'pl_files'
 
+# Parsed caches from earlier schemas contain incorrect STATE/table columns (v1)
+# or were decoded as Latin-1 and could hold NaN-padded short records (v2).
+_PL_CACHE_SCHEMA_VERSION = 3
+
+# The Census 2020 PL 94-171 files are UTF-8 text (2020 PL readme, p. 2).
+_PL_TEXT_ENCODING = 'utf-8'
+
+# The five linking fields that open every data-segment record; the fields after
+# them are table counts. (The CHAESSION spelling is tracked in #1944.)
+_PL_LINKING_COLUMNS = ['FILEID', 'STUSAB', 'CHAESSION', 'CIFSN', 'LOGRECNO']
+
 # Request timeout
 PL_REQUEST_TIMEOUT = 300  # 5 minutes - files can be large
 
@@ -78,6 +95,155 @@ PL_REQUEST_TIMEOUT = 300  # 5 minutes - files can be large
 PL_MAX_DOWNLOAD_BYTES = 1024 * 1024 * 1024
 
 _STREAM_CHUNK_SIZE = 64 * 1024  # 64 KB chunks
+
+
+def _validate_parse_year(year: int) -> None:
+    """Reject layouts that the 2020 parser cannot interpret."""
+    # 2010 needs a separate fixed-width geo / CSV data parser. Reject it before
+    # reading caches or downloading, rather than silently applying 2020 names.
+    if year == 2010:
+        raise ValueError(
+            "2010 PL parsing is not implemented: geographic headers are fixed-width "
+            "and data segments are comma-delimited; the 2020 parser is pipe-delimited."
+        )
+    if year != 2020:
+        raise ValueError(f"PL data parsing is only available for 2020, not {year}")
+
+
+class _ValidatedPipeText(io.TextIOBase):
+    """Validated, read-only text view of one PL zip member, for pandas to parse.
+
+    This stream is the single tokenizer for PL files, so the field counts it
+    checks are exactly the fields pandas receives:
+
+    - the member is decoded as strict UTF-8;
+    - lines that are empty or whitespace-only are skipped, as pandas skipped
+      them in v4.0.0; any other line, including a delimiter-only line, is a
+      record;
+    - each record is split on every ``|`` and must have the first record's
+      field count;
+    - in a data segment, every field after the linking fields is a count and
+      must be empty or ASCII digits, so a malformed count cannot become a
+      silent missing value downstream.
+
+    pandas then reads only these validated records with quoting turned off,
+    so it cannot merge, split or pad fields. The member is consumed in bounded
+    chunks and never read whole. Errors are raised while pandas reads, which
+    is before the affected file's parsed cache is written.
+
+    Raises (while being read):
+        ValueError: If the member is not valid UTF-8, a record's field count
+            differs from the first record's, or a data-segment count field is
+            neither empty nor digits.
+    """
+
+    def __init__(
+        self,
+        member,
+        member_name: str,
+        label: str,
+        count_columns: Optional[List[str]] = None,
+    ) -> None:
+        super().__init__()
+        self._records = self._validated_records(member, member_name, label, count_columns)
+        self._buffer = ''
+
+    def readable(self) -> bool:
+        return True
+
+    def read(self, size: Optional[int] = -1) -> str:
+        if size is None or size < 0:
+            data = self._buffer + ''.join(self._records)
+            self._buffer = ''
+            return data
+        parts = [self._buffer]
+        length = len(self._buffer)
+        while length < size:
+            record = next(self._records, None)
+            if record is None:
+                break
+            parts.append(record)
+            length += len(record)
+        data = ''.join(parts)
+        self._buffer = data[size:]
+        return data[:size]
+
+    @staticmethod
+    def _validated_records(member, member_name, label, count_columns):
+        text = io.TextIOWrapper(member, encoding=_PL_TEXT_ENCODING, errors='strict', newline='')
+        expected = None
+        record = 0
+        try:
+            for line_number, line in enumerate(text, start=1):
+                if not line.strip():
+                    continue
+                content = line.rstrip('\r\n')
+                fields = content.split('|')
+                record += 1
+                if expected is None:
+                    expected = len(fields)
+                elif len(fields) != expected:
+                    raise ValueError(
+                        f"{label} record {record} (line {line_number}) has {len(fields)} "
+                        f"fields; the first record has {expected}"
+                    )
+                if count_columns is not None:
+                    for index in range(len(_PL_LINKING_COLUMNS), len(fields)):
+                        value = fields[index]
+                        if value and not (value.isascii() and value.isdigit()):
+                            column = (
+                                count_columns[index] if index < len(count_columns)
+                                else f"field {index + 1}"
+                            )
+                            raise ValueError(
+                                f"{label} record {record} (line {line_number}) column "
+                                f"{column} has a non-numeric count {value!r}"
+                            )
+                yield content + '\n'
+        except UnicodeDecodeError as exc:
+            raise ValueError(
+                f"{label} in {member_name} is not valid UTF-8 ({exc.reason}); "
+                "the Census 2020 PL files are UTF-8 text"
+            ) from exc
+
+
+def _segment_columns(file_type: str) -> Optional[List[str]]:
+    """Return the 2020 column names of a data segment, or None for an unknown one."""
+    # Column positions vary by file segment
+    # File 1 (pl1): P1 (race) and P2 (Hispanic) tables
+    # File 2 (pl2): P3 (race 18+), P4 (Hispanic 18+) and H1 (housing)
+    # File 3 (pl3): P5 (group quarters)
+    # Census 2020 PL Technical Documentation, pp. 2-4 and 6-38.
+    if file_type == 'pl1':
+        # P1 has 71 cells and P2 has 73 cells.
+        p1_cols = [f'P1_{str(i).zfill(3)}N' for i in range(1, 72)]
+        p2_cols = [f'P2_{str(i).zfill(3)}N' for i in range(1, 74)]
+        return _PL_LINKING_COLUMNS + p1_cols + p2_cols
+    if file_type == 'pl2':
+        p3_cols = [f'P3_{str(i).zfill(3)}N' for i in range(1, 72)]
+        p4_cols = [f'P4_{str(i).zfill(3)}N' for i in range(1, 74)]
+        h1_cols = ['H1_001N', 'H1_002N', 'H1_003N']
+        return _PL_LINKING_COLUMNS + p3_cols + p4_cols + h1_cols
+    if file_type == 'pl3':
+        p5_cols = [f'P5_{str(i).zfill(3)}N' for i in range(1, 11)]
+        return _PL_LINKING_COLUMNS + p5_cols
+    return None
+
+
+def _read_pl_member(stream: _ValidatedPipeText) -> pd.DataFrame:
+    """Parse validated PL records with pandas, without any CSV reinterpretation."""
+    # Quoting is off so every '|' separates fields exactly as the stream counted
+    # them, and only an empty field becomes missing (no "NA"/"NULL" guessing).
+    return pd.read_csv(
+        stream,
+        sep='|',
+        dtype=str,
+        header=None,
+        quoting=csv.QUOTE_NONE,
+        keep_default_na=False,
+        na_values=[''],
+        low_memory=False,
+    )
 
 
 def _stream_download_to_file(
@@ -98,6 +264,37 @@ def _stream_download_to_file(
                         )
                     f.write(chunk)
 
+
+class _ArchiveOnce:
+    """Download one PL state archive at most once, to a temporary file.
+
+    The geographic header and every data segment live in the same state
+    archive, so a ``get_data`` call shares one handle across them. The file is
+    created in the downloader's cache directory and removed by ``cleanup``.
+    """
+
+    def __init__(self, downloader: "PLFileDownloader", url: str):
+        self._downloader = downloader
+        self.url = url
+        self._path: Optional[Path] = None
+
+    def path(self) -> Path:
+        if self._path is None:
+            fd, name = tempfile.mkstemp(
+                dir=self._downloader.cache_dir, prefix='.pl-archive-', suffix='.zip'
+            )
+            os.close(fd)
+            self._path = Path(name)
+            log.info(f"Downloading PL archive: {self.url}")
+            self._downloader._download_archive(self.url, self._path)
+        return self._path
+
+    def cleanup(self) -> None:
+        if self._path is not None:
+            self._path.unlink(missing_ok=True)
+            self._path = None
+
+
 # Summary Level Codes
 SUMMARY_LEVELS = {
     'nation': '010',
@@ -113,9 +310,9 @@ SUMMARY_LEVELS = {
 # PL File Types
 PL_FILE_TYPES = {
     'geo': 'Geographic Header File',
-    'pl1': 'File 1 - Race',
-    'pl2': 'File 2 - Hispanic/Latino',
-    'pl3': 'File 3 - Race 18+',
+    'pl1': 'File 1 - Race / Hispanic',
+    'pl2': 'File 2 - Race 18+ / Hispanic 18+ / Housing',
+    'pl3': 'File 3 - Group Quarters',
     'pl4': 'File 4 - Hispanic 18+',
 }
 
@@ -133,9 +330,9 @@ PL_TABLES = {
             'P1_006N': 'Asian alone',
             'P1_007N': 'Native Hawaiian and Other Pacific Islander alone',
             'P1_008N': 'Some Other Race alone',
-            'P1_009N': 'Two or More Races',
-            'P1_010N': 'Two Races including Some Other Race',
-            'P1_011N': 'Two Races excluding Some Other Race, and three or more',
+            'P1_009N': 'Population of two or more races',
+            'P1_010N': 'Population of two races',
+            'P1_011N': 'White; Black or African American',
         }
     },
     'P2': {
@@ -205,7 +402,7 @@ PL_TABLES = {
     },
     'H1': {
         'name': 'Housing Occupancy',
-        'file': 'pl1',
+        'file': 'pl2',
         'columns': {
             'H1_001N': 'Total Housing Units',
             'H1_002N': 'Occupied',
@@ -256,21 +453,13 @@ class PLFileDownloader:
 
         log.info(f"Initialized PLFileDownloader (cache: {self.cache_dir})")
 
-    def _stream_download(self, url: str) -> bytes:
-        """Stream-download a URL into memory with a size cap."""
-        chunks = []
-        downloaded = 0
-        with requests.get(url, stream=True, timeout=self.timeout) as resp:
-            resp.raise_for_status()
-            for chunk in resp.iter_content(chunk_size=_STREAM_CHUNK_SIZE):
-                downloaded += len(chunk)
-                if downloaded > PL_MAX_DOWNLOAD_BYTES:
-                    raise ValueError(
-                        f"Download from {url} exceeds "
-                        f"{PL_MAX_DOWNLOAD_BYTES / 1024 / 1024:.0f} MB limit"
-                    )
-                chunks.append(chunk)
-        return b''.join(chunks)
+    def _download_archive(self, url: str, dest: Path) -> None:
+        """Stream a state archive to ``dest`` on disk, with the download size cap."""
+        _stream_download_to_file(url, dest, timeout=self.timeout, max_bytes=PL_MAX_DOWNLOAD_BYTES)
+
+    def _archive_once(self, url: str) -> "_ArchiveOnce":
+        """Return a per-call handle that downloads ``url`` at most once."""
+        return _ArchiveOnce(self, url)
 
     def get_data(
         self,
@@ -285,7 +474,7 @@ class PLFileDownloader:
 
         Args:
             state: State name, abbreviation, or FIPS code
-            year: Census year (2010 or 2020)
+            year: Census year (2020; 2010 parsing is not implemented)
             geography: Geographic level ('state', 'county', 'tract', 'block_group', 'block')
             county: Optional county FIPS code to filter to
             tables: List of tables to include (e.g., ['P1', 'P2', 'H1']).
@@ -293,7 +482,16 @@ class PLFileDownloader:
 
         Returns:
             DataFrame with PL data at specified geography level
+
+        Raises:
+            ValueError: For the unsupported 2010 file layout, an unknown
+                geography, a segment missing from the archive, a segment
+                whose width does not match the 2020 layout, a record whose
+                field count differs from the first record's, or file text
+                that is not valid UTF-8.
         """
+        _validate_parse_year(year)
+
         # Normalize state
         state_fips = normalize_state_identifier(state)
         state_abbr = FIPS_TO_STATE.get(state_fips, state.upper())
@@ -313,9 +511,14 @@ class PLFileDownloader:
 
         sumlev = SUMMARY_LEVELS[geo_lower]
 
-        # Download and parse files
-        geo_df = self._get_geographic_file(state_abbr, year)
-        data_df = self._get_data_files(state_abbr, year, tables)
+        # The geo header and all segments share one state archive: download it
+        # at most once for this call (only on a cache miss), then remove it.
+        archive = self._archive_once(self._build_geo_url(state_abbr, year))
+        try:
+            geo_df = self._get_geographic_file(state_abbr, year, archive)
+            data_df = self._get_data_files(state_abbr, year, tables, archive)
+        finally:
+            archive.cleanup()
 
         # Merge geographic and data
         merged = geo_df.merge(data_df, on='LOGRECNO', how='inner')
@@ -334,19 +537,25 @@ class PLFileDownloader:
         log.info(f"Retrieved {len(merged)} {geography} records")
         return merged
 
-    def _get_geographic_file(self, state_abbr: str, year: int) -> pd.DataFrame:
-        """Download and parse the geographic header file."""
-        cache_file = self.cache_dir / f"geo_{state_abbr}_{year}.parquet"
+    def _get_geographic_file(
+        self, state_abbr: str, year: int, archive: Optional[_ArchiveOnce] = None,
+    ) -> pd.DataFrame:
+        """Load the geographic header from cache, or parse it from the state archive."""
+        _validate_parse_year(year)
+        cache_file = self.cache_dir / f"geo_v{_PL_CACHE_SCHEMA_VERSION}_{state_abbr}_{year}.parquet"
 
         if self._is_cache_valid(cache_file):
             log.debug(f"Loading geo file from cache: {cache_file.name}")
             return pd.read_parquet(cache_file)
 
-        # Download
-        url = self._build_geo_url(state_abbr, year)
-        log.info(f"Downloading geographic file: {url}")
-
-        df = self._download_and_parse_geo(url, year)
+        owned = archive is None
+        if owned:
+            archive = self._archive_once(self._build_geo_url(state_abbr, year))
+        try:
+            df = self._parse_geo_archive(archive.path(), year, archive.url)
+        finally:
+            if owned:
+                archive.cleanup()
 
         # Cache
         with atomic_write_path(cache_file) as tmp:
@@ -357,9 +566,11 @@ class PLFileDownloader:
         self,
         state_abbr: str,
         year: int,
-        tables: Optional[List[str]] = None
+        tables: Optional[List[str]] = None,
+        archive: Optional[_ArchiveOnce] = None,
     ) -> pd.DataFrame:
-        """Download and parse data segment files."""
+        """Load data segments from cache, or parse them from the state archive."""
+        _validate_parse_year(year)
         if tables is None:
             tables = list(PL_TABLES.keys())
 
@@ -369,20 +580,39 @@ class PLFileDownloader:
             if table in PL_TABLES:
                 files_needed.add(PL_TABLES[table]['file'])
 
+        owned = archive is None
+        if owned:
+            archive = self._archive_once(self._build_geo_url(state_abbr, year))
+        try:
+            return self._merge_segments(state_abbr, year, sorted(files_needed), archive)
+        finally:
+            if owned:
+                archive.cleanup()
+
+    def _merge_segments(
+        self,
+        state_abbr: str,
+        year: int,
+        file_types: List[str],
+        archive: _ArchiveOnce,
+    ) -> pd.DataFrame:
+        """Load or parse each segment and merge them on LOGRECNO."""
         all_data = None
 
-        for file_type in files_needed:
-            cache_file = self.cache_dir / f"data_{file_type}_{state_abbr}_{year}.parquet"
+        for file_type in file_types:
+            cache_file = self.cache_dir / f"data_v{_PL_CACHE_SCHEMA_VERSION}_{file_type}_{state_abbr}_{year}.parquet"
 
             if self._is_cache_valid(cache_file):
                 log.debug(f"Loading {file_type} from cache")
                 df = pd.read_parquet(cache_file)
             else:
-                url = self._build_data_url(state_abbr, year, file_type)
-                log.info(f"Downloading {file_type}: {url}")
-                df = self._download_and_parse_data(url, year, file_type)
+                df = self._parse_data_archive(archive.path(), year, file_type, archive.url)
                 with atomic_write_path(cache_file) as tmp:
                     df.to_parquet(tmp, index=False)
+
+            # Geographic metadata comes from the geo header. Repeated segment
+            # linking fields otherwise collide when all three files are merged.
+            df = df.drop(columns=['FILEID', 'STUSAB', 'CHAESSION', 'CIFSN'], errors='ignore')
 
             if all_data is None:
                 all_data = df
@@ -433,12 +663,18 @@ class PLFileDownloader:
         return state_names.get(state_abbr.upper(), state_abbr)
 
     def _download_and_parse_geo(self, url: str, year: int) -> pd.DataFrame:
-        """Download and parse geographic header file."""
-        import io
-        content = self._stream_download(url)
+        """Download the state archive once and parse its geographic header."""
+        _validate_parse_year(year)
+        archive = self._archive_once(url)
+        try:
+            return self._parse_geo_archive(archive.path(), year, url)
+        finally:
+            archive.cleanup()
 
-        # Extract geo file from zip
-        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+    def _parse_geo_archive(self, archive_path: Path, year: int, url: str) -> pd.DataFrame:
+        """Parse the geographic header from a state archive on disk."""
+        _validate_parse_year(year)
+        with zipfile.ZipFile(archive_path) as zf:
             # Find the geo file (ends with 'geo2020.pl' or similar)
             geo_filename = None
             for name in zf.namelist():
@@ -456,43 +692,31 @@ class PLFileDownloader:
             if geo_filename is None:
                 raise ValueError(f"Could not find geographic file in {url}")
 
-            with zf.open(geo_filename) as f:
-                content = f.read().decode('latin-1')
+            # Permissive prefix parsing, not full publisher-schema validation:
+            # the Census 2020 PL technical documentation, Chapter 2 (pp. 2-1,
+            # 2-4; Figure 2-4, pp. 2-7 to 2-10), defines the full geographic
+            # header, but GEO_COLUMNS_2020 names only its leading fields. So
+            # the header is held to a uniform record width while streaming,
+            # and to the required named fields below, rather than to an exact
+            # field count. Its text fields are kept literally (quotes included).
+            # The member is streamed rather than decoded whole in memory.
+            with zf.open(geo_filename) as member:
+                df = _read_pl_member(
+                    _ValidatedPipeText(member, geo_filename, f"{year} PL geographic header")
+                )
 
-        # Parse fixed-width geo file (2020 format)
-        # The geo file is pipe-delimited in 2020
-        df = pd.read_csv(
-            StringIO(content),
-            sep='|',
-            dtype=str,
-            header=None,
-            low_memory=False
-        )
-
-        # Assign column names (subset of important columns)
-        # Full geo file has many columns; we extract key ones
-        if len(df.columns) >= 10:
-            df.columns = list(range(len(df.columns)))
-            # Key column positions for 2020:
-            # 1=STUSAB, 2=SUMLEV, 4=LOGRECNO, 7=GEOID (varies)
-            df = df.rename(columns={
-                0: 'FILEID',
-                1: 'STUSAB',
-                2: 'SUMLEV',
-                3: 'GEOVAR',
-                4: 'GEOCOMP',
-                5: 'CHAESSION',
-                6: 'CIFSN',
-                7: 'LOGRECNO',
-            })
-
-            # Extract GEOID components based on position
-            if len(df.columns) > 20:
-                df['STATE'] = df.iloc[:, 11] if len(df.columns) > 11 else ''
-                df['COUNTY'] = df.iloc[:, 14] if len(df.columns) > 14 else ''
-                df['TRACT'] = df.iloc[:, 32] if len(df.columns) > 32 else ''
-                df['BLKGRP'] = df.iloc[:, 33] if len(df.columns) > 33 else ''
-                df['BLOCK'] = df.iloc[:, 34] if len(df.columns) > 34 else ''
+        # Name the documented prefix once, so GEOID construction reads STATE
+        # (not the preceding DIVISION) and the other components by name. Keep
+        # additional fields under unique string names for Parquet compatibility.
+        df.columns = GEO_COLUMNS_2020[:len(df.columns)] + [
+            f'GEO_EXTRA_{i}' for i in range(len(GEO_COLUMNS_2020), len(df.columns))
+        ]
+        required = ['LOGRECNO', 'SUMLEV', 'STATE', 'COUNTY', 'TRACT', 'BLKGRP', 'BLOCK']
+        missing = [column for column in required if column not in df.columns]
+        if missing:
+            raise ValueError(
+                f"2020 PL geographic header is missing required columns: {', '.join(missing)}"
+            )
 
         return df
 
@@ -502,11 +726,20 @@ class PLFileDownloader:
         year: int,
         file_type: str
     ) -> pd.DataFrame:
-        """Download and parse data segment file."""
-        import io
-        content = self._stream_download(url)
+        """Download the state archive once and parse one data segment."""
+        _validate_parse_year(year)
+        archive = self._archive_once(url)
+        try:
+            return self._parse_data_archive(archive.path(), year, file_type, url)
+        finally:
+            archive.cleanup()
 
-        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+    def _parse_data_archive(
+        self, archive_path: Path, year: int, file_type: str, url: str,
+    ) -> pd.DataFrame:
+        """Parse one data segment from a state archive on disk."""
+        _validate_parse_year(year)
+        with zipfile.ZipFile(archive_path) as zf:
             # Find the data file
             file_num = {'pl1': '1', 'pl2': '2', 'pl3': '3', 'pl4': '4'}.get(file_type, '1')
             data_filename = None
@@ -518,20 +751,21 @@ class PLFileDownloader:
                     break
 
             if data_filename is None:
-                log.warning(f"Data file {file_type} not found, returning empty DataFrame")
-                return pd.DataFrame({'LOGRECNO': []})
+                raise ValueError(
+                    f"PL data segment {file_type} not found in {url}; "
+                    f"archive members: {sorted(zf.namelist())}"
+                )
 
-            with zf.open(data_filename) as f:
-                content = f.read().decode('latin-1')
-
-        # Parse pipe-delimited data file
-        df = pd.read_csv(
-            StringIO(content),
-            sep='|',
-            dtype=str,
-            header=None,
-            low_memory=False
-        )
+            # Every record must have the first record's width and digit-only
+            # (or empty) counts; the exact segment width is checked in
+            # _assign_data_columns. The member is streamed, not read whole.
+            with zf.open(data_filename) as member:
+                df = _read_pl_member(
+                    _ValidatedPipeText(
+                        member, data_filename, f"{year} PL {file_type}",
+                        count_columns=_segment_columns(file_type),
+                    )
+                )
 
         # Assign column names based on file type
         df = self._assign_data_columns(df, file_type, year)
@@ -545,40 +779,17 @@ class PLFileDownloader:
         year: int
     ) -> pd.DataFrame:
         """Assign column names to data segment."""
-        # Column positions vary by file segment
-        # File 1 (pl1): P1 (race) and P2 (Hispanic) tables
-        # File 2 (pl2): P3 (race 18+) and P4 (Hispanic 18+) tables
-        # File 3 (pl3): P5 (group quarters) and H1 (housing) tables
-
-        if file_type == 'pl1':
-            # File 1 has: FILEID, STUSAB, CHAESSION, CIFSN, LOGRECNO, then data
-            base_cols = ['FILEID', 'STUSAB', 'CHAESSION', 'CIFSN', 'LOGRECNO']
-            # P1 has 71 cells, P2 has 73 cells, H1 has 3 cells
-            p1_cols = [f'P1_{str(i).zfill(3)}N' for i in range(1, 72)]
-            p2_cols = [f'P2_{str(i).zfill(3)}N' for i in range(1, 74)]
-            h1_cols = ['H1_001N', 'H1_002N', 'H1_003N']
-            all_cols = base_cols + p1_cols + p2_cols + h1_cols
-
-        elif file_type == 'pl2':
-            base_cols = ['FILEID', 'STUSAB', 'CHAESSION', 'CIFSN', 'LOGRECNO']
-            p3_cols = [f'P3_{str(i).zfill(3)}N' for i in range(1, 72)]
-            p4_cols = [f'P4_{str(i).zfill(3)}N' for i in range(1, 74)]
-            all_cols = base_cols + p3_cols + p4_cols
-
-        elif file_type == 'pl3':
-            base_cols = ['FILEID', 'STUSAB', 'CHAESSION', 'CIFSN', 'LOGRECNO']
-            p5_cols = [f'P5_{str(i).zfill(3)}N' for i in range(1, 11)]
-            all_cols = base_cols + p5_cols
-
-        else:
+        _validate_parse_year(year)
+        all_cols = _segment_columns(file_type)
+        if all_cols is None:
             return df
 
-        # Only assign if we have enough columns
-        if len(df.columns) >= len(all_cols):
-            df.columns = all_cols[:len(df.columns)]
-        else:
-            # Partial assignment
-            df.columns = all_cols[:len(df.columns)]
+        if len(df.columns) != len(all_cols):
+            raise ValueError(
+                f"{year} PL {file_type} has {len(df.columns)} columns; "
+                f"expected {len(all_cols)} including the five linking fields"
+            )
+        df.columns = all_cols
 
         return df
 
@@ -666,13 +877,19 @@ def get_pl_data(
 
     Args:
         state: State name, abbreviation, or FIPS code
-        year: Census year (2010 or 2020)
+        year: Census year (2020; 2010 parsing is not implemented)
         geography: Geographic level
         county: Optional county FIPS filter
         tables: Tables to include (default: all)
 
     Returns:
         DataFrame with PL data
+
+    Raises:
+        ValueError: For the unsupported 2010 file layout, a segment missing
+            from the archive, a segment width that does not match 2020, a
+            record whose field count differs from the first record's, or file
+            text that is not valid UTF-8.
 
     Example:
         # Get California tract data
