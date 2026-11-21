@@ -51,7 +51,7 @@ for address in addresses:
 ```
 
 When pip installs compatible binary wheels, the `[geo]` extra does not require
-system GDAL. Building Fiona from source does require libgdal; see the
+system GDAL. Building Fiona or Pyogrio from source does require libgdal; see the
 [GDAL prerequisites](source/installation_troubleshooting.rst). Install `[gdal]`
 only when you need native `osgeo` bindings, and match the GDAL wheel to your
 system libraries. The

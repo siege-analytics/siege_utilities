@@ -35,11 +35,13 @@ System GDAL is needed in these cases:
        sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev libproj-dev
        pip install siege-utilities[geodjango]
 
-3. **Building Fiona from source.** If pip cannot use a compatible Fiona wheel
-   and builds Fiona locally, install the GDAL development libraries first.
-   This does not mean the ``[gdal]`` extra is installed; that extra provides
-   the native ``osgeo`` Python bindings. See Fiona's
-   `installation prerequisites <https://fiona.readthedocs.io/en/stable/install.html>`_.
+3. **Building Fiona or Pyogrio from source.** If pip cannot use a compatible
+   wheel and builds either package locally, install the GDAL development
+   libraries first. This does not mean the ``[gdal]`` extra is installed;
+   that extra provides the native ``osgeo`` Python bindings. See the
+   `Fiona <https://fiona.readthedocs.io/en/stable/install.html>`_ and
+   `Pyogrio <https://pyogrio.readthedocs.io/en/latest/install.html>`_
+   installation prerequisites.
 
 System Dependencies (only for the cases above)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -20,7 +20,7 @@ What it provides
 
 The package is modular: install only the extras your workflow needs. With
 compatible binary wheels, ``[geo]`` can be installed without system GDAL;
-building Fiona from source requires libgdal. Native ``osgeo`` bindings and
+building Fiona or Pyogrio from source requires libgdal. Native ``osgeo`` bindings and
 GeoDjango/PostGIS have separate installation paths. See :doc:`getting_started`
 and the :doc:`installation_troubleshooting` guide.
 
