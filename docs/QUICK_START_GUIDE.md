@@ -50,9 +50,11 @@ for address in addresses:
         print(f"{address}: {coords['nominatim_lat']}, {coords['nominatim_lng']}")
 ```
 
-The `[geo]` extra uses geospatial wheels that bundle their native libraries;
-it does not require system GDAL. Install `[gdal]` only when you need native
-`osgeo` bindings, and match the GDAL wheel to your system libraries. The
+When pip installs compatible binary wheels, the `[geo]` extra does not require
+system GDAL. Building Fiona from source does require libgdal; see the
+[GDAL prerequisites](source/installation_troubleshooting.rst). Install `[gdal]`
+only when you need native `osgeo` bindings, and match the GDAL wheel to your
+system libraries. The
 `[geodjango]` extra is for Django/PostGIS deployments and loads system
 `libgdal` at runtime. See the [installation guide](https://siege-analytics.github.io/siege_utilities/installation_troubleshooting.html)
 for platform-specific requirements.

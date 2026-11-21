@@ -18,10 +18,11 @@ What it provides
 - **Outputs and integrations:** reporting and chart generation, Google
   Workspace APIs, configuration, connectors, and reusable file operations.
 
-The package is modular: install only the extras your workflow needs. The
-``[geo]`` extra is suitable for environments without system GDAL; native
-``osgeo`` bindings and GeoDjango/PostGIS have separate installation paths.
-See :doc:`getting_started` and the :doc:`installation_troubleshooting` guide.
+The package is modular: install only the extras your workflow needs. With
+compatible binary wheels, ``[geo]`` can be installed without system GDAL;
+building Fiona from source requires libgdal. Native ``osgeo`` bindings and
+GeoDjango/PostGIS have separate installation paths. See :doc:`getting_started`
+and the :doc:`installation_troubleshooting` guide.
 
 Current release
 ---------------

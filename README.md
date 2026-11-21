@@ -8,7 +8,7 @@
 
 **Current release: [5.0.0](https://github.com/siege-analytics/siege_utilities/releases/tag/v5.0.0)** · [Upgrade and migration notes](https://github.com/siege-analytics/siege_utilities/blob/main/CHANGELOG.md#500---2026-11-20). The major release tightens path safety, makes docstring generation dry-run by default, and publishes only verified tags from `main`.
 
-- Geospatial + GeoDjango boundary/data services (`[geo]` pure-Python, no system GDAL; `[geodjango]` PostGIS; `[gdal]` native OSGeo bindings)
+- Geospatial + GeoDjango boundary/data services (`[geo]` uses compatible wheels without system GDAL; building Fiona from source requires libgdal; `[geodjango]` PostGIS; `[gdal]` native OSGeo bindings)
 - Google Workspace write APIs (Sheets, Docs, Slides, Drive) with multi-account management
 - Census API/data selection/crosswalk tooling
 - Isochrone analysis with configurable CRS and domain exceptions
