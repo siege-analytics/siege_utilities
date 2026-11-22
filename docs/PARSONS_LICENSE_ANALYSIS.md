@@ -1,5 +1,11 @@
 # Parsons license-compatibility analysis
 
+> **Note (2026-11-22):** This analysis was written under the earlier
+> AGPL-3.0-only OR commercial dual license. `siege_utilities` is now licensed
+> under Apache-2.0 from the next release (#1967); see
+> [`docs/LICENSE_MODEL.md`](LICENSE_MODEL.md). The analysis below is kept as
+> written.
+
 **Purpose:** verify that `siege_utilities` can depend on TMC's [Parsons](https://github.com/move-coop/parsons) library without contaminating siege's dual-license (AGPL-3.0-only OR commercial), and determine what obligation flows to end users of `siege_utilities[parsons-*]` extras.
 
 **Closes P0-1 of parent epic:** [#1148 Epic: TMC Parsons integration](https://github.com/siege-analytics/siege_utilities/issues/1148).

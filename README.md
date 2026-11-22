@@ -1,7 +1,7 @@
 # Siege Utilities
 
 [![Python 3.11–3.14](https://img.shields.io/badge/python-3.11--3.14-blue.svg)](https://www.python.org/downloads/)
-[![License: AGPLv3%20or%20Commercial](https://img.shields.io/badge/License-AGPLv3%20or%20Commercial-orange.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://siege-analytics.github.io/siege_utilities/)
 
 `siege_utilities` is the shared utilities library behind Siege Analytics workflows:
@@ -498,12 +498,14 @@ python -m pytest tests/ -v
 
 ## License
 
-Dual license model (effective March 6, 2026):
+`siege_utilities` is licensed under the [Apache License, Version 2.0](LICENSE).
+See [`NOTICE`](NOTICE) for the copyright notice and
+[`LICENSES/wkls.md`](LICENSES/wkls.md) for third-party attribution.
 
-- AGPL-3.0-only for open-source usage
-- Commercial license for proprietary/commercial usage by separate agreement
-
-Attribution is required in both paths. See `LICENSE`, `LICENSES/AGPL-3.0.txt`, and `COMMERCIAL_LICENSE.md`.
+Releases up to and including 5.0.0 were published under AGPL-3.0-only OR the
+Siege Analytics commercial license, and those published releases keep those
+terms. Apache-2.0 applies from the next release. See
+[`docs/LICENSE_MODEL.md`](docs/LICENSE_MODEL.md).
 
 ---
 

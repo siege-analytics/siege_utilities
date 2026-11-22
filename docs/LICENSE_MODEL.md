@@ -1,21 +1,25 @@
 # License Model
 
-Effective date: March 6, 2026
+`siege_utilities` is licensed under the **Apache License, Version 2.0**
+(SPDX: `Apache-2.0`).
 
-`siege_utilities` uses a dual-license model:
+- `LICENSE` contains the license text.
+- `NOTICE` contains the copyright notice. Apache-2.0 section 4(d) asks
+  redistributions to carry it.
+- `LICENSES/wkls.md` describes the license and attribution terms of the
+  third-party `wkls` package and the Overture Maps data it reads. Those terms
+  are unchanged.
 
-- **AGPL-3.0-only** for open-source use
-- **Commercial license** for proprietary/commercial use under separate agreement
+Contributions are licensed under Apache-2.0 on the same terms (inbound =
+outbound); see `CONTRIBUTING.md`.
 
-Attribution is required in both paths.
+## License history
 
-## Practical Rule
+From March 6, 2026, `siege_utilities` was offered under a dual license:
+AGPL-3.0-only, or the Siege Analytics commercial license by separate
+agreement (SPDX: `AGPL-3.0-only OR LicenseRef-Siege-Commercial`).
 
-- If you do not have a signed commercial agreement, you must comply with AGPL-3.0-only.
-- If you need proprietary/commercial terms, contact Siege Analytics.
-
-See:
-
-- `LICENSE`
-- `LICENSES/AGPL-3.0.txt`
-- `COMMERCIAL_LICENSE.md`
+Releases up to and including 5.0.0 were published under those terms, and those
+published releases keep them. The change to Apache-2.0 applies from the next
+release. The relicensing and the consent of the copyright holders are recorded
+on issue #1967.

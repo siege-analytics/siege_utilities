@@ -233,4 +233,8 @@ docs/                    # Sphinx documentation + policy docs
 
 ## License
 
-Dual license (AGPL-3.0-only OR commercial). See [LICENSE](LICENSE) for details. Attribution is required in both paths.
+`siege_utilities` is licensed under the [Apache License, Version 2.0](LICENSE).
+Contributions are accepted on the same terms (inbound = outbound): by
+submitting a contribution, you license it under Apache-2.0, as described in
+section 5 of the license. See [`docs/LICENSE_MODEL.md`](docs/LICENSE_MODEL.md)
+for the license history.
