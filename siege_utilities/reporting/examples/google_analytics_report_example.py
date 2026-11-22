@@ -108,6 +108,25 @@ def _safe_int(value, default: int = 0) -> int:
         return default
 
 
+def _ga4_percentage(value) -> float:
+    """Convert an API ratio once; reject unexpected scales instead of guessing."""
+    ratio = float(value)
+    if not 0 <= ratio <= 1:
+        raise ValueError(f"Expected GA4 rate in the 0–1 range, got {value!r}")
+    return ratio * 100
+
+
+def _session_weighted_rate(rates, sessions) -> float:
+    """Aggregate daily percentages using their session counts."""
+    total = sum(sessions)
+    return sum(rate * count for rate, count in zip(rates, sessions)) / total if total else 0.0
+
+
+def _format_optional(value, spec: str, suffix: str = '') -> str:
+    """Render unavailable metrics or comparisons without inventing a number."""
+    return 'N/A' if value is None else f"{value:{spec}}{suffix}"
+
+
 if not REPORTLAB_AVAILABLE:
     Flowable = object
     inch = 72.0
@@ -506,7 +525,9 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
     If service_account_data is provided, uses it directly. Otherwise tries
     1Password (service account first, then OAuth2 fallback).
     Returns the same dict structure as generate_sample_ga_data() so notebook code
-    works identically with either data source.
+    works with either data source. Bounce rates are percentages (0–100); API
+    ratios outside 0–1 are rejected. Missing prior data yields an empty
+    prior_period and None changes. Unavailable page metrics are omitted.
 
     Salvaged from Masai-Interactive/google_analytics_reports.
 
@@ -649,13 +670,13 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
         daily_sessions = daily_df['sessions'].astype(int).tolist()
         daily_users = daily_df['totalUsers'].astype(int).tolist()
         daily_pageviews = daily_df['screenPageViews'].astype(int).tolist()
-        daily_bounce = daily_df['bounceRate'].astype(float).tolist()
+        daily_bounce = [_ga4_percentage(value) for value in daily_df['bounceRate']]
         daily_duration = daily_df['averageSessionDuration'].astype(float).tolist()
 
         total_sessions = sum(daily_sessions)
         total_users = sum(daily_users)
         total_pageviews = sum(daily_pageviews)
-        avg_bounce = float(np.mean(daily_bounce)) if daily_bounce else 0.0
+        avg_bounce = _session_weighted_rate(daily_bounce, daily_sessions)
         avg_duration = float(np.mean(daily_duration)) if daily_duration else 0.0
 
         # Traffic sources
@@ -667,7 +688,7 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
                     'medium': 'channel',
                     'sessions': _safe_int(row.get('sessions', 0)),
                     'users': _safe_int(row.get('totalUsers', 0)),
-                    'bounce_rate': float(row.get('bounceRate', 0) or 0),
+                    'bounce_rate': _ga4_percentage(row.get('bounceRate', 0)),
                     'avg_duration': float(row.get('averageSessionDuration', 0) or 0),
                 })
 
@@ -678,7 +699,7 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
                 devices.append({
                     'device': row.get('deviceCategory', 'unknown'),
                     'sessions': _safe_int(row.get('sessions', 0)),
-                    'bounce_rate': float(row.get('bounceRate', 0) or 0),
+                    'bounce_rate': _ga4_percentage(row.get('bounceRate', 0)),
                 })
 
         # Geographic data (top 5 cities)
@@ -698,14 +719,17 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
         if pages_df is not None and not pages_df.empty:
             for _, row in pages_df.nlargest(5, 'screenPageViews').iterrows():
                 pv = _safe_int(row.get('screenPageViews', 0))
-                top_pages.append({
+                page = {
                     'page': row.get('pagePath', '/'),
                     'pageviews': pv,
-                    'unique_views': int(pv * 0.85),
                     'avg_time': float(row.get('averageSessionDuration', 0) or 0),
-                    'bounce_rate': float(row.get('bounceRate', 0) or 0),
-                    'exit_rate': float(row.get('bounceRate', 0) or 0) * 0.8,
-                })
+                    'bounce_rate': _ga4_percentage(row.get('bounceRate', 0)),
+                }
+                # Neither unique views nor exits can be inferred from pageviews
+                # or bounces. Preserve an exit ratio only if the API supplies it.
+                if pd.notna(row.get('exitRate')):
+                    page['exit_rate'] = _ga4_percentage(row['exitRate'])
+                top_pages.append(page)
 
         # Best/worst day
         best_day_idx = daily_sessions.index(max(daily_sessions))
@@ -721,7 +745,7 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
         # Prior period comparison (fetch prior period data)
         start_dt = datetime.strptime(start_date, '%Y-%m-%d')
         end_dt = datetime.strptime(end_date, '%Y-%m-%d')
-        period_days = (end_dt - start_dt).days
+        period_days = (end_dt - start_dt).days + 1
         prior_start = (start_dt - timedelta(days=period_days)).strftime('%Y-%m-%d')
         prior_end = (start_dt - timedelta(days=1)).strftime('%Y-%m-%d')
 
@@ -734,10 +758,28 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
         )
 
         prior_has_data = prior_df is not None and not prior_df.empty
-        prior_sessions = int(prior_df['sessions'].sum()) if prior_has_data else int(total_sessions / 1.08)
-        prior_users = int(prior_df['totalUsers'].sum()) if prior_has_data else int(total_users / 1.10)
-        prior_bounce = float(prior_df['bounceRate'].mean()) if prior_has_data else avg_bounce + 3.2
-        prior_duration = float(prior_df['averageSessionDuration'].mean()) if prior_has_data else avg_duration * 0.92
+        prior_period = {}
+        changes = dict.fromkeys(('users', 'sessions', 'bounce_rate', 'duration'))
+        if prior_has_data:
+            prior_session_counts = prior_df['sessions'].astype(int).tolist()
+            prior_sessions = sum(prior_session_counts)
+            prior_users = int(prior_df['totalUsers'].astype(int).sum())
+            prior_bounce = _session_weighted_rate(
+                [_ga4_percentage(value) for value in prior_df['bounceRate']], prior_session_counts,
+            )
+            prior_duration = float(prior_df['averageSessionDuration'].astype(float).mean())
+            prior_period = {
+                'users': prior_users,
+                'sessions': prior_sessions,
+                'avg_bounce_rate': prior_bounce,
+                'avg_session_duration': prior_duration,
+            }
+            changes = {
+                'users': ((total_users - prior_users) / prior_users * 100) if prior_users else None,
+                'sessions': ((total_sessions - prior_sessions) / prior_sessions * 100) if prior_sessions else None,
+                'bounce_rate': avg_bounce - prior_bounce if prior_sessions and total_sessions else None,
+                'duration': ((avg_duration - prior_duration) / prior_duration * 100) if prior_duration else None,
+            }
 
         # Extract prior daily data for comparison charts
         prior_daily_dates = []
@@ -791,23 +833,13 @@ def fetch_real_ga4_data(property_id: str, start_date: str, end_date: str,
                 'avg_session_duration': avg_duration,
                 'pages_per_session': total_pageviews / total_sessions if total_sessions else 0,
             },
-            'prior_period': {
-                'users': prior_users,
-                'sessions': prior_sessions,
-                'avg_bounce_rate': prior_bounce,
-                'avg_session_duration': prior_duration,
-            },
+            'prior_period': prior_period,
             'prior_daily_data': {
                 'dates': prior_daily_dates,
                 'sessions': prior_daily_sessions_list,
                 'users': prior_daily_users_list,
             },
-            'changes': {
-                'users': ((total_users - prior_users) / prior_users * 100) if prior_users else 0,
-                'sessions': ((total_sessions - prior_sessions) / prior_sessions * 100) if prior_sessions else 0,
-                'bounce_rate': avg_bounce - prior_bounce,
-                'duration': ((avg_duration - prior_duration) / prior_duration * 100) if prior_duration else 0,
-            },
+            'changes': changes,
             'traffic_sources': traffic_sources,
             'top_pages': top_pages,
             'geo_data': geo_data,
@@ -869,7 +901,8 @@ def create_kpi_dashboard(ga_data: Dict[str, Any]) -> List[Flowable]:
         KPICard(
             title="Bounce Rate",
             value=f"{totals['avg_bounce_rate']:.1f}%",
-            change=-changes['bounce_rate'],  # Negative is good for bounce rate
+            # Negative is good for bounce rate; absent comparisons stay absent.
+            change=-changes['bounce_rate'] if changes['bounce_rate'] is not None else None,
             primary_color=(0.8, 0.4, 0.2)
         ),
         KPICard(
@@ -1059,10 +1092,10 @@ def create_top_pages_table(ga_data: Dict[str, Any]) -> List[List[str]]:
         rows.append([
             page['page'][:40],  # Truncate long paths
             f"{page['pageviews']:,}",
-            f"{page['unique_views']:,}",
+            _format_optional(page.get('unique_views'), ','),
             f"{page['avg_time']:.1f}s",
             f"{page['bounce_rate']:.1f}%",
-            f"{page['exit_rate']:.1f}%",
+            _format_optional(page.get('exit_rate'), '.1f', '%'),
         ])
 
     return [headers] + rows
@@ -1656,10 +1689,10 @@ def generate_insights(ga_data: Dict[str, Any]) -> List[str]:
     devices = ga_data['devices']
 
     # User growth insight
-    if changes['users'] > 0:
+    if changes['users'] is not None and changes['users'] > 0:
         insights.append(f"User traffic increased by {changes['users']:.1f}% compared to the prior period, "
                        "indicating positive growth momentum.")
-    else:
+    elif changes['users'] is not None and changes['users'] < 0:
         insights.append(f"User traffic decreased by {abs(changes['users']):.1f}% compared to the prior period. "
                        "Consider reviewing marketing efforts and content strategy.")
 
@@ -1973,9 +2006,12 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
     summary_text = (
         f"This report provides a comprehensive analysis of website performance for the period "
         f"{_escape_paragraph(date_range['start'])} to {_escape_paragraph(date_range['end'])}. During this period, the website received "
-        f"<b>{totals['users']:,}</b> unique users and <b>{totals['sessions']:,}</b> sessions, "
-        f"representing a <b>{changes['users']:+.1f}%</b> change in users compared to the prior period."
+        f"<b>{totals['users']:,}</b> unique users and <b>{totals['sessions']:,}</b> sessions."
     )
+    if changes['users'] is not None:
+        summary_text += f" Users changed by <b>{changes['users']:+.1f}%</b> compared to the prior period."
+    else:
+        summary_text += " Prior-period user comparison: N/A."
     story.append(Paragraph(summary_text, body_style))
     story.append(Spacer(1, 8))
     summary_text2 = (
@@ -1993,8 +2029,8 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         ["Total Sessions", f"{totals['sessions']:,}", f"Average: {avg_daily:.0f} per day"],
         ["Total Users", f"{totals['users']:,}", "Unique visitors"],
         ["Total Pageviews", f"{totals['pageviews']:,}", f"{totals['pages_per_session']:.1f} pages/session"],
-        ["Avg Bounce Rate", f"{totals['avg_bounce_rate']:.1f}%", f"{changes['bounce_rate']:+.1f}% vs prior"],
-        ["Avg Session Duration", f"{totals['avg_session_duration']:.0f}s", f"{changes['duration']:+.1f}% vs prior"],
+        ["Avg Bounce Rate", f"{totals['avg_bounce_rate']:.1f}%", _format_optional(changes['bounce_rate'], '+.1f', ' pts vs prior')],
+        ["Avg Session Duration", f"{totals['avg_session_duration']:.0f}s", _format_optional(changes['duration'], '+.1f', '% vs prior')],
     ]
     if ga_data.get('best_day'):
         kph_data.append(["Best Day", f"{ga_data['best_day']['sessions']:,} sessions", ga_data['best_day']['date']])
@@ -2253,16 +2289,17 @@ def generate_ga_report_pdf(ga_data: Dict[str, Any], output_path: str,
         prior_p = ga_data.get('prior_period', {})
         pop_table_data = [
             ['Metric', 'Current Period', 'Prior Period', 'Change'],
-            ['Sessions', f"{totals['sessions']:,}", f"{prior_p.get('sessions', 0):,}",
-             f"{changes['sessions']:+.1f}%"],
-            ['Users', f"{totals['users']:,}", f"{prior_p.get('users', 0):,}",
-             f"{changes['users']:+.1f}%"],
+            # A prior value the data does not carry is N/A, never a fabricated 0.
+            ['Sessions', f"{totals['sessions']:,}", _format_optional(prior_p.get('sessions'), ','),
+             _format_optional(changes['sessions'], '+.1f', '%')],
+            ['Users', f"{totals['users']:,}", _format_optional(prior_p.get('users'), ','),
+             _format_optional(changes['users'], '+.1f', '%')],
             ['Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%",
-             f"{prior_p.get('avg_bounce_rate', 0):.1f}%",
-             f"{changes['bounce_rate']:+.1f} pts"],
+             _format_optional(prior_p.get('avg_bounce_rate'), '.1f', '%'),
+             _format_optional(changes['bounce_rate'], '+.1f', ' pts')],
             ['Avg Duration', f"{totals['avg_session_duration']:.0f}s",
-             f"{prior_p.get('avg_session_duration', 0):.0f}s",
-             f"{changes['duration']:+.1f}%"],
+             _format_optional(prior_p.get('avg_session_duration'), '.0f', 's'),
+             _format_optional(changes['duration'], '+.1f', '%')],
         ]
         pop_table = Table(pop_table_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
         pop_table.setStyle(TableStyle(primary_table_style))
@@ -2546,7 +2583,8 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
         ('geo_city', create_geo_city_scatter),
         ('geo_continent', create_continent_donut_chart),
     ]
-    if ga_data.get('prior_daily_data', {}).get('sessions'):
+    has_prior_chart = bool(ga_data.get('prior_daily_data', {}).get('sessions'))
+    if has_prior_chart:
         chart_funcs.append(('period_comparison', create_period_comparison_chart))
 
     for name, func in chart_funcs:
@@ -2556,9 +2594,17 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
             shutil.copy2(chart_path, charts_png_dir / f'{name}.png')
 
     # ── 2. Tables (CSV) ──
+    # metadata lists only the tables this export writes, not every CSV that
+    # happens to be in the folder.
+    written_tables: List[str] = []
+
+    def _open_table(name: str):
+        written_tables.append(name)
+        return open(tables_dir / name, 'w', newline='', encoding='utf-8')
+
     # Daily performance
     daily = ga_data['daily_data']
-    with open(tables_dir / 'daily_performance.csv', 'w', newline='', encoding='utf-8') as f:
+    with _open_table('daily_performance.csv') as f:
         w = csv.writer(f)
         w.writerow(['Date', 'Sessions', 'Users', 'Pageviews', 'Bounce Rate (%)', 'Avg Duration (s)'])
         for i in range(len(daily['dates'])):
@@ -2567,7 +2613,7 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
                         f"{daily['avg_duration'][i]:.0f}"])
 
     # Traffic sources
-    with open(tables_dir / 'traffic_sources.csv', 'w', newline='', encoding='utf-8') as f:
+    with _open_table('traffic_sources.csv') as f:
         w = csv.writer(f)
         w.writerow(['Source', 'Medium', 'Sessions', 'Users', 'Bounce Rate (%)', 'Avg Duration (s)'])
         for src in sorted(ga_data['traffic_sources'], key=lambda x: x['sessions'], reverse=True):
@@ -2575,15 +2621,15 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
                         f"{src['bounce_rate']:.1f}", f"{src['avg_duration']:.1f}"])
 
     # Top pages
-    with open(tables_dir / 'top_pages.csv', 'w', newline='', encoding='utf-8') as f:
+    with _open_table('top_pages.csv') as f:
         w = csv.writer(f)
         w.writerow(['Page', 'Pageviews', 'Unique Views', 'Avg Time (s)', 'Bounce Rate (%)', 'Exit Rate (%)'])
         for p in ga_data['top_pages']:
-            w.writerow([p['page'], p['pageviews'], p['unique_views'],
-                        f"{p['avg_time']:.1f}", f"{p['bounce_rate']:.1f}", f"{p['exit_rate']:.1f}"])
+            w.writerow([p['page'], p['pageviews'], _format_optional(p.get('unique_views'), 'd'),
+                        f"{p['avg_time']:.1f}", f"{p['bounce_rate']:.1f}", _format_optional(p.get('exit_rate'), '.1f')])
 
     # Geographic data
-    with open(tables_dir / 'geographic.csv', 'w', newline='', encoding='utf-8') as f:
+    with _open_table('geographic.csv') as f:
         w = csv.writer(f)
         w.writerow(['Country', 'Region', 'City', 'Continent', 'Sessions', 'Users'])
         for loc in sorted(ga_data['geo_data'], key=lambda x: x.get('sessions', 0), reverse=True):
@@ -2591,40 +2637,60 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
                         loc.get('continent', ''), loc.get('sessions', 0), loc.get('users', 0)])
 
     # Device breakdown
-    with open(tables_dir / 'devices.csv', 'w', newline='', encoding='utf-8') as f:
+    with _open_table('devices.csv') as f:
         w = csv.writer(f)
         w.writerow(['Device', 'Sessions', 'Bounce Rate (%)'])
         for d in ga_data['devices']:
             w.writerow([d['device'], d['sessions'], f"{d['bounce_rate']:.1f}"])
 
     # KPI summary
-    with open(tables_dir / 'kpi_summary.csv', 'w', newline='', encoding='utf-8') as f:
+    with _open_table('kpi_summary.csv') as f:
         w = csv.writer(f)
         w.writerow(['Metric', 'Value', 'Change vs Prior (%)'])
-        w.writerow(['Sessions', totals['sessions'], f"{changes['sessions']:+.1f}"])
-        w.writerow(['Users', totals['users'], f"{changes['users']:+.1f}"])
-        w.writerow(['Pageviews', totals['pageviews'], f"{changes.get('pageviews', 0):+.1f}"])
-        w.writerow(['Avg Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%", f"{changes['bounce_rate']:+.1f}"])
-        w.writerow(['Avg Session Duration', f"{totals['avg_session_duration']:.0f}s", f"{changes['duration']:+.1f}"])
+        w.writerow(['Sessions', totals['sessions'], _format_optional(changes['sessions'], '+.1f')])
+        w.writerow(['Users', totals['users'], _format_optional(changes['users'], '+.1f')])
+        w.writerow(['Pageviews', totals['pageviews'], _format_optional(changes.get('pageviews'), '+.1f')])
+        w.writerow(['Avg Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%", _format_optional(changes['bounce_rate'], '+.1f')])
+        w.writerow(['Avg Session Duration', f"{totals['avg_session_duration']:.0f}s", _format_optional(changes['duration'], '+.1f')])
         w.writerow(['Pages per Session', f"{totals['pages_per_session']:.2f}", ""])
 
     # Period comparison (if available)
     prior = ga_data.get('prior_period')
     if prior:
-        with open(tables_dir / 'period_comparison.csv', 'w', newline='', encoding='utf-8') as f:
+        with _open_table('period_comparison.csv') as f:
             w = csv.writer(f)
             w.writerow(['Metric', 'Current Period', 'Prior Period', 'Change'])
-            w.writerow(['Sessions', totals['sessions'], prior.get('sessions', 0), f"{changes['sessions']:+.1f}%"])
-            w.writerow(['Users', totals['users'], prior.get('users', 0), f"{changes['users']:+.1f}%"])
+            # A prior value the data does not carry is N/A, never a fabricated 0.
+            w.writerow(['Sessions', totals['sessions'], _format_optional(prior.get('sessions'), ''),
+                        _format_optional(changes['sessions'], '+.1f', '%')])
+            w.writerow(['Users', totals['users'], _format_optional(prior.get('users'), ''),
+                        _format_optional(changes['users'], '+.1f', '%')])
             w.writerow(['Bounce Rate', f"{totals['avg_bounce_rate']:.1f}%",
-                        f"{prior.get('avg_bounce_rate', 0):.1f}%", f"{changes['bounce_rate']:+.1f} pts"])
+                        _format_optional(prior.get('avg_bounce_rate'), '.1f', '%'),
+                        _format_optional(changes['bounce_rate'], '+.1f', ' pts')])
             w.writerow(['Avg Duration', f"{totals['avg_session_duration']:.0f}s",
-                        f"{prior.get('avg_session_duration', 0):.0f}s", f"{changes['duration']:+.1f}%"])
+                        _format_optional(prior.get('avg_session_duration'), '.0f', 's'),
+                        _format_optional(changes['duration'], '+.1f', '%')])
+
+    # The period-comparison outputs at these exact paths belong to this
+    # function: the with-prior branches overwrite them on every export that has
+    # a prior. Without a prior, remove them so an earlier export's comparison is
+    # not shipped with this one. No other file in the folder is touched.
+    stale_outputs = []
+    if not prior:
+        stale_outputs.append(tables_dir / 'period_comparison.csv')
+    if not has_prior_chart:
+        stale_outputs += [charts_dir / 'period_comparison.svg',
+                          charts_png_dir / 'period_comparison.png']
+    for stale in stale_outputs:
+        if stale.exists():
+            stale.unlink()
+            log.info(f"Removed {stale} from an earlier export; this export has no prior period")
 
     # Longitudinal / YoY
     longitudinal = ga_data.get('longitudinal', {})
     if longitudinal:
-        with open(tables_dir / 'year_over_year.csv', 'w', newline='', encoding='utf-8') as f:
+        with _open_table('year_over_year.csv') as f:
             w = csv.writer(f)
             w.writerow(['Year', 'Sessions', 'Users', 'Pageviews'])
             for year in sorted(longitudinal.keys()):
@@ -2648,11 +2714,11 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
         "",
         "| Metric | Value | Change vs Prior |",
         "|--------|-------|-----------------|",
-        f"| Sessions | {totals['sessions']:,} | {changes['sessions']:+.1f}% |",
-        f"| Users | {totals['users']:,} | {changes['users']:+.1f}% |",
-        f"| Pageviews | {totals['pageviews']:,} | {changes.get('pageviews', 0):+.1f}% |",
-        f"| Bounce Rate | {totals['avg_bounce_rate']:.1f}% | {changes['bounce_rate']:+.1f} pts |",
-        f"| Avg Duration | {totals['avg_session_duration']:.0f}s | {changes['duration']:+.1f}% |",
+        f"| Sessions | {totals['sessions']:,} | {_format_optional(changes['sessions'], '+.1f', '%')} |",
+        f"| Users | {totals['users']:,} | {_format_optional(changes['users'], '+.1f', '%')} |",
+        f"| Pageviews | {totals['pageviews']:,} | {_format_optional(changes.get('pageviews'), '+.1f', '%')} |",
+        f"| Bounce Rate | {totals['avg_bounce_rate']:.1f}% | {_format_optional(changes['bounce_rate'], '+.1f', ' pts')} |",
+        f"| Avg Duration | {totals['avg_session_duration']:.0f}s | {_format_optional(changes['duration'], '+.1f', '%')} |",
         f"| Pages/Session | {totals['pages_per_session']:.2f} | |",
         "",
     ]
@@ -2690,7 +2756,7 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
     lines.append("| geo_region | Sessions by state/region |")
     lines.append("| geo_city | City-level session distribution |")
     lines.append("| geo_continent | Continental traffic breakdown |")
-    if ga_data.get('prior_daily_data', {}).get('sessions'):
+    if has_prior_chart:
         lines.append("| period_comparison | Current vs prior period daily overlay |")
     lines.append("")
     lines.append("Charts are available as SVG (vector, editable) in `charts/` and PNG (raster, 300 DPI) in `charts-png/`.")
@@ -2713,14 +2779,11 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
             'pages_per_session': float(round(totals['pages_per_session'], 2)),
         },
         'changes_vs_prior': {
-            'sessions': float(round(changes['sessions'], 1)),
-            'users': float(round(changes['users'], 1)),
-            'pageviews': float(round(changes.get('pageviews', 0), 1)),
-            'bounce_rate': float(round(changes['bounce_rate'], 1)),
-            'duration': float(round(changes['duration'], 1)),
+            key: float(round(changes[key], 1)) if changes.get(key) is not None else None
+            for key in ('sessions', 'users', 'pageviews', 'bounce_rate', 'duration')
         },
         'chart_files': [name for name, _ in chart_funcs],
-        'table_files': [f.name for f in sorted(tables_dir.glob('*.csv'))],
+        'table_files': sorted(written_tables),
     }
 
     if _has_yaml:
