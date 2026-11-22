@@ -23,14 +23,14 @@ part of this change.
 - `pyproject.toml`:
   - `license = "Apache-2.0"` as an SPDX expression (PEP 639);
   - `license-files = ["LICENSE", "NOTICE", "LICENSES/*"]`;
-  - build requirement raised to `setuptools>=77.0.3`, the first release that accepts a license expression;
+  - build requirement raised to `setuptools>=77.0.3`. License-expression support began in setuptools 77.0.0; 77.0.3 is the chosen supported minimum (corrected under #1975);
   - AGPL classifier removed. No `License ::` classifier is added, because setuptools rejects one alongside a license expression.
 - `README.md`, `CONTRIBUTING.md` (inbound = outbound), `docs/LICENSE_MODEL.md` and
   `docs/source/license_model.rst` describe Apache-2.0.
   - Releases 1.0.0 through 3.8.1 were published under MIT, and releases 3.8.2 through 5.0.0
     under `AGPL-3.0-only OR LicenseRef-Siege-Commercial` (effective March 6, 2026).
   - Every published release keeps its terms.
-  - Apache-2.0 applies to the repository from this change and to every release after 5.0.0.
+  - Apache-2.0 applies to the current development revision and every release after 5.0.0 (wording aligned under #1975).
   - Both "License history" sections include the MIT period.
 - `docs/PARSONS_LICENSE_ANALYSIS.md`: a dated note at the top. Five links are now permalinks to
   the v5.0.0 commit `819d8188`: the three links to the removed AGPL and commercial texts, and the

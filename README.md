@@ -505,8 +505,8 @@ See [`NOTICE`](NOTICE) for the copyright notice and
 Releases 1.0.0 through 3.8.1 were published under the MIT License, and
 releases 3.8.2 through 5.0.0 under AGPL-3.0-only OR the Siege Analytics
 commercial license (effective March 6, 2026). Every published release keeps
-the terms it was published under. Apache-2.0 applies to the repository from
-this change and to every release after 5.0.0. See
+the terms it was published under. Apache-2.0 applies to the current
+development revision and to every release after 5.0.0. See
 [`docs/LICENSE_MODEL.md`](docs/LICENSE_MODEL.md).
 
 ---

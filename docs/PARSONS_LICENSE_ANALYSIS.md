@@ -2,8 +2,8 @@
 
 > **Note (2026-11-22):** This analysis was written under the earlier
 > AGPL-3.0-only OR commercial dual license. `siege_utilities` is now licensed
-> under Apache-2.0, for the repository from the relicensing change and for
-> every release after 5.0.0 (#1967); see
+> under Apache-2.0, for the current development revision and every release
+> after 5.0.0 (#1967); see
 > [`docs/LICENSE_MODEL.md`](LICENSE_MODEL.md). The relicensing removed
 > `LICENSES/AGPL-3.0.txt` and `LICENSES/Siege-Commercial.txt` and replaced
 > `LICENSE`, so the links below point to those files in the v5.0.0 release,

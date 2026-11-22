@@ -44,8 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   3.8.1 were published under the MIT License, and releases 3.8.2 through 5.0.0
   under `AGPL-3.0-only OR LicenseRef-Siege-Commercial` (effective March 6,
   2026). Every published release keeps the terms it was published under.
-  Apache-2.0 applies to the repository from this change and to every release
-  after 5.0.0.
+  Apache-2.0 applies to the current development revision and to every release
+  after 5.0.0 (#1975).
 
 ## [5.0.0] - 2026-11-20
 
