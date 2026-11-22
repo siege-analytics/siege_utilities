@@ -25,6 +25,9 @@ from typing import (
     List,
     Any,
     Optional,
+    Sequence,
+    SupportsFloat,
+    TextIO,
 )
 import logging
 import subprocess
@@ -108,7 +111,7 @@ def _safe_int(value, default: int = 0) -> int:
         return default
 
 
-def _ga4_percentage(value) -> float:
+def _ga4_percentage(value: SupportsFloat | str) -> float:
     """Convert an API ratio once; reject unexpected scales instead of guessing."""
     ratio = float(value)
     if not 0 <= ratio <= 1:
@@ -116,13 +119,13 @@ def _ga4_percentage(value) -> float:
     return ratio * 100
 
 
-def _session_weighted_rate(rates, sessions) -> float:
+def _session_weighted_rate(rates: Sequence[float], sessions: Sequence[float]) -> float:
     """Aggregate daily percentages using their session counts."""
     total = sum(sessions)
     return sum(rate * count for rate, count in zip(rates, sessions)) / total if total else 0.0
 
 
-def _format_optional(value, spec: str, suffix: str = '') -> str:
+def _format_optional(value: float | None, spec: str, suffix: str = '') -> str:
     """Render unavailable metrics or comparisons without inventing a number."""
     return 'N/A' if value is None else f"{value:{spec}}{suffix}"
 
@@ -2598,7 +2601,7 @@ def export_design_kit(ga_data: Dict[str, Any], output_dir: str,
     # happens to be in the folder.
     written_tables: List[str] = []
 
-    def _open_table(name: str):
+    def _open_table(name: str) -> TextIO:
         written_tables.append(name)
         return open(tables_dir / name, 'w', newline='', encoding='utf-8')
 
