@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import patch
 
 import pandas as pd
 import pytest
 
+from siege_utilities.geo.crosswalk.crosswalk_client import (
+    CrosswalkClient,
+    CrosswalkUnavailable,
+)
 from siege_utilities.geo.timeseries.longitudinal_data import (
     AlignmentResult,
     CPI_U_ANNUAL,
@@ -141,49 +146,116 @@ class TestAlign:
             "siege_utilities.geo.timeseries.longitudinal_data."
             "LongitudinalAligner._apply_crosswalk_step",
             return_value=mock_result,
-        ):
+        ), patch.object(aligner, "_apply_areal_interpolation") as areal:
             result = aligner.align(sample_df, source_vintage=2010)
 
+        areal.assert_not_called()
         assert result.method == "crosswalk"
         assert result.source_vintage == 2010
         assert result.target_vintage == 2020
         assert len(result.data) == 2
+        pd.testing.assert_frame_equal(result.data, mock_result)
+        assert result.warnings == []
 
-    def test_fallback_to_areal(self, sample_df):
+    @pytest.mark.parametrize("error", [
+        KeyError("missing area_weight"),
+        ValueError("Cannot area-weight intensive variables without overlap areas"),
+        RuntimeError("crosswalk processing bug"),
+    ])
+    def test_crosswalk_error_propagates_without_areal(self, sample_df, error):
+        aligner = LongitudinalAligner(target_vintage=2020)
+        with patch.object(
+            aligner, "_apply_crosswalk_step", side_effect=error,
+        ), patch.object(
+            aligner, "_apply_areal_interpolation", return_value=sample_df.copy(),
+        ) as areal:
+            with pytest.raises(type(error)) as exc_info:
+                aligner.align(sample_df, source_vintage=2010)
+
+        assert exc_info.value is error
+        areal.assert_not_called()
+
+    def test_fallback_to_areal(self, sample_df, caplog, monkeypatch):
         aligner = LongitudinalAligner(target_vintage=2020, geography="tract")
         mock_result = sample_df.copy()
+        # The test project's Django settings disable existing loggers.
+        logger = logging.getLogger(LongitudinalAligner.__module__)
+        monkeypatch.setattr(logger, "disabled", False)
+        caplog.set_level(logging.WARNING, logger=logger.name)
 
         with patch(
             "siege_utilities.geo.timeseries.longitudinal_data."
             "LongitudinalAligner._apply_crosswalk_step",
-            side_effect=RuntimeError("no crosswalk file"),
+            side_effect=CrosswalkUnavailable("no crosswalk file"),
         ), patch(
             "siege_utilities.geo.timeseries.longitudinal_data."
             "LongitudinalAligner._apply_areal_interpolation",
             return_value=mock_result,
-        ):
+        ) as areal:
             result = aligner.align(sample_df, source_vintage=2010)
 
+        areal.assert_called_once()
         assert result.method == "areal"
+        pd.testing.assert_frame_equal(result.data, mock_result)
         assert len(result.warnings) == 1
         assert "areal interpolation" in result.warnings[0]
+        assert "2010→2020" in result.warnings[0]
+        assert "crosswalk unavailable" in result.warnings[0]
+        assert any(
+            record.levelname == "WARNING"
+            and "no crosswalk file" in record.message
+            and "2010→2020" in record.message
+            for record in caplog.records
+        )
 
-    def test_both_methods_fail(self, sample_df):
+    @pytest.mark.parametrize("source_vintage", [2010, 2000])
+    def test_both_methods_fail(self, sample_df, source_vintage):
         aligner = LongitudinalAligner(target_vintage=2020, geography="tract")
+        original = sample_df.copy(deep=True)
+        crosswalk_error = CrosswalkUnavailable("no crosswalk")
+        areal_error = RuntimeError("no boundaries")
+        partial = sample_df.assign(GEOID=["06001400101", "06001400201"])
+        steps = [partial, crosswalk_error] if source_vintage == 2000 else [crosswalk_error]
 
         with patch(
             "siege_utilities.geo.timeseries.longitudinal_data."
             "LongitudinalAligner._apply_crosswalk_step",
-            side_effect=RuntimeError("no crosswalk"),
+            side_effect=steps,
         ), patch(
             "siege_utilities.geo.timeseries.longitudinal_data."
             "LongitudinalAligner._apply_areal_interpolation",
-            side_effect=RuntimeError("no boundaries"),
-        ):
-            result = aligner.align(sample_df, source_vintage=2010)
+            side_effect=areal_error,
+        ) as areal:
+            with pytest.raises(RuntimeError) as exc_info:
+                aligner.align(sample_df, source_vintage=source_vintage)
 
-        assert result.method == "failed"
-        assert len(result.warnings) >= 1
+        assert "2010→2020" in str(exc_info.value)
+        assert "no crosswalk" in str(exc_info.value)
+        assert "no boundaries" in str(exc_info.value)
+        assert exc_info.value.__cause__ is areal_error
+        assert areal_error.__context__ is crosswalk_error
+        areal.assert_called_once()
+        pd.testing.assert_frame_equal(sample_df, original)
+        if source_vintage == 2000:
+            pd.testing.assert_frame_equal(areal.call_args.args[0], partial)
+
+    def test_unconfigured_crosswalk_reaches_areal(self, sample_df, tmp_path):
+        """Exercise the availability signal through the real client and processor."""
+        client = CrosswalkClient(cache_dir=tmp_path)
+        aligner = LongitudinalAligner(target_vintage=2010)
+        expected = sample_df.assign(GEOID=["06001400101", "06001400201"])
+        with patch(
+            "siege_utilities.geo.crosswalk.crosswalk_processor.get_crosswalk",
+            side_effect=client.get_crosswalk,
+        ), patch.object(
+            aligner, "_apply_areal_interpolation", return_value=expected,
+        ) as areal:
+            result = aligner.align(sample_df, source_vintage=2000)
+
+        areal.assert_called_once()
+        assert result.method == "areal"
+        assert "2000→2010" in result.warnings[0]
+        pd.testing.assert_frame_equal(result.data, expected)
 
     def test_chained_crosswalk(self, sample_df):
         """2000→2020 should invoke two crosswalk steps."""
