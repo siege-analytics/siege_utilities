@@ -133,7 +133,7 @@ Not run, or failing on develop as well (this change has no Python source diff):
 
 | ID | Priority | Finding | Outcome |
 |----|----------|---------|---------|
-| F1 | P1 | `license = "Apache-2.0"` needs setuptools 77 or later. Under the old `setuptools>=61.0` requirement, a non-isolated build with setuptools 69.5.1 fails ("`project.license` must be valid exactly by one definition"). | Build requirement raised to `setuptools>=77.0.3`. The isolated build installs it and passes `twine check --strict`. |
+| F1 | P1 | `license = "Apache-2.0"` needs setuptools 77 or later. Under the old `setuptools>=61.0` requirement, a non-isolated build with setuptools 69.5.1 fails ("`project.license` must be valid exactly by one definition"). Build requirement raised to `setuptools>=77.0.3`. The isolated build installs it and passes `twine check --strict`. | fixed |
 | F2 | P2 | `NOTICE` needed a copyright year that the dual-license wording did not give. | `NOTICE` uses 2025-2026; 2025 is the year of the first commit on develop. It matches the MIT `LICENSE` of releases up to 3.8.1 ("Copyright (c) 2025 Siege Analytics"). |
 | F3 | P2 | Current setuptools rejects a `License ::` classifier alongside a license expression. | The AGPL classifier is removed and no license classifier is added. The wheel METADATA has `License-Expression: Apache-2.0` and no `License ::` classifier. |
 | F4 | P3 | Some `scripts/check_*` guards cannot run locally: flake8, bandit, Django settings, and an installed package that shadows the checkout. `check_broad_except` reports 34 existing violations. | Listed under the Test plan with reasons. This change has no Python source diff. `check_broad_except` is identical on develop and tracked as #1971. CI runs flake8 and bandit. |
