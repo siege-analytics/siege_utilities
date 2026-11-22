@@ -1,0 +1,8 @@
+Siege Utilities
+Copyright 2025-2026 Siege Analytics
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party attribution: siege_utilities integrates the wkls package and
+reads Overture Maps Divisions data through it. Their license and attribution
+terms are described in LICENSES/wkls.md.

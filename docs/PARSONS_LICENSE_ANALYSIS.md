@@ -1,5 +1,15 @@
 # Parsons license-compatibility analysis
 
+> **Note (2026-11-22):** This analysis was written under the earlier
+> AGPL-3.0-only OR commercial dual license. `siege_utilities` is now licensed
+> under Apache-2.0, for the repository from the relicensing change and for
+> every release after 5.0.0 (#1967); see
+> [`docs/LICENSE_MODEL.md`](LICENSE_MODEL.md). The relicensing removed
+> `LICENSES/AGPL-3.0.txt` and `LICENSES/Siege-Commercial.txt` and replaced
+> `LICENSE`, so the links below point to those files in the v5.0.0 release,
+> the last release that contained them. The SPDX line described below was in
+> `LICENSE` up to 5.0.0. The analysis below is otherwise kept as written.
+
 **Purpose:** verify that `siege_utilities` can depend on TMC's [Parsons](https://github.com/move-coop/parsons) library without contaminating siege's dual-license (AGPL-3.0-only OR commercial), and determine what obligation flows to end users of `siege_utilities[parsons-*]` extras.
 
 **Closes P0-1 of parent epic:** [#1148 Epic: TMC Parsons integration](https://github.com/siege-analytics/siege_utilities/issues/1148).
@@ -20,10 +30,10 @@ The full NOTICE follows in the LICENSE.md; every distributor that ships Parsons 
 
 `siege_utilities` is dual-licensed:
 
-- **AGPL-3.0-only** (see [`LICENSES/AGPL-3.0.txt`](../LICENSES/AGPL-3.0.txt)) for open-source use.
-- **Commercial license** ([`LICENSES/Siege-Commercial.txt`](../LICENSES/Siege-Commercial.txt)) under separate agreement.
+- **AGPL-3.0-only** (see [`LICENSES/AGPL-3.0.txt`](https://github.com/siege-analytics/siege_utilities/blob/819d818842a785df810958cbcae193c44b844442/LICENSES/AGPL-3.0.txt)) for open-source use.
+- **Commercial license** ([`LICENSES/Siege-Commercial.txt`](https://github.com/siege-analytics/siege_utilities/blob/819d818842a785df810958cbcae193c44b844442/LICENSES/Siege-Commercial.txt)) under separate agreement.
 
-SPDX identifier on top of [`LICENSE`](../LICENSE): `AGPL-3.0-only OR LicenseRef-Siege-Commercial`. Effective date: March 6, 2026. Attribution is required in both paths. See [`docs/LICENSE_MODEL.md`](LICENSE_MODEL.md).
+SPDX identifier on top of [`LICENSE`](https://github.com/siege-analytics/siege_utilities/blob/819d818842a785df810958cbcae193c44b844442/LICENSE): `AGPL-3.0-only OR LicenseRef-Siege-Commercial`. Effective date: March 6, 2026. Attribution is required in both paths. See [`docs/LICENSE_MODEL.md`](LICENSE_MODEL.md).
 
 ## Analysis
 
@@ -72,7 +82,7 @@ Consumers who use `siege_utilities[parsons-*]` internally (SaaS, private applica
 **Commercial-license reviewer sign-off recommended before Phase 5 (public documentation) lands.** The reasoning:
 
 1. The §4(d) NOTICE is unusual — most Apache-2.0 works do not carry appended NOTICE clauses. Downstream commercial customers who license siege under `LicenseRef-Siege-Commercial` may have policies about political-values statements attached to their dependency graph. Better to flag proactively than to answer post-hoc.
-2. The commercial-license terms in [`LICENSES/Siege-Commercial.txt`](../LICENSES/Siege-Commercial.txt) may need a clause acknowledging that Parsons's NOTICE flows through regardless of the commercial-license path (since Parsons is a third-party dependency, not siege's own IP).
+2. The commercial-license terms in [`LICENSES/Siege-Commercial.txt`](https://github.com/siege-analytics/siege_utilities/blob/819d818842a785df810958cbcae193c44b844442/LICENSES/Siege-Commercial.txt) may need a clause acknowledging that Parsons's NOTICE flows through regardless of the commercial-license path (since Parsons is a third-party dependency, not siege's own IP).
 
 Legal review is NOT required to unblock Phase 1 substrate work (P1-1..P1-4) or Phase 2 (VAN connector) — those ship under the existing dual-license and don't distribute Parsons. Legal review IS a prerequisite for Phase 5 public docs and for any commercial-license customer questions.
 
@@ -112,7 +122,7 @@ Additional falsification: if a competent open-source licensing reviewer reads th
 ## References
 
 - Parsons LICENSE: <https://github.com/move-coop/parsons/blob/main/LICENSE.md>
-- siege LICENSE: [`../LICENSE`](../LICENSE)
+- siege LICENSE: [`../LICENSE`](https://github.com/siege-analytics/siege_utilities/blob/819d818842a785df810958cbcae193c44b844442/LICENSE)
 - siege license model: [`LICENSE_MODEL.md`](LICENSE_MODEL.md)
 - FSF Apache-2.0 compatibility statement: <https://www.gnu.org/licenses/license-list.html#apache2>
 - Parent epic: [#1148](https://github.com/siege-analytics/siege_utilities/issues/1148)

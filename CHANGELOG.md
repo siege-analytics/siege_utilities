@@ -28,6 +28,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `unique_views` and `exit_rate` with `.get()`; a GA4 property that returns
   percentages instead of ratios now fails loudly.
 
+### License
+
+- `siege_utilities` is relicensed from `AGPL-3.0-only OR
+  LicenseRef-Siege-Commercial` to `Apache-2.0` (#1967). AGPL network copyleft
+  and the lack of a linking exception kept the library out of proprietary and
+  commercial products unless the adopter signed a separate commercial
+  agreement. Apache-2.0 allows that use, keeps attribution through the new
+  `NOTICE` file and adds an explicit patent grant. `LICENSE` now holds the
+  Apache-2.0 text. `COMMERCIAL_LICENSE.md`, `LICENSES/AGPL-3.0.txt` and
+  `LICENSES/Siege-Commercial.txt` are removed; `LICENSES/wkls.md` (third-party
+  terms) is unchanged. The package metadata declares the SPDX expression
+  `Apache-2.0` (PEP 639), which needs setuptools 77.0.3 or later to build.
+  The copyright holders' consent is recorded on #1967. Releases 1.0.0 through
+  3.8.1 were published under the MIT License, and releases 3.8.2 through 5.0.0
+  under `AGPL-3.0-only OR LicenseRef-Siege-Commercial` (effective March 6,
+  2026). Every published release keeps the terms it was published under.
+  Apache-2.0 applies to the repository from this change and to every release
+  after 5.0.0.
+
 ## [5.0.0] - 2026-11-20
 
 ### Changed
