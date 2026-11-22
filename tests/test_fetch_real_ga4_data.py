@@ -4,6 +4,7 @@ import csv
 import socket
 import zipfile
 from datetime import date, timedelta
+from typing import Any, Callable, NoReturn
 
 import pandas as pd
 import pytest
@@ -15,8 +16,15 @@ from siege_utilities.reporting.idml_export import export_report_idml
 
 NO_RESPONSE = object()  # the prior-period query returns None instead of a frame
 
+FetchResult = tuple[dict[str, Any], list[dict[str, Any]]]
 
-def _daily_frame(sessions, bounce_rates, users=None, duration=120):
+
+def _daily_frame(
+    sessions: list[int],
+    bounce_rates: list[float],
+    users: list[int] | None = None,
+    duration: float = 120,
+) -> pd.DataFrame:
     return pd.DataFrame({
         'date': [f'2026-01-{i + 1:02d}' for i in range(len(sessions))],
         'sessions': sessions,
@@ -28,25 +36,30 @@ def _daily_frame(sessions, bounce_rates, users=None, duration=120):
 
 
 @pytest.fixture
-def fetch(monkeypatch):
+def fetch(monkeypatch: pytest.MonkeyPatch) -> Callable[..., FetchResult]:
     import siege_utilities.analytics as analytics
     import siege_utilities.config as config
 
-    def unexpected_io(*args, **kwargs):
+    def unexpected_io(*args: Any, **kwargs: Any) -> NoReturn:
         pytest.fail('GA4 regression tests must not use network or credentials')
 
     monkeypatch.setattr(socket.socket, 'connect', unexpected_io)
     monkeypatch.setitem(config.__dict__, 'get_google_service_account_from_1password', unexpected_io)
 
-    def run(daily=None, prior=None, page_metrics=None, rate=0.45):
+    def run(
+        daily: pd.DataFrame | None = None,
+        prior: pd.DataFrame | object | None = None,
+        page_metrics: dict[str, Any] | None = None,
+        rate: float = 0.45,
+    ) -> FetchResult:
         daily = _daily_frame([100], [rate]) if daily is None else daily
         calls = []
 
         class StubGA4Connector:
-            def __init__(self, **kwargs):
+            def __init__(self, **kwargs: Any) -> None:
                 assert kwargs['auth_method'] == 'service_account'
 
-            def get_ga4_data(self, **query):
+            def get_ga4_data(self, **query: Any) -> pd.DataFrame | None:
                 calls.append(query)
                 dimension = query['dimensions']
                 if dimension == ['date']:
