@@ -5,15 +5,14 @@ Geospatial Extras and GDAL
 --------------------------
 
 As of the GDAL-optional-extra split, the ``[geo]`` extra installs the
-pure-Python geospatial stack (GeoPandas, Shapely, Fiona, PyProj, rtree,
-PySAL, etc.). These ship their own bundled GDAL/GEOS/PROJ inside their
-wheels, so ``pip install siege-utilities[geo]`` works **without any
-system GDAL** on the supported Python versions::
+geospatial stack (GeoPandas, Shapely, Fiona, PyProj, rtree, PySAL, etc.).
+On supported Python/platform combinations, compatible binary wheels bundle
+the needed GDAL/GEOS/PROJ libraries, so a normal pip install does not need
+system GDAL::
 
     pip install siege-utilities[geo]
 
-You only need system GDAL + the native OSGeo Python bindings in two
-cases:
+System GDAL is needed in these cases:
 
 1. **You import ``osgeo`` directly** (``from osgeo import gdal, ogr,
    osr``). Install the dedicated ``[gdal]`` extra, pinned to your system
@@ -36,7 +35,15 @@ cases:
        sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev libproj-dev
        pip install siege-utilities[geodjango]
 
-System Dependencies (only for the two cases above)
+3. **Building Fiona or Pyogrio from source.** If pip cannot use a compatible
+   wheel and builds either package locally, install the GDAL development
+   libraries first. This does not mean the ``[gdal]`` extra is installed;
+   that extra provides the native ``osgeo`` Python bindings. See the
+   `Fiona <https://fiona.readthedocs.io/en/stable/install.html>`_ and
+   `Pyogrio <https://pyogrio.readthedocs.io/en/latest/install.html>`_
+   installation prerequisites.
+
+System Dependencies (only for the cases above)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Ubuntu / Debian::

@@ -39,7 +39,7 @@ Phase B verification (red/green): `tests/test_fetch_real_ga4_data.py` copied int
 | ID | Priority | Description | Resolution |
 |----|----------|-------------|------------|
 | F1 | P2 | Branch CONFLICTING with develop (CHANGELOG only) | additive merge `b2a33424`; develop side kept verbatim |
-| F2 | P2 | Caller-visible changes listed under Changed, not BREAKING | entry under `[4.1.0] ### BREAKING` with Migration; after the develop integration it sits under `[5.0.0] ### BREAKING` |
+| F2 | P2 | Caller-visible changes listed under Changed, not BREAKING | entry under `[4.1.0] ### BREAKING` with Migration; after the develop integration it sat under `[5.0.0] ### BREAKING`; 5.0.0 was released without this PR, so the entry now sits under `[Unreleased] ### BREAKING` |
 | F3 | P3 | Public error type is `RuntimeError`, not `ValueError` | stated in the entry |
 | F4 | P3 | Tip lacked review trailers | this commit carries them |
 | F5 | S2 | Whole-PR review of the develop integration: re-exporting a design kit into the same folder without a prior left the earlier `period_comparison.csv` byte-identical and listed it in the new metadata | the export removes only its own earlier period-comparison outputs and lists only the tables it wrote; the PDF and CSV comparison tables show N/A for a prior value the data does not carry; four new tests (five cases); see the section below |
@@ -66,3 +66,8 @@ Results on the current tree:
 - After the fix: `tests/test_fetch_real_ga4_data.py` 26 passed (21 earlier plus 5 new cases). The neighbours (`test_reporting_markup_escaping`, `test_credential_manager`, `test_idml_export`, `test_google_analytics_connector`, `test_1662_ga_notebook_truth`, `test_analytics_reports_errors`) with the release-process and changelog-export tests: 353 passed and 1 skipped, the skip being a live connector test that needs a local credentials file.
 - `ruff check --select F,E9` on the changed Python files: no findings. Exception-contract scanner: 209 flagged, 0 unlisted, 0 stale. Test-file hygiene: pass.
 - The review's witness for this finding was not run here; it belongs to the review.
+
+Later develop integrations:
+- Develop `db50f2fe` (with #1824) was brought in on top of `fb461a97`. The only conflict was `CHANGELOG.md`, where #1824 and this PR both added an entry at the end of `[5.0.0] ### BREAKING`; develop's entries were kept as written and the #1579 entry followed them. This PR's code, test and self-review files were byte-identical to the reviewed tree.
+- A guard fix followed: routing every table write through `_open_table` left eight per-table entries in `scripts/atomic_write_allowlist.json` stale and the helper call unlisted, so the atomic-write guard test failed in CI. The eight entries were replaced by one entry for `export_design_kit._open_table`, with the digest the checker computes for it. No module code changed.
+- Version 5.0.0 was released without this PR. On the merge of develop `bc7e846a` the #1579 entry was moved, word for word, from `[5.0.0] ### BREAKING` to a new `### BREAKING` heading under `[Unreleased]`, so that the CHANGELOG no longer says this change shipped in 5.0.0. The `[5.0.0]` section is identical to develop's. The entry names no release version, so no wording in it changed.

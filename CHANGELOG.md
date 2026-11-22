@@ -7,50 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+### BREAKING
 
-- `TemporalTimeseriesBuilder.build` groups the snapshot frame by
-  `boundary_id` once and reuses each boundary's row positions for every
-  requested variable, instead of filtering the whole frame once per boundary
-  per variable. Output is unchanged for the `boundary_id` types covered by the
-  equivalence tests (integer, float with NaN, string, mixed integer/string,
-  datetime, categorical, and missing ids): the same series in the same
-  first-appearance boundary order, with the same years, values, MOEs,
-  statistics and created/skipped counts; a missing `boundary_id` or `year`
-  column still raises `KeyError` at the same point. An equivalence test
-  compares the new builder with the previous loop field by field (#1891).
-  Exotic id types (overlapping intervals, mixed `Timestamp`/`np.datetime64`
-  objects in one column) and further dtype coverage are tracked in #1897.
-- Importing `siege_utilities.geo.django` no longer raises when Django is
-  installed but the GDAL C library is not. The GeoDjango availability check now
-  also catches `ImproperlyConfigured`, so `_gis_available` is `False`, and
-  `get_model()` and `get_service()` raise the existing `ImportError` from the
-  dependency check. Importing the `models` package, or using a service that
-  loads GeoDjango, still raises Django's `ImproperlyConfigured`. Django remains
-  optional (#1889).
-- Correct the geocoding notebook's cache-hit claim: the timed cell scans
-  already-collected results in memory to select matched input IDs. Add a
-  narrative regression test and offline execution coverage for the geo notebook
-  group. Correct the related notebook descriptions to cover precinct-level
-  bivariate mapping and statistical primitives, and add regression coverage for
-  their cross-reference claims (#1667).
-- `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
-  `48-49` and excludes the `10` all-industry total that caused double-counting,
-  along with supersector aggregates. **Behavior change:** `parse()` and
-  `load()` now default to `own_code=5` (private) and `area_level="state"`
-  (statewide, `agglvl_code=54` at the default `naics_depth=2`), instead of
-  mixing ownerships and statewide/county rows. Callers can select another
-  ownership and `county`, `national`, or `msa` area level; the aggregation
-  code follows the requested NAICS depth. Suppressed rows (`disclosure_code`
-  of `N`) carry a boolean `is_suppressed` flag, so their source employment
-  and wage zeros can be excluded from calculations. When their source
-  disclosure columns exist, boolean `is_lq_suppressed` and `is_oty_suppressed`
-  flags separately identify `lq_disclosure_code` and `oty_disclosure_code`
-  values of `N`; corresponding `lq_*`/`oty_*` zeros are sentinels, not measured
-  zeros. The parser docstring now describes all preserved source columns
-  plus these flags (#1507).
+- `fetch_real_ga4_data` in `reporting/examples/google_analytics_report_example`
+  converts each GA4 `bounceRate` ratio to a 0–100 percentage at its API read
+  site, so `bounce_rate`, `avg_bounce_rate` and the report cards are no longer
+  about 100 times too small; period bounce rates are weighted by sessions. A
+  ratio outside 0–1 (including NaN or infinity) raises `RuntimeError` instead of
+  being scaled again. An empty prior query yields an empty `prior_period` and
+  `None` in `changes` (rendered as N/A in PDF, CSV and Markdown, null in
+  metadata) instead of fabricated comparisons; a zero prior denominator also
+  yields `None`. `top_pages` rows no longer contain the invented
+  `unique_views`, and `exit_rate` is present only when GA4 returns `exitRate`.
+  Re-exporting a design kit into the same folder without a prior removes that
+  export's earlier period-comparison table and charts, and metadata lists only
+  the tables the export wrote.
+  Prior queries cover the same inclusive number of days as the current period
+  (#1579). **Migration:** remove any `* 100` applied to `bounce_rate`; treat a
+  `None` change and an empty `prior_period` as "no comparison"; read
+  `unique_views` and `exit_rate` with `.get()`; a GA4 property that returns
+  percentages instead of ratios now fails loudly.
 
-## [5.0.0]
+## [5.0.0] - 2026-11-20
 
 ### Changed
 
@@ -141,6 +119,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `TemporalTimeseriesBuilder.build` groups the snapshot frame by
+  `boundary_id` once and reuses each boundary's row positions for every
+  requested variable, instead of filtering the whole frame once per boundary
+  per variable. Output is unchanged for the `boundary_id` types covered by the
+  equivalence tests (integer, float with NaN, string, mixed integer/string,
+  datetime, categorical, and missing ids): the same series in the same
+  first-appearance boundary order, with the same years, values, MOEs,
+  statistics and created/skipped counts; a missing `boundary_id` or `year`
+  column still raises `KeyError` at the same point. An equivalence test
+  compares the new builder with the previous loop field by field (#1891).
+  Exotic id types (overlapping intervals, mixed `Timestamp`/`np.datetime64`
+  objects in one column) and further dtype coverage are tracked in #1897.
+- Importing `siege_utilities.geo.django` no longer raises when Django is
+  installed but the GDAL C library is not. The GeoDjango availability check now
+  also catches `ImproperlyConfigured`, so `_gis_available` is `False`, and
+  `get_model()` and `get_service()` raise the existing `ImportError` from the
+  dependency check. Importing the `models` package, or using a service that
+  loads GeoDjango, still raises Django's `ImproperlyConfigured`. Django remains
+  optional (#1889).
+- Correct the geocoding notebook's cache-hit claim: the timed cell scans
+  already-collected results in memory to select matched input IDs. Add a
+  narrative regression test and offline execution coverage for the geo notebook
+  group. Correct the related notebook descriptions to cover precinct-level
+  bivariate mapping and statistical primitives, and add regression coverage for
+  their cross-reference claims (#1667).
+- `QCEWFiles.parse()` includes ranged NAICS sectors `31-33`, `44-45`, and
+  `48-49` and excludes the `10` all-industry total that caused double-counting,
+  along with supersector aggregates. **Behavior change:** `parse()` and
+  `load()` now default to `own_code=5` (private) and `area_level="state"`
+  (statewide, `agglvl_code=54` at the default `naics_depth=2`), instead of
+  mixing ownerships and statewide/county rows. Callers can select another
+  ownership and `county`, `national`, or `msa` area level; the aggregation
+  code follows the requested NAICS depth. Suppressed rows (`disclosure_code`
+  of `N`) carry a boolean `is_suppressed` flag, so their source employment
+  and wage zeros can be excluded from calculations. When their source
+  disclosure columns exist, boolean `is_lq_suppressed` and `is_oty_suppressed`
+  flags separately identify `lq_disclosure_code` and `oty_disclosure_code`
+  values of `N`; corresponding `lq_*`/`oty_*` zeros are sentinels, not measured
+  zeros. The parser docstring now describes all preserved source columns
+  plus these flags (#1507).
 - The reporting map engine's bivariate maps
   (`create_bivariate_choropleth_matplotlib` and the folium
   `create_bivariate_choropleth`) no longer crash on tied data: they spread
@@ -1070,25 +1088,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stub now echoes the submitted IDs, and the #654 test
   `test_all_unavailable_returns_error` now expects the per-input entry, for
   these reasons.
-
-- `fetch_real_ga4_data` in `reporting/examples/google_analytics_report_example`
-  converts each GA4 `bounceRate` ratio to a 0–100 percentage at its API read
-  site, so `bounce_rate`, `avg_bounce_rate` and the report cards are no longer
-  about 100 times too small; period bounce rates are weighted by sessions. A
-  ratio outside 0–1 (including NaN or infinity) raises `RuntimeError` instead of
-  being scaled again. An empty prior query yields an empty `prior_period` and
-  `None` in `changes` (rendered as N/A in PDF, CSV and Markdown, null in
-  metadata) instead of fabricated comparisons; a zero prior denominator also
-  yields `None`. `top_pages` rows no longer contain the invented
-  `unique_views`, and `exit_rate` is present only when GA4 returns `exitRate`.
-  Re-exporting a design kit into the same folder without a prior removes that
-  export's earlier period-comparison table and charts, and metadata lists only
-  the tables the export wrote.
-  Prior queries cover the same inclusive number of days as the current period
-  (#1579). **Migration:** remove any `* 100` applied to `bounce_rate`; treat a
-  `None` change and an empty `prior_period` as "no comparison"; read
-  `unique_views` and `exit_rate` with `.get()`; a GA4 property that returns
-  percentages instead of ratios now fails loudly.
+- `ConversionRate` is replaced by `StageRatio` (the `siege_utilities.analytics`
+  export is renamed), `PipelineReport.conversions` by
+  `PipelineReport.stage_ratios`, and `ConversionRate.rate` by
+  `StageRatio.ratio`. The value is next-stage count / current-stage count of
+  independent snapshots, not a cohort conversion rate: it may exceed 1.0 and
+  is `None` when the earlier stage is empty (v4.0.0 returned 0.0) (#1422).
+  **Migration:** import `StageRatio`; read `report.stage_ratios[i].ratio`;
+  handle `None`.
+- `PipelineAnalyzer(aging_threshold=...)` is now an absolute number of days,
+  default `30.0`, instead of a multiplier of the stage's average age (default
+  `2.0`); non-finite or non-positive values raise `ValueError`. Items older
+  than the limit are flagged even in stages with one or two timed items
+  (#1422). **Migration:** callers relying on the old default 2.0× stage-average
+  multiplier must pass `aging_threshold` explicitly, in days; a v4.0.0 call
+  such as `aging_threshold=2` now means two days. The #1444 test
+  `test_pipeline_aware_timestamps_are_normalized_to_utc` now passes
+  `aging_threshold=14.0` for this reason.
+- `ForecastAnalyzer.analyze` reports `grade="Insufficient data"`,
+  `bias_direction="insufficient-data"` and `None` MAPE/bias for groups with
+  missing (`None`) or non-finite inputs, where v4.0.0 returned a Poor/neutral
+  result for NaN or raised `TypeError` for `None`; such periods are left out of
+  trend fitting, as are periods whose MAPE or bias overflows to a non-finite
+  value. Trends sort period labels lexicographically and fit OLS across the
+  reported two-decimal period MAPEs exactly, as equally spaced periods. A
+  reported change of exactly 1.00 percentage point is stable; direction uses
+  the fitted change with an inclusive one-percentage-point stable band,
+  instead of comparing the first and last periods in input order (#1422).
+  **Migration:** handle the insufficient-data grade and `None` metrics; use
+  sortable period labels (for example `2026-01`, not `Jan 2026`).
+- `HealthScorer.score`/`score_batch` and `RiskAnalyzer.assess`/`assess_batch`
+  assign tiers (and risk interventions) from the reported two-decimal
+  composite score, so 69.999 reported as 70.0 gets the 70.0 tier (#1422).
+  **Migration:** none for callers that read `tier`; boundary results can
+  differ from v4.0.0.
+- `ComparativeAnalyzer.__init__` rejects negative, non-finite and zero-sum
+  weights with `ValueError` and normalizes valid weights before `compare` runs,
+  so scaled weights give the same totals (#1422). **Migration:** pass
+  non-negative finite weights; totals computed from unnormalized v4.0.0
+  weights change.
+- `analyze_price_sensitivity` raises `ValueError` naming the zero-based
+  response index when a respondent's answers violate
+  `too_cheap <= cheap <= expensive <= too_expensive` (ties allowed), instead
+  of building curves from inconsistent answers (#1422). **Migration:** clean or
+  drop inconsistent survey responses before calling.
 
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
