@@ -5,7 +5,12 @@ Review-Tier: C (license of the published package; packaging metadata and build r
 ## Assumptions
 Goal source: #1967, relicense from `AGPL-3.0-only OR LicenseRef-Siege-Commercial` to `Apache-2.0`.
 The copyright holders' consent is recorded on #1967 (issuecomment-7085998353).
-Base: develop `bc7e846a`. No version bump, tag or release is part of this change.
+Base: develop `819a82ea` (PR #1741). The two #1967 commits were replayed onto that live develop
+tip after it advanced from `205ca932`; the new history preserves the #1741 changes. The replay
+conflicted only in `CHANGELOG.md`. Resolution retains both the upstream #1579 BREAKING entry and
+the #1967 License entry. The staged correction is limited to six documentation files; compared
+with develop, the resulting PR changes only the #1967 files. No version bump, tag or release is
+part of this change.
 
 ## Changes
 - `LICENSE`: the canonical Apache License 2.0 text, downloaded from
@@ -21,15 +26,27 @@ Base: develop `bc7e846a`. No version bump, tag or release is part of this change
   - build requirement raised to `setuptools>=77.0.3`, the first release that accepts a license expression;
   - AGPL classifier removed. No `License ::` classifier is added, because setuptools rejects one alongside a license expression.
 - `README.md`, `CONTRIBUTING.md` (inbound = outbound), `docs/LICENSE_MODEL.md` and
-  `docs/source/license_model.rst` describe Apache-2.0. They state that releases up to and
-  including 5.0.0 keep their published terms.
-- `docs/PARSONS_LICENSE_ANALYSIS.md` and `docs/archive/design/survey-module-adr.md`: a dated
-  note at the top. The text below the note is unchanged.
-- `CHANGELOG.md` `[Unreleased]`: a `### License` entry.
+  `docs/source/license_model.rst` describe Apache-2.0.
+  - Releases 1.0.0 through 3.8.1 were published under MIT, and releases 3.8.2 through 5.0.0
+    under `AGPL-3.0-only OR LicenseRef-Siege-Commercial` (effective March 6, 2026).
+  - Every published release keeps its terms.
+  - Apache-2.0 applies to the repository from this change and to every release after 5.0.0.
+  - Both "License history" sections include the MIT period.
+- `docs/PARSONS_LICENSE_ANALYSIS.md`: a dated note at the top. Five links are now permalinks to
+  the v5.0.0 commit `819d8188`: the three links to the removed AGPL and commercial texts, and the
+  two links to the old `LICENSE`. The note says the files were removed, where the links point, and that the
+  SPDX line it describes was in `LICENSE` up to 5.0.0. The analysis is otherwise unchanged.
+- `docs/archive/design/survey-module-adr.md`: a dated note at the top. The text below it is
+  unchanged.
+- `CHANGELOG.md` `[Unreleased]`: the `### License` entry is retained alongside the upstream
+  #1579 `### BREAKING` entry after the develop update.
 
 ## Test plan
 
-Ran on the change, with results:
+Ran on the change, with results. The build, twine and artifact checks ran on tree `fcf187b2`.
+The corrections after the independent review change only documentation, `README.md` among them
+(the package long description). The release and changelog tests were re-run on the corrected tree,
+and the final head is rebuilt and checked with twine after it is committed.
 
 - `python -m build`, isolated, which installs `setuptools>=77.0.3`: built `siege_utilities-5.0.0.tar.gz` and
   `siege_utilities-5.0.0-py3-none-any.whl`.
@@ -109,5 +126,35 @@ Not run, or failing on develop as well (this change has no Python source diff):
 ## Pre-mortem
 1. Tiger. Severity: P1. The built package declares the wrong license. Mitigation: wheel METADATA checked for `License-Expression: Apache-2.0` and the license files.
 2. Tiger. Severity: P1. An old setuptools cannot build the project. Mitigation: build requirement raised to `setuptools>=77.0.3`; the isolated build installs it.
-3. Paper Tiger. Severity: P2. Published releases appear relicensed. Mitigation: README, LICENSE_MODEL, license_model.rst and CHANGELOG state that releases up to and including 5.0.0 keep their terms.
-4. Paper Tiger. Severity: P3. A link to a removed file remains in historical text: `docs/PARSONS_LICENSE_ANALYSIS.md` links `LICENSES/AGPL-3.0.txt`. It is kept as history under the dated note.
+3. Tiger. Severity: P2. Published releases appear relicensed, or their terms are misstated. Mitigation: README, LICENSE_MODEL, license_model.rst and CHANGELOG state the MIT period (1.0.0 through 3.8.1) and the dual-license period (3.8.2 through 5.0.0). They also state that every published release keeps its terms.
+4. Paper Tiger. Severity: P3. Links in historical text point to removed or replaced files. `docs/PARSONS_LICENSE_ANALYSIS.md` has three links to removed files (`LICENSES/AGPL-3.0.txt` once, `LICENSES/Siege-Commercial.txt` twice) and two links to the old `LICENSE`. Mitigation: all five are permalinks to the v5.0.0 commit, as the dated note explains.
+
+## Findings
+
+| ID | Priority | Finding | Outcome |
+|----|----------|---------|---------|
+| F1 | P1 | `license = "Apache-2.0"` needs setuptools 77 or later. Under the old `setuptools>=61.0` requirement, a non-isolated build with setuptools 69.5.1 fails ("`project.license` must be valid exactly by one definition"). | Build requirement raised to `setuptools>=77.0.3`. The isolated build installs it and passes `twine check --strict`. |
+| F2 | P2 | `NOTICE` needed a copyright year that the dual-license wording did not give. | `NOTICE` uses 2025-2026; 2025 is the year of the first commit on develop. It matches the MIT `LICENSE` of releases up to 3.8.1 ("Copyright (c) 2025 Siege Analytics"). |
+| F3 | P2 | Current setuptools rejects a `License ::` classifier alongside a license expression. | The AGPL classifier is removed and no license classifier is added. The wheel METADATA has `License-Expression: Apache-2.0` and no `License ::` classifier. |
+| F4 | P3 | Some `scripts/check_*` guards cannot run locally: flake8, bandit, Django settings, and an installed package that shadows the checkout. `check_broad_except` reports 34 existing violations. | Listed under the Test plan with reasons. This change has no Python source diff. `check_broad_except` is identical on develop and tracked as #1971. CI runs flake8 and bandit. |
+| S2-1 | P2 | Independent review: the docs said every release up to 5.0.0 was dual-licensed. Releases 1.0.0 through 3.8.1 were MIT, and the "License history" sections omitted the MIT period. | CHANGELOG, README, `docs/LICENSE_MODEL.md` and `docs/source/license_model.rst` now state the MIT period and the dual-license period, and that every published release keeps its terms. Both history sections list the MIT period. Checked against `LICENSE` at v1.0.0 and v3.8.1 (MIT) and at v3.8.2 and v5.0.0 (dual). |
+| S3-1 | P3 | Independent review: `docs/PARSONS_LICENSE_ANALYSIS.md` linked the removed AGPL and commercial texts (three links). It also described an SPDX line that `LICENSE` no longer has. | The three links, and the two links to the old `LICENSE`, are permalinks to the v5.0.0 commit `819d8188`. The dated note explains the removal and the SPDX line. |
+| S3-2 | P3 | Independent review: the Sphinx `copyright` in `docs/source/conf.py` and `docs/source/conf_fast.py` (`2025-2026, Dheeraj Chand`) differs from the holder in `NOTICE`. | Pre-existing and out of scope; those files are unchanged. `NOTICE` names Siege Analytics, the holder named in the earlier license texts. The MIT `LICENSE` reads "Copyright (c) 2025 Siege Analytics". `LICENSES/Siege-Commercial.txt` reads "Copyright (c) Siege Analytics. All rights reserved.", and `COMMERCIAL_LICENSE.md` requires a "Copyright notice for Siege Analytics". |
+| S3-3 | P3 | Independent review: the original self-review named `bc7e846a` as the base, and develop subsequently advanced. | Replayed the two #1967 commits onto the live develop tip `819a82ea` after #1741 landed. Resolved the `CHANGELOG.md` conflict by retaining both upstream #1579 and #1967 entries. The PR diff is scoped to #1967's files. |
+
+## Independent review
+
+An independent pre-push review of tree `fcf187b2` (commit `b6addaf8`) against develop
+`bc7e846a` FAILED with one S2 and three S3 findings:
+https://github.com/siege-analytics/siege_utilities/issues/1967#issuecomment-7086398153
+
+It confirmed:
+- the verbatim Apache-2.0 `LICENSE` and the `NOTICE`;
+- the removed files and the unchanged `LICENSES/wkls.md`;
+- the `pyproject.toml` license metadata;
+- that no package, test, script, workflow or notebook file is touched.
+
+The S2 was the misstated license history of earlier releases. The findings and their
+resolutions are listed under Findings. The license-history corrections are independently re-reviewed on the refreshed tree after the
+upstream develop update. That re-review is linked from this commit's `Hostile-Review` trailer and
+from the pull request.

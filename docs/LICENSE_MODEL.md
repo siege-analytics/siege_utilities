@@ -15,11 +15,15 @@ outbound); see `CONTRIBUTING.md`.
 
 ## License history
 
-From March 6, 2026, `siege_utilities` was offered under a dual license:
-AGPL-3.0-only, or the Siege Analytics commercial license by separate
-agreement (SPDX: `AGPL-3.0-only OR LicenseRef-Siege-Commercial`).
+- **MIT License:** releases 1.0.0 through 3.8.1 were published under the MIT
+  License (Copyright (c) 2025 Siege Analytics).
+- **Dual license:** from March 6, 2026, `siege_utilities` was offered under
+  AGPL-3.0-only, or the Siege Analytics commercial license by separate
+  agreement (SPDX: `AGPL-3.0-only OR LicenseRef-Siege-Commercial`). Releases
+  3.8.2 through 5.0.0 were published under those terms.
+- **Apache-2.0:** applies to the repository from the relicensing change and to
+  every release after 5.0.0.
 
-Releases up to and including 5.0.0 were published under those terms, and those
-published releases keep them. The change to Apache-2.0 applies from the next
-release. The relicensing and the consent of the copyright holders are recorded
-on issue #1967.
+Every published release keeps the terms it was published under. The
+relicensing and the consent of the copyright holders are recorded on issue
+#1967.
