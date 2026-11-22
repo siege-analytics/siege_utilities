@@ -27,6 +27,64 @@ Base: develop `bc7e846a`. No version bump, tag or release is part of this change
   note at the top. The text below the note is unchanged.
 - `CHANGELOG.md` `[Unreleased]`: a `### License` entry.
 
+## Test plan
+
+Ran on the change, with results:
+
+- `python -m build`, isolated, which installs `setuptools>=77.0.3`: built `siege_utilities-5.0.0.tar.gz` and
+  `siege_utilities-5.0.0-py3-none-any.whl`.
+- `twine check --strict` on both artifacts: PASSED.
+- Wheel `METADATA` read with `unzip -p`: `Metadata-Version: 2.4`, `License-Expression: Apache-2.0`,
+  and `License-File` entries for `LICENSE`, `NOTICE` and `LICENSES/wkls.md`. There is no
+  `License ::` classifier and no legacy `License:` field.
+- Wheel members: `dist-info/licenses/LICENSE`, `NOTICE` and `LICENSES/wkls.md`.
+- sdist members: `LICENSE`, `NOTICE` and `LICENSES/wkls.md`.
+- Negative: a `--no-isolation` build with the local setuptools 69.5.1 rejects
+  `license = "Apache-2.0"` ("`project.license` must be valid exactly by one definition"). The
+  `setuptools>=77.0.3` build requirement is therefore needed.
+- Tests, 118 passed:
+  - `tests/test_release_process.py`
+  - `tests/test_user_config_export_changelog.py`
+  - `tests/test_package_metadata_contract.py`
+  - `tests/test_wheel_contents.py`
+  - `tests/test_1895_soupsieve_marker.py`
+  - `tests/test_architecture.py`
+  - `tests/test_1852_multi_assign_crs_layers.py`
+- `scripts/check_*` that pass:
+  - `check_wheel_contents` (13 required data files)
+  - `check_test_file_hygiene`
+  - `check_exception_contracts` (208 flagged, 0 unlisted, 0 stale)
+  - `check_atomic_writes`
+  - `check_credential_urls`
+  - `check_error_path_coverage`
+  - `check_imports`
+  - `check_no_stub_docstrings`
+  - `check_notebook_capability_coverage`
+  - `check_notebook_inventory`
+  - `check_secret_literals`
+  - `check_secret_repr`
+  - `check_secure_writes`
+  - `check_subprocess_safety`
+  - `check_unbounded_io`
+  - `check_symbol_test_coverage` (report only)
+  - `check_hollow_work` (3 existing findings in files this change does not touch)
+  - `check_lint_ratchet --phase all` phases 2 and 3 (no touched Python files)
+- Grep for AGPL, Affero, `LicenseRef-Siege-Commercial` and `COMMERCIAL_LICENSE`: the remaining
+  hits are history, listed under Evidence.
+
+Not run, or failing on develop as well (this change has no Python source diff):
+
+- `check_lint_ratchet` phase 4 and `check_lint_ratchet_phase1`: `flake8` is not installed in
+  the local environment. CI runs flake8.
+- `check_security`: `bandit` is not installed in the local environment. CI runs bandit.
+- `check_lazy_imports`: stops at `siege_utilities.geo.django.services` because Django settings
+  are not configured locally.
+- `check_social_review_fidelity`: the local interpreter imported an installed copy of
+  `siege_utilities` instead of the checkout.
+- `check_broad_except`: 34 existing SU-1 violations, identical on develop `bc7e846a`, tracked as
+  #1971.
+- `check_test_litter`: a snapshot and compare wrapper around a pytest run, not a standalone check.
+
 ## Evidence
 - `python -m build` (isolated, setuptools>=77.0.3) builds both artifacts, `siege_utilities-5.0.0.tar.gz` and `siege_utilities-5.0.0-py3-none-any.whl`.
   The log shows "adding license file" for `LICENSE`, `NOTICE` and `LICENSES/wkls.md`.
@@ -41,7 +99,7 @@ Base: develop `bc7e846a`. No version bump, tag or release is part of this change
 - Tests: `test_release_process`, `test_user_config_export_changelog`,
   `test_package_metadata_contract`, `test_wheel_contents`, `test_1895_soupsieve_marker`,
   `test_architecture` and `test_1852_multi_assign_crs_layers`: 118 passed.
-- `scripts/check_*`: the results are in the PR description. This change has no Python source
+- `scripts/check_*`: results are listed in the Test plan above. This change has no Python source
   diff, so code guards report the same result as on develop.
 - Grep for AGPL, Affero, `LicenseRef-Siege-Commercial` and `COMMERCIAL_LICENSE`: every
   remaining hit is history. That means released CHANGELOG sections, the "License history"
