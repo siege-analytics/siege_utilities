@@ -21,8 +21,8 @@ outbound); see `CONTRIBUTING.md`.
   AGPL-3.0-only, or the Siege Analytics commercial license by separate
   agreement (SPDX: `AGPL-3.0-only OR LicenseRef-Siege-Commercial`). Releases
   3.8.2 through 5.0.0 were published under those terms.
-- **Apache-2.0:** applies to the repository from the relicensing change and to
-  every release after 5.0.0.
+- **Apache-2.0:** applies to the current development revision and every
+  release after 5.0.0.
 
 Every published release keeps the terms it was published under. The
 relicensing and the consent of the copyright holders are recorded on issue
