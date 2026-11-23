@@ -290,6 +290,39 @@ def test_malformed_allowlist_is_rejected_by_guard_and_wrapper_alike(tmp_path, al
         assert guard.ALLOWLIST_ERROR in result.stderr, (script.name, result.stderr)
 
 
+def _run_script(script, root):
+    return subprocess.run(
+        [sys.executable, "-I", str(script), "--root", str(root)],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+
+@pytest.mark.parametrize("shape", ["missing", "empty", "no-package"])
+def test_a_root_without_siege_utilities_fails_both_scripts(tmp_path, shape):
+    root = tmp_path / "root"
+    if shape != "missing":
+        root.mkdir()
+    if shape == "no-package":
+        (root / "scripts").mkdir()
+        (root / "README.md").write_text("not a checkout\n", encoding="utf-8")
+    for script in (SCRIPT, WRAPPER):
+        result = _run_script(script, root)
+        assert result.returncode == 1, (script.name, result.stdout, result.stderr)
+        assert f"ERROR: source root not found: {root / 'siege_utilities'}" in result.stderr, (
+            script.name, result.stderr,
+        )
+        assert "OK" not in result.stdout
+
+
+def test_a_planted_root_still_passes_both_scripts(tmp_path):
+    plant(tmp_path, "def f():\n    try:\n        work()\n    except ValueError:\n        raise\n")
+    for script in (SCRIPT, WRAPPER):
+        result = _run_script(script, tmp_path)
+        assert result.returncode == 0, (script.name, result.stdout, result.stderr)
+
+
 def test_broad_handler_ending_in_raise_after_logging_is_accepted(tmp_path):
     plant(
         tmp_path,

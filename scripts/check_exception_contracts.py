@@ -24,6 +24,7 @@ import argparse
 import ast
 import hashlib
 import json
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -239,10 +240,24 @@ def canonical_ast(node):
     return node
 
 
+class SourceRootNotFound(FileNotFoundError):
+    """The scan root has no ``siege_utilities/`` directory to check."""
+
+
 def scan(root):
-    """Return keyed violations, without importing any scanned library modules."""
+    """Return keyed violations, without importing any scanned library modules.
+
+    Raises SourceRootNotFound when ``root/siege_utilities`` is not a
+    directory, so that a missing or mistyped root fails instead of scanning
+    nothing and reporting a clean tree. This is the one root check for this
+    guard and for ``check_broad_except.py``; the message is the one
+    ``check_broad_except.py`` printed before it delegated here.
+    """
+    source = root / "siege_utilities"
+    if not source.is_dir():
+        raise SourceRootNotFound(f"ERROR: source root not found: {source}")
     found = []
-    for path in sorted((root / "siege_utilities").rglob("*.py")):
+    for path in sorted(source.rglob("*.py")):
         relative = path.relative_to(root).as_posix()
         if "tests" in path.parts or path.name.startswith("test_"):
             continue
@@ -341,7 +356,11 @@ def main(argv=None):
         allow = load_allowlist(args.root, args.allowlist)
     except ValueError as exc:
         parser.error(str(exc))
-    found = scan(args.root)
+    try:
+        found = scan(args.root)
+    except SourceRootNotFound as exc:
+        print(exc, file=sys.stderr)
+        return 1
     unlisted = [item for item in found if item["key"] not in allow]
     stale = sorted(set(allow) - {item["key"] for item in found})
     print(

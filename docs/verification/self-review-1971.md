@@ -17,6 +17,7 @@ Review-Tier: C (guard tooling; no library code changes).
 - BROAD: a bare, `Exception` or `BaseException` handler is flagged unless `unconditional_reraise(handler.body)`. A raise reached on only some paths no longer exempts it.
 - DEFAULT and LOGONLY: unchanged. They are still skipped for a handler with a raise anywhere in its body.
 - New `load_allowlist(root, allowlist=None)`: the single allow-list loader. It rejects a non-mapping or any entry whose justification is not a nonempty string by raising `ValueError(ALLOWLIST_ERROR)`. `main` reports that through `parser.error`, as before.
+- `scan(root)` raises `SourceRootNotFound` when `root/siege_utilities` is not a directory. Both `main` functions print the message to stderr and exit 1. The message, "ERROR: source root not found: <root>/siege_utilities", and the exit code are the ones `check_broad_except.py` used at `d2c15b13` (lines 196-198). On develop the guard had no such check: with a missing or mistyped `--root`, `rglob` found nothing, and the guard reported a clean tree unless stale allow-list entries happened to fail it. The check sits in `scan`, which both scripts call, so there is one root check.
 - Existing keys keep their digests and rule order, so no existing allow-list entry became stale. The docstring states both rules.
 
 `scripts/exception_contracts_allowlist.json`: four BROAD entries with justifications, one per handler the tighter rule lists:
@@ -27,7 +28,8 @@ Review-Tier: C (guard tooling; no library code changes).
 
 `scripts/check_broad_except.py`: replaced by a wrapper. It loads the contract guard, reads the allow-list through the guard's `load_allowlist`, and has no validator of its own; an invalid allow-list ends in `parser.error` with the same message as the guard. It reports BROAD findings without an entry, exiting 0 or 1. Its docstring says it delegates and why. Options: `--root` and `--allowlist`. The former `--report` and `--json` options are gone; no CI step, test or document used them.
 
-`tests/guard/test_exception_contract_guard.py`: `run_wrapper` and `WRAPPER`, plus 27 tests:
+`tests/guard/test_exception_contract_guard.py`: `run_wrapper`, `WRAPPER` and `_run_script`, plus 31 tests:
+- a root without `siege_utilities/` fails both scripts with exit 1 and the old message: 3 cases (a missing root, an empty directory, a directory with other files but no `siege_utilities/`); a planted root still passes both;
 - a conditional raise does not exempt a broad handler: 3 cases (a raise inside `if`; `except BaseException` with a raise inside an inner `try`, the `_protocol.py:502` shape; a bare `except` that raises or returns);
 - an escape before the final raise does not exempt a broad handler: 6 cases (`if flag: return {...}` then `raise`; `return` inside a nested `finally`; a conditional `break` and a conditional `continue` in a loop handler; a conditional `return` in an `async def`; an assigned `yield`);
 - a `yield` in definition-time code is an escape: 7 cases (a function default, a keyword-only default, an `async def` default, a `lambda` default, a class base, a class keyword, a decorator), each followed by a final `raise`;
@@ -61,11 +63,14 @@ Mutations. Each was applied in the working tree with the real change staged, the
 | C2 | escape check scans nested bodies too (`ast.walk` instead of `escape_nodes`) | 1 failed: `test_a_return_inside_a_nested_definition_does_not_count_as_an_escape` |
 | D | wrapper reads the allow-list itself with `json.loads`, without the guard's loader | 3 failed: `test_malformed_allowlist_is_rejected_by_guard_and_wrapper_alike` [empty-justification, non-string-justification, list-not-mapping] |
 | E | `escape_nodes` skips nested definitions entirely (no definition-time scan), as the first rework did | 7 failed: `test_a_yield_in_definition_time_code_is_an_escape` [function-default, keyword-only-default, async-function-default, lambda-default, class-base, class-keyword, decorator] |
+| F | the root check in `scan` removed | 3 failed: `test_a_root_without_siege_utilities_fails_both_scripts` [missing, empty, no-package] |
+
+Mutants A to E were run on the tree before the root check was added (checker blob `0c75fc6a`). The root check adds lines to `scan` and both `main` functions only and changes none of the code those mutants touch. Mutant F was run on this tree (checker blob `dbc6906c`, wrapper blob `9cca6057`), with the same restore check.
 
 On the first version of the tests, the inner-`try` case had no raise. Develop's rule therefore flagged it too, and it passed under mutant B. It was changed to carry a raise in the inner `except`, as `_protocol.py:502` does, and it fails under B in the table above.
 
 Results on the staged tree:
-- `tests/guard/test_exception_contract_guard.py` with `tests/test_exception_contract_review.py`: 106 passed (79 existing and 27 new). With all of `tests/guard/`, `tests/test_release_process.py` (which the 6.0.0 preparation extended) and `tests/test_atomic_write_guard.py`: 173 passed.
+- `tests/guard/test_exception_contract_guard.py` with `tests/test_exception_contract_review.py`: 110 passed (79 existing and 31 new). With all of `tests/guard/`, `tests/test_release_process.py` (which the 6.0.0 preparation extended) and `tests/test_atomic_write_guard.py`: 177 passed.
 - `ruff check` with F, E9 and the lint ratchet rules on the three changed Python files: no findings.
 - `scripts/check_exception_contracts.py`: 212 flagged, 0 unlisted, 0 stale. `scripts/check_broad_except.py`: exit 0.
 - `scripts/check_atomic_writes.py`: 0 unlisted, 0 stale, 40 reviewed. `check_secure_writes.py`, `check_secret_literals.py`, `check_secret_repr.py`, `check_subprocess_safety.py`: 0 violations. `check_credential_urls.py`: 0 unreviewed sites. `check_test_file_hygiene.py`: pass. `check_no_stub_docstrings.py`: no markers. `check_unbounded_io.py` on non-test code and on the tests: 0 violations. `check_error_path_coverage.py`: 0 failing modules.
@@ -92,6 +97,7 @@ Not run locally:
 | F8 | S2 (review) | The first wrapper checked only key membership, so a custom allow-list of `{K: ""}`, `{K: 17}` or `[K]` passed as reviewed | fixed: the wrapper uses the guard's `load_allowlist`; three malformed-allow-list tests run both scripts; mutant D |
 | F9 | S2 (review) | The first rework skipped nested definitions entirely, including the decorators, defaults, annotations, bases and keywords they evaluate in the handler's scope, so `def nested(value=(yield ...))`, a lambda default, a class base or keyword, or a decorator with a `yield`, followed by `raise`, stayed exempt | fixed: `escape_nodes` visits definition-time expressions without entering bodies; seven witness tests; mutant E |
 | F10 | S3 (review) | An earlier version of this file said the release preparation changed no library file; it changed the version fallback in `siege_utilities/__init__.py` | corrected under Assumptions: the four handler files and the allow-list are identical on both bases |
+| F11 | Minor (PR review thread) | The wrapper dropped the former script's missing-root check, so a `--root` without `siege_utilities/` scanned nothing and passed; the guard had the same gap on develop | fixed: one root check in `scan` for both scripts, with the former message and exit code 1; three root tests run both scripts; mutant F |
 
 ## Independent review
-The first exact-tree review failed an earlier tree with findings F7 and F8, and the delta review of the next tree failed it with F9 and F10. The delta review of this tree is routed separately; the commit cites its record.
+The first exact-tree review failed an earlier tree with findings F7 and F8, and the delta review of the next tree failed it with F9 and F10. The second delta review passed tree `fe80a7e9`, committed as `a34d7065`. F11 came from a PR review thread on that commit and is fixed in an additive commit; its delta review is routed separately.

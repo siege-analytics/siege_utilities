@@ -19,7 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reasons. The DEFAULT and LOGONLY rules are unchanged. `scripts/check_broad_except.py`,
   which kept its own rules and reported 34 already reviewed handlers on every
   run, now delegates to that guard, reads the allow-list through the guard's
-  own validating loader, and reports broad handlers without a reviewed entry
+  own validating loader, and reports broad handlers without a reviewed entry.
+  Both scripts exit 1 with "source root not found" when `--root` has no
+  `siege_utilities/` directory, instead of scanning nothing and passing
   (#1971).
 
 ## [6.0.0] - 2026-11-22

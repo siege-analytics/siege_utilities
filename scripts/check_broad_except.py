@@ -55,7 +55,12 @@ def main(argv: list[str] | None = None) -> int:
         allow = guard.load_allowlist(args.root, args.allowlist)
     except ValueError as exc:
         parser.error(str(exc))
-    broad = [item for item in guard.scan(args.root) if item["rule"] == "BROAD"]
+    try:
+        found = guard.scan(args.root)
+    except guard.SourceRootNotFound as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    broad = [item for item in found if item["rule"] == "BROAD"]
     unreviewed = [item for item in broad if item["key"] not in allow]
 
     print(f"broad handlers flagged: {len(broad)}; unreviewed: {len(unreviewed)}")
