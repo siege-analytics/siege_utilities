@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### BREAKING
+
+- Connector diagnostics (exception messages, log lines, `UpsertError` text
+  and `UpsertResult` repr) keep the value of a quoted JSON or mapping field
+  named `code` or `key` when that value is a plain literal: at most 32
+  letters, digits and `_ . : -`, not an opaque token-like run of 16 or more
+  mixed letters and digits, and containing no configured credential of any
+  length. Zoho and HubSpot error codes (`"code": "INVALID_DATA"`) and record
+  keys (`"key": "row-7"`) are now readable; 5.0.0 and 6.0.0 replaced every
+  such value with `[REDACTED]`. Any other `code` or `key` value is still
+  masked whole, including URLs, userinfo, percent or backslash escapes,
+  nested JSON strings, spaces, non-ASCII text, opaque tokens and configured
+  credentials. In query strings and form bodies (`?code=`, `&key=`,
+  `code=...&client_secret=`) both names stay redacted, because they carry
+  OAuth authorization codes and API keys there. Authorization and API-key
+  headers, Bearer tokens, URL query credentials and credential-named fields
+  (`token`, `secret`, `access_token`, `client_secret`, `api_key`, `password`
+  and the rest) are redacted as before (#1920).
+  **Migration:** a plain literal secret (for example a short alphanumeric
+  value with a separator) placed in a JSON field named `code` or `key` is no
+  longer hidden by the field name alone; configure it as the connector's
+  credential so value-based redaction covers it, or rename the field.
+
 ### Changed
 
 - `scripts/check_exception_contracts.py`, the exception-contract guard that CI

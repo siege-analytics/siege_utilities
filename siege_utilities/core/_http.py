@@ -102,19 +102,41 @@ _SECRET_HEADERS = (
     "authorization|proxy-authorization|x-api-key|api-key|apikey|"
     "x-auth-token|cookie|set-cookie"
 )
-_SECRET_FIELDS = (
+_CREDENTIAL_FIELDS = (
     "client_secret|refresh_token|access_token|token|password|assertion|"
-    "client_assertion|code|secret|private_key|api_key|apikey|api-key|x-api-key|key"
+    "client_assertion|secret|private_key|api_key|apikey|api-key|x-api-key"
 )
+_SECRET_FIELDS = f"{_CREDENTIAL_FIELDS}|code|key"
 _QUOTED_SECRET = re.compile(
     r"(?P<prefix>(?<![\w-])(?P<key_quote>[\"'])"
-    rf"(?:{_SECRET_HEADERS}|{_SECRET_FIELDS})(?P=key_quote)\s*:\s*)"
+    rf"(?P<name>{_SECRET_HEADERS}|{_SECRET_FIELDS})(?P=key_quote)\s*:\s*)"
     # The body excludes a bare backslash, so an escape can only match via
     # ``\\.`` -- one parse per input, no exponential backtracking on long
     # runs of backslashes in an unterminated value.
-    r"(?P<quote>[\"'])(?:\\.|(?!(?P=quote))[^\\])*(?P=quote)",
+    r"(?P<quote>[\"'])(?P<body>(?:\\.|(?!(?P=quote))[^\\])*)(?P=quote)",
     re.IGNORECASE | re.DOTALL,
 )
+
+# A quoted ``code`` or ``key`` field is often ordinary data in CRM bodies
+# (error codes such as INVALID_DATA, record keys such as row-7), but the same
+# names also carry OAuth codes and API keys. Its value survives only when it
+# is a plain literal: a short run of letters, digits and ``_ . : -`` that
+# contains no configured secret (of any length) and is not an opaque
+# token-like run. Anything else -- URLs, userinfo, percent or backslash
+# escapes, nested JSON, spaces, non-ASCII, or a configured value -- is masked
+# exactly as before, so no decoding of untrusted content is needed (#1920).
+# Query strings and form bodies (``?code=``, ``key=``) stay redacted by the
+# form pattern regardless.
+_ORDINARY_FIELDS = frozenset({"code", "key"})
+_ORDINARY_LITERAL = re.compile(r"[A-Za-z0-9_.:-]{1,32}")
+_TOKEN_LIKE = re.compile(r"(?=[A-Za-z0-9]*[A-Za-z])(?=[A-Za-z0-9]*[0-9])[A-Za-z0-9]{16,}")
+
+
+def _is_ordinary_literal(body: str, values) -> bool:
+    """True only for a plain code/key literal that carries no configured secret."""
+    if not _ORDINARY_LITERAL.fullmatch(body) or _TOKEN_LIKE.fullmatch(body):
+        return False
+    return not any(str(value) and str(value) in body for value in values)
 _HEADER_SECRET = re.compile(
     rf"(?<![\w\"'-])((?:{_SECRET_HEADERS})\s*[:=]\s*)[^\r\n,}}]+",
     re.IGNORECASE,
@@ -131,6 +153,11 @@ def redact_secrets(text: str, *, replacement: str = "[REDACTED]", values=()) -> 
 
     Keep non-sensitive fields intact. Quoted pairs also cover Python mapping
     diagnostics; escaped quotes in JSON values do not terminate the secret.
+    A quoted ``"code"`` or ``"key"`` field keeps its value only when the value
+    is a plain literal (letters, digits and ``_ . : -``, at most 32
+    characters, not an opaque token-like run) containing none of ``values``;
+    any other value is masked. In query strings and form bodies ``code`` and
+    ``key`` are always redacted.
 
     ``values`` are the caller's configured secret values (access/refresh token,
     client secret, API key, password). After key-based redaction, each such
@@ -140,6 +167,7 @@ def redact_secrets(text: str, *, replacement: str = "[REDACTED]", values=()) -> 
     outgoing request payload, URL, or header.
     """
     text = str(text)
+    values = tuple(values or ())
     # D4 (#1846 r4): whole-value replacement FIRST, longest-first across all
     # encodings, so a configured secret that contains spaces or quotes is
     # removed in full before the syntax passes -- otherwise a form/URL pattern
@@ -154,9 +182,12 @@ def redact_secrets(text: str, *, replacement: str = "[REDACTED]", values=()) -> 
         )
     # Then syntax/key redaction.
     text = redact_url_secrets(text, replacement=replacement)
-    text = _QUOTED_SECRET.sub(
-        lambda m: m["prefix"] + m["quote"] + replacement + m["quote"], text,
-    )
+    def quoted(m: re.Match) -> str:
+        if m["name"].lower() in _ORDINARY_FIELDS and _is_ordinary_literal(m["body"], values):
+            return m[0]
+        return m["prefix"] + m["quote"] + replacement + m["quote"]
+
+    text = _QUOTED_SECRET.sub(quoted, text)
     for pattern in (_HEADER_SECRET, _FORM_SECRET, _BEARER_SECRET):
         text = pattern.sub(lambda m: m[1] + replacement, text)
     return text
