@@ -56,7 +56,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 VERSION_FILES = {
     'pyproject.toml': {
         'path': PROJECT_ROOT / 'pyproject.toml',
-        'pattern': r'(version\s*=\s*")[^"]+(")',
+        'pattern': r'(?ms)(^\[project\](?:(?!^\[).)*?^version\s*=\s*")[^"]+(")',
     },
     '__init__.py __version__': {
         'path': PROJECT_ROOT / 'siege_utilities' / '__init__.py',
