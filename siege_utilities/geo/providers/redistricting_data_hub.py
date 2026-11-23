@@ -28,14 +28,19 @@ Usage::
 
 from __future__ import annotations
 
+import contextlib
+import errno
 import logging
 import os
 import re
+import secrets
+import stat
+import warnings
 import zipfile
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, BinaryIO, Dict, List, Optional, Union
 from urllib.parse import urlparse
 
 from siege_utilities.core._http import redact_url_secrets
@@ -252,6 +257,120 @@ def _single_member(directory: Path, pattern: str, kind: str) -> Path:
 # ---------------------------------------------------------------------------
 # Client
 # ---------------------------------------------------------------------------
+
+def _create_new_file(path: Path) -> BinaryIO:
+    """Create *path* exclusively for binary writing, with a new file's usual mode.
+
+    Mode 0o666 lets the process umask (and any default ACL) apply exactly as
+    for any new file. ``tempfile`` would force an owner-only 0o600, which a
+    published cache entry would keep. ``O_EXCL`` raises instead of reusing an
+    existing file, such as another download's partial file.
+    """
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+    descriptor = os.open(path, flags, 0o666)
+    try:
+        return os.fdopen(descriptor, "wb")
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def _keep_existing_mode(dest: Path, replacement: Path) -> None:
+    """Give *replacement* the permission bits of the *dest* entry it replaces.
+
+    A refresh must not narrow a shared cache entry to the refreshing process's
+    umask. When *dest* does not exist, *replacement* keeps its umask-derived
+    mode.
+    """
+    try:
+        mode = stat.S_IMODE(dest.stat().st_mode)
+    except FileNotFoundError:
+        return
+    os.chmod(replacement, mode)
+
+
+def _received_wire_size(resp: Any, written_size: int) -> int:
+    """Return the number of response-body bytes that arrived on the wire.
+
+    Content-Length counts wire bytes. Without a Content-Encoding (or with
+    ``identity``) those are the bytes written to the file. Otherwise requests
+    may have decoded them, so the written count does not describe the wire;
+    use the count urllib3 read from the connection (``HTTPResponse.tell``),
+    which counts raw bytes before decoding in urllib3 1.26 and 2.x. A
+    response object that cannot report it raises rather than skipping the
+    check. urllib3 does not count chunked reads, so a server that sends
+    chunked transfer together with Content-Length and an encoding (which
+    RFC 7230 forbids) fails the check rather than being cached.
+    """
+    encoding = resp.headers.get("Content-Encoding", "").strip().lower()
+    if encoding in ("", "identity"):
+        return written_size
+    tell = getattr(getattr(resp, "raw", None), "tell", None)
+    wire_size = tell() if callable(tell) else None
+    if not isinstance(wire_size, int):
+        raise requests.RequestException(
+            f"Cannot verify the size of a {encoding!r}-encoded response: "
+            "the transport does not report the bytes received"
+        )
+    return wire_size
+
+
+def _parse_content_length(value: str) -> int:
+    """Parse a Content-Length header value as a non-negative byte count.
+
+    urllib3 joins repeated headers with ", ", so identical repeated values
+    (``"10, 10"``) are accepted as one. Anything else that is not a single
+    non-negative integer raises, rather than skipping the size check.
+    """
+    parts = {part.strip() for part in value.split(",")}
+    # At most 19 digits (any 64-bit size), so int() never meets Python's
+    # integer string-conversion limit on a hostile header.
+    if len(parts) != 1 or not re.fullmatch(r"[0-9]{1,19}", next(iter(parts))):
+        raise requests.RequestException(f"Invalid Content-Length header: {value!r}")
+    return int(next(iter(parts)))
+
+
+# Errors that mean the platform or filesystem cannot sync a directory at all,
+# as opposed to a sync that was attempted and failed (for example EIO).
+_DIRECTORY_SYNC_UNSUPPORTED = frozenset(
+    getattr(errno, name)
+    for name in ("EINVAL", "ENOTSUP", "EOPNOTSUPP", "EBADF", "EACCES", "EPERM")
+    if hasattr(errno, name)
+)
+
+
+def _sync_directory(directory: Path) -> None:
+    """Persist a completed rename in *directory*, best effort, on POSIX.
+
+    The replacement is already published and its contents are synced, so a
+    failure here only risks the rename itself not surviving a crash; it is
+    logged, not raised. A filesystem or sandbox that cannot sync a directory
+    (EINVAL, ENOTSUP, EOPNOTSUPP, EBADF, EACCES, EPERM) is logged at debug
+    level; any other error, such as EIO, is a real durability failure and
+    logged as a warning. Other platforms cannot open a directory for fsync and
+    are skipped.
+    """
+    if os.name != "posix":
+        return
+    try:
+        directory_fd = os.open(directory, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    except OSError as exc:
+        # Deliberately not raised: the complete, fsynced file is already
+        # published, so raising would report a successful download as failed.
+        # No result is fabricated; only the rename's crash durability is lost.
+        if exc.errno in _DIRECTORY_SYNC_UNSUPPORTED:
+            log.debug("Directory fsync unavailable for %s", directory, exc_info=True)
+        else:
+            log.warning(
+                "Directory fsync failed for %s (%s); the new cache entry is "
+                "published but its rename may not survive a crash",
+                directory, exc,
+            )
+
 
 class RDHClient:
     """Client for the Redistricting Data Hub download API.
@@ -529,7 +648,15 @@ class RDHClient:
         output_dir: Optional[Union[str, Path]] = None,
         use_cache: bool = True,
     ) -> Path:
-        """Download a dataset file.
+        """Download a dataset file and publish it to the cache atomically.
+
+        New downloads must match Content-Length when the server supplies it.
+        For a content-encoded response, the bytes received on the wire are
+        compared, since the stored bytes may be decoded. The file is fsynced
+        before it is published, and on POSIX the directory after. Failed
+        downloads remove their temporary file and preserve any existing cache
+        entry. Existing cache entries are reused without a network or size
+        check.
 
         Parameters
         ----------
@@ -543,6 +670,15 @@ class RDHClient:
         Returns
         -------
         Path to the downloaded file (or extracted directory for ZIPs).
+
+        Raises
+        ------
+        requests.RequestException
+            The request fails, Content-Length is malformed, the received size
+            differs from it, or an encoded response's received size cannot be
+            determined.
+        OSError
+            Writing, syncing or publishing the cache file fails.
         """
         if isinstance(dataset, str):
             url = dataset
@@ -568,19 +704,50 @@ class RDHClient:
 
         log_info(redact_url_secrets(f"RDH: Downloading {filename}..."))
         error = None
+        temporary_path = None
         try:
-            resp = self._session.get(
-                url, params=self._auth_params(url), timeout=300, stream=True
-            )
-            resp.raise_for_status()
-
-            with open(dest, "wb") as f:
-                for chunk in resp.iter_content(chunk_size=8192):
-                    f.write(chunk)
+            # Set the path first so the finally clause also covers a failure
+            # between creating the file and opening it for writing.
+            temporary_path = dest.with_name(f"{dest.name}.{secrets.token_hex(16)}.part")
+            with _create_new_file(temporary_path) as output:
+                with contextlib.closing(self._session.get(
+                    url, params=self._auth_params(url), timeout=300, stream=True,
+                    # Compare the stored bytes to the unencoded response length.
+                    headers={"Accept-Encoding": "identity"},
+                )) as resp:
+                    resp.raise_for_status()
+                    expected_size = (
+                        _parse_content_length(resp.headers["Content-Length"])
+                        if "Content-Length" in resp.headers else None
+                    )
+                    written_size = 0
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        written_size += output.write(chunk)
+                    if expected_size is not None:
+                        received_size = _received_wire_size(resp, written_size)
+                        if received_size != expected_size:
+                            raise requests.RequestException(
+                                f"Content-Length mismatch: expected {expected_size} "
+                                f"bytes, received {received_size}"
+                            )
+                _keep_existing_mode(dest, temporary_path)
+                # Make the bytes and mode durable before the rename publishes
+                # them, so a crash cannot expose an empty or short entry where
+                # fsync reaches stable storage (on macOS, os.fsync does not
+                # flush the drive cache; that needs F_FULLFSYNC).
+                output.flush()
+                os.fsync(output.fileno())
+            os.replace(temporary_path, dest)
+            # Persist the rename too, so a refresh (use_cache=False) that
+            # returned cannot revert to the entry it replaced after a crash.
+            _sync_directory(dest.parent)
         except requests.RequestException as e:
             message = redact_url_secrets(f"RDH download failed: {e}")
             log_error(message)
             error = type(e)(message)
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
         if error is not None:
             # A fresh exception drops request/response URLs and suppressed context.
             raise error from None
@@ -708,7 +875,11 @@ class RDHClient:
         year: Optional[str] = None,
         format: str = "shp",
     ) -> List[RDHDataset]:
-        """Find enacted redistricting plan datasets for a state.
+        """Find an unambiguous enacted redistricting plan for a state.
+
+        Chamber keywords match whole tokens, treating underscores as word
+        separators. SLDU identifies the upper chamber (state senate), and
+        SLDL identifies the lower chamber (state house).
 
         Parameters
         ----------
@@ -722,6 +893,19 @@ class RDHClient:
             Dataset format filter. Only ``"shp"`` is loadable via
             :meth:`load_shapefile`; other formats are returned as metadata
             only.
+
+        Returns
+        -------
+        List[RDHDataset]
+            An empty list or the single matching dataset.
+
+        Raises
+        ------
+        ValueError
+            More than one dataset matches. This also prevents
+            :func:`fetch_enacted_plan` and ``RDHProvider.get_boundary`` from
+            loading an arbitrary plan. Narrow the year filter or use
+            :meth:`list_datasets` to choose a dataset for loading directly.
         """
         datasets = self.list_datasets(
             states=[state],
@@ -731,16 +915,28 @@ class RDHClient:
 
         chamber_keywords = {
             "congress": ["congressional", "congress", "cd"],
-            "state_senate": ["state senate", "upper", "sldl", "senate"],
-            "state_house": ["state house", "lower", "sldu", "house"],
+            "state_senate": ["state senate", "upper", "sldu", "senate"],
+            "state_house": ["state house", "lower", "sldl", "house"],
         }
         keywords = chamber_keywords.get(chamber.lower(), [chamber.lower()])
+        chamber_pattern = re.compile(
+            r"\b(?:" + "|".join(re.escape(kw.replace("_", " ")) for kw in keywords) + r")\b",
+            re.IGNORECASE,
+        )
 
-        return [
+        matches = [
             ds for ds in datasets
-            if any(kw in ds.title.lower() for kw in keywords)
+            if chamber_pattern.search(ds.title.replace("_", " "))
             and ("enacted" in ds.title.lower() or "adopted" in ds.title.lower() or ds.official)
         ]
+        if len(matches) > 1:
+            raise ValueError(
+                f"Ambiguous enacted {chamber} plan for {state}"
+                + (f" year={year}" if year else "")
+                + f": {len(matches)} datasets match: {sorted(ds.title for ds in matches)}. "
+                "Narrow the year filter or use list_datasets() to choose a dataset."
+            )
+        return matches
 
     def get_precinct_data(
         self,
@@ -840,10 +1036,41 @@ class RDHClient:
 _EQUAL_AREA_CRS = "ESRI:54009"
 
 
-def _reproject_geometry(geom, source_crs, target_crs=_EQUAL_AREA_CRS):
-    """Reproject a single Shapely geometry between CRS."""
+def _reproject_geometry(geom, source_crs, target_crs=None):
+    """Project to a centroid-centred local AEQD unless a target CRS is given.
+
+    Geometries without CRS metadata are treated as already planar. Empty and
+    missing geometries pass through for the metric functions' NaN handling.
+    """
+    if source_crs is None or geom is None or geom.is_empty:
+        return geom
+
     from pyproj import Transformer
     from shapely.ops import transform
+
+    if target_crs is None:
+        from pyproj import CRS
+
+        to_geographic = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
+        if CRS.from_user_input(source_crs).is_projected:
+            # Projected coordinates are continuous across the antimeridian.
+            # Transforming the whole ring to longitude/latitude would wrap it
+            # at +/-180 degrees and move a planar centroid of the wrapped ring
+            # far from the shape, so take the centroid in the source CRS and
+            # convert only that point.
+            planar_centre = geom.centroid
+            lon, lat = to_geographic.transform(planar_centre.x, planar_centre.y)
+        else:
+            # Geographic, geocentric and any other non-projected source: the
+            # source XY is not a plane (geocentric XY drops the Z axis, which
+            # carries the latitude), so convert the whole ring to
+            # longitude/latitude and take its centroid there.
+            centre = transform(to_geographic.transform, geom).centroid
+            lon, lat = centre.x, centre.y
+        target_crs = (
+            f"+proj=aeqd +lat_0={lat} +lon_0={lon} "
+            "+datum=WGS84 +units=m"
+        )
 
     transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
     return transform(transformer.transform, geom)
@@ -866,18 +1093,16 @@ def polsby_popper(geometry, source_crs=None) -> float:
     Parameters
     ----------
     geometry : shapely geometry
-        Must be in a projected (equal-area) CRS for meaningful results.
+        Must use a shape-faithful local projection when source_crs is omitted.
     source_crs : optional
-        If provided and geographic, geometry is reprojected to equal-area
-        before calculation. Pass the CRS (e.g., "EPSG:4326") when calling
-        with unprojected data.
+        If provided, geometry is reprojected to a centroid-centred local
+        azimuthal equidistant (AEQD) CRS before calculation.
     """
     import math
 
     if geometry is None or geometry.is_empty:
         return float("nan")
-    if source_crs is not None and _is_geographic_crs(source_crs):
-        geometry = _reproject_geometry(geometry, source_crs)
+    geometry = _reproject_geometry(geometry, source_crs)
     area = geometry.area
     perimeter = geometry.length
     if perimeter == 0:
@@ -894,30 +1119,18 @@ def reock(geometry, source_crs=None) -> float:
     Parameters
     ----------
     geometry : shapely geometry
-        Must be in a projected (equal-area) CRS for meaningful results.
+        Must use a shape-faithful local projection when source_crs is omitted.
     source_crs : optional
-        If provided and geographic, geometry is reprojected to equal-area.
+        If provided, geometry is reprojected to a centroid-centred local AEQD CRS.
     """
     import math
+    from shapely import minimum_bounding_radius
 
     if geometry is None or geometry.is_empty:
         return float("nan")
-    if source_crs is not None and _is_geographic_crs(source_crs):
-        geometry = _reproject_geometry(geometry, source_crs)
+    geometry = _reproject_geometry(geometry, source_crs)
     area = geometry.area
-    mrr = geometry.minimum_rotated_rectangle
-    if mrr is None or mrr.is_empty:
-        return float("nan")
-    coords = list(mrr.exterior.coords)
-    if len(coords) < 4:
-        return float("nan")
-    from shapely.geometry import Point
-
-    p0, p1, p2 = Point(coords[0]), Point(coords[1]), Point(coords[2])
-    side1 = p0.distance(p1)
-    side2 = p1.distance(p2)
-    diameter = max(side1, side2, (side1**2 + side2**2)**0.5)
-    radius = diameter / 2.0
+    radius = minimum_bounding_radius(geometry)
     circle_area = math.pi * radius**2
     if circle_area == 0:
         return float("nan")
@@ -940,7 +1153,7 @@ def convex_hull_ratio(geometry, source_crs=None) -> float:
     if geometry is None or geometry.is_empty:
         return float("nan")
     if source_crs is not None and _is_geographic_crs(source_crs):
-        geometry = _reproject_geometry(geometry, source_crs)
+        geometry = _reproject_geometry(geometry, source_crs, _EQUAL_AREA_CRS)
     hull = geometry.convex_hull
     if hull.is_empty or hull.area == 0:
         return float("nan")
@@ -956,22 +1169,32 @@ def schwartzberg(geometry, source_crs=None) -> float:
     Parameters
     ----------
     geometry : shapely geometry
-        Must be in a projected (equal-area) CRS for meaningful results.
+        Must use a shape-faithful local projection when source_crs is omitted.
     source_crs : optional
-        If provided and geographic, geometry is reprojected to equal-area.
+        If provided, geometry is reprojected to a centroid-centred local AEQD CRS.
     """
     import math
 
     if geometry is None or geometry.is_empty:
         return float("nan")
-    if source_crs is not None and _is_geographic_crs(source_crs):
-        geometry = _reproject_geometry(geometry, source_crs)
+    geometry = _reproject_geometry(geometry, source_crs)
     area = geometry.area
     perimeter = geometry.length
     if perimeter == 0 or area == 0:
         return float("nan")
     circle_circumference = 2.0 * math.pi * math.sqrt(area / math.pi)
     return circle_circumference / perimeter
+
+
+def _compactness_scores(geometry, source_crs):
+    """Share district projection and metric definitions across plan APIs."""
+    local_geometry = _reproject_geometry(geometry, source_crs)
+    return {
+        "polsby_popper": polsby_popper(local_geometry),
+        "reock": reock(local_geometry),
+        "convex_hull_ratio": convex_hull_ratio(geometry, source_crs=source_crs),
+        "schwartzberg": schwartzberg(local_geometry),
+    }
 
 
 def compute_compactness(
@@ -981,8 +1204,10 @@ def compute_compactness(
 ) -> "pd.DataFrame":
     """Compute all compactness metrics for a GeoDataFrame of districts.
 
-    Automatically reprojects to an equal-area CRS (Mollweide) before
-    calculating area-dependent metrics.
+    With CRS metadata, each district is projected to its own centroid-centred
+    local AEQD CRS for Polsby-Popper, Reock and Schwartzberg. Convex hull ratio
+    uses an equal-area CRS for geographic input. Without CRS metadata,
+    coordinates are treated as already planar.
 
     Parameters
     ----------
@@ -1001,19 +1226,12 @@ def compute_compactness(
     if not HAS_PANDAS:
         raise ImportError("pandas is required")
 
-    projected = gdf
-    if gdf.crs is not None and _is_geographic_crs(gdf.crs):
-        projected = gdf.to_crs(_EQUAL_AREA_CRS)
-
     records = []
-    for _, row in projected.iterrows():
+    for _, row in gdf.iterrows():
         geom = row[geometry_col]
         records.append({
             "district_id": row[district_id_col],
-            "polsby_popper": polsby_popper(geom),
-            "reock": reock(geom),
-            "convex_hull_ratio": convex_hull_ratio(geom),
-            "schwartzberg": schwartzberg(geom),
+            **_compactness_scores(geom, gdf.crs),
         })
 
     return pd.DataFrame(records)
@@ -1042,7 +1260,11 @@ def compare_plans(
 
     Returns
     -------
-    dict with comparison metrics.
+    dict with comparison metrics. Each plan includes ``compactness_mean_pp``,
+    ``compactness_mean_reock`` and ``compactness_mean_schwartzberg``, rounded
+    to four decimals, using the same per-district projections as
+    :func:`compute_compactness`. ``compactness_delta`` compares mean
+    Polsby-Popper scores.
     """
     if not HAS_PANDAS:
         raise ImportError("pandas is required")
@@ -1057,6 +1279,9 @@ def compare_plans(
             raise ValueError(
                 f"Cannot compute plan stats: '{label}' has zero total population"
             )
+        scores = pd.DataFrame([
+            _compactness_scores(geom, gdf.crs) for geom in gdf.geometry
+        ])
         return {
             "label": label,
             "num_districts": num_districts,
@@ -1066,8 +1291,10 @@ def compare_plans(
             "min_deviation": round((pops.min() - ideal) / ideal * 100, 2),
             "range_pct": round((pops.max() - pops.min()) / ideal * 100, 2),
             "std_dev": round(pops.std(), 1),
-            "compactness_mean_pp": round(
-                gdf.geometry.apply(polsby_popper).mean(), 4
+            "compactness_mean_pp": round(scores["polsby_popper"].mean(), 4),
+            "compactness_mean_reock": round(scores["reock"].mean(), 4),
+            "compactness_mean_schwartzberg": round(
+                scores["schwartzberg"].mean(), 4
             ),
         }
 
@@ -1120,6 +1347,9 @@ def fetch_enacted_plan(
     ------
     FileNotFoundError
         If no matching enacted plan dataset is found.
+    ValueError
+        If multiple enacted plan datasets match. Narrow the year filter or
+        use :meth:`RDHClient.list_datasets` and load the chosen dataset directly.
     """
     if not HAS_GEOPANDAS:
         raise ImportError(
@@ -1286,6 +1516,23 @@ def fetch_demographic_summary(
     return c.load_csv(datasets[0])
 
 
+class _DistrictsWithoutUnitsWarning(UserWarning):
+    """``demographic_profile`` warning naming districts that received no unit.
+
+    A ``UserWarning`` for callers; the RDH loader recognises this category so it
+    can report those districts through its own skip accounting instead.
+    """
+
+
+def _python_scalar(value):
+    """Return a plain Python scalar for a column total of any pandas dtype.
+
+    A NumPy-backed sum has ``.item()``; object and Arrow-backed sums already
+    return Python scalars, which have no ``.item()``.
+    """
+    return value.item() if hasattr(value, "item") else value
+
+
 def demographic_profile(
     plan_gdf: "gpd.GeoDataFrame",
     census_gdf: "gpd.GeoDataFrame",
@@ -1294,8 +1541,22 @@ def demographic_profile(
 ) -> "pd.DataFrame":
     """Overlay Census ACS data onto a redistricting plan.
 
-    Performs a spatial join between district geometries and Census
-    block/tract geometries, then aggregates demographics per district.
+    Assigns each Census block/tract wholly to the district containing its
+    representative (interior) point, then aggregates demographics per district.
+    A point on a shared district edge goes to the first matching district with
+    a non-null ID in ``plan_gdf`` row order, so each unit is counted exactly
+    once. Plan rows without a district ID are ignored. Units whose interior
+    point intersects no district with a non-null ID are excluded, and a
+    ``UserWarning`` (also logged) reports how many were excluded and their
+    summed population per column. Every district in ``plan_gdf`` appears in
+    the result, with zeros where no unit is assigned. Districts that receive
+    no unit are named in a ``UserWarning`` (also logged) and listed, in plan
+    order, in ``result.attrs["districts_without_units"]`` (empty when every
+    district receives a unit), so their zeros can be told apart from real
+    zero totals. ``DataFrame.attrs`` may be dropped by later pandas
+    operations, so read it from the returned frame directly. Rows follow the
+    first-occurrence order of district IDs in ``plan_gdf``; v4.0.0 returned
+    them sorted by district ID.
 
     Parameters
     ----------
@@ -1310,7 +1571,8 @@ def demographic_profile(
 
     Returns
     -------
-    DataFrame with one row per district and summed demographic columns.
+    DataFrame with one row per district in ``plan_gdf`` and summed
+    demographic columns, with ``attrs["districts_without_units"]`` set.
     """
     if not HAS_GEOPANDAS:
         raise ImportError("geopandas is required for spatial overlay")
@@ -1334,9 +1596,63 @@ def demographic_profile(
     if plan_gdf.crs != census_gdf.crs:
         census_gdf = census_gdf.to_crs(plan_gdf.crs)
 
-    joined = gpd.sjoin(census_gdf, plan_gdf[[district_id_col, "geometry"]], predicate="within")
+    # Assign each unit to exactly one district via its interior point. A point
+    # on a shared district edge intersects both districts, so keep the first
+    # matching plan row: the unit is neither dropped nor counted twice.
+    census_points = gpd.GeoDataFrame(
+        census_gdf[population_cols].copy(),
+        geometry=census_gdf.representative_point(),
+        crs=census_gdf.crs,
+    )
+    census_points["_unit_row"] = range(len(census_points))
+    # Rows without a district ID cannot receive population (groupby drops a
+    # null key), so they must not win the first-match tie-break either.
+    plan_keys = plan_gdf.loc[
+        plan_gdf[district_id_col].notna(), [district_id_col, "geometry"]
+    ].copy()
+    plan_keys["_plan_row"] = range(len(plan_keys))
+    joined = gpd.sjoin(census_points, plan_keys, predicate="intersects")
+    joined = joined.sort_values(["_unit_row", "_plan_row"]).drop_duplicates(
+        "_unit_row", keep="first"
+    )
 
-    result = joined.groupby(district_id_col)[population_cols].sum().reset_index()
+    unmatched = ~census_points["_unit_row"].isin(joined["_unit_row"])
+    if unmatched.any():
+        excluded = {
+            col: _python_scalar(census_points.loc[unmatched, col].sum())
+            for col in population_cols
+        }
+        message = (
+            f"demographic_profile: {int(unmatched.sum())} census unit(s) have "
+            f"interior points that intersect no district with a non-null ID and are excluded; "
+            f"excluded totals: {excluded}"
+        )
+        log.warning(message)
+        warnings.warn(message, UserWarning, stacklevel=2)
+
+    # Every plan district appears, with zeros where no unit is assigned.
+    districts = pd.unique(plan_gdf[district_id_col].dropna())
+    # observed=True: with a categorical ID, the default would add every category
+    # with a zero total, hiding the districts that received no unit.
+    sums = joined.groupby(district_id_col, observed=True)[population_cols].sum()
+    # Plain Python values: attrs is serialized as JSON (e.g. by to_parquet), and
+    # integer IDs would otherwise be NumPy scalars.
+    without_units = [
+        _python_scalar(district) for district in districts if district not in sums.index
+    ]
+    if without_units:
+        named = ", ".join(str(district) for district in without_units[:5])
+        more = f" (and {len(without_units) - 5} more)" if len(without_units) > 5 else ""
+        message = (
+            f"demographic_profile: {len(without_units)} district(s) received no census "
+            f"unit and are reported with zero totals: {named}{more}"
+        )
+        log.warning(message)
+        warnings.warn(message, _DistrictsWithoutUnitsWarning, stacklevel=2)
+    result = sums.reindex(districts, fill_value=0)
+    result.index.name = district_id_col
+    result = result.reset_index()
+    result.attrs["districts_without_units"] = list(without_units)
     return result
 
 

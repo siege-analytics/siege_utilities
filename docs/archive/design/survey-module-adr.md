@@ -5,6 +5,8 @@
 **Authors:** Dheeraj Chand, Steve Blackmon  
 **Linear:** SAL-67 (survey module epic)
 
+> **Note (2026-11-22):** This archived ADR mentions the earlier AGPL-3.0 dual-license model; `siege_utilities` is now Apache-2.0 from the next release (#1967).
+
 ---
 
 ## Context

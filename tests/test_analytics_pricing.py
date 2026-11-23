@@ -13,12 +13,12 @@ from siege_utilities.analytics.pricing import (
 
 
 def _synthetic_responses(n=50, seed=42):
-    """Generate synthetic Van Westendorp survey responses."""
+    """Generate respondents with consistent price ordering."""
     rng = np.random.RandomState(seed)
     too_cheap = rng.normal(20, 5, n).clip(1)
-    cheap = rng.normal(35, 5, n).clip(1)
-    expensive = rng.normal(65, 5, n).clip(1)
-    too_expensive = rng.normal(80, 5, n).clip(1)
+    cheap = np.maximum(too_cheap, rng.normal(35, 5, n))
+    expensive = np.maximum(cheap, rng.normal(65, 5, n))
+    too_expensive = np.maximum(expensive, rng.normal(80, 5, n))
     return too_cheap.tolist(), cheap.tolist(), expensive.tolist(), too_expensive.tolist()
 
 
@@ -137,14 +137,10 @@ class TestHappyPath:
         assert len(corridor.price_grid) == 500
 
 
-class TestNonMonotonic:
-    def test_monotonicity_check_exists(self):
-        """Cumulative distributions from raw responses are monotonic by
-        construction. The monotonicity guard is defensive code for future
-        pre-computed distribution support. Verify clean data passes."""
-        tc, ch, ex, te = _synthetic_responses(n=50)
-        corridor = analyze_price_sensitivity(tc, ch, ex, te)
-        assert corridor is not None
+class TestResponseOrdering:
+    def test_tied_adjacent_prices_are_valid(self):
+        corridor = analyze_price_sensitivity([10], [10], [50], [70], min_sample=1)
+        assert corridor.sample_size == 1
 
 
 class TestNoIntersection:

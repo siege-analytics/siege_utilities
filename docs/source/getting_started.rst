@@ -14,8 +14,8 @@ Installation
    # Core (lightweight, no geospatial deps)
    pip install siege-utilities
 
-   # Geospatial — geopandas, shapely, pyproj, fiona, pysal, etc.
-   # Pure-Python (bundled-GDAL wheels); needs NO system GDAL.
+   # Geospatial — geopandas, shapely, pyproj, fiona, rasterio, pysal, etc.
+   # Compatible binary wheels need no system GDAL; Fiona/Rasterio source builds do.
    pip install siege-utilities[geo]
 
    # GeoDjango spatial platform (system libgdal at runtime + PostgreSQL)

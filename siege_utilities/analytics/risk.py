@@ -96,7 +96,7 @@ class RiskTierConfig:
 
 @dataclass(frozen=True)
 class RiskAssessment:
-    """Result of a risk assessment."""
+    """Risk score with its tier classified from the reported two-decimal score."""
 
     entity_id: str
     composite_score: float
@@ -195,7 +195,8 @@ class RiskAnalyzer:
             scores[s.name] * s.weight / 100.0 for s in self._signals
         )
 
-        tier = self._tier_config.classify(composite)
+        reported_composite = round(composite, 2)
+        tier = self._tier_config.classify(reported_composite)
         intervention = self._interventions.get(tier)
 
         signal_scores = {s.name: scores[s.name] for s in self._signals}
@@ -203,7 +204,7 @@ class RiskAnalyzer:
 
         result = RiskAssessment(
             entity_id=entity_id,
-            composite_score=round(composite, 2),
+            composite_score=reported_composite,
             tier=tier,
             signal_scores=signal_scores,
             signal_types=signal_types,

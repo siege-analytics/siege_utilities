@@ -102,6 +102,32 @@ def test_pypi_token_is_used_only_by_the_publish_action():
     assert wf["jobs"]["publish"]["needs"] == ["verify-tag", "ci", "build"]
 
 
+def test_version_bump_does_not_rewrite_mypy_python_version(monkeypatch, tmp_path):
+    mapped_files = {}
+    for name, spec in release_manager.VERSION_FILES.items():
+        path = tmp_path / spec["path"].relative_to(release_manager.PROJECT_ROOT)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if name == "pyproject.toml":
+            path.write_text(
+                '[project]\nversion = "5.0.0"\n\n'
+                '[tool.mypy]\npython_version = "3.11"\n',
+                encoding="utf-8",
+            )
+        elif name == "__init__.py __version__":
+            path.write_text('__version__ = "5.0.0"\n', encoding="utf-8")
+        else:
+            path.write_text("release = '5.0.0'\n", encoding="utf-8")
+        mapped_files[name] = {**spec, "path": path}
+
+    monkeypatch.setattr(release_manager, "VERSION_FILES", mapped_files)
+
+    release_manager.set_version("6.0.0")
+
+    pyproject = (tmp_path / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'version = "6.0.0"' in pyproject
+    assert 'python_version = "3.11"' in pyproject
+
+
 def test_upload_to_production_pypi_is_refused(monkeypatch, tmp_path):
     (tmp_path / "dist").mkdir()
     (tmp_path / "dist" / "example.whl").write_bytes(b"fixture")

@@ -58,7 +58,10 @@ def test_secret_representations(model, kwargs, field, value, limit, render):
     assert getattr(instance, field).get_secret_value() == value
 
 
-@pytest.mark.parametrize("model,kwargs,field,value,limit", SECRET_CASES)
+# DatabaseConnection stores credentials without a length or strength policy
+# (#1490), so it has no overlong rejection; see the stored-password tests below.
+@pytest.mark.parametrize("model,kwargs,field,value,limit",
+                         [case for case in SECRET_CASES if case[0] is not DatabaseConnection])
 def test_overlong_secrets_do_not_leak(model, kwargs, field, value, limit):
     rejected = "Sentinel1-" + "x" * limit
     with pytest.raises(ValidationError) as caught:
@@ -67,11 +70,26 @@ def test_overlong_secrets_do_not_leak(model, kwargs, field, value, limit):
     assert "Sentinel1-" not in repr(caught.value)
 
 
+@pytest.mark.parametrize("password", [
+    "short!1", "lowercase1", "UPPERCASE1", "NoDigitsHere", "Sentinel1-" + "x" * 100,
+])
+@pytest.mark.parametrize("render", [repr, str])
+def test_stored_database_passwords_load_wrapped_and_redacted(password, render):
+    connection = DatabaseConnection(**dict(DB, password=password))
+    assert isinstance(connection.password, SecretStr)
+    assert connection.password.get_secret_value() == password
+    assert password not in render(connection)
+
+
+@pytest.mark.parametrize("field,value", [("host", "bad host!"), ("database", "1warehouse")])
+def test_database_validation_errors_do_not_leak_the_password(field, value):
+    with pytest.raises(ValidationError) as caught:
+        DatabaseConnection(**dict(DB, **{field: value}))
+    assert PASSWORD not in str(caught.value)
+    assert PASSWORD not in repr(caught.value)
+
+
 @pytest.mark.parametrize("model,kwargs,field,rejected", [
-    (DatabaseConnection, DB, "password", "short!1"),
-    (DatabaseConnection, DB, "password", "lowercase1"),
-    (DatabaseConnection, DB, "password", "UPPERCASE1"),
-    (DatabaseConnection, DB, "password", "NoDigitsHere"),
     (Credential, CREDENTIAL, "password", "short!1"),
     (Credential, CREDENTIAL, "api_key", "short-key"),
     (OAuthIntegration, OAUTH, "client_secret", "short-key"),
@@ -96,7 +114,8 @@ def test_parent_aggregator_repr(render):
 
 
 @pytest.mark.parametrize("field,child", [
-    ("database_connections", dict(DB, password="Short7!")),
+    # The stored password is valid (#1490); the invalid host triggers the error.
+    ("database_connections", dict(DB, password="Short7!", host="bad host!")),
     ("credentials", dict(CREDENTIAL, password="Short7!")),
     ("oauth_integrations", dict(OAUTH, client_secret="Short7!")),
 ])
@@ -118,15 +137,16 @@ def test_aggregator_client_profile_validation_hides_nested_secrets(missing_field
                              accent_color="#222222", text_color="#333333",
                              background_color="#FFFFFF", primary_font="Arial",
                              secondary_font="Arial"),
-        database_connections=[dict(DB, password="Short7!")],
+        # The stored password is valid (#1490); the invalid host triggers the error.
+        database_connections=[dict(DB, password="Short7!", host="bad host!")],
     )
     if missing_field:
         del payload["client_name"]
-        payload["database_connections"][0]["password"] = PASSWORD
+        payload["database_connections"][0].update(password=PASSWORD, host=DB["host"])
     sentinel = PASSWORD if missing_field else "Short7!"
     with pytest.raises(ValidationError) as caught:
         ClientProfile(**payload)
-    assert ("client_name" if missing_field else "database_connections.0.password") in str(caught.value)
+    assert ("client_name" if missing_field else "database_connections.0.host") in str(caught.value)
     assert sentinel not in str(caught.value)
     assert sentinel not in repr(caught.value)
 
@@ -249,10 +269,17 @@ def test_assignment_and_token_refresh_keep_secrets_wrapped():
     assert integration.refresh_token.get_secret_value() == "refreshed-refresh-token"
     assert "refreshed-access-token" not in repr(integration)
     connection = DatabaseConnection(**DB)
+    # Assigning a stored password succeeds (#1490) and keeps it wrapped.
+    connection.password = "short!1"
+    assert isinstance(connection.password, SecretStr)
+    assert connection.password.get_secret_value() == "short!1"
+    assert "short!1" not in repr(connection)
+    # A rejected assignment neither echoes the secret nor changes it.
     with pytest.raises(ValidationError) as caught:
-        connection.password = "short!1"
+        connection.host = ""
     assert "short!1" not in str(caught.value)
-    assert connection.password.get_secret_value() == PASSWORD
+    assert connection.password.get_secret_value() == "short!1"
+    assert connection.host == DB["host"]
 
 
 @pytest.mark.parametrize("declaration", [
@@ -388,10 +415,17 @@ def test_person_password_strength_consumer():
 
 
 @pytest.mark.parametrize("model,kwargs,field,rejected", [
-    (DatabaseConnection, DB, "password", b"lowercase1"),
     (SocialMediaAccount, SOCIAL, "access_token", b"invalid-token-characters!!!"),
 ])
 def test_byte_input_preserves_secret_format_constraints(model, kwargs, field, rejected):
     with pytest.raises(ValidationError) as caught:
         model(**dict(kwargs, **{field: rejected}))
     assert rejected.decode() not in str(caught.value)
+
+
+def test_byte_database_password_loads_wrapped_and_redacted():
+    # No strength policy applies to stored database passwords (#1490).
+    connection = DatabaseConnection(**dict(DB, password=b"lowercase1"))
+    assert isinstance(connection.password, SecretStr)
+    assert connection.password.get_secret_value() == "lowercase1"
+    assert "lowercase1" not in repr(connection)

@@ -608,7 +608,7 @@ def export_report_idml(
             [
                 p.get("page", ""),
                 str(p.get("pageviews", "")),
-                str(p.get("unique_views", "")),
+                "N/A" if p.get("unique_views") is None else str(p["unique_views"]),
                 f"{p.get('avg_time', 0):.1f}s",
                 f"{p.get('bounce_rate', 0):.1f}%",
             ]

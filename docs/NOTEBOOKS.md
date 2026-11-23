@@ -48,7 +48,7 @@ introduces both and proves the wire-up by rendering the same chart under each br
 | spatial | 06 | GeoDjango API for TX-32 precincts | ElectInfo |
 | spatial | 07 | Natural-language spatial filters resolved to fixture geometry and GeoPandas handoff | ElectInfo |
 | analytics | 01 | Three connectors, one call-shape pattern | Masai |
-| analytics | 02 | Weekly GA digest PDF | Masai |
+| analytics | 02 | Offline fixed-date GA demo: synthetic fixture, chart, PDF | Masai |
 | analytics | 03 | Social media fixture analytics and report payload assembly | Masai |
 | analytics | 04 | CRM pipeline deduplication, geographic preparation, and write-back planning | Masai |
 | analytics | 05 | CRM sales reporting fixtures, charts, and report planning | Masai |
@@ -102,20 +102,23 @@ not credentials are present.
 | Credential | Used by | Absent behavior |
 |---|---|---|
 | `CENSUS_API_KEY` | `spatial/01` (ACS demographics) | Skip income join, render boundary map without overlay |
-| `GOOGLE_APPLICATION_CREDENTIALS` | `analytics/01`, `analytics/02` | Call shape printed; analysis runs on fixture |
+| `GOOGLE_APPLICATION_CREDENTIALS` | `analytics/01` | Call shape printed; analysis runs on fixture |
+| `GOOGLE_APPLICATION_CREDENTIALS` | `analytics/02` (documentation-only `live-recipe` cell) | Demo always offline on the synthetic fixture; the `live-recipe` markdown cell documents the credentialed path and does not run |
 | `SNOWFLAKE_CONFIG_FILE` | `analytics/01` | Call shape printed |
 | `DW_AUTH_TOKEN` | `analytics/01` | Call shape printed |
 | RDH API | `spatial/04` | Synthetic stand-in polygons with call shape in comments |
 | Azure Databricks workspace | `engines/03` | Pure-Python URL / SQL builder cells run; cluster-dependent cells conceptual |
-| Local PostGIS | `spatial/06` | Full call-shape recipe, not executed inline (needs live DB) |
+| Local PostGIS | `spatial/06` | Schematic GeoDjango call shapes; markdown-only, no code cells execute |
 
 ## Why `engines/02` and `spatial/06` don't execute their primary cells
 
 Local Spark inside nbconvert is fragile (JVM startup, Py4J gateway lifetime,
 serializer registration). Likewise a Django + PostGIS server spun up inside a
-notebook is unsafe to provision from CI. Both notebooks ship complete,
-copy-pasteable call shapes rather than fake execution. The analysis pattern
-is the point; provisioning is out-of-band.
+notebook is unsafe to provision from CI. Both notebooks are schematic: their
+Spark/Sedona and GeoDjango sections document call shapes, not runnable copy-paste
+recipes. engines/02 executes only an import smoke cell; spatial/06 is markdown-only
+and has no code cells to execute. The documented patterns require separately
+configured runtimes, data, and services.
 
 ## Inventory, capability coverage, and CI truth checks
 

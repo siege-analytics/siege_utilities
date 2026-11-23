@@ -18,7 +18,7 @@ from __future__ import annotations
 import abc
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +34,65 @@ __all__ = [
 ]
 
 CENSUS_DECADE_YEARS = [1990, 2000, 2010, 2020, 2030]
+
+_CT_COUNTY_EQUIVALENTS = frozenset({
+    "09001", "09003", "09005", "09007", "09009", "09011", "09013", "09015",
+    "09110", "09120", "09130", "09140", "09150", "09160", "09170", "09180",
+    "09190",
+})
+
+# Canonical levels whose GEOIDs embed the recoded CT county code.
+_CT_RECODED_LEVELS = frozenset({
+    "county", "tract", "block_group", "block", "tabblock20", "tabblock10",
+})
+
+
+def _is_ct_recode_exempt_level(geography_level: Optional[str]) -> bool:
+    """True only for a recognized level outside the CT county recode.
+
+    CT SLDU/SLDL GEOIDs are five digits and collide with the county codes, so
+    the level, not the GEOID shape, decides. An absent or unrecognized level
+    is not exempt and keeps the GEOID-shape check.
+    """
+    if not isinstance(geography_level, str):
+        return False
+
+    from siege_utilities.config.census_registry import resolve_geographic_level
+
+    try:
+        canonical = resolve_geographic_level(geography_level)
+    except ValueError:
+        return False
+    return canonical not in _CT_RECODED_LEVELS
+
+
+def _raise_for_ct_2022_crossing(
+    geoids: Iterable[str], from_year: int, to_year: int,
+    geography_level: Optional[str] = None,
+) -> None:
+    """Reject unsupported CT county/tract/block-group/block recode crossings.
+
+    A recognized ``geography_level`` outside those levels (for example
+    ``sldu`` or ``sldl``) is never checked. Without a level, a bare 5-digit CT
+    GEOID is read as a county.
+    """
+    if not min(from_year, to_year) < 2022 <= max(from_year, to_year):
+        return
+
+    if _is_ct_recode_exempt_level(geography_level):
+        return
+
+    if any(
+        isinstance(geoid, str)
+        and len(geoid) in (5, 11, 12, 15)
+        and geoid.isdigit()
+        and geoid[:5] in _CT_COUNTY_EQUIVALENTS
+        for geoid in geoids
+    ):
+        raise ValueError(
+            "Connecticut's 2022 county-to-planning-region recode requires the "
+            "CT 2020->2022 crosswalk, which is not yet supported."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -362,7 +421,14 @@ def place_history(
 
     Returns:
         PlaceHistoryResult with lineage and overlay data.
+
+    Raises:
+        ValueError: A CT county-equivalent, tract, block group, or block query
+            crosses the unsupported 2022 planning-region recode.
     """
+    # Keep this outside the lineage error collector: callers must see the failure.
+    _raise_for_ct_2022_crossing([geoid], from_year, to_year)
+
     result = PlaceHistoryResult(
         geoid=geoid,
         from_year=from_year,
