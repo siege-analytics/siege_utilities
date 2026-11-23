@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0] - 2026-11-22
+
 ### BREAKING
 
 - `fetch_real_ga4_data` in `reporting/examples/google_analytics_report_example`
