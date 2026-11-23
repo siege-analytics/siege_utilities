@@ -40,6 +40,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   name must read the returned path instead; build any PPTX separately with
   `PowerPointGenerator`.
 
+- A Dynamics `upsert_records` call that splits records into batches no longer
+  loses completed batches when a later batch fails in transport or with a
+  server error. The failed batch's records are reported as `UpsertError`
+  entries ("Dynamics batch failed: ...") and the other batches still count,
+  matching HubSpot and Zoho; in 5.0.0 and 6.0.0 the whole call raised
+  `ConnectorError` and discarded the results of earlier batches.
+  Authentication and rate-limit errors still stop the upsert (#1920).
+  **Migration:** code that caught `ConnectorError` from a Dynamics
+  `upsert_records` call to detect a failed batch must check
+  `result.failure_count` and `result.errors` instead; no exception is raised
+  for that case now.
+
+- Connector diagnostics (exception messages, log lines, `UpsertError` text
+  and `UpsertResult` repr) keep the value of a quoted JSON or mapping field
+  named `code` or `key` when that value is a plain literal: at most 32
+  letters, digits and `_ . : -`, not an opaque token-like run of 16 or more
+  mixed letters and digits, and containing no configured credential of any
+  length. Zoho and HubSpot error codes (`"code": "INVALID_DATA"`) and record
+  keys (`"key": "row-7"`) are now readable; 5.0.0 and 6.0.0 replaced every
+  such value with `[REDACTED]`. Any other `code` or `key` value is still
+  masked whole, including URLs, userinfo, percent or backslash escapes,
+  nested JSON strings, spaces, non-ASCII text, opaque tokens and configured
+  credentials. In query strings and form bodies (`?code=`, `&key=`,
+  `code=...&client_secret=`) both names stay redacted, because they carry
+  OAuth authorization codes and API keys there. Authorization and API-key
+  headers, Bearer tokens, URL query credentials and credential-named fields
+  (`token`, `secret`, `access_token`, `client_secret`, `api_key`, `password`
+  and the rest) are redacted as before (#1920).
+  **Migration:** a plain literal secret (for example a short alphanumeric
+  value with a separator) placed in a JSON field named `code` or `key` is no
+  longer hidden by the field name alone; configure it as the connector's
+  credential so value-based redaction covers it, or rename the field.
+
 ### Changed
 
 - `scripts/check_exception_contracts.py`, the exception-contract guard that CI
@@ -56,6 +89,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Both scripts exit 1 with "source root not found" when `--root` has no
   `siege_utilities/` directory, instead of scanning nothing and passing
   (#1971).
+- CI (`.github/workflows/ci.yml`) audit (#1986). The `battle-test` job, which
+  reran the `test (3.11)` selection after it passed, now runs only on manual
+  `workflow_dispatch` runs. The `static guards` job also runs
+  `scripts/check_credential_urls.py`. The error-path coverage step and the griffe
+  API diff are named advisory, the `flake8 --exit-zero` statistics line is
+  removed, and the job comments state which matrix entries the `develop`
+  ruleset requires. `scripts/README.md` lists the guards CI does not run as
+  local-only tools. The one-off `verify_round6_hardening.py` to
+  `verify_round9_hardening.py` and `verify_batch1_1373.py` scripts, and
+  `check_security.py`, which the CI bandit step replaces, moved to
+  `scripts/archive/`.
+
+### Documentation
+
+- Dynamics `get_objects` documents that the returned frame keeps each
+  formatted-value annotation as an extra
+  `<field>@OData.Community.Display.V1.FormattedValue` column, and
+  `DynamicsConnector.request()` documents that a 204 response returns
+  `{"OData-EntityId": <url>}` when that header is present, otherwise `{}`.
+  The behavior is unchanged (#1920).
 
 ## [6.0.0] - 2026-11-22
 
