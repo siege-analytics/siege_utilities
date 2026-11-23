@@ -47,6 +47,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Apache-2.0 applies to the current development revision and to every release
   after 5.0.0 (#1975).
 
+### Fixed
+
+- `AnalyticsReportGenerator` in `reporting/analytics_reports` read the
+  page-view count of each `top_pages` row from `views`, but
+  `fetch_real_ga4_data` and `generate_sample_ga_data` emit `pageviews`, so the
+  top-pages table, the top-pages chart and the top-page insight showed 0 page
+  views for real and sample GA data. They now read `pageviews` and fall back to
+  `views` for caller-built rows passed to the public
+  `create_google_analytics_report`; `pageviews` wins when a row has both. A
+  page without either count no longer shows an invented 0: its table cell reads
+  N/A, the chart leaves the page out and is skipped when no page has a count,
+  and the insight names the top page without a view count. A missing
+  `unique_views` shows as N/A instead of 0 in that table, and as N/A instead of
+  an empty cell in the top-pages table of `export_report_idml` (#1972).
+
 ## [5.0.0] - 2026-11-20
 
 ### Changed

@@ -19,6 +19,26 @@ __all__ = [
 ]
 
 
+def _page_views(page: Dict[str, Any]) -> Optional[int]:
+    """Return a top-pages row's page-view count, or None when it carries none.
+
+    ``fetch_real_ga4_data`` and ``generate_sample_ga_data`` emit the count as
+    ``pageviews``. ``create_google_analytics_report`` is public and also
+    accepts caller-built rows, which may use ``views``; when a row has both,
+    ``pageviews`` wins.
+    """
+    for key in ('pageviews', 'views'):
+        value = page.get(key)
+        if value is not None:
+            return value
+    return None
+
+
+def _format_count(value: Optional[int]) -> str:
+    """Format a count with thousands separators, or N/A when it is unavailable."""
+    return 'N/A' if value is None else f"{value:,}"
+
+
 class AnalyticsReportGenerator:
     """
     Generates analytics reports from various data sources.
@@ -369,20 +389,31 @@ class AnalyticsReportGenerator:
                 }
             })
         
-        # Page performance
+        # Page performance: plot only the top-ten rows that carry a page-view
+        # count; a page without one is left out rather than drawn as zero.
         if 'top_pages' in ga_data:
-            top_pages = ga_data['top_pages']
-            charts.append({
-                'type': 'bar',
-                'title': 'Top Performing Pages',
-                'data': {
-                    'labels': [page.get('page', 'Unknown') for page in top_pages[:10]],
-                    'datasets': [{
-                        'label': 'Page Views',
-                        'data': [page.get('views', 0) for page in top_pages[:10]]
-                    }]
-                }
-            })
+            top_rows = ga_data['top_pages'][:10]
+            counted = [(page.get('page', 'Unknown'), _page_views(page)) for page in top_rows]
+            counted = [(label, views) for label, views in counted if views is not None]
+            if len(counted) < len(top_rows):
+                log.info(
+                    "Top pages chart: %d of %d pages have no page-view count and are left out",
+                    len(top_rows) - len(counted), len(top_rows),
+                )
+            if counted:
+                charts.append({
+                    'type': 'bar',
+                    'title': 'Top Performing Pages',
+                    'data': {
+                        'labels': [label for label, _ in counted],
+                        'datasets': [{
+                            'label': 'Page Views',
+                            'data': [views for _, views in counted]
+                        }]
+                    }
+                })
+            else:
+                log.info("Top pages chart skipped: no page carries a page-view count")
         
         # Traffic sources
         if 'traffic_sources' in ga_data:
@@ -409,8 +440,8 @@ class AnalyticsReportGenerator:
             for page in top_pages[:20]:  # Top 20 pages
                 table_data.append([
                     page.get('page', 'Unknown'),
-                    f"{page.get('views', 0):,}",
-                    f"{page.get('unique_views', 0):,}",
+                    _format_count(_page_views(page)),
+                    _format_count(page.get('unique_views')),
                     f"{page.get('avg_time', 0):.1f}s",
                     f"{page.get('bounce_rate', 0):.1f}%"
                 ])
@@ -468,7 +499,12 @@ class AnalyticsReportGenerator:
             top_pages = ga_data['top_pages']
             if top_pages:
                 best_page = top_pages[0]
-                insights.append(f"'{best_page.get('page', 'Unknown')}' is the top performing page with {best_page.get('views', 0):,} views")
+                name = best_page.get('page', 'Unknown')
+                views = _page_views(best_page)
+                if views is None:
+                    insights.append(f"'{name}' is the top performing page")
+                else:
+                    insights.append(f"'{name}' is the top performing page with {views:,} views")
         
         # Traffic source insights
         if 'traffic_sources' in ga_data:
