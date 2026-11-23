@@ -17,6 +17,8 @@ on:
   # passes. Publishing a GitHub release no longer triggers CI or an upload
   # (#1419).
   workflow_call:
+  # Manual runs only; this is the one trigger for the battle-test job (#1986).
+  workflow_dispatch:
 
 # A new push to a PR cancels that PR's older run. Push and release runs each
 # get a group of their own (run_id): sharing a group would cancel a *pending*
@@ -31,7 +33,9 @@ jobs:
     name: "static guards"
     # One job for the single-script guards, so a run holds 10 fewer runners
     # on the org's 20-job cap (#1729). Steps after the first run even when an
-    # earlier guard fails, so every failure is reported; any failure fails the job.
+    # earlier guard fails, so every failure is reported; any failure fails the job,
+    # except the step marked advisory. This job is not yet a required check in
+    # the develop ruleset (#1986), so a failure here does not block the merge queue.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -70,8 +74,12 @@ jobs:
       - name: 'extras coherence: Run extras coherence check'
         if: ${{ !cancelled() }}
         run: python scripts/validate_extras_coherence.py
-      - name: 'error-path test coverage (SU-4b): Check error-path test coverage'
+      - name: 'credential URL guard: Reject unreviewed credential-bearing URL construction'
         if: ${{ !cancelled() }}
+        run: python scripts/check_credential_urls.py
+      - name: 'error-path test coverage (SU-4b, advisory): Report error-path test coverage'
+        if: ${{ !cancelled() }}
+        # Advisory: a report only; this step never fails the job.
         continue-on-error: true
         run: python scripts/check_error_path_coverage.py --report
       - name: 'lazy import integrity: Install package (no extras)'
@@ -102,9 +110,11 @@ jobs:
   notebook-governance:
     runs-on: ubuntu-24.04
     name: "notebook governance + pure execution"
-    # E2E notebooks verified green on 3.13 and 3.14 in #1365. 3.11 and 3.13
-    # block; 3.14 is non-blocking while its recently released native stack
-    # stabilizes, mirroring the `test` job's matrix policy.
+    # E2E notebooks verified green on 3.13 and 3.14 in #1365. A 3.11 or 3.13
+    # failure fails the workflow run; 3.14 is continue-on-error while its
+    # recently released native stack stabilizes, mirroring the `test` job.
+    # No entry of this matrix is a required check in the develop ruleset
+    # (#1986), so none of them blocks the merge queue.
     continue-on-error: ${{ matrix.python-version == '3.14' }}
     strategy:
       matrix:
@@ -220,8 +230,10 @@ jobs:
 
   test:
     runs-on: ubuntu-24.04
-    # 3.14 runs as a non-blocking gate while its recently released native stack
-    # (numba / apache-sedona / pyspark wheels) stabilizes. 3.11-3.13 block.
+    # The develop ruleset requires test (3.11) and test (3.12); only those two
+    # block the merge queue (#1986). A 3.13 failure fails the workflow run but
+    # is not a required check. 3.14 is continue-on-error while its recently
+    # released native stack (numba / apache-sedona / pyspark wheels) stabilizes.
     continue-on-error: ${{ matrix.python-version == '3.14' }}
     strategy:
       matrix:
@@ -265,11 +277,10 @@ jobs:
     - name: Install DuckDB spatial for real integration tests
       run: uv run python scripts/prepare_duckdb_spatial.py
 
-    - name: Lint with flake8
+    - name: Lint with flake8 (syntax errors and undefined names)
       run: |
         uv run flake8 siege_utilities --count --select=E9,F63,F7,F82 --show-source --statistics
-        uv run flake8 siege_utilities --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    
+
     - name: Snapshot untracked paths before tests
       id: litter_snapshot
       run: uv run python scripts/check_test_litter.py snapshot "$RUNNER_TEMP/untracked-before"
@@ -677,18 +688,16 @@ jobs:
 
   griffe-api-diff:
     runs-on: ubuntu-24.04
-    name: "griffe api-diff (writing-releases:1)"
-    # Griffe diffs the current public API against the baseline branch and
-    # reports breaking changes at the symbol level (removed/renamed/
-    # incompatible-signature). Direct mechanical enforcement of the
-    # writing-releases:1 rule ("BREAKING in CHANGELOG when public
-    # surface changes incompatibly"). Advisory (`continue-on-error`)
-    # for now — the ratchet moves to blocking after one release cycle
-    # of confirming the diff signal is trustworthy on this codebase.
-    #
-    # See also: `api-contract-regression` job which owns the JSON-based
-    # contract check we already run; griffe is the symbol-level Python
-    # differ that catches shape changes the contract JSON misses.
+    name: "griffe api-diff (writing-releases:1, advisory)"
+    # Advisory: this job never fails. Griffe diffs every public module
+    # against the base branch and reports removed objects, parameters and
+    # changed defaults as a warning annotation, so the reviewer can check for
+    # a BREAKING CHANGELOG entry (writing-releases:1). The blocking contract
+    # comparison in `api, security and build` covers only the top-level
+    # `siege_utilities` names against the last PyPI release: on PR #1826
+    # it reported 0 removed symbols and 0 signature changes while griffe
+    # reported the removed ConversionRate and PipelineReport.__init__ and
+    # PipelineAnalyzer.__init__ parameter changes (#1986).
 
     steps:
     - uses: actions/checkout@v4
@@ -712,12 +721,12 @@ jobs:
         echo "GRIFFE_BASE=${BASE}" >> "$GITHUB_ENV"
         git fetch origin "${BASE}"
 
-    - name: Run griffe check
-      continue-on-error: true  # advisory; ratchet to blocking after 1 release cycle
+    - name: Run griffe check (advisory)
       run: |
         # `griffe check` diffs the current tree against the base branch's
-        # commit. Non-zero exit means a breaking change was detected;
-        # reviewer decides whether the CHANGELOG needs a BREAKING entry.
+        # commit. A non-zero exit becomes a warning annotation, not a
+        # failure; the reviewer decides whether the CHANGELOG needs a
+        # BREAKING entry.
         griffe check siege_utilities \
           --against "origin/${GRIFFE_BASE}" \
           || echo "::warning::griffe found API changes vs base branch — review whether BREAKING changelog entry is needed (writing-releases:1)"
@@ -725,6 +734,11 @@ jobs:
   battle-test:
     runs-on: ubuntu-24.04
     needs: test
+    # Manual runs only (#1986). It reruns test (3.11)'s tests/ selection on 3.11
+    # and adds only a --durations=20 report and HTML/JSON coverage artifacts, so it no longer
+    # runs on pushes, pull requests, merge groups or the publish-tag call
+    # (under workflow_call, event_name is the caller's event).
+    if: github.event_name == 'workflow_dispatch'
 
     steps:
     - uses: actions/checkout@v4

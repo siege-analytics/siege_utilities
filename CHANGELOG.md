@@ -9,6 +9,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- The `SocialMediaReportGenerator` and `AnalyticsReportGenerator` report
+  methods now write a PDF into the generator's output directory and return its
+  `Path`. Through 6.0.0 they called `ReportGenerator` methods with a different
+  signature (`create_analytics_report`) or methods that do not exist
+  (`create_performance_report`, `create_custom_report`), wrote no PDF, and
+  either raised `AttributeError` or returned a report-content dictionary, so
+  the annotated `Path` was never a real file. The PDF includes the collected
+  metrics, tables, insights and charts. The file name is the report title
+  reduced to `[A-Za-z0-9_-]` and cut to 80 characters (`report` when nothing
+  is left), plus a unique suffix, so a repeated title never overwrites an
+  earlier report. A facade chart configuration with an unsupported `type`
+  raises `ValueError` naming the type. A chart raises `ValueError` naming the
+  chart when a series has a different number of values than there are labels,
+  when a known value is not a real number, or when the known values of a pie
+  chart total zero; for a line chart with several series the message names the
+  chart, not the series. Known `Decimal` and NumPy values reach the chart
+  engine as built-in numbers. A missing chart value (`None`, a float or NumPy NaN,
+  a `Decimal` NaN, or `pandas.NA`) is a gap: bar and pie charts omit it and
+  line charts leave a break. A chart with no labels, no datasets or no known
+  values is left out of the PDF together with its heading, and a warning is
+  logged. Labels are checked first: a chart with no labels is left out with a
+  warning even when it carries values, while a chart with labels and an empty
+  series, or a series of the wrong length, raises; for example, Google
+  Analytics `daily_traffic` data with dates but no user counts now raises and
+  writes no PDF. The social-media generator produces PDF only; its PPTX
+  wording is removed (#1461). **Migration:** use the returned `Path` as the
+  PDF; code that handled the old `AttributeError` or read the returned
+  dictionary must be removed or updated, and code that expected a fixed file
+  name must read the returned path instead; build any PPTX separately with
+  `PowerPointGenerator`.
+
+- A Dynamics `upsert_records` call that splits records into batches no longer
+  loses completed batches when a later batch fails in transport or with a
+  server error. The failed batch's records are reported as `UpsertError`
+  entries ("Dynamics batch failed: ...") and the other batches still count,
+  matching HubSpot and Zoho; in 5.0.0 and 6.0.0 the whole call raised
+  `ConnectorError` and discarded the results of earlier batches.
+  Authentication and rate-limit errors still stop the upsert (#1920).
+  **Migration:** code that caught `ConnectorError` from a Dynamics
+  `upsert_records` call to detect a failed batch must check
+  `result.failure_count` and `result.errors` instead; no exception is raised
+  for that case now.
+
+- Connector diagnostics (exception messages, log lines, `UpsertError` text
+  and `UpsertResult` repr) keep the value of a quoted JSON or mapping field
+  named `code` or `key` when that value is a plain literal: at most 32
+  letters, digits and `_ . : -`, not an opaque token-like run of 16 or more
+  mixed letters and digits, and containing no configured credential of any
+  length. Zoho and HubSpot error codes (`"code": "INVALID_DATA"`) and record
+  keys (`"key": "row-7"`) are now readable; 5.0.0 and 6.0.0 replaced every
+  such value with `[REDACTED]`. Any other `code` or `key` value is still
+  masked whole, including URLs, userinfo, percent or backslash escapes,
+  nested JSON strings, spaces, non-ASCII text, opaque tokens and configured
+  credentials. In query strings and form bodies (`?code=`, `&key=`,
+  `code=...&client_secret=`) both names stay redacted, because they carry
+  OAuth authorization codes and API keys there. Authorization and API-key
+  headers, Bearer tokens, URL query credentials and credential-named fields
+  (`token`, `secret`, `access_token`, `client_secret`, `api_key`, `password`
+  and the rest) are redacted as before (#1920).
+  **Migration:** a plain literal secret (for example a short alphanumeric
+  value with a separator) placed in a JSON field named `code` or `key` is no
+  longer hidden by the field name alone; configure it as the connector's
+  credential so value-based redaction covers it, or rename the field.
+
 - The Salesforce Bulk API CSV upload (used by `bulk_insert`, and by
   `upsert_records` above 2,000 records or with `force_bulk=True`) is no
   longer resent after an uncertain failure. A transport failure or server
@@ -22,8 +86,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in Salesforce before running the bulk call again; the failed job is left
   open and is not closed.
 
+### Changed
+
+- `scripts/check_exception_contracts.py`, the exception-contract guard that CI
+  runs, no longer exempts a broad handler (bare `except:`, `except Exception`,
+  `except BaseException`) because it raises on some path. Its body must end in
+  a raise, with no return, break, continue or yield anywhere in the handler
+  outside the bodies of nested definitions, or the handler needs a justified
+  entry in `scripts/exception_contracts_allowlist.json`. Four existing
+  handlers that raise only conditionally are now listed there with their
+  reasons. The DEFAULT and LOGONLY rules are unchanged. `scripts/check_broad_except.py`,
+  which kept its own rules and reported 34 already reviewed handlers on every
+  run, now delegates to that guard, reads the allow-list through the guard's
+  own validating loader, and reports broad handlers without a reviewed entry.
+  Both scripts exit 1 with "source root not found" when `--root` has no
+  `siege_utilities/` directory, instead of scanning nothing and passing
+  (#1971).
+- CI (`.github/workflows/ci.yml`) audit (#1986). The `battle-test` job, which
+  reran the `test (3.11)` selection after it passed, now runs only on manual
+  `workflow_dispatch` runs. The `static guards` job also runs
+  `scripts/check_credential_urls.py`. The error-path coverage step and the griffe
+  API diff are named advisory, the `flake8 --exit-zero` statistics line is
+  removed, and the job comments state which matrix entries the `develop`
+  ruleset requires. `scripts/README.md` lists the guards CI does not run as
+  local-only tools. The one-off `verify_round6_hardening.py` to
+  `verify_round9_hardening.py` and `verify_batch1_1373.py` scripts, and
+  `check_security.py`, which the CI bandit step replaces, moved to
+  `scripts/archive/`.
+
 ### Documentation
 
+- Dynamics `get_objects` documents that the returned frame keeps each
+  formatted-value annotation as an extra
+  `<field>@OData.Community.Display.V1.FormattedValue` column, and
+  `DynamicsConnector.request()` documents that a 204 response returns
+  `{"OData-EntityId": <url>}` when that header is present, otherwise `{}`.
+  The behavior is unchanged (#1920).
 - `UpsertResult` documents that `dataclasses.replace` drops the connector's
   value-aware redactor, so the copy's repr uses key-based redaction; use
   `copy.copy` and assign the field, or pass `redact=` again, to keep it.

@@ -159,16 +159,20 @@ Every push, PR and merge-queue entry runs the CI pipeline (`.github/workflows/ci
 
 | Job | What it checks |
 |-----|----------------|
-| **test** | Full test suite on Python 3.11, 3.12, 3.13 and 3.14 (3.14 non-blocking); on 3.11 it then re-runs the Pydantic v1 compatibility tests with pydantic 1.x installed |
+| **test** | Full test suite on Python 3.11, 3.12, 3.13 and 3.14 (3.14 is continue-on-error); on 3.11 it then re-runs the Pydantic v1 compatibility tests with pydantic 1.x installed |
 | **test-core** | Core-only install (no heavy deps) |
 | **test-geo-no-gdal** | Test suite without GDAL system libraries, including the smoke and Databricks tests |
 | **test-postgis** | Database tests against live PostGIS |
 | **lint-ratchet** | Lint quality gate, phases 1-4 (violations can only go down) |
 | **api-security-build** | Public API contract vs. the last release; pip-audit of the resolved dependencies; bandit (fails on any high-severity finding without a line-level `# nosec`, see #1754); package build, twine check and wheel contents |
-| **static-guards** | Single-script source guards (credential literals, exception contracts, subprocess safety, atomic and secure writes, ...) |
+| **static-guards** | Single-script source guards (credential literals and URLs, exception contracts, subprocess safety, atomic and secure writes, ...); the error-path coverage report is advisory |
 | **test-file-hygiene** | Test naming and location conventions |
 | **notebook-governance** | Notebook inventory and pure-notebook execution |
-| **battle-test** | Comprehensive overnight suite (30min timeout) |
+| **makemigrations-check** | Django models in `siege_geo` match their migrations |
+| **griffe-api-diff** | Advisory symbol-level API diff against the base branch; never fails |
+| **battle-test** | Manual runs only (`workflow_dispatch`): reruns the 3.11 suite with a slowest-tests report and coverage artifacts |
+
+Only the checks the `develop` ruleset marks as required block the merge queue: `test file hygiene`, `core-only (no heavy deps)`, `geo without GDAL`, `test (3.11)`, `test (3.12)`, `test-postgis`, `lint ratchet` and `api, security and build`. A failure in any other job, except the advisory ones and the 3.14 entries, still fails the workflow run, and maintainers check every such job before merging, not only the eight required ones.
 
 In `ci.yml` the build steps do not depend on the test jobs, and `ci.yml` never uploads. Publishing happens only in `publish-tag.yml` on a `v*` tag, after the whole of `ci.yml` passes on the tagged commit. Manual uploads to PyPI are prohibited; see [RELEASING.md](RELEASING.md).
 

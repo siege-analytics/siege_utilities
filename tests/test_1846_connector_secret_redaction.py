@@ -153,9 +153,12 @@ def test_connector_redact_secrets_headers(key, delimiter):
     assert "client_id=visible" in result
 
 
+# ``code`` is always redacted in form and query syntax, but a quoted JSON field
+# keeps a plain literal value (#1920); tests/test_1920_redaction_names.py and
+# tests/test_1920_redaction_names_falsifiers.py cover both halves.
 @pytest.mark.parametrize("key", [
     "client_secret", "refresh_token", "access_token", "token", "password",
-    "assertion", "client_assertion", "code", "secret", "private_key",
+    "assertion", "client_assertion", "secret", "private_key",
 ])
 def test_connector_redact_secrets_form_and_json(key):
     from siege_utilities.core._http import redact_secrets

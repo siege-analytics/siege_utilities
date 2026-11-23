@@ -753,7 +753,18 @@ def test_develop_pushes_run_the_install_and_save_a_shared_cache() -> None:
         if any(step.get("uses") == ACTION_REF for step in job.get("steps") or [])
     ]
     assert len(jobs) == 5
+
+    def packages(job: dict[str, Any]) -> str:
+        return next(step["with"]["packages"] for step in job["steps"] if step.get("uses") == ACTION_REF)
+
+    manual_only = "github.event_name == 'workflow_dispatch'"
+    push_packages = {packages(job) for _, job in jobs if "if" not in job}
     for job_name, job in jobs:
+        if job.get("if") == manual_only:
+            # battle-test runs on manual runs only (#1986). It reads a cache
+            # that a job running on develop pushes saves for the same packages.
+            assert packages(job) in push_packages, f"{job_name}: no develop push job saves its cache"
+            continue
         assert "if" not in job, f"{job_name}: a job condition could skip develop push runs"
     save = _action_steps()["Save .deb archives"]
     assert "github.event_name != 'merge_group'" in save["if"]

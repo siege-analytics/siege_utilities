@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 
 from siege_utilities.analytics._social_protocol import SocialMediaError
+from siege_utilities.reporting import social_media_reports
 from siege_utilities.reporting.social_media_reports import SocialMediaReportGenerator
 
 
@@ -54,7 +55,15 @@ class FakeConnector:
 def report(tmp_path, monkeypatch):
     generator = SocialMediaReportGenerator("client", output_dir=tmp_path)
     writer = Mock(return_value=tmp_path / "report.pdf")
-    monkeypatch.setattr(generator.report_generator, "create_analytics_report", writer)
+
+    # The report payload now reaches the PDF writer through
+    # _render_facade_report (#1461). The adapter keeps the recorded call shape
+    # (payload, title), so writer.call_args.args[0] is still the payload.
+    def render(report_generator, payload, title):
+        assert report_generator is generator.report_generator
+        return writer(payload, title)
+
+    monkeypatch.setattr(social_media_reports, "_render_facade_report", render)
     return generator, writer
 
 
