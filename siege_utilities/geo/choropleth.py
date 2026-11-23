@@ -553,8 +553,8 @@ def create_bivariate_choropleth(
     ax_legend.set_yticks(np.arange(len(var2_breaks)) - 0.5)
     ax_legend.set_yticklabels(var2_labels, fontsize=7)
 
-    ax_legend.set_xlabel(f'{var1} \\u2192', fontsize=10)
-    ax_legend.set_ylabel(f'{var2} \\u2192', fontsize=10)
+    ax_legend.set_xlabel(f'{var1} →', fontsize=10)
+    ax_legend.set_ylabel(f'{var2} →', fontsize=10)
     ax_legend.set_title('Legend', fontsize=10)
 
     plt.tight_layout()
@@ -643,7 +643,7 @@ def create_bivariate_crosstab(
         labels = []
         for i in range(len(breaks) - 1):
             labels.append(
-                f"{_format_breakpoint(breaks[i])}\\u2013{_format_breakpoint(breaks[i + 1])}"
+                f"{_format_breakpoint(breaks[i])}–{_format_breakpoint(breaks[i + 1])}"
             )
         return labels
 
@@ -707,8 +707,8 @@ def create_bivariate_crosstab(
     ax.set_xticklabels(ct.columns, fontsize=8, rotation=45, ha='right')
     ax.set_yticks(np.arange(var2_count) + 0.5)
     ax.set_yticklabels(ct.index, fontsize=8)
-    ax.set_xlabel(f'{var1} \\u2192', fontsize=10)
-    ax.set_ylabel(f'{var2} \\u2192', fontsize=10)
+    ax.set_xlabel(f'{var1} →', fontsize=10)
+    ax.set_ylabel(f'{var2} →', fontsize=10)
     ax.set_title('Bivariate Classification Crosstab', fontsize=11)
     ax.set_aspect('equal')
     plt.tight_layout()
