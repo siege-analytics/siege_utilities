@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """Reject unreviewed exception swallowing in siege_utilities (#1532).
 
-BROAD: bare/Exception/BaseException handlers without a raise in their body.
+BROAD: bare/Exception/BaseException handlers unless the body ends in a raise
+and nothing in the handler's own scope returns, breaks, continues or yields.
+A raise reached on only some paths does not exempt a broad handler, because
+its other paths can still swallow the error (#1971).
 DEFAULT: in a data function, pass/continue, success-shaped returns, or
 empty-frame assignments. Data functions declare a non-None return or have
 an unannotated non-None return. Success shapes include tuples, strings,
 Unknown dictionaries, and default/placeholder/fallback/missing factories.
 LOGONLY: handlers consisting only of logging calls, including void functions.
+DEFAULT and LOGONLY do not apply to a handler that raises on any path.
 Nested definitions cannot supply a handler's raise. Finally cleanup,
 __del__, and callbacks registered with signal.signal are exempt.
 
@@ -142,6 +146,63 @@ def default_handler(handler, function):
     return False
 
 
+ESCAPES = (ast.Return, ast.Break, ast.Continue, ast.Yield, ast.YieldFrom)
+
+
+def definition_time_expressions(node):
+    """Expressions a nested definition evaluates in the enclosing scope.
+
+    Decorators, argument defaults, argument and return annotations, and class
+    bases and keywords run when the ``def``, ``lambda`` or ``class`` statement
+    runs, so a ``yield`` there runs in the enclosing handler. The definition's
+    body runs later, in its own scope, and is not included.
+    """
+    if isinstance(node, ast.ClassDef):
+        return [*node.decorator_list, *node.bases, *(keyword.value for keyword in node.keywords)]
+    args = node.args
+    expressions = [*getattr(node, "decorator_list", []), *args.defaults]
+    expressions += [default for default in args.kw_defaults if default is not None]
+    parameters = [*args.posonlyargs, *args.args, *args.kwonlyargs, args.vararg, args.kwarg]
+    expressions += [
+        parameter.annotation
+        for parameter in parameters
+        if parameter is not None and getattr(parameter, "annotation", None) is not None
+    ]
+    if getattr(node, "returns", None) is not None:
+        expressions.append(node.returns)
+    return expressions
+
+
+def escape_nodes(nodes):
+    """Walk a handler's own scope for an escape, as it runs.
+
+    Like ``walk_body`` this does not enter the body of a nested function,
+    class or lambda, but it does visit the definition-time expressions of
+    those definitions, which run in the handler's scope.
+    """
+    for node in nodes:
+        if isinstance(node, SCOPES):
+            yield from escape_nodes(definition_time_expressions(node))
+            continue
+        yield node
+        yield from escape_nodes(ast.iter_child_nodes(node))
+
+
+def unconditional_reraise(body):
+    """True when a handler body always ends by raising and has no other exit.
+
+    The last statement must be a ``raise``, and nothing in the handler's own
+    scope may return, break, continue or yield, including inside if, for,
+    while, try, with and finally blocks: any of those could leave the handler,
+    or hand control back, without raising. Nested function, class and lambda
+    bodies are separate scopes and do not count, but their decorators,
+    defaults, annotations, bases and keywords run in the handler and do.
+    """
+    if not body or not isinstance(body[-1], ast.Raise):
+        return False
+    return not any(isinstance(node, ESCAPES) for node in escape_nodes(body))
+
+
 def log_only(handler):
     """Logging alone cannot communicate failure to a caller, even without data."""
     levels = {"debug", "info", "warning", "warn", "error", "exception", "critical", "fatal", "log"}
@@ -224,14 +285,15 @@ def scan(root):
                 function and (function.name == "__del__" or function.name in signals)
             ):
                 continue
-            if any(isinstance(node, ast.Raise) for node in walk_body(handler.body)):
-                continue
+            raises = any(isinstance(node, ast.Raise) for node in walk_body(handler.body))
             rules = []
-            if names(handler.type) & {"<bare>", "Exception", "BaseException"}:
+            if names(handler.type) & {"<bare>", "Exception", "BaseException"} and not (
+                unconditional_reraise(handler.body)
+            ):
                 rules.append("BROAD")
-            if default_handler(handler, function):
+            if not raises and default_handler(handler, function):
                 rules.append("DEFAULT")
-            if log_only(handler):
+            if not raises and log_only(handler):
                 rules.append("LOGONLY")
             digest = hashlib.sha256(repr(canonical_ast(handler)).encode()).hexdigest()[
                 :16
@@ -250,6 +312,24 @@ def scan(root):
     return found
 
 
+ALLOWLIST_ERROR = "Every allow-list entry must have a nonempty justification"
+
+
+def load_allowlist(root, allowlist=None):
+    """Read the allow-list and reject any entry without a nonempty justification.
+
+    The single loader for this guard and for ``check_broad_except.py``.
+    Raises ValueError (including json.JSONDecodeError) for an invalid file.
+    """
+    path = allowlist or root / "scripts/exception_contracts_allowlist.json"
+    allow = json.loads(path.read_text()) if path.exists() else {}
+    if not isinstance(allow, dict) or any(
+        not isinstance(reason, str) or not reason.strip() for reason in allow.values()
+    ):
+        raise ValueError(ALLOWLIST_ERROR)
+    return allow
+
+
 def main(argv=None):
     """Check the tree against reviewed exceptions and print zero-unlisted proof."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -257,14 +337,10 @@ def main(argv=None):
     parser.add_argument("--allowlist", type=Path)
     parser.add_argument("--list", action="store_true")
     args = parser.parse_args(argv)
-    allow_path = (
-        args.allowlist or args.root / "scripts/exception_contracts_allowlist.json"
-    )
-    allow = json.loads(allow_path.read_text()) if allow_path.exists() else {}
-    if not isinstance(allow, dict) or any(
-        not isinstance(reason, str) or not reason.strip() for reason in allow.values()
-    ):
-        parser.error("Every allow-list entry must have a nonempty justification")
+    try:
+        allow = load_allowlist(args.root, args.allowlist)
+    except ValueError as exc:
+        parser.error(str(exc))
     found = scan(args.root)
     unlisted = [item for item in found if item["key"] not in allow]
     stale = sorted(set(allow) - {item["key"] for item in found})
