@@ -199,9 +199,54 @@ All results below are for the tree on develop `d2c15b13`, with the fixes applied
 | R8 | P4 | Review S4-1, S4-2 and S4-7: NumPy, `Decimal` and pandas missing values, non-numeric values, and a leading separator in bar titles. | Fixed with tests; M9, M10 and M11 make them fail. |
 | R9 | P3 | Delta review S3-5: the "no datasets" branch and the scalar guard in `_is_missing` were claimed as tested but no test reached them. | Tests added; K1, K2 and K3 make them fail. |
 | R10 | P4 | Delta review S4-9 to S4-12: CHANGELOG precision on what each error names and on the order of the label and series checks; two statements in this document. | CHANGELOG and this document corrected; the order is pinned by two tests (K4, K5). S4-13 and S4-14 go to the follow-up issue. |
+| R11 | P2 | Hosted CI at `ff743775` (matplotlib 3.11.2): a pie chart with `Decimal` values failed in matplotlib's `np.isfinite` check, so `test_pie_omits_numpy_decimal_and_pandas_missing_values` failed on every Python version. | Known values reach the chart engine as built-in numbers; reproduced red and then passing under the CI versions; KP1 and KP2 make the new tests fail. See the CI round below. |
 
 ## Independent review
 
 The PR's earlier rounds were reviewed independently: the real-PDF end-to-end was confirmed at `cf6ab305`, and hosted CI passed at `07a9f330`. The first integration tree, `4eb64af5`, was reviewed exact-tree by an independent reviewer and failed, with one S2, four S3 and eight S4 findings. That review confirmed the #1972 composition in the PDF text, #1469's fail-closed behaviour and `None` gaps, the detection power of the re-pointed `test_1469` fixture, and the M0 to M3 results. The fixes above answer its findings, except S4-3 and S4-4, which go to a follow-up issue.
 
 The fixed tree, `1c4e0ea2`, then passed an independent delta review with no S1 or S2 findings. That review reproduced all twelve mutations above and ran 44 more of its own, 41 of which were caught. The three it did not catch were the "no datasets" warning, the "no datasets" branch, and the scalar guard in `_is_missing` (S3-5). It also added six notes (S4-9 to S4-14). This tree closes S3-5 with tests, puts S4-9 and S4-10 into the CHANGELOG, and corrects S4-11 and S4-12 in this document. S4-13 and S4-14 go to the follow-up issue. A short delta review of this tree against `1c4e0ea2` comes before the commit. That review is linked from the merge commit's `Hostile-Review` trailer and from the PR.
+
+## CI round on `ff743775` (matplotlib 3.11)
+
+**Failure.**
+- Hosted CI at `ff743775` failed one test on Python 3.11 to 3.14: `tests/test_1461_facade_chart_gaps.py::test_pie_omits_numpy_decimal_and_pandas_missing_values`.
+- The chart engine raised `RuntimeError("Chart generation failed")` from matplotlib's pie: `np.isfinite` on `Decimal` values raises `TypeError: ufunc 'isfinite' not supported for the input types`.
+- Locally the test passed, because the libraries differ:
+
+| Package | CI | Local |
+|---|---|---|
+| matplotlib | 3.11.2 | 3.10.8 |
+| numpy | 2.4.6 | 2.4.2 |
+| reportlab | 5.1.0 | 4.4.10 |
+| pillow | 13.0.0 | 12.1.1 |
+| pandas | 2.3.3 | 2.3.3 |
+
+**Reproduction.**
+- A throwaway virtual environment held the CI versions; it was deleted afterwards.
+- On `ff743775` it gives 1 failed and 102 passed over the four change test files. The failure is the same, with the same `np.isfinite` traceback.
+- With the earlier behaviour (values passed through unchanged), bar and line charts drew `Decimal`, `numpy.int64` and `numpy.float32` values without error under these versions. The pie failed two ways: the `np.isfinite` error, and a `TypeError` from summing a `Decimal` with a NumPy float in the zero-total check.
+
+**Fix (`_facade_content.py`).**
+- `_checked_series` returns known values as built-in numbers through `_plain_number`: integral values (including `numpy.int64`) become `int`, so value labels keep printing `88` rather than `88.0`; other values (`Decimal`, `numpy.float32`) become `float`.
+- This covers bar, line and pie. Missing values and the named `ValueError` messages are unchanged.
+- A value that cannot be turned into a real number, such as a complex number, now raises the named non-numeric `ValueError`. Before, a complex value was passed to the chart engine.
+
+**Tests.**
+- `test_known_values_reach_the_chart_engine_as_builtin_numbers` (bar, line, pie): spies on the chart engine and asserts values `[2.5, 3, 1.5]` of types `[float, int, float]` for `Decimal`, `numpy.int64` and `numpy.float32` inputs. It does not depend on the matplotlib version.
+- `test_decimal_and_numpy_values_render_through_the_real_chart_engine` (bar, line, pie): draws those values, with a gap, through the real chart engine.
+- `test_complex_value_raises_the_named_non_numeric_error` (bar, line, pie).
+- `test_pie_omits_numpy_decimal_and_pandas_missing_values` now also asserts that the surviving value is a `float`.
+
+**Results.**
+- Four change test files: 112 passed, both under the CI versions and locally.
+- Broad reporting set (39 files): 1229 passed and 3 skipped under the CI versions. With `tests/guard/test_exception_contract_guard.py` added, 1312 passed and 3 skipped locally. No other difference from reportlab 5 or matplotlib 3.11 showed up.
+- Kill-proofs. Each was applied to the working file, run and restored; afterwards a grep for the marker finds nothing.
+  - KP1: `_plain_number` returns its input unchanged. Locally 8 failed: the three spy cases, the three complex cases, the pie render case and the existing `Decimal` pie test. Under the CI versions, the same 8 failed among the selected tests.
+  - KP2: integral values are also turned into `float`. 3 failed (the spy cases).
+- Guards with develop `c303621d`'s scripts:
+  - `check_exception_contracts`: 212 flagged, 0 unlisted, 0 stale.
+  - `check_broad_except`: 35 flagged, 0 unreviewed.
+  - `check_error_path_coverage`: 401 modules, 0 failures.
+  - `check_no_stub_docstrings` passes.
+  - `ruff` with the F, E9 and lint-ratchet phase-3 rules passes on the changed files.

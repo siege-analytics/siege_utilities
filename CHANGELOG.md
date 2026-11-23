@@ -22,9 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   earlier report. A facade chart configuration with an unsupported `type`
   raises `ValueError` naming the type. A chart raises `ValueError` naming the
   chart when a series has a different number of values than there are labels,
-  when a known value is not a number, or when the known values of a pie chart
-  total zero; for a line chart with several series the message names the
-  chart, not the series. A missing chart value (`None`, a float or NumPy NaN,
+  when a known value is not a real number, or when the known values of a pie
+  chart total zero; for a line chart with several series the message names the
+  chart, not the series. Known `Decimal` and NumPy values reach the chart
+  engine as built-in numbers. A missing chart value (`None`, a float or NumPy NaN,
   a `Decimal` NaN, or `pandas.NA`) is a gap: bar and pie charts omit it and
   line charts leave a break. A chart with no labels, no datasets or no known
   values is left out of the PDF together with its heading, and a warning is

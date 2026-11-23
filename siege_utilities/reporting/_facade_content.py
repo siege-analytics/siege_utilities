@@ -24,24 +24,47 @@ def _is_missing(value: Any) -> bool:
     return value is None or (pd.api.types.is_scalar(value) and bool(pd.isna(value)))
 
 
+def _plain_number(value: numbers.Number) -> int | float:
+    """Return a known chart value as a built-in int or float.
+
+    The chart engine hands values to matplotlib, which (from 3.11) rejects a
+    ``Decimal`` in a pie chart. Integral values stay ints so value labels keep
+    printing ``88`` rather than ``88.0``.
+    """
+    if isinstance(value, numbers.Integral):
+        return int(value)
+    return float(value)
+
+
 def _checked_series(kind: str, title: str, labels: list[Any], values: list[Any]) -> list[Any]:
     """Return one series after checking it against the chart labels.
 
+    Known values come back as built-in ints or floats (``Decimal`` and NumPy
+    scalars included); missing values are returned unchanged.
+
     Raises:
         ValueError: the series and the labels differ in length, or a known
-            value is not a number.
+            value is not a real number.
     """
     if len(values) != len(labels):
         raise ValueError(
             f"Facade {kind} chart {title!r} has {len(labels)} labels "
             f"but {len(values)} values"
         )
+    checked = []
     for value in values:
-        if not _is_missing(value) and not isinstance(value, numbers.Number):
+        if _is_missing(value):
+            checked.append(value)
+            continue
+        try:
+            if not isinstance(value, numbers.Number):
+                raise TypeError(type(value).__name__)
+            checked.append(_plain_number(value))
+        except (TypeError, ValueError, OverflowError) as exc:
             raise ValueError(
                 f"Facade {kind} chart {title!r} has a non-numeric value: {value!r}"
-            )
-    return list(values)
+            ) from exc
+    return checked
 
 
 def _known_points(labels: list[Any], values: list[Any]) -> tuple[list[Any], list[Any]]:

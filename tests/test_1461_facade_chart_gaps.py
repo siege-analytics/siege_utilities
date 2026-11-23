@@ -217,7 +217,48 @@ def test_pie_omits_numpy_decimal_and_pandas_missing_values(generator):
 
     _chart_images(config, generator)
 
-    assert spy.call_args.args[0] == {"Label": ["d"], "Value": [Decimal("3")]}
+    assert spy.call_args.args[0] == {"Label": ["d"], "Value": [3.0]}
+    assert type(spy.call_args.args[0]["Value"][0]) is float
+
+
+_ENGINE_METHOD = {"bar": "create_bar_chart", "line": "create_line_chart", "pie": "create_pie_chart"}
+
+
+def _drawn_values(kind, spy):
+    data = spy.call_args.args[0]
+    return data["1. Series"] if kind == "line" else data["Value"]
+
+
+@pytest.mark.parametrize("kind", ["bar", "line", "pie"])
+def test_known_values_reach_the_chart_engine_as_builtin_numbers(generator, kind):
+    # Matplotlib 3.11 rejects Decimal values in a pie chart (np.isfinite), so
+    # the facade hands the engine built-in numbers whatever the library version.
+    spy = _spy(generator, _ENGINE_METHOD[kind])
+    config = _chart_config(kind, ["a", "b", "c"],
+                           [Decimal("2.5"), np.int64(3), np.float32(1.5)], title="Types")
+
+    _chart_images(config, generator)
+
+    drawn = _drawn_values(kind, spy)
+    assert drawn == [2.5, 3, 1.5]
+    assert [type(value) for value in drawn] == [float, int, float]
+
+
+@pytest.mark.parametrize("kind", ["bar", "line", "pie"])
+def test_complex_value_raises_the_named_non_numeric_error(generator, kind):
+    config = _chart_config(kind, ["a", "b"], [1 + 2j, 3], title="Complex")
+    with pytest.raises(ValueError, match=rf"Facade {kind} chart 'Complex.*' has a non-numeric value: \(1\+2j\)"):
+        _chart_images(config, generator)
+
+
+@pytest.mark.parametrize("kind", ["bar", "line", "pie"])
+def test_decimal_and_numpy_values_render_through_the_real_chart_engine(generator, kind):
+    config = _chart_config(kind, ["a", "b", "c", "d"],
+                           [Decimal("2.5"), np.int64(3), np.float32(1.5), None], title="Render")
+
+    images = _chart_images(config, generator)
+
+    assert len(images) == 1
 
 
 def test_bar_title_is_the_dataset_label_when_the_chart_has_no_title(generator):
