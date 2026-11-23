@@ -48,10 +48,13 @@ System GDAL is needed in these cases:
    bundled GDAL and the system GDAL used by Pyogrio can be incompatible, causing
    driver errors even for supported formats. Keep both packages on the same GDAL
    library. If Pyogrio uses system GDAL, Pyogrio recommends reinstalling Fiona
-   from source against that same library, then restarting the interpreter::
+   from source against that same library. Set ``GDAL_CONFIG`` to the matching
+   ``gdal-config`` when it is not already first on ``PATH``, and ensure the
+   runtime linker can find that GDAL library. Disable pip's wheel cache so it
+   cannot reuse an incompatible Fiona wheel, then restart the interpreter::
 
        pip uninstall fiona
-       pip install fiona --no-binary fiona
+       pip install fiona --no-binary fiona --no-cache-dir
 
    See the `Pyogrio installation troubleshooting guide
    <https://pyogrio.readthedocs.io/en/latest/install.html#troubleshooting-installation-errors>`_.
