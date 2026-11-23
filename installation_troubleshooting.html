@@ -6,17 +6,18 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Installation Troubleshooting &mdash; Siege Utilities 5.0.0 documentation</title>
+  <title>Installation Troubleshooting &mdash; Siege Utilities 6.0.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=ce74c6a2"></script>
+      <script src="_static/documentation_options.js?v=12958129"></script>
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Library Architecture" href="architecture_diagram.html" />
@@ -44,6 +45,12 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="about.html">About Siege Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="about.html#what-it-provides">What it provides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="about.html#current-release">Current release</a></li>
+<li class="toctree-l2"><a class="reference internal" href="about.html#project-links">Project links</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="getting_started.html#installation">Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting_started.html#quick-start-the-composition-chain">Quick Start: The Composition Chain</a><ul>
@@ -62,7 +69,7 @@
 </li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Installation Troubleshooting</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#geospatial-extras-and-gdal">Geospatial Extras and GDAL</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#system-dependencies-only-for-the-two-cases-above">System Dependencies (only for the two cases above)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#system-dependencies-only-for-the-cases-above">System Dependencies (only for the cases above)</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#choosing-the-right-extras">Choosing the Right Extras</a></li>
@@ -8991,7 +8998,10 @@
 <li class="toctree-l2"><a class="reference internal" href="repository_hygiene.html#scripts-policy">Scripts policy</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="license_model.html">License Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license_model.html">License Model</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="license_model.html#license-history">License history</a></li>
+</ul>
+</li>
 </ul>
 
         </div>
@@ -9023,15 +9033,14 @@
 <section id="geospatial-extras-and-gdal">
 <h2>Geospatial Extras and GDAL<a class="headerlink" href="#geospatial-extras-and-gdal" title="Link to this heading"></a></h2>
 <p>As of the GDAL-optional-extra split, the <code class="docutils literal notranslate"><span class="pre">[geo]</span></code> extra installs the
-pure-Python geospatial stack (GeoPandas, Shapely, Fiona, PyProj, rtree,
-PySAL, etc.). These ship their own bundled GDAL/GEOS/PROJ inside their
-wheels, so <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">siege-utilities[geo]</span></code> works <strong>without any
-system GDAL</strong> on the supported Python versions:</p>
+geospatial stack (GeoPandas, Shapely, Fiona, PyProj, rtree, PySAL, etc.).
+On supported Python/platform combinations, compatible binary wheels bundle
+the needed GDAL/GEOS/PROJ libraries, so a normal pip install does not need
+system GDAL:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">siege</span><span class="o">-</span><span class="n">utilities</span><span class="p">[</span><span class="n">geo</span><span class="p">]</span>
 </pre></div>
 </div>
-<p>You only need system GDAL + the native OSGeo Python bindings in two
-cases:</p>
+<p>System GDAL is needed in these cases:</p>
 <ol class="arabic">
 <li><p><strong>You import ``osgeo`` directly</strong> (<code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">osgeo</span> <span class="pre">import</span> <span class="pre">gdal,</span> <span class="pre">ogr,</span>
 <span class="pre">osr</span></code>). Install the dedicated <code class="docutils literal notranslate"><span class="pre">[gdal]</span></code> extra, pinned to your system
@@ -9056,9 +9065,31 @@ the OSGeo <code class="docutils literal notranslate"><span class="pre">gdal</spa
 </pre></div>
 </div>
 </li>
+<li><p><strong>Building Fiona, Rasterio or Pyogrio from source.</strong> If pip cannot use a
+compatible wheel and builds one of these packages locally, install the GDAL development
+libraries first. This does not mean the <code class="docutils literal notranslate"><span class="pre">[gdal]</span></code> extra is installed;
+that extra provides the native <code class="docutils literal notranslate"><span class="pre">osgeo</span></code> Python bindings. See the
+<a class="reference external" href="https://fiona.readthedocs.io/en/stable/install.html">Fiona</a> and
+<a class="reference external" href="https://pyogrio.readthedocs.io/en/latest/install.html">Pyogrio</a> and
+<cite>Rasterio &lt;https://rasterio.readthedocs.io/en/stable/installation.html&gt;</cite>
+installation prerequisites.</p>
+<p>Avoid mixing a Fiona wheel with Pyogrio built against system GDAL: Fiona’s
+bundled GDAL and the system GDAL used by Pyogrio can be incompatible, causing
+driver errors even for supported formats. Keep both packages on the same GDAL
+library. If Pyogrio uses system GDAL, Pyogrio recommends reinstalling Fiona
+from source against that same library. Set <code class="docutils literal notranslate"><span class="pre">GDAL_CONFIG</span></code> to the matching
+<code class="docutils literal notranslate"><span class="pre">gdal-config</span></code> when it is not already first on <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, and ensure the
+runtime linker can find that GDAL library. Disable pip’s wheel cache so it
+cannot reuse an incompatible Fiona wheel, then restart the interpreter:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">uninstall</span> <span class="n">fiona</span>
+<span class="n">pip</span> <span class="n">install</span> <span class="n">fiona</span> <span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="n">binary</span> <span class="n">fiona</span> <span class="o">--</span><span class="n">no</span><span class="o">-</span><span class="n">cache</span><span class="o">-</span><span class="nb">dir</span>
+</pre></div>
+</div>
+<p>See the <a class="reference external" href="https://pyogrio.readthedocs.io/en/latest/install.html#troubleshooting-installation-errors">Pyogrio installation troubleshooting guide</a>.</p>
+</li>
 </ol>
-<section id="system-dependencies-only-for-the-two-cases-above">
-<h3>System Dependencies (only for the two cases above)<a class="headerlink" href="#system-dependencies-only-for-the-two-cases-above" title="Link to this heading"></a></h3>
+<section id="system-dependencies-only-for-the-cases-above">
+<h3>System Dependencies (only for the cases above)<a class="headerlink" href="#system-dependencies-only-for-the-cases-above" title="Link to this heading"></a></h3>
 <p>Ubuntu / Debian:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">update</span>
 <span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="o">-</span><span class="n">y</span> \
@@ -9093,9 +9124,9 @@ the OSGeo <code class="docutils literal notranslate"><span class="pre">gdal</spa
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">[geo]</span></code></p></td>
-<td><p>No (bundled in wheels)</p></td>
+<td><p>No with compatible wheels; source builds of Fiona or Rasterio need it</p></td>
 <td><p>GeoPandas, Shapely, Fiona, PyProj, spatial joins, choropleths,
-isochrones, interpolation — the full pure-Python geo stack</p></td>
+isochrones and interpolation</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">[gdal]</span></code></p></td>
 <td><p>Yes (version-matched)</p></td>
@@ -9113,8 +9144,11 @@ directly; pin to <code class="docutils literal notranslate"><span class="pre">gd
 <section id="common-errors">
 <h2>Common Errors<a class="headerlink" href="#common-errors" title="Link to this heading"></a></h2>
 <dl>
-<dt><strong>“Could not find GDAL library” (django.core.exceptions.ImproperlyConfigured)</strong></dt><dd><p>Only relevant to GeoDjango/PostGIS. Install system GDAL
-(<code class="docutils literal notranslate"><span class="pre">gdal-bin</span> <span class="pre">libgdal-dev</span></code>); plain <code class="docutils literal notranslate"><span class="pre">[geo]</span></code> does not need it.</p>
+<dt><strong>“Could not find GDAL library” (django.core.exceptions.ImproperlyConfigured)</strong></dt><dd><p>For GeoDjango/PostGIS, install system GDAL (<code class="docutils literal notranslate"><span class="pre">gdal-bin</span> <span class="pre">libgdal-dev</span></code>).
+The <code class="docutils literal notranslate"><span class="pre">[geo]</span></code> extra avoids system GDAL when compatible binary wheels are
+available; building Fiona or Rasterio from source needs libgdal. Pyogrio
+may not be installed with older supported GeoPandas versions; when installed
+from source it also needs libgdal.</p>
 </dd>
 <dt><strong>“OSError: cannot load library ‘libgeos_c.so’”</strong></dt><dd><p>GEOS not installed (GeoDjango path). On Ubuntu: <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">apt</span> <span class="pre">install</span> <span class="pre">libgeos-dev</span></code>.</p>
 </dd>

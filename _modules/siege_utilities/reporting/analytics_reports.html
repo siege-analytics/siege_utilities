@@ -5,17 +5,18 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>siege_utilities.reporting.analytics_reports &mdash; Siege Utilities 5.0.0 documentation</title>
+  <title>siege_utilities.reporting.analytics_reports &mdash; Siege Utilities 6.0.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../../_static/documentation_options.js?v=ce74c6a2"></script>
+      <script src="../../../_static/documentation_options.js?v=12958129"></script>
       <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="../../../about.html" />
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" /> 
 </head>
@@ -41,6 +42,12 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">About Siege Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../about.html#what-it-provides">What it provides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../about.html#current-release">Current release</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../about.html#project-links">Project links</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#installation">Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../getting_started.html#quick-start-the-composition-chain">Quick Start: The Composition Chain</a><ul>
@@ -59,7 +66,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../../../installation_troubleshooting.html">Installation Troubleshooting</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../installation_troubleshooting.html#geospatial-extras-and-gdal">Geospatial Extras and GDAL</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../../../installation_troubleshooting.html#system-dependencies-only-for-the-two-cases-above">System Dependencies (only for the two cases above)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../installation_troubleshooting.html#system-dependencies-only-for-the-cases-above">System Dependencies (only for the cases above)</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../../../installation_troubleshooting.html#choosing-the-right-extras">Choosing the Right Extras</a></li>
@@ -8988,7 +8995,10 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../repository_hygiene.html#scripts-policy">Scripts policy</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../../../license_model.html">License Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license_model.html">License Model</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../license_model.html#license-history">License history</a></li>
+</ul>
+</li>
 </ul>
 
         </div>
@@ -9036,6 +9046,26 @@
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s2">"AnalyticsReportGenerator"</span><span class="p">,</span>
 <span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_page_views</span><span class="p">(</span><span class="n">page</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Return a top-pages row's page-view count, or None when it carries none.</span>
+
+<span class="sd">    ``fetch_real_ga4_data`` and ``generate_sample_ga_data`` emit the count as</span>
+<span class="sd">    ``pageviews``. ``create_google_analytics_report`` is public and also</span>
+<span class="sd">    accepts caller-built rows, which may use ``views``; when a row has both,</span>
+<span class="sd">    ``pageviews`` wins.</span>
+<span class="sd">    """</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">'pageviews'</span><span class="p">,</span> <span class="s1">'views'</span><span class="p">):</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">page</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">value</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_format_count</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Format a count with thousands separators, or N/A when it is unavailable."""</span>
+    <span class="k">return</span> <span class="s1">'N/A'</span> <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">value</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">"</span>
 
 
 <div class="viewcode-block" id="AnalyticsReportGenerator">
@@ -9411,20 +9441,31 @@
                 <span class="p">}</span>
             <span class="p">})</span>
         
-        <span class="c1"># Page performance</span>
+        <span class="c1"># Page performance: plot only the top-ten rows that carry a page-view</span>
+        <span class="c1"># count; a page without one is left out rather than drawn as zero.</span>
         <span class="k">if</span> <span class="s1">'top_pages'</span> <span class="ow">in</span> <span class="n">ga_data</span><span class="p">:</span>
-            <span class="n">top_pages</span> <span class="o">=</span> <span class="n">ga_data</span><span class="p">[</span><span class="s1">'top_pages'</span><span class="p">]</span>
-            <span class="n">charts</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
-                <span class="s1">'type'</span><span class="p">:</span> <span class="s1">'bar'</span><span class="p">,</span>
-                <span class="s1">'title'</span><span class="p">:</span> <span class="s1">'Top Performing Pages'</span><span class="p">,</span>
-                <span class="s1">'data'</span><span class="p">:</span> <span class="p">{</span>
-                    <span class="s1">'labels'</span><span class="p">:</span> <span class="p">[</span><span class="n">page</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'page'</span><span class="p">,</span> <span class="s1">'Unknown'</span><span class="p">)</span> <span class="k">for</span> <span class="n">page</span> <span class="ow">in</span> <span class="n">top_pages</span><span class="p">[:</span><span class="mi">10</span><span class="p">]],</span>
-                    <span class="s1">'datasets'</span><span class="p">:</span> <span class="p">[{</span>
-                        <span class="s1">'label'</span><span class="p">:</span> <span class="s1">'Page Views'</span><span class="p">,</span>
-                        <span class="s1">'data'</span><span class="p">:</span> <span class="p">[</span><span class="n">page</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'views'</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">page</span> <span class="ow">in</span> <span class="n">top_pages</span><span class="p">[:</span><span class="mi">10</span><span class="p">]]</span>
-                    <span class="p">}]</span>
-                <span class="p">}</span>
-            <span class="p">})</span>
+            <span class="n">top_rows</span> <span class="o">=</span> <span class="n">ga_data</span><span class="p">[</span><span class="s1">'top_pages'</span><span class="p">][:</span><span class="mi">10</span><span class="p">]</span>
+            <span class="n">counted</span> <span class="o">=</span> <span class="p">[(</span><span class="n">page</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'page'</span><span class="p">,</span> <span class="s1">'Unknown'</span><span class="p">),</span> <span class="n">_page_views</span><span class="p">(</span><span class="n">page</span><span class="p">))</span> <span class="k">for</span> <span class="n">page</span> <span class="ow">in</span> <span class="n">top_rows</span><span class="p">]</span>
+            <span class="n">counted</span> <span class="o">=</span> <span class="p">[(</span><span class="n">label</span><span class="p">,</span> <span class="n">views</span><span class="p">)</span> <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">views</span> <span class="ow">in</span> <span class="n">counted</span> <span class="k">if</span> <span class="n">views</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">counted</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">top_rows</span><span class="p">):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">"Top pages chart: </span><span class="si">%d</span><span class="s2"> of </span><span class="si">%d</span><span class="s2"> pages have no page-view count and are left out"</span><span class="p">,</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="n">top_rows</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">counted</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">top_rows</span><span class="p">),</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="n">counted</span><span class="p">:</span>
+                <span class="n">charts</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s1">'type'</span><span class="p">:</span> <span class="s1">'bar'</span><span class="p">,</span>
+                    <span class="s1">'title'</span><span class="p">:</span> <span class="s1">'Top Performing Pages'</span><span class="p">,</span>
+                    <span class="s1">'data'</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s1">'labels'</span><span class="p">:</span> <span class="p">[</span><span class="n">label</span> <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">counted</span><span class="p">],</span>
+                        <span class="s1">'datasets'</span><span class="p">:</span> <span class="p">[{</span>
+                            <span class="s1">'label'</span><span class="p">:</span> <span class="s1">'Page Views'</span><span class="p">,</span>
+                            <span class="s1">'data'</span><span class="p">:</span> <span class="p">[</span><span class="n">views</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">views</span> <span class="ow">in</span> <span class="n">counted</span><span class="p">]</span>
+                        <span class="p">}]</span>
+                    <span class="p">}</span>
+                <span class="p">})</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"Top pages chart skipped: no page carries a page-view count"</span><span class="p">)</span>
         
         <span class="c1"># Traffic sources</span>
         <span class="k">if</span> <span class="s1">'traffic_sources'</span> <span class="ow">in</span> <span class="n">ga_data</span><span class="p">:</span>
@@ -9451,8 +9492,8 @@
             <span class="k">for</span> <span class="n">page</span> <span class="ow">in</span> <span class="n">top_pages</span><span class="p">[:</span><span class="mi">20</span><span class="p">]:</span>  <span class="c1"># Top 20 pages</span>
                 <span class="n">table_data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span>
                     <span class="n">page</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'page'</span><span class="p">,</span> <span class="s1">'Unknown'</span><span class="p">),</span>
-                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">page</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'views'</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
-                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">page</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'unique_views'</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                    <span class="n">_format_count</span><span class="p">(</span><span class="n">_page_views</span><span class="p">(</span><span class="n">page</span><span class="p">)),</span>
+                    <span class="n">_format_count</span><span class="p">(</span><span class="n">page</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'unique_views'</span><span class="p">)),</span>
                     <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">page</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'avg_time'</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">s"</span><span class="p">,</span>
                     <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">page</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'bounce_rate'</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%"</span>
                 <span class="p">])</span>
@@ -9510,7 +9551,12 @@
             <span class="n">top_pages</span> <span class="o">=</span> <span class="n">ga_data</span><span class="p">[</span><span class="s1">'top_pages'</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">top_pages</span><span class="p">:</span>
                 <span class="n">best_page</span> <span class="o">=</span> <span class="n">top_pages</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-                <span class="n">insights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"'</span><span class="si">{</span><span class="n">best_page</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'page'</span><span class="p">,</span><span class="w"> </span><span class="s1">'Unknown'</span><span class="p">)</span><span class="si">}</span><span class="s2">' is the top performing page with </span><span class="si">{</span><span class="n">best_page</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'views'</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> views"</span><span class="p">)</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="n">best_page</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'page'</span><span class="p">,</span> <span class="s1">'Unknown'</span><span class="p">)</span>
+                <span class="n">views</span> <span class="o">=</span> <span class="n">_page_views</span><span class="p">(</span><span class="n">best_page</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">views</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">insights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"'</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">' is the top performing page"</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">insights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"'</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">' is the top performing page with </span><span class="si">{</span><span class="n">views</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> views"</span><span class="p">)</span>
         
         <span class="c1"># Traffic source insights</span>
         <span class="k">if</span> <span class="s1">'traffic_sources'</span> <span class="ow">in</span> <span class="n">ga_data</span><span class="p">:</span>

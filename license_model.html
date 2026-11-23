@@ -6,17 +6,18 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>License Model &mdash; Siege Utilities 5.0.0 documentation</title>
+  <title>License Model &mdash; Siege Utilities 6.0.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=ce74c6a2"></script>
+      <script src="_static/documentation_options.js?v=12958129"></script>
       <script src="_static/doctools.js?v=fd6eb6e6"></script>
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="prev" title="Repository Hygiene" href="repository_hygiene.html" /> 
@@ -43,6 +44,12 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="about.html">About Siege Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="about.html#what-it-provides">What it provides</a></li>
+<li class="toctree-l2"><a class="reference internal" href="about.html#current-release">Current release</a></li>
+<li class="toctree-l2"><a class="reference internal" href="about.html#project-links">Project links</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="getting_started.html#installation">Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="getting_started.html#quick-start-the-composition-chain">Quick Start: The Composition Chain</a><ul>
@@ -61,7 +68,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="installation_troubleshooting.html">Installation Troubleshooting</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="installation_troubleshooting.html#geospatial-extras-and-gdal">Geospatial Extras and GDAL</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="installation_troubleshooting.html#system-dependencies-only-for-the-two-cases-above">System Dependencies (only for the two cases above)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="installation_troubleshooting.html#system-dependencies-only-for-the-cases-above">System Dependencies (only for the cases above)</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="installation_troubleshooting.html#choosing-the-right-extras">Choosing the Right Extras</a></li>
@@ -8990,7 +8997,10 @@
 <li class="toctree-l2"><a class="reference internal" href="repository_hygiene.html#scripts-policy">Scripts policy</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">License Model</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">License Model</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#license-history">License history</a></li>
+</ul>
+</li>
 </ul>
 
         </div>
@@ -9019,19 +9029,34 @@
              
   <section id="license-model">
 <h1>License Model<a class="headerlink" href="#license-model" title="Link to this heading"></a></h1>
-<p>Effective date: March 6, 2026</p>
-<p><code class="docutils literal notranslate"><span class="pre">siege_utilities</span></code> uses a dual-license model:</p>
+<p><code class="docutils literal notranslate"><span class="pre">siege_utilities</span></code> is licensed under the Apache License, Version 2.0
+(SPDX: <code class="docutils literal notranslate"><span class="pre">Apache-2.0</span></code>).</p>
 <ul class="simple">
-<li><p>AGPL-3.0-only for open-source use</p></li>
-<li><p>Commercial license for proprietary/commercial use under separate agreement</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">LICENSE</span></code> contains the license text.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">NOTICE</span></code> contains the copyright notice. Apache-2.0 section 4(d) asks
+redistributions to carry it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">LICENSES/wkls.md</span></code> describes the license and attribution terms of the
+third-party <code class="docutils literal notranslate"><span class="pre">wkls</span></code> package and the Overture Maps data it reads. Those
+terms are unchanged.</p></li>
 </ul>
-<p>Attribution is required in both license paths.</p>
-<p>See:</p>
+<p>Contributions are licensed under Apache-2.0 on the same terms (inbound =
+outbound); see <code class="docutils literal notranslate"><span class="pre">CONTRIBUTING.md</span></code>.</p>
+<section id="license-history">
+<h2>License history<a class="headerlink" href="#license-history" title="Link to this heading"></a></h2>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">LICENSE</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">LICENSES/AGPL-3.0.txt</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">COMMERCIAL_LICENSE.md</span></code></p></li>
+<li><p>MIT License: releases 1.0.0 through 3.8.1 were published under the MIT
+License (Copyright (c) 2025 Siege Analytics).</p></li>
+<li><p>Dual license: from March 6, 2026, <code class="docutils literal notranslate"><span class="pre">siege_utilities</span></code> was offered under
+AGPL-3.0-only, or the Siege Analytics commercial license by separate
+agreement (SPDX: <code class="docutils literal notranslate"><span class="pre">AGPL-3.0-only</span> <span class="pre">OR</span> <span class="pre">LicenseRef-Siege-Commercial</span></code>).
+Releases 3.8.2 through 5.0.0 were published under those terms.</p></li>
+<li><p>Apache-2.0: applies to the current development revision and every release
+after 5.0.0.</p></li>
 </ul>
+<p>Every published release keeps the terms it was published under. The
+relicensing and the consent of the copyright holders are recorded on issue
+#1967.</p>
+</section>
 </section>
 
 
