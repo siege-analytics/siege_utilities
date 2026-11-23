@@ -100,29 +100,82 @@ class BarChartMixin:
             fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
             fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
 
+            # Decide between single-series bars and grouped (clustered) bars.
+            # Grouped mode draws one labeled bar per `group_by` value at each
+            # x category, which is what the `group_by` parameter has always
+            # documented but never actually did (see issue #1992).
+            grouped = (
+                group_by is not None
+                and isinstance(df, pd.DataFrame)
+                and group_by in df.columns
+                and x_column not in (None, 'index')
+                and x_column in df.columns
+                and y_column in df.columns
+            )
+
             # Create chart
-            if chart_type == "horizontal":
+            if grouped:
+                # Preserve first-seen order for both categories and series.
+                categories = list(dict.fromkeys(df[x_column].tolist()))
+                series = list(dict.fromkeys(df[group_by].tolist()))
+                positions = np.arange(len(categories))
+                bar_width = 0.8 / max(len(series), 1)
+                palette = getattr(self, 'color_palette', None) or [self.default_colors['primary']]
+                bar_containers = []
+                for i, label in enumerate(series):
+                    sub = df[df[group_by] == label]
+                    lookup = dict(zip(sub[x_column].tolist(), sub[y_column].tolist()))
+                    heights = [lookup.get(cat, 0) for cat in categories]
+                    offset = (i - (len(series) - 1) / 2) * bar_width
+                    color = palette[i % len(palette)]
+                    if chart_type == "horizontal":
+                        container = ax.barh(positions + offset, heights, bar_width,
+                                            label=str(label), color=color)
+                    else:
+                        container = ax.bar(positions + offset, heights, bar_width,
+                                           label=str(label), color=color)
+                    bar_containers.append(container)
+                if chart_type == "horizontal":
+                    ax.set_yticks(positions)
+                    ax.set_yticklabels([str(c) for c in categories])
+                    ax.set_xlabel(y_column)
+                    ax.set_ylabel(x_column)
+                else:
+                    ax.set_xticks(positions)
+                    ax.set_xticklabels([str(c) for c in categories])
+                    ax.set_xlabel(x_column)
+                    ax.set_ylabel(y_column)
+            elif chart_type == "horizontal":
                 bars = ax.barh(x_values, y_values, color=self.default_colors['primary'])
                 ax.set_xlabel(y_column)
                 ax.set_ylabel(x_column if x_column != 'index' else 'Index')
+                bar_containers = [bars]
             else:
                 bars = ax.bar(x_values, y_values, color=self.default_colors['primary'])
                 ax.set_xlabel(x_column if x_column != 'index' else 'Index')
                 ax.set_ylabel(y_column)
+                bar_containers = [bars]
 
             # Customize chart
             ax.set_title(title or f"{y_column} by {x_column if x_column != 'index' else 'Index'}")
             ax.grid(True, alpha=0.3)
 
             # Rotate x-axis labels if needed
-            if len(x_values) > 5:
+            n_x = len(categories) if grouped else len(x_values)
+            if chart_type != "horizontal" and n_x > 5:
                 plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
 
             # Add value labels on bars
-            for bar in bars:
-                bar_height = bar.get_height()
-                ax.text(bar.get_x() + bar.get_width()/2., bar_height,
-                       f'{bar_height:,.0f}', ha='center', va='bottom')
+            for container in bar_containers:
+                for bar in container:
+                    if chart_type == "horizontal":
+                        value = bar.get_width()
+                        ax.text(value, bar.get_y() + bar.get_height()/2.,
+                                f'{value:,.0f}', ha='left', va='center')
+                    else:
+                        value = bar.get_height()
+                        ax.text(bar.get_x() + bar.get_width()/2., value,
+                                f'{value:,.0f}', ha='center', va='bottom')
 
             # Add legend with better positioning
             if show_legend and (group_by or len(y_values) > 1):
