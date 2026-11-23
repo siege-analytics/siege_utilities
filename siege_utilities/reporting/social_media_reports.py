@@ -2,7 +2,7 @@
 Social media report generator.
 
 Composes data from multiple :class:`SocialMediaProtocol` connectors into
-unified cross-platform PDF and PPTX reports. Follows the same pattern as
+unified cross-platform PDF reports. Follows the same pattern as
 :class:`AnalyticsReportGenerator` for GA data.
 """
 
@@ -19,6 +19,7 @@ import pandas as pd
 from siege_utilities.analytics._social_protocol import SocialMediaError
 from siege_utilities.reporting.chart_generator import ChartGenerator
 from siege_utilities.reporting.report_generator import ReportGenerator
+from siege_utilities.reporting._facade_content import _render_facade_report
 
 log = logging.getLogger(__name__)
 
@@ -92,7 +93,7 @@ class SocialMediaReportGenerator:
     """Cross-platform social media report builder.
 
     Accepts a list of SocialMediaProtocol connectors, pulls data from
-    each, normalizes into comparable shapes, and produces PDF/PPTX
+    each, normalizes into comparable shapes, and produces PDF
     reports via existing reporting infrastructure.
 
     Usage::
@@ -162,9 +163,7 @@ class SocialMediaReportGenerator:
         platform_data = self._collect_platform_data(connectors, start_date, end_date, posts_limit)
         report_data = self._build_report_data(platform_data, start_date, end_date, posts_limit)
 
-        report_path = self.report_generator.create_analytics_report(
-            report_data, title
-        )
+        report_path = _render_facade_report(self.report_generator, report_data, title)
         log.info("Social media report created: %s", report_path)
         return report_path
 

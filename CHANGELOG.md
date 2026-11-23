@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- The `SocialMediaReportGenerator` and `AnalyticsReportGenerator` report
+  methods now write a PDF into the generator's output directory and return its
+  `Path`. Through 6.0.0 they called `ReportGenerator` methods with a different
+  signature (`create_analytics_report`) or methods that do not exist
+  (`create_performance_report`, `create_custom_report`), wrote no PDF, and
+  either raised `AttributeError` or returned a report-content dictionary, so
+  the annotated `Path` was never a real file. The PDF includes the collected
+  metrics, tables, insights and charts. The file name is the report title
+  reduced to `[A-Za-z0-9_-]` and cut to 80 characters (`report` when nothing
+  is left), plus a unique suffix, so a repeated title never overwrites an
+  earlier report. A facade chart configuration with an unsupported `type`
+  raises `ValueError` naming the type. A chart raises `ValueError` naming the
+  chart when a series has a different number of values than there are labels,
+  when a known value is not a real number, or when the known values of a pie
+  chart total zero; for a line chart with several series the message names the
+  chart, not the series. Known `Decimal` and NumPy values reach the chart
+  engine as built-in numbers. A missing chart value (`None`, a float or NumPy NaN,
+  a `Decimal` NaN, or `pandas.NA`) is a gap: bar and pie charts omit it and
+  line charts leave a break. A chart with no labels, no datasets or no known
+  values is left out of the PDF together with its heading, and a warning is
+  logged. Labels are checked first: a chart with no labels is left out with a
+  warning even when it carries values, while a chart with labels and an empty
+  series, or a series of the wrong length, raises; for example, Google
+  Analytics `daily_traffic` data with dates but no user counts now raises and
+  writes no PDF. The social-media generator produces PDF only; its PPTX
+  wording is removed (#1461). **Migration:** use the returned `Path` as the
+  PDF; code that handled the old `AttributeError` or read the returned
+  dictionary must be removed or updated, and code that expected a fixed file
+  name must read the returned path instead; build any PPTX separately with
+  `PowerPointGenerator`.
+
 - A Dynamics `upsert_records` call that splits records into batches no longer
   loses completed batches when a later batch fails in transport or with a
   server error. The failed batch's records are reported as `UpsertError`
