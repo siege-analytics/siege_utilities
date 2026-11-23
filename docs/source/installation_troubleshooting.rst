@@ -35,12 +35,13 @@ System GDAL is needed in these cases:
        sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev libproj-dev
        pip install siege-utilities[geodjango]
 
-3. **Building Fiona or Pyogrio from source.** If pip cannot use a compatible
-   wheel and builds either package locally, install the GDAL development
+3. **Building Fiona, Rasterio or Pyogrio from source.** If pip cannot use a
+   compatible wheel and builds one of these packages locally, install the GDAL development
    libraries first. This does not mean the ``[gdal]`` extra is installed;
    that extra provides the native ``osgeo`` Python bindings. See the
    `Fiona <https://fiona.readthedocs.io/en/stable/install.html>`_ and
-   `Pyogrio <https://pyogrio.readthedocs.io/en/latest/install.html>`_
+   `Pyogrio <https://pyogrio.readthedocs.io/en/latest/install.html>`_ and
+   `Rasterio <https://rasterio.readthedocs.io/en/stable/installation.html>`
    installation prerequisites.
 
 System Dependencies (only for the cases above)
@@ -77,9 +78,9 @@ Choosing the Right Extras
      - System GDAL?
      - What You Get
    * - ``[geo]``
-     - No (bundled in wheels)
+     - No with compatible wheels; source builds of Fiona or Rasterio need it
      - GeoPandas, Shapely, Fiona, PyProj, spatial joins, choropleths,
-       isochrones, interpolation — the full pure-Python geo stack
+       isochrones and interpolation
    * - ``[gdal]``
      - Yes (version-matched)
      - The native OSGeo ``gdal`` Python bindings (``from osgeo import
@@ -93,8 +94,11 @@ Common Errors
 --------------
 
 **"Could not find GDAL library" (django.core.exceptions.ImproperlyConfigured)**
-    Only relevant to GeoDjango/PostGIS. Install system GDAL
-    (``gdal-bin libgdal-dev``); plain ``[geo]`` does not need it.
+    For GeoDjango/PostGIS, install system GDAL (``gdal-bin libgdal-dev``).
+    The ``[geo]`` extra avoids system GDAL when compatible binary wheels are
+    available; building Fiona or Rasterio from source needs libgdal. Pyogrio
+    may not be installed with older supported GeoPandas versions; when installed
+    from source it also needs libgdal.
 
 **"OSError: cannot load library 'libgeos_c.so'"**
     GEOS not installed (GeoDjango path). On Ubuntu: ``sudo apt install libgeos-dev``.
