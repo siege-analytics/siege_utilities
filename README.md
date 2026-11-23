@@ -1,12 +1,14 @@
 # Siege Utilities
 
 [![Python 3.11–3.14](https://img.shields.io/badge/python-3.11--3.14-blue.svg)](https://www.python.org/downloads/)
-[![License: AGPLv3%20or%20Commercial](https://img.shields.io/badge/License-AGPLv3%20or%20Commercial-orange.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://siege-analytics.github.io/siege_utilities/)
 
 `siege_utilities` is the shared utilities library behind Siege Analytics workflows:
 
-- Geospatial + GeoDjango boundary/data services (`[geo]` pure-Python, no system GDAL; `[geodjango]` PostGIS; `[gdal]` native OSGeo bindings)
+**Current release: [5.0.0](https://github.com/siege-analytics/siege_utilities/releases/tag/v5.0.0)** · [Upgrade and migration notes](https://github.com/siege-analytics/siege_utilities/blob/main/CHANGELOG.md#500---2026-11-20). The major release tightens path safety, makes docstring generation dry-run by default, and publishes only verified tags from `main`.
+
+- Geospatial + GeoDjango boundary/data services (`[geo]` uses compatible wheels without system GDAL; source builds of Fiona/Rasterio, or installed Pyogrio, require libgdal; `[geodjango]` PostGIS; `[gdal]` native OSGeo bindings)
 - Google Workspace write APIs (Sheets, Docs, Slides, Drive) with multi-account management
 - Census API/data selection/crosswalk tooling
 - Isochrone analysis with configurable CRS and domain exceptions
@@ -32,7 +34,7 @@ They are designed to work together (the ZSH config sets up `SPARK_HOME`, `JAVA_H
 | 3.13 | **Supported** | Allow-failure while stabilizing |
 | 3.14 | **Experimental** | Not yet in CI (awaiting ecosystem wheels) |
 
-The library requires Python 3.11+. The `[geo]` extra installs a pure-Python geospatial stack (GeoPandas, Shapely, Fiona, PyProj) whose wheels bundle their own GDAL/GEOS/PROJ — so `[geo]` needs **no system GDAL**. The native OSGeo bindings (`from osgeo import gdal`) are a separate opt-in `[gdal]` extra that requires a system libgdal matching the wheel version (see [Installation Options](#installation-options)). GeoDjango/PostGIS (`[geodjango]`) loads the system libgdal at runtime.
+The library requires Python 3.11+. With compatible binary wheels, the `[geo]` extra installs its geospatial dependencies without system GDAL. It includes GeoPandas, Shapely, Fiona, PyProj and Rasterio through Tobler; Pyogrio availability depends on the resolved GeoPandas version. If pip must build Fiona or Rasterio from source (or Pyogrio when installed), install the matching system `libgdal` development files first. The native OSGeo bindings (`from osgeo import gdal`) are a separate opt-in `[gdal]` extra that requires a system libgdal matching the wheel version (see [Installation Options](#installation-options)). GeoDjango/PostGIS (`[geodjango]`) loads the system libgdal at runtime.
 
 ## Install
 
@@ -407,7 +409,7 @@ report_gen.generate_pdf_report(report_content, output_path="report.pdf")
 pip install siege-utilities
 
 # Add extras for what you need
-pip install siege-utilities[geo]              # geopandas, fiona, shapely, pyproj, tobler, pysal — NO system GDAL needed (bundled wheels)
+pip install siege-utilities[geo]              # usually no system GDAL with compatible wheels; Fiona/Rasterio source builds need it
 pip install siege-utilities[geodjango]        # geo use + Django, DRF, PostGIS (system libgdal at runtime)
 pip install siege-utilities[data]             # pandas, numpy, openpyxl, faker
 pip install siege-utilities[reporting]        # matplotlib, seaborn, folium, plotly, reportlab
@@ -416,7 +418,7 @@ pip install siege-utilities[distributed]      # PySpark, Apache Sedona
 pip install siege-utilities[config-extras]    # Hydra, hydra-zen, omegaconf
 pip install siege-utilities[web]              # BeautifulSoup, lxml
 pip install siege-utilities[database]         # SQLAlchemy, psycopg2
-pip install siege-utilities[all]              # Everything (no system GDAL; add [gdal] separately for osgeo)
+pip install siege-utilities[all]              # Broad convenience set; omits [gdal], [wkls], [schema], [survey], [credentials], [notebooks], [dev], plus two [geo] dependencies
 
 # Native OSGeo bindings (only if you import `osgeo` directly) — pin to your
 # system libgdal; this is the path CI exercises. A bare [geo,gdal] resolves
@@ -496,12 +498,16 @@ python -m pytest tests/ -v
 
 ## License
 
-Dual license model (effective March 6, 2026):
+`siege_utilities` is licensed under the [Apache License, Version 2.0](LICENSE).
+See [`NOTICE`](NOTICE) for the copyright notice and
+[`LICENSES/wkls.md`](LICENSES/wkls.md) for third-party attribution.
 
-- AGPL-3.0-only for open-source usage
-- Commercial license for proprietary/commercial usage by separate agreement
-
-Attribution is required in both paths. See `LICENSE`, `LICENSES/AGPL-3.0.txt`, and `COMMERCIAL_LICENSE.md`.
+Releases 1.0.0 through 3.8.1 were published under the MIT License, and
+releases 3.8.2 through 5.0.0 under AGPL-3.0-only OR the Siege Analytics
+commercial license (effective March 6, 2026). Every published release keeps
+the terms it was published under. Apache-2.0 applies to the current
+development revision and to every release after 5.0.0. See
+[`docs/LICENSE_MODEL.md`](docs/LICENSE_MODEL.md).
 
 ---
 

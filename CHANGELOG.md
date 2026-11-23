@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0] - 2026-11-22
+
+### BREAKING
+
+- `fetch_real_ga4_data` in `reporting/examples/google_analytics_report_example`
+  converts each GA4 `bounceRate` ratio to a 0–100 percentage at its API read
+  site, so `bounce_rate`, `avg_bounce_rate` and the report cards are no longer
+  about 100 times too small; period bounce rates are weighted by sessions. A
+  ratio outside 0–1 (including NaN or infinity) raises `RuntimeError` instead of
+  being scaled again. An empty prior query yields an empty `prior_period` and
+  `None` in `changes` (rendered as N/A in PDF, CSV and Markdown, null in
+  metadata) instead of fabricated comparisons; a zero prior denominator also
+  yields `None`. `top_pages` rows no longer contain the invented
+  `unique_views`, and `exit_rate` is present only when GA4 returns `exitRate`.
+  Re-exporting a design kit into the same folder without a prior removes that
+  export's earlier period-comparison table and charts, and metadata lists only
+  the tables the export wrote.
+  Prior queries cover the same inclusive number of days as the current period
+  (#1579). **Migration:** remove any `* 100` applied to `bounce_rate`; treat a
+  `None` change and an empty `prior_period` as "no comparison"; read
+  `unique_views` and `exit_rate` with `.get()`; a GA4 property that returns
+  percentages instead of ratios now fails loudly.
+
+### License
+
+- `siege_utilities` is relicensed from `AGPL-3.0-only OR
+  LicenseRef-Siege-Commercial` to `Apache-2.0` (#1967). AGPL network copyleft
+  and the lack of a linking exception kept the library out of proprietary and
+  commercial products unless the adopter signed a separate commercial
+  agreement. Apache-2.0 allows that use, keeps attribution through the new
+  `NOTICE` file and adds an explicit patent grant. `LICENSE` now holds the
+  Apache-2.0 text. `COMMERCIAL_LICENSE.md`, `LICENSES/AGPL-3.0.txt` and
+  `LICENSES/Siege-Commercial.txt` are removed; `LICENSES/wkls.md` (third-party
+  terms) is unchanged. The package metadata declares the SPDX expression
+  `Apache-2.0` (PEP 639), which needs setuptools 77.0.3 or later to build.
+  The copyright holders' consent is recorded on #1967. Releases 1.0.0 through
+  3.8.1 were published under the MIT License, and releases 3.8.2 through 5.0.0
+  under `AGPL-3.0-only OR LicenseRef-Siege-Commercial` (effective March 6,
+  2026). Every published release keeps the terms it was published under.
+  Apache-2.0 applies to the current development revision and to every release
+  after 5.0.0 (#1975).
+
+### Fixed
+
+- `AnalyticsReportGenerator` in `reporting/analytics_reports` read the
+  page-view count of each `top_pages` row from `views`, but
+  `fetch_real_ga4_data` and `generate_sample_ga_data` emit `pageviews`, so the
+  top-pages table, the top-pages chart and the top-page insight showed 0 page
+  views for real and sample GA data. They now read `pageviews` and fall back to
+  `views` for caller-built rows passed to the public
+  `create_google_analytics_report`; `pageviews` wins when a row has both. A
+  page without either count no longer shows an invented 0: its table cell reads
+  N/A, the chart leaves the page out and is skipped when no page has a count,
+  and the insight names the top page without a view count. A missing
+  `unique_views` shows as N/A instead of 0 in that table, and as N/A instead of
+  an empty cell in the top-pages table of `export_report_idml` (#1972).
+
 ## [5.0.0] - 2026-11-20
 
 ### Changed

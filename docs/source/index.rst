@@ -16,6 +16,7 @@ The canonical composition chain::
    :maxdepth: 2
    :caption: Getting Started
 
+   about
    getting_started
    installation_troubleshooting
    architecture_diagram
@@ -101,21 +102,13 @@ The canonical composition chain::
 
 .. note::
 
-   **v3.22.0** (June 2026) — `PyPI <https://pypi.org/project/siege-utilities/3.22.0/>`_
+   **v5.0.0** (November 2026) — `PyPI <https://pypi.org/project/siege-utilities/5.0.0/>`_ · `Release notes <https://github.com/siege-analytics/siege_utilities/releases/tag/v5.0.0>`_
 
-   Key capabilities:
-
-   - **Geo is the gravitational center** — boundaries, geocoding, spatial transforms,
-     isochrones, Census data intelligence, redistricting analysis
-   - **Engine-agnostic DataFrame** — pandas, DuckDB, Spark+Sedona, PostGIS
-   - **CRM connectors** — ``ConnectorProtocol`` for Salesforce, HubSpot, Zoho, Dynamics
-   - **Temporal political models** — CongressionalTerm, Seat, Race, RedistrictingPlan
-   - **Pluggable providers** — Census TIGER, GADM, RDH boundary providers; Census,
-     Nominatim, TAMU geocoders
-   - **PEP 562 lazy loading** — import one piece without pulling the whole library
-   - **Tiered geo extras** — ``[geo-lite]`` / ``[geo]`` / ``[geodjango]``
-   - **32 Jupyter notebooks** organized by domain
-   - **Report generation** — PDF, PowerPoint, branded multi-client reports, hex cartograms
+   This major release hardens file and directory creation against unsafe names,
+   makes docstring generation a dry run by default, and changes the release
+   process to publish only verified tags from ``main``. Review the
+   `v5.0.0 migration notes <https://github.com/siege-analytics/siege_utilities/blob/main/CHANGELOG.md#500---2026-11-20>`_
+   before upgrading.
 
    Install: ``pip install siege-utilities``
 
