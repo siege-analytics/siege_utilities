@@ -25,6 +25,8 @@ try:
     from reportlab.platypus import Image as RLImage
     from reportlab.platypus.tableofcontents import TableOfContents
     from reportlab.lib import colors
+    from reportlab.lib.colors import HexColor
+    from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.units import inch
     REPORTLAB_AVAILABLE = True
 except ImportError:
@@ -37,6 +39,8 @@ except ImportError:
     RLImage = None
     TableOfContents = None
     colors = None
+    HexColor = None
+    ParagraphStyle = None
     inch = None
 
 from ._markup import _escape_paragraph
@@ -57,25 +61,34 @@ class ReportGenerator:
     Integrates templates, charts, and data sources.
     """
 
-    def __init__(self, client_name: str, output_dir: Optional[Path] = None):
+    def __init__(self, client_name: str, output_dir: Optional[Path] = None,
+                 branding_config: Optional[Dict[str, Any]] = None):
         """
         Initialize the report generator.
-        
+
         Args:
             client_name: Name of the client for branding
             output_dir: Directory for output reports
+            branding_config: Optional branding dict (same shape ``ChartGenerator``
+                accepts: ``colors``/``fonts``). When supplied it is used directly
+                for both charts and the document (tables), so the two share one
+                brand without pre-registering a client profile. When omitted the
+                branding is looked up by ``client_name`` as before.
         """
         self.client_name = client_name
         self.output_dir = output_dir or Path.cwd() / "reports"
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         self.branding_manager = ClientBrandingManager()
-        try:
-            self.branding_config = self.branding_manager.get_client_branding(client_name)
-        except ClientBrandingNotFoundError:
-            log.warning(f"No branding configuration found for {client_name}, using defaults")
-            self.branding_config = {}
-        
+        if branding_config is not None:
+            self.branding_config = branding_config
+        else:
+            try:
+                self.branding_config = self.branding_manager.get_client_branding(client_name)
+            except ClientBrandingNotFoundError:
+                log.warning(f"No branding configuration found for {client_name}, using defaults")
+                self.branding_config = {}
+
         self.chart_generator = ChartGenerator(
             self.branding_config, output_dir=self.output_dir,
             max_chart_width=6.0, max_chart_height=8.5,
@@ -795,20 +808,54 @@ class ReportGenerator:
                     table_data = [headers] + table_data
 
             if table_data:
-                table = Table(table_data, repeatRows=1 if headers else 0)
+                # Fit columns to the available content width and wrap long cells
+                # with Paragraph so wide tables (e.g. a long "action"/"description"
+                # column) no longer bleed off both page margins (#1993). Apply the
+                # branding palette to the TableStyle when one is configured, so the
+                # document and charts share one brand instead of a hard-coded
+                # grey/beige fallback.
+                num_cols = len(table_data[0]) if table_data[0] else 0
+                content_width = getattr(getattr(template, 'doc', None), 'width', None)
+                col_widths = ([content_width / num_cols] * num_cols
+                              if content_width and num_cols else None)
+
+                brand_colors = (self.branding_config or {}).get('colors', {})
+                primary = brand_colors.get('primary')
+                header_bg = HexColor(primary) if primary else colors.grey
+                body_text = (HexColor(brand_colors['text_color'])
+                             if brand_colors.get('text_color') else colors.black)
+                # Preserve the historical beige body / black grid when unbranded;
+                # use a clean white body + brand-coloured grid when branded.
+                body_bg = colors.white if primary else colors.beige
+                grid_color = header_bg if primary else colors.black
+
+                header_style = ParagraphStyle(
+                    'su_table_header', fontName='Helvetica-Bold', fontSize=10,
+                    textColor=colors.whitesmoke, leading=12)
+                body_style = ParagraphStyle(
+                    'su_table_body', fontName='Helvetica', fontSize=9,
+                    textColor=body_text, leading=11)
+
+                wrapped = []
+                for row_index, row in enumerate(table_data):
+                    cell_style = header_style if (headers and row_index == 0) else body_style
+                    wrapped.append([
+                        Paragraph(_escape_paragraph(str(cell)), cell_style) for cell in row
+                    ])
+
+                table = Table(wrapped, colWidths=col_widths,
+                              repeatRows=1 if headers else 0)
                 table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 10),
-                    ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                    ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                    ('FONTSIZE', (0, 1), (-1, -1), 9),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('BACKGROUND', (0, 0), (-1, 0), header_bg),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('TOPPADDING', (0, 0), (-1, -1), 5),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                    ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                    ('BACKGROUND', (0, 1), (-1, -1), body_bg),
+                    ('GRID', (0, 0), (-1, -1), 0.5, grid_color),
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                 ]))
                 story.append(table)
                 story.append(Spacer(1, 12))
