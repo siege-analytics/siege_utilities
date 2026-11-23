@@ -888,7 +888,13 @@ class SalesforceConnector(_SecretRedactionMixin):
                 timeout=self._timeout * 4,
             )
 
-        resp = request_raw(self, "PUT", send, self.refresh_access_token if self._refresh_token else None)
+        # The upload is a PUT, but resending it after a timeout or 5xx could
+        # repeat data the job already accepted, so those failures are not
+        # resent (#1920). A 401 refresh or a 429 proves nothing was processed.
+        resp = request_raw(
+            self, "PUT", send, self.refresh_access_token if self._refresh_token else None,
+            retry_uncertain=False,
+        )
         if resp.status_code not in (200, 201):
             detail = self._safe_upstream_detail(resp.text)
             raise ConnectorError(

@@ -118,9 +118,16 @@ class RefreshOn401:
 
 def request_raw(
     connector, method: str, send: Callable, refresh: Callable | None,
-    *, unauthorized: Callable | None = None,
+    *, unauthorized: Callable | None = None, retry_uncertain: bool = True,
 ):
-    """Apply the JSON transport's retry and refresh rules to multipart/CSV I/O."""
+    """Apply the JSON transport's retry and refresh rules to multipart/CSV I/O.
+
+    ``retry_uncertain=False`` is for writes that are unsafe to repeat when the
+    outcome is unknown (#1920): a transport failure or 5xx raises
+    ``ConnectorError`` without a resend, even for a method that is normally
+    retried. Responses that prove the request was not processed keep their
+    handling: the single 401 refresh replay, and a resend after a 429 wait.
+    """
     import requests
 
     auth = RefreshOn401(refresh, unauthorized)
@@ -132,6 +139,8 @@ def request_raw(
             response = auth.send(send)
         except requests.RequestException as exc:
             last_failure = type(exc).__name__
+            if not retry_uncertain:
+                break
         else:
             if response.status_code in (401, 403):
                 raise ConnectorAuthError(f"CRM authentication failed ({response.status_code})")
@@ -147,6 +156,8 @@ def request_raw(
             if not 500 <= response.status_code < 600:
                 return response
             last_failure = f"HTTP {response.status_code}"
+            if not retry_uncertain:
+                break
         if attempt < attempts:
             time.sleep(backoff_wait(connector._retry_backoff, attempt, max_retry_wait))
-    raise ConnectorError(f"CRM bulk transfer failed after {attempts} attempts: {last_failure}")
+    raise ConnectorError(f"CRM bulk transfer failed after {attempt} attempts: {last_failure}")
