@@ -41,6 +41,7 @@ from siege_utilities.connectors._protocol import (
     ConnectorAuthError,
     ConnectorError,
     ConnectorNotFoundError,
+    ConnectorRateLimitError,
     UpsertResult,
     _SecretRedactionMixin,
     sanitize_record,
@@ -272,6 +273,13 @@ class DynamicsConnector(_SecretRedactionMixin):
             fields: Columns ($select). ``None`` for defaults.
             filters: Key-value pairs translated to OData $filter.
             limit: Maximum records ($top). ``None`` for all; zero returns no rows.
+
+        Returns:
+            One row per record. Besides the selected columns, the frame keeps
+            any formatted-value annotation Dynamics returns, as an extra column
+            named ``<field>@OData.Community.Display.V1.FormattedValue`` (for
+            example the industry label beside ``industrycode``). Drop those
+            columns if only raw values are wanted.
         """
         entity_set = STANDARD_ENTITIES.get(object_type, object_type)
         columns = fields or DEFAULT_COLUMNS.get(entity_set, [])
@@ -548,10 +556,36 @@ class DynamicsConnector(_SecretRedactionMixin):
                 "upsert_records(%s): batch %d/%d (%d records)",
                 object_type, batch_idx + 1, len(batches), len(batch),
             )
-            result = self._batch_upsert(
-                entity_set, batch, match_field,
-                base_index=batch_idx * BATCH_SIZE,
-            )
+            try:
+                result = self._batch_upsert(
+                    entity_set, batch, match_field,
+                    base_index=batch_idx * BATCH_SIZE,
+                )
+            except (ConnectorAuthError, ConnectorRateLimitError):
+                # Authentication and rate limits stop the whole upsert (#1417).
+                raise
+            except ConnectorError as exc:
+                # A transport or server failure on one $batch request fails only
+                # that batch's records; completed batches still count, matching
+                # HubSpot and Zoho (#1920).
+                self._log.warning(
+                    "upsert_records(%s): batch %d/%d failed: %s",
+                    object_type, batch_idx + 1, len(batches), type(exc).__name__,
+                )
+                # _batch_upsert calls request_raw directly, so this exception
+                # never crossed the public-edge redaction boundary; redact the
+                # configured credentials in every encoding before it becomes
+                # returned data (#1920).
+                detail = self._redact_field(str(exc))
+                all_errors.extend(
+                    UpsertError(
+                        record_index=batch_idx * BATCH_SIZE + i,
+                        message=f"Dynamics batch failed: {detail}",
+                    )
+                    for i in range(len(batch))
+                )
+                total_failure += len(batch)
+                continue
             total_success += result.success_count
             total_failure += result.failure_count
             all_created.extend(result.created_ids)
@@ -904,6 +938,10 @@ class DynamicsConnector(_SecretRedactionMixin):
         ``Authorization``) are redacted from this call's diagnostics, including
         a nested token refresh. *headers* is read once per call and that copy is
         sent on every attempt, so the values sent are the values registered.
+
+        Returns the decoded JSON body. A 204 response has no body: the result
+        is ``{"OData-EntityId": <url>}`` when Dynamics sends that header (for
+        example after a create or update), otherwise ``{}``.
         """
         snapshot = self._register_request_headers(headers)
         if snapshot is not None:
