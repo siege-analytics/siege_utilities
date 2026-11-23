@@ -2,7 +2,7 @@
 Base Person model with comprehensive validation and credential management.
 """
 
-from pydantic import SecretStr, BaseModel, Field, field_validator, ConfigDict
+from pydantic import SecretStr, SecretBytes, BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 from dataclasses import fields, is_dataclass
@@ -20,7 +20,7 @@ from .credential import Credential, OnePasswordCredential
 from .google_account import GoogleAccount
 from .oauth_integration import OAuthIntegration
 from .database_connection import DatabaseConnection
-from ._sensitivity import SECRET_FIELD_NAME
+from ._sensitivity import SECRET_FIELD_NAME, field_has_sensitive_name
 
 __all__ = ["Person"]
 
@@ -631,15 +631,84 @@ def _convert_to_yaml_safe(obj: Any) -> Any:
 
 
 _REDACTED = '***REDACTED***'
+
+
+# Sized builtin types whose genuinely empty value carries no secret and is
+# preserved in a sensitive position (matching develop's empty-value behaviour).
+# Dispatch is by class IDENTITY (``exact is cls``), never ``in`` membership or
+# ``==``, so a hostile metaclass cannot forge a match and emptiness is decided by
+# ``len`` on the real builtin rather than an attacker-controlled ``__eq__``.
+_SIZED_EMPTY_TYPES = (str, bytes, list, dict, tuple, set, frozenset)
+
+# Reference empty/zero forms by exact type. This is DATA ONLY: it is never used
+# for the redaction decision (which dispatches by class identity plus ``len``),
+# so no attacker-influenced ``in`` membership or ``==`` touches it. It documents
+# the preserved forms and lets tests confirm the redactor returns the input's own
+# empty object rather than a shared sentinel.
+_EMPTY_SENTINELS = {
+    str: '', bytes: b'', list: [], dict: {}, tuple: (),
+    set: set(), frozenset: frozenset(), int: 0, float: 0.0, bool: False,
+}
+
+
+def _redact_sensitive_value(value: Any) -> Any:
+    """Redact a value whose field or key is classified sensitive.
+
+    Fail-closed allowlist decided purely by class IDENTITY (``type(v) is cls``),
+    with no hashing, no ``in`` membership, and no ``==`` against anything an
+    attacker can influence. ``None`` stays ``None``. Otherwise a value is
+    preserved only when:
+
+    * its exact type is a sized builtin (``str``, ``bytes``, ``list``, ``dict``,
+      ``tuple``, ``set``, ``frozenset``) and it is empty by ``len``; or
+    * its exact type is ``bool``/``int``/``float`` and it is that type's zero
+      (``False``, ``0``, ``0.0``; ``-0.0`` is preserved, ``NaN``/``inf`` are
+      redacted); or
+    * it is exactly ``SecretStr`` or ``SecretBytes`` AND its raw payload is
+      exactly ``str``/``bytes`` with ``len`` 0 -- an empty Pydantic secret, which
+      carries no secret and which the model defaults rely on for a working
+      export -> import round-trip.
+
+    Everything else is redacted: any non-empty value, any custom object, any
+    metaclass-forged type, and any SUBCLASS of ``str``/``bytes``/``SecretStr``/
+    ``SecretBytes`` -- even one whose ``__eq__`` lies or that unwraps to empty --
+    because identity dispatch never matches a subclass and the raw secret
+    payload's type is checked exactly. A sensitive position therefore cannot
+    export a wrapped or custom-object credential as plaintext.
+    """
+    if value is None:
+        return None
+    exact = type(value)
+    if any(exact is cls for cls in _SIZED_EMPTY_TYPES):
+        return value if len(value) == 0 else _REDACTED
+    if exact is bool:
+        return value if value is False else _REDACTED
+    if exact is int:
+        return value if value == 0 else _REDACTED
+    if exact is float:
+        # 0.0 and -0.0 are preserved; NaN and inf compare unequal to 0.0.
+        return value if value == 0.0 else _REDACTED
+    if exact is SecretStr or exact is SecretBytes:
+        raw = value.get_secret_value()
+        expected = bytes if exact is SecretBytes else str
+        if type(raw) is expected and len(raw) == 0:
+            return value
+        return _REDACTED
+    return _REDACTED
 _URL_PASSWORD = re.compile(r'([a-zA-Z][a-zA-Z0-9+.-]*://[^\s/:?#@]*:)[^\s/?#]*(@)')
 
 
 def _sensitive_name(name: Any) -> bool:
-    """Conservatively classify unmarked fields and free-form metadata keys."""
-    return (
-        isinstance(name, str)
-        and SECRET_FIELD_NAME.search(name) is not None
-    )
+    """Classify metadata keys without changing their output representation."""
+    if isinstance(name, (bytes, bytearray)):
+        try:
+            name = name.decode('utf-8')
+        except UnicodeDecodeError:
+            return True
+    if isinstance(name, str):
+        return SECRET_FIELD_NAME.search(name) is not None
+    # Numeric/null keys cannot name credentials; unknown key types fail closed.
+    return not isinstance(name, (int, float, bool, type(None)))
 
 
 def _strip_sensitive_fields(data: Any) -> Any:
@@ -647,7 +716,8 @@ def _strip_sensitive_fields(data: Any) -> Any:
 
     A field's ``json_schema_extra['sensitive']`` declares its policy. True
     redacts the entire value; False explicitly permits a non-secret field.
-    Unmarked secret-like names fail closed, including in free-form metadata.
+    Unmarked secret-like names and aliases fail closed. Metadata keys also
+    fail closed for unknown types or bytes that cannot be decoded as UTF-8.
     Secrets with innocuous names (e.g. ``pin`` or ``material``) are covered
     only by an explicit ``sensitive`` marker, not by the name floor.
     Empty values remain empty, and public containers are still traversed.
@@ -664,11 +734,14 @@ def _strip_sensitive_fields(data: Any) -> Any:
             value = getattr(data, name)
             extra = field.json_schema_extra
             policy = extra.get('sensitive') if isinstance(extra, dict) else None
-            sensitive = policy is True or (policy is not False and _sensitive_name(name))
-            result[name] = (
-                _REDACTED if value else value
-            ) if sensitive else _strip_sensitive_fields(value)
-        if data.model_extra:
+            sensitive = policy is True or (policy is not False and field_has_sensitive_name(name, field))
+            # A sensitive field is redacted via _redact_sensitive_value (a
+            # fail-closed allowlist that, by exact class identity, preserves only
+            # a genuinely empty builtin or an exact empty SecretStr/SecretBytes
+            # and redacts the whole value otherwise); a non-sensitive value is
+            # recursed, including falsey ones.
+            result[name] = _redact_sensitive_value(value) if sensitive else _strip_sensitive_fields(value)
+        if data.model_extra is not None:
             result.update(_strip_sensitive_fields(data.model_extra))
         return result
     if is_dataclass(data) and not isinstance(data, type):
@@ -676,7 +749,11 @@ def _strip_sensitive_fields(data: Any) -> Any:
                                         for field in fields(data)})
     if isinstance(data, dict):
         return {
-            name: (_REDACTED if value else value) if _sensitive_name(name)
+            # A sensitive mapping key redacts its value via _redact_sensitive_value
+            # (fail-closed allowlist by exact class identity: only a genuinely
+            # empty builtin or an exact empty SecretStr/SecretBytes is kept); a
+            # non-sensitive key recurses, including falsey values.
+            name: _redact_sensitive_value(value) if _sensitive_name(name)
             else _strip_sensitive_fields(value)
             for name, value in data.items()
         }
