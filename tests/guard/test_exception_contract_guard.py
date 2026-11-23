@@ -10,6 +10,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts/check_exception_contracts.py"
+WRAPPER = ROOT / "scripts/check_broad_except.py"
 SPEC = importlib.util.spec_from_file_location("exception_guard", SCRIPT)
 guard = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(guard)
@@ -18,6 +19,15 @@ SPEC.loader.exec_module(guard)
 def run_guard(root):
     return subprocess.run(
         [sys.executable, "-I", str(SCRIPT), "--root", str(root), "--list"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+
+def run_wrapper(root):
+    return subprocess.run(
+        [sys.executable, "-I", str(WRAPPER), "--root", str(root)],
         capture_output=True,
         text=True,
         timeout=30,
@@ -160,6 +170,216 @@ def test_reraises_are_accepted(tmp_path, body):
         f"def f() -> object:\n    try:\n        work()\n    except Exception as exc:\n        {body}\n",
     )
     assert run_guard(tmp_path).returncode == 0
+
+
+@pytest.mark.parametrize(
+    "catch, body",
+    [
+        pytest.param(" Exception", "if strict:\n            raise\n        log()", id="raise-in-if"),
+        pytest.param(
+            " BaseException",
+            "try:\n            forward()\n        except StopIteration:\n            return\n"
+            "        except Exception as exc:\n            raise Wrapped() from exc",
+            id="raise-in-inner-try",
+        ),
+        pytest.param("", "if strict:\n            raise RuntimeError('x')\n        return None", id="bare-then-return"),
+    ],
+)
+def test_conditional_raise_does_not_exempt_a_broad_handler(tmp_path, catch, body):
+    plant(tmp_path, f"def f():\n    try:\n        work()\n    except{catch}:\n        {body}\n")
+    result = run_guard(tmp_path)
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "::BROAD::" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        pytest.param(
+            "def f():\n    try:\n        work()\n    except Exception:\n"
+            "        if flag:\n            return {'ok': True}\n        raise\n",
+            id="if-return-then-raise",
+        ),
+        pytest.param(
+            "def f():\n    try:\n        work()\n    except Exception:\n"
+            "        try:\n            cleanup()\n        finally:\n            return None\n        raise\n",
+            id="finally-return",
+        ),
+        pytest.param(
+            "def f():\n    for item in items:\n        try:\n            work(item)\n        except Exception:\n"
+            "            if flag:\n                break\n            raise\n",
+            id="break-in-loop",
+        ),
+        pytest.param(
+            "def f():\n    for item in items:\n        try:\n            work(item)\n        except Exception:\n"
+            "            if flag:\n                continue\n            raise\n",
+            id="continue-in-loop",
+        ),
+        pytest.param(
+            "async def f():\n    try:\n        await work()\n    except Exception:\n"
+            "        if flag:\n            return None\n        raise\n",
+            id="async-return",
+        ),
+        pytest.param(
+            "def f():\n    try:\n        work()\n    except Exception:\n"
+            "        value = yield None\n        raise\n",
+            id="assigned-yield",
+        ),
+    ],
+)
+def test_an_escape_before_the_final_raise_does_not_exempt_a_broad_handler(tmp_path, source):
+    plant(tmp_path, source)
+    result = run_guard(tmp_path)
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "::BROAD::" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "definition",
+    [
+        pytest.param("def nested(value=(yield {'ok': True})):\n            pass", id="function-default"),
+        pytest.param("def nested(*, value=(yield {'ok': True})):\n            pass", id="keyword-only-default"),
+        pytest.param("async def nested(value=(yield {'ok': True})):\n            pass", id="async-function-default"),
+        pytest.param("report = lambda value=(yield {'ok': True}): value", id="lambda-default"),
+        pytest.param("class C((yield {'ok': True})):\n            pass", id="class-base"),
+        pytest.param("class C(metaclass=(yield {'ok': True})):\n            pass", id="class-keyword"),
+        pytest.param("@(yield {'ok': True})\n        def nested():\n            pass", id="decorator"),
+    ],
+)
+def test_a_yield_in_definition_time_code_is_an_escape(tmp_path, definition):
+    plant(
+        tmp_path,
+        f"def f():\n    try:\n        work()\n    except Exception:\n        {definition}\n        raise\n",
+    )
+    result = run_guard(tmp_path)
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "::BROAD::" in result.stdout
+
+
+def test_a_return_inside_a_nested_definition_does_not_count_as_an_escape(tmp_path):
+    plant(
+        tmp_path,
+        "def f():\n    try:\n        work()\n    except Exception:\n"
+        "        def describe():\n            return 'failed'\n"
+        "        report = lambda: (yield)\n"
+        "        raise RuntimeError(describe())\n",
+    )
+    assert run_guard(tmp_path).returncode == 0
+
+
+@pytest.mark.parametrize(
+    "allowlist",
+    [
+        pytest.param('{"KEY": ""}', id="empty-justification"),
+        pytest.param('{"KEY": 17}', id="non-string-justification"),
+        pytest.param('["KEY"]', id="list-not-mapping"),
+    ],
+)
+def test_malformed_allowlist_is_rejected_by_guard_and_wrapper_alike(tmp_path, allowlist):
+    plant(tmp_path, "def f():\n    try:\n        work()\n    except Exception:\n        log()\n")
+    custom = tmp_path / "custom_allowlist.json"
+    custom.write_text(allowlist.replace("KEY", guard.scan(tmp_path)[0]["key"]))
+    for script in (SCRIPT, WRAPPER):
+        result = subprocess.run(
+            [sys.executable, "-I", str(script), "--root", str(tmp_path), "--allowlist", str(custom)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode == 2, (script.name, result.stdout, result.stderr)
+        assert guard.ALLOWLIST_ERROR in result.stderr, (script.name, result.stderr)
+
+
+def _run_script(script, root):
+    return subprocess.run(
+        [sys.executable, "-I", str(script), "--root", str(root)],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+
+@pytest.mark.parametrize("shape", ["missing", "empty", "no-package"])
+def test_a_root_without_siege_utilities_fails_both_scripts(tmp_path, shape):
+    root = tmp_path / "root"
+    if shape != "missing":
+        root.mkdir()
+    if shape == "no-package":
+        (root / "scripts").mkdir()
+        (root / "README.md").write_text("not a checkout\n", encoding="utf-8")
+    for script in (SCRIPT, WRAPPER):
+        result = _run_script(script, root)
+        assert result.returncode == 1, (script.name, result.stdout, result.stderr)
+        assert f"ERROR: source root not found: {root / 'siege_utilities'}" in result.stderr, (
+            script.name, result.stderr,
+        )
+        assert "OK" not in result.stdout
+
+
+def test_a_planted_root_still_passes_both_scripts(tmp_path):
+    plant(tmp_path, "def f():\n    try:\n        work()\n    except ValueError:\n        raise\n")
+    for script in (SCRIPT, WRAPPER):
+        result = _run_script(script, tmp_path)
+        assert result.returncode == 0, (script.name, result.stdout, result.stderr)
+
+
+def test_broad_handler_ending_in_raise_after_logging_is_accepted(tmp_path):
+    plant(
+        tmp_path,
+        "def f() -> object:\n    try:\n        work()\n    except Exception as exc:\n"
+        "        log.error('failed')\n        cleanup()\n        raise RuntimeError('failed') from exc\n",
+    )
+    assert run_guard(tmp_path).returncode == 0
+
+
+def test_conditional_raise_still_exempts_narrow_handlers_from_default_and_log_rules(tmp_path):
+    plant(
+        tmp_path,
+        "def f() -> object:\n    for x in things:\n        try:\n            work()\n"
+        "        except ValueError:\n            if strict:\n                raise\n            continue\n"
+        "    return result\n",
+    )
+    assert run_guard(tmp_path).returncode == 0
+
+
+def test_conditional_raise_in_a_broad_data_handler_reports_only_broad(tmp_path):
+    plant(
+        tmp_path,
+        "def f() -> object:\n    for x in things:\n        try:\n            work()\n"
+        "        except Exception:\n            if strict:\n                raise\n            continue\n"
+        "    return result\n",
+    )
+    result = run_guard(tmp_path)
+    assert result.returncode == 1
+    assert "::BROAD::" in result.stdout
+    assert "::DEFAULT::" not in result.stdout and "::LOGONLY::" not in result.stdout
+
+
+def test_broad_except_wrapper_passes_on_the_repository():
+    result = run_wrapper(ROOT)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "unreviewed: 0" in result.stdout
+
+
+def test_broad_except_wrapper_fails_on_an_unreviewed_broad_handler(tmp_path):
+    plant(tmp_path, "def f():\n    try:\n        work()\n    except Exception:\n        if strict:\n            raise\n")
+    result = run_wrapper(tmp_path)
+    assert result.returncode == 1
+    assert "unreviewed: 1" in result.stdout
+
+
+def test_broad_except_wrapper_accepts_a_reviewed_broad_handler(tmp_path):
+    plant(tmp_path, "def f():\n    try:\n        work()\n    except Exception:\n        log()\n")
+    allow = {item["key"]: "Reviewed test fixture" for item in guard.scan(tmp_path)}
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts/exception_contracts_allowlist.json").write_text(json.dumps(allow))
+    assert run_wrapper(tmp_path).returncode == 0
+
+
+def test_broad_except_wrapper_ignores_narrow_findings(tmp_path):
+    plant(tmp_path, "def f() -> object:\n    try:\n        work()\n    except ValueError:\n        return None\n")
+    assert run_guard(tmp_path).returncode == 1
+    assert run_wrapper(tmp_path).returncode == 0
 
 
 def test_finally_destructor_and_registered_signal_exemptions(tmp_path):
