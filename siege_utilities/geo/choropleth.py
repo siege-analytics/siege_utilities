@@ -253,6 +253,19 @@ def _compute_bivariate_classes(
     return gdf, np.asarray(var1_bins), np.asarray(var2_bins)
 
 
+def _upper_inclusive_boundaries(breaks: np.ndarray) -> np.ndarray:
+    """BoundaryNorm edges that colour each value by its classify_series bin.
+
+    classify_series bins are upper-inclusive: a value equal to an internal
+    edge belongs to the lower class. BoundaryNorm is lower-inclusive, so each
+    internal edge moves to the next float64 above it. Any float64 value above
+    the original edge is at least that large, so the classes agree exactly.
+    """
+    boundaries = np.asarray(breaks, dtype=np.float64).copy()
+    boundaries[1:-1] = np.nextafter(boundaries[1:-1], np.inf)
+    return boundaries
+
+
 # =============================================================================
 # PUBLIC FUNCTIONS
 # =============================================================================
@@ -320,7 +333,9 @@ def create_choropleth(
         plot_kwargs['k'] = k
     elif scheme is not None:
         cr = classify_series(gdf[column], scheme=scheme, k=k)
-        norm = mcolors.BoundaryNorm(cr.breaks, plt.get_cmap(cmap).N)
+        norm = mcolors.BoundaryNorm(
+            _upper_inclusive_boundaries(cr.breaks), plt.get_cmap(cmap).N,
+        )
         plot_kwargs['norm'] = norm
         plot_kwargs.pop('legend', None)
         plot_kwargs['legend'] = True
@@ -538,8 +553,8 @@ def create_bivariate_choropleth(
     ax_legend.set_yticks(np.arange(len(var2_breaks)) - 0.5)
     ax_legend.set_yticklabels(var2_labels, fontsize=7)
 
-    ax_legend.set_xlabel(f'{var1} \u2192', fontsize=10)
-    ax_legend.set_ylabel(f'{var2} \u2192', fontsize=10)
+    ax_legend.set_xlabel(f'{var1} →', fontsize=10)
+    ax_legend.set_ylabel(f'{var2} →', fontsize=10)
     ax_legend.set_title('Legend', fontsize=10)
 
     plt.tight_layout()
@@ -628,7 +643,7 @@ def create_bivariate_crosstab(
         labels = []
         for i in range(len(breaks) - 1):
             labels.append(
-                f"{_format_breakpoint(breaks[i])}\u2013{_format_breakpoint(breaks[i + 1])}"
+                f"{_format_breakpoint(breaks[i])}–{_format_breakpoint(breaks[i + 1])}"
             )
         return labels
 
@@ -692,8 +707,8 @@ def create_bivariate_crosstab(
     ax.set_xticklabels(ct.columns, fontsize=8, rotation=45, ha='right')
     ax.set_yticks(np.arange(var2_count) + 0.5)
     ax.set_yticklabels(ct.index, fontsize=8)
-    ax.set_xlabel(f'{var1} \u2192', fontsize=10)
-    ax.set_ylabel(f'{var2} \u2192', fontsize=10)
+    ax.set_xlabel(f'{var1} →', fontsize=10)
+    ax.set_ylabel(f'{var2} →', fontsize=10)
     ax.set_title('Bivariate Classification Crosstab', fontsize=11)
     ax.set_aspect('equal')
     plt.tight_layout()
