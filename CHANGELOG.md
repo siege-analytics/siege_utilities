@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `scripts/check_exception_contracts.py`, the exception-contract guard that CI
+  runs, no longer exempts a broad handler (bare `except:`, `except Exception`,
+  `except BaseException`) because it raises on some path. Its body must end in
+  a raise, with no return, break, continue or yield anywhere in the handler
+  outside the bodies of nested definitions, or the handler needs a justified
+  entry in `scripts/exception_contracts_allowlist.json`. Four existing
+  handlers that raise only conditionally are now listed there with their
+  reasons. The DEFAULT and LOGONLY rules are unchanged. `scripts/check_broad_except.py`,
+  which kept its own rules and reported 34 already reviewed handlers on every
+  run, now delegates to that guard, reads the allow-list through the guard's
+  own validating loader, and reports broad handlers without a reviewed entry.
+  Both scripts exit 1 with "source root not found" when `--root` has no
+  `siege_utilities/` directory, instead of scanning nothing and passing
+  (#1971).
+
 ## [6.0.0] - 2026-11-22
 
 ### BREAKING
