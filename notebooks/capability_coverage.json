@@ -18,7 +18,8 @@
       "notebooks": [
         "analytics/01_connectors.ipynb",
         "analytics/02_ga_end_to_end.ipynb",
-        "analytics/03_social_media_analytics.ipynb"
+        "analytics/03_social_media_analytics.ipynb",
+        "acceptance/release_seams.ipynb"
       ]
     },
     "conf": {
@@ -63,7 +64,8 @@
       "notebooks": [
         "engines/01_multi_engine_dataframes.ipynb",
         "engines/04_statistics_primitives.ipynb",
-        "playground/01_geocoding_data_quality.ipynb"
+        "playground/01_geocoding_data_quality.ipynb",
+        "acceptance/release_seams.ipynb"
       ]
     },
     "databricks": {
@@ -122,7 +124,8 @@
         "spatial/03_choropleth_maps.ipynb",
         "spatial/04_redistricting.ipynb",
         "spatial/05_multi_source_joins.ipynb",
-        "spatial/07_natural_language_to_geometry.ipynb"
+        "spatial/07_natural_language_to_geometry.ipynb",
+        "acceptance/release_seams.ipynb"
       ]
     },
     "git": {

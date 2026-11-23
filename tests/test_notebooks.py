@@ -64,6 +64,8 @@ _NOTEBOOK_ENV_KEYS = [
 # helper resolves the absolute path at test time.
 
 NOTEBOOK_GROUPS: dict[str, list[str]] = {
+    # Offline installed-wheel release seam acceptance: explicit provenance, both lanes.
+    "release_acceptance": ["acceptance/release_seams.ipynb"],
     # Pure Python — no system libs, no external services. Always runnable.
     "pure": [
         "foundations/01_configuration.ipynb",
@@ -532,3 +534,51 @@ class TestNotebookOutputValidation:
         all_text = "\n".join(outputs)
         assert any(term in all_text.lower() for term in ("polsby", "reock", "compactness")), \
             "spatial/04_redistricting should show compactness scores"
+
+
+# ---------------------------------------------------------------------------
+# Offline release acceptance: explicit source/wheel/environment provenance.
+# This integration group is a REQUIRED separate release lane, not a credential
+# or optional-GDAL skip. Run it explicitly with -m integration in BOTH envs.
+# ---------------------------------------------------------------------------
+
+
+def _release_acceptance_command(nb_path: Path, env: dict) -> list[str]:
+    import sys
+
+    keys = ("SU_RELEASE_ACCEPTANCE_REPO", "SU_RELEASE_ACCEPTANCE_SHA",
+            "SU_RELEASE_ACCEPTANCE_WHEEL", "SU_RELEASE_ACCEPTANCE_RUNS",
+            "SU_RELEASE_ACCEPTANCE_LANE")
+    missing = [key for key in keys if not env.get(key)]
+    assert not missing, "Release acceptance requires explicit provenance: " + ", ".join(missing)
+    assert env["SU_RELEASE_ACCEPTANCE_LANE"] in ("shapely-only", "tobler")
+    command = [sys.executable, "-I", str(REPO_ROOT / "scripts" / "run_release_seams.py"),
+               "--repo", env[keys[0]], "--expected-sha", env[keys[1]],
+               "--wheel", env[keys[2]], "--runs", env[keys[3]],
+               "--lane", env[keys[4]], "--notebook", str(nb_path)]
+    archive = env.get("SU_RELEASE_ACCEPTANCE_SOURCE_PROVENANCE")
+    composition = env.get("SU_RELEASE_ACCEPTANCE_COMPOSITION_PROVENANCE")
+    assert not (archive and composition), "Source modes are mutually exclusive"
+    if archive:
+        command += ["--source-provenance", archive]
+    if composition:
+        tree = env.get("SU_RELEASE_ACCEPTANCE_COMPOSITION_TREE")
+        assert tree, "Component diagnostics require their explicit content tree"
+        command += ["--composition-provenance", composition, "--expected-composition-tree", tree]
+    return command
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("nb_rel", NOTEBOOK_GROUPS["release_acceptance"], ids=_ids("release_acceptance"))
+def test_release_acceptance_notebook(nb_rel: str) -> None:
+    import subprocess
+
+    # Missing provenance fails, never skips. The standalone runner verifies all
+    # installed wheel members, source identity, both lane requirements and ANY
+    # failed/unexecuted cell; successful evidence is retained too.
+    notebook = NOTEBOOKS_DIR / nb_rel
+    assert notebook.is_file(), "Registered release notebook is missing"
+    command = _release_acceptance_command(notebook, os.environ)
+    result = subprocess.run(command, text=True, capture_output=True, timeout=900)
+    print(result.stdout)
+    assert result.returncode == 0, result.stdout + "\n" + result.stderr
