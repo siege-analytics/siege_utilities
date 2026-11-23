@@ -15,7 +15,7 @@ Installation
    pip install siege-utilities
 
    # Geospatial — geopandas, shapely, pyproj, fiona, pysal, etc.
-   # Pure-Python (bundled-GDAL wheels); needs NO system GDAL.
+   # Compatible binary wheels need no system GDAL; Fiona/Pyogrio source builds do.
    pip install siege-utilities[geo]
 
    # GeoDjango spatial platform (system libgdal at runtime + PostgreSQL)

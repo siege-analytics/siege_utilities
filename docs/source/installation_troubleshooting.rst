@@ -77,7 +77,7 @@ Choosing the Right Extras
      - System GDAL?
      - What You Get
    * - ``[geo]``
-     - No (bundled in wheels)
+     - No with compatible wheels; source builds of Fiona or Pyogrio need it
      - GeoPandas, Shapely, Fiona, PyProj, spatial joins, choropleths,
        isochrones, interpolation — the full pure-Python geo stack
    * - ``[gdal]``
@@ -93,8 +93,9 @@ Common Errors
 --------------
 
 **"Could not find GDAL library" (django.core.exceptions.ImproperlyConfigured)**
-    Only relevant to GeoDjango/PostGIS. Install system GDAL
-    (``gdal-bin libgdal-dev``); plain ``[geo]`` does not need it.
+    For GeoDjango/PostGIS, install system GDAL (``gdal-bin libgdal-dev``).
+    The ``[geo]`` extra avoids system GDAL when compatible Fiona and Pyogrio
+    wheels are available; building either package from source needs libgdal.
 
 **"OSError: cannot load library 'libgeos_c.so'"**
     GEOS not installed (GeoDjango path). On Ubuntu: ``sudo apt install libgeos-dev``.

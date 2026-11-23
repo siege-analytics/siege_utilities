@@ -34,7 +34,7 @@ They are designed to work together (the ZSH config sets up `SPARK_HOME`, `JAVA_H
 | 3.13 | **Supported** | Allow-failure while stabilizing |
 | 3.14 | **Experimental** | Not yet in CI (awaiting ecosystem wheels) |
 
-The library requires Python 3.11+. The `[geo]` extra installs a pure-Python geospatial stack (GeoPandas, Shapely, Fiona, PyProj) whose wheels bundle their own GDAL/GEOS/PROJ — so `[geo]` needs **no system GDAL**. The native OSGeo bindings (`from osgeo import gdal`) are a separate opt-in `[gdal]` extra that requires a system libgdal matching the wheel version (see [Installation Options](#installation-options)). GeoDjango/PostGIS (`[geodjango]`) loads the system libgdal at runtime.
+The library requires Python 3.11+. With compatible binary wheels, the `[geo]` extra installs GeoPandas, Shapely, Fiona, Pyogrio and PyProj without system GDAL. If pip must build Fiona or Pyogrio from source, install the matching system `libgdal` development files first. The native OSGeo bindings (`from osgeo import gdal`) are a separate opt-in `[gdal]` extra that requires a system libgdal matching the wheel version (see [Installation Options](#installation-options)). GeoDjango/PostGIS (`[geodjango]`) loads the system libgdal at runtime.
 
 ## Install
 
@@ -409,7 +409,7 @@ report_gen.generate_pdf_report(report_content, output_path="report.pdf")
 pip install siege-utilities
 
 # Add extras for what you need
-pip install siege-utilities[geo]              # geopandas, fiona, shapely, pyproj, tobler, pysal — NO system GDAL needed (bundled wheels)
+pip install siege-utilities[geo]              # usually no system GDAL with compatible binary wheels; source builds of Fiona/Pyogrio need it
 pip install siege-utilities[geodjango]        # geo use + Django, DRF, PostGIS (system libgdal at runtime)
 pip install siege-utilities[data]             # pandas, numpy, openpyxl, faker
 pip install siege-utilities[reporting]        # matplotlib, seaborn, folium, plotly, reportlab
@@ -418,7 +418,7 @@ pip install siege-utilities[distributed]      # PySpark, Apache Sedona
 pip install siege-utilities[config-extras]    # Hydra, hydra-zen, omegaconf
 pip install siege-utilities[web]              # BeautifulSoup, lxml
 pip install siege-utilities[database]         # SQLAlchemy, psycopg2
-pip install siege-utilities[all]              # Everything (no system GDAL; add [gdal] separately for osgeo)
+pip install siege-utilities[all]              # All extras; source builds of Fiona/Pyogrio may need system GDAL
 
 # Native OSGeo bindings (only if you import `osgeo` directly) — pin to your
 # system libgdal; this is the path CI exercises. A bare [geo,gdal] resolves
