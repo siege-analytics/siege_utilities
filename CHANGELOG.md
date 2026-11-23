@@ -23,6 +23,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Both scripts exit 1 with "source root not found" when `--root` has no
   `siege_utilities/` directory, instead of scanning nothing and passing
   (#1971).
+- CI (`.github/workflows/ci.yml`) audit (#1986). The `battle-test` job, which
+  reran the `test (3.11)` selection after it passed, now runs only on manual
+  `workflow_dispatch` runs. The `static guards` job also runs
+  `scripts/check_credential_urls.py`. The error-path coverage step and the griffe
+  API diff are named advisory, the `flake8 --exit-zero` statistics line is
+  removed, and the job comments state which matrix entries the `develop`
+  ruleset requires. `scripts/README.md` lists the guards CI does not run as
+  local-only tools. The one-off `verify_round6_hardening.py` to
+  `verify_round9_hardening.py` and `verify_batch1_1373.py` scripts, and
+  `check_security.py`, which the CI bandit step replaces, moved to
+  `scripts/archive/`.
 
 ## [6.0.0] - 2026-11-22
 
