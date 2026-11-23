@@ -85,6 +85,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   surfaces as `ConnectorError` instead of being retried. Check the job's state
   in Salesforce before running the bulk call again; the failed job is left
   open and is not closed.
+- `CompositeEngine.create_dashboard` validates one `labels`/`datasets` schema
+  for bar, line, pie and scatter subplots and plots every dataset with a
+  legend (multiple pie datasets as concentric rings). Overflowing layouts,
+  unknown chart types and invalid datasets now raise `RuntimeError`
+  ("Dashboard Error: ...") naming the affected chart, instead of logging the
+  subplot error and returning a partial image. The bar engine's `group_by`
+  draws side-by-side grouped bars with a legend (repeated category/group pairs
+  are summed, missing pairs left unplotted); horizontal bars are annotated at
+  their ends; labels keep fractional values and accept `value_format`. Text
+  heatmaps align two-character headers and mark missing cells without
+  including them in the intensity scale; pie legends show `0.0%` for zero
+  totals and `n/a` for non-finite totals (#1556). **Migration:** convert
+  dashboard chart configs to the documented `labels`/`datasets` schema, and
+  catch `RuntimeError` (or fix the config) where a partial dashboard image was
+  previously accepted; expect grouped rather than single-series bars when
+  passing `group_by`.
 
 ### Changed
 

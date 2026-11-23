@@ -5,6 +5,7 @@ Bar, line, pie, and proportional text bar chart mixins.
 from __future__ import annotations
 
 import logging
+from math import isfinite
 from typing import Dict, List, Any, Union
 
 from .._markup import _escape_paragraph
@@ -50,7 +51,8 @@ class BarChartMixin:
                         x_column: str = None, y_column: str = None,
                         title: str = "", width: float = 6.0, height: float = 4.0,
                         chart_type: str = "bar", group_by: str = None,
-                        show_legend: bool = True, legend_position: str = "best") -> Image:
+                        show_legend: bool = True, legend_position: str = "best",
+                        value_format: str = None) -> Image:
         """
         Create a bar chart from data.
 
@@ -62,7 +64,11 @@ class BarChartMixin:
             width: Chart width in inches
             height: Chart height in inches
             chart_type: Type of chart ('bar', 'horizontal')
-            group_by: Column to group by for grouped bars
+            group_by: Column for side-by-side series. Repeated category/group
+                pairs are summed; missing pairs are not plotted.
+            value_format: Optional Python format specifier (e.g. ',.2f' or
+                '.1%'). Defaults to integers for all-integer data, otherwise
+                six significant digits, including small fractional values.
 
         Returns:
             ReportLab Image object
@@ -100,13 +106,47 @@ class BarChartMixin:
             fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
             fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
 
-            # Create chart
+            # Keep categories in input order and give each group its own slot.
+            bars = []
+            if group_by:
+                grouped = pd.DataFrame({
+                    'category': x_values, 'group': df[group_by].tolist(),
+                    'value': y_values,
+                }).groupby(['category', 'group'], sort=False, dropna=False,
+                           observed=True)['value'].sum(min_count=1).unstack('group')
+                grouped = grouped.reindex(index=pd.Index(x_values).unique(),
+                                          columns=pd.unique(df[group_by]))
+                if grouped.empty:
+                    raise ValueError("No grouped values found in data for bar chart")
+                positions = np.arange(len(grouped))
+                bar_width = 0.8 / len(grouped.columns)
+                for i, group in enumerate(grouped.columns):
+                    values = grouped[group]
+                    present = values.notna().to_numpy()
+                    offsets = positions + (i - (len(grouped.columns) - 1) / 2) * bar_width
+                    options = {'label': str(group),
+                               'color': self.color_palette[i % len(self.color_palette)]}
+                    if chart_type == 'horizontal':
+                        bars.extend(ax.barh(offsets[present], values[present],
+                                            height=bar_width, **options))
+                    else:
+                        bars.extend(ax.bar(offsets[present], values[present],
+                                           width=bar_width, **options))
+                if chart_type == 'horizontal':
+                    ax.set_yticks(positions, labels=grouped.index)
+                else:
+                    ax.set_xticks(positions, labels=grouped.index)
+            elif chart_type == 'horizontal':
+                bars = ax.barh(x_values, y_values, color=self.default_colors['primary'],
+                               label=y_column)
+            else:
+                bars = ax.bar(x_values, y_values, color=self.default_colors['primary'],
+                              label=y_column)
+
             if chart_type == "horizontal":
-                bars = ax.barh(x_values, y_values, color=self.default_colors['primary'])
                 ax.set_xlabel(y_column)
                 ax.set_ylabel(x_column if x_column != 'index' else 'Index')
             else:
-                bars = ax.bar(x_values, y_values, color=self.default_colors['primary'])
                 ax.set_xlabel(x_column if x_column != 'index' else 'Index')
                 ax.set_ylabel(y_column)
 
@@ -115,14 +155,27 @@ class BarChartMixin:
             ax.grid(True, alpha=0.3)
 
             # Rotate x-axis labels if needed
-            if len(x_values) > 5:
+            if chart_type != 'horizontal' and len(x_values) > 5:
                 plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
 
             # Add value labels on bars
-            for bar in bars:
-                bar_height = bar.get_height()
-                ax.text(bar.get_x() + bar.get_width()/2., bar_height,
-                       f'{bar_height:,.0f}', ha='center', va='bottom')
+            bar_values = [bar.get_width() if chart_type == 'horizontal'
+                          else bar.get_height() for bar in bars]
+            if value_format is None:
+                value_format = ',.0f' if all(
+                    isfinite(value) and float(value).is_integer() for value in bar_values
+                ) else ',.6g'
+            for bar, value in zip(bars, bar_values):
+                if chart_type == 'horizontal':
+                    ax.text(bar.get_x() + bar.get_width(),
+                            bar.get_y() + bar.get_height() / 2,
+                            format(value, value_format),
+                            ha='left' if value >= 0 else 'right', va='center')
+                else:
+                    ax.text(bar.get_x() + bar.get_width() / 2,
+                            bar.get_y() + bar.get_height(),
+                            format(value, value_format), ha='center',
+                            va='bottom' if value >= 0 else 'top')
 
             # Add legend with better positioning
             if show_legend and (group_by or len(y_values) > 1):
@@ -273,10 +326,17 @@ class BarChartMixin:
             else:
                 fig.subplots_adjust(left=0.1, right=0.6, top=0.9, bottom=0.1)
 
-            # Create clean pie chart with NO LABELS AT ALL
-            ax.pie(values, labels=None, autopct=None,
-                   colors=self.color_palette[:len(values)],
-                   startangle=90)
+            # A zero or non-finite total cannot define wedges or percentages.
+            total = sum(values)
+            if any(value < 0 for value in values):
+                raise ValueError("Pie values must be non-negative")
+            if isfinite(total) and total > 0:
+                ax.pie(values, labels=None, autopct=None,
+                       colors=self.color_palette[:len(values)],
+                       startangle=90)
+            else:
+                notice = "No positive values" if total == 0 else "Total unavailable"
+                ax.text(0.5, 0.5, notice, ha='center', va='center', transform=ax.transAxes)
 
             # Customize chart
             ax.set_title(title or "Data Distribution")
@@ -285,8 +345,10 @@ class BarChartMixin:
             # Create legend table instead of matplotlib legend
             if show_legend:
                 # Calculate percentages for the table
-                total = sum(values)
-                percentages = [(v/total)*100 for v in values]
+                percentages = [
+                    f"{value / total * 100:.1f}%" if isfinite(total) and total > 0
+                    else "0.0%" if total == 0 else "n/a" for value in values
+                ]
 
                 # Create legend table data
                 legend_data = []
@@ -295,7 +357,7 @@ class BarChartMixin:
                         "■",  # Color indicator
                         label,
                         f"{value:,}",
-                        f"{pct:.1f}%"
+                        pct
                     ])
 
                 # bbox is [left, bottom, width, height] in axes coordinates.
