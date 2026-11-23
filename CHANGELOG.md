@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### BREAKING
+
+- A Dynamics `upsert_records` call that splits records into batches no longer
+  loses completed batches when a later batch fails in transport or with a
+  server error. The failed batch's records are reported as `UpsertError`
+  entries ("Dynamics batch failed: ...") and the other batches still count,
+  matching HubSpot and Zoho; in 5.0.0 and 6.0.0 the whole call raised
+  `ConnectorError` and discarded the results of earlier batches.
+  Authentication and rate-limit errors still stop the upsert (#1920).
+  **Migration:** code that caught `ConnectorError` from a Dynamics
+  `upsert_records` call to detect a failed batch must check
+  `result.failure_count` and `result.errors` instead; no exception is raised
+  for that case now.
+
 ### Changed
 
 - `scripts/check_exception_contracts.py`, the exception-contract guard that CI
@@ -34,6 +48,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `verify_round9_hardening.py` and `verify_batch1_1373.py` scripts, and
   `check_security.py`, which the CI bandit step replaces, moved to
   `scripts/archive/`.
+
+### Documentation
+
+- Dynamics `get_objects` documents that the returned frame keeps each
+  formatted-value annotation as an extra
+  `<field>@OData.Community.Display.V1.FormattedValue` column, and
+  `DynamicsConnector.request()` documents that a 204 response returns
+  `{"OData-EntityId": <url>}` when that header is present, otherwise `{}`.
+  The behavior is unchanged (#1920).
 
 ## [6.0.0] - 2026-11-22
 
