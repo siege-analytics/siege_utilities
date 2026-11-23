@@ -44,6 +44,18 @@ System GDAL is needed in these cases:
    `Rasterio <https://rasterio.readthedocs.io/en/stable/installation.html>`
    installation prerequisites.
 
+   Avoid mixing a Fiona wheel with Pyogrio built against system GDAL: Fiona's
+   bundled GDAL and the system GDAL used by Pyogrio can be incompatible, causing
+   driver errors even for supported formats. Keep both packages on the same GDAL
+   library. If Pyogrio uses system GDAL, Pyogrio recommends reinstalling Fiona
+   from source against that same library, then restarting the interpreter::
+
+       pip uninstall fiona
+       pip install fiona --no-binary fiona
+
+   See the `Pyogrio installation troubleshooting guide
+   <https://pyogrio.readthedocs.io/en/latest/install.html#troubleshooting-installation-errors>`_.
+
 System Dependencies (only for the cases above)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
