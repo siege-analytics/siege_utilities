@@ -99,17 +99,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   integers or strings of 1 to 5 ASCII digits in range 1-65535, reject booleans,
   and are interpolated as validated integers; `create_database_config` keeps
   its 6.0.0 `port: int` annotation, and digit strings remain a runtime
-  allowance. Conflicting `ssl_mode` and `sslmode` connection parameters raise
-  instead of overriding the requested TLS mode. Core Spark options (`url`,
-  `driver`, `user`, `password`) are applied last so `connection_params` cannot
-  shadow them, and a non-PostgreSQL `ssl_mode` now raises rather than being
-  forwarded as an ignored literal key (#1476).
+  allowance. Conflicting TLS aliases raise instead of overriding the requested
+  TLS mode; for PostgreSQL any spelling of `ssl_mode` or `sslmode` (for example
+  `SSLMODE` or `sslMode`) counts as the same request and reaches the driver as
+  `sslmode`. Core Spark options (`url`, `driver`, `user`, `password`) replace
+  every spelling of those keys in `spark_options` and `connection_params`, so
+  neither can shadow them, and two option keys that differ only by case raise
+  `ValueError` because Spark would keep only one of them. A non-PostgreSQL
+  `ssl_mode` now raises rather than being forwarded as an ignored literal key
+  (#1476).
   **Migration:** pass the port separately from the host and drop any URL
-  characters from host values; resolve conflicting `ssl_mode`/`sslmode`
-  values to one; for non-PostgreSQL drivers set the driver's own TLS option in
-  `spark_options` instead of `ssl_mode`; and set the
-  `DB_<NORMALIZED_NAME>_PASSWORD` variable reported when the config is saved,
-  since an unset reference now raises `ValueError` at load.
+  characters from host values; resolve conflicting TLS aliases, in any
+  spelling, to one value; remove option keys that differ only by case; for
+  non-PostgreSQL drivers set the driver's own TLS option in `spark_options`
+  instead of `ssl_mode`; and set the
+  `DB_<NORMALIZED_NAME>_PASSWORD` variable reported when the config is saved:
+  an unset reference raises `OSError` at load, and a reference whose name is
+  not a valid variable name (for example `${DB_ANALYTICS-DB_PASSWORD}`, as
+  saved by 6.0.0 for the name `analytics-db`) now raises `ValueError`; save
+  the config again or edit the reference by hand.
 
 ### Changed
 

@@ -286,9 +286,13 @@ def get_spark_database_options(db_name: str, config_directory: str = "config") -
     Get Spark-compatible options for database connection.
 
     Non-None connection parameters are forwarded as string-valued JDBC options.
-    For PostgreSQL, ``ssl_mode`` is mapped to the driver's ``sslmode`` property.
-    Conflicting ``ssl_mode`` and ``sslmode`` connection parameters raise.
+    For PostgreSQL, ``ssl_mode`` is mapped to the driver's ``sslmode`` property,
+    and any spelling of either alias (for example ``SSLMODE`` or ``sslMode``) is
+    treated as the same TLS request. Conflicting TLS aliases raise.
     Connection parameters take precedence over duplicate ``spark_options``.
+    Every spelling of ``url``, ``driver``, ``user`` and ``password`` in
+    ``spark_options`` or connection parameters is replaced by the configured
+    value.
 
     Args:
         db_name: Database configuration name
@@ -300,7 +304,8 @@ def get_spark_database_options(db_name: str, config_directory: str = "config") -
     Raises:
         FileNotFoundError: If the database config does not exist.
         KeyError: If the config is missing required keys.
-        ValueError: If TLS parameters conflict or ssl_mode is unsupported.
+        ValueError: If TLS parameters conflict, ssl_mode is unsupported, or two
+            option keys differ only by case.
 
     Example:
         >>> spark_options = siege_utilities.get_spark_database_options("analytics_db")  # doctest: +SKIP
@@ -317,18 +322,29 @@ def get_spark_database_options(db_name: str, config_directory: str = "config") -
         )
 
     spark_options: Dict[str, str] = {}
-    spark_options.update(config.get('spark_options', {}))
+    spark_options.update(config.get('spark_options') or {})
 
-    is_postgres = config.get('connection_type', '').lower() == 'postgres'
-    connection_params = config.get('connection_params', {})
-    if (connection_params.get('ssl_mode') is not None
-            and connection_params.get('sslmode') is not None
-            and connection_params['ssl_mode'] != connection_params['sslmode']):
+    is_postgres = (config.get('connection_type') or '').lower() == 'postgres'
+    connection_params = config.get('connection_params') or {}
+    # Spark matches option keys case-insensitively (the last one wins) but hands
+    # the surviving key to the driver in its own case, and pgjdbc only reads the
+    # exact lower-case `sslmode`. Any spelling of the TLS alias is therefore the
+    # same request for PostgreSQL.
+    tls_aliases = ('ssl_mode', 'sslmode')
+
+    def _is_tls_alias(option_name: str) -> bool:
+        return option_name == 'ssl_mode' or (is_postgres and option_name.lower() in tls_aliases)
+
+    requested_tls = {
+        str(value) for key, value in connection_params.items()
+        if value is not None and _is_tls_alias(key)
+    }
+    if len(requested_tls) > 1:
         raise ValueError("Conflicting ssl_mode and sslmode connection parameters")
     for key, value in connection_params.items():
         if value is None:
             continue
-        if key == 'ssl_mode':
+        if _is_tls_alias(key):
             if not is_postgres:
                 # Forwarding the literal key `ssl_mode` is silently ignored by
                 # Connector/J (`sslMode`), mssql-jdbc (`encrypt`) and the Oracle
@@ -347,7 +363,21 @@ def get_spark_database_options(db_name: str, config_directory: str = "config") -
 
     # Core connection keys are authoritative and set LAST, so neither
     # spark_options nor connection_params can shadow url/driver/user/password
-    # (a param named e.g. `url` must not redirect the connection).
+    # (a param named e.g. `url` must not redirect the connection). Spark folds
+    # option-key case, so `URL` or `Driver` would replace the keys set below:
+    # drop every spelling of a core key, and refuse two keys that differ only
+    # by case because Spark would silently keep just one of them.
+    core_keys = ('url', 'driver', 'user', 'password')
+    for key in [k for k in spark_options if k.lower() in core_keys]:
+        del spark_options[key]
+    folded: Dict[str, str] = {}
+    for key in spark_options:
+        other = folded.setdefault(key.lower(), key)
+        if other != key:
+            raise ValueError(
+                f"Option keys {other!r} and {key!r} differ only by case; "
+                "Spark would keep one and drop the other"
+            )
     spark_options['url'] = config['jdbc_url']
     spark_options['driver'] = config['jdbc_driver']
     spark_options['user'] = config['username']
