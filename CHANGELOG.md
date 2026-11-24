@@ -114,6 +114,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `check_security.py`, which the CI bandit step replaces, moved to
   `scripts/archive/`.
 
+### Fixed
+
+- PDF headers and footers from `BaseReportTemplate` (and so `ReportGenerator`)
+  now place `header.right_text`, `footer.right_text` and the page number flush
+  against the right margin. They were positioned from `Paragraph.wrapOn()`,
+  which returns the width it is given rather than the text width, so the
+  right-hand text was drawn at the left margin on top of the left-hand text
+  and the page number was drawn off the left edge of the page. Right-hand text
+  now sits in the right half of the page and wraps there when it is too long.
+  Header right text stays inside the top margin. Footer right text stays
+  between the page number and the body frame, moving up rather than over the
+  page number when it wraps. Text that still does not fit is cut and ends with
+  an ellipsis. The page number is kept on the page when the bottom margin is
+  small. The header, footer and page number are still drawn on the first page
+  only (#1998).
+- `ChartGenerator.create_pie_chart` sizes its legend table from the measured
+  width of its columns and keeps it inside the saved image for both
+  `legend_position="right"` and `"bottom"`; the pie is shrunk to make room.
+  Previously the right-hand table was a fixed box about 30% of the figure
+  wide, so the value and percent columns ran off the right edge and were
+  clipped, and long labels spilled out of their cells in either position.
+  When the table cannot fit at the 8 pt default, the font is reduced to no
+  less than 5 pt, then over-long labels are shortened with an ellipsis; a
+  legend with too many rows for the figure height uses a smaller font, which
+  can fall below 5 pt. When the legend is drawn, the title is placed across
+  the top of the figure, above both the pie and the table, and drawn smaller
+  (down to 7 pt) or wrapped if it is wider than the figure. A missing (`None`)
+  label shows as an empty cell (#1999).
+- PIL images passed to `ReportGenerator.add_chart_section` (and map sections)
+  are downsampled to the display box at 200 DPI before embedding, never
+  upsampled, with the aspect ratio kept. Bilevel (`1`) and palette (`P`, `PA`)
+  images are converted to greyscale or RGB(A) first, so downsampling keeps
+  thin lines. The format is chosen as follows: images with transparency, and
+  colour images whose original pixels have at most 256 colours (including
+  every bilevel and palette image), are stored as lossless PNG; any other
+  image, colour or greyscale, is stored as JPEG at quality 85 only if that
+  JPEG is at most one third of the size of the lossless PNG of the same
+  pixels, and as lossless PNG otherwise. In practice photographs become JPEG
+  while charts, diagrams and screenshots stay lossless. Through 6.0.0 every
+  PIL image was stored as full-resolution lossless PNG, so photo-heavy reports
+  were many times larger than their inputs: three 1600 x 1200 photos produced
+  a 20.9 MB PDF, now 0.78 MB. 16-bit greyscale (`I;16`) is scaled to 8 bits;
+  32-bit integer and float greyscale (`I`, `F`) are clipped to 0-255; CMYK,
+  YCbCr, LAB, HSV, RGBX and premultiplied modes are converted to RGB(A). These
+  modes were previously dropped from the report with a logged error, or, for
+  `I;16`, embedded as a blank image. An image with zero width or height is
+  skipped with a logged error and the rest of the report is built. Objects
+  that are not PIL images but provide `save()` and `mode` are embedded as
+  before, without downsampling (#2000).
+
 ### Documentation
 
 - Dynamics `get_objects` documents that the returned frame keeps each
