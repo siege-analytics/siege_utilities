@@ -117,6 +117,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   conversion; fix invalid stored CRS values; if you used `crs=` to relabel data
   whose stored CRS was wrong, fix the stored CRS column instead.
 
+- Resolve configuration paths on first access so imports survive an unset
+  `HOME` and a uid without a passwd entry. Use a temporary per-uid home
+  substitute when lookup fails, and check environment overrides before
+  resolving defaults. Guard default downloads and defer Census catalog,
+  inventory, and PL cache paths too. Every path constant in
+  `siege_utilities.config.paths` (27 names, such as `LOG_DIR`, `DATA_DIR`
+  and `TEMP_DIR`), `SIEGE_UTILITIES_HOME`, `SIEGE_CACHE_DIR` and
+  `SIEGE_OUTPUT_DIR` in `siege_utilities.config.constants`, and
+  `pl_downloader.DEFAULT_CACHE_DIR` are now resolved when first read, not
+  when their module is imported. So an environment override set after
+  import but before the first read now takes effect (all 20 path variables,
+  for example `SIEGE_LOG_DIR`), a derived path first read after its parent
+  constant was reassigned follows the new parent, the names are absent
+  from `vars(module)` until first read, and `SIEGE_AUTO_INIT_DIRS=true`
+  now creates directories on first path access rather than at import.
+  **Migration:** code that relied on those directories existing
+  immediately after import must touch the path (for example through
+  `get_file_path`) or create the directory itself, and code that set a
+  path variable after import and expected it to be ignored must set it
+  before the first read (#1448).
+
 ### Changed
 
 - `scripts/check_exception_contracts.py`, the exception-contract guard that CI

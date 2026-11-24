@@ -16,6 +16,8 @@ import os
 from dataclasses import dataclass, asdict, field
 from pydantic import SecretStr
 
+from ._home import _fallback_home_directory, _home_directory
+
 # Import enhanced config for validation
 
 __all__ = [
@@ -50,11 +52,12 @@ def _default_download_directory() -> Path:
     by the cluster filesystem policy.  We default to ``/tmp/siege_utilities/downloads``
     instead, which is always writable on Databricks nodes.
 
-    On all other platforms, we use ``~/Downloads/siege_utilities``.
+    On all other platforms, we use ``~/Downloads/siege_utilities``. If home
+    lookup fails, the home substitute documented in ``config._home`` is used.
     """
     if _is_databricks_runtime():
         return Path("/tmp/siege_utilities/downloads")
-    return Path.home() / "Downloads" / "siege_utilities"
+    return _home_directory() / "Downloads" / "siege_utilities"
 
 @dataclass
 class UserProfile:
@@ -167,7 +170,7 @@ class UserConfigManager:
                     "Cannot locate a private user config directory; set "
                     "SIEGE_USER_CONFIG_DIR to a private path."
                 ) from exc
-        return Path(tempfile.gettempdir()) / f"siege_utilities-{os.getuid()}"
+        return _fallback_home_directory()
 
     @staticmethod
     def _is_posix_temp_fallback_path(config_dir: Path) -> bool:
