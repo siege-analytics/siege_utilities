@@ -145,6 +145,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `check_security.py`, which the CI bandit step replaces, moved to
   `scripts/archive/`.
 
+### Fixed
+
+- Make the Databricks bridge notebook's schematic example project to a metric
+  CRS, buffer with a radius in meters, and transform back to EPSG:4326. Keep
+  the angular-degree caveat and document caller-side filtering and row bounds
+  before collection to driver memory. Remove the persistent-table overwrite
+  from the capped sample and document the bridge's CRS column parameters and
+  output (#1665).
+
 ### Documentation
 
 - Dynamics `get_objects` documents that the returned frame keeps each
