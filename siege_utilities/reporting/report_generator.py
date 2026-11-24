@@ -716,7 +716,7 @@ class ReportGenerator:
 
     @classmethod
     def _encode_pil_image(cls, image: Any, width: float, height: float,
-                          dpi: int, jpeg_quality: int) -> 'io.BytesIO':
+                          dpi: int, jpeg_quality: int) -> Any:
         """Encode a PIL image for embedding in a ``width`` x ``height`` inch box.
 
         The image is downsampled (never upsampled) with a uniform scale so it
