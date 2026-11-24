@@ -23,6 +23,7 @@ from siege_utilities.config import (
     CENSUS_RETRY_ATTEMPTS,
 )
 from siege_utilities.config.user_config import get_user_config
+from siege_utilities.config._home import _home_directory
 from siege_utilities.core._http import redact_url_secrets
 from .variable_registry import (  # noqa: F401 -- the sentinel sets are re-exported here
     ACS_SENTINELS, ACS_SENTINEL_STRINGS, VariableRegistry, _mask_acs_sentinels,
@@ -115,7 +116,7 @@ class CensusAPI:
             if cache_dir:
                 self.cache_dir = Path(cache_dir)
             else:
-                self.cache_dir = Path.home() / '.siege_utilities' / 'cache' / 'census_api'
+                self.cache_dir = _home_directory() / '.siege_utilities' / 'cache' / 'census_api'
             self.cache_dir.mkdir(parents=True, exist_ok=True)
         else:
             self.cache_dir = None
