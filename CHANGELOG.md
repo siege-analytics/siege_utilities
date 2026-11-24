@@ -52,6 +52,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `result.failure_count` and `result.errors` instead; no exception is raised
   for that case now.
 
+- Place history reverse lineage uses `CrosswalkRecord.reverse_weight`, also
+  accepted by `DictCrosswalkProvider.add`, for step weights, cumulative target
+  shares, and `min_weight` pruning, so reverse-lineage steps and weights differ
+  from 6.0.0. Steps pair GEOIDs with their correct vintage years, and
+  `Lineage.terminal_weights` sums paths reaching the same terminal GEOID while
+  preserving `terminal_geoids`. If any retained reverse terminal path lacks a
+  reverse share, the entire `terminal_weights` dictionary is empty; ancestry and
+  the legacy forward allocation on those steps remain available. Forward
+  traversal now skips nonpositive and nonfinite record weights, and terminal
+  totals contain only finite, positive values. **Migration:** supply
+  `reverse_weight` on crosswalk records (and to `DictCrosswalkProvider.add`)
+  wherever reverse shares or `min_weight` pruning matter; treat an empty
+  `terminal_weights` as "reverse shares incomplete", not as zero weight, and
+  read `terminal_geoids` for ancestry; and re-check any code that read the step
+  years or terminal totals from the old output (#1434).
+
 - Connector diagnostics (exception messages, log lines, `UpsertError` text
   and `UpsertResult` repr) keep the value of a quoted JSON or mapping field
   named `code` or `key` when that value is a plain literal: at most 32
@@ -117,6 +133,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   conversion; fix invalid stored CRS values; if you used `crs=` to relabel data
   whose stored CRS was wrong, fix the stored CRS column instead.
 
+- `NCESLocaleClassifier.classify_points`, `classify_polygon` and
+  `classify_polygons` reproject GeoDataFrame/GeoSeries inputs that carry a CRS
+  to EPSG:4269 before reading coordinates; on v4.0.0 projected metres were read
+  as degrees, so a point classified 11 in EPSG:4269 classified 43 after
+  `to_crs(3857)`. `h3_spatial_join` and `s2_spatial_join` reproject polygon
+  frames to EPSG:4326 instead of joining on projected metres, and
+  `h3_index_polygon` and `s2_index_polygon` now accept GeoDataFrame/GeoSeries
+  polygon inputs (v4.0.0 raised `TypeError` for them) and reproject them the
+  same way. Inputs without a CRS, including bare Shapely or GeoJSON polygons,
+  whose coordinates exceed ±180 longitude or ±90 latitude now raise
+  `ValueError` naming the function, axis and value, where v4.0.0 passed them
+  on as degrees. Caller frames are not mutated; bulk locale results keep the
+  caller's original geometry, CRS, index and attributes. Valid geographic
+  inputs, with or without CRS metadata, behave as before; point columns passed
+  to the cell-based joins remain latitude/longitude degrees (#1451).
+  **Migration:** set the true source CRS on projected data (`gdf.set_crs(...)`)
+  before calling these functions; bare Shapely or GeoJSON geometries must be
+  longitude/latitude degrees; expect `ValueError` where v4.0.0 silently
+  returned codes, cells or join rows for out-of-range coordinates.
+
 - Batch geocoder normalization now restores leading zeros in numeric ZIPs,
   preserves string ZIPs (including ZIP+4), converts the dictionary address
   fields (street, city, state, ZIP) to strings, and treats NaN/None and pandas
@@ -170,6 +206,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `verify_round9_hardening.py` and `verify_batch1_1373.py` scripts, and
   `check_security.py`, which the CI bandit step replaces, moved to
   `scripts/archive/`.
+
+### Fixed
+
+- Make the Databricks bridge notebook's schematic example project to a metric
+  CRS, buffer with a radius in meters, and transform back to EPSG:4326. Keep
+  the angular-degree caveat and document caller-side filtering and row bounds
+  before collection to driver memory. Remove the persistent-table overwrite
+  from the capped sample and document the bridge's CRS column parameters and
+  output (#1665).
 
 ### Documentation
 
