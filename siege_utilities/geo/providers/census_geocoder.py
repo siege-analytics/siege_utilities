@@ -30,6 +30,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, TYPE_CHECKING
 
+from ..geocoding_core import _normalize_address_field
 from ._batch_ids import _assign_batch_ids
 
 if TYPE_CHECKING:
@@ -343,6 +344,13 @@ def geocode_batch(
     if not addresses:
         return []
 
+    addresses = [
+        {
+            key: _normalize_address_field(addr.get(key, ""), zipcode=key == "zipcode")
+            for key in ("id", "street", "city", "state", "zipcode")
+        }
+        for addr in addresses
+    ]
     cg = _get_geocoder(vintage)
     batch_ids = _assign_batch_ids([addr.get("id", "") for addr in addresses])
     inputs = {batch_ids[i]: addr for i, addr in enumerate(addresses)}
