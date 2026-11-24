@@ -114,6 +114,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `check_security.py`, which the CI bandit step replaces, moved to
   `scripts/archive/`.
 
+### Fixed
+
+- S2 cell IDs are documented as uint64 values that can exceed signed
+  BIGINT. Add `s2_cell_id_to_int64` with an exact inverse through
+  `s2_cell_id_to_uint64`, and an opt-in `as_signed=True` (default `False`, so
+  existing results are unchanged) on point indexing, polygon indexing, region
+  covers, and range generation so signed SQL `BETWEEN` queries match the
+  unsigned cell ranges. Correct the PostGIS storage guidance (#1473).
+
 ### Documentation
 
 - Dynamics `get_objects` documents that the returned frame keeps each
