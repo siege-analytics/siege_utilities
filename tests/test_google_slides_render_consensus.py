@@ -70,10 +70,10 @@ def test_report_raises_when_a_slide_fails(monkeypatch):
 
     monkeypatch.setattr(gs, "create_presentation", lambda client, title, folder_id=None: "pres-x")
 
-    def _boom(client, pres, argument, slide_index=None):
+    def _boom(*args, **kwargs):
         raise RuntimeError("drive upload failed")
 
-    monkeypatch.setattr(gs, "create_argument_slide", _boom)
+    monkeypatch.setattr(gs, "_build_argument_slide", _boom)
     client = MagicMock()
     client.presentation_url.return_value = "https://docs.google.com/presentation/d/pres-x"
 
