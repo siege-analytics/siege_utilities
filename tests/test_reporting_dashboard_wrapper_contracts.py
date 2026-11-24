@@ -22,8 +22,14 @@ def test_create_dashboard_delegates_layout_dimensions_and_kwargs(monkeypatch):
     assert FakeChartGenerator.instances[0].calls == [
         (
             "dashboard",
-            (charts, "1x2", 10.5, 6.25),
-            {"background": "white"},
+            (),
+            {
+                "charts": charts,
+                "layout": "1x2",
+                "width": 10.5,
+                "height": 6.25,
+                "background": "white",
+            },
         )
     ]
 
@@ -43,7 +49,7 @@ def test_create_dataframe_summary_charts_delegates_parameters(monkeypatch):
     assert FakeChartGenerator.instances[0].calls == [
         (
             "summary",
-            (frame, "Summary", 9.0, 5.5),
-            {"palette": "brand"},
+            (),
+            {"df": frame, "title": "Summary", "width": 9.0, "height": 5.5, "palette": "brand"},
         )
     ]
