@@ -198,9 +198,11 @@ web = [
 ]
 # DuckDB performance backend
 performance = [
+    # Lower bound: spatial uploads store CRS metadata with COMMENT ON TABLE and
+    # read it from duckdb_tables().comment, both added in DuckDB 0.10.0.
     # Upper bound: DuckDB 2.0 changes tokenizer byte offsets and prepared-statement
     # result metadata, breaking the class-hardening suite. Pinned pending 2.0 support.
-    "duckdb>=0.7.0,<2.0",
+    "duckdb>=0.10.0,<2.0",
 ]
 # Database connectivity
 database = [
@@ -345,9 +347,10 @@ all = [
     "soupsieve>=4.0.0; python_full_version >= '3.11.5'",
     "lxml>=4.9.0",
     # performance
+    # Lower bound: COMMENT ON TABLE / duckdb_tables().comment need DuckDB 0.10.0.
     # Upper bound: DuckDB 2.0 changes tokenizer byte offsets and prepared-statement
     # result metadata, breaking the class-hardening suite. Pinned pending 2.0 support.
-    "duckdb>=0.7.0,<2.0",
+    "duckdb>=0.10.0,<2.0",
     # database
     "sqlalchemy>=1.4.0",
     # 3d
