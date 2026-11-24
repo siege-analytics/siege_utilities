@@ -191,11 +191,31 @@ Create presentations, add slides, and populate them with text boxes and images.
    # Copy the presentation
    copy_id = copy_presentation(client, pres_id, "Quarterly Review (Draft)")
 
+Report presentations created with ``create_report_from_arguments`` contain
+exactly one content slide per argument. Any initial slides in a new presentation
+or a copy made with ``theme_presentation_id`` are deleted before rendering;
+template masters and layouts remain, and the source template is unchanged.
+An empty argument list produces a deck with no content slides. This changes
+v4.0.0 behavior, which retained the template's sample slides after the report.
+
 Google Docs
 -----------
 
 Create documents, insert structured content (paragraphs, tables, images),
 and perform find/replace operations.
+
+Text insertion indexes and style ranges use UTF-16 code units. For example,
+``"Turnout 📈 up"`` occupies 13 units, so bold text inserted at index 1 has
+an exclusive end index of 14; a heading includes its trailing newline too.
+
+``read_document_text`` requests all tabs, including nested child tabs, and
+visits them depth-first. For each tab it reads the body, then headers, footers,
+and footnotes in API response order, traversing nested tables and tables of
+contents in every segment. It concatenates text runs without adding separators
+or reference markers. Compared with v4.0.0, results now include text previously
+omitted from nested structures, other tabs, and those additional segments.
+``get_document`` retains its first-tab response structure for callers that
+inspect ``body`` directly.
 
 .. code-block:: python
 
