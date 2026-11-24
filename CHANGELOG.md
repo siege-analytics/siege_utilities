@@ -52,6 +52,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `result.failure_count` and `result.errors` instead; no exception is raised
   for that case now.
 
+- Place history reverse lineage uses `CrosswalkRecord.reverse_weight`, also
+  accepted by `DictCrosswalkProvider.add`, for step weights, cumulative target
+  shares, and `min_weight` pruning, so reverse-lineage steps and weights differ
+  from v4.0.0. Steps pair GEOIDs with their correct vintage years, and
+  `Lineage.terminal_weights` sums paths reaching the same terminal GEOID while
+  preserving `terminal_geoids`. If any retained reverse terminal path lacks a
+  reverse share, the entire `terminal_weights` dictionary is empty; ancestry and
+  the legacy forward allocation on those steps remain available. Forward
+  traversal now skips nonpositive and nonfinite record weights, and terminal
+  totals contain only finite, positive values. **Migration:** supply
+  `reverse_weight` on crosswalk records (and to `DictCrosswalkProvider.add`)
+  wherever reverse shares or `min_weight` pruning matter; treat an empty
+  `terminal_weights` as "reverse shares incomplete", not as zero weight, and
+  read `terminal_geoids` for ancestry; and re-check any code that read the step
+  years or terminal totals from the old output (#1434).
+
 - Connector diagnostics (exception messages, log lines, `UpsertError` text
   and `UpsertResult` repr) keep the value of a quoted JSON or mapping field
   named `code` or `key` when that value is a plain literal: at most 32
