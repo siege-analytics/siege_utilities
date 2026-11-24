@@ -87,9 +87,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   open and is not closed.
 
 - Batch geocoder normalization now restores leading zeros in numeric ZIPs,
-  preserves string ZIPs (including ZIP+4), converts dictionary fields to strings,
-  and treats NaN/None and pandas NA/NaT as empty values, so the same input rows
-  produce different query strings and results than on v4.0.0.
+  preserves string ZIPs (including ZIP+4), converts the dictionary address
+  fields (street, city, state, ZIP) to strings, and treats NaN/None and pandas
+  NA/NaT as empty values, so the same input rows produce different query
+  strings and results than on v4.0.0. Caller IDs pass through unchanged.
   Numeric ZIP+4 values are padded to nine digits; invalid numeric ZIPs
   (negative, fractional, boolean, non-finite, or over nine digits) become empty
   values. The public Census `geocode_batch` / `geocode_batch_chunked`
@@ -98,13 +99,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TAMU query construction failures now produce one unmatched row instead of
   aborting the whole batch and causing the composite geocoder to silently drop
   the backend. Per-row failures are reported in `BatchGeocodingResult.errors`
-  by input ID and exception type, without address text; the composite
-  preserves backend errors. `concatenate_addresses` also skips missing
-  components and normalizes numeric postal codes. Directly constructed
-  `AddressInput` objects normalize their ZIP codes.
-  `GeocodingResult.input_id` is now always `str` for dictionary inputs on the
-  Nominatim, TAMU and composite geocoders. **Migration:** key on `str(id)`
-  where callers keyed on integer IDs; re-key any
+  by caller ID and exception type, without address text; the composite
+  preserves backend errors and names the caller's IDs in them.
+  `concatenate_addresses` also skips missing components and normalizes numeric
+  postal codes. Directly constructed `AddressInput` objects normalize their
+  ZIP codes. **Migration:** re-key any
   stored geocoding results that were keyed on a ZIP with its leading zero
   dropped (for example `2101`, now `02101`); expect an empty ZIP, not a
   guessed one, where a numeric ZIP is invalid; and read `errors` on the batch

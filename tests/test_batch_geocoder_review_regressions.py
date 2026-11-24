@@ -78,4 +78,6 @@ def test_geocode_batch_direct_dict_path_normalizes_zip(monkeypatch):
                         lambda v: Mock(addressbatch=Mock(side_effect=addressbatch)))
     census_geocoder.geocode_batch_chunked(
         [{"id": 0, "street": "1 Main St", "city": float("nan"), "state": "MA", "zipcode": 2134.0}])
-    assert rows == [["0", "1 Main St", "", "MA", "02134"]]
+    # The first column is the library-assigned batch ID, not the caller ID (#1410).
+    assert [row[1:] for row in rows] == [["1 Main St", "", "MA", "02134"]]
+    assert rows[0][0] != "0"

@@ -344,10 +344,14 @@ def geocode_batch(
     if not addresses:
         return []
 
+    # Normalize only the address fields; the caller's id passes through unchanged.
     addresses = [
         {
-            key: _normalize_address_field(addr.get(key, ""), zipcode=key == "zipcode")
-            for key in ("id", "street", "city", "state", "zipcode")
+            **addr,
+            **{
+                key: _normalize_address_field(addr.get(key, ""), zipcode=key == "zipcode")
+                for key in ("street", "city", "state", "zipcode")
+            },
         }
         for addr in addresses
     ]

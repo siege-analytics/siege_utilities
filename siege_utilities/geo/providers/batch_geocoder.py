@@ -180,11 +180,12 @@ def normalize_addresses(
     """Normalize address input to a list of AddressInput.
 
     Accepts a mixed list of dicts (street, city, state, zipcode, optional id),
-    one-line strings, and AddressInput instances (returned as-is). Dict fields
-    become strings, with None, numeric NaN, and pandas NA/NaT replaced by an
-    empty string. Numeric ZIPs are padded to five or nine digits; invalid
-    numeric ZIPs become empty strings. String ZIPs are preserved verbatim,
-    including ZIP+4 values.
+    one-line strings, and AddressInput instances (returned as-is). The dict
+    address fields (street, city, state, zipcode) become strings, with None,
+    numeric NaN, and pandas NA/NaT replaced by an empty string. Numeric ZIPs
+    are padded to five or nine digits; invalid numeric ZIPs become empty
+    strings. String ZIPs are preserved verbatim, including ZIP+4 values. The
+    caller's id is passed through unchanged.
     """
     if not addresses:
         return []
@@ -201,7 +202,7 @@ def normalize_addresses(
                 city=_normalize_field(addr.get("city", "")),
                 state=_normalize_field(addr.get("state", "")),
                 zipcode=_normalize_field(addr.get("zipcode", addr.get("zip", "")), zipcode=True),
-                input_id=_normalize_field(addr.get("id", addr.get("input_id", str(i)))),
+                input_id=addr.get("id", addr.get("input_id", str(i))),
             ))
         else:
             raise TypeError(f"Unsupported address type: {type(addr)}")

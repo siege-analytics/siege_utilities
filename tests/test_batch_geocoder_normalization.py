@@ -42,10 +42,9 @@ def test_missing_fields_become_empty_strings(value):
     address = normalize_addresses([dict.fromkeys(
         ["street", "city", "state", "zip", "id"], value,
     )])[0]
-    assert vars(address) == dict.fromkeys(
-        ["street", "city", "state", "zipcode", "input_id"], "",
-    )
+    assert (address.street, address.city, address.state, address.zipcode) == ("", "", "", "")
     assert address.one_line == ""
+    assert address.input_id is value  # caller IDs pass through unchanged (#1410)
 
 
 @pytest.mark.parametrize("zipcode", ["", "02134", "02134-1234", "2134", "2134.0"])
@@ -53,13 +52,13 @@ def test_string_zip_is_preserved_verbatim(zipcode):
     assert normalize_addresses([{"zip": zipcode}])[0].zipcode == zipcode
 
 
-def test_all_dictionary_fields_are_coerced_to_strings():
+def test_address_fields_are_coerced_to_strings_and_id_passes_through():
     address = normalize_addresses([{
         "address": 123, "city": 456, "state": 78, "zip": 2134.0, "input_id": 0,
     }])[0]
     assert vars(address) == {
         "street": "123", "city": "456", "state": "78",
-        "zipcode": "02134", "input_id": "0",
+        "zipcode": "02134", "input_id": 0,
     }
 
 
@@ -169,8 +168,9 @@ def test_census_csv_preserves_zip_from_pandas(csv_records, monkeypatch):
 
     def addressbatch(path, **kwargs):
         with open(path, newline="") as submitted:
-            submitted_rows.extend(csv.reader(submitted))
-        return []
+            rows = list(csv.reader(submitted))
+        submitted_rows.extend(rows)
+        return [{"id": row[0], "match": False} for row in rows]
 
     client = Mock(addressbatch=Mock(side_effect=addressbatch))
     monkeypatch.setattr(census_geocoder, "_get_geocoder", lambda vintage: client)
@@ -179,10 +179,13 @@ def test_census_csv_preserves_zip_from_pandas(csv_records, monkeypatch):
 
     assert result.errors == []
     assert result.total == len(csv_records)
-    assert submitted_rows == [
-        ["0", "1 Main St", "Boston", "MA", "02134"],
-        ["1", "2 Elm St", "Boston", "MA", ""],
+    # The first column is the library-assigned batch ID, not the caller ID (#1410).
+    assert [row[1:] for row in submitted_rows] == [
+        ["1 Main St", "Boston", "MA", "02134"],
+        ["2 Elm St", "Boston", "MA", ""],
     ]
+    assert {row[0] for row in submitted_rows}.isdisjoint({"0", "1"})
+    assert [row.input_id for row in result.results] == ["0", "1"]
 
 
 @pytest.mark.parametrize("missing", [None, float("nan"), np.float32("nan")])
@@ -198,11 +201,12 @@ def test_concatenate_addresses_retains_non_missing_values():
 
 
 @pytest.mark.parametrize("missing", [pd.NA, pd.NaT])
-def test_pandas_missing_scalars_are_empty_in_all_fields(missing):
+def test_pandas_missing_scalars_are_empty_in_address_fields(missing):
     address = normalize_addresses([dict.fromkeys(
         ["street", "city", "state", "zip", "id"], missing,
     )])[0]
-    assert all(value == "" for value in vars(address).values())
+    assert (address.street, address.city, address.state, address.zipcode) == ("", "", "", "")
+    assert address.input_id is missing  # caller IDs pass through unchanged (#1410)
     assert concatenate_addresses(missing, missing, missing, missing, missing) == ""
 
 
@@ -264,7 +268,7 @@ def test_composite_retains_errors_from_each_backend_after_fallback(monkeypatch):
         {"id": 42, "street": "1 Main St"},
     ])
     assert result.total == result.matched_count == 1
-    assert result.results[0].input_id == "42"
+    assert result.results[0].input_id == 42  # caller IDs pass through unchanged (#1410)
     assert len(result.errors) == 2
     assert "42" in result.errors[0] and "OSError" in result.errors[0]
     assert "42" in result.errors[1] and "ValueError" in result.errors[1]
@@ -277,12 +281,14 @@ def test_direct_census_dicts_normalize_missing_fields_and_zip_plus4(monkeypatch,
     def addressbatch(path, **kwargs):
         with open(path, newline="") as submitted:
             rows.extend(csv.reader(submitted))
-        return [{"id": "", "match": True, "lat": 42.36, "lon": -71.06}]
+        return [{"id": rows[0][0], "match": True, "lat": 42.36, "lon": -71.06}]
 
     monkeypatch.setattr(census_geocoder, "_get_geocoder", lambda vintage: Mock(addressbatch=addressbatch))
     records = [{"id": pd.NA, "street": 123, "city": pd.NaT, "state": None, "zipcode": 21341234.0}]
     result = geocode(records)
-    assert rows == [["", "123", "", "", "021341234"]]
+    # The first column is the library-assigned batch ID (#1410).
+    assert [row[1:] for row in rows] == [["123", "", "", "021341234"]]
+    assert rows[0][0] != ""
     assert len(result) == 1 and result[0].matched
-    assert result[0].input_id == ""
+    assert result[0].input_id is pd.NA  # caller IDs pass through unchanged (#1410)
     assert records[0]["zipcode"] == 21341234.0

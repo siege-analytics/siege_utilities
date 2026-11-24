@@ -11,6 +11,7 @@ Nominatim or TAMU for failures.
 from __future__ import annotations
 
 import logging
+import re
 from collections import Counter
 from dataclasses import replace
 from typing import Union
@@ -30,6 +31,24 @@ log = logging.getLogger(__name__)
 __all__ = [
     'CompositeBatchGeocoder',
 ]
+
+# Library batch IDs are uuid4 hex strings (see ``_batch_ids``).
+_BATCH_ID_PATTERN = re.compile(r"\b[0-9a-f]{32}\b")
+
+
+def _name_caller_ids(messages: list[str], inputs: dict[str, AddressInput]) -> list[str]:
+    """Replace this batch's library IDs in backend messages with caller IDs.
+
+    Backends only see library IDs, so their per-row errors name those; the
+    caller needs the IDs it supplied. Text that is not one of this batch's
+    IDs is left unchanged.
+    """
+    def caller_id(match: re.Match[str]) -> str:
+        addr = inputs.get(match.group())
+        return match.group() if addr is None else str(addr.input_id)
+
+    return [_BATCH_ID_PATTERN.sub(caller_id, message) for message in messages]
+
 
 _QUALITY_RANK = {
     MatchQuality.EXACT.value: 4,
@@ -127,7 +146,7 @@ class CompositeBatchGeocoder(BatchGeocoder):
                     errors=[f"Backend {backend.backend_name} failed: {exc}"],
                 )
 
-            errors.extend(batch_result.errors)
+            errors.extend(_name_caller_ids(batch_result.errors, inputs))
             counts = Counter(gr.input_id for gr in batch_result.results)
             returned = {}
             for gr in batch_result.results:
