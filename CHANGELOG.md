@@ -101,6 +101,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `check_security.py`, which the CI bandit step replaces, moved to
   `scripts/archive/`.
 
+### Fixed
+
+- Report facade charts and sample tables, three follow-ups to the facade PDF
+  change of #1461:
+  - a NumPy complex chart value (`numpy.complex64`, `numpy.complex128`) now
+    raises the named non-numeric `ValueError`, as Python `complex` already did;
+    before, it was drawn with its imaginary part dropped;
+  - a finite `Decimal` written without a fractional part (`Decimal("88")`,
+    `Decimal("1E+3")`, `Decimal("0E+19")`) that fits a 64-bit integer reaches
+    the chart engine as an `int`, so the pie legend prints `88` rather than
+    `88.0`; `Decimal("88.0")` and larger whole-number values stay floats as
+    before, and one fractional value in a series makes the legend print that
+    series' whole values with `.0`;
+  - a chart series with an int outside the signed 64-bit range, or whose ints
+    total more than that range holds, is drawn from floats: a bar chart no
+    longer fails with `OverflowError` on an int of 2**63 or more, and a pie
+    chart no longer draws its wedges from a wrapped 64-bit total that
+    disagrees with its legend; an int too large even for a float raises the
+    named `ValueError`;
+  - the sample-data tables of `create_custom_analytics_report` for a DataFrame
+    with repeated labels on non-numeric columns now have rows with exactly as
+    many cells as headers; selecting columns by label had repeated every
+    column sharing a label (#1988).
+
 ### Documentation
 
 - Dynamics `get_objects` documents that the returned frame keeps each
