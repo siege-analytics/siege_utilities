@@ -86,7 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in Salesforce before running the bulk call again; the failed job is left
   open and is not closed.
 - Config exports with `exclude_sensitive=True` (`to_dict`, `to_yaml`,
-  `export_entities`) redact more fields and values than in 4.0.0: fields
+  `export_entities`) redact more fields and values than in 6.0.0: fields
   whose Pydantic alias names a credential, credential names in bytes keys,
   and every value in a sensitive position other than `None` or an exact
   empty or zero builtin, including falsey objects and secret subclasses (see
@@ -126,7 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- **Documented behavior change from v4.0.0:** config exports with
+- **Documented behavior change from v6.0.0:** config exports with
   `exclude_sensitive=True` redact fields whose internal name or any Pydantic
   alias names a credential, including validation/serialization aliases,
   `AliasChoices`, and string components of `AliasPath`. The field-marker CI
