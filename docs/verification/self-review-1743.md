@@ -40,3 +40,6 @@ Phase B verification (red/green): `tests/test_chart_generator_wrapper_kwargs.py`
 | F2 | P2 | Caller-visible changes listed under Fixed, not BREAKING | entry under `[4.1.0] ### BREAKING` with Migration |
 | F3 | P3 | Archived README points to the removed example as active | line removed |
 | F4 | P3 | Tip lacked review trailers | this commit carries them |
+
+## Develop sync note (2026-11-24)
+The develop sync merge `925be873` (develop `fa8ecff5`) kept `siege_utilities/reporting/examples/comprehensive_mapping_example.py`, which develop had repaired in #1927 and #1931. It also restored `tests/test_comprehensive_mapping_example_errors.py` and the example's entries in `docs/EXAMPLES.md`, `docs/archive/examples/README_Streamlit_Demo_2026.md` and `docs/source/mapping_and_reporting.rst`. This reverses the removal described above, including F3. The CHANGELOG entry no longer announces the removal, and commit `75170cb7` moved it from the released 5.0.0 section into `[Unreleased] ### BREAKING`. The text above is left as the record of the earlier rounds.
