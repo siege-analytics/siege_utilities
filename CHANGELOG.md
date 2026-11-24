@@ -117,6 +117,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   conversion; fix invalid stored CRS values; if you used `crs=` to relabel data
   whose stored CRS was wrong, fix the stored CRS column instead.
 
+- Config exports with `exclude_sensitive=True` (`to_dict`, `to_yaml`,
+  `export_entities`) redact more fields and values than in 6.0.0: fields
+  whose Pydantic alias names a credential, credential names in bytes keys,
+  the whole value under any other non-string key except `int`, `float`,
+  `bool` or `None` (for example a `date`, `datetime`, `UUID`, plain `Enum`,
+  `Path` or tuple key), including wholly public subtrees, and every value in
+  a sensitive position other than `None` or an exact empty or zero builtin,
+  including falsey objects and secret subclasses (see Security).
+  **Migration:** read credentials from the live model or your secret store,
+  not from an `exclude_sensitive=True` export; such exports now carry
+  `***REDACTED***` in those positions, and `import_entities` rejects them
+  with `ValueError("Cannot import redacted ...")`. Use string keys for
+  metadata that must survive a redacted export. Export with
+  `exclude_sensitive=False` only to a trusted destination (#1460).
+
 ### Changed
 
 - `scripts/check_exception_contracts.py`, the exception-contract guard that CI
@@ -144,6 +159,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `verify_round9_hardening.py` and `verify_batch1_1373.py` scripts, and
   `check_security.py`, which the CI bandit step replaces, moved to
   `scripts/archive/`.
+
+### Security
+
+- **Documented behavior change from v6.0.0:** config exports with
+  `exclude_sensitive=True` redact fields whose internal name or any Pydantic
+  alias names a credential, including validation/serialization aliases,
+  `AliasChoices`, and string components of `AliasPath`. The field-marker CI
+  guard uses the same classification. Credential names in UTF-8 bytes or
+  bytearray dictionary keys are now recognized; undecodable bytes and other
+  non-string keys fail closed, except for `int`, `float`, `bool` and `None`
+  keys and their subclasses (such as `IntEnum` members); `Decimal`,
+  `Fraction` and `complex` keys are redacted. In a
+  sensitive position a value is kept only when it is `None`, an exact-type
+  empty `str`/`bytes`/`list`/`dict`/`tuple`/`set`/`frozenset`, an exact-type
+  zero `bool`/`int`/`float`, or an exact `SecretStr`/`SecretBytes` wrapping an
+  exact-type empty payload; subclasses and every other value are redacted, so
+  falsey containers and objects no longer leak. Key representations,
+  field-marker policies, and non-redacted exports are unchanged. (#1460)
 
 ### Documentation
 
