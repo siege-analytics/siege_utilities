@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `write_df_to_parquet` and `export_prepared_df_as_csv_to_path_using_delimiter`
+  no longer replace existing output by default. Both now default to Spark's
+  `errorifexists` mode: when the destination path already exists, Spark raises
+  `AnalysisException` and the existing data is left untouched. Spark checks only
+  whether the path exists, so this also applies to an existing empty directory or a
+  regular file at that path. Through 6.0.0,
+  `write_df_to_parquet` defaulted to `mode='overwrite'` (#1838), and the CSV
+  export always overwrote, with no way to opt out (#1839). The CSV export now
+  accepts a `mode` argument. Both functions accept the Spark save modes
+  `errorifexists` (alias `error`), `overwrite`, `append` and `ignore`,
+  case-insensitively as Spark does. Any other value, including `None`, raises
+  `ValueError` before anything is written. **Migration:** to keep replacing an
+  existing destination, pass `mode='overwrite'` explicitly, for example
+  `write_df_to_parquet(df, path, mode='overwrite')` or
+  `export_prepared_df_as_csv_to_path_using_delimiter(df, path, mode='overwrite')`.
+  Pass `mode='errorifexists'` instead of `None` or `'default'`.
+
 - The `SocialMediaReportGenerator` and `AnalyticsReportGenerator` report
   methods now write a PDF into the generator's output directory and return its
   `Path`. Through 6.0.0 they called `ReportGenerator` methods with a different
