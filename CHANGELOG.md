@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `create_spark_session_with_databases` changes its default JDBC drivers to
+  pgjdbc 42.7.15, MySQL Connector/J 26.10.0 and Oracle ojdbc8 23.26.3.0.0,
+  replacing pgjdbc 42.3.1, mysql-connector-java 8.0.28 and ojdbc8 21.1.0.0
+  (security fix, #1483). pgjdbc 42.7.15 is the patched version for the 14
+  pgjdbc advisories published on 2026-11-23 against 42.7.14 and earlier;
+  GHSA-hcjv-f5jh-r55v (low, 42.7.14 and earlier) lists no patched version and
+  remains open. 26.7.0 is the version named as affected by CVE-2026-101768
+  (Oracle October 2026 CPU); this pins 26.10.0, the next release, which the
+  advisory does not list as affected. MySQL's Maven coordinate moves from
+  `mysql:mysql-connector-java` to `com.mysql:mysql-connector-j`. Defaults now
+  live in one coordinate map; callers can replace the package list through
+  `conf.settings.SPARK_JDBC_PACKAGES` (a list or comma-separated string).
+  Without an override, empty/None `database_names` adds no JDBC driver, where
+  6.0.0 and earlier releases added the PostgreSQL driver. The new MySQL
+  default requires MySQL Server 8.4+; Oracle 23.x supports Database 19c+.
+  **Migration:** callers relying on the former implicit PostgreSQL driver must
+  supply database names or a package override, and older server deployments
+  must choose compatible patched overrides through `SPARK_JDBC_PACKAGES`.
+
 - The `SocialMediaReportGenerator` and `AnalyticsReportGenerator` report
   methods now write a PDF into the generator's output directory and return its
   `Path`. Through 6.0.0 they called `ReportGenerator` methods with a different
