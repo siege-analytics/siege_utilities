@@ -85,6 +85,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   surfaces as `ConnectorError` instead of being retried. Check the job's state
   in Salesforce before running the bulk call again; the failed job is left
   open and is not closed.
+- Census catalog cache filenames percent-encode dataset ids, keeping slash-based
+  ids such as `eits/resconst` and `dec/pl` in the cache directory and visible to
+  cache clearing. Yearless keys use a distinct `none` suffix, and cache logging
+  accepts `year=None`, including write failures. Entries in the old nested
+  layout are no longer read or cleared: the next load fetches and caches a
+  fresh copy at the new key, and the old nested files can be deleted by hand.
+  `CatalogCache.clear(dataset, year)` removes only
+  that entry, including a yearless one with `year=None`; `clear()` still
+  removes every entry. Passing only a dataset or only a year now raises
+  `ValueError` instead of deleting the whole cache (#1405).
+  **Migration:** call `clear()` with no arguments to empty the whole cache,
+  or pass both `dataset` and `year` (`year=None` for a yearless entry) to
+  remove one entry; expect one refetch after upgrading for each dataset id
+  containing `/` or other percent-encoded characters and for each yearless
+  entry (formerly `_None.json`), and delete the old files by hand if disk
+  space matters.
+
+- `databricks.dataframe_bridge.spark_to_geopandas` raises `ValueError` when the
+  CRS metadata column mixes null and non-null values, even when `crs=` is
+  supplied, where v4.0.0 let unknown-CRS rows inherit another row's CRS. When
+  the stored CRS is known and `crs=` names a different CRS, coordinates are
+  reprojected to `crs=` instead of being relabelled without transformation
+  (stored EPSG:4326 `POINT (1 1)` with `crs="EPSG:3857"` now has x ≈ 111319.49,
+  where v4.0.0 returned x = 1.0 labelled EPSG:3857). An
+  invalid stored CRS definition raises `pyproj.exceptions.CRSError` even when
+  `crs=` is supplied, where v4.0.0 hid it behind the requested CRS. When the
+  metadata column is absent or entirely null, `crs=` declares the input CRS
+  without transforming, and omitting it leaves the CRS unknown (#1413).
+  **Migration:** fill missing CRS metadata or split rows by CRS before
+  conversion; fix invalid stored CRS values; if you used `crs=` to relabel data
+  whose stored CRS was wrong, fix the stored CRS column instead.
 
 ### Changed
 
@@ -116,6 +147,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Make the Databricks bridge notebook's schematic example project to a metric
+  CRS, buffer with a radius in meters, and transform back to EPSG:4326. Keep
+  the angular-degree caveat and document caller-side filtering and row bounds
+  before collection to driver memory. Remove the persistent-table overwrite
+  from the capped sample and document the bridge's CRS column parameters and
+  output (#1665).
 - **Packaging behavior change from 6.0.0 and earlier releases:**
   `pip install 'siege-utilities[crm]'` now installs `msal>=1.27.0` and pandas
   for the CRM connectors; `[all]` also includes MSAL. 6.0.0 and earlier
