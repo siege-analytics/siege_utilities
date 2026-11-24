@@ -114,6 +114,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `check_security.py`, which the CI bandit step replaces, moved to
   `scripts/archive/`.
 
+### Fixed
+
+- Make the Databricks bridge notebook's schematic example project to a metric
+  CRS, buffer with a radius in meters, and transform back to EPSG:4326. Keep
+  the angular-degree caveat and document caller-side filtering and row bounds
+  before collection to driver memory. Remove the persistent-table overwrite
+  from the capped sample and document the bridge's CRS column parameters and
+  output (#1665).
+
 ### Documentation
 
 - Dynamics `get_objects` documents that the returned frame keeps each
@@ -469,12 +478,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A rejected assignment raises `ValidationError` and leaves the connection
   unchanged. The stored-password policy change is listed under BREAKING
   (#1490).
-- Make the Databricks bridge notebook's schematic example project to a metric
-  CRS, buffer with a radius in meters, and transform back to EPSG:4326. Keep
-  the angular-degree caveat and document caller-side filtering and row bounds
-  before collection to driver memory. Remove the persistent-table overwrite
-  from the capped sample and document the bridge's CRS column parameters and
-  output (#1665).
 - Instagram account insights now use UTC request boundaries regardless of
   the host timezone and label daily metrics with the day covered, one day
   before the end-of-period marker. X account snapshots use the UTC date.
