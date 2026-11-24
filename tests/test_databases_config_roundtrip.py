@@ -161,30 +161,25 @@ def test_bare_ipv6_host_is_bracketed_or_rejected():
 
 
 def test_connection_params_cannot_replace_core_spark_options(tmp_path):
-    try:
-        config = create_database_config(
-            "ov", "postgres", "h", 1, "db", "u", "",
-            url="jdbc:postgresql://other/db", driver="x.Other", user="root",
-        )
-        save_database_config(config, str(tmp_path))
-        options = get_spark_database_options("ov", str(tmp_path))
-    except ValueError:
-        return  # rejecting the collision is acceptable
+    config = create_database_config(
+        "ov", "postgres", "h", 1, "db", "u", "",
+        url="jdbc:postgresql://other/db", driver="x.Other", user="root",
+    )
+    save_database_config(config, str(tmp_path))
+    options = get_spark_database_options("ov", str(tmp_path))
     assert (options["url"], options["driver"], options["user"]) == (
         "jdbc:postgresql://h:1/db", "org.postgresql.Driver", "u")
 
 
 @pytest.mark.parametrize("connection_type", ["mysql", "sqlserver", "oracle"])
-def test_ssl_mode_is_mapped_or_rejected_for_every_type(connection_type, tmp_path, monkeypatch):
+def test_ssl_mode_is_rejected_for_non_postgres_types(connection_type, tmp_path, monkeypatch):
     config = create_database_config(
         "tls", connection_type, "h", 1, "db", "u", "${RV_TLS_PW}", ssl_mode="require")
     save_database_config(config, str(tmp_path))
     monkeypatch.setenv("RV_TLS_PW", "x")
-    try:
-        options = get_spark_database_options("tls", str(tmp_path))
-    except ValueError:
-        return  # rejecting an unmappable ssl_mode is acceptable
-    assert "ssl_mode" not in options  # not a driver property; would be ignored
+    # Forwarding the literal key would be ignored by these drivers, so it must fail closed.
+    with pytest.raises(ValueError, match="ssl_mode is not supported"):
+        get_spark_database_options("tls", str(tmp_path))
 
 
 def test_invalid_reference_error_does_not_echo_the_value(tmp_path):

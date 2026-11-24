@@ -95,7 +95,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   address, or (optionally bracketed) IPv6 literal is accepted and a bare IPv6
   literal is bracketed. IPv6 literals are validated with `IPv6Address`; hosts
   containing a port, trailing newline, or URL-structural characters raise
-  `ValueError`, closing JDBC URL injection through the host. Ports accept only
+  `ValueError`, closing JDBC URL injection through the host. IPv6 zone IDs
+  (`fe80::1%eth0`) and internationalized host names (`bücher.example`) are
+  rejected the same way. Connection types other than the four known ones now
+  get the same host validation and database encoding, so an already-encoded
+  database name such as `a%20b` is encoded again (`a%2520b`); 6.0.0 passed both
+  through unchanged. Connection parameters now override a `spark_options` key
+  of the same name. Ports accept only
   integers or strings of 1 to 5 ASCII digits in range 1-65535, reject booleans,
   and are interpolated as validated integers; `create_database_config` keeps
   its 6.0.0 `port: int` annotation, and digit strings remain a runtime
@@ -109,7 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ssl_mode` now raises rather than being forwarded as an ignored literal key
   (#1476).
   **Migration:** pass the port separately from the host and drop any URL
-  characters from host values; resolve conflicting TLS aliases, in any
+  characters from host values; use an ASCII host name without an IPv6 zone
+  ID; pass database names unencoded; resolve conflicting TLS aliases, in any
   spelling, to one value; remove option keys that differ only by case; for
   non-PostgreSQL drivers set the driver's own TLS option in `spark_options`
   instead of `ssl_mode`; and set the
