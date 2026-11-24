@@ -116,9 +116,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the backend. Per-row failures are reported in `BatchGeocodingResult.errors`
   by caller ID and exception type, without address text; the composite
   preserves backend errors and names the caller's IDs in them.
-  `concatenate_addresses` also skips missing components and normalizes numeric
-  postal codes. Directly constructed `AddressInput` objects normalize their
-  ZIP codes. **Migration:** re-key any
+  `concatenate_addresses` also skips missing components and restores leading
+  zeros in a numeric postal code only when the country is empty or the United
+  States ("US", "USA", "United States", any case); for other countries a
+  numeric postal code keeps its digits (Sydney's 2000 stays 2000). Directly
+  constructed `AddressInput` objects normalize their ZIP codes. **Migration:** re-key any
   stored geocoding results that were keyed on a ZIP with its leading zero
   dropped (for example `2101`, now `02101`); expect an empty ZIP, not a
   guessed one, where a numeric ZIP is invalid; and read `errors` on the batch

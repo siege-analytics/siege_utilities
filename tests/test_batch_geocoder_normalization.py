@@ -269,9 +269,11 @@ def test_composite_retains_errors_from_each_backend_after_fallback(monkeypatch):
     ])
     assert result.total == result.matched_count == 1
     assert result.results[0].input_id == 42  # caller IDs pass through unchanged (#1410)
-    assert len(result.errors) == 2
-    assert "42" in result.errors[0] and "OSError" in result.errors[0]
-    assert "42" in result.errors[1] and "ValueError" in result.errors[1]
+    # Exact messages: a substring check could pass on a random library ID.
+    assert result.errors == [
+        "Nominatim geocode failed for 42: OSError",
+        "TAMU geocode failed for 42: ValueError",
+    ]
 
 
 @pytest.mark.parametrize("geocode", [census_geocoder.geocode_batch, census_geocoder.geocode_batch_chunked])

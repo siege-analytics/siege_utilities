@@ -47,7 +47,12 @@ def _name_caller_ids(messages: list[str], inputs: dict[str, AddressInput]) -> li
         addr = inputs.get(match.group())
         return match.group() if addr is None else str(addr.input_id)
 
-    return [_BATCH_ID_PATTERN.sub(caller_id, message) for message in messages]
+    # A third-party backend may put a non-string (e.g. an exception) in errors;
+    # pass it through rather than losing the whole batch to a TypeError.
+    return [
+        _BATCH_ID_PATTERN.sub(caller_id, message) if isinstance(message, str) else message
+        for message in messages
+    ]
 
 
 _QUALITY_RANK = {

@@ -1,15 +1,15 @@
 # Self-review: batch geocoder normalization (#1526, PR #1748)
 
-Scope of this artifact: the PR as a whole at its code head, plus the process-only commit that moves its release notes into `[4.1.0]` and adds this file. The process-only commit changes `CHANGELOG.md` and this document and no library code.
+Scope of this artifact: the PR as a whole at its code head, plus the process-only commit that moves its release notes into `[Unreleased]` and adds this file. Later rounds are recorded under "Follow-up rounds" below. The process-only commit changes `CHANGELOG.md` and this document and no library code.
 
 Review-Tier: A for the process commit (documentation and release notes only). The code commits under review (3ab4ece4, 8bd29a83) were reviewed independently at exact head 4b818c06 by the external reviewer.
 
 ## Assumptions
 
-- Goal source: ticket #1526. Batch geocoder address normalization must restore leading zeros in numeric ZIPs, keep string ZIPs and ZIP+4, stringify dictionary fields, treat NaN/None/NA/NaT as empty, and report per-row failures without address text.
+- Goal source: ticket #1526. Batch geocoder address normalization must restore leading zeros in numeric ZIPs, keep string ZIPs and ZIP+4, stringify the dictionary address fields (street, city, state, ZIP) while passing caller IDs through unchanged, treat NaN/None/NA/NaT as empty, and report per-row failures without address text.
 - Roles: author is the PR owner; the independent reviewer is the cross-family hostile reviewer who recorded the head 4b818c06 verdict on the ticket.
 - The code diff against `origin/develop` (dc7d3f76) is limited to the geocoder modules, `scripts/exception_contracts_allowlist.json`, three existing test files and two new test files. This commit adds no code.
-- Release convention: user-visible notes belong in `[4.1.0]`, not `[Unreleased]`. This commit moves the two #1526 entries (the `GeocodingResult.input_id` migration note under Changed and the normalization note under Fixed) verbatim. No other `[Unreleased]` entry was touched; the `[Unreleased]` section now matches develop.
+- Release convention: user-visible notes for unreleased work belong in `[Unreleased]`. The #1526 note is one entry under `[Unreleased]` / `### BREAKING`; no released section carries it.
 - Pre-author-inventory: NONE. Trivial-against-state: the commit moves existing text between two sections of one file and was checked with `git diff origin/develop...HEAD -- CHANGELOG.md`, which shows only additions for #1526 after the move.
 
 ## Peer review
@@ -23,16 +23,24 @@ Gate evidence, all observed in this work cycle:
 ## Test plan
 
 - Confirm the PR head after push shows green required checks other than the known DuckDB 2.0 failures on develop.
-- Confirm `CHANGELOG.md` has the two #1526 entries under `[4.1.0]` and none under `[Unreleased]`.
+- Confirm `CHANGELOG.md` has the #1526 entry under `[Unreleased]` and none in a released section.
 - Re-review at the new head: the reviewer PASS at 4b818c06 is void once the head moves, so re-confirmation is requested. The code diff is unchanged between the two heads.
 
 ## Pre-flight (develop 71f02b0b)
 
 Develop was merged additively. The only conflict was `CHANGELOG.md`; every develop line was kept. Develop wins on any disagreement, and none exists: no develop change touches the geocoding providers.
 
-Classification: caller code that worked on v4.0.0 now behaves differently (numeric ZIPs gain their leading zero, invalid numeric ZIPs become empty, per-row failures become unmatched rows with an entry in `errors`, and `GeocodingResult.input_id` is `str`). The PR had a `### Changed` migration note for the `input_id` type and a `### Fixed` note for the normalization. They are now one entry under `### BREAKING` in `[4.1.0]` with a Migration line, at its own position in the BREAKING list so it does not conflict with the other open PRs. `git diff origin/develop -- CHANGELOG.md` shows added lines only. The PR body classification is updated to match.
+Classification: caller code that worked on v4.0.0 now behaves differently (numeric ZIPs gain their leading zero, invalid numeric ZIPs become empty, and per-row failures become unmatched rows with an entry in `errors`). Caller IDs pass through unchanged. The release note is one entry under `### BREAKING` in `[Unreleased]` with a Migration line. `git diff origin/develop -- CHANGELOG.md` shows added lines only. The PR body classification is updated to match.
 
 Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_batch_geocoder_normalization.py test_batch_geocoder_review_regressions.py -q` -> 77 passed in 0.54s. The library code is unchanged since the red/green run recorded in the Falsification entry below, which still applies to this head.
+
+## Follow-up rounds (develop fa8ecff5, then fbb280c7)
+
+- Caller IDs: develop's #1410 batch-ID contract wins. Library batch IDs are submitted to backends, caller IDs pass through unchanged (an integer ID stays an integer), only street, city, state and ZIP are normalized, and the composite geocoder names caller IDs in backend error text.
+- Develop `fbb280c7`, which includes #1831, was merged additively. The only conflict was `CHANGELOG.md`; develop's #1413 entry and the #1526 entry are both kept under `[Unreleased]` / `### BREAKING`.
+- `concatenate_addresses` restores leading zeros in a numeric postal code only when the country is empty or the United States ("US", "USA", "United States", any case). For other countries a numeric postal code keeps its digits, as on develop: Sydney 2000, Brussels 1000, Oslo 150, New Delhi 110001 and Chiyoda 1000001 are unchanged. The previous head padded them to 02000, 01000, 00150, 000110001 and 001000001.
+- The composite geocoder passes a non-string entry in a backend's `errors` through unchanged; the previous head raised `TypeError` and lost the batch.
+- Tests assert exact composite error messages instead of substrings that a random library ID could satisfy.
 
 ## Ticket-fitness exemption
 
@@ -44,4 +52,4 @@ Governing ticket: #1526 (the #1398 epic is context only and is not a governing t
 
 ## Lead review
 
-The change is additive and reversible by reverting one commit. No behavior change. No claim in this artifact exceeds what was observed.
+The change is reversible by reverting the PR's commits. The behaviour changes are the ones listed under Classification and Follow-up rounds and in the CHANGELOG entry. No claim in this artifact exceeds what was observed.
