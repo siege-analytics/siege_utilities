@@ -147,6 +147,27 @@ def test_signed_point_index_preserves_ids_and_series_index(s2, level):
         s2_utils.s2_index_points(points, "lat", "lon", as_signed=True)
 
 
+@pytest.mark.parametrize("level", [12, 30])
+@pytest.mark.parametrize("points,faces,dtype", [
+    # Equator, Paris, Tokyo, Nairobi, Delhi: every ID fits in int64.
+    ([(0.5, 10.0), (48.85, 2.35), (35.68, 139.69), (-1.29, 36.82), (28.61, 77.21)],
+     {0, 1, 2, 3}, "int64"),
+    # Kansas and the South Pole region: IDs need bit 63.
+    ([(39.0, -98.0), (-80.0, 0.0)], {4, 5}, "uint64"),
+])
+def test_unsigned_point_index_keeps_develop_dtype(s2, level, points, faces, dtype):
+    pd = pytest.importorskip("pandas")
+    frame = pd.DataFrame(points, columns=["lat", "lon"])
+    cells = [
+        s2.CellId.from_lat_lng(s2.LatLng.from_degrees(lat, lon)).parent(level)
+        for lat, lon in points
+    ]
+    assert {cell.face() for cell in cells} <= faces
+    result = s2_utils.s2_index_points(frame, "lat", "lon", level, as_token=False)
+    assert str(result.dtype) == dtype
+    assert result.tolist() == [cell.id() for cell in cells]
+
+
 @pytest.mark.parametrize("refine", [True, False])
 def test_signed_polygon_cover_round_trips(s2, refine):
     geometry = pytest.importorskip("shapely.geometry").box(-98.1, 38.9, -97.9, 39.1)

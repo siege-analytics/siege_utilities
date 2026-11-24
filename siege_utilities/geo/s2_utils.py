@@ -205,7 +205,8 @@ def s2_index_points(
         as_token: If True (default), return the cell as a compact hex
             *token* string (compact, human-readable, JSON-safe). If
             False, return the uint64 cell ID. Raw IDs can exceed signed
-            BIGINT. Both round-trip via the
+            BIGINT. The Series dtype is int64 when every ID fits in it
+            (faces 0-3) and uint64 otherwise. Both round-trip via the
             :func:`s2_cell_id_to_token` / :func:`s2_token_to_cell_id`
             helpers.
         as_signed: Return two's-complement int64 IDs for BIGINT storage.
@@ -237,14 +238,18 @@ def s2_index_points(
 
     import pandas as pd  # local import; only batch helpers need pandas
 
+    values = [_one(lat, lon) for lat, lon in zip(df[lat_col], df[lon_col])]
     # Construct the integer dtype directly; float inference loses leaf-ID bits.
-    dtype = "object" if as_token else ("int64" if as_signed else "uint64")
-    return pd.Series(
-        (_one(lat, lon) for lat, lon in zip(df[lat_col], df[lon_col])),
-        index=df.index,
-        dtype=dtype,
-        name="s2_index",
-    )
+    if as_token:
+        dtype = "object"
+    elif as_signed:
+        dtype = "int64"
+    else:
+        # Keep the dtype pandas inferred before as_signed existed: int64
+        # unless an ID needs bit 63 (faces 4-5), then uint64.
+        fits_signed = bool(values) and all(v < (1 << 63) for v in values)
+        dtype = "int64" if fits_signed else "uint64"
+    return pd.Series(values, index=df.index, dtype=dtype, name="s2_index")
 
 
 def s2_index_polygon(
