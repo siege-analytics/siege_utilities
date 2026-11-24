@@ -68,11 +68,11 @@ Post-mortem applicability: N/A. This is a forward content fix, not a revert or r
 - `test_1671_geodjango_notebook_truth.py` holds 6 tests; the counts at this head are in "Sync with develop fbb280c7".
 
 ## Restoration note
-On the original #1786 branch, the three `docs/verification` documents for this PR were removed by commit 157d19be and restored from its parent, 84df62a114df3c6d1c77853482b5d5e7a8e64f09. They were not restored byte for byte: they were rewritten to cover the whole PR at the current head, and internal session names, absolute local paths, client names and non-ASCII punctuation were removed so that nothing internal is published.
+On the original #1786 branch, the three `docs/verification` documents for this PR were removed by commit 157d19be and restored from its parent, 84df62a114df3c6d1c77853482b5d5e7a8e64f09. They were not restored byte for byte: they were rewritten to cover the whole PR at the current head, and local environment details, absolute local paths, client names and non-ASCII punctuation were removed so that none of them is published.
 
 ## Sync with develop fbb280c7 (replacement PR)
 
-- **Replacement branch.** Two commit messages on the original #1786 branch carried internal tooling detail. Rather than rewriting that branch, this replacement starts from develop `fbb280c7`, takes the content of the original head `ad191fe8` with `git merge --squash` (no conflicts; `CHANGELOG.md`, `docs/NOTEBOOKS.md` and `tests/test_notebooks.py` overlap with develop and merged cleanly), and adds the changes below in one commit.
+- **Replacement branch.** Two commit messages on the original #1786 branch carried local environment details. Rather than rewriting that branch, this replacement starts from develop `fbb280c7`, takes the content of the original head `ad191fe8` with `git merge --squash` (no conflicts; `CHANGELOG.md`, `docs/NOTEBOOKS.md` and `tests/test_notebooks.py` overlap with develop and merged cleanly), and adds the changes below.
 - **CHANGELOG.** The #1671 entry moves verbatim from the old `[4.1.0]` bucket, which develop released as `[5.0.0] - 2026-11-20`, to `### Documentation` under `[Unreleased]`.
 - **CI selection.** The notebook job in `.github/workflows/ci.yml` now selects `-k "pure or test_execution_notebook_has_code_cells or test_schematic_notebook_is_markdown_only"`, so the two cell-type checks that `docs/NOTEBOOKS.md` describes as enforced run in CI. Collection gives 47 of 64 tests: the 18 pure tests, 28 code-cell cases and 1 schematic case.
 - **README count.** `notebooks/README.md` now says all 29 live notebooks are in hygiene governance, 28 in execution groups, and `spatial/06` is a markdown-only schematic, matching `scripts/check_notebook_inventory.py` (hygiene 29, execution 28).
