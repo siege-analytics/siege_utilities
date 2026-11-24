@@ -73,6 +73,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer hidden by the field name alone; configure it as the connector's
   credential so value-based redaction covers it, or rename the field.
 
+- Survey inference uses separate effective sample sizes and unweighted
+  respondent counts while retaining weighted display bases. Proportion tests
+  skip longitudinal deltas, top-N shares keep the full denominator, and
+  MEAN_SCALE uses weighted means and standard errors, so published
+  significance flags, shares, means and confidence intervals can differ from
+  6.0.0 for the same data. `chi_square_flag` tests the unweighted respondent
+  counts, so on a weighted table it reports the unweighted sample
+  association, not a design-corrected population test. `build_chain` now
+  raises `CrosstabInputError` for negative, missing or non-finite weights and
+  for a non-numeric weight column; Decimal, object-dtype, nullable and bool
+  weight columns are read as floats. `column_proportion_test` now raises
+  `SignificanceError` on builder-produced metric-sum tables (a non-unit
+  `metric`), not only on manually constructed Views, and chi-square rejects
+  metric-sum tables. MEAN_SCALE `ci` is now `None` when the effective n is
+  below 2 (6.0.0 reported `0.0` at an effective n of 1 or less and a finite
+  interval between 1 and 2), and an effective n below 30 without SciPy raises
+  `SignificanceError`. **Migration:** re-run published survey crosstabs and
+  compare their significance flags and confidence intervals. Clean negative,
+  missing or non-finite weights before calling `build_chain`. Manually
+  constructed Views must provide `effective_n` for proportion tests and
+  `respondent_count` for chi-square. Do not run proportion or chi-square tests
+  on metric-sum tables. Treat `ci=None` as "not estimable", not zero width, and
+  install SciPy for small-sample Student's t intervals (#1478).
+
 - The Salesforce Bulk API CSV upload (used by `bulk_insert`, and by
   `upsert_records` above 2,000 records or with `force_bulk=True`) is no
   longer resent after an uncertain failure. A transport failure or server

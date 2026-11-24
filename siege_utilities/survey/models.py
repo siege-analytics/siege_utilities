@@ -27,13 +27,23 @@ __all__ = ["Chain", "Cluster", "Stack", "View", "Wave", "WaveSet", "WeightScheme
 
 @dataclass
 class View:
-    """A single statistic in one cell of a cross-tabulation."""
+    """A single statistic in one cell of a cross-tabulation.
+
+    ``base`` is for display, and can be a population-scaled weight sum.
+    Inference requires separate metadata: ``effective_n`` is the sample
+    size underlying a proportion/mean; ``respondent_count`` is the raw
+    frequency in this category. Neither can be inferred from aggregate
+    ``count`` or ``base`` values. Builders leave respondent metadata unset
+    for metric-sum tables and synthetic delta cells.
+    """
     metric: str                  # column name / statistic label
-    base: float                  # effective respondent count (weighted sum or raw count)
+    base: float                  # display base (weighted sum or raw count)
     count: float                 # weighted or raw count
     pct: Optional[float] = None  # proportion (0–1); None for non-percent views
     sig_flag: Optional[str] = None  # column letter if significantly different
     ci: Optional[float] = None   # 95% confidence interval (MEAN_SCALE only)
+    effective_n: Optional[float] = None  # raw sample size or Kish effective n
+    respondent_count: Optional[int] = None  # unweighted category frequency
 
 
 # ---------------------------------------------------------------------------

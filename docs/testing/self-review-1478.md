@@ -1,0 +1,68 @@
+# Self-review: survey inference with weighted data (#1478, PR #1732)
+
+Scope of this artifact: the PR as a whole at its code head b7e92bb9, plus the later commits that sync with develop, add this file and fix the weight-dtype validation. The 71f02b0b sync changed `CHANGELOG.md` conflict handling and this document and no library code; the fbb280c7 sync changes `siege_utilities/survey/crosstab.py` (see "Sync with develop fbb280c7").
+
+Review-Tier: A for the process commit (documentation only). The code commits under review were reviewed independently at an earlier head by the external reviewer.
+
+## Assumptions
+
+- Goal source: ticket #1478. Survey inference must use effective sample sizes and unweighted respondent counts, keep the full top-N denominator, and use weighted means and standard errors for MEAN_SCALE.
+- Roles: author is the PR owner; the independent reviewer is the cross-family hostile reviewer who recorded the earlier approval on the ticket.
+- The code diff against `origin/develop` after the sync touches `siege_utilities/survey/crosstab.py`, `models.py`, `significance.py`, `docs/source/packages/survey.rst`, two survey notebooks, five survey test files (including `tests/test_survey_weight_dtypes.py` from the fbb280c7 sync) and `CHANGELOG.md`.
+- The #1478 note sits in `CHANGELOG.md` under `### BREAKING` in `[Unreleased]` (see "Sync with develop fbb280c7"). It began under `[4.1.0]` Fixed; at the 71f02b0b sync the only conflict with develop was in that section, settled by keeping the #1478 entry and every develop entry.
+- Pre-author-inventory: NONE. Trivial-against-state: `git diff origin/develop -- CHANGELOG.md` shows only the #1478 entry as an addition after the sync.
+
+## Peer review
+
+Gate evidence, all observed in this work cycle:
+
+- Local pytest on the tree after the sync, run from the `tests` directory with the pyenv Python 3.11 and the repository pyproject: `python -m pytest test_survey_significance_weighting.py test_survey_significance.py test_survey_crosstab.py` -> 48 passed in 1.42s.
+- Hosted CI at the pushed head is recorded in the PR body once it finishes. The CI run cited in the earlier body belongs to an old head and is superseded.
+- Known baseline: develop CI has failures from the DuckDB 2.0 break (about 30) until the #1863 pin successor lands. They are not attributable to this PR and were not chased.
+
+## Test plan
+
+- Confirm exact-head CI at the pushed head reports success other than the known DuckDB 2.0 failures on develop.
+- Confirm `CHANGELOG.md` has the #1478 entry under `[Unreleased]` / `### BREAKING` and none under a released section.
+- Request a fresh exact-head review: any earlier result is void once the head moves, and the code diff against develop is unchanged.
+
+## Pre-flight (develop 71f02b0b)
+
+Develop was merged additively. The only conflict was `CHANGELOG.md`; every develop line was kept. Develop wins on any disagreement, and none exists: no develop change touches `siege_utilities/survey/`.
+
+Classification: caller code that worked on v4.0.0 behaves differently (significance flags, shares and confidence intervals change for the same data; `build_chain` and `column_proportion_test` raise where they returned; `ci` is `None` where it was `0.0`). The #1478 entry therefore moved from `### Fixed` to `### BREAKING` in `[4.1.0]` with a Migration line, with no change in meaning. The entry sits at its own position in the BREAKING list, not at the top of Fixed, so that the other open PRs do not conflict with it in the merge queue. `git diff origin/develop -- CHANGELOG.md` shows 18 added lines and 0 removed lines. The PR body classification is updated to match.
+
+Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_survey_significance_weighting.py test_survey_significance.py test_survey_crosstab.py -q` -> 48 passed in 1.38s. The library code is unchanged since the red/green run recorded in the Falsification entry below, which still applies to this head.
+
+## Ticket-fitness exemption
+
+Governing ticket: #1478 (the #1398 epic is context only and is not a governing ticket).
+
+- **Reason:** #1478 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
+- **Evidence:** the Problem (weighting making unchanged respondent data look significant, inflated top-N shares, unweighted scale means), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1478, and in the PR description, https://github.com/siege-analytics/siege_utilities/pull/1732. The reviewer verdicts are recorded on the ticket thread and the PR conversation.
+- **Falsification:** revert the implementation (`crosstab.py`, `models.py` and `significance.py` changes of this PR); `tests/test_survey_significance_weighting.py::test_issue_1_population_weight_scaling_preserves_empty_flags` goes red because scaling weights by 10000 again produces spurious significance letters. Observed revert run: with `siege_utilities/survey/crosstab.py`, `models.py` and `significance.py` restored to origin/develop (`git checkout origin/develop -- siege_utilities/survey/crosstab.py siege_utilities/survey/models.py siege_utilities/survey/significance.py`), `python -m pytest test_survey_significance_weighting.py::test_issue_1_population_weight_scaling_preserves_empty_flags -q`, run from the tests directory, gave 1 failed in 1.11s (AssertionError). After `git checkout HEAD --` of the files the command gave 1 passed in 1.16s, `test_survey_significance_weighting.py`, `test_survey_significance.py` and `test_survey_crosstab.py` gave 48 passed on the pushed head, and the worktree was clean. The latest commit of this PR is process-only.
+
+## Lead review
+
+The process-only commits (the 71f02b0b sync and this document) change no library behavior. The library change of this PR, including the fbb280c7 weight-validation fix, is the breaking change classified above. No claim in this artifact exceeds what was observed.
+
+## Sync with develop fbb280c7
+
+- **Develop merge.** No conflicts; `CHANGELOG.md` is the only file changed on both sides, and no develop commit since the merge base touches `siege_utilities/survey/`. Develop released the old `[4.1.0]` bucket as `[5.0.0] - 2026-11-20`, so the #1478 entry would have merged into a released section. It now sits under `### BREAKING` in `[Unreleased]`, reworded against 6.0.0, and states plainly that `chi_square_flag` tests unweighted respondent counts.
+- **Weight dtypes.** `build_chain` ran `np.isfinite` on the caller's raw weight column. Decimal (from a database NUMERIC column), object-dtype floats and bool weights, all of which 6.0.0 accepted, raised a raw `TypeError` or `NotImplementedError`, and a `pd.NA` in a nullable column passed the finite check and its row was dropped silently. The column is now converted with `pd.to_numeric(...).astype("float64")` before the check: a non-numeric column raises `CrosstabInputError`, a missing weight is non-finite and raises `CrosstabInputError`, and Decimal, object, nullable and bool columns give the same table as float64.
+- **Small effective n.** MEAN_SCALE now reports `ci=None` when the effective n is below 2. Between 1 and 2 the t critical value has fewer than one degree of freedom and the interval exploded (for example `2.28e64` for scores `[1, 5]` with weights `[100, 1]`). `test_weighted_small_effective_sample_without_scipy_refuses` now uses weights with an effective n of about 5, so it still exercises the SciPy refusal for an effective n below 30 that has an estimable interval. Its old weights gave an effective n of about 1.002, which the below-two rule makes not estimable before any critical value is needed; the weight change is a direct consequence of that rule and keeps the test's purpose.
+- **Docs and notebooks.** `docs/source/packages/survey.rst` now states the below-two CI rule and the weight-column handling. Two notebook sentences this PR re-emits lost their typographic dashes (`03_polling_survey_analysis.ipynb`: a colon; `04_survey_full_showcase.ipynb`: "1-to-N").
+- **Tests.** `tests/test_survey_weight_dtypes.py` (14 tests: Decimal, object, float32, nullable Float64 and int64 weights match float64; bool weights act as 0/1; NaN, `pd.NA` in Float64 and Int64, None, inf and text raise `CrosstabInputError`; two MEAN_SCALE cells with an effective n between 1 and 2 report `ci=None`). At the previous head `a2315d1a`: 8 failed, 6 passed. At this head: 14 passed, and the survey suites (`test_survey_weight_dtypes.py`, `test_survey_significance_weighting.py`, `test_survey_significance.py`, `test_survey_crosstab.py`, `test_survey_waves.py`) give 77 passed.
+
+## Findings
+
+| ID | Priority | Description | Resolution |
+|----|----------|-------------|------------|
+| F1 | P1 | Weight validation crashed on Decimal, object-dtype and bool weight columns that 6.0.0 accepted, and let a nullable `pd.NA` weight pass; fixed by converting the column to float64 before the finite and nonnegative check | fixed |
+| F2 | P2 | MEAN_SCALE reported exploding confidence intervals for an effective n between 1 and 2; now `ci=None` below 2 | fixed |
+| F3 | P2 | The #1478 CHANGELOG entry would have merged into the released 5.0.0 section; moved to `[Unreleased]` / `### BREAKING` | fixed |
+| F4 | P3 | This artifact contradicted itself on the CHANGELOG section and on "No behavior change" | fixed |
+
+## Independent review
+
+Independent review of `a2315d1a`: FAIL, recorded at https://github.com/siege-analytics/siege_utilities/pull/1732#issuecomment-7119480819 (weight-column dtypes; CHANGELOG placement). This head addresses both; a delta re-review of this head is pending, not a pass.
