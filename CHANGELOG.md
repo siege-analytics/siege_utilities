@@ -73,6 +73,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer hidden by the field name alone; configure it as the connector's
   credential so value-based redaction covers it, or rename the field.
 
+- The Salesforce Bulk API CSV upload (used by `bulk_insert`, and by
+  `upsert_records` above 2,000 records or with `force_bulk=True`) is no
+  longer resent after an uncertain failure. A transport failure or server
+  error on the upload now raises `ConnectorError` without a second upload,
+  because the job may already have accepted the data; in 5.0.0 and 6.0.0 the
+  upload was retried like any PUT. Responses that prove the upload was not
+  processed are handled as before: the single replay after a token refresh on
+  401, and the resend after a 429 wait (#1920).
+  **Migration:** a transient network or server failure during the upload now
+  surfaces as `ConnectorError` instead of being retried. Check the job's state
+  in Salesforce before running the bulk call again; the failed job is left
+  open and is not closed.
+- Census catalog cache filenames percent-encode dataset ids, keeping slash-based
+  ids such as `eits/resconst` and `dec/pl` in the cache directory and visible to
+  cache clearing. Yearless keys use a distinct `none` suffix, and cache logging
+  accepts `year=None`, including write failures. Entries in the old nested
+  layout are no longer read or cleared: the next load fetches and caches a
+  fresh copy at the new key, and the old nested files can be deleted by hand.
+  `CatalogCache.clear(dataset, year)` removes only
+  that entry, including a yearless one with `year=None`; `clear()` still
+  removes every entry. Passing only a dataset or only a year now raises
+  `ValueError` instead of deleting the whole cache (#1405).
+  **Migration:** call `clear()` with no arguments to empty the whole cache,
+  or pass both `dataset` and `year` (`year=None` for a yearless entry) to
+  remove one entry; expect one refetch after upgrading for each dataset id
+  containing `/` or other percent-encoded characters and for each yearless
+  entry (formerly `_None.json`), and delete the old files by hand if disk
+  space matters.
+
+- `databricks.dataframe_bridge.spark_to_geopandas` raises `ValueError` when the
+  CRS metadata column mixes null and non-null values, even when `crs=` is
+  supplied, where v4.0.0 let unknown-CRS rows inherit another row's CRS. When
+  the stored CRS is known and `crs=` names a different CRS, coordinates are
+  reprojected to `crs=` instead of being relabelled without transformation
+  (stored EPSG:4326 `POINT (1 1)` with `crs="EPSG:3857"` now has x ≈ 111319.49,
+  where v4.0.0 returned x = 1.0 labelled EPSG:3857). An
+  invalid stored CRS definition raises `pyproj.exceptions.CRSError` even when
+  `crs=` is supplied, where v4.0.0 hid it behind the requested CRS. When the
+  metadata column is absent or entirely null, `crs=` declares the input CRS
+  without transforming, and omitting it leaves the CRS unknown (#1413).
+  **Migration:** fill missing CRS metadata or split rows by CRS before
+  conversion; fix invalid stored CRS values; if you used `crs=` to relabel data
+  whose stored CRS was wrong, fix the stored CRS column instead.
+
 ### Changed
 
 - `scripts/check_exception_contracts.py`, the exception-contract guard that CI
@@ -124,6 +168,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     with repeated labels on non-numeric columns now have rows with exactly as
     many cells as headers; selecting columns by label had repeated every
     column sharing a label (#1988).
+- Make the Databricks bridge notebook's schematic example project to a metric
+  CRS, buffer with a radius in meters, and transform back to EPSG:4326. Keep
+  the angular-degree caveat and document caller-side filtering and row bounds
+  before collection to driver memory. Remove the persistent-table overwrite
+  from the capped sample and document the bridge's CRS column parameters and
+  output (#1665).
 
 ### Documentation
 
@@ -133,6 +183,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `DynamicsConnector.request()` documents that a 204 response returns
   `{"OData-EntityId": <url>}` when that header is present, otherwise `{}`.
   The behavior is unchanged (#1920).
+- `UpsertResult` documents that `dataclasses.replace` drops the connector's
+  value-aware redactor, so the copy's repr uses key-based redaction; use
+  `copy.copy` and assign the field, or pass `redact=` again, to keep it.
+  The behavior is unchanged (#1920).
+- Correction (2026-11-23) to the 5.0.0 Migration note for #1436, which says
+  Salesforce `is_connected()` "stays True until a request is rejected". A
+  rejected request does not change it: the connector sets its authenticated
+  state only at the token exchange, and a 401 or 403 raises
+  `ConnectorAuthError` without clearing that state, so `is_connected()` still
+  returns True afterwards. Handle `ConnectorAuthError`, as that note advises;
+  `is_connected()` cannot detect a rejected token. The 5.0.0 entry is left as
+  released (#1920).
 
 ## [6.0.0] - 2026-11-22
 

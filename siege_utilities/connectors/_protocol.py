@@ -814,6 +814,13 @@ class UpsertResult:
 
     Never silent — ``failure_count == 0`` is the only success signal.
     Callers must check ``errors`` when ``failure_count > 0`` (SU-1).
+
+    ``copy.copy`` and ``copy.deepcopy`` keep the connector's value-aware
+    redactor. ``dataclasses.replace`` cannot: it passes the ``redact`` default
+    (``None``), so the copy's repr falls back to key-based redaction, which
+    does not mask a configured credential value that appears in an id. To change
+    a field and keep the redactor, copy with ``copy.copy`` and assign the
+    field, or pass the redactor again with ``redact=`` (#1920).
     """
 
     success_count: int
