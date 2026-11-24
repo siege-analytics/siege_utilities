@@ -89,12 +89,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `upload_to_duckdb`) default to `if_exists='fail'` instead of `'replace'`, so
   an upload no longer silently replaces an existing table. DuckDB also accepts
   `'append'` and raises for any other value, and rejects an input column named
-  `geometry_wkt` (its storage column), which v4.0.0 silently overwrote.
+  `geometry_wkt` (its storage column), which v6.0.0 silently overwrote.
   **Migration:** pass `if_exists='replace'` where replacing an existing table
   is intended, and rename any `geometry_wkt` column before uploading (#1818).
 - PostGIS and DuckDB `execute_spatial_query` return rows for every
   row-returning statement, including CTEs (`WITH ...`) and
-  `INSERT`/`UPDATE`/`DELETE ... RETURNING`. In v4.0.0 only queries starting
+  `INSERT`/`UPDATE`/`DELETE ... RETURNING`. In v6.0.0 only queries starting
   with `SELECT` returned a GeoDataFrame, so a CTE or `RETURNING` write returned
   a row count (PostGIS) or the first value of its result (DuckDB) and its rows
   were lost. Fetched `RETURNING` rows are decoded
@@ -106,13 +106,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PostGIS `execute_spatial_query` inside a caller's transaction no longer
   rolls back or commits that transaction on the caller's behalf. A failed
   statement rolls back to a savepoint and keeps the caller's earlier work; in
-  v4.0.0 the connector rolled back the whole transaction. Only a statement
+  v6.0.0 the connector rolled back the whole transaction. Only a statement
   whose first word is not `SELECT` and that contains a write keyword commits,
   so read-only statements such as `WITH ... SELECT`, `EXPLAIN SELECT` or
-  `SHOW` no longer commit the caller's pending work; in v4.0.0 every statement
+  `SHOW` no longer commit the caller's pending work; in v6.0.0 every statement
   not starting with `SELECT` committed. Leading comments and parentheses are
   skipped when finding that first word, so a `SELECT ... FOR UPDATE` behind a
-  comment keeps the caller's transaction and row locks; v4.0.0 committed it. A standalone transaction-control statement
+  comment keeps the caller's transaction and row locks; v6.0.0 committed it. A standalone transaction-control statement
   such as `BEGIN`, `SAVEPOINT` or `RELEASE` runs as written, without the
   connector committing it, and returns -1, so `BEGIN` now leaves a
   transaction open (#1818). **Migration:** after a `SpatialQueryError` inside
