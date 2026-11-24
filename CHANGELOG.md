@@ -209,6 +209,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Make the Databricks bridge notebook's schematic example project to a metric
+  CRS, buffer with a radius in meters, and transform back to EPSG:4326. Keep
+  the angular-degree caveat and document caller-side filtering and row bounds
+  before collection to driver memory. Remove the persistent-table overwrite
+  from the capped sample and document the bridge's CRS column parameters and
+  output (#1665).
 - On a connection the connector opened, a spatial query's write commits only
   after its result is decoded and rolls back on any error, so a failed
   multi-statement DuckDB write leaves nothing behind. A PostGIS
