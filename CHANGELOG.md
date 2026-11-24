@@ -85,6 +85,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   surfaces as `ConnectorError` instead of being retried. Check the job's state
   in Salesforce before running the bulk call again; the failed job is left
   open and is not closed.
+- `ChartGenerator` chart wrappers and both `BaseChartEngine` dispatchers
+  (`generate_chart_from_dataframe` and the custom-chart dispatcher) forward
+  engine arguments by keyword, so titles, column mappings, geometry and
+  dimensions reach the intended engine parameters instead of shifting by
+  position (on v4.0.0 a scatter title arrived as the width). The choropleth,
+  bivariate and DataFrame wrappers take a keyword-only `geo_data`, and
+  custom-chart configurations forward `geo_data` and their column selections.
+  The line wrapper accepts a single `y_column` string or a list. The basic
+  wrappers' `width`/`height` defaults change from `800`/`600` to `8.0`/`6.0`;
+  the engines already passed these values to matplotlib as `figsize` inches,
+  so the v4.0.0 "pixels" docstrings were wrong and are corrected. The
+  bivariate and geographic analytics
+  examples run offline with explicit sample geometry and current API
+  arguments (#1517). **Migration:** pass `width`/`height` in inches, and pass
+  them explicitly if you depended on the old defaults; pass `geo_data=` by keyword; check any
+  call that relied on the old positional shift.
 
 ### Changed
 
@@ -1296,22 +1312,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `too_cheap <= cheap <= expensive <= too_expensive` (ties allowed), instead
   of building curves from inconsistent answers (#1422). **Migration:** clean or
   drop inconsistent survey responses before calling.
-- `ChartGenerator` chart wrappers and both `BaseChartEngine` dispatchers
-  (`generate_chart_from_dataframe` and the custom-chart dispatcher) forward
-  engine arguments by keyword, so titles, column mappings, geometry and
-  dimensions reach the intended engine parameters instead of shifting by
-  position (on v4.0.0 a scatter title arrived as the width). The choropleth,
-  bivariate and DataFrame wrappers take a keyword-only `geo_data`, and
-  custom-chart configurations forward `geo_data` and their column selections.
-  The line wrapper accepts a single `y_column` string or a list. The basic
-  wrappers' `width`/`height` defaults change from `800`/`600` to `8.0`/`6.0`;
-  the engines already passed these values to matplotlib as `figsize` inches,
-  so the v4.0.0 "pixels" docstrings were wrong and are corrected. The
-  bivariate and geographic analytics
-  examples run offline with explicit sample geometry and current API
-  arguments (#1517). **Migration:** pass `width`/`height` in inches, and pass
-  them explicitly if you depended on the old defaults; pass `geo_data=` by keyword; check any
-  call that relied on the old positional shift.
 
 - `CensusDataSource.fetch_geographic_boundaries` (and the module-level
   wrapper) no longer substitutes the nearest published TIGER vintage. A
