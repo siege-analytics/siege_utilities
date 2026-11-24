@@ -45,7 +45,8 @@ Merged diff against develop, hunk by hunk:
 | F1 | P2 | Body claimed an existing CHANGELOG entry that was absent | entry added; body corrected |
 | F2 | P3 | Branch behind develop with a positional CHANGELOG conflict | additive merge, develop entry kept |
 
-## Test plan / Quantified claims
+## Test plan
+Quantified claims for the earlier rounds:
 Interpreter: Python 3.11.11, merged tree.
 - `python -m pytest tests/test_1449_msal_extra.py tests/test_package_metadata_contract.py tests/test_wheel_contents.py tests/test_connectors_errors.py tests/test_lazy_import_recovery.py tests/test_lazy_introspection_contracts.py tests/test_connectors_dynamics_errors.py tests/test_connector_filter_escaping.py tests/test_connector_identifiers.py tests/test_connector_upsert_sanitization.py tests/test_connector_record_sanitizer.py tests/test_smoke.py tests/test_runtime_guard.py tests/test_sql_safety.py tests/test_release_process.py tests/test_user_config_export_changelog.py --no-cov -rs` -> 455 passed, 2 skipped.
 - `git diff --stat origin/develop` -> the 4 PR files (98 insertions, 3 deletions).
@@ -69,6 +70,9 @@ writing-rules:4 exemption for the governing ticket. The #1398 epic is context on
 - **Develop merge.** No conflicts. Develop released the old `[4.1.0]` bucket as `[5.0.0] - 2026-11-20`, so the #1449 entry would have merged into a released section. It now sits under `### Fixed` in `[Unreleased]`, reworded to "from 6.0.0 and earlier releases".
 - **MSAL floor.** Develop's `dynamics.py` now calls `ConfidentialClientApplication.remove_tokens_for_client()` during token renewal, and MSAL Python first ships that method in 1.27.0 (checked by installing each version: absent in 1.26.0, present in 1.27.0). The `crm` and `[all]` extras now declare `msal>=1.27.0`, superseding the `>=1.24.0` floor in the rounds above, and `test_msal_is_declared_in_an_extra_with_a_lower_bound` fails for any specifier that admits 1.26.0.
 - **Removed file.** `.claude/scanner-test-map.json` was internal tooling under a git-ignored directory and is removed from the PR.
+
+## Independent review
+Independent review of 2ef9ec44: NEEDS SYNC, recorded at https://github.com/siege-analytics/siege_utilities/pull/1828#issuecomment-7118217499 (msal floor, CHANGELOG placement). This head addresses both; a delta re-review of this head is pending, not a pass.
 
 ## Rework ledger
 Empty.
