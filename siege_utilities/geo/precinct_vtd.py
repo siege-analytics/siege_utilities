@@ -307,7 +307,9 @@ def _county_candidates(
     """
     counties: dict[str, set[str]] = {}
     for entry in crosswalk:
-        state = entry.state.strip().upper()
+        # A missing state from a CSV arrives as None or NaN; it must not abort
+        # name matching for every precinct in the call.
+        state = str(entry.state or "").strip().upper()
         state_fips = _STATE_FIPS_CODES.get(state, state)
         if not re.fullmatch(r"[0-9]{2}", state_fips):
             state_fips = _vtd_county(entry.vtd_geoid)[:2]
@@ -583,6 +585,18 @@ class PrecinctVTDReconciler:
                 pnames = self._names.get_precinct_names(precinct_ids)
                 vnames = self._names.get_vtd_names()
                 if pnames and vnames:
+                    # Keys that are not VTD GEOIDs (for example a GEOID that lost
+                    # its leading zero in an integer column) cannot be scoped to a
+                    # county, so they are never compared; say so instead of
+                    # looking like "no similar name".
+                    ignored_vtds = [geoid for geoid in vnames if not _vtd_county(geoid)]
+                    if ignored_vtds:
+                        log.warning(
+                            "Name matching ignored %d of %d VTD name candidate(s) whose "
+                            "key is not an 11-character VTD GEOID, for example %s",
+                            len(ignored_vtds), len(vnames),
+                            ", ".join(repr(geoid) for geoid in ignored_vtds[:3]),
+                        )
                     counties = _county_candidates(relevant_crosswalk, overlaps)
                     precinct_county = {
                         pid: next(iter(keys)) for pid, keys in counties.items() if len(keys) == 1

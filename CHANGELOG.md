@@ -119,7 +119,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   HIGH name-only mapping must read `confidence_level` and `method` (COMBINED
   still reaches HIGH) instead of assuming a name match is HIGH. A precinct
   without a name match can now be told apart from one whose name matching never
-  ran by checking `name_matching_skipped` (#1433).
+  ran by checking `name_matching_skipped`. VTD name candidates whose key is not
+  an 11-character VTD GEOID (for example a GEOID that lost its leading zero in
+  an integer column) are never compared; a warning gives their count and
+  examples (#1433).
 
 ### Changed
 
@@ -154,8 +157,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Precinct/VTD name matching now restricts candidates to the precinct's county,
   using official county FIPS, spatial overlap counties, then optional provider
   county keys. Unknown or conflicting counties skip name matching, and malformed
-  VTD GEOIDs are ignored. Direct `reconcile_names` callers must supply
-  `precinct_county`; name-only providers can supply `get_precinct_counties`.
+  VTD GEOIDs are ignored with a logged warning. Direct `reconcile_names`
+  callers must supply `precinct_county`; name-only providers can supply
+  `get_precinct_counties`.
   Official-crosswalk mappings retain precedence (#1433).
 - Precinct/VTD reconciliation emits fewer name-only mappings: an official
   mapping or spatial overlap of at least 95% suppresses names pointing to

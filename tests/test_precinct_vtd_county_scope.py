@@ -1,5 +1,7 @@
 """County-scoping regressions for precinct/VTD name matching (#1433)."""
 
+import logging
+
 import pytest
 
 from siege_utilities.geo.precinct_vtd import (
@@ -439,3 +441,37 @@ def test_sub_threshold_sliver_does_not_block_name_confirmation():
     nm.add_vtd("48201000001", "Precinct 1")
     r = PrecinctVTDReconciler(spatial_provider=sp, name_provider=nm).reconcile(["P1"])
     assert r.method_counts.get("combined") == 1
+
+
+@pytest.mark.parametrize("state", [None, 48, float("nan")])
+def test_non_string_crosswalk_state_does_not_disable_name_matching(state):
+    # One crosswalk row with a missing or non-string state must not cost the
+    # other precincts their name matches.
+    nm = DictNameMatchProvider()
+    nm.add_precinct("P1", "Precinct 1")
+    nm.add_precinct("P2", "Precinct 2", county="48201")
+    nm.add_vtd("48201000001", "Precinct 1")
+    nm.add_vtd("48201000002", "Precinct 2")
+    cw = [OfficialCrosswalkEntry("P1", "48201000001", state=state, county="201")]
+    r = PrecinctVTDReconciler(name_provider=nm, official_crosswalk=cw).reconcile(["P1", "P2"])
+    assert r.errors == []
+    assert [(m.precinct_id, m.method) for m in r.mappings] == [
+        ("P1", ReconciliationMethod.OFFICIAL_CROSSWALK),
+        ("P2", ReconciliationMethod.NAME_MATCH),
+    ]
+
+
+@pytest.mark.parametrize("vtd_key", ["6037000001", "V1", " 06037000001", 6037000001])
+def test_ignored_vtd_candidates_are_reported(vtd_key, caplog):
+    # A VTD key that is not an 11-character GEOID is never compared; that must
+    # not look like "no similar name".
+    nm = DictNameMatchProvider()
+    nm.add_precinct("P1", "Precinct 1", county="06037")
+    nm.add_vtd(vtd_key, "Precinct 1")
+    with caplog.at_level(logging.WARNING, logger="siege_utilities.geo.precinct_vtd"):
+        r = PrecinctVTDReconciler(name_provider=nm).reconcile(["P1"])
+    assert r.mappings == []
+    messages = [record.getMessage() for record in caplog.records]
+    ignored = [m for m in messages if "ignored 1 of 1 VTD name candidate" in m]
+    assert ignored, messages
+    assert repr(vtd_key) in ignored[0]
