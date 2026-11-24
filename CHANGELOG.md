@@ -59,6 +59,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   name must read the returned path instead; build any PPTX separately with
   `PowerPointGenerator`.
 
+- `Collaborator.access_expires`, `Collaboration.end_date`,
+  `Credential.expires_at`, and `OAuthIntegration.expires_at` accept past
+  datetimes, so persisted models can reload after expiry; constructing one with
+  a past value used to raise a validation error and no longer does. Expired
+  items still load as expired: `is_expired`, `is_token_expired`,
+  `needs_refresh`, `is_access_expired` and `Collaboration.is_active` report
+  them, and `Person.get_valid_credentials` and `get_valid_oauth_integrations`
+  exclude them. These checks now accept timezone-aware values such as
+  `2026-01-01T00:00:00Z` or any UTC offset and compare the instant, where
+  6.0.0 and earlier releases raised `TypeError` (at construction, comparing an
+  aware value with a naive `datetime.now()`). Naive values keep their meaning:
+  local wall-clock time. A naive value within a day of `datetime.max` or
+  `datetime.min`, such as a `datetime.max` "never expires" value, cannot be
+  shifted by a UTC offset and is read at its nominal instant, so it still
+  compares as far future (or far past) in any local timezone. Stored values
+  are not converted. **Migration:** code that relied on that validation error
+  to reject an already-expired value must check the value itself, for example
+  by calling the model's expiry or active-state check after construction
+  (#1496).
+
 - A Dynamics `upsert_records` call that splits records into batches no longer
   loses completed batches when a later batch fails in transport or with a
   server error. The failed batch's records are reported as `UpsertError`
