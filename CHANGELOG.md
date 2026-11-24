@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `create_spark_session_with_databases` changes its default JDBC drivers to
+  pgjdbc 42.7.15, MySQL Connector/J 26.10.0 and Oracle ojdbc8 23.26.3.0.0,
+  replacing pgjdbc 42.3.1, mysql-connector-java 8.0.28 and ojdbc8 21.1.0.0
+  (security fix, #1483). pgjdbc 42.7.15 is the patched version for the 14
+  pgjdbc advisories published on 2026-11-23 against 42.7.14 and earlier;
+  GHSA-hcjv-f5jh-r55v (low, 42.7.14 and earlier) lists no patched version and
+  remains open. 26.7.0 is the version named as affected by CVE-2026-101768
+  (Oracle October 2026 CPU); this pins 26.10.0, the next release, which the
+  advisory does not list as affected. MySQL's Maven coordinate moves from
+  `mysql:mysql-connector-java` to `com.mysql:mysql-connector-j`. Defaults now
+  live in one coordinate map; callers can replace the package list through
+  `conf.settings.SPARK_JDBC_PACKAGES` (a list or comma-separated string).
+  Without an override, empty/None `database_names` adds no JDBC driver, where
+  6.0.0 and earlier releases added the PostgreSQL driver. The new MySQL
+  default requires MySQL Server 8.4+; Oracle 23.x supports Database 19c+.
+  **Migration:** callers relying on the former implicit PostgreSQL driver must
+  supply database names or a package override, and older server deployments
+  must choose compatible patched overrides through `SPARK_JDBC_PACKAGES`.
+
 - `write_df_to_parquet` and `export_prepared_df_as_csv_to_path_using_delimiter`
   no longer replace existing output by default. Both now default to Spark's
   `errorifexists` mode: when the destination path already exists, Spark raises
@@ -69,6 +88,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `result.failure_count` and `result.errors` instead; no exception is raised
   for that case now.
 
+- Place history reverse lineage uses `CrosswalkRecord.reverse_weight`, also
+  accepted by `DictCrosswalkProvider.add`, for step weights, cumulative target
+  shares, and `min_weight` pruning, so reverse-lineage steps and weights differ
+  from 6.0.0. Steps pair GEOIDs with their correct vintage years, and
+  `Lineage.terminal_weights` sums paths reaching the same terminal GEOID while
+  preserving `terminal_geoids`. If any retained reverse terminal path lacks a
+  reverse share, the entire `terminal_weights` dictionary is empty; ancestry and
+  the legacy forward allocation on those steps remain available. Forward
+  traversal now skips nonpositive and nonfinite record weights, and terminal
+  totals contain only finite, positive values. **Migration:** supply
+  `reverse_weight` on crosswalk records (and to `DictCrosswalkProvider.add`)
+  wherever reverse shares or `min_weight` pruning matter; treat an empty
+  `terminal_weights` as "reverse shares incomplete", not as zero weight, and
+  read `terminal_geoids` for ancestry; and re-check any code that read the step
+  years or terminal totals from the old output (#1434).
+
 - Connector diagnostics (exception messages, log lines, `UpsertError` text
   and `UpsertResult` repr) keep the value of a quoted JSON or mapping field
   named `code` or `key` when that value is a plain literal: at most 32
@@ -102,6 +137,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   surfaces as `ConnectorError` instead of being retried. Check the job's state
   in Salesforce before running the bulk call again; the failed job is left
   open and is not closed.
+- Census catalog cache filenames percent-encode dataset ids, keeping slash-based
+  ids such as `eits/resconst` and `dec/pl` in the cache directory and visible to
+  cache clearing. Yearless keys use a distinct `none` suffix, and cache logging
+  accepts `year=None`, including write failures. Entries in the old nested
+  layout are no longer read or cleared: the next load fetches and caches a
+  fresh copy at the new key, and the old nested files can be deleted by hand.
+  `CatalogCache.clear(dataset, year)` removes only
+  that entry, including a yearless one with `year=None`; `clear()` still
+  removes every entry. Passing only a dataset or only a year now raises
+  `ValueError` instead of deleting the whole cache (#1405).
+  **Migration:** call `clear()` with no arguments to empty the whole cache,
+  or pass both `dataset` and `year` (`year=None` for a yearless entry) to
+  remove one entry; expect one refetch after upgrading for each dataset id
+  containing `/` or other percent-encoded characters and for each yearless
+  entry (formerly `_None.json`), and delete the old files by hand if disk
+  space matters.
+
+- `databricks.dataframe_bridge.spark_to_geopandas` raises `ValueError` when the
+  CRS metadata column mixes null and non-null values, even when `crs=` is
+  supplied, where v4.0.0 let unknown-CRS rows inherit another row's CRS. When
+  the stored CRS is known and `crs=` names a different CRS, coordinates are
+  reprojected to `crs=` instead of being relabelled without transformation
+  (stored EPSG:4326 `POINT (1 1)` with `crs="EPSG:3857"` now has x ≈ 111319.49,
+  where v4.0.0 returned x = 1.0 labelled EPSG:3857). An
+  invalid stored CRS definition raises `pyproj.exceptions.CRSError` even when
+  `crs=` is supplied, where v4.0.0 hid it behind the requested CRS. When the
+  metadata column is absent or entirely null, `crs=` declares the input CRS
+  without transforming, and omitting it leaves the CRS unknown (#1413).
+  **Migration:** fill missing CRS metadata or split rows by CRS before
+  conversion; fix invalid stored CRS values; if you used `crs=` to relabel data
+  whose stored CRS was wrong, fix the stored CRS column instead.
+
+- `NCESLocaleClassifier.classify_points`, `classify_polygon` and
+  `classify_polygons` reproject GeoDataFrame/GeoSeries inputs that carry a CRS
+  to EPSG:4269 before reading coordinates; on v4.0.0 projected metres were read
+  as degrees, so a point classified 11 in EPSG:4269 classified 43 after
+  `to_crs(3857)`. `h3_spatial_join` and `s2_spatial_join` reproject polygon
+  frames to EPSG:4326 instead of joining on projected metres, and
+  `h3_index_polygon` and `s2_index_polygon` now accept GeoDataFrame/GeoSeries
+  polygon inputs (v4.0.0 raised `TypeError` for them) and reproject them the
+  same way. Inputs without a CRS, including bare Shapely or GeoJSON polygons,
+  whose coordinates exceed ±180 longitude or ±90 latitude now raise
+  `ValueError` naming the function, axis and value, where v4.0.0 passed them
+  on as degrees. Caller frames are not mutated; bulk locale results keep the
+  caller's original geometry, CRS, index and attributes. Valid geographic
+  inputs, with or without CRS metadata, behave as before; point columns passed
+  to the cell-based joins remain latitude/longitude degrees (#1451).
+  **Migration:** set the true source CRS on projected data (`gdf.set_crs(...)`)
+  before calling these functions; bare Shapely or GeoJSON geometries must be
+  longitude/latitude degrees; expect `ValueError` where v4.0.0 silently
+  returned codes, cells or join rows for out-of-range coordinates.
 
 ### Changed
 
@@ -130,6 +216,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `verify_round9_hardening.py` and `verify_batch1_1373.py` scripts, and
   `check_security.py`, which the CI bandit step replaces, moved to
   `scripts/archive/`.
+
+### Fixed
+
+- Make the Databricks bridge notebook's schematic example project to a metric
+  CRS, buffer with a radius in meters, and transform back to EPSG:4326. Keep
+  the angular-degree caveat and document caller-side filtering and row bounds
+  before collection to driver memory. Remove the persistent-table overwrite
+  from the capped sample and document the bridge's CRS column parameters and
+  output (#1665).
 
 ### Documentation
 
