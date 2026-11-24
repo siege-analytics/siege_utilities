@@ -93,7 +93,7 @@ The ticket's 1-second reload test (`test_1496_expiry_timezones.py`) also uses th
 Source inventory, in summary:
 - The library's only path that uses a stored secret for these models is `GoogleWorkspaceClient.from_account` (`analytics/google_workspace.py:313-321`). It takes the integration from `Person.get_oauth_integration` (`person.py:242`, no filter) and passes `client_id`/`client_secret` to `from_oauth`, which starts a fresh OAuth flow when no valid token file exists.
 - That path has no library-side validity or revocation gate. The gap is pre-existing: v4.0.0 had none either.
-- Before this PR, a Person whose integration had a past `expires_at` could not be loaded, so the path was unreachable for it. Now it loads and runs a fresh OAuth flow, which is the refresh #1496 asks for. Token expiry is not the right gate there; `is_active` (deactivation) is. A follow-up issue is drafted but UNFILED: filing is currently blocked by a local guard.
+- Before this PR, a Person whose integration had a past `expires_at` could not be loaded, so the path was unreachable for it. Now it loads and runs a fresh OAuth flow, which is the refresh #1496 asks for. Token expiry is not the right gate there; `is_active` (deactivation) is. A follow-up issue for that gate is tracked as #2014.
 - `Credential` secrets and OAuth access and refresh tokens have no use path in the library, so relaxing their validators changes load behaviour only.
 - Provider-side rejection is not counted as library enforcement.
 
@@ -111,9 +111,9 @@ The change reverts additively. It is BREAKING, because past values no longer rai
 
 | ID | Priority | Description | Resolution |
 |----|----------|-------------|------------|
-| F1 | P1 | Outside UTC, a naive far-future expiry such as `datetime.max` made every validity check and the `Person.get_valid_*` filters raise | `as_utc` reads out-of-range conversions at the nominal instant; `needs_refresh` adds the lead time to now; `tests/test_1496_far_future_expiry.py` |
-| F2 | P2 | The #1496 CHANGELOG entry would have merged into the released 5.0.0 section | moved to `[Unreleased]` / `### BREAKING` |
-| F3 | P3 | This artifact contradicted itself (closing keyword, code-diff list, CHANGELOG section, stub-run count, naive-value claim) and cited a test name that does not exist | corrected above |
+| F1 | P1 | Outside UTC, a naive far-future expiry such as `datetime.max` made every validity check and the `Person.get_valid_*` filters raise. Fixed by `as_utc` reading out-of-range conversions at the nominal instant and `needs_refresh` adding the lead time to now; covered by `tests/test_1496_far_future_expiry.py` | fixed |
+| F2 | P2 | The #1496 CHANGELOG entry would have merged into the released 5.0.0 section; moved to `[Unreleased]` / `### BREAKING` | fixed |
+| F3 | P3 | This artifact contradicted itself (closing keyword, code-diff list, CHANGELOG section, stub-run count, naive-value claim) and cited a test name that does not exist; corrected above | fixed |
 
 ## Independent review
 
