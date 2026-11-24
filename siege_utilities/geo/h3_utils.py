@@ -14,6 +14,11 @@ from typing import Optional
 
 import pandas as pd
 
+from siege_utilities.geo._geographic_crs import (
+    _geographic_geometries,
+    _geographic_polygon,
+)
+
 log = logging.getLogger(__name__)
 
 # --- Guard the h3 import ---
@@ -131,11 +136,14 @@ def h3_index_polygon(
     """
     Return the set of H3 hexes covering a polygon geometry.
 
-    Accepts a Shapely Polygon/MultiPolygon or a GeoJSON-like dict.
+    Accepts a Shapely Polygon/MultiPolygon, GeoJSON-like dict, or
+    GeoDataFrame/GeoSeries. Frame/series polygons are reprojected to EPSG:4326
+    and combined without mutating the input. Bare geometries and inputs with
+    no CRS are assumed to contain longitude/latitude degrees.
 
     Args:
-        geometry: A Shapely Polygon/MultiPolygon, or a GeoJSON-like dict with
-                  ``type`` and ``coordinates`` keys.
+        geometry: A Shapely Polygon/MultiPolygon, a GeoJSON-like dict with
+                  ``type`` and ``coordinates`` keys, or a GeoDataFrame/GeoSeries.
         resolution: H3 resolution (0-15). Default 8.
 
     Returns:
@@ -143,7 +151,8 @@ def h3_index_polygon(
 
     Raises:
         ImportError: If h3 is not installed.
-        ValueError: If resolution is out of range.
+        ValueError: If resolution is out of range, or CRS is missing and
+            coordinates exceed +/-180 longitude or +/-90 latitude.
         TypeError: If geometry type is unsupported.
     """
     _require_h3()
@@ -152,6 +161,7 @@ def h3_index_polygon(
         raise ValueError(f"H3 resolution must be 0-15, got {resolution}")
 
     # Convert Shapely geometry to GeoJSON dict
+    geometry = _geographic_polygon(geometry, "EPSG:4326", "h3_index_polygon")
     geojson = _geometry_to_geojson(geometry)
 
     geom_type = geojson.get("type", "")
@@ -226,7 +236,9 @@ def h3_spatial_join(
         points_df: DataFrame with latitude/longitude columns.
         polygons_gdf: GeoDataFrame (or any object with a ``geometry`` column
                       and an iterable of rows). Each geometry must be a
-                      Polygon or MultiPolygon.
+                      Polygon or MultiPolygon. Known CRSs are reprojected to
+                      EPSG:4326 without changing the input. With no CRS,
+                      coordinates are assumed to be longitude/latitude degrees.
         lat_col: Name of the latitude column in ``points_df``.
         lon_col: Name of the longitude column in ``points_df``.
         resolution: H3 resolution (0-15). Default 8.
@@ -239,9 +251,14 @@ def h3_spatial_join(
 
     Raises:
         ImportError: If h3 is not installed.
+        ValueError: If polygon CRS is missing and coordinates exceed +/-180
+            longitude or +/-90 latitude; names this function and the value.
     """
     _require_h3()
 
+    geometries = _geographic_geometries(
+        polygons_gdf["geometry"], "EPSG:4326", "h3_spatial_join",
+    )
     # 1. Index all points
     point_hexes = h3_index_points(points_df, lat_col, lon_col, resolution)
     points_indexed = points_df.copy()
@@ -251,9 +268,8 @@ def h3_spatial_join(
     hex_to_polygon: dict = {}
     polygon_attrs: dict = {}
 
-    for idx, row in polygons_gdf.iterrows():
+    for (idx, row), geom in zip(polygons_gdf.iterrows(), geometries):
         poly_id = row[polygon_id_col] if polygon_id_col else idx
-        geom = row["geometry"]
         hexes = h3_index_polygon(geom, resolution)
         # Store polygon attributes (excluding geometry)
         attrs = {
