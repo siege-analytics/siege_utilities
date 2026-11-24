@@ -146,8 +146,9 @@ If you have a bookmark or external link pointing at the old flat numbering, this
 
 ## Governance status
 
-All 29 live notebooks are listed in hygiene and execution governance after #1227/#1225/#1226;
-no legacy live notebook backlog remains.
+All 29 live notebooks are listed in hygiene governance after #1227/#1225/#1226; 28 are in
+execution groups and `spatial/06` is a markdown-only schematic (#1671). No legacy live
+notebook backlog remains.
 
 Run `python3 scripts/check_notebook_inventory.py --json` for the current
 machine-readable inventory and `--check` to guard missing references and local
