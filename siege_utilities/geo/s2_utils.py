@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import logging
 import math
+import operator
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Optional, SupportsInt
 
@@ -411,11 +412,20 @@ def s2_cells_to_ranges(
 
     Raises:
         ImportError: If s2sphere is not installed.
+        TypeError: If an input is a float or another non-integer type. A
+            float cannot hold most cell IDs exactly.
         ValueError: If an input is not a valid S2 cell ID.
     """
     _require_s2()
     out = []
     for cid in cell_ids:
+        if not isinstance(cid, str):
+            try:
+                operator.index(cid)
+            except TypeError as exc:
+                raise TypeError(
+                    f"Expected an integer cell ID or token, got {type(cid).__name__}"
+                ) from exc
         cell = _s2.CellId(s2_cell_id_to_uint64(cid))
         if not cell.is_valid():
             raise ValueError(f"Invalid S2 cell ID: {cid!r}")
@@ -701,10 +711,11 @@ def _coerce_cell_id(value):
         return value
     if isinstance(value, str):
         return _s2.CellId.from_token(value)
-    # Try integer-like (covers Python int, numpy.int64, numpy.uint64).
+    # Try integer-like (covers Python int, numpy.int64, numpy.uint64). An
+    # out-of-range integer keeps its ValueError from s2_cell_id_to_uint64.
     try:
         return _s2.CellId(s2_cell_id_to_uint64(value))
-    except (TypeError, ValueError) as exc:
+    except TypeError as exc:
         raise TypeError(
             f"Expected CellId, uint64/signed int64, or token string, got "
             f"{type(value).__name__}"

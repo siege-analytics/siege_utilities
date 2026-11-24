@@ -65,6 +65,19 @@ def s2():
     return pytest.importorskip("s2sphere")
 
 
+@pytest.mark.parametrize("value", [1.5, float(KANSAS_ID)])
+def test_ranges_reject_float_cell_ids(s2, value):
+    # A float cannot hold most cell IDs exactly; develop's range helper raised here.
+    with pytest.raises(TypeError, match="float"):
+        s2_utils.s2_cells_to_ranges([value])
+
+
+@pytest.mark.parametrize("value", [INT64_MIN - 1, 1 << 64])
+def test_out_of_range_cell_id_reports_range_error(s2, value):
+    with pytest.raises(ValueError, match="64-bit"):
+        s2_utils.s2_cell_id_to_token(value)
+
+
 def test_kansas_id_matches_point_and_token(s2):
     cell = s2.CellId.from_lat_lng(s2.LatLng.from_degrees(39, -98)).parent(12)
     assert cell.face() == 4
