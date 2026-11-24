@@ -55,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Place history reverse lineage uses `CrosswalkRecord.reverse_weight`, also
   accepted by `DictCrosswalkProvider.add`, for step weights, cumulative target
   shares, and `min_weight` pruning, so reverse-lineage steps and weights differ
-  from v4.0.0. Steps pair GEOIDs with their correct vintage years, and
+  from 6.0.0. Steps pair GEOIDs with their correct vintage years, and
   `Lineage.terminal_weights` sums paths reaching the same terminal GEOID while
   preserving `terminal_geoids`. If any retained reverse terminal path lacks a
   reverse share, the entire `terminal_weights` dictionary is empty; ancestry and
