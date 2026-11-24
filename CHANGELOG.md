@@ -121,10 +121,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `["address_street", "address_city", "address_state",
   "address_postal_code"]`, so phone and address now corroborate merges by
   default.
-  **Migration:** all canonical IDs differ from 4.0.0, and an ID can change
+  **Migration:** all canonical IDs differ from 6.0.0, and an ID can change
   when a later run adds a group member with a smaller seed, so regenerate
   persisted merge tables rather than appending. `name_candidate_id` equals
-  the 4.0.0 name-only `canonical_id`, so it can join old tables during
+  the 6.0.0 name-only `canonical_id`, so it can join old tables during
   migration; never merge on it without review. For the previous email-only
   corroboration pass `identifier_columns=["email"], address_columns=[]`. Pass
   `identifier_columns=[]` and `address_columns=[]` to disable identifier
