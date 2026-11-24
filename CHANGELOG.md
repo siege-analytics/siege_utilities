@@ -98,7 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ValueError`, closing JDBC URL injection through the host. Ports accept only
   integers or strings of 1 to 5 ASCII digits in range 1-65535, reject booleans,
   and are interpolated as validated integers; `create_database_config` keeps
-  its 4.0.0 `port: int` annotation, and digit strings remain a runtime
+  its 6.0.0 `port: int` annotation, and digit strings remain a runtime
   allowance. Conflicting `ssl_mode` and `sslmode` connection parameters raise
   instead of overriding the requested TLS mode. Core Spark options (`url`,
   `driver`, `user`, `password`) are applied last so `connection_params` cannot
