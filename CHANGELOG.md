@@ -104,23 +104,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Crosswalk availability lists only transitions with a configured Census file
   pattern: `SUPPORTED_CROSSWALK_YEARS` (in `geo/crosswalk/relationship_types`)
   now contains only 2010->2020 for `tract`, `block_group` and `county`; the
-  v4.0.0 `(2000, 2010)` entry and the `block` geography are removed.
-  `LongitudinalAligner.align` raises `ValueError` ("No supported crosswalk path
-  from <from> to <to>") before alignment for unsupported directions and
-  geographies, where v4.0.0 planned nonexistent crosswalk steps (including
-  chained 2000->2010->2020 and reverse transitions) and could fall back to
-  areal interpolation; areal fallback remains for failures of supported
-  transitions. `CrosswalkClient.get_crosswalk` and `normalize_to_year` already
-  raised `ValueError` for these requests on v4.0.0 ("No crosswalk file
-  available ..." / "Crosswalk not supported ..."); they now reject them before
-  any cache access, download or crosswalk lookup, with "not supported"
-  messages, and `normalize_to_year` raises "Backward normalization is not
-  supported: <from>-><to>" when `data_year > target_year`. Equal years still
-  return a copy (#1494). **Migration:** normalize forward only (older vintage
-  to newer); for 2000-era vintages or `block` geography, call
-  `siege_utilities.geo.interpolation.areal.interpolate_areal` (or
-  `interpolate_extensive`/`interpolate_intensive`) explicitly rather than
-  relying on the aligner; stop reading `(2000, 2010)` or `block` from
+  6.0.0 `(2000, 2010)` entry and the `block` geography are removed.
+  `CrosswalkClient.get_crosswalk` and `normalize_to_year` already raised
+  `ValueError` for these requests in 6.0.0 ("No crosswalk file available ..."
+  / "Crosswalk not supported ..."); they now reject them before any cache
+  access, download or crosswalk lookup, with "not supported" messages, and
+  `normalize_to_year` raises "Backward normalization is not supported:
+  <from>-><to>" when `data_year > target_year`. Equal years still return a
+  copy. `LongitudinalAligner.align` raises `ValueError` ("No supported
+  crosswalk path from <from> to <to>: backward alignment is not supported")
+  before alignment for backward transitions (2020->2010, 2010->2000,
+  2020->2000), where 6.0.0 planned reverse crosswalk steps and fell back to
+  areal interpolation. Forward alignment is unchanged: a step with no
+  published crosswalk (2000->2010, and 2010->2020 for `block`, `place` and
+  other levels outside the table) still uses areal interpolation, reported as
+  `method="areal"` with a warning, and whether that fallback stays is left to
+  #1408 (#1494). **Migration:** normalize and align forward only (older
+  vintage to newer); stop reading `(2000, 2010)` or `block` from
   `SUPPORTED_CROSSWALK_YEARS`; update any code that matches the old error
   messages.
 

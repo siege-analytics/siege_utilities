@@ -619,6 +619,21 @@ def inflation_factor(from_year: int, to_year: int) -> float:
 # Directed vintage transitions backed by the crosswalk client.
 _SUPPORTED_TRANSITIONS = set(_SUPPORTED_CROSSWALK_YEARS)
 
+# Decennial boundary vintages the aligner steps through, oldest first.
+_DECENNIAL_VINTAGES = (2000, 2010, 2020)
+
+
+def _normalize_geography_level(geography_level: str) -> str:
+    """Map geography aliases ("Block Group", "block-group", ...) to registry keys."""
+    geo = geography_level.lower().replace(" ", "_").replace("-", "_")
+    return "block_group" if geo == "blockgroup" else geo
+
+
+def _crosswalk_published(source: int, target: int, geography_level: str) -> bool:
+    """Whether a Census crosswalk exists for this directed step and geography."""
+    geo = _normalize_geography_level(geography_level)
+    return bool(_SUPPORTED_CROSSWALK_YEARS.get((source, target), {}).get(geo, False))
+
 
 @dataclass
 class AlignmentResult:
@@ -646,10 +661,13 @@ class AlignmentResult:
 class LongitudinalAligner:
     """Align Census data across vintage years with optional inflation adjustment.
 
-    Supports 2010->2020 crosswalks for tract, block_group, and county, or an
-    identity copy for equal vintages. Other transitions and geographies raise
-    ValueError before alignment. For supported transitions, crosswalk failures
-    still fall back to areal interpolation.
+    Aligns forward (older vintage to newer) one decade at a time, e.g.
+    2000->2010->2020, or copies the data for equal vintages. A step with a
+    published Census crosswalk (2010->2020 for tract, block_group, and county)
+    uses it and falls back to areal interpolation if it fails. A step with no
+    published crosswalk goes straight to areal interpolation, with
+    ``method="areal"``, a result warning and a WARNING log. Backward
+    alignment (newer vintage to older) raises ValueError before any step.
 
     Parameters
     ----------
@@ -721,8 +739,10 @@ class LongitudinalAligner:
         Raises
         ------
         ValueError
-            If no crosswalk path supports the requested direction and geography.
-            Unavailable paths are rejected before crosswalk or areal interpolation.
+            If *source_vintage* is newer than the target vintage, or either is
+            not a decennial vintage. These are rejected before crosswalk or
+            areal interpolation. A forward step with no published crosswalk is
+            not an error: it uses areal interpolation, as described above.
         """
         geo = geography or self.geography
         sfips = state_fips or self.state_fips
@@ -766,6 +786,13 @@ class LongitudinalAligner:
 
         for src, tgt in chain:
             try:
+                if not _crosswalk_published(src, tgt, geo):
+                    # Skip the doomed crosswalk attempt; the handler below
+                    # records the reason and uses areal interpolation.
+                    raise ValueError(
+                        f"no crosswalk is published for {src}->{tgt} at "
+                        f"{_normalize_geography_level(geo)} level"
+                    )
                 current_df = self._apply_crosswalk_step(
                     current_df, src, tgt, geo, sfips, geoid_column,
                     intensive_columns=intensive_columns,
@@ -852,24 +879,33 @@ class LongitudinalAligner:
     def _transition_chain(
         source: int, target: int, geography_level: str = "tract",
     ) -> List[tuple]:
-        """Return supported directed steps, or reject an unavailable crosswalk path."""
+        """Return the forward decade steps from *source* to *target*.
+
+        Backward paths and non-decennial vintages are rejected. Whether each
+        step has a published crosswalk is decided per step in :meth:`align`.
+        """
         if source == target:
             return []
 
-        geo = geography_level.lower().replace(" ", "_").replace("-", "_")
-        if geo == "blockgroup":
-            geo = "block_group"
+        geo = _normalize_geography_level(geography_level)
         supported = [
             pair for pair in sorted(_SUPPORTED_TRANSITIONS)
             if _SUPPORTED_CROSSWALK_YEARS[pair].get(geo, False)
         ]
-        if (source, target) in supported:
-            return [(source, target)]
+        if source > target:
+            raise ValueError(
+                f"No supported crosswalk path from {source} to {target}: backward "
+                f"alignment is not supported. Supported transitions for {geo}: "
+                f"{supported}."
+            )
+        if source not in _DECENNIAL_VINTAGES or target not in _DECENNIAL_VINTAGES:
+            raise ValueError(
+                f"No supported crosswalk path from {source} to {target}. "
+                f"Supported vintages: {', '.join(map(str, _DECENNIAL_VINTAGES))}."
+            )
 
-        raise ValueError(
-            f"No supported crosswalk path from {source} to {target}. "
-            f"Supported transitions for {geo}: {supported}."
-        )
+        vintages = [v for v in _DECENNIAL_VINTAGES if source <= v <= target]
+        return list(zip(vintages, vintages[1:]))
 
     @staticmethod
     def _apply_crosswalk_step(

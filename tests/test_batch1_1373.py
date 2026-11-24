@@ -271,7 +271,7 @@ def test_backend_failure_still_propagates_control(monkeypatch, backend):
 @pytest.mark.parametrize("source_vintage", [2000, 2010])
 @pytest.mark.parametrize("geoid_column", ["GEOID", "tract_id"])
 def test_align_areal_carries_only_requested_variables(monkeypatch, source_vintage, geoid_column):
-    """Boundary metadata must not become variables in a synthetic multi-step chain."""
+    """Boundary metadata must not become variables in a three-vintage chain."""
     areal = import_module("siege_utilities.geo.interpolation.areal")
     longitudinal = import_module("siege_utilities.geo.timeseries.longitudinal_data")
     crosswalk = import_module("siege_utilities.geo.crosswalk.crosswalk_processor")
@@ -315,20 +315,16 @@ def test_align_areal_carries_only_requested_variables(monkeypatch, source_vintag
         if source_vintage == 2000 else
         {geoid_column: ["M1"], "pop": [400.0], "rate": [0.5]}
     )
-    aligner = longitudinal.LongitudinalAligner(target_vintage=2020)
-    if source_vintage == 2000:
-        # Exercise repeated fallback independently of Census file availability.
-        monkeypatch.setattr(
-            aligner, "_transition_chain", lambda *args: [(2000, 2010), (2010, 2020)],
-        )
-    result = aligner.align(
+    result = longitudinal.LongitudinalAligner(target_vintage=2020).align(
         data, source_vintage=source_vintage, geoid_column=geoid_column,
         intensive_columns=["rate"],
     )
 
     assert result.method == "areal", result.warnings
     steps = 2 if source_vintage == 2000 else 1
-    assert unavailable.call_count == interpolation.call_count == steps
+    assert interpolation.call_count == steps
+    # Only 2010->2020 has a published crosswalk; 2000->2010 goes straight to areal.
+    assert unavailable.call_count == 1
     assert len(result.warnings) == steps
     assert (result.rows_before, result.rows_after) == (len(data), 2)
     expected = pd.DataFrame(

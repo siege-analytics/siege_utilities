@@ -98,8 +98,8 @@ class TestTransitionChain:
             LongitudinalAligner._transition_chain(2020, 2010)
 
     def test_chained_2000_to_2020(self):
-        with pytest.raises(ValueError, match="No supported crosswalk path from 2000 to 2020"):
-            LongitudinalAligner._transition_chain(2000, 2020)
+        chain = LongitudinalAligner._transition_chain(2000, 2020)
+        assert chain == [(2000, 2010), (2010, 2020)]
 
     def test_chained_2020_to_2000(self):
         with pytest.raises(ValueError, match="No supported crosswalk path from 2020 to 2000"):
@@ -186,18 +186,25 @@ class TestAlign:
         assert result.method == "failed"
         assert len(result.warnings) >= 1
 
-    def test_unavailable_chain_rejected(self, sample_df):
-        """2000->2020 has no supported crosswalk path."""
+    def test_chained_2000_to_2020_uses_areal_only_where_no_crosswalk_exists(self, sample_df):
+        """2000->2010 has no published crosswalk, so that step is areal; 2010->2020 uses the crosswalk."""
         aligner = LongitudinalAligner(target_vintage=2020, geography="tract")
 
         with patch(
             "siege_utilities.geo.timeseries.longitudinal_data."
             "LongitudinalAligner._apply_crosswalk_step",
-        ) as mock_step:
-            with pytest.raises(ValueError, match="No supported crosswalk path from 2000 to 2020"):
-                aligner.align(sample_df, source_vintage=2000)
+            side_effect=lambda df, *args, **kwargs: df.copy(),
+        ) as mock_step, patch(
+            "siege_utilities.geo.timeseries.longitudinal_data."
+            "LongitudinalAligner._apply_areal_interpolation",
+            side_effect=lambda df, *args, **kwargs: df.copy(),
+        ) as mock_areal:
+            result = aligner.align(sample_df, source_vintage=2000)
 
-        mock_step.assert_not_called()
+        assert [c.args[1:3] for c in mock_areal.call_args_list] == [(2000, 2010)]
+        assert [c.args[1:3] for c in mock_step.call_args_list] == [(2010, 2020)]
+        assert result.method == "areal"
+        assert any("2000→2010" in w for w in result.warnings)
 
     def test_override_geography_and_state(self, sample_df):
         aligner = LongitudinalAligner(target_vintage=2020, geography="tract")

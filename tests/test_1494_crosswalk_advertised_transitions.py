@@ -87,14 +87,12 @@ def test_forward_normalization_uses_source_area_weights(source_data):
 
 
 @pytest.mark.parametrize("source, target, geography", [
-    (2000, 2010, "tract"),
-    (2000, 2020, "tract"),
     (2020, 2010, "tract"),
     (2010, 2000, "tract"),
     (2020, 2000, "tract"),
-    (2010, 2020, "block"),
+    (2020, 2010, "block"),
 ])
-def test_aligner_rejects_unavailable_paths_before_attempting_alignment(
+def test_aligner_rejects_backward_paths_before_attempting_alignment(
     source_data, source, target, geography,
 ):
     aligner = LongitudinalAligner(target_vintage=target, geography=geography)
@@ -105,6 +103,48 @@ def test_aligner_rejects_unavailable_paths_before_attempting_alignment(
             aligner.align(source_data, source)
     crosswalk.assert_not_called()
     areal.assert_not_called()
+
+
+@pytest.fixture
+def reviewer_tract_data():
+    # Four 2000-vintage tracts, as in the review reproducer.
+    return pd.DataFrame({
+        "GEOID": ["06001000100", "06001000201", "06001000202", "06001000300"],
+        "pop": [100.0, 120.0, 80.0, 700.0],
+    })
+
+
+@pytest.mark.parametrize("source, target, geography, areal_steps, crosswalk_steps", [
+    (2000, 2010, "tract", [(2000, 2010)], []),
+    (2000, 2020, "tract", [(2000, 2010)], [(2010, 2020)]),
+    (2010, 2020, "block", [(2010, 2020)], []),
+    (2010, 2020, "place", [(2010, 2020)], []),
+])
+def test_forward_path_without_crosswalk_falls_back_to_areal(
+    reviewer_tract_data, caplog, source, target, geography, areal_steps, crosswalk_steps,
+):
+    # Forward transitions with no published crosswalk keep develop's areal
+    # alignment, reported in method, warnings and a WARNING log (#1408 owns
+    # whether this fallback stays).
+    aligner = LongitudinalAligner(target_vintage=target, geography=geography)
+    areal_result = reviewer_tract_data.assign(pop=[150.0, 150.0, 350.0, 350.0])
+    with patch.object(
+        aligner, "_apply_crosswalk_step", side_effect=lambda df, *a, **k: df.copy(),
+    ) as crosswalk, patch.object(
+        aligner, "_apply_areal_interpolation", return_value=areal_result,
+    ) as areal, caplog.at_level("WARNING", logger="siege_utilities.geo.timeseries.longitudinal_data"):
+        result = aligner.align(reviewer_tract_data, source, intensive_columns=[])
+
+    assert [c.args[1:3] for c in areal.call_args_list] == areal_steps
+    assert [c.args[1:3] for c in crosswalk.call_args_list] == crosswalk_steps
+    assert result.method == "areal"
+    assert result.data["pop"].tolist() == [150.0, 150.0, 350.0, 350.0]
+    src, tgt = areal_steps[0]
+    assert f"Used areal interpolation for {src}→{tgt} (crosswalk unavailable)" in result.warnings
+    assert any(
+        record.levelname == "WARNING" and f"no crosswalk is published for {src}->{tgt}" in record.getMessage()
+        for record in caplog.records
+    ), [record.getMessage() for record in caplog.records]
 
 
 @pytest.mark.parametrize("geography", ["tract", "county", "block_group", "Block Group", "block-group", "blockgroup"])
