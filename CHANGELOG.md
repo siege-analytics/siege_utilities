@@ -88,12 +88,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Config exports with `exclude_sensitive=True` (`to_dict`, `to_yaml`,
   `export_entities`) redact more fields and values than in 6.0.0: fields
   whose Pydantic alias names a credential, credential names in bytes keys,
-  and every value in a sensitive position other than `None` or an exact
-  empty or zero builtin, including falsey objects and secret subclasses (see
-  Security). **Migration:** read credentials from the live model or your
-  secret store, not from an `exclude_sensitive=True` export; such exports
-  now carry `***REDACTED***` in those positions, and `import_entities`
-  rejects them with `ValueError("Cannot import redacted ...")`. Export with
+  the whole value under any other non-string key except `int`, `float`,
+  `bool` or `None` (for example a `date`, `datetime`, `UUID`, plain `Enum`,
+  `Path` or tuple key), including wholly public subtrees, and every value in
+  a sensitive position other than `None` or an exact empty or zero builtin,
+  including falsey objects and secret subclasses (see Security).
+  **Migration:** read credentials from the live model or your secret store,
+  not from an `exclude_sensitive=True` export; such exports now carry
+  `***REDACTED***` in those positions, and `import_entities` rejects them
+  with `ValueError("Cannot import redacted ...")`. Use string keys for
+  metadata that must survive a redacted export. Export with
   `exclude_sensitive=False` only to a trusted destination (#1460).
 
 ### Changed
@@ -132,7 +136,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AliasChoices`, and string components of `AliasPath`. The field-marker CI
   guard uses the same classification. Credential names in UTF-8 bytes or
   bytearray dictionary keys are now recognized; undecodable bytes and other
-  non-string keys fail closed, except for numeric and `None` keys. In a
+  non-string keys fail closed, except for `int`, `float`, `bool` and `None`
+  keys and their subclasses (such as `IntEnum` members); `Decimal`,
+  `Fraction` and `complex` keys are redacted. In a
   sensitive position a value is kept only when it is `None`, an exact-type
   empty `str`/`bytes`/`list`/`dict`/`tuple`/`set`/`frozenset`, an exact-type
   zero `bool`/`int`/`float`, or an exact `SecretStr`/`SecretBytes` wrapping an
