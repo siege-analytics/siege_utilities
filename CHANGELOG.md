@@ -108,16 +108,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   backends use upper-inclusive bins and class maxima for natural-break edges,
   and the no-mapclassify `create_choropleth` path colours a value on an
   internal edge with its own (lower) class. NaN and positive/negative
-  infinity receive bin `-1` and are excluded from break calculations. In
-  4.0.0 the numpy backend of `classify_series` assigned a value exactly on an
-  internal break to the upper class (`searchsorted(..., side="right")`; the
+  infinity receive bin `-1` and are excluded from break calculations. When
+  the first class holds only the minimum, `breaks[0]` and `_break_low` are
+  the next float below the minimum, so that class is not merged away. On the
+  mapclassify backend, natural breaks keep every class instead of merging a
+  class that holds only the minimum, and fall back to the exact calculation
+  when mapclassify's result is not k strictly increasing edges. In 6.0.0 the
+  numpy backend of `classify_series` assigned a value exactly on an internal
+  break to the upper class (`searchsorted(..., side="right")`; the
   mapclassify backend was already upper-inclusive), masked only NaN so
-  infinities were classified, and could return different natural breaks for
-  clustered or outlier data. **Migration:** without mapclassify, or for
-  numpy-only schemes, expect values on an internal break to move down one
-  class and infinite values to get bin `-1`; recompute stored numpy-backend
-  classifications and natural breaks rather than mixing them with 4.1.0
-  output (#1455).
+  infinities were classified on both backends, and natural breaks on either
+  backend could differ for small, clustered or outlier data (for example
+  `[1, 2, 3]` with k=3 gave 2 classes). **Migration:** expect values on an
+  internal break to move down one class on the numpy backend, infinite
+  values to get bin `-1` on both backends, and natural breaks to change on
+  both backends; recompute stored classifications and natural breaks rather
+  than mixing them with 6.0.0 output (#1455).
 
 ### Changed
 

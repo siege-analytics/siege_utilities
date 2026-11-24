@@ -275,7 +275,15 @@ def _classify_with_mapclassify(
         classifier = cls(values, k=k)
 
     if scheme in ("natural_breaks", "fisher_jenks"):
-        breaks = _natural_break_edges(values.min(), classifier.bins)
+        # mapclassify's FisherJenks works in float32 and can return unsorted
+        # or duplicated class maxima when the data sit far from the minimum.
+        # Use them only when they form k strictly increasing edges; otherwise
+        # fall back to the exact float64 partition.
+        upper = np.asarray(classifier.bins, dtype=float)
+        if len(upper) != k or np.any(np.diff(upper) <= 0):
+            breaks, _ = _classify_natural_breaks(values, k)
+        else:
+            breaks = _natural_break_edges(values.min(), upper)
     else:
         breaks = np.unique(np.concatenate([[values.min()], classifier.bins]))
     actual_k = len(breaks) - 1

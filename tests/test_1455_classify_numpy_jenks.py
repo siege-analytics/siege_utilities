@@ -191,3 +191,27 @@ def test_choropleth_fallback_colours_edge_values_with_their_class(
         for b in range(len(values)):
             same_colour = np.array_equal(colours[a], colours[b])
             assert same_colour == (bins[a] == bins[b]), (values[a], values[b])
+
+
+@pytest.mark.skipif(
+    not classification._MAPCLASSIFY_AVAILABLE, reason="mapclassify backend only",
+)
+@pytest.mark.parametrize("scheme", ["natural_breaks", "fisher_jenks"])
+@pytest.mark.parametrize(("values", "k"), [
+    ([0, 1e9, 1e9 + 1, 1e9 + 2, 1e9 + 10], 4),
+    ([0, 1e9, 1e9 + 1, 1e9 + 2, 1e9 + 10], 5),
+    ([5e8, 5e8 + 1, 5e8 + 3, 2e9, 2e9 + 1, 2e9 + 50], 4),
+    ([0, 1e6, 1e6 + 1, 1e6 + 2, 1e6 + 10], 3),
+])
+def test_mapclassify_natural_breaks_stay_well_formed_far_from_the_minimum(scheme, values, k):
+    # Runs on the default mapclassify backend; its float32 FisherJenks can
+    # return unsorted or duplicated class maxima for these inputs.
+    import pandas as pd
+
+    result = classification.classify_series(values, scheme, k)
+    assert result.backend == "mapclassify"
+    assert np.all(np.diff(result.breaks) > 0), result.breaks
+    assert set(result.bins.tolist()) == set(range(result.k)), (result.bins, result.k)
+    frame = classification.classify_choropleth(pd.DataFrame({"v": values}), "v", scheme, k)
+    assert (frame["_break_low"] <= frame["v"]).all()
+    assert (frame["v"] <= frame["_break_high"]).all()
