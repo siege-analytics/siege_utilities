@@ -32,8 +32,12 @@ NORMALIZER_VERSIONS: dict[str, str] = {
         "combining marks removed, casefold, punctuation to spaces, collapse "
         "whitespace. Street: USPS street-suffix and directional "
         "abbreviations, unit designators (#, apt, unit, suite, ...) unified "
-        "to 'unit'. State: US state and territory names to postal codes. "
-        "Postal code: first five digits, zero-padded. Joined with ' | '."
+        "to 'unit', with a repeated 'unit' (as in 'Apt #2') kept once. "
+        "State: US state names, DC and Puerto Rico to postal codes. Postal "
+        "code: first five digits, zero-padded. Joined with ' | '. Known gaps: "
+        "other territory names (Guam, US Virgin Islands, ...) and 'D.C.' are "
+        "not mapped to their codes, and a non-US postal code keeps only its "
+        "digits, so two different Canadian or UK codes can compare equal."
     ),
 }
 
@@ -161,10 +165,12 @@ def normalize_address_v1(
     - street: USPS Publication 28 street-suffix and directional
       abbreviations (``avenue`` -> ``ave``, ``north`` -> ``n``); unit
       designators (``#``, ``apt``, ``apartment``, ``suite``, ``ste``,
-      ``unit``, ``room``, ``no``) all become ``unit``
+      ``unit``, ``room``, ``no``) all become ``unit``, and a designator
+      followed by ``#`` counts once, so ``Apt #2`` matches ``Apt 2``
     - city: folded only
-    - state: a US state, DC or territory name becomes its postal code
-      (``Texas`` -> ``tx``, ``New York`` -> ``ny``); other values are folded
+    - state: a US state name, ``District of Columbia`` or ``Puerto Rico``
+      becomes its postal code (``Texas`` -> ``tx``, ``New York`` -> ``ny``);
+      other values are folded
     - postal_code: the first five digits, left-padded with zeros so a ZIP
       stored as a number (``2134``) matches ``02134``; ZIP+4 keeps the ZIP
 
@@ -173,9 +179,20 @@ def normalize_address_v1(
     ZIP alone is not an address. This is a comparison key, not a deliverable
     USPS address; it does not validate that the address exists.
 
-    This function MUST NOT be modified. New behavior goes in a new version.
+    Known gaps in v1: territory names other than Puerto Rico (``Guam``,
+    ``Virgin Islands``) and ``D.C.`` are folded but not mapped to their
+    codes, so they do not match ``GU``, ``VI`` or ``DC``; and a non-US postal
+    code keeps only its digits, so two different Canadian or UK codes can
+    compare equal. Closing them needs a new version.
+
+    This function MUST NOT be modified once released. New behavior goes in a
+    new version.
     """
     street_tokens = [_STREET_ABBREVIATIONS.get(token, token) for token in _fold_address_text(street or "")]
+    street_tokens = [
+        token for position, token in enumerate(street_tokens)
+        if not (token == "unit" and position and street_tokens[position - 1] == "unit")
+    ]
     if not street_tokens:
         return ""
     state_text = " ".join(_fold_address_text(state or ""))

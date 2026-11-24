@@ -92,13 +92,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (stripped and lowercased), phone (`normalize_phone_v1`: extension dropped,
   digits only, leading US `1` dropped, fewer than 7 digits ignored) or
   address (`normalize_address_v1` over `address_street`, `address_city`,
-  `address_state` and `address_postal_code`; a street line is required, unit
-  designators are unified and ZIPs are zero-padded to five digits). Links
-  chain transitively, so an email match and a phone match can join three
-  records. Only two different emails refuse a link (logged, left for
-  review); phone and address link but never block, so an equal email still
-  merges despite a different phone or a partial address. Each group's ID
-  comes from its smallest member seed, independent of row order.
+  `address_state` and `address_postal_code`; a street plus a postal code, or
+  a street plus a city and a state, is required, since a street line alone
+  names a place in many towns; unit designators are unified, so `Apt #2`
+  matches `Apt 2`, and ZIPs are zero-padded to five digits). Links chain
+  transitively, so an email match and a phone match can join three records.
+  Only two different emails refuse a link (logged, left for review); every
+  identifier column whose name contains `email`, compared case-insensitively
+  (`email`, `Email`, `email_address`), counts as an email column. A record
+  without an email that shares a phone or address with two people whose
+  emails conflict joins neither and keeps its own ID as a review candidate.
+  Phone and address link but never block, so an equal email still merges
+  despite a different phone or a partial address. Each group's ID comes from
+  its smallest member seed, independent of row order.
   `match_confidence` is 1.0 for an identified record, 0.75 when a same-name
   record stays in another group without an email conflict (a review
   candidate), and 0.5 or 0.25 for name-only rows; groups kept apart by an
@@ -108,25 +114,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A record without a corroborating identifier gets a canonical ID seeded
   from its own `source_system` and `source_id` (frame and row position when
   either is null or blank). Name matches without identifier evidence appear
-  only in the new trailing, review-only `name_candidate_id` column. Textual
-  null identifiers (`nan`, `none`, `null`, `<na>`, `nat`) are not
-  corroboration. Frames missing a required source column are skipped whole,
-  and null name parts no longer become text. New parameters
-  `identifier_normalizers` (added to the default
+  only in the new trailing, review-only `name_candidate_id` column.
+  Placeholder identifiers are not corroboration: the whole values `nan`,
+  `none`, `null`, `<na>`, `nat`, `n/a`, `na`, `n.a.`, `unknown`, `tbd`, `-`
+  and `--`, placeholder emails such as `none@none.com`, and phones made of
+  one repeated digit such as `000-000-0000`. Frames missing a required source
+  column are skipped whole, and null name parts no longer become text. New
+  parameters `identifier_columns`, `identifier_normalizers` (added to the default
   `{"phone": normalize_phone_v1}`) and `address_columns`, and new
   `siege_utilities.identifiers` `normalize_phone_v1` and
   `normalize_address_v1` (#1416).
-  **Widened defaults:** `identifier_columns` now defaults to
-  `["email", "phone"]` (was `["email"]`), and `address_columns` defaults to
+  **Defaults:** the new `identifier_columns` defaults to
+  `["email", "phone"]`, and the new `address_columns` defaults to
   `["address_street", "address_city", "address_state",
-  "address_postal_code"]`, so phone and address now corroborate merges by
-  default.
+  "address_postal_code"]`, so email, phone and address corroborate merges
+  by default. 6.0.0 had neither parameter.
   **Migration:** all canonical IDs differ from 6.0.0, and an ID can change
   when a later run adds a group member with a smaller seed, so regenerate
   persisted merge tables rather than appending. `name_candidate_id` equals
   the 6.0.0 name-only `canonical_id`, so it can join old tables during
-  migration; never merge on it without review. For the previous email-only
-  corroboration pass `identifier_columns=["email"], address_columns=[]`. Pass
+  migration; never merge on it without review. To corroborate on email
+  only, pass `identifier_columns=["email"], address_columns=[]`. Pass
   `identifier_columns=[]` and `address_columns=[]` to disable identifier
   merging, instead of the old name-only merging.
 

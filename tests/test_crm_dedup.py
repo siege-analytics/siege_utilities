@@ -452,19 +452,24 @@ def test_chain_through_an_email_conflict_is_cut():
     # a-b share a phone, b-c share an address, but a and c hold different emails.
     frame = pd.DataFrame([
         _contact("a", email="maria.a@example.com", phone="512-555-0100"),
-        _contact("b", source_system="crm_b", phone="512-555-0100", address_street="9 Oak St"),
-        _contact("c", source_system="crm_c", email="maria.c@example.com", address_street="9 Oak Street"),
+        _contact("b", source_system="crm_b", phone="512-555-0100", address_street="9 Oak St",
+                 address_city="Austin", address_state="TX"),
+        _contact("c", source_system="crm_c", email="maria.c@example.com", address_street="9 Oak Street",
+                 address_city="Austin", address_state="TX"),
     ])
 
     ids = _ids(frame)
 
     assert ids["a"] != ids["c"]
-    assert ids.nunique() == 2
+    # b links to both people, so it is evidence for neither and stays apart.
+    assert ids["b"] not in {ids["a"], ids["c"]}
+    assert ids.nunique() == 3
 
 
-def test_record_linking_two_conflicting_groups_joins_exactly_one():
-    # b shares a phone with y and with a, whose emails conflict: b can join
-    # only one of them, y and a stay apart, and all three remain reviewable.
+def test_record_linking_two_conflicting_groups_joins_neither():
+    # b shares a phone with y and with a, whose emails conflict: the phone does
+    # not say which person b is, so b joins neither, y and a stay apart, and
+    # all three remain reviewable through name_candidate_id.
     frame = pd.DataFrame([
         _contact("y", email="maria.y@example.com", phone="512-555-0100"),
         _contact("a", source_system="crm_b", email="maria.a@example.com", phone="512-555-0100"),
@@ -474,8 +479,9 @@ def test_record_linking_two_conflicting_groups_joins_exactly_one():
     result = crm_dedup_pipeline([frame]).set_index("source_id")
 
     assert result.loc["y", "canonical_id"] != result.loc["a", "canonical_id"]
-    assert result.loc["b", "canonical_id"] in {result.loc["y", "canonical_id"], result.loc["a", "canonical_id"]}
+    assert result.loc["b", "canonical_id"] not in {result.loc["y", "canonical_id"], result.loc["a", "canonical_id"]}
     assert result["name_candidate_id"].nunique() == 1
+    assert result.loc["b", "match_confidence"] == 0.75
 
 
 @pytest.mark.parametrize("kwargs, message", [
@@ -542,7 +548,8 @@ def test_unmerged_namesakes_without_email_conflict_are_review_candidates():
     # identifier and no conflict, so they could be one person.
     frame = pd.DataFrame([
         _contact("a", email="grace@example.com"),
-        _contact("b", source_system="crm_b", address_street="300 Elm St"),
+        _contact("b", source_system="crm_b", address_street="300 Elm St",
+                 address_city="Dallas", address_state="TX", address_postal_code="75201"),
     ])
 
     result = crm_dedup_pipeline([frame])
@@ -612,8 +619,9 @@ def test_address_variants_corroborate_by_default():
 
 def test_distinct_addresses_do_not_corroborate():
     frame = pd.DataFrame([
-        _contact("a", address_street="100 N Main St", address_city="Austin"),
-        _contact("b", source_system="crm_b", address_street="100 S Main St", address_city="Austin"),
+        _contact("a", address_street="100 N Main St", address_city="Austin", address_state="TX"),
+        _contact("b", source_system="crm_b", address_street="100 S Main St", address_city="Austin",
+                 address_state="TX"),
     ])
 
     assert _ids(frame).nunique() == 2

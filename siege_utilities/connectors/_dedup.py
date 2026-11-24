@@ -6,8 +6,9 @@ Composes ``identifiers/`` primitives (``normalize_name_v1``,
 of canonical IDs across CRM systems.
 
 Match strategy: exact normalized name plus at least one equal strong
-identifier (email, normalized phone or normalized address), chained
-transitively, with only differing emails refusing a merge. A name
+identifier (email, normalized phone or normalized address with a locality),
+chained transitively, with only differing emails refusing a merge.
+Placeholder values are not identifiers. A name
 match without a corroborating identifier is never merged; it is exposed only
 as a review candidate through ``name_candidate_id``.
 Fuzzy matching is future work — the ``normalizer`` parameter allows
@@ -33,14 +34,24 @@ from siege_utilities.identifiers.uuid_generation import uuid5_from_seed
 log = logging.getLogger(__name__)
 
 CRM_NAMESPACE = UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
-_NULL_IDENTIFIER_TOKENS = {"nan", "none", "null", "<na>", "nat"}
+# Whole cell values that CRM exports use for "no value". They are never identity
+# evidence: two namesakes sharing ``n/a`` share nothing (#1416).
+_NULL_IDENTIFIER_TOKENS = {
+    "nan", "none", "null", "<na>", "nat",
+    "n/a", "na", "n.a.", "unknown", "tbd", "-", "--",
+}
+# An email whose local part and first domain label are both one of these words,
+# such as ``none@none.com`` or ``unknown@unknown.com``, is a placeholder.
+_PLACEHOLDER_EMAIL_WORDS = {"none", "null", "na", "nan", "unknown", "noemail", "nobody", "test"}
 _DEFAULT_IDENTIFIER_COLUMNS = ["email", "phone"]
 _DEFAULT_IDENTIFIER_NORMALIZERS: dict[str, Callable[[str], str]] = {"phone": normalize_phone_v1}
 # CRMContact.to_dataframe flattens CRMAddress fields with an ``address_`` prefix.
 _DEFAULT_ADDRESS_COLUMNS = ["address_street", "address_city", "address_state", "address_postal_code"]
 _ADDRESS_KEY = "address"
-# Only a differing value in this column refuses a link (operator ruling, #1416).
-_CONFLICT_COLUMN = "email"
+# Only a differing value in an email column refuses a link (operator ruling,
+# #1416). An identifier column is an email column when its name contains this
+# text, compared case-insensitively (``email``, ``Email``, ``email_address``).
+_EMAIL_COLUMN_MARKER = "email"
 # Identifier-backed record left apart from a same-name record without an email
 # conflict: possibly the same person, so a review candidate.
 _REVIEW_CANDIDATE_CONFIDENCE = 0.75
@@ -71,33 +82,71 @@ def _identifier_text(value: Any) -> str:
     return "" if text.casefold() in _NULL_IDENTIFIER_TOKENS else text
 
 
+def _is_email_column(column: str) -> bool:
+    return _EMAIL_COLUMN_MARKER in column.casefold()
+
+
+def _is_placeholder_email(value: str) -> bool:
+    local, _, domain = value.partition("@")
+    return bool(domain) and local in _PLACEHOLDER_EMAIL_WORDS and domain.split(".", 1)[0] in _PLACEHOLDER_EMAIL_WORDS
+
+
+def _is_placeholder_phone(value: str) -> bool:
+    # 000-000-0000, 111-111-1111 and the like are filler, not a number.
+    return value.isdigit() and len(set(value)) == 1
+
+
+def _has_locality(city: str, state: str, postal_code: str) -> bool:
+    """A street identifies a place only with a postal code, or a city and a state."""
+    has_postal_code = any(digit in postal_code for digit in "123456789")
+    return has_postal_code or bool(city and state)
+
+
+def _conflicts(left: Mapping[str, str], right: Mapping[str, str]) -> bool:
+    """True when the two groups hold different values in the same email column."""
+    return any(column in right and right[column] != value for column, value in left.items())
+
+
 def _group_corroborated(
     records: list[dict[str, Any]],
-) -> tuple[dict[int, str], dict[int, str | None], int]:
+) -> tuple[dict[int, str], dict[int, dict[str, str]], int]:
     """Union records that share a name and one identifier, refusing email conflicts.
 
     Returns, per record index with identifiers, the group's smallest seed and
-    the group's email (or None), plus the number of refused links. Only a
-    differing email refuses a link: people legitimately hold several phones
-    and addresses, so those keys link but never block. Keys and members are
-    visited in sorted order so the result does not depend on row order.
+    the group's email values by column, plus the number of refused links.
+    Only a differing email refuses a link: people legitimately hold several
+    phones and addresses, so those keys link but never block.
+
+    Records holding an email link with each other first, and records without
+    one link with each other. Each group of records without an email is then
+    attached to the email groups it shares a key with, but only when those
+    groups agree: a record whose phone also belongs to two people with
+    different emails proves nothing about which of them it is, so it stays a
+    separate review candidate. Keys and members are visited in sorted order so
+    the result does not depend on row order.
     """
     parent: dict[int, int] = {}
-    email: dict[int, str | None] = {}
+    emails: dict[int, dict[str, str]] = {}
     members_by_key: dict[tuple[str, str, str], list[int]] = {}
     for index, record in enumerate(records):
         if not record["identifiers"]:
             continue
         parent[index] = index
-        email[index] = record["identifiers"].get(_CONFLICT_COLUMN)
+        emails[index] = dict(record["emails"])
         for column, value in record["identifiers"].items():
             members_by_key.setdefault((record["normalized"], column, value), []).append(index)
+    has_email = {index: bool(records[index]["emails"]) for index in parent}
 
     def find(index: int) -> int:
         while parent[index] != index:
             parent[index] = parent[parent[index]]
             index = parent[index]
         return index
+
+    def union(root: int, other: int) -> None:
+        parent[other] = root
+        for column, value in emails[other].items():
+            emails[root].setdefault(column, value)
 
     refused = 0
     for key in sorted(members_by_key):
@@ -106,16 +155,42 @@ def _group_corroborated(
         # compatible members apart.
         for position, member in enumerate(members[1:], start=1):
             for earlier in members[:position]:
+                if has_email[earlier] != has_email[member]:
+                    continue  # attached in the second pass
                 root, other = find(earlier), find(member)
                 if root == other:
                     continue
-                if email[root] and email[other] and email[root] != email[other]:
+                if _conflicts(emails[root], emails[other]):
                     # Two different emails mean distinct people, even when a
                     # phone or address is shared (for example a household).
                     refused += 1
                     continue
-                parent[other] = root
-                email[root] = email[root] or email[other]
+                union(root, other)
+
+    # Second pass: attach each group without an email to the email groups it
+    # shares a key with, when they agree.
+    touched: dict[int, set[int]] = {}
+    for members in members_by_key.values():
+        with_email = [index for index in members if has_email[index]]
+        for index in members:
+            if not has_email[index]:
+                touched.setdefault(find(index), set()).update(with_email)
+    component_key: dict[int, tuple] = {}
+    for index in parent:
+        if not has_email[index]:
+            root, key = find(index), records[index]["order_key"]
+            component_key[root] = min(component_key.get(root, key), key)
+    for loose_root in sorted(touched, key=lambda root: component_key[root]):
+        targets = sorted({find(index) for index in touched[loose_root]}, key=lambda root: records[root]["order_key"])
+        if not targets:
+            continue
+        if any(_conflicts(emails[a], emails[b]) for pos, a in enumerate(targets) for b in targets[pos + 1:]):
+            refused += 1
+            continue
+        anchor = targets[0]
+        for target in targets[1:]:
+            union(find(anchor), find(target))
+        union(find(anchor), find(loose_root))
 
     smallest_seed: dict[int, str] = {}
     for index in parent:
@@ -123,7 +198,7 @@ def _group_corroborated(
         smallest_seed[root] = min(smallest_seed.get(root, seed), seed)
     return (
         {index: smallest_seed[find(index)] for index in parent},
-        {index: email[find(index)] for index in parent},
+        {index: emails[find(index)] for index in parent},
         refused,
     )
 
@@ -157,9 +232,17 @@ def crm_dedup_pipeline(
             name match. Defaults to ``["email", "phone"]``. Non-null,
             non-blank values are stripped and normalized: through
             ``identifier_normalizers`` when the column has an entry, otherwise
-            lowercased. Whole tokens ``nan``, ``none``, ``null``, ``<na>`` and
-            ``nat`` are ignored after stripping and casefolding. Missing
-            columns and values are ignored.
+            lowercased. Placeholders are never identity evidence and are
+            ignored: whole cell values ``nan``, ``none``, ``null``, ``<na>``,
+            ``nat``, ``n/a``, ``na``, ``n.a.``, ``unknown``, ``tbd``, ``-``
+            and ``--`` (after stripping and casefolding, in any identifier or
+            address column); in an email column, an address whose local part
+            and first domain label are both ``none``, ``null``, ``na``,
+            ``nan``, ``unknown``, ``noemail``, ``nobody`` or ``test`` (such as
+            ``none@none.com``); and a ``normalize_phone_v1`` phone made of one
+            repeated digit (such as ``000-000-0000``). This list is small by
+            design; other made-up values (``noreply@company.com``) still count.
+            Missing columns and values are ignored.
         identifier_normalizers: Per-column normalizers for
             ``identifier_columns``, added to the default
             ``{"phone": normalize_phone_v1}`` (an entry for ``phone`` replaces
@@ -169,9 +252,12 @@ def crm_dedup_pipeline(
             postal code, combined into one ``address`` identifier via
             ``normalize_address_v1``. Defaults to ``["address_street",
             "address_city", "address_state", "address_postal_code"]``
-            (``CRMContact.to_dataframe`` names). An empty street yields no
-            address; city, state or ZIP alone is never identity evidence.
-            More than four columns raises ``ValueError``. Pass ``[]`` for both
+            (``CRMContact.to_dataframe`` names). An address counts only with a
+            street plus either a postal code containing a non-zero digit, or
+            both a city and a state: a street line alone (``100 Main St``)
+            names a place in thousands of towns, and city, state or ZIP alone
+            is never identity evidence. More than four columns raises
+            ``ValueError``. Pass ``[]`` for both
             ``identifier_columns`` and ``address_columns`` to disable
             identifier matching; every record then stays a distinct entity
             and name matches appear only through ``name_candidate_id``.
@@ -190,10 +276,17 @@ def crm_dedup_pipeline(
         linked when their normalized names are equal and at least one
         identifier value is equal, and links chain transitively (a shares an
         email with b, b shares a phone with c). A link is refused only when
-        the two groups hold different normalized emails, because two emails
-        suggest two people; refused links are logged and the records stay
-        separate, sharing only ``name_candidate_id``. Phone and address link
-        but never block, since one person often has several. Each group's
+        the two groups hold different normalized values in the same email
+        column, because two emails suggest two people; refused links are
+        logged and the records stay separate, sharing only
+        ``name_candidate_id``. Every identifier column whose name contains
+        ``email``, compared case-insensitively (``email``, ``Email``,
+        ``email_address``), is an email column for this rule. A record without
+        an email that shares a key with two groups whose emails conflict joins
+        neither: the shared phone or address does not say which person it is,
+        so it keeps its own ``canonical_id`` as a review candidate. Phone and
+        address link but never block, since one person often has several.
+        Each group's
         ``canonical_id`` comes from the smallest member seed
         (``json([normalized_name, identifiers])``), so it does not depend on
         row order. It can change between runs when a new record with a
@@ -286,15 +379,24 @@ def crm_dedup_pipeline(
                 text = _identifier_text(row.get(col))
                 if text:
                     value = normalizers[col](text) if col in normalizers else text.lower()
+                    if normalizers.get(col) is normalize_phone_v1 and _is_placeholder_phone(value):
+                        value = ""
+                    if _is_email_column(col) and _is_placeholder_email(value):
+                        value = ""
                     if value:
                         identifiers[col] = value
             if address_cols:
-                # Positional: street, city, state, postal code. An empty street
-                # yields no address, since city, state or ZIP alone is shared
-                # by too many people to be identity evidence.
-                address = normalize_address_v1(*(_identifier_text(row.get(col)) for col in address_cols))
-                if address:
-                    identifiers[_ADDRESS_KEY] = address
+                # Positional: street, city, state, postal code. A street with
+                # no postal code and no city-and-state is shared by too many
+                # places, and city, state or ZIP alone by too many people, to
+                # be identity evidence.
+                street, city, state, postal_code = (
+                    [_identifier_text(row.get(col)) for col in address_cols] + ["", "", "", ""]
+                )[:4]
+                if _has_locality(city, state, postal_code):
+                    address = normalize_address_v1(street, city, state, postal_code)
+                    if address:
+                        identifiers[_ADDRESS_KEY] = address
 
             # Structured seeds distinguish identifier types and prevent
             # delimiter collisions; sort keys for stable column ordering.
@@ -316,6 +418,7 @@ def crm_dedup_pipeline(
             records.append({
                 "normalized": normalized,
                 "identifiers": identifiers,
+                "emails": {col: value for col, value in identifiers.items() if _is_email_column(col)},
                 "seed": seed,
                 "order_key": (seed, str(row[source_system_column]), str(row[source_id_column])),
                 "source_system": row[source_system_column],
@@ -334,13 +437,13 @@ def crm_dedup_pipeline(
             refused,
         )
     seeds = [group_seed.get(index, record["seed"]) for index, record in enumerate(records)]
-    emails = [group_email.get(index) for index in range(len(records))]
+    emails = [group_email.get(index, {}) for index in range(len(records))]
 
     # An identifier-backed group is a review candidate when a same-name record
     # sits in another group without an email conflict: it could be the same
     # person. Groups kept apart by differing emails are probably different
     # people and keep full confidence.
-    groups_by_name: dict[str, dict[str, str | None]] = {}
+    groups_by_name: dict[str, dict[str, dict[str, str]]] = {}
     for index, record in enumerate(records):
         groups_by_name.setdefault(record["normalized"], {})[seeds[index]] = emails[index]
     confidences = []
@@ -348,7 +451,7 @@ def crm_dedup_pipeline(
         confidence = record["match_confidence"]
         if record["identifiers"]:
             others = [e for s, e in groups_by_name[record["normalized"]].items() if s != seeds[index]]
-            if any(not (emails[index] and other and emails[index] != other) for other in others):
+            if any(not _conflicts(emails[index], other) for other in others):
                 confidence = _REVIEW_CANDIDATE_CONFIDENCE
         confidences.append(confidence)
 
