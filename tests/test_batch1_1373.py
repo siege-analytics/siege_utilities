@@ -322,9 +322,7 @@ def test_align_areal_carries_only_requested_variables(monkeypatch, source_vintag
 
     assert result.method == "areal", result.warnings
     steps = 2 if source_vintage == 2000 else 1
-    assert interpolation.call_count == steps
-    # Only 2010->2020 has a published crosswalk; 2000->2010 goes straight to areal.
-    assert unavailable.call_count == 1
+    assert unavailable.call_count == interpolation.call_count == steps
     assert len(result.warnings) == steps
     assert (result.rows_before, result.rows_after) == (len(data), 2)
     expected = pd.DataFrame(

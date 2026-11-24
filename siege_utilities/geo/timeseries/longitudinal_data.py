@@ -629,12 +629,6 @@ def _normalize_geography_level(geography_level: str) -> str:
     return "block_group" if geo == "blockgroup" else geo
 
 
-def _crosswalk_published(source: int, target: int, geography_level: str) -> bool:
-    """Whether a Census crosswalk exists for this directed step and geography."""
-    geo = _normalize_geography_level(geography_level)
-    return bool(_SUPPORTED_CROSSWALK_YEARS.get((source, target), {}).get(geo, False))
-
-
 @dataclass
 class AlignmentResult:
     """Result of a longitudinal alignment operation.
@@ -662,10 +656,11 @@ class LongitudinalAligner:
     """Align Census data across vintage years with optional inflation adjustment.
 
     Aligns forward (older vintage to newer) one decade at a time, e.g.
-    2000->2010->2020, or copies the data for equal vintages. A step with a
-    published Census crosswalk (2010->2020 for tract, block_group, and county)
-    uses it and falls back to areal interpolation if it fails. A step with no
-    published crosswalk goes straight to areal interpolation, with
+    2000->2010->2020, or copies the data for equal vintages. Each step tries
+    the Census crosswalk (published for 2010->2020 at tract, block_group, and
+    county). When the crosswalk is unavailable, including steps with no
+    published crosswalk, which the crosswalk client rejects before any cache
+    access or download, the step falls back to areal interpolation, with
     ``method="areal"``, a result warning and a WARNING log. Backward
     alignment (newer vintage to older) raises ValueError before any step.
 
@@ -786,13 +781,6 @@ class LongitudinalAligner:
 
         for src, tgt in chain:
             try:
-                if not _crosswalk_published(src, tgt, geo):
-                    # Skip the doomed crosswalk attempt; the handler below
-                    # records the reason and uses areal interpolation.
-                    raise ValueError(
-                        f"no crosswalk is published for {src}->{tgt} at "
-                        f"{_normalize_geography_level(geo)} level"
-                    )
                 current_df = self._apply_crosswalk_step(
                     current_df, src, tgt, geo, sfips, geoid_column,
                     intensive_columns=intensive_columns,

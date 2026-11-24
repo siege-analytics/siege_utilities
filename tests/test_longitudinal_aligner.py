@@ -186,25 +186,25 @@ class TestAlign:
         assert result.method == "failed"
         assert len(result.warnings) >= 1
 
-    def test_chained_2000_to_2020_uses_areal_only_where_no_crosswalk_exists(self, sample_df):
-        """2000->2010 has no published crosswalk, so that step is areal; 2010->2020 uses the crosswalk."""
+    def test_chained_crosswalk(self, sample_df):
+        """2000→2020 should invoke two crosswalk steps."""
         aligner = LongitudinalAligner(target_vintage=2020, geography="tract")
+
+        call_count = 0
+        def mock_step(df, src, tgt, geo, sfips, geoid_col, intensive_columns=None):
+            nonlocal call_count
+            call_count += 1
+            return df.copy()
 
         with patch(
             "siege_utilities.geo.timeseries.longitudinal_data."
             "LongitudinalAligner._apply_crosswalk_step",
-            side_effect=lambda df, *args, **kwargs: df.copy(),
-        ) as mock_step, patch(
-            "siege_utilities.geo.timeseries.longitudinal_data."
-            "LongitudinalAligner._apply_areal_interpolation",
-            side_effect=lambda df, *args, **kwargs: df.copy(),
-        ) as mock_areal:
+            side_effect=mock_step,
+        ):
             result = aligner.align(sample_df, source_vintage=2000)
 
-        assert [c.args[1:3] for c in mock_areal.call_args_list] == [(2000, 2010)]
-        assert [c.args[1:3] for c in mock_step.call_args_list] == [(2010, 2020)]
-        assert result.method == "areal"
-        assert any("2000→2010" in w for w in result.warnings)
+        assert call_count == 2
+        assert result.method == "crosswalk"
 
     def test_override_geography_and_state(self, sample_df):
         aligner = LongitudinalAligner(target_vintage=2020, geography="tract")
