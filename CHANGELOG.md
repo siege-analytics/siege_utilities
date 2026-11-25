@@ -306,11 +306,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `UserWarning` (and a log warning) naming the module that is actually
   missing, including the blank 1x1 image returned when matplotlib itself is
   absent.
-- `create_report_generator()` no longer raises `FileNotFoundError` when the
-  user has no profile (#2042). It now builds the `ReportGenerator` with its
-  own default output directory (`Path.cwd() / "reports"`, the same as
-  `ReportGenerator(...)` alone) and logs a warning naming the missing profile
-  and the directory used. `get_report_output_directory()` is unchanged.
+- `create_report_generator()` and `create_powerpoint_generator()` no longer
+  raise `FileNotFoundError` when the user has no profile (#2042). Each now
+  builds its generator with the constructor's own default output directory
+  (`Path.cwd() / "reports"` for `ReportGenerator`, `Path.cwd() /
+  "presentations"` for `PowerPointGenerator`, the same as calling the
+  constructor alone) and logs a warning naming the missing profile and the
+  directory used. `get_report_output_directory()` is unchanged.
 - Report facade charts and sample tables, three follow-ups to the facade PDF
   change of #1461:
   - a NumPy complex chart value (`numpy.complex64`, `numpy.complex128`) now

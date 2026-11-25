@@ -169,7 +169,14 @@ def create_report_generator(client_name: str, client_code: str = None):
 
 
 def create_powerpoint_generator(client_name: str, client_code: str = None):
-    """Create a PowerPointGenerator with profile-based output directory."""
+    """Create a PowerPointGenerator with profile-based output directory.
+
+    When the user has no profile (``get_download_directory`` raises
+    FileNotFoundError), the generator is built with ``output_dir=None`` so
+    ``PowerPointGenerator`` applies its own default
+    (``Path.cwd() / "presentations"``) and a warning names the missing
+    profile file and the directory used (#2042).
+    """
     from .powerpoint_generator import PowerPointGenerator as _PG
     try:
         from ..config.enhanced_config import get_download_directory
@@ -182,6 +189,15 @@ def create_powerpoint_generator(client_name: str, client_code: str = None):
             output_dir = base_dir / "presentations"
     except ImportError:
         output_dir = Path.cwd() / "presentations"
+    except FileNotFoundError as e:
+        # No profile: defer to the constructor's own default location.
+        generator = _PG(client_name, None)
+        log.warning(
+            "No user profile found (%s); create_powerpoint_generator is using "
+            "PowerPointGenerator's default output directory %s",
+            e, generator.output_dir,
+        )
+        return generator
     return _PG(client_name, output_dir)
 
 

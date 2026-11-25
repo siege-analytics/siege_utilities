@@ -291,6 +291,34 @@ def test_placeholder_warning_names_the_module_actually_missing(monkeypatch):
     assert not any("matplotlib" in m for m in messages), messages
 
 
+def test_failed_placeholder_rendering_warns_and_returns_blank_image(monkeypatch):
+    """The placeholder's own failure path is not silent either (SU-4b)."""
+    import base64
+    import io
+
+    from PIL import Image as PILImage
+
+    from siege_utilities.reporting.chart_generator import ChartGenerator
+    from siege_utilities.reporting.engines import base_engine
+
+    def failing_subplots(*args, **kwargs):
+        raise ValueError("simulated figure failure")
+
+    gen = ChartGenerator()
+    monkeypatch.setattr(base_engine.plt, "subplots", failing_subplots)
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
+        image = gen._create_placeholder_chart(4, 3, "Map saved to example.html")
+
+    messages = [str(w.message) for w in record]
+    assert any(
+        "placeholder chart rendering failed" in m and "simulated figure failure" in m
+        for m in messages
+    ), messages
+    raw = base64.b64decode(image.filename.split(",", 1)[1])
+    assert PILImage.open(io.BytesIO(raw)).size == (1, 1)
+
+
 def test_informational_placeholder_does_not_warn_when_matplotlib_present():
     """The saved-map notice is a placeholder by design, not a failure."""
     from siege_utilities.reporting.chart_generator import ChartGenerator
@@ -349,5 +377,41 @@ def test_create_report_generator_without_profile_logs_the_fallback(
         create_report_generator("Acme")
     assert any(
         "no-profile-user" in r.getMessage() and str(work / "reports") in r.getMessage()
+        for r in caplog.records
+    ), [r.getMessage() for r in caplog.records]
+
+
+@pytest.mark.parametrize("client_code", [None, "acme"])
+def test_create_powerpoint_generator_without_profile_uses_constructor_default(
+    clean_home, client_code
+):
+    pytest.importorskip("pptx")
+    from siege_utilities.reporting import create_powerpoint_generator
+    from siege_utilities.reporting.powerpoint_generator import PowerPointGenerator
+
+    home, work = clean_home
+    assert not (home / ".siege_utilities" / "profiles").exists()
+
+    generator = create_powerpoint_generator("Acme", client_code)
+
+    assert isinstance(generator, PowerPointGenerator)
+    # PowerPointGenerator's own default (``output_dir or Path.cwd() / "presentations"``).
+    assert generator.output_dir == work / "presentations"
+    assert generator.output_dir.is_dir()
+    assert not (home / "Downloads").exists()
+
+
+def test_create_powerpoint_generator_without_profile_logs_the_fallback(
+    clean_home, caplog
+):
+    pytest.importorskip("pptx")
+    from siege_utilities.reporting import create_powerpoint_generator
+
+    _, work = clean_home
+    with caplog.at_level("WARNING", logger="siege_utilities.reporting"):
+        create_powerpoint_generator("Acme")
+    assert any(
+        "no-profile-user" in r.getMessage()
+        and str(work / "presentations") in r.getMessage()
         for r in caplog.records
     ), [r.getMessage() for r in caplog.records]
