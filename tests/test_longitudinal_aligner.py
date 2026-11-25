@@ -94,15 +94,16 @@ class TestTransitionChain:
         assert LongitudinalAligner._transition_chain(2010, 2020) == [(2010, 2020)]
 
     def test_single_step_backward(self):
-        assert LongitudinalAligner._transition_chain(2020, 2010) == [(2020, 2010)]
+        with pytest.raises(ValueError, match="No supported crosswalk path from 2020 to 2010"):
+            LongitudinalAligner._transition_chain(2020, 2010)
 
     def test_chained_2000_to_2020(self):
         chain = LongitudinalAligner._transition_chain(2000, 2020)
         assert chain == [(2000, 2010), (2010, 2020)]
 
     def test_chained_2020_to_2000(self):
-        chain = LongitudinalAligner._transition_chain(2020, 2000)
-        assert chain == [(2020, 2010), (2010, 2000)]
+        with pytest.raises(ValueError, match="No supported crosswalk path from 2020 to 2000"):
+            LongitudinalAligner._transition_chain(2020, 2000)
 
     def test_unsupported_raises(self):
         with pytest.raises(ValueError, match="No supported crosswalk"):
