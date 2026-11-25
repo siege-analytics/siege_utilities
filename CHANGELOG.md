@@ -95,16 +95,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   absent or empty. With `auto_create_table=False` the connector's
   `write_pandas` overwrite truncated the table before copying (#1837). The new
   rows are now loaded into a uniquely named staging table first
-  (`<table>_SU_STAGE_<12 hex>`). With `auto_create_table=False`, the staging
-  table is created `LIKE` the target with `COPY GRANTS` and the target's rows
-  are then replaced in one `INSERT OVERWRITE` statement. With `COPY GRANTS`
-  the staging table has the target's privileges (except OWNERSHIP) and none
-  of the schema's future grants, so a role that cannot read the target cannot
-  read the staged rows. The target table object is kept, with
+  (`<table>_SU_STAGE_<12 hex>`). With `auto_create_table=False`, the staged
+  rows sit in a session-temporary table that the connector's `write_pandas`
+  load creates (`table_type="temporary"`) with the column types Snowflake
+  infers from the uploaded data, and the target's rows are then replaced in
+  one `INSERT OVERWRITE` statement, which converts the values to the target's
+  column types. A temporary table is not visible to other users or sessions,
+  so other roles cannot read the staged rows, and Snowflake purges it when
+  the session ends if cleanup fails. With snowflake-connector-python 3.7.1 or
+  later the load creates the temporary table and copies into it; with 3.0.0
+  to 3.7.0 it loads a temporary table with a random name and renames it to
+  the staging name. If a table already has the staging name, the call raises
+  `RuntimeError` before loading anything. This path was not tested against a
+  live Snowflake account. The target table object is kept, with
   its grants, owner, kind, streams and Time Travel history. This relies on
-  the connection's autocommit, which is assumed and not checked; the staging
-  table is always permanent; and row-access or masking policies on the target
-  are not examined. These limits are tracked in #2034. Column names on this
+  the connection's autocommit, which is assumed and not checked, and
+  row-access or masking policies on the target are not examined; the staging
+  table of the `auto_create_table=True` path below is permanent. These limits
+  are tracked in #2034. Column names on this
   path are quoted as the connector's `write_pandas` quotes them, so names such as
   `First Name` still work (names containing a double quote need
   snowflake-connector-python 3.1.0 or later); an empty column name or one containing a control
@@ -124,12 +132,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   table is dropped; if that cleanup fails, including with an
   `InterfaceError`, the upload still succeeds and the leftover table name is
   logged as an error. **Migration:** privileges depend on the path. With
-  `auto_create_table=False` an overwrite needs CREATE TABLE on the schema
-  (for the staging table) and INSERT and DELETE on the target, which is
-  Snowflake's documented requirement for `INSERT OVERWRITE` (6.0.0's
-  truncate needed TRUNCATE rather than DELETE); ownership of the target is
-  not needed. Snowflake does not document whether `COPY GRANTS` needs more
-  than CREATE TABLE in a managed-access schema (#2034). The target must
+  `auto_create_table=False` an overwrite needs INSERT and DELETE on the
+  target, which is Snowflake's documented requirement for `INSERT OVERWRITE`
+  (6.0.0's truncate needed TRUNCATE rather than DELETE); ownership of the
+  target is not needed, and Snowflake documents that creating the temporary
+  staging table does not require CREATE TABLE on the schema. The target must
   already exist: with `auto_create_table=False`
   and `overwrite=True` a missing table now raises, whereas 6.0.0 with
   snowflake-connector-python 5.2.0 let `write_pandas` create it; pass
@@ -145,12 +152,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   data SQL runs (`USE DATABASE` and `USE SCHEMA`, when requested, run first),
   because the staging name adds 22 characters to Snowflake's 255-character
   identifier limit. The staging table name is logged before it is created.
-  A staging table can be left behind by a failed cleanup (its name is logged
-  as an error), by a staging `CREATE` that the server applied while the
-  client saw an error (not dropped, because the call cannot prove it created
-  that table; its name is logged as a warning), or by a process killed
-  mid-upload. Find such tables with `SHOW TABLES LIKE '%_SU_STAGE_%'` and
-  drop them. The private
+  With `auto_create_table=True` a permanent staging table can be left behind
+  by a failed cleanup (its name is logged as an error), by a staging
+  `CREATE` that the server applied while the client saw an error (not
+  dropped, because the call cannot prove it created that table; its name is
+  logged as a warning), or by a process killed mid-upload. Find such tables
+  with `SHOW TABLES LIKE '%_SU_STAGE_%'` and drop them. The temporary staging
+  table of the `auto_create_table=False` path is purged when the session
+  ends. The private
   `_create_table_from_dataframe` helper no longer accepts `overwrite=True`
   and raises `ValueError` instead of dropping the table.
 

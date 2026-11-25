@@ -266,28 +266,33 @@ class SnowflakeConnector:
                 may be at most 233 characters (Snowflake identifiers are
                 limited to 255). Then:
 
-                * ``auto_create_table=False``: the staging table is created
-                  ``LIKE`` the target and the target's rows are replaced in
-                  one ``INSERT OVERWRITE INTO <table> (<columns>) SELECT
-                  <columns> FROM <staging>`` statement. The target table
-                  object is kept, with its grants, owner, kind, streams and
-                  Time Travel history (inferred from the object being kept;
-                  row-access and masking policies are not examined, #2034).
-                  Under autocommit a single statement is its own transaction
-                  and is rolled back if it fails
+                * ``auto_create_table=False``: the staging table is a
+                  session-temporary table created by the connector's
+                  ``write_pandas`` load (``table_type="temporary"``) with the
+                  column types Snowflake infers from the uploaded data, and
+                  the target's rows are replaced in one ``INSERT OVERWRITE
+                  INTO <table> (<columns>) SELECT <columns> FROM <staging>``
+                  statement, which converts the values to the target's
+                  column types. A temporary table "is not visible to other
+                  users or sessions" and is purged when the session ends
+                  (https://docs.snowflake.com/en/user-guide/tables-temp-transient),
+                  so other roles cannot read the staged rows, and Snowflake
+                  removes the staging table at session end if cleanup fails.
+                  This was not tested against a live Snowflake account. The
+                  target table object is kept, with its grants, owner, kind,
+                  streams and Time Travel history (inferred from the object
+                  being kept; row-access and masking policies are not
+                  examined, #2034). Under autocommit a single statement is its
+                  own transaction and is rolled back if it fails
                   (https://docs.snowflake.com/en/sql-reference/transactions);
                   the connector assumes autocommit and does not check it
-                  (#2034). The staging table is always a permanent table
-                  (#2034). It is created with ``COPY GRANTS``, so it has the
-                  target's privileges (except OWNERSHIP) and none of the
-                  schema's future grants; a role that cannot read the target
-                  cannot read the staged rows
-                  (https://docs.snowflake.com/en/sql-reference/sql/create-table).
-                  ``OVERWRITE`` removes the existing rows before inserting and
-                  does not change the table's access privileges; it needs
-                  INSERT and DELETE on the target
+                  (#2034). ``OVERWRITE`` removes the existing rows before
+                  inserting and does not change the table's access
+                  privileges; it needs INSERT and DELETE on the target
                   (https://docs.snowflake.com/en/sql-reference/sql/insert).
-                  Creating the staging table needs CREATE TABLE on the schema.
+                  Snowflake documents that creating a temporary table does not
+                  require CREATE TABLE on the schema. If a table already has
+                  the staging name, the call raises before loading anything.
                   Column labels are quoted as the SDK quotes them, so names
                   such as ``First Name`` work; labels containing a double
                   quote need snowflake-connector-python 3.1.0 or later. An
@@ -302,6 +307,7 @@ class SnowflakeConnector:
                   is not allowed with a temporary table, so a temporary
                   target makes the call fail with the original intact
                   (https://docs.snowflake.com/en/sql-reference/sql/alter-table).
+                  The staging table on this path is permanent (#2034).
                   The target becomes the new, permanent staging table object:
                   as with 6.0.0's drop-and-recreate, explicit grants, streams
                   and Time Travel history of the previous object do not carry
@@ -313,11 +319,13 @@ class SnowflakeConnector:
                 the previous rows) is dropped; if that cleanup fails, the
                 upload still succeeds and the leftover table name is logged
                 as an error. The staging name is logged before it is created.
-                A staging ``CREATE`` that the server applied while the client
-                saw an error is not dropped, because the call cannot prove it
-                created that table, but its name is logged as a warning. A
-                process killed mid-upload can also leave one behind; find
-                them with ``SHOW TABLES LIKE '%_SU_STAGE_%'``.
+                With ``auto_create_table=True``, a staging ``CREATE`` that the
+                server applied while the client saw an error is not dropped,
+                because the call cannot prove it created that table, but its
+                name is logged as a warning. A process killed mid-upload can
+                also leave one behind; find them with
+                ``SHOW TABLES LIKE '%_SU_STAGE_%'``. A temporary staging table
+                (``auto_create_table=False``) is purged when the session ends.
 
         Raises:
             ImportError: If pandas is not available.
@@ -518,15 +526,33 @@ class SnowflakeConnector:
         validate_identifier(staging_name, label="staging table name")
         return staging_name
 
-    def _load_staging_table(self, df: 'pd.DataFrame', staging_name: str, table_name: str) -> int:
-        """Load ``df`` into the empty staging table and return the row count.
+    def _load_staging_table(self, df: 'pd.DataFrame', staging_name: str, table_name: str,
+                            table_type: str = "") -> int:
+        """Load ``df`` into the staging table and return the row count.
 
         Passes ``overwrite=True``, as the overwrite path did for the target
-        before #1837, so ``write_pandas`` builds the same ``COPY``: binary
-        columns are read with ``BINARY_AS_TEXT=FALSE`` and column types are
-        inferred. On the staging table, ``overwrite`` only truncates the
-        empty table (some SDK versions first run ``CREATE TABLE IF NOT
-        EXISTS``, a no-op on the existing table); the target is not touched.
+        before #1837, so ``write_pandas`` infers the column types from the
+        uploaded data and builds the same ``COPY`` (from SDK 3.0.3 binary
+        columns are read with ``BINARY_AS_TEXT=FALSE`` and, from 3.7.1, the
+        ``COPY`` casts to the inferred types). The target is never named in
+        this call. What ``write_pandas(staging, auto_create_table=False,
+        overwrite=True, table_type=...)`` does depends on the SDK version
+        (read from its source, not run against Snowflake):
+
+        * 3.7.1 and later (5.2.0 checked): ``CREATE <table_type> TABLE IF NOT
+          EXISTS <staging> (<inferred columns>)``, which creates the table if
+          it does not exist and is a no-op on an existing one, then
+          ``TRUNCATE TABLE IF EXISTS <staging>``, then ``COPY INTO
+          <staging>``.
+        * 3.0.0 to 3.7.0: ``CREATE <table_type> TABLE IF NOT EXISTS
+          <random> (<inferred columns>)``, ``COPY INTO <random>``, ``DROP
+          TABLE IF EXISTS <staging>``, ``ALTER TABLE <random> RENAME TO
+          <staging>``; the staging table is then the SDK's table, with
+          inferred column types. ``table_type`` is accepted from 3.0.0.
+
+        ``table_type="temporary"`` (``auto_create_table=False`` path) makes
+        the table the load creates temporary in both ranges; ``""`` (swap
+        path) keeps it permanent.
 
         Raises:
             RuntimeError: ``write_pandas`` reports failure.
@@ -537,6 +563,7 @@ class SnowflakeConnector:
             staging_name,
             auto_create_table=False,
             overwrite=True,
+            table_type=table_type,
         )
         if not success:
             raise RuntimeError(f"write_pandas reported failure for table {table_name}")
@@ -607,10 +634,33 @@ class SnowflakeConnector:
     def _overwrite_rows_from_dataframe(self, df: 'pd.DataFrame', table_name: str) -> int:
         """Overwrite with ``auto_create_table=False``: keep the table object.
 
-        Create a staging table ``LIKE`` the target, load ``df`` into it, then
-        replace the target's rows in one ``INSERT OVERWRITE INTO <table>
-        (<columns>) SELECT <columns> FROM <staging>`` statement, and drop the
-        staging table. The target object keeps its grants, owner, kind,
+        Load ``df`` into a new session-temporary staging table that the load
+        itself creates (``write_pandas(..., table_type="temporary")``, see
+        :meth:`_load_staging_table`), with the column types Snowflake infers
+        from the uploaded data. Then replace the target's rows in one
+        ``INSERT OVERWRITE INTO <table> (<columns>) SELECT <columns> FROM
+        <staging>`` statement, which converts the values to the target's
+        column types, and drop the staging table. The connector issues no
+        ``CREATE`` of its own here: Snowflake documents ``TEMPORARY`` for the
+        column-definition form the SDK sends, not for ``CREATE TABLE ...
+        LIKE``. A temporary table "is not visible to other users or
+        sessions", is purged when the session ends and does not require
+        CREATE TABLE on the schema
+        (https://docs.snowflake.com/en/user-guide/tables-temp-transient), so
+        schema future grants, the target's grants and its row access policy
+        do not open the staged rows to other roles, and a staging table left
+        by a failed cleanup disappears at session end. Not tested against a
+        live Snowflake account.
+
+        Because the load creates the staging table only if no table of that
+        name exists (and SDKs before 3.7.1 drop that name first), the call
+        first checks ``INFORMATION_SCHEMA.TABLES`` and raises if a table the
+        role can see already has the name, so the load does not truncate,
+        drop or read a table that existed before the call (tables the role
+        cannot see are not listed there; the name's 12 random hex digits make
+        a clash unlikely). Whatever the load leaves under the staging name is
+        then this call's and is dropped on success and on failure. The target
+        object keeps its grants, owner, kind,
         streams and Time Travel history: ``OVERWRITE`` removes the existing
         rows before inserting and "doesn't change the access control
         privileges granted on the table"; it needs INSERT and DELETE on the
@@ -618,15 +668,8 @@ class SnowflakeConnector:
         under autocommit, the statement is its own transaction and is rolled
         back if it fails, so the target holds either all old or all new rows
         (https://docs.snowflake.com/en/sql-reference/transactions). The
-        connector assumes autocommit and does not check it; that, the
-        permanent staging table and policies on the target are tracked in
-        #2034. The staging table needs CREATE TABLE on the schema. It is
-        created with ``COPY GRANTS``, so it has the target's privileges
-        (except OWNERSHIP) and does not inherit the schema's future grants
-        (https://docs.snowflake.com/en/sql-reference/sql/create-table): a role
-        whose access to the target was revoked cannot read the staged rows.
-        Whether copying grants needs more than CREATE TABLE in a
-        managed-access schema is not documented (#2034).
+        connector assumes autocommit and does not check it; that and policies
+        on the target are tracked in #2034.
 
         Returns:
             Number of rows loaded.
@@ -640,28 +683,32 @@ class SnowflakeConnector:
             ValueError: From :meth:`_new_staging_name`, or a column label that
                 is empty, too long or contains a control character; raised
                 before any staging or data SQL runs.
-            RuntimeError: ``write_pandas`` reports failure.
+            RuntimeError: ``write_pandas`` reports failure, or a table already
+                has the staging name (raised before anything is loaded).
             snowflake.connector.errors.Error: A statement fails, including the
-                ``CREATE ... LIKE`` when the target does not exist.
+                ``INSERT OVERWRITE`` when the target does not exist or lacks
+                one of ``df``'s columns (the staging table is then dropped).
                 ``upload_dataframe`` wraps the ``DatabaseError`` family and
                 ``ValueError`` in ``RuntimeError``; other SDK errors propagate.
         """
         column_list = ", ".join(_quote_column_identifier(col) for col in df.columns)
         staging_name = self._new_staging_name(table_name)
-        created = False
+        if self._table_exists(staging_name):
+            raise RuntimeError(
+                f"Staging table name {staging_name} is already in use; "
+                f"{table_name} was not changed"
+            )
         try:
             log.info(f"Creating staging table {staging_name} to overwrite {table_name}")
-            self.cursor.execute(
-                f'CREATE TABLE "{staging_name}" LIKE "{table_name}" COPY GRANTS'
-            )
-            created = True
-            nrows = self._load_staging_table(df, staging_name, table_name)
+            nrows = self._load_staging_table(df, staging_name, table_name, table_type="temporary")
             self.cursor.execute(
                 f'INSERT OVERWRITE INTO "{table_name}" ({column_list}) '
                 f'SELECT {column_list} FROM "{staging_name}"'
             )
         except BaseException as error:
-            self._clean_up_failed_staging(staging_name, table_name, created, error)
+            # The name was free before the load, so whatever is there now was
+            # created by this call's load.
+            self._clean_up_failed_staging(staging_name, table_name, True, error)
             raise
         self._drop_staging_table(staging_name, f"a copy of the new rows of {table_name}")
         return nrows

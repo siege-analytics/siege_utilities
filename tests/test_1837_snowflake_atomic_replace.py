@@ -8,8 +8,9 @@ loads a uniquely named staging table first:
 
 * ``auto_create_table=True``: the staging table is swapped in, or renamed into
   place when there is no target;
-* ``auto_create_table=False``: the target's rows are replaced from the staging
-  table with one ``INSERT OVERWRITE``, keeping the target table object.
+* ``auto_create_table=False``: the staging table is a session-temporary table
+  created by the load itself, and the target's rows are replaced from it with
+  one ``INSERT OVERWRITE``, keeping the target table object.
 
 These tests use an in-memory fake of Snowflake's autocommit SQL. They do not
 talk to Snowflake. The fake models table objects (identity, rows, columns,
@@ -17,11 +18,14 @@ grants, kind), ``DROP``/``CREATE``/``LIKE``, ``SWAP WITH``, ``RENAME TO``,
 ``INSERT OVERWRITE``, the INFORMATION_SCHEMA existence probe and
 ``write_pandas``. Each statement can fail before it takes effect, or after it
 took effect while the client still sees an error. Its rules follow the
-Snowflake documentation, not observation: a new table is permanent and gets
-the schema's future grants, except that a ``LIKE ... COPY GRANTS`` table gets
-the source's grants instead; a ``LIKE`` table copies columns; a swap exchanges
-which object each name refers to; ``INSERT OVERWRITE`` replaces the rows of the
-same object and is rolled back on failure.
+Snowflake documentation and the SDK source, not observation: a new permanent
+table gets the schema's future grants and none of another table's grants; a
+temporary table gets no grants and is not visible to other sessions; ``write_pandas(..., overwrite=True)`` without
+``auto_create_table`` creates a missing table of the requested ``table_type``
+from the DataFrame's columns and truncates it before loading, as SDK 3.7.1 and
+later do; a ``LIKE`` table copies columns; a swap exchanges which object each
+name refers to; ``INSERT OVERWRITE`` replaces the rows of the same object and
+is rolled back on failure.
 """
 
 import logging
@@ -64,7 +68,7 @@ class FakeSnowflake:
         self.raise_after = []  # (pattern, exception): apply, then raise
         self.fail_write = None
         self.future_grants = set()  # schema-level future grants on tables
-        self.write_calls = []       # (table, auto_create_table, overwrite, grants at load)
+        self.write_calls = []       # one dict per write_pandas call, state at load time
         self._result = None
 
     def _inject(self, rules, sql):
@@ -101,17 +105,16 @@ class FakeSnowflake:
             self.tables[match[2]] = Table(columns=re.findall(r'"([^"]+)" ', match[3]),
                                           grants=self.future_grants)
             return
-        match = re.fullmatch(rf"CREATE TABLE {_NAME} LIKE {_NAME}( COPY GRANTS)?", sql)
+        # The connector no longer sends LIKE; kept so a revert control that
+        # puts a permanent LIKE staging table back runs against the fake.
+        match = re.fullmatch(rf"CREATE TABLE {_NAME} LIKE {_NAME}", sql)
         if match:
             if match[1] in self.tables:
                 raise ProgrammingError(f"Object '{match[1]}' already exists.")
             if match[2] not in self.tables:
                 raise ProgrammingError(f"Table '{match[2]}' does not exist.")
-            source = self.tables[match[2]]
-            # COPY GRANTS: the source's grants and no future grants; without
-            # it, the schema's future grants.
-            grants = source.grants if match[3] else self.future_grants
-            self.tables[match[1]] = Table(columns=source.columns, grants=grants)
+            self.tables[match[1]] = Table(columns=self.tables[match[2]].columns,
+                                          grants=self.future_grants)
             return
         match = re.fullmatch(rf"ALTER TABLE {_NAME} SWAP WITH {_NAME}", sql)
         if match:
@@ -132,10 +135,13 @@ class FakeSnowflake:
         if match:
             target, source = self.tables.get(match[1]), self.tables.get(match[3])
             columns = self._parse_insert_columns(match[2])
-            if target is None or source is None:
-                raise ProgrammingError("INSERT OVERWRITE needs both tables")
-            if columns is None or not set(columns) <= set(target.columns):
+            for name, table in ((match[1], target), (match[3], source)):
+                if table is None:
+                    raise ProgrammingError(f"Table '{name}' does not exist.")
+            if columns is None:
                 raise ProgrammingError("invalid column list")
+            if not set(columns) <= set(target.columns):
+                raise ProgrammingError("invalid identifier")
             target.rows = [{c: row.get(c) for c in columns} for row in source.rows]
             return
         raise AssertionError(f"fake does not understand SQL: {sql}")
@@ -166,12 +172,29 @@ class FakeSnowflake:
         pass
 
     # --- write_pandas ----------------------------------------------------
-    def write_pandas(self, conn, df, table_name, *, auto_create_table, overwrite, **kwargs):
+    def visible_to_other_sessions(self, name):
+        return self.tables[name].kind != "TEMPORARY"
+
+    def write_pandas(self, conn, df, table_name, *, auto_create_table, overwrite,
+                     table_type="", **kwargs):
         assert auto_create_table is False
         table = self.tables.get(table_name)
+        if table is None and overwrite:
+            # SDK 3.7.1+: CREATE <table_type> TABLE IF NOT EXISTS <name>
+            # (<inferred columns>), then TRUNCATE, then COPY.
+            temporary = table_type.lower() in ("temp", "temporary")
+            table = Table(columns=list(df.columns),
+                          kind="TEMPORARY" if temporary else "PERMANENT",
+                          grants=set() if temporary else self.future_grants)
+            self.tables[table_name] = table
         if table is None:
             raise ProgrammingError(f"Table '{table_name}' does not exist.")
-        self.write_calls.append((table_name, auto_create_table, overwrite, set(table.grants)))
+        self.write_calls.append({
+            "table": table_name, "auto_create_table": auto_create_table,
+            "overwrite": overwrite, "table_type": table_type, "kind": table.kind,
+            "grants": set(table.grants),
+            "visible_to_other_sessions": self.visible_to_other_sessions(table_name),
+        })
         if not set(df.columns) <= set(table.columns):
             raise ProgrammingError("invalid identifier")
         if overwrite:
@@ -221,12 +244,13 @@ def _fixed_uuid(monkeypatch, hex_value):
 # --- failure atomicity: the reviewer's fixture and its siblings ------------
 
 
-@BOTH_PATHS
-def test_failed_create_does_not_leave_table_absent(connector, fake, original, auto_create):
+def test_failed_create_does_not_leave_table_absent(connector, fake, original):
+    # Swap path only: with auto_create_table=False the connector sends no
+    # CREATE; the load creates the staging table (see the load-failure tests).
     fake.fail_on.append((r"^CREATE TABLE", ProgrammingError("injected CREATE failure")))
 
     with pytest.raises(RuntimeError, match="injected CREATE failure"):
-        connector.upload_dataframe(NEW, "events", auto_create_table=auto_create, overwrite=True)
+        connector.upload_dataframe(NEW, "events", auto_create_table=True, overwrite=True)
 
     assert fake.tables == {"events": original}
     assert original.rows == OLD
@@ -316,29 +340,58 @@ def test_overwrite_without_auto_create_keeps_object_grants_and_kind(connector, f
 def test_overwrite_without_auto_create_uses_one_insert_overwrite(connector, fake):
     connector.upload_dataframe(NEW, "events", auto_create_table=False, overwrite=True)
 
-    staging = re.fullmatch(
-        r'CREATE TABLE "(events_SU_STAGE_[0-9A-F]{12})" LIKE "events" COPY GRANTS',
-        fake.statements[0],
-    )[1]
+    [call] = fake.write_calls
+    staging = call["table"]
+    assert re.fullmatch(r"events_SU_STAGE_[0-9A-F]{12}", staging)
+    # Only the name probe, the replace and the drop: no CREATE of our own.
+    assert "INFORMATION_SCHEMA.TABLES" in fake.statements[0]
     assert fake.statements[1:] == [
         f'INSERT OVERWRITE INTO "events" ("amount") SELECT "amount" FROM "{staging}"',
         f'DROP TABLE IF EXISTS "{staging}"',
     ]
+    assert not any(s.startswith("CREATE") for s in fake.statements)
 
 
-def test_staging_table_does_not_expose_rows_to_schema_future_grants(connector, fake, original):
+def test_staging_table_is_session_temporary_with_no_grants(connector, fake, original):
     # The schema grants future SELECT to READER, but READER cannot read
-    # "events" (its access was revoked). The staging table must not let
-    # READER read the new rows, even while they are staged.
+    # "events" (its access was revoked); ANALYST can. The staged rows must be
+    # readable by neither: the load creates a temporary table, which gets no
+    # future grants and none of the target's grants and is not visible to
+    # other sessions.
     fake.future_grants = {("SELECT", "READER")}
 
     connector.upload_dataframe(NEW, "events", auto_create_table=False, overwrite=True)
 
-    [(staging, _, _, staging_grants)] = fake.write_calls
-    assert "_SU_STAGE_" in staging
-    assert staging_grants == {("SELECT", "ANALYST")}
-    assert original.grants == {("SELECT", "ANALYST")}
-    assert fake.tables["events"] is original and original.rows == NEW_ROWS
+    [call] = fake.write_calls
+    assert "_SU_STAGE_" in call["table"]
+    assert call["table_type"] == "temporary"
+    assert call["kind"] == "TEMPORARY"
+    assert call["grants"] == set()
+    assert call["visible_to_other_sessions"] is False
+    # The target is as before, the staging table is gone.
+    assert fake.tables["events"] is original
+    assert original.grants == {("SELECT", "ANALYST")} and original.kind == "TRANSIENT"
+    assert original.rows == NEW_ROWS
+    assert _staging_tables(fake) == []
+    assert [name for name, _ in fake.dropped] == [call["table"]]
+
+
+@pytest.mark.parametrize("fail_at", ["load", "insert"])
+def test_temporary_staging_table_is_dropped_on_failure(connector, fake, original, fail_at):
+    fake.future_grants = {("SELECT", "READER")}
+    if fail_at == "load":
+        fake.fail_write = ProgrammingError("injected COPY failure")
+    else:
+        fake.fail_on.append((r"^INSERT OVERWRITE", ProgrammingError("injected INSERT failure")))
+
+    with pytest.raises(RuntimeError, match="injected"):
+        connector.upload_dataframe(NEW, "events", auto_create_table=False, overwrite=True)
+
+    [call] = fake.write_calls
+    assert call["kind"] == "TEMPORARY" and call["grants"] == set()
+    assert [name for name, _ in fake.dropped] == [call["table"]]
+    assert fake.tables == {"events": original}
+    assert original.rows == OLD and original.grants == {("SELECT", "ANALYST")}
 
 
 def test_swap_target_gets_future_grants_like_a_recreated_table(connector, fake, original):
@@ -357,18 +410,21 @@ def test_swap_target_gets_future_grants_like_a_recreated_table(connector, fake, 
 def test_staging_load_uses_the_overwrite_copy_options(connector, fake, auto_create):
     # The overwrite path passed overwrite=True to write_pandas before #1837,
     # which makes the SDK read binary columns with BINARY_AS_TEXT=FALSE and
-    # infer column types. The staging load keeps those options; on the empty
-    # staging table overwrite only truncates. The fake cannot decode Parquet,
-    # so this checks the arguments, not the binary decoding itself.
+    # infer column types. The staging load keeps those options and never
+    # names the target. The fake cannot decode Parquet, so this checks the
+    # arguments, not the binary decoding itself.
     connector.upload_dataframe(NEW, "events", auto_create_table=auto_create, overwrite=True)
 
-    [(table, auto_create_table, overwrite, _)] = fake.write_calls
-    assert re.fullmatch(r"events_SU_STAGE_[0-9A-F]{12}", table)
-    assert auto_create_table is False
-    assert overwrite is True
+    [call] = fake.write_calls
+    assert re.fullmatch(r"events_SU_STAGE_[0-9A-F]{12}", call["table"])
+    assert call["auto_create_table"] is False
+    assert call["overwrite"] is True
+    assert call["table_type"] == ("" if auto_create else "temporary")
 
 
 def test_overwrite_without_auto_create_column_mismatch_keeps_original(connector, fake, original):
+    # The staging table takes the DataFrame's columns, so a column the target
+    # lacks fails at the INSERT OVERWRITE (develop failed at the COPY).
     with pytest.raises(RuntimeError, match="invalid identifier"):
         connector.upload_dataframe(
             pd.DataFrame({"amount": [1], "extra": [2]}), "events",
@@ -377,6 +433,7 @@ def test_overwrite_without_auto_create_column_mismatch_keeps_original(connector,
 
     assert fake.tables == {"events": original}
     assert original.rows == OLD
+    assert len(fake.dropped) == 1 and "_SU_STAGE_" in fake.dropped[0][0]
 
 
 def test_overwrite_without_auto_create_missing_table_fails_cleanly(connector, fake):
@@ -385,8 +442,10 @@ def test_overwrite_without_auto_create_missing_table_fails_cleanly(connector, fa
     with pytest.raises(RuntimeError, match="does not exist"):
         connector.upload_dataframe(NEW, "events", auto_create_table=False, overwrite=True)
 
+    # The INSERT OVERWRITE finds no target; only the staging table, which this
+    # call's load created, is dropped, and no "events" table is created.
     assert fake.tables == {}
-    assert fake.dropped == []
+    assert len(fake.dropped) == 1 and "_SU_STAGE_" in fake.dropped[0][0]
 
 
 # --- auto_create_table=True: swap or rename --------------------------------
@@ -429,7 +488,8 @@ def test_append_path_is_unchanged(connector, fake, original):
     assert fake.tables["events"] is original
     assert original.rows == OLD + NEW_ROWS
     assert not any("SWAP" in s or "DROP" in s or "OVERWRITE" in s for s in fake.statements)
-    assert [call[:3] for call in fake.write_calls] == [("events", False, False)]
+    assert [(c["table"], c["auto_create_table"], c["overwrite"], c["table_type"])
+            for c in fake.write_calls] == [("events", False, False, "")]
 
 
 # --- cleanup errors never change the outcome (S3-3) ------------------------
@@ -498,12 +558,14 @@ def test_swap_applied_but_client_sees_error_is_documented_behaviour(connector, f
 def test_staging_name_collision_fails_without_touching_the_other_table(
     connector, fake, original, monkeypatch, auto_create
 ):
-    """Kills a mutant that creates the staging table with IF NOT EXISTS."""
+    """Kills a mutant that creates the staging table with IF NOT EXISTS (swap
+    path) or skips the staging-name probe before the load (the load's
+    ``CREATE ... IF NOT EXISTS`` and TRUNCATE would hit the other table)."""
     _fixed_uuid(monkeypatch, "abcdef012345" + "0" * 20)
     bystander = Table([{"amount": 99}])
     fake.tables["events_SU_STAGE_ABCDEF012345"] = bystander
 
-    with pytest.raises(RuntimeError, match="already exists"):
+    with pytest.raises(RuntimeError, match="already exists|already in use"):
         connector.upload_dataframe(NEW, "events", auto_create_table=auto_create, overwrite=True)
 
     assert fake.tables["events_SU_STAGE_ABCDEF012345"] is bystander
@@ -573,7 +635,7 @@ def test_overwrite_without_auto_create_accepts_any_column_name(connector, fake, 
     # The fake's write_pandas accepts any label, as snowflake-connector-python
     # 3.1.0 and later do; earlier versions do not escape an embedded double
     # quote in the COPY column list, so 'say "hi"' models 3.1.0 or later.
-    original =Table([{column: 1}, {column: 2}], columns=[column], grants={("SELECT", "ANALYST")})
+    original = Table([{column: 1}, {column: 2}], columns=[column], grants={("SELECT", "ANALYST")})
     fake.tables = {"events": original}
 
     connector.upload_dataframe(
@@ -622,16 +684,17 @@ def test_insert_overwrite_applied_but_client_sees_error_keeps_object(connector, 
     assert _staging_tables(fake) == []
 
 
-@BOTH_PATHS
 def test_staging_create_applied_but_client_sees_error_is_logged_by_name(
-    connector, fake, original, caplog, auto_create
+    connector, fake, original, caplog
 ):
+    # Swap path only: with auto_create_table=False the connector sends no
+    # CREATE of its own.
     fake.raise_after.append((r'^CREATE TABLE "events_SU_STAGE_',
                              OperationalError("timeout waiting for the response")))
 
     with caplog.at_level(logging.INFO, logger=sc.log.name):
         with pytest.raises(RuntimeError, match="timeout"):
-            connector.upload_dataframe(NEW, "events", auto_create_table=auto_create, overwrite=True)
+            connector.upload_dataframe(NEW, "events", auto_create_table=True, overwrite=True)
 
     leftover = _staging_tables(fake)
     assert len(leftover) == 1
@@ -647,6 +710,7 @@ def test_staging_table_name_is_logged_before_it_is_created(connector, fake, capl
     with caplog.at_level(logging.INFO, logger=sc.log.name):
         connector.upload_dataframe(NEW, "events", auto_create_table=auto_create, overwrite=True)
 
-    create = next(s for s in fake.statements if s.startswith('CREATE TABLE "events_SU_STAGE_'))
-    staging = re.match(r'CREATE TABLE "([^"]+)"', create)[1]
-    assert staging in caplog.text
+    # The staging table is created by our CREATE (swap path) or by the load
+    # (auto_create_table=False); either way the load is given its name.
+    [call] = fake.write_calls
+    assert call["table"] in caplog.text
