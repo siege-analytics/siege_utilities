@@ -173,6 +173,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   containing `/` or other percent-encoded characters and for each yearless
   entry (formerly `_None.json`), and delete the old files by hand if disk
   space matters.
+- PostGIS and DuckDB `upload_spatial_data` (and `upload_to_postgis` /
+  `upload_to_duckdb`) default to `if_exists='fail'` instead of `'replace'`, so
+  an upload no longer silently replaces an existing table. DuckDB also accepts
+  `'append'` and raises for any other value, and rejects an input column named
+  `geometry_wkt` (its storage column), which v6.0.0 silently overwrote.
+  **Migration:** pass `if_exists='replace'` where replacing an existing table
+  is intended, and rename any `geometry_wkt` column before uploading (#1818).
+- PostGIS and DuckDB `execute_spatial_query` return rows for every
+  row-returning statement, including CTEs (`WITH ...`) and
+  `INSERT`/`UPDATE`/`DELETE ... RETURNING`. In v6.0.0 only queries starting
+  with `SELECT` returned a GeoDataFrame, so a CTE or `RETURNING` write returned
+  a row count (PostGIS) or the first value of its result (DuckDB) and its rows
+  were lost. Fetched `RETURNING` rows are decoded
+  without replaying the write. Tabular results come back without an active
+  geometry; other statements still return the affected-row count, or -1
+  (#1414); a DuckDB `CHECKPOINT` currently returns an empty frame instead
+  (#2036). **Migration:** code that read a number from a CTE or `RETURNING`
+  query now receives a GeoDataFrame; use `len(result)` for the count or read
+  the returned rows.
+- PostGIS `execute_spatial_query` inside a caller's transaction no longer
+  rolls back that transaction on the caller's behalf, and commits it only for a
+  write. A failed statement rolls back to a savepoint and keeps the caller's
+  earlier work; in v6.0.0 the connector rolled back the whole transaction. The
+  connector still commits the caller's transaction after a statement whose
+  first word is not `SELECT` and that contains one of the write keywords
+  `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `CREATE`, `DROP`, `ALTER`, `TRUNCATE`,
+  `COPY`, `CALL`, `DO`, `GRANT` or `REVOKE`, as v6.0.0 did. Any other
+  statement does not commit: read-only statements such as `WITH ... SELECT`,
+  `EXPLAIN SELECT` or `SHOW`, and statements such as `REFRESH MATERIALIZED
+  VIEW`, `COMMENT ON` or `ANALYZE`, no longer commit the caller's pending
+  work; in v6.0.0 every statement not starting with `SELECT` committed. Leading comments and parentheses are
+  skipped when finding that first word, so a `SELECT ... FOR UPDATE` behind a
+  comment keeps the caller's transaction and row locks; v6.0.0 committed it.
+  A standalone transaction-control statement
+  such as `BEGIN`, `SAVEPOINT` or `RELEASE` runs as written, without the
+  connector committing it, and returns -1, so `BEGIN` now leaves a
+  transaction open (#1818). **Migration:** after a `SpatialQueryError` inside
+  your own transaction, call `connection.rollback()` if the earlier work
+  should be discarded; commit explicitly after read-only statements and after
+  statements without one of those write keywords; finish a
+  transaction opened with `BEGIN` with `COMMIT` or `ROLLBACK`.
+- PostGIS and DuckDB reads keep the source CRS when `crs` is omitted.
+  `download_spatial_data` and PostGIS `execute_spatial_query` previously
+  reprojected to the configured default CRS (EPSG:4326), and DuckDB labelled
+  every table EPSG:4326. Now a PostGIS result keeps its native SRID (for
+  example EPSG:3857), a PostGIS table without an SRID reads with CRS `None`,
+  and a DuckDB table read uses the CRS stored at upload. DuckDB tables written
+  before this release have no stored CRS and read with CRS `None`; asking such
+  a read to reproject with `crs=` raises `SpatialQueryError`. Tables written by
+  `convert_spatial_format(..., 'duckdb')` do not store a CRS yet either
+  (#2036). DuckDB stores the
+  CRS with `COMMENT ON TABLE`, so the `performance` and `all` extras now
+  require `duckdb>=0.10.0` (previously 0.7.0). An invalid `crs=`
+  passed to `execute_spatial_query` now raises before the query runs, and a
+  query batch that mixes a
+  transaction-control statement (`BEGIN`, `COMMIT`, `SAVEPOINT` and similar)
+  with other statements is rejected before anything executes. **Migration:**
+  pass `crs="EPSG:4326"` (or your target) to keep reprojected output; for a
+  DuckDB table written by an earlier version, pass `source_crs=` with the CRS
+  it was written in (EPSG:4326 if unsure, as before), or upload it again;
+  upgrade DuckDB to 0.10.0 or later; run transaction-control statements on
+  their own (#1818).
 
 - `databricks.dataframe_bridge.spark_to_geopandas` raises `ValueError` when the
   CRS metadata column mixes null and non-null values, even when `crs=` is
@@ -399,6 +461,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ConfidentialClientApplication.remove_tokens_for_client`, which MSAL Python
   first ships in 1.27.0. Dynamics dependency errors now recommend `[crm]`, and
   CI installs it so the Dynamics tests execute instead of skipping (#1449).
+- On a connection the connector opened, a spatial query's write commits only
+  after its result is decoded and rolls back on any error, so a failed
+  multi-statement DuckDB write leaves nothing behind. A PostGIS
+  `download_spatial_data` ends the read transaction it opened, so a following
+  `execute_spatial_query` on that connection still commits (#1818). Two
+  downloads on one connector no longer share a transaction; open one yourself
+  first when both must read the same snapshot.
+  **Migration:** a DuckDB batch that writes to two attached databases, or that
+  runs `INSERT ...; CHECKPOINT`, now raises and rolls back, because DuckDB
+  forbids both inside one transaction, where v6.0.0 ran it; run such statements
+  as separate calls.
+- PostGIS uploads now run their drop, create and inserts in one explicit
+  transaction regardless of the geopandas version. In v6.0.0 a failing
+  `if_exists='replace'` also kept the existing table, because geopandas already
+  wraps an engine write in one transaction; the PostGIS change is covered by
+  mock-based tests only. DuckDB uploads run in one transaction that rolls back
+  on failure, so a failed `if_exists='replace'` keeps the original table and
+  rows. DuckDB uploads store the active geometry column whatever its name, and
+  refuse an attribute column named `geometry` when the active geometry has
+  another name, because the download would overwrite it (#1818).
+- DuckDB tables keep their CRS. `upload_spatial_data` records the full CRS in
+  the table comment, including for empty tables, and `download_spatial_data`
+  restores it, also after reconnecting. Previously every DuckDB read was
+  labelled EPSG:4326, whatever CRS was uploaded. `if_exists='append'` adds
+  rows by column name and refuses data in a different CRS; an equal CRS whose
+  WKT is spelled differently is recorded once and reads back. Arbitrary SQL
+  through `execute_spatial_query` keeps the EPSG:4326 label (#1818).
 
 ### Security
 
