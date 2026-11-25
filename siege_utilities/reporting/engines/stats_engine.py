@@ -9,15 +9,23 @@ from typing import Dict, Any, Union
 
 from .._markup import _escape_paragraph
 
-# Core plotting libraries
+# Core plotting libraries. seaborn is optional: heatmaps use it when installed
+# and fall back to plain matplotlib otherwise (#2041).
 try:
     import matplotlib.pyplot as plt
-    import seaborn as sns
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
     plt = None
+
+try:
+    import seaborn as sns
+    SEABORN_AVAILABLE = True
+except ImportError:
+    SEABORN_AVAILABLE = False
     sns = None
+
+from .._heatmap import matplotlib_heatmap
 
 # Data processing
 try:
@@ -64,8 +72,8 @@ class StatsChartMixin:
         Returns:
             ReportLab Image object
         """
-        if not MATPLOTLIB_AVAILABLE or not sns:
-            return self._create_placeholder_chart(width, height, "Matplotlib/Seaborn not available")
+        if not MATPLOTLIB_AVAILABLE:
+            return self._create_placeholder_chart(width, height, missing="matplotlib")
 
         try:
             # Convert data to DataFrame if needed
@@ -91,9 +99,14 @@ class StatsChartMixin:
 
             # Create heatmap. YlOrRd is sequential: span the data range rather
             # than centring at 0, which would leave half the ramp unused for
-            # all-positive values (counts, shares).
-            sns.heatmap(pivot_data, annot=True, cmap='YlOrRd',
-                        square=True, linewidths=0.5, cbar_kws={"shrink": 0.8})
+            # all-positive values (counts, shares). seaborn is optional; the
+            # matplotlib fallback draws the same layout (#2041).
+            if SEABORN_AVAILABLE:
+                sns.heatmap(pivot_data, annot=True, cmap='YlOrRd',
+                            square=True, linewidths=0.5, cbar_kws={"shrink": 0.8})
+            else:
+                matplotlib_heatmap(ax, pivot_data, annot=True, cmap='YlOrRd',
+                                   square=True, linewidths=0.5, cbar_kws={"shrink": 0.8})
 
             # Customize chart
             ax.set_title(title or "Data Heatmap")
@@ -132,7 +145,7 @@ class StatsChartMixin:
             ReportLab Image object
         """
         if not MATPLOTLIB_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Matplotlib not available")
+            return self._create_placeholder_chart(width, height, missing="matplotlib")
 
         try:
             # Convert data to DataFrame if needed

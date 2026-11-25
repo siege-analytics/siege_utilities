@@ -13,15 +13,22 @@ from typing import Dict, Any, Union
 
 from .._markup import _build_popup_html
 from .._range_labels import format_range_edges
+from .base_engine import _missing_modules
 
-# Core plotting libraries
+# Core plotting libraries. seaborn is optional and guarded separately so a
+# missing seaborn never disables matplotlib (#2041).
 try:
     import matplotlib.pyplot as plt
-    import seaborn as sns
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
     plt = None
+
+try:
+    import seaborn as sns
+    SEABORN_AVAILABLE = True
+except ImportError:
+    SEABORN_AVAILABLE = False
     sns = None
 
 # Interactive plotting
@@ -143,7 +150,7 @@ class MapChartMixin:
             ReportLab Image object (placeholder — HTML saved to output_dir)
         """
         if not FOLIUM_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Folium not available")
+            return self._create_placeholder_chart(width, height, missing="folium")
 
         if geo_data is None:
             raise ValueError("geo_data is required for choropleth map")
@@ -232,7 +239,10 @@ class MapChartMixin:
             ReportLab Image object
         """
         if not MATPLOTLIB_AVAILABLE or not GEOPANDAS_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Matplotlib or GeoPandas not available")
+            return self._create_placeholder_chart(
+                width, height,
+                missing=_missing_modules(matplotlib=MATPLOTLIB_AVAILABLE, geopandas=GEOPANDAS_AVAILABLE),
+            )
 
         try:
             # Convert data to DataFrame if needed
@@ -443,7 +453,10 @@ class MapChartMixin:
             ReportLab Image object
         """
         if not MATPLOTLIB_AVAILABLE or not GEOPANDAS_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Matplotlib or GeoPandas not available")
+            return self._create_placeholder_chart(
+                width, height,
+                missing=_missing_modules(matplotlib=MATPLOTLIB_AVAILABLE, geopandas=GEOPANDAS_AVAILABLE),
+            )
 
         try:
             # Convert data to DataFrame if needed
@@ -604,7 +617,7 @@ class MapChartMixin:
             ReportLab Image object
         """
         if not FOLIUM_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Folium not available")
+            return self._create_placeholder_chart(width, height, missing="folium")
 
         try:
             # Convert data to DataFrame if needed
@@ -700,7 +713,7 @@ class MapChartMixin:
             ReportLab Image object
         """
         if not MATPLOTLIB_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Matplotlib not available")
+            return self._create_placeholder_chart(width, height, missing="matplotlib")
 
         try:
             # Convert data to DataFrame if needed
@@ -780,7 +793,7 @@ class MapChartMixin:
             ReportLab Image object
         """
         if not FOLIUM_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Folium not available")
+            return self._create_placeholder_chart(width, height, missing="folium")
 
         try:
             # Convert data to DataFrame if needed
@@ -853,7 +866,7 @@ class MapChartMixin:
             ReportLab Image object
         """
         if not FOLIUM_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Folium not available")
+            return self._create_placeholder_chart(width, height, missing="folium")
 
         try:
             # Convert data to DataFrame if needed
@@ -947,7 +960,7 @@ class MapChartMixin:
             ReportLab Image object
         """
         if not FOLIUM_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Folium not available")
+            return self._create_placeholder_chart(width, height, missing="folium")
 
         try:
             # Convert data to DataFrame if needed
@@ -1058,9 +1071,9 @@ class MapChartMixin:
             ReportLab Image object (placeholder — HTML saved to output_dir)
         """
         if not FOLIUM_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Folium not available")
+            return self._create_placeholder_chart(width, height, missing="folium")
         if not GEOPANDAS_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "GeoPandas not available")
+            return self._create_placeholder_chart(width, height, missing="geopandas")
 
         try:
             # Convert data to DataFrame / GeoDataFrame

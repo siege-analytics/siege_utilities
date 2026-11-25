@@ -28,6 +28,7 @@ except ImportError:
 
 from siege_utilities.core.logging import log_error
 
+from .._heatmap import matplotlib_heatmap
 from ..chart_generator import ChartGenerator
 
 __all__ = [
@@ -413,7 +414,7 @@ class PollingAnalyzer:
         metric: str = "value",
         figsize: Tuple[int, int] = (10, 8),
     ) -> plt.Figure:
-        """Render a cross-tab as a Seaborn heatmap.
+        """Render a cross-tab as a heatmap (seaborn when installed, else matplotlib).
 
         ``metric`` is keyword-only; it is used only for the colorbar label.
         The annotation format is chosen automatically from the data dtype
@@ -442,14 +443,18 @@ class PollingAnalyzer:
             # Seaborn's fmt='d' expects an integer dtype; cast float-valued
             # integers (e.g. 30.0) to int so ``format(v, 'd')`` doesn't raise.
             data_to_plot = crosstab_data.astype(int) if fmt == "d" else crosstab_data
-            sns.heatmap(
-                data_to_plot,
-                annot=True,
-                fmt=fmt,
-                cmap="YlOrRd",
-                ax=ax,
-                cbar_kws={"label": metric.title()},
-            )
+            # seaborn is optional; the matplotlib fallback draws the same
+            # layout so a seaborn-free install still renders (#2041).
+            heatmap_kwargs = {
+                "annot": True,
+                "fmt": fmt,
+                "cmap": "YlOrRd",
+                "cbar_kws": {"label": metric.title()},
+            }
+            if _SEABORN_AVAILABLE:
+                sns.heatmap(data_to_plot, ax=ax, **heatmap_kwargs)
+            else:
+                matplotlib_heatmap(ax, data_to_plot, **heatmap_kwargs)
             ax.set_title(title, fontsize=14, fontweight="bold")
             ax.set_xlabel("")
             ax.set_ylabel("")
