@@ -262,6 +262,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them explicitly if you depended on the old defaults; pass `geo_data=` by keyword; check any
   call that relied on the old positional shift.
 
+- Numpy Fisher-Jenks classification preserves the optimal partition with
+  `min(k, n_unique)` nonempty classes, including singleton outliers and tight
+  clusters far from the data minimum, whose segment SSE is now accumulated
+  per segment instead of from cancelling prefix sums. Both classification
+  backends use upper-inclusive bins and class maxima for natural-break edges,
+  and the no-mapclassify `create_choropleth` path colours a value on an
+  internal edge with its own (lower) class. NaN and positive/negative
+  infinity receive bin `-1` and are excluded from break calculations. When
+  the first class holds only the minimum, `breaks[0]` and `_break_low` are
+  the next float below the minimum, so that class is not merged away. On the
+  mapclassify backend, natural breaks keep every class instead of merging a
+  class that holds only the minimum, and fall back to the exact calculation
+  when mapclassify's result is not k strictly increasing edges. In 6.0.0 the
+  numpy backend of `classify_series` assigned a value exactly on an internal
+  break to the upper class (`searchsorted(..., side="right")`; the
+  mapclassify backend was already upper-inclusive), masked only NaN so
+  infinities were classified on both backends, and natural breaks on either
+  backend could differ for small, clustered or outlier data (for example
+  `[1, 2, 3]` with k=3 gave 2 classes). **Migration:** expect values on an
+  internal break to move down one class on the numpy backend, infinite
+  values to get bin `-1` on both backends, and natural breaks to change on
+  both backends; recompute stored classifications and natural breaks rather
+  than mixing them with 6.0.0 output (#1455).
+
 ### Changed
 
 - `scripts/check_exception_contracts.py`, the exception-contract guard that CI

@@ -280,6 +280,18 @@ def test_natural_breaks_leaves_missing_values_unclassified(map_engine, monkeypat
     assert not any("nan" in label.lower() for label in labels)
 
 
+def test_natural_breaks_legend_ignores_unclassified_infinity(map_engine, monkeypatch, tmp_path):
+    # -inf gets bin -1 and is not drawn, so it must not set the legend's lower edge.
+    values = [float("-inf"), 1, 2, 3, 50, 51, 52, 100, 101, 102]
+
+    ax = _render_advanced_choropleth(monkeypatch, tmp_path, values, "natural_breaks", bins=3)
+
+    labels = [text.get_text() for text in ax.get_legend().get_texts()]
+    assert len(labels) == 3
+    assert not any("inf" in label.lower() for label in labels)
+    assert float(labels[0].split(" – ")[0].replace(",", "")) == 1.0
+
+
 @pytest.mark.parametrize("columns", ["pivot", "correlation"])
 def test_heatmap_does_not_center_sequential_colormap(monkeypatch, tmp_path, columns):
     """#1535: center=0 with YlOrRd compressed all-positive data into half the ramp."""
