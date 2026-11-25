@@ -3,7 +3,9 @@ Integration tests for Census API client.
 
 These tests make actual calls to the Census Bureau API and require:
 1. Network connectivity
-2. Optionally, a CENSUS_API_KEY environment variable for better rate limits
+2. A CENSUS_API_KEY environment variable: the Census API now redirects data
+   requests without a key to a missing-key page, so they fail with
+   CensusAPIKeyError
 
 Run these tests with:
     pytest tests/test_census_api_integration.py -v
