@@ -697,8 +697,10 @@ def create_report_from_arguments(
     deleted before the aggregated error for failed argument slides is raised;
     if deleting the anchor itself fails, that error propagates instead (each
     failed argument slide is still logged) and the presentation keeps the
-    anchor. An empty argument list produces a presentation with no content
-    slides. Failure to read or delete the initial slides propagates before
+    anchor. Any other error that propagates while the report slides are being
+    added (for example a Slides API error on a createSlide or text request)
+    also leaves the anchor in place. An empty argument list produces a
+    presentation with no content slides. Failure to read or delete the initial slides propagates before
     report slides are added. The new presentation is left in Drive whenever
     an error propagates and must be removed by the caller.
 

@@ -132,6 +132,18 @@ class LayoutNotInCurrentMasterError(Exception):
     status = 400
 
 
+class InsertionIndexOutOfRangeError(Exception):
+    """Stands in for the HttpError 400 for an insertionIndex past the end of the deck."""
+
+    status = 400
+
+
+class SlidesApiError(Exception):
+    """Stands in for a Slides API HttpError that the report loop does not catch."""
+
+    status = 500
+
+
 TWO_MASTER_LAYOUTS = [
     ("leftover_blank", "leftover", "BLANK"),
     ("brand_title", "brand", "TITLE"),
@@ -139,14 +151,16 @@ TWO_MASTER_LAYOUTS = [
 ]
 
 
-def _strict_template(workspace, masters, layouts, slide_master, fail_creates=()):
+def _strict_template(workspace, masters, layouts, slide_master, fail_creates=(), fail_deletes=()):
     """Copy of a two-slide template whose createSlide follows the documented master rule.
 
     A new slide's layout is resolved against the master of the previous slide, the
     first slide's master at index 0, or the first master when there are no slides;
-    a layout reference not found in that master raises a 400-style error. The
-    createSlide requests numbered in ``fail_creates`` (from 1) raise RuntimeError
-    before the slide exists, standing in for an argument slide that fails to build.
+    a layout reference not found in that master, or an insertion index past the end
+    of the deck, raises a 400-style error. The createSlide requests numbered in
+    ``fail_creates`` (from 1) raise RuntimeError before the slide exists, standing in
+    for an argument slide that fails to build; the deleteObject requests numbered in
+    ``fail_deletes`` raise a Slides API error before the slide is deleted.
     """
     client, services = workspace
     presentations = services["slides"].presentations.return_value
@@ -154,6 +168,7 @@ def _strict_template(workspace, masters, layouts, slide_master, fail_creates=())
     deck = [{"objectId": f"sample_{index}", "master": slide_master} for index in range(2)]
     requests = []
     creates = []
+    deletes = []
 
     def snapshot():
         return {
@@ -169,7 +184,7 @@ def _strict_template(workspace, masters, layouts, slide_master, fail_creates=())
     def current_master(index):
         if not deck:
             return masters[0]
-        slide = deck[0] if index == 0 else deck[min(index, len(deck)) - 1]
+        slide = deck[0] if index == 0 else deck[index - 1]
         return slide["master"] or masters[0]
 
     def batch_update(presentationId, body):
@@ -177,6 +192,9 @@ def _strict_template(workspace, masters, layouts, slide_master, fail_creates=())
             for request in body["requests"]:
                 requests.append(request)
                 if "deleteObject" in request:
+                    deletes.append(request)
+                    if len(deletes) in fail_deletes:
+                        raise SlidesApiError("500: delete failed")
                     deck[:] = [s for s in deck if s["objectId"] != request["deleteObject"]["objectId"]]
                 elif "createSlide" in request:
                     creates.append(request)
@@ -184,6 +202,8 @@ def _strict_template(workspace, masters, layouts, slide_master, fail_creates=())
                         raise RuntimeError("slide creation failed")
                     create = request["createSlide"]
                     index = create.get("insertionIndex", len(deck))
+                    if index > len(deck):
+                        raise InsertionIndexOutOfRangeError(f"400: index {index} with {len(deck)} slides")
                     master = current_master(index)
                     reference = create["slideLayoutReference"]
                     if "layoutId" in reference:
@@ -278,6 +298,20 @@ def test_anchored_master_without_blank_layout_is_rejected_with_400(workspace):
         google_slides.create_report_from_arguments(client, "Report", _arguments(3), theme_presentation_id="template")
 
     assert [slide["objectId"] for slide in deck] == ["sample_0"]
+
+
+def test_failed_anchor_delete_propagates_with_the_report_slides_in_place(workspace):
+    client, deck, requests = _strict_template(
+        workspace, ["leftover", "brand"], TWO_MASTER_LAYOUTS, "brand", fail_deletes={2},
+    )
+
+    with pytest.raises(SlidesApiError):
+        google_slides.create_report_from_arguments(client, "Report", _arguments(3), theme_presentation_id="template")
+
+    assert deck[0]["objectId"] == "sample_0"
+    assert len(deck) == 4
+    assert [slide["master"] for slide in deck] == ["brand"] * 4
+    assert requests[-1] == {"deleteObject": {"objectId": "sample_0"}}
 
 
 def test_empty_report_on_a_second_master_template_keeps_no_anchor(workspace):
