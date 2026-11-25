@@ -84,7 +84,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   raises `CrosstabInputError` for negative, missing or non-finite weights and
   for a weight column that is not numeric (text, dates, durations, complex
   numbers or categories); Decimal, Fraction, object-dtype, nullable and bool
-  weight columns, including Arrow-backed ones, are read as floats.
+  weight columns, including Arrow-backed ones, are read as floats. Weighted
+  sums of a Decimal metric column are computed in floating point, so their
+  last digits can differ from exact Decimal arithmetic.
   `column_proportion_test` now raises
   `SignificanceError` on builder-produced metric-sum tables (a non-unit
   `metric`), not only on manually constructed Views, and chi-square rejects
