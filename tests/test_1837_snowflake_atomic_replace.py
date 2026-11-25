@@ -565,9 +565,15 @@ def test_staging_name_collision_fails_without_touching_the_other_table(
     bystander = Table([{"amount": 99}])
     fake.tables["events_SU_STAGE_ABCDEF012345"] = bystander
 
-    with pytest.raises(RuntimeError, match="already exists|already in use"):
+    with pytest.raises(RuntimeError, match="already exists|already in use") as excinfo:
         connector.upload_dataframe(NEW, "events", auto_create_table=auto_create, overwrite=True)
 
+    if not auto_create:
+        # Raised directly by the probe, not wrapped, and naming the table.
+        assert str(excinfo.value) == (
+            "Staging table name events_SU_STAGE_ABCDEF012345 is already in use; "
+            "events was not changed"
+        )
     assert fake.tables["events_SU_STAGE_ABCDEF012345"] is bystander
     assert bystander.rows == [{"amount": 99}]
     assert fake.tables["events"] is original and original.rows == OLD

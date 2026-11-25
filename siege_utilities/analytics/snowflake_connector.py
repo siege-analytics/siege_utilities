@@ -296,7 +296,12 @@ class SnowflakeConnector:
                   and since it is the only statement that names the target,
                   ownership of the target is not needed. Snowflake documents
                   that creating a temporary table does not require CREATE
-                  TABLE on the schema. If a table already has
+                  TABLE on the schema; with SDK 3.0.0 to 3.7.0 the load also
+                  renames the temporary table, and renaming a table requires
+                  CREATE TABLE on the schema, with no temporary-table
+                  exemption stated
+                  (https://docs.snowflake.com/en/sql-reference/sql/alter-table;
+                  no worse than 6.0.0 on those versions). If a table already has
                   the staging name, the call raises before loading anything.
                   Column labels are quoted as the SDK quotes them, so names
                   such as ``First Name`` work; labels containing a double
@@ -538,8 +543,8 @@ class SnowflakeConnector:
         Passes ``overwrite=True``, as the overwrite path did for the target
         before #1837, so ``write_pandas`` infers the column types from the
         uploaded data and builds the same ``COPY`` (from SDK 3.0.3 binary
-        columns are read with ``BINARY_AS_TEXT=FALSE`` and, from 3.7.1, the
-        ``COPY`` casts to the inferred types). The target is never named in
+        columns are read with ``BINARY_AS_TEXT=FALSE`` and the ``COPY``
+        casts to the inferred types). The target is never named in
         this call. What ``write_pandas(staging, auto_create_table=False,
         overwrite=True, table_type=...)`` does depends on the SDK version
         (read from its source, not run against Snowflake):

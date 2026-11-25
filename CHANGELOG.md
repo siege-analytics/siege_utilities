@@ -143,12 +143,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   target, which is what Snowflake documents for `INSERT OVERWRITE` ("a role
   that has both `INSERT` and `DELETE` privileges on the target table"; 6.0.0's
   truncate needed TRUNCATE rather than DELETE). That documentation does not
-  list OWNERSHIP, and that `INSERT OVERWRITE` is the only statement the
-  connector sends that names the target, so ownership of the target is not
-  needed. Snowflake documents that creating the temporary
-  staging table does not require CREATE TABLE on the schema. The load's
-  temporary stage and file format are created by `write_pandas` as in
-  6.0.0. Not tested against a live Snowflake account. The target must
+  list OWNERSHIP, and `INSERT OVERWRITE` is the only statement the connector
+  sends that names the target, so ownership of the target is not needed.
+  Snowflake documents that creating the temporary staging table does not
+  require CREATE TABLE on the schema; with snowflake-connector-python 3.0.0
+  to 3.7.0, however, the load also renames the temporary table into place,
+  and Snowflake's `ALTER TABLE` documentation says renaming a table requires
+  CREATE TABLE on the schema, with no exemption stated for temporary tables
+  (no worse than 6.0.0, which created and renamed a permanent table on those
+  versions). The load's temporary stage and file format are created by
+  `write_pandas` as in 6.0.0. Not tested against a live Snowflake account.
+  This path now checks the staging name with a `%s`-parameterised
+  `INFORMATION_SCHEMA` query, so a process that sets
+  `snowflake.connector.paramstyle` to `qmark` or `numeric` has that query
+  fail, so the call raises before anything is loaded, with the target
+  unchanged, where 6.0.0 worked (not run); the `auto_create_table=True` path
+  already had this dependency. The target must
   already exist: with `auto_create_table=False`
   and `overwrite=True` a missing table now raises, whereas 6.0.0 with
   snowflake-connector-python 5.2.0 let `write_pandas` create it; pass
