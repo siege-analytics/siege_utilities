@@ -846,6 +846,21 @@ have coverage `0.0`. With `aggregation_func='weighted_mean'`, rows whose value i
 missing are excluded from both the numerator and the denominator, so an
 all-missing target is NaN with coverage `0.0`.
 
+Missing values in extensive totals propagate. With the default
+`aggregation_func='sum'`, a target is NaN when any source contributing to it (a
+matched row with a nonzero weight) has a missing value; the total is not
+computed from the remaining sources. Areal interpolation follows the same rule
+for extensive variables, so both paths return NaN for the same target. The
+target's `<col>_coverage` still reports the share of contribution weight that
+had data, for example `0.5` when one of two equal sources is missing.
+Intensive columns are still averaged over the sources with data.
+
+`LongitudinalAligner` carries `<col>_coverage` from one step to the next: a
+second crosswalk step folds it into its own coverage instead of summing it as a
+count, and the areal fallback averages it by area instead of splitting it. A
+caller column already named `<col>_coverage` for a value column `<col>` is
+rejected with `ValueError`; rename it before transforming or aligning.
+
 ---
 
 ## Time-Series Analysis

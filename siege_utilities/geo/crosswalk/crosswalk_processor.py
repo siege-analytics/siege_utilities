@@ -176,6 +176,7 @@ class CrosswalkProcessor:
         weight_method: Union[WeightMethod, str] = WeightMethod.AREA,
         aggregation_func: Union[str, Callable] = 'sum',
         intensive_variables: Optional[List[str]] = None,
+        carried_coverage: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """
         Transform data from source boundaries to target boundaries.
@@ -191,15 +192,25 @@ class CrosswalkProcessor:
                 source's N targets. Strings are converted with
                 WeightMethod(value).
             aggregation_func: How to aggregate merged data ('sum', 'mean',
-                'weighted_mean'). 'weighted_mean' divides by the weight of the
-                rows with a non-missing value, so a missing value leaves both
-                the numerator and the denominator; a target whose values are
-                all missing is NaN with coverage 0.0.
+                'weighted_mean'). 'sum' produces extensive totals: if any
+                source contributing to a target (a matched row with nonzero
+                weight) has a missing value, the target's total is NaN rather
+                than the sum of the remaining values (#1945). 'weighted_mean'
+                divides by the weight of the rows with a non-missing value, so
+                a missing value leaves both the numerator and the denominator;
+                a target whose values are all missing is NaN with coverage 0.0.
             intensive_variables: Columns that are intensive (rates, ratios,
                 medians, densities, per-capita values). These are area-weighted
                 averaged rather than disaggregated by weight, so a split
                 preserves the value instead of scaling it down. Columns not
                 listed here are treated as extensive (disaggregated).
+            carried_coverage: Names of ``<col>_coverage`` columns in *df* that
+                an earlier transform step produced, for chaining steps. They
+                are not transformed as values; each source row's contribution
+                to the new coverage is scaled by its carried coverage, so the
+                result reports the share of the original contribution weight
+                that had data. Each name must be ``<col>_coverage`` for a value
+                column ``<col>``.
 
         Returns:
             DataFrame with data in target boundary vintage, including a
@@ -211,8 +222,11 @@ class CrosswalkProcessor:
         Raises:
             ValueError: If geoid_column is absent, the requested weight column
                 or a matched AREA/POPULATION/HOUSING row weight is missing, the
-                method string is unknown, or an intensive merge lacks valid
-                absolute areas.
+                method string is unknown, an intensive merge lacks valid
+                absolute areas, an input column already has the name of a
+                ``<col>_coverage`` output and is not listed in
+                carried_coverage, or a carried_coverage name is not the
+                coverage of a value column.
             TypeError: If weight_method is neither a WeightMethod nor a string.
         """
         if isinstance(weight_method, str):
@@ -242,12 +256,48 @@ class CrosswalkProcessor:
                 f"transform()."
             )
 
+        carried = list(carried_coverage or [])
+
         # Identify value columns
         if value_columns is None:
             value_columns = df.select_dtypes(include=[np.number]).columns.tolist()
             # Remove GEOID if it's numeric
             if geoid_column in value_columns:
                 value_columns.remove(geoid_column)
+            # Coverage carried from an earlier step is a fraction, not a count.
+            value_columns = [c for c in value_columns if c not in carried]
+        else:
+            listed_carried = [c for c in value_columns if c in carried]
+            if listed_carried:
+                raise ValueError(
+                    f"Columns {listed_carried} are listed in both value_columns "
+                    f"and carried_coverage; carried coverage is not transformed "
+                    f"as a value."
+                )
+
+        # Each value column <col> produces a <col>_coverage output. An input
+        # column of that name would be overwritten in the result, or, in a
+        # chained step, transformed as a count and then overwritten, so it
+        # must either be coverage carried from an earlier step or be renamed.
+        coverage_of = {f'{c}_coverage': c for c in value_columns}
+        bad_carried = sorted(
+            str(c) for c in carried if c not in coverage_of or c not in df.columns
+        )
+        if bad_carried:
+            raise ValueError(
+                f"carried_coverage names {bad_carried} are not the <col>_coverage "
+                f"column of a transformed value column present in the input."
+            )
+        clashes = sorted(
+            str(c) for c in df.columns if c in coverage_of and c not in carried
+        )
+        if clashes:
+            raise ValueError(
+                f"Input columns {clashes} have the names of the <col>_coverage "
+                f"outputs of transform(). Rename them, leave the matching value "
+                f"columns out of value_columns, or pass them in carried_coverage "
+                f"if an earlier transform step produced them."
+            )
 
         log.info(f"Transforming {len(df)} rows with {len(value_columns)} value columns")
 
@@ -352,10 +402,21 @@ class CrosswalkProcessor:
             c for c in value_columns if c in merged.columns and c in intensive_set
         ]
 
-        # Apply weights to extensive value columns (for splits/merges).
+        def _coverage_factor(col: str) -> pd.Series:
+            # Share of each source row's own value that had data: the coverage
+            # carried from an earlier step, or 1/0 for present/missing.
+            name = f'{col}_coverage'
+            if name in carried:
+                return pd.to_numeric(merged[name], errors='coerce').fillna(0.0)
+            return merged[col].notna().astype(float)
+
+        # Apply weights to extensive value columns (for splits/merges). A
+        # contributing row is a row with nonzero weight; a missing value on one
+        # makes the target total missing (#1945), so mark those rows.
         for col in extensive_cols:
             merged[f'{R}weighted_{col}'] = merged[col] * merged[c_weight]
-            merged[f'{R}covered_{col}'] = merged[c_weight].where(merged[col].notna(), 0.0)
+            merged[f'{R}covered_{col}'] = merged[c_weight] * _coverage_factor(col)
+            merged[f'{R}missing_{col}'] = merged[col].isna() & merged[c_weight].ne(0)
 
         # Build the area-weighted numerator/denominator for intensive columns.
         # The area-weighted mean is Sum(value_i * overlap_i) / Sum(overlap_i),
@@ -431,12 +492,18 @@ class CrosswalkProcessor:
                 valid = vals.notna() & ~no_contribution
                 merged[f'{R}inum_{col}'] = np.where(valid, vals.fillna(0.0) * areal_w, 0.0)
                 merged[f'{R}iden_{col}'] = np.where(valid, areal_w, 0.0)
+                # Coverage area: the valid overlap area, scaled by any coverage
+                # carried from an earlier step.
+                merged[f'{R}icov_{col}'] = np.where(
+                    valid, areal_w * _coverage_factor(col), 0.0
+                )
 
         # Aggregate by target GEOID.
         agg_dict = {}
         for col in extensive_cols:
             weighted_col = f'{R}weighted_{col}'
             agg_dict[f'{R}covered_{col}'] = (f'{R}covered_{col}', 'sum')
+            agg_dict[f'{R}missing_{col}'] = (f'{R}missing_{col}', 'any')
             if aggregation_func == 'sum':
                 agg_dict[col] = (weighted_col, lambda values: values.sum(min_count=1))
             elif aggregation_func == 'mean':
@@ -449,6 +516,7 @@ class CrosswalkProcessor:
         for col in intensive_cols:
             agg_dict[f'{R}inum_{col}'] = (f'{R}inum_{col}', 'sum')
             agg_dict[f'{R}iden_{col}'] = (f'{R}iden_{col}', 'sum')
+            agg_dict[f'{R}icov_{col}'] = (f'{R}icov_{col}', 'sum')
         if intensive_cols:
             agg_dict[f'{R}total_area'] = (f'{R}total_area', 'sum')
 
@@ -473,6 +541,13 @@ class CrosswalkProcessor:
                     covered_weight = result[f'{R}covered_{col}'].replace(0, np.nan)
                     result[col] = result[col] / covered_weight
 
+        # Extensive totals: a target with any missing contributor is missing,
+        # not the sum of the contributors that have data (#1945). This matches
+        # geo.interpolation.areal.interpolate_areal for extensive variables.
+        if aggregation_func == 'sum':
+            for col in extensive_cols:
+                result.loc[result[f'{R}missing_{col}'].astype(bool), col] = np.nan
+
         # Coverage is the non-missing contribution weight / total target weight.
         drop_cols = [c_total_weight, f'{R}total_area']
         for col in extensive_cols:
@@ -480,17 +555,17 @@ class CrosswalkProcessor:
             result[f'{col}_coverage'] = (
                 result[covered] / result[c_total_weight].replace(0, np.nan)
             ).fillna(0.0)
-            drop_cols.append(covered)
+            drop_cols += [covered, f'{R}missing_{col}']
         for col in intensive_cols:
             # Intensive area-weighted mean: numerator / denominator.
-            inum, iden = f'{R}inum_{col}', f'{R}iden_{col}'
+            inum, iden, icov = f'{R}inum_{col}', f'{R}iden_{col}', f'{R}icov_{col}'
             if inum in result.columns and iden in result.columns:
                 with np.errstate(invalid='ignore', divide='ignore'):
                     result[col] = result[inum] / result[iden].replace(0, np.nan)
                 result[f'{col}_coverage'] = (
-                    result[iden] / result[f'{R}total_area'].replace(0, np.nan)
+                    result[icov] / result[f'{R}total_area'].replace(0, np.nan)
                 ).fillna(0.0)
-                drop_cols += [inum, iden]
+                drop_cols += [inum, iden, icov]
 
         # Drop helper columns
         result = result.drop(columns=drop_cols, errors='ignore')
@@ -594,6 +669,7 @@ def apply_crosswalk(
     weight_method: Union[WeightMethod, str] = WeightMethod.AREA,
     aggregation_func: Union[str, Callable] = 'sum',
     intensive_variables: Optional[List[str]] = None,
+    carried_coverage: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     """
     Apply a crosswalk to transform data from one boundary vintage to another.
@@ -612,9 +688,12 @@ def apply_crosswalk(
         weight_method: WeightMethod or its string value for splits/merges.
             POPULATION/HOUSING require the corresponding crosswalk weight column
             and non-missing weights for matched rows.
-        aggregation_func: How to aggregate data ('sum', 'mean', 'weighted_mean')
+        aggregation_func: How to aggregate data ('sum', 'mean', 'weighted_mean').
+            With 'sum', a target with any missing contributing value is NaN.
         intensive_variables: Rate/ratio columns to area-weight average instead
             of disaggregating and summing.
+        carried_coverage: <col>_coverage columns produced by an earlier step,
+            for chaining (see transform).
 
     Returns:
         DataFrame with data transformed to target boundary vintage, including
@@ -656,6 +735,7 @@ def apply_crosswalk(
         weight_method=weight_method,
         aggregation_func=aggregation_func,
         intensive_variables=intensive_variables,
+        carried_coverage=carried_coverage,
     )
 
 

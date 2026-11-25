@@ -769,6 +769,25 @@ class LongitudinalAligner:
         current_df = df.copy()
         method = "crosswalk"
 
+        # Each crosswalk step adds <col>_coverage for every numeric value
+        # column. A caller column of that name would be overwritten, so refuse
+        # it here, before the per-step fallback can swallow the error.
+        value_cols = [
+            c for c in df.select_dtypes(include="number").columns
+            if c != geoid_column
+        ]
+        clashes = sorted(
+            str(c) for c in df.columns if c in {f"{v}_coverage" for v in value_cols}
+        )
+        if clashes:
+            raise ValueError(
+                f"Input columns {clashes} have the names of the <col>_coverage "
+                f"columns that alignment adds; rename them before aligning."
+            )
+        # Coverage columns produced by an earlier crosswalk step. They are
+        # carried into the next step as coverage, not transformed as counts.
+        carried: List[str] = []
+
         if intensive_columns is None:
             numeric = [
                 c for c in df.columns
@@ -785,11 +804,19 @@ class LongitudinalAligner:
                 )
 
         for src, tgt in chain:
+            # Only pass carried coverage when there is some, so step helpers
+            # keep their earlier call shape on a first step.
+            carry_kwargs = {"carried_coverage": carried} if carried else {}
             try:
                 current_df = self._apply_crosswalk_step(
                     current_df, src, tgt, geo, sfips, geoid_column,
                     intensive_columns=intensive_columns,
+                    **carry_kwargs,
                 )
+                carried = [
+                    f"{c}_coverage" for c in value_cols
+                    if f"{c}_coverage" in current_df.columns
+                ]
             except Exception as exc:
                 # Any crosswalk-step failure falls back to areal interpolation.
                 log.warning(
@@ -800,6 +827,7 @@ class LongitudinalAligner:
                     current_df = self._apply_areal_interpolation(
                         current_df, src, tgt, geo, sfips, geoid_column,
                         intensive_columns=intensive_columns,
+                        **carry_kwargs,
                     )
                     method = "areal"
                     warnings.append(
@@ -900,13 +928,16 @@ class LongitudinalAligner:
         state_fips: Optional[str],
         geoid_column: str,
         intensive_columns: Optional[List[str]] = None,
+        carried_coverage: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """Apply a single crosswalk step using CrosswalkProcessor.
 
         Intensive columns (rates, ratios, medians, densities) are area-weighted
         averaged rather than disaggregated by weight; any numeric column not
         listed is treated as extensive. Without this, a crosswalk split halves
-        a rate the same way the areal fallback did.
+        a rate the same way the areal fallback did. *carried_coverage* names the
+        <col>_coverage columns of an earlier step, which are folded into the
+        new coverage instead of being transformed as counts.
         """
         from ..crosswalk.crosswalk_processor import apply_crosswalk
 
@@ -918,6 +949,7 @@ class LongitudinalAligner:
             state_fips=state_fips,
             geoid_column=geoid_column,
             intensive_variables=list(intensive_columns) if intensive_columns else None,
+            carried_coverage=list(carried_coverage) if carried_coverage else None,
         )
 
     @staticmethod
@@ -929,6 +961,7 @@ class LongitudinalAligner:
         state_fips: Optional[str],
         geoid_column: str,
         intensive_columns: Optional[List[str]] = None,
+        carried_coverage: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """Fall back to areal interpolation when crosswalk is unavailable.
 
@@ -940,6 +973,10 @@ class LongitudinalAligner:
         they are routed correctly; any numeric column not listed is treated as
         extensive. When ``intensive_columns`` is None the method warns, because
         treating a rate as extensive halves it when a polygon splits.
+        ``carried_coverage`` names <col>_coverage columns from an earlier
+        crosswalk step; they are area-weighted averaged like intensive columns.
+        An extensive target that overlaps a source with a missing value is
+        NaN (see ``interpolate_areal``), as on the crosswalk path (#1945).
         """
         try:
             from ..interpolation.areal import interpolate_areal
@@ -984,8 +1021,15 @@ class LongitudinalAligner:
             if c != geoid_column and df[c].dtype.kind in ("i", "f")
         ]
         intensive_set = set(intensive_columns or ())
-        extensive_vars = [c for c in numeric_cols if c not in intensive_set]
-        intensive_vars = [c for c in numeric_cols if c in intensive_set]
+        # Coverage carried from an earlier crosswalk step is a fraction, so it
+        # is area-weighted averaged like a rate, never split like a count.
+        carried_set = set(carried_coverage or ())
+        extensive_vars = [
+            c for c in numeric_cols if c not in intensive_set and c not in carried_set
+        ]
+        intensive_vars = [
+            c for c in numeric_cols if c in intensive_set or c in carried_set
+        ]
         if intensive_columns is None and numeric_cols:
             log.warning(
                 "Areal interpolation is treating all numeric columns as "

@@ -1,53 +1,71 @@
 # Self-review: crosswalk weighting, missing values and rates (#1409, PR #1779)
 
-Scope of this artifact: the PR as a whole at its current head. The code commits up to b71f1069 were reviewed independently at that exact head by the external reviewer (ticket #1409, review comment 6257195272). Since then the branch gained a develop sync, the `[4.1.0]` release notes and this file, and a final commit (on top of the sync merge 5495d540) that changes library code: AREA weighting now rejects missing row weights and `weighted_mean` excludes missing values from its denominator. That final commit has not been through the external review; it needs a fresh exact-head review.
+Scope of this artifact: the PR as a whole at its current head. The code commits up to b71f1069 were reviewed at that head (ticket #1409, review comment 6257195272, headed CHANGES REQUESTED for release and process items only). The branch then gained a develop sync, the release notes, this file and a commit that made AREA reject missing row weights and `weighted_mean` exclude missing values from its denominator (head 34d7b1a1). An independent review of 34d7b1a1 failed on the `<col>_coverage` outputs and asked for two rulings. The latest round (see "Develop sync cef92084, the #1945 rule and coverage") merges develop, implements the operator's #1945 decision and fixes the coverage outputs.
 
-Review-Tier: B for the final commit (library behavior change with tests and release notes); A for the earlier process commits.
+Review-Tier: C. This PR changes library code in `siege_utilities/geo/crosswalk/` and `siege_utilities/geo/timeseries/`.
 
-The PR carries a BREAKING classification (AREA, POPULATION and HOUSING reject missing row weights, POPULATION and HOUSING require their weight columns, and `weighted_mean` changes its denominator). The operator decided to ship it in 4.1.0 as BREAKING (option A) and directed that the two follow-ups the earlier body left open be fixed in this PR instead of ticketed.
+The PR carries a BREAKING classification: AREA, POPULATION and HOUSING reject missing row weights, POPULATION and HOUSING require their weight columns, `weighted_mean` changes its denominator, an extensive total with a missing contributor is NaN, and transformed frames gain `<col>_coverage` columns whose names are reserved. The entry sits under `### BREAKING` in `[Unreleased]`; 5.0.0 and 6.0.0 are released and do not contain it.
 
 ## Assumptions
 
 - Goal source: ticket #1409. Crosswalk processing must keep NaN for all-missing extensive targets, use the real population and housing weights, divide EQUAL splits correctly, and let `normalize_to_year` and `get_longitudinal_data` identify rates.
-- Roles: author is the PR owner; the independent reviewer is the cross-family hostile reviewer who recorded the head b71f1069 verdict on the ticket.
-- The code diff against `origin/develop` touches `crosswalk_processor.py`, `longitudinal_data.py`, `docs/CENSUS_DATA_GUIDE.md`, `tests/test_crosswalk_weights_1409.py` and `CHANGELOG.md`. The final commit edits `crosswalk_processor.py` only for library code: a shared `_reject_missing_weights` helper used by the AREA and POPULATION/HOUSING paths, and the `weighted_mean` denominator.
-- The body claims were checked against the code at this head: `sum(min_count=1)` for extensive sums (`crosswalk_processor.py` lines 441 and 446); `<col>_coverage` output columns (lines 480 and 490); `WeightMethod(value)` conversion (line 219); `population_weight` and `housing_weight` selection (line 283); AREA and POPULATION/HOUSING missing-weight rejection (lines 329 and 339, helper at 502); the `weighted_mean` denominator from the column's covered weight (lines 473-474); `intensive_columns` forwarded as `intensive_variables` in `longitudinal_data.py` (lines 307 and 904).
-- Release convention: user-visible notes belong in `[4.1.0]`. This commit moves the BREAKING Changed entry and the Fixed entry verbatim, keeping their migration detail. No other `[Unreleased]` entry was touched.
-- Pre-author-inventory: NONE. Trivial-against-state: the commit moves existing text between two sections of one file, checked with `git diff origin/develop -- CHANGELOG.md`, which shows only #1409 additions and no removed lines after the sync.
+- Missing-contributor rule: the operator's decision on #1945 (https://github.com/siege-analytics/siege_utilities/issues/1945#issuecomment-7151906694). For extensive totals, a target with any missing contributor is missing (NaN), on the crosswalk path and on the areal-interpolation path, so they agree.
+- Roles: author is the PR owner; the independent reviewer is a separate same-family reviewer whose review of 34d7b1a1 is summarized under "Independent review".
+- The code diff against `origin/develop` touches `crosswalk_processor.py`, `longitudinal_data.py`, `docs/CENSUS_DATA_GUIDE.md`, `tests/test_crosswalk_weights_1409.py`, `tests/test_crosswalk_areal_missing_and_coverage.py`, this file and `CHANGELOG.md`.
+- Release convention: user-visible notes belong under `[Unreleased]`. The #1409 entry is one `### BREAKING` entry with a Migration line.
+- Pre-author-inventory: NONE.
 
 ## Peer review
 
-Gate evidence, all observed in this work cycle:
+Gate evidence for the earlier commits (kept for the record):
 
-- Local pytest on the tree with the final commit, run from the `tests` directory with Python 3.11 and the repository pyproject: `python -m pytest test_crosswalk_weights_1409.py test_geo_crosswalk_crosswalk_processor_errors.py test_longitudinal_aligner.py` -> 65 passed in 0.73s (the 61 earlier cases plus 4 new ones). Other files that call the crosswalk processor, `test_batch1_1373.py test_crosswalk.py test_final_hardening_consensus.py test_round5_class_hardening.py test_round6_class_hardening.py test_longitudinal_normalization_consensus.py` -> 164 passed, 8 warnings in 3.32s. The warnings are existing geometry and scipy notices.
-- New and changed tests: `test_area_missing_row_weight_is_an_error_naming_source_and_target`, `test_area_unmatched_sources_keep_their_values_and_zero_weights_are_valid`, `test_weighted_mean_excludes_missing_values_from_the_denominator`, `test_weighted_mean_all_missing_target_is_nan_with_zero_coverage`, and the `weighted_mean` parameter of `test_extensive_sum_preserves_missing_and_sums_available_values`, whose expected partial-target value changes from 2.5 (the old diluted denominator) to 5.0. The unmatched/zero-weight test and the all-missing test pin behavior that already held; they pass before and after the fix and are guards, not fix evidence.
-- Hosted CI at the pushed head is recorded in the PR body once it finishes.
-- Known baseline: develop CI has failures from the DuckDB 2.0 break (about 30) until the #1863 pin successor lands. They are not attributable to this PR and were not chased.
+- At 34d7b1a1: `test_crosswalk_weights_1409.py`, `test_geo_crosswalk_crosswalk_processor_errors.py` and `test_longitudinal_aligner.py` gave 65 passed; the other files that call the crosswalk processor gave 164 passed.
+- The AREA missing-weight and `weighted_mean` red/green runs are under "Falsification for the AREA and weighted_mean commit" below.
+
+Gate evidence for the latest round is in "Develop sync cef92084, the #1945 rule and coverage".
 
 ## Test plan
 
-- Confirm exact-head CI at the pushed head reports success other than the known DuckDB 2.0 failures on develop.
-- Confirm `CHANGELOG.md` has both #1409 entries under `[4.1.0]` and none under `[Unreleased]`.
-- Request a fresh exact-head review: the earlier result is void once the head moves, and the code diff is unchanged.
-- Obtain the operator's release sign-off for the BREAKING classification before tagging.
+- Confirm exact-head CI at the pushed head reports success.
+- Confirm `CHANGELOG.md` has the #1409 entry under `[Unreleased]` / `### BREAKING` and none under a released section.
+- Request a delta review of the latest round against 34d7b1a1; any earlier verdict is void once the head moves.
 
 ## Pre-flight (develop 71f02b0b)
 
-Develop was merged additively. The only conflict was `CHANGELOG.md`; every develop line was kept. Develop wins on any disagreement, and none exists: no develop change touches `siege_utilities/geo/crosswalk/` or `siege_utilities/geo/timeseries/`.
+Develop was merged additively. The only conflict was `CHANGELOG.md`; every develop line was kept. At that time no develop change touched `siege_utilities/geo/crosswalk/` or `siege_utilities/geo/timeseries/`. The former `### Changed` and `### Fixed` notes were merged into one `### BREAKING` entry with a Migration line.
 
-Classification: the PR is BREAKING (operator decision, option A). The brief places BREAKING entries under `### BREAKING` with a Migration line, so the former `### Changed` entry and the `### Fixed` entry are now one entry under `### BREAKING` in `[4.1.0]`, at its own position in the BREAKING list so it does not conflict with the other open PRs. Meaning is unchanged; the Migration text now also names the new `normalize_to_year` and `get_longitudinal_data` options. `git diff origin/develop -- CHANGELOG.md` shows 31 added lines and 0 removed lines. The PR body is updated to match.
+## Develop sync cef92084, the #1945 rule and coverage
 
-Tests, run from the `tests` directory (Python 3.11, repository pyproject): `python -m pytest test_crosswalk_weights_1409.py test_geo_crosswalk_crosswalk_processor_errors.py test_longitudinal_aligner.py -q` -> 65 passed in 0.73s. The red/green evidence for the AREA and `weighted_mean` changes is the "Falsification for the final commit" entry below, which still applies to this head.
+- **Develop merge.** Develop `cef92084` merged with no conflicts. Develop's #1437 guard now touches `siege_utilities/geo/timeseries/longitudinal_data.py` (`_raise_for_ct_2022_crossing` at the top of the multi-year normalization) and does not interact with this PR. Because the merge was clean, the #1409 entry would have landed in the released 5.0.0 section; the sync commit moves it, unchanged, to the end of `[Unreleased]` / `### BREAKING`. Every other file equals the plain automatic merge.
+- **#1945 rule, crosswalk path.** With `aggregation_func='sum'`, a target is NaN when any contributing row (a matched row with a nonzero weight) has a missing value. Before, `sum(min_count=1)` returned the sum of the remaining values (100 in #1945's example). A zero-weight row with a missing value is not a contributor. `weighted_mean`, `mean` and intensive columns still average the values that are present. The target's `<col>_coverage` still reports the share of contribution weight that had data.
+- **#1945 rule, areal path.** `interpolate_areal` already returned NaN for an extensive target that overlaps a source with a missing value; it is unchanged and now pinned next to the crosswalk path on the same geography and data.
+- **Coverage names reserved.** `transform` raises `ValueError` when an input column already has the name `<col>_coverage` of a value column `<col>`, instead of overwriting it. `LongitudinalAligner.align` checks the same before its first step, so the per-step areal fallback cannot hide the error.
+- **Coverage carried through a chain.** `transform` and `apply_crosswalk` accept `carried_coverage`, the coverage columns of an earlier step. They are not transformed as values, and each source row's contribution to the new coverage is scaled by its carried coverage. `LongitudinalAligner.align` passes them on every step after a crosswalk step. A 2000 to 2020 chain no longer returns `pop_coverage_coverage`, and a target fed by a half-missing step-1 target reports coverage 0.5 instead of 1.0.
+- **Coverage in the areal fallback.** `_apply_areal_interpolation` averages carried coverage columns by area like intensive columns instead of splitting them as counts. With complete data the fallback reports coverage 1.0 instead of 0.5.
+- **Tests.** `tests/test_crosswalk_weights_1409.py` gains nine tests, and its sum/weighted_mean test is renamed `test_extensive_missing_contributors_by_aggregation`: its `sum` case now expects NaN for the partially missing target, which is the #1945 decision. `tests/test_crosswalk_areal_missing_and_coverage.py` adds six tests through `LongitudinalAligner` and `interpolate_areal` on a three-vintage geography. Against the 34d7b1a1 library code these 16 new or changed tests give 12 failed and 4 passed; the four passes (a split of a missing source, a zero-weight missing row, intensive averaging, a coverage-named column without its base column) are guards. All pass at this head.
 
 ## Ticket-fitness exemption
 
 Governing ticket: #1409 (the #1398 epic is context only and is not a governing ticket).
 
 - **Reason:** #1409 predates the canonical ticket template (Context / Goal / Acceptance, a design link and Assumptions). It uses the earlier hostile-review Problem / Done-when / Falsifier narrative, so the ticket-fitness check reports a structure gap. The exemption is for ticket structure only.
-- **Evidence:** the Problem (all-missing extensive targets converted to zero, silent area weights for POPULATION and HOUSING, inflated EQUAL splits, no rate handling in `normalize_to_year`), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1409, and in the PR description. The reviewer verdict is https://github.com/siege-analytics/siege_utilities/issues/1409#issuecomment-6257195272.
-- **Falsification:** revert the implementation (`crosswalk_processor.py` and `longitudinal_data.py` changes of this PR); `tests/test_crosswalk_weights_1409.py::test_extensive_sum_preserves_missing_and_sums_available_values` goes red because an all-missing extensive sum becomes 0 instead of NaN. Observed revert run: with `crosswalk_processor.py` and `longitudinal_data.py` restored to origin/develop (`git checkout origin/develop -- siege_utilities/geo/crosswalk/crosswalk_processor.py siege_utilities/geo/timeseries/longitudinal_data.py`), `python -m pytest test_crosswalk_weights_1409.py::test_extensive_sum_preserves_missing_and_sums_available_values -q`, run from the tests directory, gave 2 failed in 0.41s (the sum-5.0 and weighted_mean-2.5 parameters, AssertionError). After `git checkout HEAD --` of the files the command gave 2 passed in 0.37s and the three-file set gave 61 passed (that run was at the earlier, process-only head).
-- **Falsification for the final commit (AREA weights and `weighted_mean`):** with only `siege_utilities/geo/crosswalk/crosswalk_processor.py` restored to the sync merge 5495d540 (`git checkout HEAD -- siege_utilities/geo/crosswalk/crosswalk_processor.py`, before the final commit existed) and the new tests in place, `python -m pytest test_crosswalk_weights_1409.py -q`, run from the tests directory, gave 3 failed, 33 passed in 0.67s. The failures were `test_extensive_sum_preserves_missing_and_sums_available_values[weighted_mean-5.0]`, `test_area_missing_row_weight_is_an_error_naming_source_and_target` and `test_weighted_mean_excludes_missing_values_from_the_denominator`; the last one failed with the obtained 2.0 against the expected 8.0 (the missing value's weight was still in the denominator). After restoring the fixed file the three-file set gave 65 passed in 0.68s.
+- **Evidence:** the Problem (all-missing extensive targets converted to zero, silent area weights for POPULATION and HOUSING, inflated EQUAL splits, no rate handling in `normalize_to_year`), the evidence and the Done-when live in the ticket, https://github.com/siege-analytics/siege_utilities/issues/1409, and in the PR description.
+- **Falsification:** revert the implementation (`crosswalk_processor.py` and `longitudinal_data.py` changes of this PR); `tests/test_crosswalk_weights_1409.py::test_extensive_missing_contributors_by_aggregation` (named `test_extensive_sum_preserves_missing_and_sums_available_values` before the latest round) goes red because an all-missing extensive sum becomes 0 instead of NaN. Observed revert run at an earlier head: with both files restored to origin/develop, the test gave 2 failed (AssertionError); with the files restored to the PR versions it gave 2 passed.
+- **Falsification for the AREA and weighted_mean commit:** with only `crosswalk_processor.py` restored to the sync merge 5495d540 and the new tests in place, `test_crosswalk_weights_1409.py` gave 3 failed, 33 passed; `test_weighted_mean_excludes_missing_values_from_the_denominator` failed with 2.0 against the expected 8.0. With the fixed file the three-file set gave 65 passed.
 
 ## Lead review
 
-The final commit changes behavior on purpose, under the operator's decision for option A (BREAKING) with the two follow-ups fixed in this PR. Callers whose crosswalk has a matched row with a missing `area_weight` now get a `ValueError` naming the source and target instead of full-value allocation, and `weighted_mean` results rise where values were missing. Intensive-only calls under the default AREA method are held to the same missing-weight rule, because the weight check runs before the value columns are split; this is stated in the `[4.1.0]` entry. The change reverts with one commit. A fresh exact-head review is needed before merge; any earlier verdict is void once the head moves.
+The latest round changes behavior on purpose, under the operator's #1945 decision: an extensive total with a missing contributor is now NaN on the crosswalk path, as it already was on the areal path. The coverage changes fix outputs this PR introduced and do not change any data value, except that a caller column with a reserved coverage name is now refused instead of silently overwritten; that refusal is stated in the CHANGELOG with its migration. The change reverts with the commits of this round.
+
+## Findings
+
+| ID | Priority | Description | Resolution |
+|----|----------|-------------|------------|
+| F1 | P1 | `<col>_coverage` shared the value-column namespace: a chained alignment re-transformed it as a count and reported coverage 1.0 for a half-missing target, the areal fallback split it by area, and a caller's own `<col>_coverage` column was overwritten | fixed |
+| F2 | P1 | The crosswalk path summed the remaining values of a target with a missing contributor, while the areal path returned NaN; the #1945 decision makes both NaN | fixed |
+| F3 | P2 | The #1409 CHANGELOG entry would have merged into the released 5.0.0 section; moved to `[Unreleased]` / `### BREAKING` and states the #1945 rule | fixed |
+| F4 | P3 | This artifact named 4.1.0, a cross-family reviewer, a DuckDB 2.0 CI baseline and no develop change to `geo/timeseries/`, which no longer hold | fixed |
+
+## Independent review
+
+Independent review of 34d7b1a1: FAIL on the `<col>_coverage` outputs (F1), with rulings asked on #1945 and on the release section. #1945 was decided by the operator (option A) and the entry is under `[Unreleased]`. This head addresses F1 to F4; a delta review of this head is pending, not a pass.

@@ -17,8 +17,11 @@ def processor(crosswalk):
     return CrosswalkProcessor(pd.DataFrame(crosswalk), 2010, 2020, "tract")
 
 
-@pytest.mark.parametrize("aggregation_func, partial_value", [("sum", 5.0), ("weighted_mean", 5.0)])
-def test_extensive_sum_preserves_missing_and_sums_available_values(aggregation_func, partial_value):
+# A partially missing target: 'sum' is an extensive total, so one missing
+# contributor makes it missing (#1945); 'weighted_mean' averages the values
+# that are present.
+@pytest.mark.parametrize("aggregation_func, partial_value", [("sum", None), ("weighted_mean", 5.0)])
+def test_extensive_missing_contributors_by_aggregation(aggregation_func, partial_value):
     proc = processor({
         "source_geoid": ["S1", "S2", "S3", "S4", "S5"],
         "target_geoid": ["missing", "missing", "partial", "partial", "zero"],
@@ -33,7 +36,11 @@ def test_extensive_sum_preserves_missing_and_sums_available_values(aggregation_f
     result = proc.transform(data, aggregation_func=aggregation_func).set_index("GEOID")
 
     assert pd.isna(result.loc["missing", "count"])
-    assert result.loc["partial", "count"] == partial_value
+    if partial_value is None:
+        assert pd.isna(result.loc["partial", "count"])
+    else:
+        assert result.loc["partial", "count"] == partial_value
+    assert result.loc["partial", "count_coverage"] == pytest.approx(0.5)
     assert result.loc["zero", "count"] == 0.0
     assert result.loc["missing", "other_count"] == (5.0 if aggregation_func == "sum" else 2.5)
     assert pd.isna(result.loc["partial", "other_count"])
@@ -340,3 +347,98 @@ def test_get_longitudinal_data_forwards_intensive_columns(monkeypatch):
     out = ld.get_longitudinal_data("B19013_001E", [2015, 2020], state="06",
                                    intensive_columns=["B19013_001E"])
     assert out.set_index("GEOID").loc["X", "B19013_001E_2015"] == pytest.approx(60000.0)
+
+
+# --- #1945: a missing contributor makes an extensive total missing ----------
+
+def test_merge_with_one_missing_contributor_is_nan_not_a_partial_sum():
+    # #1945's shape: B and C merge into Y and C has no value.
+    proc = _proc({"source_geoid": ["A", "B", "C"], "target_geoid": ["X", "Y", "Y"],
+                  "area_weight": [1.0, 1.0, 1.0]})
+    data = pd.DataFrame({"GEOID": ["A", "B", "C"], "pop": [10.0, 100.0, np.nan]})
+    out = proc.transform(data).set_index("GEOID")
+    assert out.loc["X", "pop"] == 10.0
+    assert pd.isna(out.loc["Y", "pop"])
+    assert out.loc["Y", "pop_coverage"] == pytest.approx(0.5)
+
+
+def test_split_of_a_missing_source_is_nan_in_every_target():
+    proc = _proc({"source_geoid": ["A", "A"], "target_geoid": ["X", "Y"],
+                  "area_weight": [0.25, 0.75]})
+    data = pd.DataFrame({"GEOID": ["A"], "pop": [np.nan]})
+    out = proc.transform(data).set_index("GEOID")
+    assert out["pop"].isna().all()
+    assert (out["pop_coverage"] == 0.0).all()
+
+
+def test_zero_weight_row_with_a_missing_value_is_not_a_contributor():
+    # B overlaps Y with an explicit zero allocation, so its missing value
+    # contributes nothing and Y stays the sum of A's share.
+    proc = _proc({"source_geoid": ["A", "B"], "target_geoid": ["Y", "Y"],
+                  "area_weight": [1.0, 0.0]})
+    data = pd.DataFrame({"GEOID": ["A", "B"], "pop": [10.0, np.nan]})
+    out = proc.transform(data).set_index("GEOID")
+    assert out.loc["Y", "pop"] == 10.0
+    assert out.loc["Y", "pop_coverage"] == pytest.approx(1.0)
+
+
+def test_intensive_columns_still_average_the_values_present():
+    proc = _proc({"source_geoid": ["A", "B"], "target_geoid": ["Y", "Y"],
+                  "area_weight": [1.0, 1.0], "overlap_area": [1.0, 3.0]})
+    data = pd.DataFrame({"GEOID": ["A", "B"], "rate": [0.2, np.nan]})
+    out = proc.transform(data, intensive_variables=["rate"]).set_index("GEOID")
+    assert out.loc["Y", "rate"] == pytest.approx(0.2)
+    assert out.loc["Y", "rate_coverage"] == pytest.approx(0.25)
+
+
+# --- <col>_coverage names are reserved ---------------------------------------
+
+def test_caller_column_named_like_a_coverage_output_is_refused():
+    proc = _proc({"source_geoid": ["S1", "S1", "S2", "S3"],
+                  "target_geoid": ["T1", "T2", "T2", "T3"],
+                  "area_weight": [0.25, 0.75, 1.0, 1.0]})
+    data = pd.DataFrame({"GEOID": ["S1", "S2", "S3"],
+                         "insured": [100.0, 40.0, 8.0],
+                         "insured_coverage": [1000.0, 400.0, 80.0]})
+    with pytest.raises(ValueError, match="insured_coverage"):
+        proc.transform(data)
+    with pytest.raises(ValueError, match="insured_coverage"):
+        proc.transform(data[["insured_coverage", "GEOID", "insured"]])
+
+
+def test_coverage_named_column_is_a_plain_value_without_its_base_column():
+    # Without an "insured" value column there is nothing to clash with.
+    proc = _proc({"source_geoid": ["S1", "S1"], "target_geoid": ["T1", "T2"],
+                  "area_weight": [0.25, 0.75]})
+    data = pd.DataFrame({"GEOID": ["S1"], "insured_coverage": [1000.0]})
+    out = proc.transform(data).set_index("GEOID")
+    assert out.loc["T1", "insured_coverage"] == pytest.approx(250.0)
+    assert out.loc["T2", "insured_coverage"] == pytest.approx(750.0)
+
+
+def test_carried_coverage_is_folded_into_the_next_steps_coverage():
+    # Step-1 output: Y is missing with coverage 0.5, X is complete.
+    proc = _proc({"source_geoid": ["X", "Y", "Y"], "target_geoid": ["P", "Q1", "Q2"],
+                  "area_weight": [1.0, 0.5, 0.5]})
+    step1 = pd.DataFrame({"GEOID": ["X", "Y"], "pop": [10.0, np.nan],
+                          "pop_coverage": [1.0, 0.5]})
+    out = proc.transform(step1, carried_coverage=["pop_coverage"]).set_index("GEOID")
+    assert "pop_coverage_coverage" not in out.columns
+    assert out.loc["P", "pop"] == 10.0
+    assert out.loc["P", "pop_coverage"] == pytest.approx(1.0)
+    assert out[["pop"]].loc[["Q1", "Q2"]].isna().all().all()
+    assert out.loc["Q1", "pop_coverage"] == pytest.approx(0.5)
+    assert out.loc["Q2", "pop_coverage"] == pytest.approx(0.5)
+
+
+@pytest.mark.parametrize("kwargs", [
+    pytest.param({"carried_coverage": ["other_coverage"]}, id="not-a-value-columns-coverage"),
+    pytest.param({"carried_coverage": ["pop_coverage"], "value_columns": ["pop", "pop_coverage"]},
+                 id="also-listed-as-a-value"),
+])
+def test_carried_coverage_must_name_the_coverage_of_a_value_column(kwargs):
+    proc = _proc({"source_geoid": ["X"], "target_geoid": ["P"], "area_weight": [1.0]})
+    step1 = pd.DataFrame({"GEOID": ["X"], "pop": [10.0], "pop_coverage": [1.0],
+                          "other_coverage": [1.0]})
+    with pytest.raises(ValueError):
+        proc.transform(step1, **kwargs)
