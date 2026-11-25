@@ -91,6 +91,7 @@ class TestBuildChainRanking:
 
 class TestBuildChainMeanScale:
     def test_returns_chain(self, respondent_df):
+        pytest.importorskip("scipy.stats")
         chain = build_chain(respondent_df, "party", ["county"],
                             metric="support",
                             table_type=TableType.MEAN_SCALE)

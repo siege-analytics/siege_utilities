@@ -785,6 +785,17 @@ vtds = source.get_vtds(state_fips='06', year=2020)
 
 Census tract boundaries change between decennials. Use crosswalks to normalize data:
 
+Available crosswalks are 2010->2020 for `tract`, `block_group`, and `county`.
+`list_available_crosswalks()` lists only transitions with configured file patterns.
+`normalize_to_year` applies a forward crosswalk; backward requests raise
+`ValueError("Backward normalization is not supported: <data_year>-><target_year>")`
+before crosswalk lookup. Equal years return a copy. `LongitudinalAligner`
+rejects backward alignment (newer vintage to older) before alignment. Forward
+alignment steps one decade at a time: a step with a published crosswalk uses
+it, and a step without one (2000->2010, or `block` and `place` geographies)
+uses areal interpolation, reported as `method="areal"` with a warning. These
+are documented behavior changes from 6.0.0.
+
 ```python
 from siege_utilities.geo import (
     get_crosswalk,
@@ -792,6 +803,7 @@ from siege_utilities.geo import (
     normalize_to_year,
     identify_boundary_changes
 )
+from siege_utilities.geo.crosswalk import WeightMethod
 
 # Get crosswalk table
 crosswalk = get_crosswalk(
@@ -806,13 +818,14 @@ df_2020 = apply_crosswalk(
     df=df_2010,
     source_year=2010,
     target_year=2020,
-    weight_method='area'  # or 'population', 'housing'
+    weight_method=WeightMethod.AREA,
+    intensive_variables=['median_income'],  # if present in df_2010
 )
 
-# Normalize multiple years to common boundaries
+# Normalize data from one boundary year to 2020
 df_normalized = normalize_to_year(
-    df=df,
-    year_column='year',
+    df=df_2010,
+    data_year=2010,
     target_year=2020
 )
 
@@ -822,6 +835,47 @@ changes = identify_boundary_changes(
     include_unchanged=False
 )
 ```
+
+`WeightMethod.AREA`, `WeightMethod.POPULATION` and `WeightMethod.HOUSING` use
+`area_weight`, `population_weight` and `housing_weight`, respectively, and raise
+`ValueError` naming the source and target for any missing weight on a matched
+row; POPULATION and HOUSING also require their column to be present. Sources
+absent from the crosswalk keep their values. The Census crosswalk client
+currently supplies area weights; use `WeightMethod.AREA` with that client. To use population or housing
+weights, supply an enriched crosswalk to `CrosswalkProcessor`. Valid strings
+such as `"population"` are converted through `WeightMethod`; unknown values raise
+an error.
+
+List rates, ratios, medians, and densities in `intensive_variables` to average
+them; unlisted numeric columns are allocated and summed. For
+`get_longitudinal_data`, pass the same names in `intensive_columns`. Transformed
+crosswalk outputs include `<col>_coverage`, the fraction of a target's
+contribution weight with non-missing values for that column. Coverage uses the
+selected allocation weights for extensive columns and overlap areas for
+intensive columns. All-missing targets and targets with no contribution weight
+have coverage `0.0`. With `aggregation_func='weighted_mean'`, rows whose value is
+missing are excluded from both the numerator and the denominator, so an
+all-missing target is NaN with coverage `0.0`.
+
+Missing values in extensive totals propagate. With the default
+`aggregation_func='sum'`, a target is NaN when any source contributing to it (a
+matched row with a nonzero weight) has a missing value; the total is not
+computed from the remaining sources. Areal interpolation follows the same rule
+for extensive variables, so both paths return NaN for the same target. The
+target's `<col>_coverage` still reports the share of contribution weight that
+had data, for example `0.5` when one of two equal sources is missing.
+Intensive columns are still averaged over the sources with data.
+
+`LongitudinalAligner` carries `<col>_coverage` from one step to the next: a
+second crosswalk step folds it into its own coverage instead of summing it as a
+count, and the areal fallback averages it by area instead of splitting it.
+When you chain calls yourself, for example `transform` with your own 2000 to
+2010 crosswalk table and then `normalize_to_year` from 2010 to 2020, pass the
+first call's `<col>_coverage`
+columns to the second as `carried_coverage`; a renamed coverage column would
+be summed as a count. A data column of your own already named
+`<col>_coverage` for a value column `<col>` is rejected with `ValueError`;
+rename it before transforming or aligning.
 
 ---
 

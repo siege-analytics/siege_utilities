@@ -17,7 +17,8 @@ Example usage:
         years=[2010, 2015, 2020],
         geography='tract',
         state='California',
-        target_year=2020
+        target_year=2020,
+        intensive_columns=['B19013_001E'],
     )
 
     # Result has columns: GEOID, B19013_001E_2010, B19013_001E_2015, B19013_001E_2020
@@ -37,6 +38,7 @@ from typing import Dict, List, Optional, Union, TYPE_CHECKING
 
 import pandas as pd
 
+from ..crosswalk.relationship_types import SUPPORTED_CROSSWALK_YEARS as _SUPPORTED_CROSSWALK_YEARS
 from ..place_history import _raise_for_ct_2022_crossing
 
 if TYPE_CHECKING:
@@ -80,6 +82,7 @@ def get_longitudinal_data(
     include_geometry: bool = False,
     dataset: str = 'acs5',
     strict_years: bool = True,
+    intensive_columns: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     """
     Fetch Census data for multiple years and return in wide format.
@@ -105,6 +108,11 @@ def get_longitudinal_data(
         strict_years: If True (default), raise ValueError when any requested year
             is unavailable or fails to fetch. If False, log warnings and continue
             with available years.
+        intensive_columns: Variable names for rates, ratios, medians, and
+            densities to area-weight average during boundary normalization.
+            Other numeric columns are allocated and summed as extensive values.
+            None logs a warning when transforming numeric columns; pass [] for
+            data containing only extensive values.
 
     Returns:
         Wide-format DataFrame with columns:
@@ -119,7 +127,8 @@ def get_longitudinal_data(
             years=[2015, 2017, 2020],
             geography='tract',
             state='CA',
-            county_fips='037'
+            county_fips='037',
+            intensive_columns=['B19013_001E'],
         )
 
         # Columns: GEOID, NAME, B19013_001E_2015, B19013_001E_2017, B19013_001E_2020
@@ -206,7 +215,8 @@ def get_longitudinal_data(
             yearly_data=yearly_data,
             target_year=target_year,
             geography_level=geography,
-            state_fips=state_fips
+            state_fips=state_fips,
+            intensive_columns=intensive_columns,
         )
 
     # Merge into wide format
@@ -234,7 +244,8 @@ def _normalize_boundaries_multi_year(
     yearly_data: Dict[int, pd.DataFrame],
     target_year: int,
     geography_level: str,
-    state_fips: Optional[str]
+    state_fips: Optional[str],
+    intensive_columns: Optional[List[str]] = None,
 ) -> Dict[int, pd.DataFrame]:
     """
     Normalize all years' data to target year boundaries.
@@ -244,6 +255,7 @@ def _normalize_boundaries_multi_year(
         target_year: Year to normalize to
         geography_level: Geographic level
         state_fips: State FIPS code
+        intensive_columns: Columns to area-weight average instead of summing.
 
     Returns:
         Dictionary with normalized DataFrames
@@ -286,6 +298,19 @@ def _normalize_boundaries_multi_year(
             f"{target_boundary_year} boundaries"
         )
 
+        if intensive_columns is None:
+            numeric = [
+                c for c in df.select_dtypes(include='number').columns if c != 'GEOID'
+            ]
+            if numeric:
+                log.warning(
+                    "Normalizing without intensive_columns: all numeric columns "
+                    "(%s) are treated as EXTENSIVE and allocated and summed. "
+                    "Pass intensive_columns=[...] to area-weight average "
+                    "rates/ratios/medians/densities.",
+                    numeric,
+                )
+
         try:
             normalized_df = apply_crosswalk(
                 df=df,
@@ -293,7 +318,8 @@ def _normalize_boundaries_multi_year(
                 target_year=target_boundary_year,
                 geography_level=geography_level,
                 state_fips=state_fips,
-                geoid_column='GEOID'
+                geoid_column='GEOID',
+                intensive_variables=intensive_columns,
             )
             normalized[year] = normalized_df
         except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
@@ -615,12 +641,17 @@ def inflation_factor(from_year: int, to_year: int) -> float:
 # LONGITUDINAL ALIGNER
 # =============================================================================
 
-# Supported vintage transitions (Census crosswalk availability)
-_SUPPORTED_TRANSITIONS = {
-    (2000, 2010),
-    (2010, 2020),
-    (2000, 2020),  # chained: 2000→2010→2020
-}
+# Directed vintage transitions backed by the crosswalk client.
+_SUPPORTED_TRANSITIONS = set(_SUPPORTED_CROSSWALK_YEARS)
+
+# Decennial boundary vintages the aligner steps through, oldest first.
+_DECENNIAL_VINTAGES = (2000, 2010, 2020)
+
+
+def _normalize_geography_level(geography_level: str) -> str:
+    """Map geography aliases ("Block Group", "block-group", ...) to registry keys."""
+    geo = geography_level.lower().replace(" ", "_").replace("-", "_")
+    return "block_group" if geo == "blockgroup" else geo
 
 
 @dataclass
@@ -649,8 +680,14 @@ class AlignmentResult:
 class LongitudinalAligner:
     """Align Census data across vintage years with optional inflation adjustment.
 
-    Chains crosswalks for multi-decade transitions (e.g. 2000→2010→2020) and
-    falls back to areal interpolation when crosswalk data is unavailable.
+    Aligns forward (older vintage to newer) one decade at a time, e.g.
+    2000->2010->2020, or copies the data for equal vintages. Each step tries
+    the Census crosswalk (published for 2010->2020 at tract, block_group, and
+    county). When the crosswalk is unavailable, including steps with no
+    published crosswalk, which the crosswalk client rejects before any cache
+    access or download, the step falls back to areal interpolation, with
+    ``method="areal"``, a result warning and a WARNING log. Backward
+    alignment (newer vintage to older) raises ValueError before any step.
 
     Parameters
     ----------
@@ -718,6 +755,14 @@ class LongitudinalAligner:
         Returns
         -------
         AlignmentResult
+
+        Raises
+        ------
+        ValueError
+            If *source_vintage* is newer than the target vintage, or either is
+            not a decennial vintage. These are rejected before crosswalk or
+            areal interpolation. A forward step with no published crosswalk is
+            not an error: it uses areal interpolation, as described above.
         """
         geo = geography or self.geography
         sfips = state_fips or self.state_fips
@@ -734,7 +779,7 @@ class LongitudinalAligner:
             )
 
         # Determine chain of transitions needed
-        chain = self._transition_chain(source_vintage, self.target_vintage)
+        chain = self._transition_chain(source_vintage, self.target_vintage, geo)
         log.info(
             "Aligning %d rows from %d→%d via chain %s",
             rows_before, source_vintage, self.target_vintage, chain,
@@ -743,6 +788,25 @@ class LongitudinalAligner:
         warnings: List[str] = []
         current_df = df.copy()
         method = "crosswalk"
+
+        # Each crosswalk step adds <col>_coverage for every numeric value
+        # column. A caller column of that name would be overwritten, so refuse
+        # it here, before the per-step fallback can swallow the error.
+        value_cols = [
+            c for c in df.select_dtypes(include="number").columns
+            if c != geoid_column
+        ]
+        clashes = sorted(
+            str(c) for c in df.columns if c in {f"{v}_coverage" for v in value_cols}
+        )
+        if clashes:
+            raise ValueError(
+                f"Input columns {clashes} have the names of the <col>_coverage "
+                f"columns that alignment adds; rename them before aligning."
+            )
+        # Coverage columns produced by an earlier crosswalk step. They are
+        # carried into the next step as coverage, not transformed as counts.
+        carried: List[str] = []
 
         if intensive_columns is None:
             numeric = [
@@ -760,11 +824,19 @@ class LongitudinalAligner:
                 )
 
         for src, tgt in chain:
+            # Only pass carried coverage when there is some, so step helpers
+            # keep their earlier call shape on a first step.
+            carry_kwargs = {"carried_coverage": carried} if carried else {}
             try:
                 current_df = self._apply_crosswalk_step(
                     current_df, src, tgt, geo, sfips, geoid_column,
                     intensive_columns=intensive_columns,
+                    **carry_kwargs,
                 )
+                carried = [
+                    f"{c}_coverage" for c in value_cols
+                    if f"{c}_coverage" in current_df.columns
+                ]
             except Exception as exc:
                 # Any crosswalk-step failure falls back to areal interpolation.
                 log.warning(
@@ -775,6 +847,7 @@ class LongitudinalAligner:
                     current_df = self._apply_areal_interpolation(
                         current_df, src, tgt, geo, sfips, geoid_column,
                         intensive_columns=intensive_columns,
+                        **carry_kwargs,
                     )
                     method = "areal"
                     warnings.append(
@@ -845,26 +918,35 @@ class LongitudinalAligner:
 
     @staticmethod
     def _transition_chain(
-        source: int, target: int,
+        source: int, target: int, geography_level: str = "tract",
     ) -> List[tuple]:
-        """Return list of (src, tgt) steps to get from *source* to *target*."""
+        """Return the forward decade steps from *source* to *target*.
+
+        Backward paths and non-decennial vintages are rejected. Whether each
+        step has a published crosswalk is decided per step in :meth:`align`.
+        """
         if source == target:
             return []
 
-        direct = (min(source, target), max(source, target))
-        if direct in {(2000, 2010), (2010, 2020)}:
-            return [(source, target)]
+        geo = _normalize_geography_level(geography_level)
+        supported = [
+            pair for pair in sorted(_SUPPORTED_TRANSITIONS)
+            if _SUPPORTED_CROSSWALK_YEARS[pair].get(geo, False)
+        ]
+        if source > target:
+            raise ValueError(
+                f"No supported crosswalk path from {source} to {target}: backward "
+                f"alignment is not supported. Supported transitions for {geo}: "
+                f"{supported}."
+            )
+        if source not in _DECENNIAL_VINTAGES or target not in _DECENNIAL_VINTAGES:
+            raise ValueError(
+                f"No supported crosswalk path from {source} to {target}. "
+                f"Supported vintages: {', '.join(map(str, _DECENNIAL_VINTAGES))}."
+            )
 
-        # Chain: 2000→2020 via 2010
-        if direct == (2000, 2020):
-            if source < target:
-                return [(2000, 2010), (2010, 2020)]
-            return [(2020, 2010), (2010, 2000)]
-
-        raise ValueError(
-            f"No supported crosswalk path from {source} to {target}. "
-            f"Supported vintages: 2000, 2010, 2020."
-        )
+        vintages = [v for v in _DECENNIAL_VINTAGES if source <= v <= target]
+        return list(zip(vintages, vintages[1:]))
 
     @staticmethod
     def _apply_crosswalk_step(
@@ -875,13 +957,16 @@ class LongitudinalAligner:
         state_fips: Optional[str],
         geoid_column: str,
         intensive_columns: Optional[List[str]] = None,
+        carried_coverage: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """Apply a single crosswalk step using CrosswalkProcessor.
 
         Intensive columns (rates, ratios, medians, densities) are area-weighted
         averaged rather than disaggregated by weight; any numeric column not
         listed is treated as extensive. Without this, a crosswalk split halves
-        a rate the same way the areal fallback did.
+        a rate the same way the areal fallback did. *carried_coverage* names the
+        <col>_coverage columns of an earlier step, which are folded into the
+        new coverage instead of being transformed as counts.
         """
         from ..crosswalk.crosswalk_processor import apply_crosswalk
 
@@ -893,6 +978,7 @@ class LongitudinalAligner:
             state_fips=state_fips,
             geoid_column=geoid_column,
             intensive_variables=list(intensive_columns) if intensive_columns else None,
+            carried_coverage=list(carried_coverage) if carried_coverage else None,
         )
 
     @staticmethod
@@ -904,6 +990,7 @@ class LongitudinalAligner:
         state_fips: Optional[str],
         geoid_column: str,
         intensive_columns: Optional[List[str]] = None,
+        carried_coverage: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """Fall back to areal interpolation when crosswalk is unavailable.
 
@@ -915,6 +1002,10 @@ class LongitudinalAligner:
         they are routed correctly; any numeric column not listed is treated as
         extensive. When ``intensive_columns`` is None the method warns, because
         treating a rate as extensive halves it when a polygon splits.
+        ``carried_coverage`` names <col>_coverage columns from an earlier
+        crosswalk step; they are area-weighted averaged like intensive columns.
+        An extensive target that overlaps a source with a missing value is
+        NaN (see ``interpolate_areal``), as on the crosswalk path (#1945).
         """
         try:
             from ..interpolation.areal import interpolate_areal
@@ -959,8 +1050,15 @@ class LongitudinalAligner:
             if c != geoid_column and df[c].dtype.kind in ("i", "f")
         ]
         intensive_set = set(intensive_columns or ())
-        extensive_vars = [c for c in numeric_cols if c not in intensive_set]
-        intensive_vars = [c for c in numeric_cols if c in intensive_set]
+        # Coverage carried from an earlier crosswalk step is a fraction, so it
+        # is area-weighted averaged like a rate, never split like a count.
+        carried_set = set(carried_coverage or ())
+        extensive_vars = [
+            c for c in numeric_cols if c not in intensive_set and c not in carried_set
+        ]
+        intensive_vars = [
+            c for c in numeric_cols if c in intensive_set or c in carried_set
+        ]
         if intensive_columns is None and numeric_cols:
             log.warning(
                 "Areal interpolation is treating all numeric columns as "

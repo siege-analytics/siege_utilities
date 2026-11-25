@@ -45,6 +45,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `export_prepared_df_as_csv_to_path_using_delimiter(df, path, mode='overwrite')`.
   Pass `mode='errorifexists'` instead of `None` or `'default'`.
 
+- `atomic_write_with_staging` no longer deletes the contents of the caller's
+  `staging_directory`. Through 6.0.0 it ran `shutil.rmtree` on that directory
+  before writing and again on success or failure. A failed write therefore
+  still destroyed any files the caller kept there, and two calls sharing one
+  staging directory could delete or publish each other's files (#1840). Each
+  call now writes into its own new child, `staging_{uuid4hex}`, publishes only
+  that child's contents, and removes only that child. A `staging_directory`
+  the call created itself is still removed afterwards when it is empty, with
+  `os.rmdir`, so anything another writer put there stays. One that already
+  existed, for example one made by `create_unique_staging_directory`, is left
+  in place, empty, after each call.
+  Because Spark now writes to a fresh path, `mode` is applied to
+  `final_destination` instead. Through 6.0.0 Spark wrote into the
+  pre-created staging directory, so `mode='error'` and `'errorifexists'`
+  always raised `AnalysisException`, even when the destination did not exist,
+  and `mode='ignore'` wrote nothing and then published an empty directory,
+  replacing an existing destination and moving its old data to a backup. Now
+  `'error'`/`'errorifexists'` raise `FileExistsError` only when
+  `final_destination` exists, before anything is written, and publish
+  otherwise; `'ignore'` leaves an existing destination untouched and
+  publishes otherwise. For a destination path containing `..`, either
+  reading counts as existing: the lexical one, as Spark resolves it, or the
+  one the operating system resolves, including through symlinks.
+  `'overwrite'` (the default) and `'append'` replace an
+  existing destination as before; `'append'` does not merge into it. Any
+  other `mode`, including `'default'` and `None` (which Spark reads as
+  errorifexists), raises `ValueError` before anything is checked or written,
+  as `write_df_to_parquet` and the CSV export do. The existence check runs
+  once, before the Spark job, so a destination that another writer creates
+  while the job runs is still replaced, as in 6.0.0 (#2037). A custom
+  writer that does not create its output directory now gets
+  `FileNotFoundError`; 6.0.0 created that directory before the write. Spark
+  creates it.
+  **Migration:** if you pre-create `staging_directory`, or build it with
+  `create_unique_staging_directory`, remove it yourself after the call, for
+  example with `os.rmdir(staging_directory)`. Callers that relied on the old
+  clearing to discard leftover files must delete those files explicitly.
+  Callers that passed `mode='error'` or `'errorifexists'` and relied on it
+  always raising must check for an existing destination themselves. Pass
+  `mode='errorifexists'` instead of `'default'` or `None`. A custom writer
+  must create the directory it is given.
+
 - The `SocialMediaReportGenerator` and `AnalyticsReportGenerator` report
   methods now write a PDF into the generator's output directory and return its
   `Path`. Through 6.0.0 they called `ReportGenerator` methods with a different
@@ -144,6 +186,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   value with a separator) placed in a JSON field named `code` or `key` is no
   longer hidden by the field name alone; configure it as the connector's
   credential so value-based redaction covers it, or rename the field.
+
+- Survey inference uses separate effective sample sizes and unweighted
+  respondent counts while retaining weighted display bases. Proportion tests
+  skip longitudinal deltas, top-N shares keep the full denominator, and
+  MEAN_SCALE uses weighted means and standard errors, so published
+  significance flags, shares, means and confidence intervals can differ from
+  6.0.0 for the same data. `chi_square_flag` tests the unweighted respondent
+  counts, so on a weighted table it reports the unweighted sample
+  association, not a design-corrected population test. `build_chain` now
+  raises `CrosstabInputError` for negative, missing or non-finite weights and
+  for a weight column that is not numeric (text, dates, durations, complex
+  numbers or categories); Decimal, Fraction, object-dtype, nullable and bool
+  weight columns, including Arrow-backed ones, are read as floats. Weighted
+  sums of a Decimal metric column are computed in floating point, so their
+  last digits can differ from exact Decimal arithmetic.
+  `column_proportion_test` now raises
+  `SignificanceError` on builder-produced metric-sum tables (a non-unit
+  `metric`), not only on manually constructed Views, and chi-square rejects
+  metric-sum tables. MEAN_SCALE `ci` is now `None` when the effective n is
+  below 2 (6.0.0 reported `0.0` at an effective n of 1 or less and a finite
+  interval between 1 and 2), and an effective n below 30 without SciPy raises
+  `SignificanceError`. **Migration:** re-run published survey crosstabs and
+  compare their significance flags and confidence intervals. Clean negative,
+  missing or non-finite weights before calling `build_chain`. Manually
+  constructed Views must provide `effective_n` for proportion tests and
+  `respondent_count` for chi-square. Do not run proportion or chi-square tests
+  on metric-sum tables. Treat `ci=None` as "not estimable", not zero width, and
+  install SciPy for small-sample Student's t intervals (#1478).
 
 - The Salesforce Bulk API CSV upload (used by `bulk_insert`, and by
   `upsert_records` above 2,000 records or with `force_bulk=True`) is no
@@ -368,6 +438,159 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `get_file_path`) or create the directory itself, and code that set a
   path variable after import and expected it to be ignored must set it
   before the first read (#1448).
+- AREA, POPULATION and HOUSING crosswalk transformations use `area_weight`,
+  `population_weight` and `housing_weight`, respectively, and raise `ValueError`
+  naming the source and target for a missing weight on a matched
+  source/target row. AREA no longer treats a missing `area_weight` as 1.0, which
+  silently counted the full value toward that target; fix or drop such
+  crosswalk rows before calling. The check applies to every AREA call,
+  including calls that name only `intensive_variables`. Sources absent from the
+  crosswalk still keep their values. POPULATION and HOUSING also raise for a
+  missing weight column. The Census crosswalk client currently supplies only
+  area weights. `aggregation_func='weighted_mean'` divides by the weight of the
+  rows with a non-missing value, so a missing value no longer lowers the mean;
+  a target whose values are all missing is NaN with coverage 0.0. Previously
+  every row's weight stayed in the denominator. EQUAL now divides each source
+  among its targets, so split outputs change and conserve totals. Extensive
+  totals (`aggregation_func='sum'`, the default) are NaN for a target with any
+  missing contributing value, meaning a matched row with a nonzero weight,
+  instead of the sum of the remaining values, and all-missing targets are NaN
+  instead of zero; areal interpolation already returned NaN in that case, so
+  both paths agree (#1945). Each transformed crosswalk
+  value column gains `<col>_coverage`: the share of target contribution weight
+  with non-missing values, using allocation weights for extensive columns and
+  overlap areas for intensive columns; all-missing targets and targets with no
+  contribution weight have coverage 0.0. An input column already named
+  `<col>_coverage` for a value column `<col>` raises `ValueError` in
+  `transform` and `LongitudinalAligner.align` instead of being overwritten.
+  `LongitudinalAligner` carries coverage from one step to the next instead of
+  summing it, and `transform`, `apply_crosswalk` and `normalize_to_year`
+  accept `carried_coverage` for chained calls. `normalize_to_year` now accepts
+  `weight_method` and `intensive_variables`, and `get_longitudinal_data`
+  accepts the same names as `intensive_columns` and warns when they are
+  omitted during boundary normalization. **Migration:** pass
+  `WeightMethod.AREA` explicitly when using the Census crosswalk client, or
+  supply an enriched crosswalk to `CrosswalkProcessor` for population/housing
+  weighting. String methods are converted through `WeightMethod(value)`; invalid
+  methods raise instead of falling back to AREA. Name rates, ratios, medians,
+  and densities in `intensive_variables` (or `intensive_columns`) when using
+  `transform`, `apply_crosswalk`, `normalize_to_year` or
+  `get_longitudinal_data`, so they are averaged and not summed. Fill or drop
+  missing source values before transforming where a total from the remaining
+  sources is wanted. When chaining calls, for example `transform` with your
+  own 2000 to 2010 crosswalk table and then `normalize_to_year` from 2010 to
+  2020, pass the first call's
+  `<col>_coverage` columns to the second as `carried_coverage`; do not rename
+  them, because a renamed coverage column is summed as a count. Rename only
+  your own data columns that are named `<col>_coverage` for a value column
+  `<col>`. Update downstream column selections and missing-value handling for
+  the new `<col>_coverage` outputs (#1409).
+
+- Crosswalk availability lists only transitions with a configured Census file
+  pattern: `SUPPORTED_CROSSWALK_YEARS` (in `geo/crosswalk/relationship_types`)
+  now contains only 2010->2020 for `tract`, `block_group` and `county`; the
+  6.0.0 `(2000, 2010)` entry and the `block` geography are removed.
+  `CrosswalkClient.get_crosswalk` and `normalize_to_year` already raised
+  `ValueError` for these requests in 6.0.0 ("No crosswalk file available ..."
+  / "Crosswalk not supported ..."); they now reject them before any cache
+  access, download or crosswalk lookup, with "not supported" messages, and
+  `normalize_to_year` raises "Backward normalization is not supported:
+  <from>-><to>" when `data_year > target_year`. Equal years still return a
+  copy. `LongitudinalAligner.align` raises `ValueError` ("No supported
+  crosswalk path from <from> to <to>: backward alignment is not supported")
+  before alignment for backward transitions (2020->2010, 2010->2000,
+  2020->2000), where 6.0.0 planned reverse crosswalk steps and fell back to
+  areal interpolation. Forward alignment is unchanged: a step with no
+  published crosswalk (2000->2010, and 2010->2020 for `block`, `place` and
+  other levels outside the table) still uses areal interpolation, reported as
+  `method="areal"` with a warning, and whether that fallback stays is left to
+  #1408. A cache file placed by hand for such a step is no longer read
+  (#1494). **Migration:** normalize and align forward only (older
+  vintage to newer); stop reading `(2000, 2010)` or `block` from
+  `SUPPORTED_CROSSWALK_YEARS`; update any code that matches the old error
+  messages.
+
+- Google Workspace writers: `create_report_from_arguments` removes the
+  existing content slides from the new presentation or template copy before
+  adding exactly one slide per argument (template masters and layouts are
+  kept), where v6.0.0 left the template's or default deck's slides after
+  the generated ones; if those slides cannot be read or deleted, the error
+  propagates and no argument slides are added. When the template's first
+  slide uses a master other than the presentation's first master, that slide
+  is kept until the argument slides have been added after it, so they use its
+  master, and is then removed after the last argument, including when
+  argument slides failed in ways collected into the aggregated error (before
+  that error is raised); an uncaught API error while the argument slides are
+  being added raises with that slide still in place, a failed last removal
+  propagates with the argument slides already in place, and if that master
+  has no BLANK layout the first argument slide is rejected with HTTP 400, as
+  on 6.0.0. Google Docs `insert_text` and
+  `insert_paragraph` compute text and heading style ranges in UTF-16 code
+  units, so ranges no longer fall short after non-BMP characters such as
+  emoji. `read_document_text` requests all tabs, visits child tabs and nested
+  tables/tables of contents, and includes headers, footers and footnotes,
+  reading each tab's body and then those segments in API response order with
+  text-run whitespace preserved; v6.0.0 read only `body.content` of the
+  document fetched without tab content (the first tab's body: top-level
+  paragraphs and tables) (#1495). **Migration:** add any template sample
+  slides you relied on explicitly after generation; handle the propagated API
+  error where a template's slides cannot be removed. The new presentation is
+  left in Drive when this happens and must be removed by the caller. If you
+  need body-only text, filter the `read_document_text` result or read the
+  document body yourself.
+
+- `crm_dedup_pipeline` no longer merges people by name alone, and
+  `canonical_id` now identifies an identifier-corroborated person or a single
+  source record, never a name. Records are linked when their normalized
+  names are equal and at least one strong identifier is equal: email
+  (stripped and lowercased), phone (`normalize_phone_v1`: extension dropped,
+  digits only, leading US `1` dropped, fewer than 7 digits ignored) or
+  address (`normalize_address_v1` over `address_street`, `address_city`,
+  `address_state` and `address_postal_code`; a street plus a postal code, or
+  a street plus a city and a state, is required, since a street line alone
+  names a place in many towns; unit designators are unified, so `Apt #2`
+  matches `Apt 2`, and ZIPs are zero-padded to five digits). Links chain
+  transitively, so an email match and a phone match can join three records.
+  Only two different emails refuse a link (logged, left for review); every
+  identifier column whose name contains `email`, compared case-insensitively
+  (`email`, `Email`, `email_address`), counts as an email column. A record
+  without an email that shares a phone or address with two people whose
+  emails conflict joins neither and keeps its own ID as a review candidate.
+  Phone and address link but never block, so an equal email still merges
+  despite a different phone or a partial address. Each group's ID comes from
+  its smallest member seed, independent of row order.
+  `match_confidence` is 1.0 for an identified record, 0.75 when a same-name
+  record stays in another group without an email conflict (a review
+  candidate), and 0.5 or 0.25 for name-only rows; groups kept apart by an
+  email conflict keep 1.0. **Residual risks:** same-name people with no
+  email who share a phone or address merge; one person with two emails is
+  split, the safe direction.
+  A record without a corroborating identifier gets a canonical ID seeded
+  from its own `source_system` and `source_id` (frame and row position when
+  either is null or blank). Name matches without identifier evidence appear
+  only in the new trailing, review-only `name_candidate_id` column.
+  Placeholder identifiers are not corroboration: the whole values `nan`,
+  `none`, `null`, `<na>`, `nat`, `n/a`, `na`, `n.a.`, `unknown`, `tbd`, `-`
+  and `--`, placeholder emails such as `none@none.com`, and phones made of
+  one repeated digit such as `000-000-0000`. Frames missing a required source
+  column are skipped whole, and null name parts no longer become text. New
+  parameters `identifier_columns`, `identifier_normalizers` (added to the default
+  `{"phone": normalize_phone_v1}`) and `address_columns`, and new
+  `siege_utilities.identifiers` `normalize_phone_v1` and
+  `normalize_address_v1` (#1416).
+  **Defaults:** the new `identifier_columns` defaults to
+  `["email", "phone"]`, and the new `address_columns` defaults to
+  `["address_street", "address_city", "address_state",
+  "address_postal_code"]`, so email, phone and address corroborate merges
+  by default. 6.0.0 had neither parameter.
+  **Migration:** all canonical IDs differ from 6.0.0, and an ID can change
+  when a later run adds a group member with a smaller seed, so regenerate
+  persisted merge tables rather than appending. `name_candidate_id` equals
+  the 6.0.0 name-only `canonical_id`, so it can join old tables during
+  migration; never merge on it without review. To corroborate on email
+  only, pass `identifier_columns=["email"], address_columns=[]`. Pass
+  `identifier_columns=[]` and `address_columns=[]` to disable identifier
+  merging, instead of the old name-only merging.
 
 ### Changed
 
@@ -517,6 +740,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unsigned cell ranges. Correct the PostGIS storage guidance. Invalid cell IDs
   (outside the 64-bit range, or a bare pd.NA) now raise ValueError/TypeError
   instead of returning unusable values (#1473).
+- A Census API data request (`CensusAPI`, `CensusAPIClient`,
+  `get_demographics`) that the API redirects to its missing-key or
+  invalid-key page now raises `CensusAPIKeyError` at once, with a message
+  saying the key is required or was rejected, instead of retrying five times
+  and failing with `Expecting value: line 1 column 1`. Any other response that
+  is not JSON raises `CensusAPIError` ("Invalid API response", with its content
+  type) without retrying; before, it was retried because `requests` raises
+  its JSON error as a request error. The no-key warning no longer says the API
+  "will still work": data requests, including ACS tables, now need a key
+  (#1996).
+- `get_crosswalk` no longer fails when no parquet engine is installed, as
+  with `pip install 'siege-utilities[geo]'`, which does not include pyarrow
+  or fastparquet. The parquet cache is optional: a cache write that pandas
+  cannot make is skipped with a warning and the computed crosswalk is
+  returned, and a cache file that cannot be read is treated as a cache miss
+  with a warning. Install pyarrow to use the cache (#1994).
+- `extract_parent_geoid(geoid, "block", "block_group")` returns the block's
+  12-digit block-group GEOID instead of raising `ValueError`. Block group
+  from any other child level still raises (#1995).
 
 ### Security
 
