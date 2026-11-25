@@ -281,17 +281,22 @@ class SnowflakeConnector:
                   This was not tested against a live Snowflake account. The
                   target table object is kept, with its grants, owner, kind,
                   streams and Time Travel history (inferred from the object
-                  being kept; row-access and masking policies are not
-                  examined, #2034). Under autocommit a single statement is its
+                  being kept). Row access and masking policies on the target
+                  are not examined and do not apply to the session-temporary
+                  staging table, but no other role can read that table; they
+                  apply again once the rows are in the target (#2034). Under
+                  autocommit a single statement is its
                   own transaction and is rolled back if it fails
                   (https://docs.snowflake.com/en/sql-reference/transactions);
                   the connector assumes autocommit and does not check it
                   (#2034). ``OVERWRITE`` removes the existing rows before
                   inserting and does not change the table's access
                   privileges; it needs INSERT and DELETE on the target
-                  (https://docs.snowflake.com/en/sql-reference/sql/insert).
-                  Snowflake documents that creating a temporary table does not
-                  require CREATE TABLE on the schema. If a table already has
+                  (https://docs.snowflake.com/en/sql-reference/sql/insert),
+                  and since it is the only statement that names the target,
+                  ownership of the target is not needed. Snowflake documents
+                  that creating a temporary table does not require CREATE
+                  TABLE on the schema. If a table already has
                   the staging name, the call raises before loading anything.
                   Column labels are quoted as the SDK quotes them, so names
                   such as ``First Name`` work; labels containing a double
@@ -650,7 +655,12 @@ class SnowflakeConnector:
         schema future grants, the target's grants and its row access policy
         do not open the staged rows to other roles, and a staging table left
         by a failed cleanup disappears at session end. Not tested against a
-        live Snowflake account.
+        live Snowflake account; in particular, that the ``INSERT OVERWRITE``
+        conversion from the inferred staging types gives the same values as
+        a ``COPY`` straight into the target was not verified for
+        ``TIMESTAMP_TZ``/``TIMESTAMP_LTZ`` targets (session time zone),
+        ``VARIANT``/``OBJECT``/``ARRAY`` targets, or strings longer than a
+        ``VARCHAR(n)`` target column.
 
         Because the load creates the staging table only if no table of that
         name exists (and SDKs before 3.7.1 drop that name first), the call
@@ -668,8 +678,11 @@ class SnowflakeConnector:
         under autocommit, the statement is its own transaction and is rolled
         back if it fails, so the target holds either all old or all new rows
         (https://docs.snowflake.com/en/sql-reference/transactions). The
-        connector assumes autocommit and does not check it; that and policies
-        on the target are tracked in #2034.
+        connector assumes autocommit and does not check it (#2034). Row
+        access and masking policies on the target are not examined and do
+        not apply to the session-temporary staging table, but no other role
+        can read that table; they apply again once the rows are in the target
+        (#2034).
 
         Returns:
             Number of rows loaded.

@@ -107,10 +107,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to 3.7.0 it loads a temporary table with a random name and renames it to
   the staging name. If a table already has the staging name, the call raises
   `RuntimeError` before loading anything. This path was not tested against a
-  live Snowflake account. The target table object is kept, with
-  its grants, owner, kind, streams and Time Travel history. This relies on
-  the connection's autocommit, which is assumed and not checked, and
-  row-access or masking policies on the target are not examined; the staging
+  live Snowflake account. In particular, whether converting the inferred
+  staging types to the target's types in `INSERT OVERWRITE` gives the same
+  values as 6.0.0's `COPY` into the target was not verified for
+  `TIMESTAMP_TZ` and `TIMESTAMP_LTZ` targets (session time zone), for
+  `VARIANT`, `OBJECT` and `ARRAY` targets, or for strings longer than a
+  `VARCHAR(n)` target column. The target table object is kept, with
+  its grants, owner, kind, streams and Time Travel history. Row access and
+  masking policies on the target are not examined and do not apply to the
+  session-temporary staging table, but no other role can read that table;
+  they apply again once the rows are in the target. This relies on the
+  connection's autocommit, which is assumed and not checked; the staging
   table of the `auto_create_table=True` path below is permanent. These limits
   are tracked in #2034. Column names on this
   path are quoted as the connector's `write_pandas` quotes them, so names such as
@@ -133,10 +140,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `InterfaceError`, the upload still succeeds and the leftover table name is
   logged as an error. **Migration:** privileges depend on the path. With
   `auto_create_table=False` an overwrite needs INSERT and DELETE on the
-  target, which is Snowflake's documented requirement for `INSERT OVERWRITE`
-  (6.0.0's truncate needed TRUNCATE rather than DELETE); ownership of the
-  target is not needed, and Snowflake documents that creating the temporary
-  staging table does not require CREATE TABLE on the schema. The target must
+  target, which is what Snowflake documents for `INSERT OVERWRITE` ("a role
+  that has both `INSERT` and `DELETE` privileges on the target table"; 6.0.0's
+  truncate needed TRUNCATE rather than DELETE). That documentation does not
+  list OWNERSHIP, and that `INSERT OVERWRITE` is the only statement the
+  connector sends that names the target, so ownership of the target is not
+  needed. Snowflake documents that creating the temporary
+  staging table does not require CREATE TABLE on the schema. The load's
+  temporary stage and file format are created by `write_pandas` as in
+  6.0.0. Not tested against a live Snowflake account. The target must
   already exist: with `auto_create_table=False`
   and `overwrite=True` a missing table now raises, whereas 6.0.0 with
   snowflake-connector-python 5.2.0 let `write_pandas` create it; pass
@@ -146,8 +158,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   target, which the swap requires as 6.0.0's `DROP TABLE` did. Snowflake
   does not allow a swap with a temporary table, so overwriting a temporary
   table with `auto_create_table=True` now fails with the original intact,
-  instead of dropping it and recreating it as a permanent table; use
-  `auto_create_table=False` for such a table. Overwrite now refuses table
+  instead of dropping it and recreating it as a permanent table. With
+  `auto_create_table=False` no swap is involved; Snowflake's `INSERT`
+  documentation states no table-kind restriction for `INSERT OVERWRITE`
+  (it lists temporary tables as supported for its conditional form), but
+  overwriting a temporary target this way was not tested. Overwrite now refuses table
   names longer than 233 characters with `RuntimeError` before any staging or
   data SQL runs (`USE DATABASE` and `USE SCHEMA`, when requested, run first),
   because the staging name adds 22 characters to Snowflake's 255-character
