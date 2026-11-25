@@ -171,7 +171,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   published crosswalk (2000->2010, and 2010->2020 for `block`, `place` and
   other levels outside the table) still uses areal interpolation, reported as
   `method="areal"` with a warning, and whether that fallback stays is left to
-  #1408 (#1494). **Migration:** normalize and align forward only (older
+  #1408. A cache file placed by hand for such a step is no longer read
+  (#1494). **Migration:** normalize and align forward only (older
   vintage to newer); stop reading `(2000, 2010)` or `block` from
   `SUPPORTED_CROSSWALK_YEARS`; update any code that matches the old error
   messages.
