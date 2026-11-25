@@ -28,6 +28,7 @@ NOTEBOOK_ROOT = REPO_ROOT / "notebooks"
 
 
 RE_WRITTEN: list[str] = [
+    "acceptance/release_seams.ipynb",
     "foundations/01_configuration.ipynb",
     "foundations/02_profiles_branding.ipynb",
     "foundations/entity_identification.ipynb",
