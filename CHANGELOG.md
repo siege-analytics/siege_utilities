@@ -723,6 +723,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   saved by 6.0.0 for the name `analytics-db`) now raises `ValueError`; save
   the config again or edit the reference by hand.
 
+- `ChartGenerator.create_dashboard` validates one `labels`/`datasets` schema
+  for bar, line, pie and scatter subplots and plots every dataset with a
+  legend (multiple pie datasets as concentric rings). Overflowing layouts,
+  unknown chart types and invalid datasets, including missing or non-finite
+  values, now raise `RuntimeError` ("Dashboard Error: ...") naming the
+  affected chart, instead of logging the subplot error and returning a
+  partial image; facade charts still draw a missing value as a gap. A
+  `layout` without a lowercase `x` (such as `"4"`, `"2X2"` or `(2, 2)`) still
+  gives a 2x2 grid. The bar engine's `group_by` draws side-by-side grouped
+  bars with a legend (repeated category/group pairs are summed, missing pairs
+  left unplotted); horizontal bars are annotated at their ends. Value labels
+  are fixed-point with thousands separators, never exponent notation, and
+  keep fractional values: whole numbers when every value is whole, otherwise
+  the fewest decimals that show every value, up to two (more only when the
+  smallest non-zero value is below 0.1). Values are compared with a relative
+  tolerance of one billionth, so cents on values from about 10,000,000 upward
+  may be dropped and values below 1e-9 show as 0. `value_format` overrides
+  this. Text
+  heatmaps align two-character headers, accept pandas nullable dtypes and
+  mark missing cells without including them in the intensity scale; pie
+  legends show `0.0%` for zero totals and `n/a` for non-finite totals (#1556).
+  **Migration:** convert dashboard chart configs to the documented
+  `labels`/`datasets` schema, and catch `RuntimeError` (or fix the config)
+  where a partial dashboard image was previously accepted; expect grouped
+  rather than single-series bars when passing `group_by`.
+
+- `ChartGenerator.create_bar_chart` honours `group_by` (#1992): one bar per
+  category and group value, in first-seen order, with a legend entry per
+  group, including with `x_column='index'` or no `x_column`, and for any
+  column label, including `0` or `""`. Through 6.0.0 `group_by` was ignored
+  and the rows were drawn as one unlabelled series with an empty legend. A
+  `group_by` that is not a column of the data now raises the engine's usual
+  `RuntimeError("Chart generation failed")`, chained from a
+  `ChartParameterError` that names the argument, the missing column and the
+  available columns, instead of being ignored. Vertical tick labels rotate
+  when there are more than five categories, counted per category rather than
+  per row, so two categories of three series stay level. A vertical
+  single-series bar chart of whole numbers looks as before, with no legend
+  entry added; horizontal charts move their labels to the bar ends, and
+  fractional values gain decimals (see above). Single-series charts no longer
+  emit matplotlib's "No artists with labels" warning. The #1992 regression
+  test and the category-count rotation rule come from PR #2001.
+  **Migration:** correct the column name where a misspelt `group_by` was
+  previously ignored; the error is the `RuntimeError` already raised for other
+  invalid chart data.
+
 ### Changed
 
 - `scripts/check_exception_contracts.py`, the exception-contract guard that CI
