@@ -113,15 +113,29 @@ def build_chain(
     if weight_var is not None:
         # Coerce once: Decimal/object, bool and nullable columns are valid
         # weight inputs, and a missing weight (None, NaN, pd.NA) is non-finite.
+        raw = df[weight_var]
+        # pd.to_numeric turns datetime and timedelta columns into nanosecond
+        # counts and astype drops the imaginary part of complex values, so
+        # only real numeric, bool and object columns are converted.
+        convertible = isinstance(raw, pd.Series) and (
+            pd.api.types.is_object_dtype(raw)
+            or (pd.api.types.is_numeric_dtype(raw)
+                and not pd.api.types.is_complex_dtype(raw))
+        )
         try:
-            weights = pd.to_numeric(df[weight_var], errors="raise").astype("float64")
+            if not convertible:
+                raise TypeError(f"unsupported weight dtype {getattr(raw, 'dtype', None)}")
+            weights = pd.to_numeric(raw, errors="raise").astype("float64")
         except (TypeError, ValueError) as exc:
             raise CrosstabInputError(
                 f"build_chain: weight_var {weight_var!r} must be numeric"
             ) from exc
         if not np.isfinite(weights.to_numpy()).all() or (weights < 0).any():
             raise CrosstabInputError("Survey weights must be finite and nonnegative")
-        df = df.assign(**{weight_var: weights})
+        # Not df.assign(**{...}): keyword arguments must be strings, and a
+        # frame read without a header has integer column labels.
+        df = df.copy()
+        df[weight_var] = weights
 
     dispatchers = {
         TableType.SINGLE_RESPONSE:   _build_single_response,

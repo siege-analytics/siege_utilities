@@ -5,6 +5,11 @@ nullable Float64, int64 and bool weight columns are valid inputs and must give
 the same table as float64 weights. A missing weight (NaN, None, pd.NA in a
 nullable column), an infinite weight or a non-numeric column raises
 CrosstabInputError instead of a raw NumPy or pandas error.
+
+The conversion to float64 must not change anything else: a frame with integer
+column labels (as read with header=None) keeps working with a weight column,
+as in 6.0.0, and datetime, timedelta and complex weight columns raise
+CrosstabInputError instead of being converted to numbers.
 """
 import decimal
 
@@ -81,3 +86,46 @@ def test_mean_scale_ci_is_not_reported_below_two_effective_respondents(scores, w
                        table_type=TableType.MEAN_SCALE).views["grp=A"][0]
     assert 1 < cell.effective_n < 2
     assert cell.ci is None
+
+
+def _cells_by_level(chain):
+    # Cell keys are "<label>=<level>"; drop the label so frames that differ
+    # only in their column labels can be compared.
+    return {key.split("=", 1)[1]: cells for key, cells in _cells(chain).items()}
+
+
+def test_integer_column_labels_work_with_a_weight_column():
+    named = _frame(FLOAT)
+    unnamed = named.set_axis([1, 2, 3], axis=1)  # as read with header=None
+    expected = build_chain(named, "answer", ["grp"], weight_var="w")
+    actual = build_chain(unnamed, 1, [2], weight_var=3)
+    assert _cells_by_level(actual) == _cells_by_level(expected)
+
+
+def test_integer_column_labels_work_for_a_weighted_mean_scale():
+    named = pd.DataFrame({"q": "a", "grp": "A", "score": [1.0, 5.0, 9.0], "w": [1.0, 0.5, 0.5]})
+    unnamed = named.set_axis([1, 2, 3, 4], axis=1)
+    expected = build_chain(named, "q", ["grp"], metric="score", weight_var="w",
+                           table_type=TableType.MEAN_SCALE).views["grp=A"][0]
+    actual = build_chain(unnamed, 1, [2], metric=3, weight_var=4,
+                         table_type=TableType.MEAN_SCALE).views["2=A"][0]
+    assert actual.count == pytest.approx(expected.count)
+    assert actual.ci == pytest.approx(expected.ci)
+
+
+@pytest.mark.parametrize("weights", [
+    pytest.param(pd.to_datetime([f"2024-01-0{d}" for d in range(1, 7)]), id="datetime64"),
+    pytest.param(pd.to_timedelta([1, 2, 1, 1, 1, 3], unit="D"), id="timedelta64"),
+    pytest.param([complex(w, 1) for w in FLOAT], id="complex"),
+])
+def test_datetime_timedelta_and_complex_weights_raise_crosstab_input_error(weights):
+    with pytest.raises(CrosstabInputError, match="must be numeric"):
+        build_chain(_frame(weights), "answer", ["grp"], weight_var="w")
+
+
+def test_build_chain_leaves_the_callers_weight_column_unchanged():
+    df = _frame([decimal.Decimal(str(w)) for w in FLOAT])
+    before = df.copy(deep=True)
+    build_chain(df, "answer", ["grp"], weight_var="w")
+    assert df.equals(before)
+    assert isinstance(df["w"].iloc[0], decimal.Decimal)
