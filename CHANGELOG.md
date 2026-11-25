@@ -267,9 +267,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   allowance. Conflicting TLS aliases raise instead of overriding the requested
   TLS mode. For PostgreSQL any spelling of `ssl_mode` or `sslmode` (for example
   `SSLMODE` or `sslMode`), in `connection_params` or in `spark_options`, counts
-  as the same request and reaches the driver as `sslmode`; on 6.0.0 a
-  non-lowercase spelling in `spark_options` was passed as written and pgjdbc
-  ignored it. The same TLS mode given in both sections is one request, and
+  as the same request and reaches the driver as `sslmode`; on 6.0.0 every
+  spelling other than `sslmode` in `spark_options` was passed as written and
+  pgjdbc ignored it. A null alias in `spark_options` carries no request and
+  does not erase a mode given under another spelling. The same TLS mode given in both sections is one request, and
   differing TLS modes across `connection_params` and `spark_options` now
   raise. Core Spark options (`url`, `driver`, `user`, `password`) replace
   every spelling of those keys in `spark_options` and `connection_params`, so

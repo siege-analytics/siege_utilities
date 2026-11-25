@@ -149,6 +149,27 @@ def test_spark_option_tls_alias_reaches_driver_as_sslmode(tmp_path, spark_key):
     assert [key for key in options if key.lower() in ("sslmode", "ssl_mode")] == ["sslmode"]
 
 
+@pytest.mark.parametrize("alias", ["SSLMODE", "sslMode", "ssl_mode"])
+def test_null_sslmode_does_not_erase_a_spark_option_tls_alias(tmp_path, alias):
+    config = create_database_config("tls", "postgres", "localhost", 5432, "db", "user", "")
+    config["spark_options"][alias] = "verify-full"
+    config["spark_options"]["sslmode"] = None
+    save_database_config(config, str(tmp_path))
+
+    options = get_spark_database_options("tls", str(tmp_path))
+
+    assert options["sslmode"] == "verify-full"
+
+
+def test_null_sslmode_before_a_spark_option_tls_alias_is_replaced(tmp_path):
+    config = create_database_config("tls", "postgres", "localhost", 5432, "db", "user", "")
+    config["spark_options"]["sslmode"] = None
+    config["spark_options"]["SSLMODE"] = "verify-full"
+    save_database_config(config, str(tmp_path))
+
+    assert get_spark_database_options("tls", str(tmp_path))["sslmode"] == "verify-full"
+
+
 def test_ipv6_host_is_preserved():
     config = create_database_config("a", "postgres", "[::1]", 5432, "db", "user", "")
 

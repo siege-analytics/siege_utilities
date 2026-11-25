@@ -354,10 +354,14 @@ def get_spark_database_options(db_name: str, config_directory: str = "config") -
         raise ValueError("Conflicting ssl_mode and sslmode connection parameters")
     spark_options: Dict[str, str] = {}
     for key, value in raw_spark_options.items():
-        if value is not None and _is_postgres_tls_alias(key):
+        if not _is_postgres_tls_alias(key):
+            spark_options[key] = value
+        elif value is not None:
             spark_options['sslmode'] = str(value).lower() if isinstance(value, bool) else str(value)
         else:
-            spark_options[key] = value
+            # A null alias carries no request, so it must not erase a mode
+            # already read from another spelling earlier in the section.
+            spark_options.setdefault(key, value)
     for key, value in connection_params.items():
         if value is None:
             continue
