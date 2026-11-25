@@ -139,18 +139,21 @@ TWO_MASTER_LAYOUTS = [
 ]
 
 
-def _strict_template(workspace, masters, layouts, slide_master):
+def _strict_template(workspace, masters, layouts, slide_master, fail_creates=()):
     """Copy of a two-slide template whose createSlide follows the documented master rule.
 
     A new slide's layout is resolved against the master of the previous slide, the
     first slide's master at index 0, or the first master when there are no slides;
-    a layout reference not found in that master raises a 400-style error.
+    a layout reference not found in that master raises a 400-style error. The
+    createSlide requests numbered in ``fail_creates`` (from 1) raise RuntimeError
+    before the slide exists, standing in for an argument slide that fails to build.
     """
     client, services = workspace
     presentations = services["slides"].presentations.return_value
     services["drive"].files.return_value.copy.return_value.execute.return_value = {"id": "report"}
     deck = [{"objectId": f"sample_{index}", "master": slide_master} for index in range(2)]
     requests = []
+    creates = []
 
     def snapshot():
         return {
@@ -176,6 +179,9 @@ def _strict_template(workspace, masters, layouts, slide_master):
                 if "deleteObject" in request:
                     deck[:] = [s for s in deck if s["objectId"] != request["deleteObject"]["objectId"]]
                 elif "createSlide" in request:
+                    creates.append(request)
+                    if len(creates) in fail_creates:
+                        raise RuntimeError("slide creation failed")
                     create = request["createSlide"]
                     index = create.get("insertionIndex", len(deck))
                     master = current_master(index)
@@ -233,8 +239,45 @@ def test_anchor_slide_is_kept_until_the_report_slides_exist(workspace):
     assert deleted == ["sample_1", "sample_0"]
     assert requests[0] == {"deleteObject": {"objectId": "sample_1"}}
     assert requests[-1] == {"deleteObject": {"objectId": "sample_0"}}
-    assert [slide["insertionIndex"] for slide in created] == [1, 2, 3]
+    assert all("insertionIndex" not in slide for slide in created)
     assert [slide["slideLayoutReference"] for slide in created] == [{"predefinedLayout": "BLANK"}] * 3
+
+
+def test_first_master_template_sends_the_requests_it_sent_before(workspace):
+    client, deck, requests = _strict_template(workspace, ["leftover", "brand"], TWO_MASTER_LAYOUTS, "leftover")
+
+    google_slides.create_report_from_arguments(client, "Report", _arguments(3), theme_presentation_id="template")
+
+    created = [request["createSlide"] for request in requests if "createSlide" in request]
+    assert requests[0] == {"deleteObject": {"objectId": "sample_0"}}
+    assert requests[1] == {"deleteObject": {"objectId": "sample_1"}}
+    assert "deleteObject" not in [next(iter(request)) for request in requests[2:]]
+    assert [slide["insertionIndex"] for slide in created] == [0, 1, 2]
+    assert [slide["slideLayoutReference"] for slide in created] == [{"layoutId": "leftover_blank"}] * 3
+
+
+def test_failed_argument_slide_behind_an_anchor_keeps_later_slides_valid(workspace):
+    client, deck, requests = _strict_template(
+        workspace, ["leftover", "brand"], TWO_MASTER_LAYOUTS, "brand", fail_creates={2},
+    )
+
+    with pytest.raises(RuntimeError, match="1 of 3 slides failed"):
+        google_slides.create_report_from_arguments(client, "Report", _arguments(3), theme_presentation_id="template")
+
+    assert len(deck) == 2
+    assert [slide["master"] for slide in deck] == ["brand", "brand"]
+    assert not any(slide["objectId"].startswith("sample_") for slide in deck)
+    assert requests[-1] == {"deleteObject": {"objectId": "sample_0"}}
+
+
+def test_anchored_master_without_blank_layout_is_rejected_with_400(workspace):
+    layouts = [("leftover_blank", "leftover", "BLANK"), ("brand_title", "brand", "TITLE")]
+    client, deck, _ = _strict_template(workspace, ["leftover", "brand"], layouts, "brand")
+
+    with pytest.raises(LayoutNotInCurrentMasterError):
+        google_slides.create_report_from_arguments(client, "Report", _arguments(3), theme_presentation_id="template")
+
+    assert [slide["objectId"] for slide in deck] == ["sample_0"]
 
 
 def test_empty_report_on_a_second_master_template_keeps_no_anchor(workspace):

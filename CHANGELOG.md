@@ -161,8 +161,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   propagates and no argument slides are added. When the template's first
   slide uses a master other than the presentation's first master, that slide
   is kept until the argument slides have been added after it, so they use its
-  master, and is then removed; if that last removal fails, the error
-  propagates with the argument slides already in place. Google Docs `insert_text` and
+  master, and is then removed, also when an argument slide failed (before
+  that error is raised); if that last removal fails, its error propagates
+  with the argument slides already in place, and if that master has no BLANK
+  layout the first argument slide is rejected with HTTP 400, as on 6.0.0. Google Docs `insert_text` and
   `insert_paragraph` compute text and heading style ranges in UTF-16 code
   units, so ranges no longer fall short after non-BMP characters such as
   emoji. `read_document_text` requests all tabs, visits child tabs and nested

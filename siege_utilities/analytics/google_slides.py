@@ -683,18 +683,24 @@ def create_report_from_arguments(
     Removes any existing content slides from the new presentation or theme
     copy before adding one slide per argument. Theme masters and layouts are
     preserved; the source template is unchanged. When the first initial slide
-    uses the presentation's first master, the report slides request that
-    master's BLANK layout by object ID (or the predefined ``BLANK`` layout when
-    there is none). When it uses another master, that slide is kept as an
-    anchor while the report slides are added after it with the predefined
-    ``BLANK`` layout, which the Slides API resolves against the anchor's
-    master; the anchor is then deleted. An empty argument list produces a
-    presentation with no content slides. Failure to read or delete the initial
-    slides propagates before report slides are added, except for the anchor,
-    which is deleted after them; if that delete fails, the error propagates
-    and the report slides stay in the presentation with the anchor. The new
-    presentation is left in Drive when either happens and must be removed by
-    the caller.
+    uses the presentation's first master (or there are no initial slides), all
+    initial slides are deleted first and the report slides request that
+    master's BLANK layout by object ID, or the predefined ``BLANK`` layout when
+    it has none; the Slides API rejects the latter with 400 if the master has
+    no BLANK layout. When the first initial slide uses another master and
+    there is at least one argument, that slide is kept as an anchor: the other
+    initial slides are deleted, the report slides are appended after it with
+    the predefined ``BLANK`` layout, which the Slides API resolves against the
+    anchor's master, and the anchor is deleted once after the last argument.
+    If the anchor's master has no BLANK layout, the first report slide is
+    rejected with 400 and that error propagates, as on 6.0.0. The anchor is
+    deleted before the aggregated error for failed argument slides is raised;
+    if deleting the anchor itself fails, that error propagates instead (each
+    failed argument slide is still logged) and the presentation keeps the
+    anchor. An empty argument list produces a presentation with no content
+    slides. Failure to read or delete the initial slides propagates before
+    report slides are added. The new presentation is left in Drive whenever
+    an error propagates and must be removed by the caller.
 
     Public exposure of figures:
         The Slides API can only insert an image from a URL that is reachable
@@ -746,12 +752,15 @@ def create_report_from_arguments(
         batch_update(client, pres_id, delete_requests)
         log.debug("Deleted %d initial slides from report %s", len(delete_requests), pres_id)
 
-    first_index = 1 if anchor_id else 0
     failures = []
     for i, argument in enumerate(arguments):
+        # Behind an anchor each slide is appended, so it always follows an
+        # existing slide on the anchor's master even when an earlier argument
+        # failed to build.
+        slide_index = None if anchor_id else i
         try:
             _build_argument_slide(
-                client, pres_id, argument, slide_index=first_index + i,
+                client, pres_id, argument, slide_index=slide_index,
                 folder_id=folder_id, publish_figures=publish_figures,
                 blank_layout_id=blank_layout_id,
             )
