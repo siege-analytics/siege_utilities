@@ -509,6 +509,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rows by column name and refuses data in a different CRS; an equal CRS whose
   WKT is spelled differently is recorded once and reads back. Arbitrary SQL
   through `execute_spatial_query` keeps the EPSG:4326 label (#1818).
+- S2 cell IDs are documented as uint64 values that can exceed signed
+  BIGINT. Add `s2_cell_id_to_int64` with an exact inverse through
+  `s2_cell_id_to_uint64`, and an opt-in `as_signed=True` (default `False`, so
+  existing results are unchanged) on point indexing, polygon indexing, region
+  covers, and range generation so signed SQL `BETWEEN` queries match the
+  unsigned cell ranges. Correct the PostGIS storage guidance. Invalid cell IDs
+  (outside the 64-bit range, or a bare pd.NA) now raise ValueError/TypeError
+  instead of returning unusable values (#1473).
 
 ### Security
 
