@@ -14,7 +14,7 @@ Scope: the uncommitted diff on top of the develop merge `ad39229a` (`siege_utili
 2. No blocker (SU-2): the `int` annotation claims less than the runtime accepts, and the docstring (`databases.py:114-117`) states the digit-string allowance and the `ValueError`, matching `_validate_port` (`databases.py:92-102`).
 3. No blocker: the signature test fails on `89e8d749` (`port: int | str`) and passes after the change.
 4. FOLLOW-UP, accepted: `test_digit_string_port_is_still_accepted_at_runtime` overlaps the `"5432"` case in `tests/test_1476_port_host_injection.py`. It is kept because it pins the exact JDBC URL next to the signature test that narrowed the annotation.
-5. No blocker: the #1476 entry sits fully inside `[4.1.0]` → Fixed and matches its previous text word for word, plus one clause about the annotation. The other `[Unreleased]` entries survived the merge resolution.
+5. No blocker: the #1476 entry sits fully inside `[Unreleased]` → Fixed (it later moved to `### BREAKING`) and matches its previous text word for word, plus one clause about the annotation. The other `[Unreleased]` entries survived the merge resolution.
 6. Nit, accepted: an uneven line wrap at `CHANGELOG.md:135-136`; it renders correctly.
 
 Verdict: no blockers.

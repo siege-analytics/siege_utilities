@@ -101,14 +101,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   get the same host validation and database encoding, so an already-encoded
   database name such as `a%20b` is encoded again (`a%2520b`); 6.0.0 passed both
   through unchanged. Connection parameters now override a `spark_options` key
-  of the same name. Ports accept only
+  of the same name, except a TLS mode, which must agree. Ports accept only
   integers or strings of 1 to 5 ASCII digits in range 1-65535, reject booleans,
   and are interpolated as validated integers; `create_database_config` keeps
   its 6.0.0 `port: int` annotation, and digit strings remain a runtime
   allowance. Conflicting TLS aliases raise instead of overriding the requested
-  TLS mode; for PostgreSQL any spelling of `ssl_mode` or `sslmode` (for example
-  `SSLMODE` or `sslMode`) counts as the same request and reaches the driver as
-  `sslmode`. Core Spark options (`url`, `driver`, `user`, `password`) replace
+  TLS mode. For PostgreSQL any spelling of `ssl_mode` or `sslmode` (for example
+  `SSLMODE` or `sslMode`), in `connection_params` or in `spark_options`, counts
+  as the same request and reaches the driver as `sslmode`; on 6.0.0 a
+  non-lowercase spelling in `spark_options` was passed as written and pgjdbc
+  ignored it. The same TLS mode given in both sections is one request, and
+  differing TLS modes across `connection_params` and `spark_options` now
+  raise. Core Spark options (`url`, `driver`, `user`, `password`) replace
   every spelling of those keys in `spark_options` and `connection_params`, so
   neither can shadow them, and two option keys that differ only by case raise
   `ValueError` because Spark would keep only one of them. A non-PostgreSQL
@@ -117,7 +121,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **Migration:** pass the port separately from the host and drop any URL
   characters from host values; use an ASCII host name without an IPv6 zone
   ID; pass database names unencoded; resolve conflicting TLS aliases, in any
-  spelling, to one value; remove option keys that differ only by case; for
+  spelling and in either section, to one value; if you relied on a
+  `spark_options` TLS key such as `SSLMODE` that pgjdbc ignored, check that the
+  server supports the requested mode, because it is now enforced; remove option
+  keys that differ only by case; for
   non-PostgreSQL drivers set the driver's own TLS option in `spark_options`
   instead of `ssl_mode`; and set the
   `DB_<NORMALIZED_NAME>_PASSWORD` variable reported when the config is saved:

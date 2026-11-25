@@ -287,9 +287,11 @@ def get_spark_database_options(db_name: str, config_directory: str = "config") -
 
     Non-None connection parameters are forwarded as string-valued JDBC options.
     For PostgreSQL, ``ssl_mode`` is mapped to the driver's ``sslmode`` property,
-    and any spelling of either alias (for example ``SSLMODE`` or ``sslMode``) is
-    treated as the same TLS request. Conflicting TLS aliases raise.
-    Connection parameters take precedence over duplicate ``spark_options``.
+    and any spelling of either alias (for example ``SSLMODE`` or ``sslMode``),
+    in connection parameters or in ``spark_options``, is treated as the same TLS
+    request and reaches the driver as ``sslmode``. The same TLS mode in both
+    sections is one request; differing TLS modes raise. Other connection
+    parameters take precedence over duplicate ``spark_options``.
     Every spelling of ``url``, ``driver``, ``user`` and ``password`` in
     ``spark_options`` or connection parameters is replaced by the configured
     value.
@@ -321,8 +323,7 @@ def get_spark_database_options(db_name: str, config_directory: str = "config") -
             f"Database config {db_name!r} missing required keys: {missing}"
         )
 
-    spark_options: Dict[str, str] = {}
-    spark_options.update(config.get('spark_options') or {})
+    raw_spark_options = dict(config.get('spark_options') or {})
 
     is_postgres = (config.get('connection_type') or '').lower() == 'postgres'
     connection_params = config.get('connection_params') or {}
@@ -335,12 +336,28 @@ def get_spark_database_options(db_name: str, config_directory: str = "config") -
     def _is_tls_alias(option_name: str) -> bool:
         return option_name == 'ssl_mode' or (is_postgres and option_name.lower() in tls_aliases)
 
+    def _is_postgres_tls_alias(option_name: str) -> bool:
+        return is_postgres and option_name.lower() in tls_aliases
+
+    # The stored spark_options section is one more place a TLS mode can be
+    # written, so its PostgreSQL aliases join the same conflict check and reach
+    # the driver as `sslmode`; a weaker value in one section must not replace a
+    # stricter value in the other without an error.
     requested_tls = {
         str(value) for key, value in connection_params.items()
         if value is not None and _is_tls_alias(key)
+    } | {
+        str(value) for key, value in raw_spark_options.items()
+        if value is not None and _is_postgres_tls_alias(key)
     }
     if len(requested_tls) > 1:
         raise ValueError("Conflicting ssl_mode and sslmode connection parameters")
+    spark_options: Dict[str, str] = {}
+    for key, value in raw_spark_options.items():
+        if value is not None and _is_postgres_tls_alias(key):
+            spark_options['sslmode'] = str(value).lower() if isinstance(value, bool) else str(value)
+        else:
+            spark_options[key] = value
     for key, value in connection_params.items():
         if value is None:
             continue

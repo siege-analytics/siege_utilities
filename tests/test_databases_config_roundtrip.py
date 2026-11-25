@@ -104,14 +104,49 @@ def test_connection_params_reach_spark_options(connection_type, tmp_path):
     assert "sslmode" not in options
 
 
-def test_connection_ssl_mode_takes_precedence_over_spark_option(tmp_path):
-    config = create_database_config(
-        "tls", "postgres", "localhost", 5432, "db", "user", "", ssl_mode="require",
-    )
-    config["spark_options"]["sslmode"] = "prefer"
+@pytest.mark.parametrize(
+    ("spark_tls", "connection_tls"),
+    [
+        ({"sslmode": "prefer"}, {"ssl_mode": "require"}),
+        ({"sslmode": "verify-full"}, {"ssl_mode": "disable"}),
+        ({"sslmode": "verify-full"}, {"SSLMODE": "disable"}),
+        ({"SSLMODE": "verify-full"}, {"ssl_mode": "prefer"}),
+    ],
+    ids=["weaker-spark-option", "downgrade-ssl-mode", "downgrade-case-variant", "spark-case-variant"],
+)
+def test_tls_modes_that_differ_across_sections_raise(tmp_path, spark_tls, connection_tls):
+    config = create_database_config("tls", "postgres", "localhost", 5432, "db", "user", "")
+    config["spark_options"].update(spark_tls)
+    config["connection_params"].update(connection_tls)
     save_database_config(config, str(tmp_path))
 
-    assert get_spark_database_options("tls", str(tmp_path))["sslmode"] == "require"
+    with pytest.raises(ValueError, match="Conflicting ssl_mode and sslmode"):
+        get_spark_database_options("tls", str(tmp_path))
+
+
+def test_matching_tls_mode_in_both_sections_is_one_request(tmp_path):
+    config = create_database_config(
+        "tls", "postgres", "localhost", 5432, "db", "user", "", ssl_mode="verify-full",
+    )
+    config["spark_options"]["SSLMODE"] = "verify-full"
+    save_database_config(config, str(tmp_path))
+
+    options = get_spark_database_options("tls", str(tmp_path))
+
+    assert options["sslmode"] == "verify-full"
+    assert [key for key in options if key.lower() in ("sslmode", "ssl_mode")] == ["sslmode"]
+
+
+@pytest.mark.parametrize("spark_key", ["sslmode", "SSLMODE", "sslMode", "ssl_mode"])
+def test_spark_option_tls_alias_reaches_driver_as_sslmode(tmp_path, spark_key):
+    config = create_database_config("tls", "postgres", "localhost", 5432, "db", "user", "")
+    config["spark_options"][spark_key] = "verify-full"
+    save_database_config(config, str(tmp_path))
+
+    options = get_spark_database_options("tls", str(tmp_path))
+
+    assert options["sslmode"] == "verify-full"
+    assert [key for key in options if key.lower() in ("sslmode", "ssl_mode")] == ["sslmode"]
 
 
 def test_ipv6_host_is_preserved():
