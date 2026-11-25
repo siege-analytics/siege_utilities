@@ -262,6 +262,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them explicitly if you depended on the old defaults; pass `geo_data=` by keyword; check any
   call that relied on the old positional shift.
 
+- `reconcile_names(precinct_names, vtd_names)` called without `precinct_county`
+  used to return name matches against every VTD; it now returns `[]` and emits a
+  `UserWarning`. `PrecinctVTDReconciler.reconcile` likewise compares names only
+  inside the precinct's own county (official crosswalk county, then spatial
+  overlaps of at least `MIN_OVERLAP_PCT`, then the provider's county) and skips
+  name matching, with no mapping, when that county is missing or conflicting.
+  Skipped precincts are listed in the new `ReconciliationResult.name_matching_skipped`
+  (also in `to_dict()`) and logged as a warning. Name-only mappings are also
+  fewer and weaker: an official mapping or a spatial overlap of at least 95%
+  suppresses names pointing to another VTD, and a name-only mapping is capped at
+  confidence 0.84, so it can no longer reach HIGH. **Migration:** pass
+  `precinct_county` (precinct ID to five-digit state+county FIPS) to
+  `reconcile_names`; for `reconcile`, give name providers county data through
+  `get_precinct_counties` or `DictNameMatchProvider.add_precinct(..., county=...)`,
+  or supply an official crosswalk or spatial overlaps. Code that relied on a
+  HIGH name-only mapping must read `confidence_level` and `method` (COMBINED
+  still reaches HIGH) instead of assuming a name match is HIGH. A precinct
+  without a name match can now be told apart from one whose name matching never
+  ran by checking `name_matching_skipped`. VTD name candidates whose key is not
+  an 11-character VTD GEOID (for example a GEOID that lost its leading zero in
+  an integer column) are never compared; `PrecinctVTDReconciler.reconcile`
+  logs a warning giving their count and examples, while direct
+  `reconcile_names` calls do not (#1433).
+
 ### Changed
 
 - `scripts/check_exception_contracts.py`, the exception-contract guard that CI
@@ -375,6 +399,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ConfidentialClientApplication.remove_tokens_for_client`, which MSAL Python
   first ships in 1.27.0. Dynamics dependency errors now recommend `[crm]`, and
   CI installs it so the Dynamics tests execute instead of skipping (#1449).
+- Precinct/VTD name matching now restricts candidates to the precinct's county,
+  using official county FIPS, spatial overlap counties, then optional provider
+  county keys. Unknown or conflicting counties skip name matching, and malformed
+  VTD GEOIDs are ignored with a logged warning. Direct `reconcile_names`
+  callers must supply `precinct_county`; name-only providers can supply
+  `get_precinct_counties`.
+  Official-crosswalk mappings retain precedence (#1433).
+- Precinct/VTD reconciliation emits fewer name-only mappings: an official
+  mapping or spatial overlap of at least 95% suppresses names pointing to
+  another VTD. Name-only confidence is capped at 0.84, below HIGH; same-VTD
+  name confirmation still contributes to COMBINED confidence. Spatial overlaps
+  below 1% no longer create county conflicts that block name confirmation (#1433).
 
 ### Security
 
