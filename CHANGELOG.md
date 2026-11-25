@@ -407,13 +407,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `transform`, `apply_crosswalk`, `normalize_to_year` or
   `get_longitudinal_data`, so they are averaged and not summed. Fill or drop
   missing source values before transforming where a total from the remaining
-  sources is wanted. When chaining calls, for example `normalize_to_year` from
-  2000 to 2010 and then from 2010 to 2020, pass the first call's
-  `<col>_coverage` columns to the second as `carried_coverage`; do not rename
-  them, because a renamed coverage column is summed as a count. Rename only
-  your own data columns that are named `<col>_coverage` for a value column
-  `<col>`. Update downstream column selections and missing-value handling for
-  the new `<col>_coverage` outputs (#1409).
+  sources is wanted. When chaining calls, for example `transform` with your own
+  2000 to 2010 crosswalk table and then `normalize_to_year` from 2010 to 2020,
+  pass the first call's `<col>_coverage` columns to the second as
+  `carried_coverage`; do not rename them, because a renamed coverage column is
+  summed as a count. Rename only your own data columns that are named
+  `<col>_coverage` for a value column `<col>`. Update downstream column
+  selections and missing-value handling for the new `<col>_coverage` outputs
+  (#1409).
 
 ### Changed
 

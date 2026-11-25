@@ -777,7 +777,8 @@ def normalize_to_year(
         intensive_variables: Rate/ratio columns to area-weight average instead
             of disaggregating and summing. Requires absolute areas on merges.
         carried_coverage: <col>_coverage columns produced by an earlier call,
-            for chaining two calls such as 2000 to 2010 and 2010 to 2020
+            for chaining, for example transform with your own 2000 to 2010
+            crosswalk table and then normalize_to_year from 2010 to 2020
             (see CrosswalkProcessor.transform).
 
     Returns:

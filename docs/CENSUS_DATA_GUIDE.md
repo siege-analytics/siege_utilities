@@ -858,10 +858,11 @@ Intensive columns are still averaged over the sources with data.
 `LongitudinalAligner` carries `<col>_coverage` from one step to the next: a
 second crosswalk step folds it into its own coverage instead of summing it as a
 count, and the areal fallback averages it by area instead of splitting it.
-When you chain calls yourself, for example `normalize_to_year` from 2000 to
-2010 and then from 2010 to 2020, pass the first call's `<col>_coverage`
-columns to the second as `carried_coverage`; a renamed coverage column would
-be summed as a count. A data column of your own already named
+When you chain calls yourself, for example `transform` with your own 2000 to
+2010 crosswalk table and then `normalize_to_year` from 2010 to 2020 (the only
+transition the Census crosswalk client serves), pass the first call's
+`<col>_coverage` columns to the second as `carried_coverage`; a renamed
+coverage column would be summed as a count. A data column of your own already named
 `<col>_coverage` for a value column `<col>` is rejected with `ValueError`;
 rename it before transforming or aligning.
 
