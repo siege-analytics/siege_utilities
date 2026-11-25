@@ -129,11 +129,21 @@ python3 scripts/check_notebook_inventory.py --json
 python3 scripts/check_notebook_inventory.py --check
 ```
 
-The strict all-live-governed gate now enforces that every live notebook is listed
-in both governance files:
+The strict all-live-governed gate enforces that every live notebook is listed
+in the hygiene or execution lists; it checks list membership only. Markdown-only
+schematics are listed separately in `SCHEMATIC_MARKDOWN_ONLY` in
+`tests/test_notebooks.py` and remain covered by `tests/test_notebook_hygiene.py`.
 
 ```bash
 python3 scripts/check_notebook_inventory.py --check --require-all-live-governed
+```
+
+Every notebook in `NOTEBOOK_GROUPS` must have at least one code cell, and every
+notebook in `SCHEMATIC_MARKDOWN_ONLY` must contain only markdown cells. The
+inventory gate does not inspect cells; these pytest checks enforce both rules:
+
+```bash
+pytest tests/test_notebooks.py -k "test_execution_notebook_has_code_cells or test_schematic_notebook_is_markdown_only"
 ```
 
 Notebook capability coverage is also explicit and machine-readable in
@@ -177,9 +187,10 @@ python3 scripts/check_notebook_capability_coverage.py --check
 ```
 
 Notebook execution gating must become tier-complete, not decorative smoke.
-Every live notebook needs an assigned execution tier and command; PRs touching
+Every executable live notebook needs an assigned execution tier and command; PRs touching
 notebooks or public APIs used by notebooks must run the impacted tier or expose
 an explicit tracked external-service skip with a fixture-backed offline path.
+Markdown-only schematics require structural hygiene and documentation contract checks.
 See #1224 and #1227.
 
 ## See also

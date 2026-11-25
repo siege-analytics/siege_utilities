@@ -162,7 +162,7 @@ jobs:
         NOTEBOOK_KERNEL_NAME: siege-notebook-ci
         NOTEBOOK_ARTIFACT_DIR: ${{ runner.temp }}/notebook-artifacts
       run: |
-        uv run pytest -o addopts='' -p no:cacheprovider tests/test_notebooks.py -q -k pure -m "not integration"
+        uv run pytest -o addopts='' -p no:cacheprovider tests/test_notebooks.py -q -k "pure or test_execution_notebook_has_code_cells or test_schematic_notebook_is_markdown_only" -m "not integration"
 
     - name: Upload notebook failure artifacts
       if: failure()
