@@ -32,8 +32,13 @@ Run examples from repository root:
 
 ```bash
 python -m siege_utilities.examples.enhanced_features_demo
-python siege_utilities/reporting/examples/bivariate_choropleth_example.py
+python -m siege_utilities.reporting.examples.bivariate_choropleth_example
+python -m siege_utilities.reporting.examples.ga_geographic_analysis
+python -m siege_utilities.reporting.examples.google_analytics_report_example
 ```
+
+The reporting demos require the `reporting` extra and use sample data without
+credentials or boundary downloads. Their illustrative polygons are synthetic.
 
 ## Scope Rule
 
