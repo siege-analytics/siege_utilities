@@ -12,7 +12,7 @@ from hashlib import md5
 from siege_utilities.files.operations import atomic_write_path
 try:
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
@@ -24,7 +24,7 @@ try:
 except ImportError:
     REPORTLAB_AVAILABLE = False
     getSampleStyleSheet = ParagraphStyle = None
-    TA_CENTER = None
+    TA_CENTER = TA_RIGHT = None
     pdfmetrics = None
     TTFont = None
     SimpleDocTemplate = Paragraph = Spacer = PageBreak = None
@@ -363,11 +363,22 @@ class BaseReportTemplate:
             P_left.wrapOn(canvas, left_text_available_width, doc.topMargin)
             P_left.drawOn(canvas, current_header_x, header_y_pos - P_left.height / 2)
 
-        # Right Header Text
+        # Right-aligned text lives in the right half of the page, flush with the
+        # right margin. Paragraph.wrapOn() returns the width it was *given*, not
+        # the text width, so it cannot be used to compute an x offset (#1998).
+        # Instead draw into a fixed-width box with right alignment; long text
+        # wraps inside the box rather than spilling onto the left-hand text.
+        right_edge = page_width - doc.rightMargin
+        right_box_width = max(right_edge - page_width / 2 - 0.1 * inch, 0.5 * inch)
+        gap = self._HEADER_FOOTER_GAP
+
+        # Right Header Text: kept inside the top margin, truncated if too long.
         if header_text_right:
-            P_right = Paragraph(_escape_paragraph(header_text_right), header_footer_style)
-            text_width = P_right.wrapOn(canvas, page_width - doc.leftMargin - doc.rightMargin, doc.topMargin)[0]
-            P_right.drawOn(canvas, page_width - doc.rightMargin - text_width, header_y_pos - P_right.height / 2)
+            self._draw_right_aligned(canvas, header_text_right, header_footer_style,
+                                     right_edge, right_box_width, header_y_pos,
+                                     doc.topMargin,
+                                     bottom_limit=page_height - doc.topMargin + gap,
+                                     top_limit=page_height - gap)
 
         # --- Footer ---
         footer_text_left = footer_config.get('left_text', '')
@@ -404,20 +415,83 @@ class BaseReportTemplate:
             F_left.wrapOn(canvas, footer_left_text_available_width, doc.bottomMargin)
             F_left.drawOn(canvas, current_footer_x, footer_y_pos - F_left.height / 2)
 
-        # Right Footer Text
-        if footer_text_right:
-            F_right = Paragraph(_escape_paragraph(footer_text_right), header_footer_style)
-            text_width_f = F_right.wrapOn(canvas, page_width - doc.leftMargin - doc.rightMargin, doc.bottomMargin)[0]
-            F_right.drawOn(canvas, page_width - doc.rightMargin - text_width_f, footer_y_pos - F_right.height / 2)
-
-        # Page Number
+        # Page Number (bottom-right, just below the footer line), kept on the page.
         page_number_text = page_number_format % doc.page
-        P_page_num = Paragraph(_escape_paragraph(page_number_text), header_footer_style)
-        P_page_num.wrapOn(canvas, page_width, doc.bottomMargin)
-        page_num_x_pos = page_width - doc.rightMargin - P_page_num.wrapOn(canvas, page_width, doc.bottomMargin)[0]
-        P_page_num.drawOn(canvas, page_num_x_pos, footer_y_pos - P_page_num.height / 2 - 0.2 * inch)
+        page_number_y, page_number_height = self._draw_right_aligned(
+            canvas, page_number_text, header_footer_style, right_edge, right_box_width,
+            footer_y_pos - 0.2 * inch, doc.bottomMargin,
+            bottom_limit=gap, top_limit=doc.bottomMargin - gap)
+
+        # Right Footer Text: stays above the page number and below the body
+        # frame. Wrapped text moves up rather than over the page number, and
+        # text that still does not fit is truncated.
+        if footer_text_right:
+            self._draw_right_aligned(canvas, footer_text_right, header_footer_style,
+                                     right_edge, right_box_width, footer_y_pos,
+                                     doc.bottomMargin,
+                                     bottom_limit=page_number_y + page_number_height + gap,
+                                     top_limit=doc.bottomMargin - gap)
 
         canvas.restoreState()
+
+    # Clearance (points) kept between header/footer blocks and between them
+    # and the page edge or body frame.
+    _HEADER_FOOTER_GAP = 2.0
+    _ELLIPSIS = "…"
+
+    @classmethod
+    def _draw_right_aligned(cls, canvas, text, style, right_edge, box_width,
+                            center_y, max_height, bottom_limit=None, top_limit=None):
+        """Draw ``text`` right-aligned so its lines end at ``right_edge``.
+
+        The paragraph is laid out in a ``box_width``-wide box whose right side
+        is ``right_edge``, vertically centred on ``center_y``. Lines longer
+        than the box wrap inside it. Text whose wrapped height exceeds
+        ``max_height`` (or the band between ``bottom_limit`` and
+        ``top_limit``, when given) is cut and ends with an ellipsis; at least
+        one line is always drawn. When limits are given the block is moved,
+        as little as possible, to stay between them.
+
+        Returns:
+            ``(y, height)`` of the drawn block's bottom edge and height.
+        """
+        right_style = ParagraphStyle(name=f"{style.name}-right", parent=style,
+                                     alignment=TA_RIGHT)
+        if bottom_limit is not None and top_limit is not None:
+            max_height = min(max_height, top_limit - bottom_limit)
+        paragraph, height = cls._fit_paragraph(canvas, text, right_style,
+                                               box_width, max_height)
+        y = center_y - height / 2
+        if top_limit is not None:
+            y = min(y, top_limit - height)
+        if bottom_limit is not None:
+            y = max(y, bottom_limit)
+        paragraph.drawOn(canvas, right_edge - box_width, y)
+        return y, height
+
+    @classmethod
+    def _fit_paragraph(cls, canvas, text, style, width, max_height):
+        """Paragraph for ``text`` no taller than ``max_height`` (one line minimum).
+
+        Too-tall text is replaced by its longest prefix that, followed by an
+        ellipsis, still fits.
+        """
+        def build(candidate):
+            paragraph = Paragraph(_escape_paragraph(candidate), style)
+            _, height = paragraph.wrapOn(canvas, width, max_height)
+            return paragraph, height
+
+        paragraph, height = build(text)
+        if height <= max_height or len(text) <= 1:
+            return paragraph, height
+        lo, hi = 0, len(text) - 1
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            if build(text[:mid].rstrip() + cls._ELLIPSIS)[1] <= max_height:
+                lo = mid
+            else:
+                hi = mid - 1
+        return build(text[:lo].rstrip() + cls._ELLIPSIS)
 
     def _get_page_templates(self):
         """

@@ -8,6 +8,8 @@ from datetime import datetime
 from enum import Enum
 import re
 
+from ._expiry import as_utc, utc_now
+
 __all__ = ["CredentialType", "CredentialStatus", "Credential", "OnePasswordCredential"]
 
 
@@ -146,19 +148,11 @@ class Credential(BaseModel):
             raise ValueError('API key must be at least 10 characters')
         return v
     
-    @field_validator('expires_at')
-    @classmethod
-    def validate_expires_at(cls, v):
-        """Validate expiration date."""
-        if v and v <= datetime.now():
-            raise ValueError('Expiration date must be in the future')
-        return v
-    
     def is_expired(self) -> bool:
         """Check if credential is expired."""
         if not self.expires_at:
             return False
-        return datetime.now() > self.expires_at
+        return utc_now() > as_utc(self.expires_at)
     
     def is_valid(self) -> bool:
         """Check if credential is valid (active and not expired)."""

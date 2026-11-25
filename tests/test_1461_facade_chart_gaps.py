@@ -217,8 +217,9 @@ def test_pie_omits_numpy_decimal_and_pandas_missing_values(generator):
 
     _chart_images(config, generator)
 
-    assert spy.call_args.args[0] == {"Label": ["d"], "Value": [3.0]}
-    assert type(spy.call_args.args[0]["Value"][0]) is float
+    assert spy.call_args.args[0] == {"Label": ["d"], "Value": [3]}
+    # Decimal("3") has no fractional part, so it reaches the engine as an int (#1988).
+    assert type(spy.call_args.args[0]["Value"][0]) is int
 
 
 _ENGINE_METHOD = {"bar": "create_bar_chart", "line": "create_line_chart", "pie": "create_pie_chart"}
