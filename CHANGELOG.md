@@ -357,6 +357,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ConfidentialClientApplication.remove_tokens_for_client`, which MSAL Python
   first ships in 1.27.0. Dynamics dependency errors now recommend `[crm]`, and
   CI installs it so the Dynamics tests execute instead of skipping (#1449).
+- S2 cell IDs are documented as uint64 values that can exceed signed
+  BIGINT. Add `s2_cell_id_to_int64` with an exact inverse through
+  `s2_cell_id_to_uint64`, and an opt-in `as_signed=True` (default `False`, so
+  existing results are unchanged) on point indexing, polygon indexing, region
+  covers, and range generation so signed SQL `BETWEEN` queries match the
+  unsigned cell ranges. Correct the PostGIS storage guidance. Invalid cell IDs
+  (outside the 64-bit range, or a bare pd.NA) now raise ValueError/TypeError
+  instead of returning unusable values (#1473).
 
 ### Security
 
