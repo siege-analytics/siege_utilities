@@ -6,8 +6,11 @@ Delegates chi-square to siege_utilities.data.cross_tabulation (not reimplemented
 
 from __future__ import annotations
 
+import decimal
+import fractions
 from typing import Dict, List, Optional
 
+import numpy as np
 import pandas as pd
 
 from ..reporting.pages.page_models import TableType
@@ -25,9 +28,14 @@ except ImportError:
     _SCIPY_T_AVAILABLE = False
 
 
-def _critical_value(n: int, confidence: float = 0.95) -> float:
+def _critical_value(n: float, confidence: float = 0.95) -> float:
     """Return the appropriate critical value: t for n<30, z otherwise."""
-    if n < 30 and _SCIPY_T_AVAILABLE:
+    if n < 30:
+        if not _SCIPY_T_AVAILABLE:
+            from .significance import SignificanceError
+            raise SignificanceError(
+                "MEAN_SCALE with effective n < 30 requires scipy for a t critical value"
+            )
         return float(_scipy_t.ppf((1 + confidence) / 2, df=n - 1))
     return DEFAULT_Z_VALUE
 
@@ -104,6 +112,62 @@ def build_chain(
         raise CrosstabInputError(
             f"build_chain: weight_var {weight_var!r} not in df.columns"
         )
+    if weight_var is not None:
+        # Coerce once: Decimal/object, bool and nullable columns are valid
+        # weight inputs, and a missing weight (None, NaN, pd.NA) is non-finite.
+        raw = df[weight_var]
+        # pd.to_numeric turns datetime and timedelta columns into nanosecond
+        # counts, so only numeric, bool and object columns are converted.
+        # is_numeric_dtype is false for an Arrow-backed bool column, and
+        # is_bool_dtype is true for a categorical of bools.
+        convertible = (
+            isinstance(raw, pd.Series)
+            and not isinstance(raw.dtype, pd.CategoricalDtype)
+            and (
+                pd.api.types.is_object_dtype(raw)
+                or pd.api.types.is_numeric_dtype(raw)
+                or pd.api.types.is_bool_dtype(raw)
+            )
+        )
+        try:
+            if not convertible:
+                raise TypeError(f"unsupported weight dtype {getattr(raw, 'dtype', None)}")
+            try:
+                numeric = pd.to_numeric(raw, errors="raise")
+            except TypeError:
+                if not pd.api.types.is_object_dtype(raw):
+                    raise
+                # pd.to_numeric does not read fractions.Fraction.
+                numeric = pd.to_numeric(
+                    _exact_values_as_floats(raw, (fractions.Fraction,)), errors="raise"
+                )
+            if pd.api.types.is_complex_dtype(numeric):
+                # astype would drop the imaginary part. An object column can
+                # hold complex values, so the check is on the converted values.
+                raise TypeError("complex weights")
+            weights = numeric.astype("float64")
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise CrosstabInputError(
+                f"build_chain: weight_var {weight_var!r} must be numeric"
+            ) from exc
+        if not np.isfinite(weights.to_numpy()).all() or (weights < 0).any():
+            raise CrosstabInputError("Survey weights must be finite and nonnegative")
+        # The float weights, and a float copy of a Decimal metric, go in
+        # columns of their own. The weight or metric column can also be the
+        # row variable or a break variable, and those values must stay as the
+        # caller gave them. Not df.assign(**{...}): keyword arguments must be
+        # strings, and a frame read without a header has integer column labels.
+        df = df.copy()
+        values = df[metric] if metric in df.columns else None
+        if isinstance(values, pd.Series) and pd.api.types.is_object_dtype(values):
+            # The builders multiply the metric by the float weights, and
+            # Decimal * float raises TypeError.
+            metric = _unused_label(df, "__build_chain_metric__")
+            df[metric] = _exact_values_as_floats(
+                values, (decimal.Decimal, fractions.Fraction)
+            )
+        weight_var = _unused_label(df, "__build_chain_weight__")
+        df[weight_var] = weights
 
     dispatchers = {
         TableType.SINGLE_RESPONSE:   _build_single_response,
@@ -130,6 +194,27 @@ def build_chain(
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _unused_label(df: pd.DataFrame, label: str) -> str:
+    """Return ``label``, lengthened until it is not a column of ``df``."""
+    while label in df.columns:
+        label += "_"
+    return label
+
+
+def _exact_values_as_floats(values: pd.Series, kinds: tuple) -> pd.Series:
+    """Return ``values`` as an object column with ``kinds`` instances as floats.
+
+    ``dtype=object`` keeps pandas from inferring datetime64 or timedelta64
+    for a column of Timestamp or Timedelta objects, which ``pd.to_numeric``
+    would then turn into nanosecond counts.
+    """
+    return pd.Series(
+        [float(v) if isinstance(v, kinds) else v for v in values],
+        index=values.index,
+        dtype=object,
+    )
+
+
 def _weighted_counts(
     df: pd.DataFrame,
     group_col: str,
@@ -150,28 +235,62 @@ def _weighted_counts(
 
 
 def _base_respondents(df: pd.DataFrame, weight_var: Optional[str]) -> float:
-    """Return the effective respondent base -- weighted sum or unweighted count.
+    """Return the display base -- weighted sum or unweighted count.
 
     Returns a float so fractional weighted bases (e.g. ``1234.7``) are not
-    silently truncated. Callers that need an integer for display should
-    cast explicitly; downstream math (significance tests, CI bounds) now
-    uses the full-precision value.
+    silently truncated. This is not the effective sample size for inference.
     """
     if weight_var and weight_var in df.columns:
         return float(df[weight_var].sum())
     return float(len(df))
 
 
+def _effective_n(df: pd.DataFrame, weight_var: Optional[str]) -> float:
+    """Return Kish effective n, invariant to a common weight multiplier."""
+    if weight_var is None:
+        return float(len(df))
+    weights = df[weight_var]
+    maximum = weights.max()
+    if not maximum > 0:
+        return 0.0
+    weights = weights / maximum
+    return float(weights.sum() ** 2 / (weights ** 2).sum())
+
+
+def _respondent_counts(df, row_var, metric, weight_var=None) -> Optional[pd.Series]:
+    """Only count tables have respondent-frequency metadata.
+
+    A unit-valued metric is a respondent indicator, used by existing callers.
+    Other metrics represent sums, for which count-based inference is invalid.
+
+    When ``weight_var`` is set, only rows with a positive weight are counted,
+    so the chi-square respondent base matches the weighted display (which
+    already excludes ``w == 0`` rows). Otherwise a zero-weight row would be
+    counted as a respondent the weighting dropped.
+    """
+    if metric in df.columns and not df[metric].eq(1).all():
+        return None
+    if weight_var is not None and weight_var in df.columns:
+        df = df[df[weight_var] > 0]
+    return df.groupby(row_var).size()
+
+
 def _views_from_counts(
     counts: pd.Series,
-    base: int,
+    base: float,
     pct_base: Optional[float] = None,
+    effective_n: Optional[float] = None,
+    respondent_counts: Optional[pd.Series] = None,
 ) -> List[View]:
     total = pct_base if pct_base is not None else float(counts.sum())
     views = []
     for cat, cnt in counts.items():
         pct = float(cnt) / total if total > 0 else 0.0
-        views.append(View(metric=str(cat), base=base, count=float(cnt), pct=pct))
+        views.append(View(
+            metric=str(cat), base=base, count=float(cnt), pct=pct,
+            effective_n=effective_n,
+            respondent_count=int(respondent_counts.get(cat, 0)) if respondent_counts is not None else None,
+        ))
     return views
 
 
@@ -195,9 +314,16 @@ def _grouped_counts_views(
             subset = df[df[bv] == bval]
             base = _base_respondents(subset, weight_var)
             counts = _weighted_counts(subset, row_var, metric, weight_var)
+            total = float(counts.sum())
+            respondents = _respondent_counts(subset, row_var, metric, weight_var)
             if top_n:
                 counts = counts.nlargest(top_n)
-            views[f"{bv}={bval}"] = _views_from_counts(counts, base)
+            views[f"{bv}={bval}"] = _views_from_counts(
+                counts, base, pct_base=total,
+                effective_n=_effective_n(subset.dropna(subset=[row_var]), weight_var)
+                if respondents is not None else None,
+                respondent_counts=respondents,
+            )
     return views
 
 
@@ -225,11 +351,15 @@ def _build_multiple_response(
             subset = df[df[bv] == bval]
             n_respondents = _base_respondents(subset, weight_var)
             counts = _weighted_counts(subset, row_var, metric, weight_var)
+            respondents = _respondent_counts(subset, row_var, metric, weight_var)
             if top_n:
                 counts = counts.nlargest(top_n)
             key = f"{bv}={bval}"
             views[key] = _views_from_counts(
-                counts, base=n_respondents, pct_base=float(n_respondents)
+                counts, base=n_respondents, pct_base=float(n_respondents),
+                effective_n=_effective_n(subset, weight_var)
+                if respondents is not None else None,
+                respondent_counts=respondents,
             )
     n_total = _base_respondents(df, weight_var)
     # Display-only: round for the base_note; downstream math keeps full precision.
@@ -266,10 +396,17 @@ def _build_longitudinal(
         subset = df[df[time_col] == period]
         base = _base_respondents(subset, weight_var)
         counts = _weighted_counts(subset, row_var, metric, weight_var)
+        total = float(counts.sum())
+        respondents = _respondent_counts(subset, row_var, metric, weight_var)
         if top_n:
             counts = counts.nlargest(top_n)
         key = str(period)
-        views[key] = _views_from_counts(counts, base)
+        views[key] = _views_from_counts(
+            counts, base, pct_base=total,
+            effective_n=_effective_n(subset.dropna(subset=[row_var]), weight_var)
+            if respondents is not None else None,
+            respondent_counts=respondents,
+        )
 
     # Compute delta: last period − first period
     delta_col = None
@@ -305,10 +442,17 @@ def _build_ranking(
             base = _base_respondents(subset, weight_var)
             counts = _weighted_counts(subset, row_var, metric, weight_var)
             counts = counts.sort_values(ascending=False)
+            total = float(counts.sum())
+            respondents = _respondent_counts(subset, row_var, metric, weight_var)
             if top_n:
                 counts = counts.head(top_n)
             key = f"{bv}={bval}"
-            views[key] = _views_from_counts(counts, base)
+            views[key] = _views_from_counts(
+                counts, base, pct_base=total,
+                effective_n=_effective_n(subset.dropna(subset=[row_var]), weight_var)
+                if respondents is not None else None,
+                respondent_counts=respondents,
+            )
     return Chain(
         row_var=row_var, break_vars=break_vars, views=views,
         table_type=TableType.RANKING, geo_column=geo_column,
@@ -324,6 +468,12 @@ def _build_mean_scale(
     there is no fallback to row counts. Missing metric raises so callers
     don't receive a silently-empty chain that'd render as a blank page
     with no diagnostic.
+
+    Weights are treated as reliability weights: the variance divides by
+    sum(w) - sum(w**2)/sum(w), and SE is sqrt(variance / Kish n). The CI
+    uses effective n - 1 degrees of freedom for small samples and is None
+    when the effective n is below 2 (not estimable). This is a
+    weight-only approximation, not a correction for clustering/strata.
     """
     if metric not in df.columns:
         raise ValueError(
@@ -340,12 +490,30 @@ def _build_mean_scale(
             key = f"{bv}={bval}"
             cell_views = []
             for cat in df[row_var].dropna().unique():
-                cat_vals = subset[subset[row_var] == cat][metric].dropna()
-                if len(cat_vals) == 0:
+                sample = subset[subset[row_var] == cat].dropna(subset=[metric])
+                if weight_var is not None:
+                    sample = sample[sample[weight_var] > 0]
+                if sample.empty:
                     continue
-                mean = float(cat_vals.mean())
-                ci = _critical_value(len(cat_vals)) * float(cat_vals.std(ddof=1)) / (len(cat_vals) ** 0.5) if len(cat_vals) > 1 else 0.0
-                v = View(metric=str(cat), base=base, count=mean, pct=None, ci=ci)
+                cat_vals = sample[metric]
+                n_eff = _effective_n(sample, weight_var)
+                if weight_var is not None:
+                    weights = sample[weight_var] / sample[weight_var].max()
+                    mean = float((cat_vals * weights).sum() / weights.sum())
+                    variance = (
+                        float((weights * (cat_vals - mean) ** 2).sum())
+                        / float(weights.sum() - (weights ** 2).sum() / weights.sum())
+                        if n_eff > 1 else 0.0
+                    )
+                else:
+                    mean = float(cat_vals.mean())
+                    variance = float(cat_vals.var(ddof=1)) if n_eff > 1 else 0.0
+                # Below two effective respondents the t critical value has
+                # fewer than one degree of freedom and the interval is not
+                # estimable, so no CI is reported.
+                ci = _critical_value(n_eff) * (variance / n_eff) ** 0.5 if n_eff >= 2 else None
+                v = View(metric=str(cat), base=base, count=mean, pct=None, ci=ci,
+                         effective_n=n_eff)
                 cell_views.append(v)
             if top_n:
                 cell_views = sorted(cell_views, key=lambda v: v.count, reverse=True)[:top_n]

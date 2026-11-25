@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from numbers import Number
 from typing import Optional
 
 __all__ = [
@@ -335,17 +336,58 @@ def list_countries():
     return COUNTRY_CODES.copy()
 
 
+def _normalize_address_field(value, *, zipcode: bool = False, pad: bool = True) -> str:
+    """Normalize scalar address fields without importing pandas or numpy.
+
+    With ``zipcode=True`` a numeric postal code becomes its digits. ``pad=True``
+    treats it as a US ZIP: leading zeros are restored to five or nine digits
+    and values over nine digits are invalid. ``pad=False`` keeps the digits as
+    they are, for postal codes of other countries.
+    """
+    if (
+        value is None
+        or type(value).__name__ in {"NAType", "NaTType"}
+        or (isinstance(value, Number) and value != value)
+    ):
+        return ""
+    if zipcode:
+        if isinstance(value, bool) or type(value).__name__ in {"bool", "bool_"}:
+            return ""
+        if isinstance(value, Number):
+            try:
+                integer = int(value)
+            except (TypeError, ValueError, OverflowError):
+                return ""
+            if value != integer or integer < 0:
+                return ""
+            digits = str(integer)
+            if not pad:
+                return digits
+            if integer > 999_999_999:
+                return ""
+            return digits.zfill(5 if len(digits) <= 5 else 9)
+    return str(value)
+
+
+# Country values that mean a US address; an empty country is treated as US.
+_US_COUNTRY_NAMES = {"", "US", "USA", "UNITED STATES", "UNITED STATES OF AMERICA"}
+
+
 def concatenate_addresses(street=None, city=None, state_province_area=None,
     postal_code=None, country=None):
     """
     Concatenate address components into a single string suitable for geocoding.
     Returns a properly formatted address string.
+
+    A numeric postal code is padded to a five-digit (or nine-digit) US ZIP only
+    when ``country`` is empty or names the United States ("US", "USA",
+    "United States", case-insensitive); for any other country its digits are
+    kept as given, so Sydney's 2000 stays 2000.
     """
+    us_address = _normalize_address_field(country).strip().upper() in _US_COUNTRY_NAMES
     components = []
-    for component in (street, city, state_province_area, postal_code, country):
-        if component is None:
-            continue
-        value = str(component).strip()
+    for index, component in enumerate((street, city, state_province_area, postal_code, country)):
+        value = _normalize_address_field(component, zipcode=index == 3, pad=us_address).strip()
         if value:
             components.append(value)
     return ', '.join(components)

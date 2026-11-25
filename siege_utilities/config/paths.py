@@ -6,7 +6,9 @@ Centralized path management following the Zsh configuration pattern.
 import logging
 import os
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Callable, Dict, Optional, List
+
+from ._home import _fallback_home_directory, _home_directory
 
 __all__ = [
     'SIEGE_UTILITIES_HOME',
@@ -52,41 +54,49 @@ __all__ = [
 log = logging.getLogger(__name__)
 
 
-def _env_path(name: str, default: Path) -> Path:
+def _env_path(name: str, default: Path | Callable[[], Path]) -> Path:
     """Read a path-shaped env var with a safety guard.
 
     Without this guard, ``SIEGE_OUTPUT=/etc`` (or any other system path)
     would happily flow into the package's I/O routines. We resolve the
-    candidate and refuse paths that escape :func:`Path.home`. Setting
+    candidate and refuse paths that escape the home directory (or its
+    temporary substitute when home lookup fails). Setting
     ``SIEGE_ALLOW_UNSAFE_PATHS=1`` opts out of the check for power
     users who genuinely want a non-home target.
 
     Resolution uses ``Path.expanduser().resolve()`` so ``~`` and
-    relative components are handled consistently.
+    relative components are handled consistently. A callable default is
+    evaluated only if the override is absent or rejected.
     """
     raw = os.getenv(name)
     if not raw:
-        return default
-    candidate = Path(raw).expanduser()
+        return default() if callable(default) else default
     try:
-        resolved = candidate.resolve()
-    except (OSError, RuntimeError):
+        resolved = Path(raw).expanduser().resolve()
+    except (OSError, RuntimeError, KeyError):
+        fallback = default() if callable(default) else default
         log.warning("Env var %s=%r could not be resolved; using default %s.",
-                    name, raw, default)
-        return default
+                    name, raw, fallback)
+        return fallback
     if os.environ.get("SIEGE_ALLOW_UNSAFE_PATHS", "").lower() in ("1", "true", "yes"):
         return resolved
-    home = Path.home().resolve()
+    # Validate the override without evaluating any home-based default or
+    # calling Path.home(). expanduser also supports passwd lookup without HOME.
+    try:
+        home = Path('~').expanduser().resolve()
+    except (RuntimeError, KeyError):
+        home = _fallback_home_directory().resolve()
     try:
         resolved.relative_to(home)
     except ValueError:
+        fallback = default() if callable(default) else default
         log.warning(
             "Env var %s=%r resolves outside $HOME (%s). Refusing as a "
             "path-traversal safety guard; using default %s. Set "
             "SIEGE_ALLOW_UNSAFE_PATHS=1 to opt out.",
-            name, str(resolved), home, default,
+            name, str(resolved), home, fallback,
         )
-        return default
+        return fallback
     return resolved
 
 
@@ -97,70 +107,98 @@ def _env_path(name: str, default: Path) -> Path:
 # Env-var values are constrained to ${HOME}-relative paths by default —
 # see _env_path for the rationale.
 
-# Primary project paths (from environment variables with fallbacks)
-SIEGE_UTILITIES_HOME = _env_path('SIEGE_UTILITIES', Path.home() / 'siege_utilities')
-SIEGE_UTILITIES_TEST = _env_path('SIEGE_UTILITIES_TEST', Path.home() / 'siege_utilities_test')
+# Each entry is (environment variable, parent constant, relative suffix).
+# A missing parent means the user's home, resolved only when needed.
+# Type declarations do not resolve the lazy module attributes.
+SIEGE_UTILITIES_HOME: Path
+SIEGE_UTILITIES_TEST: Path
+SIEGE_ANALYTICS_ROOT: Path
+GEOCODING_PROJECT: Path
+MASAI_PROJECT: Path
+SIEGE_CACHE_DIR: Path
+SPARK_CACHE_DIR: Path
+TEMP_DIR: Path
+DOWNLOAD_TEMP_DIR: Path
+PROCESSING_TEMP_DIR: Path
+SIEGE_OUTPUT_DIR: Path
+REPORTS_OUTPUT_DIR: Path
+CHARTS_OUTPUT_DIR: Path
+MAPS_OUTPUT_DIR: Path
+DATA_DIR: Path
+CENSUS_DATA_DIR: Path
+NCES_DATA_DIR: Path
+SAMPLE_DATA_DIR: Path
+CONFIG_DIR: Path
+USER_CONFIG_FILE: Path
+DATABASE_CONFIG_DIR: Path
+LOG_DIR: Path
+ERROR_LOG_DIR: Path
+DEBUG_LOG_DIR: Path
+BACKUP_DIR: Path
+CONFIG_BACKUP_DIR: Path
+DATA_BACKUP_DIR: Path
 
-# Siege Analytics organization paths
-SIEGE_ANALYTICS_ROOT = _env_path('SIEGE', Path.home() / 'siege_analytics')
-GEOCODING_PROJECT = _env_path('GEOCODE', SIEGE_ANALYTICS_ROOT / 'geocoding')
-MASAI_PROJECT = _env_path('MASAI', SIEGE_ANALYTICS_ROOT / 'masai')
-# =============================================================================
-# CACHE AND TEMPORARY DIRECTORIES
-# =============================================================================
+_PATH_DEFAULTS = {
+    'SIEGE_UTILITIES_HOME': ('SIEGE_UTILITIES', None, 'siege_utilities'),
+    'SIEGE_UTILITIES_TEST': ('SIEGE_UTILITIES_TEST', None, 'siege_utilities_test'),
+    'SIEGE_ANALYTICS_ROOT': ('SIEGE', None, 'siege_analytics'),
+    'GEOCODING_PROJECT': ('GEOCODE', 'SIEGE_ANALYTICS_ROOT', 'geocoding'),
+    'MASAI_PROJECT': ('MASAI', 'SIEGE_ANALYTICS_ROOT', 'masai'),
+    'SIEGE_CACHE_DIR': ('SIEGE_CACHE', None, '.siege_cache'),
+    'SPARK_CACHE_DIR': ('SPARK_CACHE', None, '.spark_hdfs_cache'),
+    'TEMP_DIR': ('SIEGE_TEMP', None, '.siege_temp'),
+    'DOWNLOAD_TEMP_DIR': (None, 'TEMP_DIR', 'downloads'),
+    'PROCESSING_TEMP_DIR': (None, 'TEMP_DIR', 'processing'),
+    'SIEGE_OUTPUT_DIR': ('SIEGE_OUTPUT', None, 'Downloads'),
+    'REPORTS_OUTPUT_DIR': ('SIEGE_REPORTS', 'SIEGE_OUTPUT_DIR', 'siege_reports'),
+    'CHARTS_OUTPUT_DIR': ('SIEGE_CHARTS', 'SIEGE_OUTPUT_DIR', 'siege_charts'),
+    'MAPS_OUTPUT_DIR': ('SIEGE_MAPS', 'SIEGE_OUTPUT_DIR', 'siege_maps'),
+    'DATA_DIR': ('SIEGE_DATA', 'SIEGE_UTILITIES_HOME', 'data'),
+    'CENSUS_DATA_DIR': ('CENSUS_DATA', 'DATA_DIR', 'census'),
+    'NCES_DATA_DIR': ('NCES_DATA', 'DATA_DIR', 'nces'),
+    'SAMPLE_DATA_DIR': ('SAMPLE_DATA', 'DATA_DIR', 'samples'),
+    'CONFIG_DIR': ('SIEGE_CONFIG', 'SIEGE_UTILITIES_HOME', 'config'),
+    'USER_CONFIG_FILE': ('SIEGE_USER_CONFIG', None, '.siege_config.yaml'),
+    'DATABASE_CONFIG_DIR': (None, 'CONFIG_DIR', 'databases'),
+    'LOG_DIR': ('SIEGE_LOG_DIR', None, '.siege_logs'),
+    'ERROR_LOG_DIR': (None, 'LOG_DIR', 'errors'),
+    'DEBUG_LOG_DIR': (None, 'LOG_DIR', 'debug'),
+    'BACKUP_DIR': ('SIEGE_BACKUP', None, '.siege_backups'),
+    'CONFIG_BACKUP_DIR': (None, 'BACKUP_DIR', 'config'),
+    'DATA_BACKUP_DIR': (None, 'BACKUP_DIR', 'data'),
+}
+# importlib.reload() must also discard paths resolved by an earlier import.
+for _name in _PATH_DEFAULTS:
+    globals().pop(_name, None)
 
-# Cache directories (configurable via environment)
-SIEGE_CACHE_DIR = _env_path('SIEGE_CACHE', Path.home() / '.siege_cache')
-SPARK_CACHE_DIR = _env_path('SPARK_CACHE', Path.home() / '.spark_hdfs_cache')
-# Temporary directories
-TEMP_DIR = _env_path('SIEGE_TEMP', Path.home() / '.siege_temp')
-DOWNLOAD_TEMP_DIR = TEMP_DIR / 'downloads'
-PROCESSING_TEMP_DIR = TEMP_DIR / 'processing'
+_auto_init_pending = os.getenv('SIEGE_AUTO_INIT_DIRS', 'false').lower() == 'true'
 
-# =============================================================================
-# OUTPUT AND RESULTS DIRECTORIES
-# =============================================================================
 
-# Output directories (configurable via environment)
-SIEGE_OUTPUT_DIR = _env_path('SIEGE_OUTPUT', Path.home() / 'Downloads')
-REPORTS_OUTPUT_DIR = _env_path('SIEGE_REPORTS', SIEGE_OUTPUT_DIR / 'siege_reports')
-CHARTS_OUTPUT_DIR = _env_path('SIEGE_CHARTS', SIEGE_OUTPUT_DIR / 'siege_charts')
-MAPS_OUTPUT_DIR = _env_path('SIEGE_MAPS', SIEGE_OUTPUT_DIR / 'siege_maps')
-# =============================================================================
-# DATA DIRECTORIES
-# =============================================================================
+def _get_path(name: str) -> Path:
+    global _auto_init_pending
+    if name not in globals():
+        env_name, parent, suffix = _PATH_DEFAULTS[name]
 
-# Data storage directories
-DATA_DIR = _env_path('SIEGE_DATA', SIEGE_UTILITIES_HOME / 'data')
-CENSUS_DATA_DIR = _env_path('CENSUS_DATA', DATA_DIR / 'census')
-NCES_DATA_DIR = _env_path('NCES_DATA', DATA_DIR / 'nces')
-SAMPLE_DATA_DIR = _env_path('SAMPLE_DATA', DATA_DIR / 'samples')
-# =============================================================================
-# CONFIGURATION DIRECTORIES
-# =============================================================================
+        def default() -> Path:
+            base = _get_path(parent) if parent else _home_directory()
+            return base / suffix
 
-# Configuration file locations
-CONFIG_DIR = _env_path('SIEGE_CONFIG', SIEGE_UTILITIES_HOME / 'config')
-USER_CONFIG_FILE = _env_path('SIEGE_USER_CONFIG', Path.home() / '.siege_config.yaml')
-DATABASE_CONFIG_DIR = CONFIG_DIR / 'databases'
+        globals()[name] = _env_path(env_name, default) if env_name else default()
+    if _auto_init_pending:
+        _auto_init_pending = False
+        initialize_siege_directories()
+    return globals()[name]
 
-# =============================================================================
-# LOG DIRECTORIES
-# =============================================================================
 
-# Logging directories (configurable via environment)
-LOG_DIR = _env_path('SIEGE_LOG_DIR', Path.home() / '.siege_logs')
-ERROR_LOG_DIR = LOG_DIR / 'errors'
-DEBUG_LOG_DIR = LOG_DIR / 'debug'
+def __getattr__(name: str) -> Path:
+    if name in _PATH_DEFAULTS:
+        return _get_path(name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-# =============================================================================
-# BACKUP AND ARCHIVE DIRECTORIES
-# =============================================================================
 
-# Backup locations
-BACKUP_DIR = _env_path('SIEGE_BACKUP', Path.home() / '.siege_backups')
-CONFIG_BACKUP_DIR = BACKUP_DIR / 'config'
-DATA_BACKUP_DIR = BACKUP_DIR / 'data'
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | set(__all__))
+
 
 # =============================================================================
 # STANDARD DIRECTORY STRUCTURE
@@ -220,14 +258,15 @@ def get_project_path(project_name: str) -> Optional[Path]:
         Path object or None if project not found
     """
     project_map = {
-        'siege_utilities': SIEGE_UTILITIES_HOME,
-        'siege_utilities_test': SIEGE_UTILITIES_TEST,
-        'geocoding': GEOCODING_PROJECT,
-        'masai': MASAI_PROJECT,
-        'siege_analytics': SIEGE_ANALYTICS_ROOT
+        'siege_utilities': 'SIEGE_UTILITIES_HOME',
+        'siege_utilities_test': 'SIEGE_UTILITIES_TEST',
+        'geocoding': 'GEOCODING_PROJECT',
+        'masai': 'MASAI_PROJECT',
+        'siege_analytics': 'SIEGE_ANALYTICS_ROOT'
     }
     
-    return project_map.get(project_name.lower())
+    name = project_map.get(project_name.lower())
+    return _get_path(name) if name else None
 
 def get_cache_path(cache_type: str = 'default') -> Path:
     """
@@ -240,14 +279,14 @@ def get_cache_path(cache_type: str = 'default') -> Path:
         Path to cache directory
     """
     cache_map = {
-        'default': SIEGE_CACHE_DIR,
-        'spark': SPARK_CACHE_DIR,
-        'census': SIEGE_CACHE_DIR / 'census',
-        'nces': SIEGE_CACHE_DIR / 'nces',
-        'downloads': SIEGE_CACHE_DIR / 'downloads'
+        'default': ('SIEGE_CACHE_DIR', ''),
+        'spark': ('SPARK_CACHE_DIR', ''),
+        'census': ('SIEGE_CACHE_DIR', 'census'),
+        'nces': ('SIEGE_CACHE_DIR', 'nces'),
+        'downloads': ('SIEGE_CACHE_DIR', 'downloads')
     }
-    
-    cache_path = cache_map.get(cache_type, SIEGE_CACHE_DIR)
+    name, suffix = cache_map.get(cache_type, ('SIEGE_CACHE_DIR', ''))
+    cache_path = _get_path(name) / suffix
     return ensure_directory_exists(cache_path)
 
 def get_output_path(output_type: str = 'default') -> Path:
@@ -261,14 +300,14 @@ def get_output_path(output_type: str = 'default') -> Path:
         Path to output directory
     """
     output_map = {
-        'default': SIEGE_OUTPUT_DIR,
-        'reports': REPORTS_OUTPUT_DIR,
-        'charts': CHARTS_OUTPUT_DIR,
-        'maps': MAPS_OUTPUT_DIR,
-        'temp': TEMP_DIR
+        'default': 'SIEGE_OUTPUT_DIR',
+        'reports': 'REPORTS_OUTPUT_DIR',
+        'charts': 'CHARTS_OUTPUT_DIR',
+        'maps': 'MAPS_OUTPUT_DIR',
+        'temp': 'TEMP_DIR'
     }
     
-    output_path = output_map.get(output_type, SIEGE_OUTPUT_DIR)
+    output_path = _get_path(output_map.get(output_type, 'SIEGE_OUTPUT_DIR'))
     return ensure_directory_exists(output_path)
 
 def get_data_path(data_type: str = 'default') -> Path:
@@ -282,13 +321,13 @@ def get_data_path(data_type: str = 'default') -> Path:
         Path to data directory
     """
     data_map = {
-        'default': DATA_DIR,
-        'census': CENSUS_DATA_DIR,
-        'nces': NCES_DATA_DIR,
-        'samples': SAMPLE_DATA_DIR
+        'default': 'DATA_DIR',
+        'census': 'CENSUS_DATA_DIR',
+        'nces': 'NCES_DATA_DIR',
+        'samples': 'SAMPLE_DATA_DIR'
     }
     
-    data_path = data_map.get(data_type, DATA_DIR)
+    data_path = _get_path(data_map.get(data_type, 'DATA_DIR'))
     return ensure_directory_exists(data_path)
 
 def setup_standard_directories(base_path: Path) -> Dict[str, Path]:
@@ -339,7 +378,7 @@ def get_relative_to_home(path: Path) -> str:
         Path relative to home with ~ prefix
     """
     try:
-        relative = path.relative_to(Path.home())
+        relative = path.relative_to(_home_directory())
         return f"~/{relative}"
     except ValueError:
         return str(path)
@@ -351,32 +390,35 @@ def get_relative_to_home(path: Path) -> str:
 def initialize_siege_directories() -> List[Path]:
     """Initialize all standard Siege utilities directories.
 
-    Catches PermissionError, FileNotFoundError, and OSError so that
-    imports do not fail in containers, CI, or cross-platform environments.
+    Catches filesystem errors for containers, CI, and cross-platform use.
+    With ``SIEGE_AUTO_INIT_DIRS=true``, this runs on first path access.
     """
+    global _auto_init_pending
+    _auto_init_pending = False
     directories_to_create = [
-        SIEGE_CACHE_DIR,
-        TEMP_DIR,
-        DOWNLOAD_TEMP_DIR,
-        PROCESSING_TEMP_DIR,
-        SIEGE_OUTPUT_DIR,
-        REPORTS_OUTPUT_DIR,
-        CHARTS_OUTPUT_DIR,
-        MAPS_OUTPUT_DIR,
-        DATA_DIR,
-        CENSUS_DATA_DIR,
-        NCES_DATA_DIR,
-        SAMPLE_DATA_DIR,
-        LOG_DIR,
-        ERROR_LOG_DIR,
-        DEBUG_LOG_DIR,
-        BACKUP_DIR,
-        CONFIG_BACKUP_DIR,
-        DATA_BACKUP_DIR
+        'SIEGE_CACHE_DIR',
+        'TEMP_DIR',
+        'DOWNLOAD_TEMP_DIR',
+        'PROCESSING_TEMP_DIR',
+        'SIEGE_OUTPUT_DIR',
+        'REPORTS_OUTPUT_DIR',
+        'CHARTS_OUTPUT_DIR',
+        'MAPS_OUTPUT_DIR',
+        'DATA_DIR',
+        'CENSUS_DATA_DIR',
+        'NCES_DATA_DIR',
+        'SAMPLE_DATA_DIR',
+        'LOG_DIR',
+        'ERROR_LOG_DIR',
+        'DEBUG_LOG_DIR',
+        'BACKUP_DIR',
+        'CONFIG_BACKUP_DIR',
+        'DATA_BACKUP_DIR'
     ]
 
     created = []
-    for directory in directories_to_create:
+    for name in directories_to_create:
+        directory = _get_path(name)
         try:
             ensure_directory_exists(directory)
             created.append(directory)
@@ -386,7 +428,3 @@ def initialize_siege_directories() -> List[Path]:
             )
 
     return created
-
-# Auto-initialize on import (opt-in via environment variable)
-if os.getenv('SIEGE_AUTO_INIT_DIRS', 'false').lower() == 'true':
-    initialize_siege_directories()

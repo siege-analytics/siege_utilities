@@ -378,12 +378,6 @@ class BarChartMixin:
             # Create figure with larger size for dominant appearance
             fig, ax = plt.subplots(figsize=(width, height), dpi=self.default_dpi)
 
-            # Adjust subplot parameters to make room for legend table
-            if legend_position == "bottom":
-                fig.subplots_adjust(left=0.1, right=0.9, top=0.85, bottom=0.35)
-            else:
-                fig.subplots_adjust(left=0.1, right=0.6, top=0.9, bottom=0.1)
-
             # A zero or non-finite total cannot define wedges or percentages.
             total = sum(values)
             if any(value < 0 for value in values):
@@ -410,50 +404,204 @@ class BarChartMixin:
 
                 # Create legend table data
                 legend_data = []
-                for i, (label, value, pct) in enumerate(zip(labels, values, percentages)):
+                for label, value, pct in zip(labels, values, percentages):
                     legend_data.append([
                         "■",  # Color indicator
-                        label,
+                        "" if label is None else str(label),
                         f"{value:,}",
                         pct
                     ])
 
-                # bbox is [left, bottom, width, height] in axes coordinates.
-                if legend_position == "bottom":
-                    table_bbox = [0.0, -0.6, 1.0, 0.5]
-                else:
-                    table_bbox = [1.05, 0.0, 0.6, 0.9]
-                table = ax.table(cellText=legend_data,
-                               colLabels=['', 'Label', 'Value', 'Percent'],
-                               cellLoc='center',
-                               loc='center',
-                               bbox=table_bbox)
-
-                # Style the table
-                table.auto_set_font_size(False)
-                table.set_fontsize(8)
-                table.scale(1, 1.5)
-
-                # Color the first column with the actual colors
-                for i, color in enumerate(self.color_palette[:len(values)]):
-                    table[(i+1, 0)].set_facecolor(color)
-                    table[(i+1, 0)].set_text_props(weight='bold')
-
-                # Style header
-                for i in range(4):
-                    table[(0, i)].set_facecolor('#40466e')
-                    table[(0, i)].set_text_props(weight='bold', color='white')
-
-                # Remove table borders
-                for i in range(len(legend_data) + 1):
-                    for j in range(4):
-                        table[(i, j)].set_edgecolor('none')
+                self._draw_pie_legend_table(fig, ax, legend_data,
+                                            self.color_palette[:len(values)],
+                                            legend_position)
+            elif legend_position == "bottom":
+                fig.subplots_adjust(left=0.1, right=0.9, top=0.85, bottom=0.35)
+            else:
+                fig.subplots_adjust(left=0.1, right=0.6, top=0.9, bottom=0.1)
 
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
             raise RuntimeError("Chart generation failed") from e
+
+    # Pie legend table layout. Margins and shares are figure fractions; font
+    # sizes are points; padding is per side, in multiples of the font size.
+    _PIE_LEGEND_HEADER = ('', 'Label', 'Value', 'Percent')
+    _PIE_LEGEND_FONT_PT = 8.0
+    _PIE_LEGEND_MIN_FONT_PT = 5.0
+    _PIE_LEGEND_ROW_SPACING = 1.6
+    _PIE_LEGEND_CELL_PAD = 0.3
+    _PIE_LEGEND_MARGIN = 0.02
+    _PIE_MIN_AXES_SHARE = 0.35
+    _PIE_BOTTOM_LEGEND_MAX_SHARE = 0.45
+    _PIE_TITLE_MIN_FONT_PT = 7.0
+    _ELLIPSIS = "…"
+
+    def _place_pie_title(self, fig, ax, margin: float) -> float:
+        """Move the pie's title to the top of the figure and fit it there.
+
+        The title is centred on the whole figure rather than on the (shrunk)
+        pie axes, so a wide legend cannot push it off the canvas or under the
+        table. A title wider than the figure is drawn smaller, down to
+        ``_PIE_TITLE_MIN_FONT_PT``, and then wrapped onto more lines.
+
+        Returns:
+            The figure fraction below which the rest of the chart must stay.
+        """
+        import textwrap
+
+        text = ax.get_title()
+        if not text:
+            return 1.0 - margin
+        font = ax.title.get_fontsize()
+        ax.set_title("")
+        title = fig.suptitle(text, x=0.5, y=1.0 - margin, ha='center', va='top',
+                             fontsize=font)
+        fig_px_w = fig.get_figwidth() * fig.dpi
+        max_px = (1.0 - 2 * margin) * fig_px_w
+
+        width = title.get_window_extent().width
+        if width > max_px:
+            font = max(self._PIE_TITLE_MIN_FONT_PT, font * max_px / width)
+            title.set_fontsize(font)
+            width = title.get_window_extent().width
+        chars = len(text)
+        while width > max_px and chars > 1:
+            chars = max(1, int(chars * max_px / width) - 1)
+            title.set_text(textwrap.fill(text, width=chars, break_long_words=True))
+            width = title.get_window_extent().width
+        height = title.get_window_extent().height / (fig.get_figheight() * fig.dpi)
+        return 1.0 - 2 * margin - height
+
+    def _draw_pie_legend_table(self, fig, ax, rows: List[List[str]],
+                               swatch_colors: List[str],
+                               legend_position: str) -> None:
+        """Draw the pie legend table so all of it lies inside the figure.
+
+        The table gets its own axes sized in *figure* coordinates from the
+        measured width of every column, and the pie axes are shrunk to leave
+        room for it. If the table would still be too wide at the default font
+        size the font is reduced (down to ``_PIE_LEGEND_MIN_FONT_PT``), and
+        after that over-long labels are shortened with an ellipsis. Too many
+        rows for the available height shrink the font further. The title is
+        placed across the top of the figure, above both the pie and the
+        table. The saved image is the figure canvas, so this keeps every
+        column and the whole title visible (#1999).
+        """
+        margin = self._PIE_LEGEND_MARGIN
+        base = self._PIE_LEGEND_FONT_PT
+        pad = self._PIE_LEGEND_CELL_PAD
+        header = list(self._PIE_LEGEND_HEADER)
+        fig_w_pt = fig.get_figwidth() * 72.0
+        fig_h_pt = fig.get_figheight() * 72.0
+        n_rows = len(rows) + 1
+        bottom = legend_position == "bottom"
+        top = self._place_pie_title(fig, ax, margin)
+
+        if bottom:
+            avail_w = (1.0 - 2 * margin) * fig_w_pt
+            avail_h = (min(self._PIE_BOTTOM_LEGEND_MAX_SHARE, top / 2)
+                       - 2 * margin) * fig_h_pt
+        else:
+            avail_w = (1.0 - 3 * margin - self._PIE_MIN_AXES_SHARE) * fig_w_pt
+            avail_h = (top - margin) * fig_h_pt
+
+        def measure(text: str) -> float:
+            """Width of ``text`` in points at the base font size (bold)."""
+            probe = fig.text(0, 0, text, fontsize=base, weight='bold')
+            try:
+                extent = probe.get_window_extent()
+            finally:
+                probe.remove()
+            return extent.width * 72.0 / fig.dpi
+
+        # Natural (base-size) text width of each column.
+        widths = [max(measure(row[col]) for row in [header] + rows)
+                  for col in range(len(header))]
+
+        def table_width(font: float, col_text_widths: List[float]) -> float:
+            scale = font / base
+            return sum(w * scale + 2 * pad * font for w in col_text_widths)
+
+        font = min(base, avail_h / (n_rows * self._PIE_LEGEND_ROW_SPACING))
+        width_fit = font * avail_w / table_width(font, widths)
+        if width_fit < font:
+            font = max(width_fit, min(self._PIE_LEGEND_MIN_FONT_PT, font))
+
+        if table_width(font, widths) > avail_w:
+            # Still too wide at the smallest font: shorten the labels.
+            scale = font / base
+            others = table_width(font, [w for i, w in enumerate(widths) if i != 1])
+            label_budget = (avail_w - others - 2 * pad * font) / scale
+            ellipsis_w = measure(self._ELLIPSIS)
+            if label_budget < ellipsis_w:
+                # Even the value/percent columns are too wide; size the
+                # font to fit a one-character label column.
+                fixed = [w if i != 1 else ellipsis_w for i, w in enumerate(widths)]
+                font = font * avail_w / table_width(font, fixed)
+                label_budget = ellipsis_w
+            for row in rows:
+                if measure(row[1]) > label_budget:
+                    row[1] = self._truncate_to_width(row[1], label_budget, measure)
+            widths[1] = max(measure(row[1]) for row in [header] + rows)
+
+        scale = font / base
+        col_pts = [w * scale + 2 * pad * font for w in widths]
+        legend_w = sum(col_pts) / fig_w_pt
+        legend_h = n_rows * font * self._PIE_LEGEND_ROW_SPACING / fig_h_pt
+
+        if bottom:
+            fig.subplots_adjust(left=0.1, right=0.9, top=top,
+                                bottom=legend_h + 2 * margin)
+            rect = [0.5 - legend_w / 2, margin, legend_w, legend_h]
+        else:
+            fig.subplots_adjust(left=0.05, right=1.0 - legend_w - 2 * margin,
+                                top=top, bottom=0.05)
+            rect = [1.0 - margin - legend_w, margin + (top - margin - legend_h) / 2,
+                    legend_w, legend_h]
+
+        legend_ax = fig.add_axes(rect)
+        legend_ax.set_axis_off()
+        total = sum(col_pts)
+        table = legend_ax.table(cellText=rows,
+                                colLabels=header,
+                                colWidths=[w / total for w in col_pts],
+                                cellLoc='center',
+                                loc='center',
+                                bbox=[0, 0, 1, 1])
+
+        # Style the table
+        table.auto_set_font_size(False)
+        table.set_fontsize(font)
+
+        # Color the first column with the actual colors
+        for i, color in enumerate(swatch_colors):
+            table[(i+1, 0)].set_facecolor(color)
+            table[(i+1, 0)].set_text_props(weight='bold')
+
+        # Style header
+        for i in range(len(header)):
+            table[(0, i)].set_facecolor('#40466e')
+            table[(0, i)].set_text_props(weight='bold', color='white')
+
+        # Remove table borders
+        for i in range(n_rows):
+            for j in range(len(header)):
+                table[(i, j)].set_edgecolor('none')
+
+    @classmethod
+    def _truncate_to_width(cls, text: str, budget: float, measure) -> str:
+        """Longest prefix of ``text`` plus an ellipsis whose width fits ``budget``."""
+        lo, hi = 0, len(text)
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            if measure(text[:mid].rstrip() + cls._ELLIPSIS) <= budget:
+                lo = mid
+            else:
+                hi = mid - 1
+        return text[:lo].rstrip() + cls._ELLIPSIS
 
     def create_proportional_text_bar_chart(self,
                                          data: 'pd.DataFrame',

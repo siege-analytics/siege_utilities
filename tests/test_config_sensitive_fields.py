@@ -10,7 +10,7 @@ import pytest
 
 import siege_utilities.config.models as models
 from siege_utilities.config.models import actor_types
-from siege_utilities.config.models._sensitivity import SECRET_FIELD_NAME
+from siege_utilities.config.models._sensitivity import field_has_sensitive_name
 from tests.sensitive_field_cases import PUBLIC_NAMES, SECRET_NAMES
 
 
@@ -37,7 +37,7 @@ def _assert_config_secret_fields_marked() -> None:
             if not issubclass(model, BaseModel) or model.__module__ != module.__name__:
                 continue
             for name, field in model.model_fields.items():
-                if not SECRET_FIELD_NAME.search(name):
+                if not field_has_sensitive_name(name, field):
                     continue
                 metadata = field.json_schema_extra
                 marked = isinstance(metadata, dict) and metadata.get("sensitive") is True

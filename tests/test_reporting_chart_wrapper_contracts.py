@@ -18,8 +18,8 @@ def test_basic_chart_wrappers_delegate_dimensions_and_kwargs(monkeypatch):
         "city",
         "sales",
         "Sales",
-        640,
-        480,
+        6.4,
+        4.8,
         color="blue",
     ) == {"kind": "bar"}
     assert create_line_chart(
@@ -27,8 +27,8 @@ def test_basic_chart_wrappers_delegate_dimensions_and_kwargs(monkeypatch):
         "date",
         "revenue",
         "Revenue",
-        800,
-        300,
+        8.0,
+        3.0,
         smooth=True,
     ) == {"kind": "line"}
     assert create_pie_chart(
@@ -36,8 +36,8 @@ def test_basic_chart_wrappers_delegate_dimensions_and_kwargs(monkeypatch):
         "segment",
         "amount",
         "Mix",
-        500,
-        500,
+        5.0,
+        5.0,
         hole=0.4,
     ) == {"kind": "pie"}
 
@@ -45,22 +45,46 @@ def test_basic_chart_wrappers_delegate_dimensions_and_kwargs(monkeypatch):
         [
             (
                 "bar",
-                (data, "city", "sales", "Sales", 640, 480),
-                {"color": "blue"},
+                (),
+                {
+                    "data": data,
+                    "x_column": "city",
+                    "y_column": "sales",
+                    "title": "Sales",
+                    "width": 6.4,
+                    "height": 4.8,
+                    "color": "blue",
+                },
             )
         ],
         [
             (
                 "line",
-                (data, "date", "revenue", "Revenue", 800, 300),
-                {"smooth": True},
+                (),
+                {
+                    "data": data,
+                    "x_column": "date",
+                    "y_columns": ["revenue"],
+                    "title": "Revenue",
+                    "width": 8.0,
+                    "height": 3.0,
+                    "smooth": True,
+                },
             )
         ],
         [
             (
                 "pie",
-                (data, "segment", "amount", "Mix", 500, 500),
-                {"hole": 0.4},
+                (),
+                {
+                    "data": data,
+                    "labels_column": "segment",
+                    "values_column": "amount",
+                    "title": "Mix",
+                    "width": 5.0,
+                    "height": 5.0,
+                    "hole": 0.4,
+                },
             )
         ],
     ]
@@ -84,7 +108,17 @@ def test_generate_chart_from_dataframe_delegates_chart_parameters(monkeypatch):
     assert FakeChartGenerator.instances[0].calls == [
         (
             "dataframe",
-            (frame, "line", "date", ["sales", "cost"], "Trend", 7.5, 4.25),
-            {"palette": "brand"},
+            (),
+            {
+                "df": frame,
+                "chart_type": "line",
+                "x_column": "date",
+                "y_columns": ["sales", "cost"],
+                "title": "Trend",
+                "width": 7.5,
+                "height": 4.25,
+                "geo_data": None,
+                "palette": "brand",
+            },
         )
     ]

@@ -199,18 +199,59 @@ def move_column_to_front_of_dataframe(df: "DataFrame", column_name: str
     return df_reordered
 
 
-def write_df_to_parquet(df: "DataFrame", path: str, mode: str='overwrite'
-    ) -> None:
+_SPARK_WRITE_MODES = frozenset({'append', 'overwrite', 'ignore', 'error', 'errorifexists'})
+
+
+def _validate_spark_write_mode(mode) -> str:
+    """Return ``mode`` lower-cased if it is a documented Spark save mode.
+
+    Spark matches save modes case-insensitively, so ``'Overwrite'`` is
+    accepted and normalized. Anything else raises before a write starts,
+    rather than reaching the JVM with an unrecognized mode.
+
+    Raises:
+        ValueError: ``mode`` is not a string naming one of
+            ``_SPARK_WRITE_MODES``.
+    """
+    if not isinstance(mode, str) or mode.lower() not in _SPARK_WRITE_MODES:
+        raise ValueError(
+            f"Invalid Spark write mode {mode!r}; expected one of "
+            f"{sorted(_SPARK_WRITE_MODES)}"
+        )
+    return mode.lower()
+
+
+def write_df_to_parquet(df: "DataFrame", path: str,
+    mode: str='errorifexists') -> None:
     """
     Writes a DataFrame to a Parquet file.
+
+    The default does not destroy existing data: if ``path`` already exists
+    Spark raises ``AnalysisException`` and leaves it untouched. Pass
+    ``mode='overwrite'`` to replace an existing path deliberately.
 
     Args:
         df (DataFrame): Input Spark DataFrame.
         path (str): Output path.
-        mode (str): Write mode. Defaults to "overwrite".
+        mode (str): Spark save mode, case-insensitive: ``'errorifexists'``
+            (default; alias ``'error'``), ``'overwrite'``, ``'append'`` or
+            ``'ignore'`` (skip the write if the path exists).
+
+    Raises:
+        ValueError: ``mode`` is not a recognized Spark save mode. Raised
+            before any write.
+        pyspark.errors.AnalysisException: ``path`` exists and ``mode`` is
+            ``'errorifexists'``/``'error'``. Other Spark write errors
+            propagate unchanged.
     """
+    mode = _validate_spark_write_mode(mode)
     df.write.mode(mode).parquet(path)
-    log_info(f"Dataframe written to parquet at {path} with mode '{mode}'")
+    if mode == 'ignore':
+        # Spark does not report whether 'ignore' skipped an existing path.
+        log_info(f"Parquet write to {path} finished with mode 'ignore'; "
+            "nothing was written if the path already existed")
+    else:
+        log_info(f"Dataframe written to parquet at {path} with mode '{mode}'")
 
 
 def read_parquet_to_df(spark: "SparkSession", path: str) -> "DataFrame":
@@ -813,21 +854,37 @@ def pivot_summary_with_metrics(df, group_col, pivot_col, spark):
 
 
 def export_prepared_df_as_csv_to_path_using_delimiter(df: "DataFrame",
-    write_path: pathlib.Path, delimiter: str=',') -> None:
+    write_path: pathlib.Path, delimiter: str=',',
+    mode: str='errorifexists') -> None:
     """
     Exports DataFrame **with necessary transformations** to ensure Spark compatibility.
 
     :param df: Target DataFrame
     :param write_path: Pathlib object for export destination
     :param delimiter: CSV delimiter (default is comma)
+    :param mode: Spark save mode, case-insensitive. The default
+        ``'errorifexists'`` (alias ``'error'``) refuses to replace an existing
+        ``write_path``; pass ``'overwrite'`` to replace it deliberately, or
+        ``'append'``/``'ignore'``.
+    :raises ValueError: ``mode`` is not a recognized Spark save mode. Raised
+        before the DataFrame is prepared or written.
+    :raises pyspark.errors.AnalysisException: ``write_path`` exists and
+        ``mode`` is ``'errorifexists'``/``'error'``; the existing output is
+        left untouched. Other Spark write errors propagate unchanged.
 
     Applies `prepare_dataframe_for_export()` to prevent Spark export issues.
     """
+    mode = _validate_spark_write_mode(mode)
     prepared_df = prepare_dataframe_for_export(df)
     prepared_df.coalesce(1).write.format(RESULTS_OUTPUT_FORMAT).option(
-        'header', 'true').option('delimiter', delimiter).mode('overwrite'
+        'header', 'true').option('delimiter', delimiter).mode(mode
         ).save(str(write_path))
-    log_info(f'Data successfully exported for step: {write_path.stem}')
+    if mode == 'ignore':
+        # Spark does not report whether 'ignore' skipped an existing path.
+        log_info(f"Export for step {write_path.stem} finished with mode 'ignore'; "
+            'nothing was written if the path already existed')
+    else:
+        log_info(f'Data successfully exported for step: {write_path.stem}')
 
 
 def print_debug_table(spark_df, title):
@@ -965,7 +1022,7 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
     header: bool=True, mode: str='overwrite') -> None:
     """Write a DataFrame atomically via a staging directory.
 
-    Writes ``df`` to ``staging_directory``, then copies the complete result
+    Writes ``df`` to a new child of ``staging_directory``, then copies the complete result
     into a sibling directory on the destination filesystem before publishing
     it by rename. Write/copy failures leave the destination untouched. Existing
     nonempty destinations are renamed to a unique backup before publication;
@@ -977,13 +1034,19 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
     df : pyspark.sql.DataFrame
         DataFrame to write.
     final_destination : str
-        Target path where the completed output should live. Must be
-        empty or absent (unless ``mode='overwrite'``).
+        Target path where the completed output should live. Whether an
+        existing destination is replaced depends on ``mode``.
     staging_directory : str
-        Working directory where the write happens before the atomic
-        move. Recommended: build via
-        :func:`create_unique_staging_directory` to avoid concurrent
-        collisions. Removed on success and on failure.
+        Parent directory for the staging write. Each call writes into its
+        own new child, ``staging_{uuid4hex}``, and removes only that child
+        on success and on failure. Existing contents of
+        ``staging_directory`` are never deleted and are never published to
+        ``final_destination``. If this call created ``staging_directory``,
+        it removes the directory afterwards when it is empty (``os.rmdir``;
+        anything another writer put there stays). A directory that already
+        existed, including one built by
+        :func:`create_unique_staging_directory`, is left in place, empty,
+        after each call; remove it yourself, for example with ``os.rmdir``.
     file_format : str
         Output format. Currently supports ``'csv'`` and ``'parquet'``;
         defaults to ``'csv'``.
@@ -994,8 +1057,22 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
         Include header row in CSV output. Ignored for parquet.
         Defaults to ``True``.
     mode : str
-        Spark write mode passed to ``df.write.mode(...)``. Defaults to
-        ``'overwrite'``.
+        Save mode, case-insensitive, applied to ``final_destination`` (the
+        staging write always goes to a fresh path). ``'overwrite'``
+        (default) and ``'append'`` replace an existing destination; a
+        non-empty one is first renamed to ``<name>_backup_<uuid>``, which is
+        kept. ``'append'`` does not merge into the destination.
+        ``'error'``/``'errorifexists'`` raise ``FileExistsError`` if the
+        destination exists, before anything is written. ``'ignore'``
+        returns without writing if it exists. For a path containing ``..``,
+        either reading counts: the lexical one (as Spark resolves it) or the
+        one the OS resolves, including through symlinks. Any other value, including
+        ``'default'`` and ``None`` (which Spark reads as errorifexists),
+        raises ``ValueError`` before anything is checked or written. The
+        existence check runs once before the write and does not guard
+        against a concurrent writer creating the destination meanwhile.
+        The validated mode is passed to ``df.write.mode(...)`` for the
+        staging write, where on a fresh path it has no further effect.
 
     Returns
     -------
@@ -1004,17 +1081,64 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
 
     Raises
     ------
+    ValueError
+        ``mode`` is not a string naming one of the five save modes above
+        (case-insensitive), for example ``'default'``, ``None`` or ``''``.
+        Raised before anything is checked or written.
+    FileExistsError
+        ``final_destination`` exists and ``mode`` is ``'error'`` or
+        ``'errorifexists'``; or ``staging_directory`` exists but is not a
+        directory. Nothing is written in either case.
+    FileNotFoundError
+        The writer did not create its output directory. Spark creates it; a
+        custom writer must too.
     OSError
-        Filesystem failures are propagated after staging cleanup. Spark write
-        errors also propagate unchanged.
+        Other filesystem failures are propagated after staging cleanup.
+        Spark write errors also propagate unchanged.
     """
+    # Spark writes into a fresh child path below, so it never sees an existing
+    # directory; honour the save mode at the final destination instead.
+    # Reject anything else first: Spark reads 'default' (and pyspark reads
+    # None) as errorifexists, which a fresh child path would never refuse.
+    if not isinstance(mode, str) or mode.lower() not in (
+            'append', 'overwrite', 'ignore', 'error', 'errorifexists'):
+        raise ValueError(
+            f"Invalid Spark write mode {mode!r}; expected one of "
+            "['append', 'error', 'errorifexists', 'ignore', 'overwrite']"
+        )
+    mode_key = mode.lower()
+    if mode_key in ('error', 'errorifexists', 'ignore') and (
+            os.path.lexists(final_destination)
+            # '<missing>/../x' is absent to the OS until this call creates
+            # '<missing>'; Spark resolves '..' lexically, so look there too.
+            or os.path.lexists(os.path.normpath(final_destination))
+            # A dangling link to the staging directory makes 'link/../x'
+            # unresolvable until this call creates its target; resolve the
+            # link's target textually to find the path it will name.
+            or os.path.lexists(os.path.realpath(final_destination))):
+        if mode_key == 'ignore':
+            log_info(f"{final_destination} already exists; mode='ignore' leaves it "
+                'untouched and writes nothing')
+            return
+        raise FileExistsError(
+            f'{final_destination} already exists and mode={mode!r} refuses to '
+            "replace it; pass mode='overwrite' to replace it"
+        )
     sibling_staging = None
+    # Never delete caller-owned contents (#1840): write into a unique child
+    # path this call owns, and remove the parent only if this call made it.
+    # os.makedirs itself decides ownership, so there is no check-then-create race.
+    try:
+        os.makedirs(staging_directory)
+        created_staging_root = True
+    except FileExistsError:
+        if not os.path.isdir(staging_directory):
+            raise
+        created_staging_root = False
+    work_dir = os.path.join(staging_directory, f'staging_{uuid.uuid4().hex}')
     try:
         log_info(f'Starting atomic write operation to {final_destination}')
-        log_info(f'Using staging directory: {staging_directory}')
-        if os.path.exists(staging_directory):
-            shutil.rmtree(staging_directory)
-        os.makedirs(staging_directory, exist_ok=True)
+        log_info(f'Using staging directory: {work_dir}')
         log_info('Writing data to staging directory')
         writer = df.write.mode(mode)
         if file_format.lower() == 'csv':
@@ -1026,7 +1150,7 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
             writer = writer.format('json')
         else:
             writer = writer.format(file_format)
-        writer.save(staging_directory)
+        writer.save(work_dir)
         log_info('Successfully wrote data to staging directory')
         final_path = Path(final_destination)
         final_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1035,11 +1159,11 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
         )
         # Retain the directory permissions Spark chose rather than publishing
         # mkdtemp's private mode for a potentially shared dataset.
-        shutil.copymode(staging_directory, sibling_staging)
+        shutil.copymode(work_dir, sibling_staging)
         log_info('Copying staged files to destination filesystem')
         files_moved = 0
-        for item in os.listdir(staging_directory):
-            source_path = os.path.join(staging_directory, item)
+        for item in os.listdir(work_dir):
+            source_path = os.path.join(work_dir, item)
             dest_path = os.path.join(sibling_staging, item)
             if os.path.isdir(source_path):
                 shutil.copytree(source_path, dest_path)
@@ -1061,13 +1185,19 @@ def atomic_write_with_staging(df: "DataFrame", final_destination: str,
             )
         log_info('Atomic write operation completed successfully')
     finally:
-        for directory in (sibling_staging, staging_directory):
+        for directory in (sibling_staging, work_dir):
             try:
                 if directory is not None and os.path.exists(directory):
                     shutil.rmtree(directory)
                     log_info(f'Cleaned up staging directory: {directory}')
             except OSError as cleanup_error:
                 log_error(f'Error cleaning up staging directory: {cleanup_error}')
+        if created_staging_root:
+            try:
+                # rmdir, not rmtree: anything another writer put here stays.
+                os.rmdir(staging_directory)
+            except OSError as cleanup_error:
+                log_warning(f'Left staging directory {staging_directory} in place: {cleanup_error}')
 
 
 def create_unique_staging_directory(base_path, operation_name: str = 'operation') -> str:
@@ -1094,7 +1224,9 @@ def create_unique_staging_directory(base_path, operation_name: str = 'operation'
     -----
     Used by :func:`atomic_write_with_staging` to isolate in-progress
     writes from the final destination so partial or failed writes never
-    leave a corrupt file at the target path.
+    leave a corrupt file at the target path. That function removes only what
+    it creates inside this directory, so the directory itself is left in
+    place, empty, after each call; remove it, for example with ``os.rmdir``.
     """
     staging_dir = Path(base_path
         ) / f'staging_{operation_name}_{uuid.uuid4().hex}'

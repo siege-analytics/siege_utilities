@@ -9,6 +9,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING
 
+- `create_spark_session_with_databases` changes its default JDBC drivers to
+  pgjdbc 42.7.15, MySQL Connector/J 26.10.0 and Oracle ojdbc8 23.26.3.0.0,
+  replacing pgjdbc 42.3.1, mysql-connector-java 8.0.28 and ojdbc8 21.1.0.0
+  (security fix, #1483). pgjdbc 42.7.15 is the patched version for the 14
+  pgjdbc advisories published on 2026-11-23 against 42.7.14 and earlier;
+  GHSA-hcjv-f5jh-r55v (low, 42.7.14 and earlier) lists no patched version and
+  remains open. 26.7.0 is the version named as affected by CVE-2026-101768
+  (Oracle October 2026 CPU); this pins 26.10.0, the next release, which the
+  advisory does not list as affected. MySQL's Maven coordinate moves from
+  `mysql:mysql-connector-java` to `com.mysql:mysql-connector-j`. Defaults now
+  live in one coordinate map; callers can replace the package list through
+  `conf.settings.SPARK_JDBC_PACKAGES` (a list or comma-separated string).
+  Without an override, empty/None `database_names` adds no JDBC driver, where
+  6.0.0 and earlier releases added the PostgreSQL driver. The new MySQL
+  default requires MySQL Server 8.4+; Oracle 23.x supports Database 19c+.
+  **Migration:** callers relying on the former implicit PostgreSQL driver must
+  supply database names or a package override, and older server deployments
+  must choose compatible patched overrides through `SPARK_JDBC_PACKAGES`.
+
+- `write_df_to_parquet` and `export_prepared_df_as_csv_to_path_using_delimiter`
+  no longer replace existing output by default. Both now default to Spark's
+  `errorifexists` mode: when the destination path already exists, Spark raises
+  `AnalysisException` and the existing data is left untouched. Spark checks only
+  whether the path exists, so this also applies to an existing empty directory or a
+  regular file at that path. Through 6.0.0,
+  `write_df_to_parquet` defaulted to `mode='overwrite'` (#1838), and the CSV
+  export always overwrote, with no way to opt out (#1839). The CSV export now
+  accepts a `mode` argument. Both functions accept the Spark save modes
+  `errorifexists` (alias `error`), `overwrite`, `append` and `ignore`,
+  case-insensitively as Spark does. Any other value, including `None`, raises
+  `ValueError` before anything is written. **Migration:** to keep replacing an
+  existing destination, pass `mode='overwrite'` explicitly, for example
+  `write_df_to_parquet(df, path, mode='overwrite')` or
+  `export_prepared_df_as_csv_to_path_using_delimiter(df, path, mode='overwrite')`.
+  Pass `mode='errorifexists'` instead of `None` or `'default'`.
+
+- `atomic_write_with_staging` no longer deletes the contents of the caller's
+  `staging_directory`. Through 6.0.0 it ran `shutil.rmtree` on that directory
+  before writing and again on success or failure. A failed write therefore
+  still destroyed any files the caller kept there, and two calls sharing one
+  staging directory could delete or publish each other's files (#1840). Each
+  call now writes into its own new child, `staging_{uuid4hex}`, publishes only
+  that child's contents, and removes only that child. A `staging_directory`
+  the call created itself is still removed afterwards when it is empty, with
+  `os.rmdir`, so anything another writer put there stays. One that already
+  existed, for example one made by `create_unique_staging_directory`, is left
+  in place, empty, after each call.
+  Because Spark now writes to a fresh path, `mode` is applied to
+  `final_destination` instead. Through 6.0.0 Spark wrote into the
+  pre-created staging directory, so `mode='error'` and `'errorifexists'`
+  always raised `AnalysisException`, even when the destination did not exist,
+  and `mode='ignore'` wrote nothing and then published an empty directory,
+  replacing an existing destination and moving its old data to a backup. Now
+  `'error'`/`'errorifexists'` raise `FileExistsError` only when
+  `final_destination` exists, before anything is written, and publish
+  otherwise; `'ignore'` leaves an existing destination untouched and
+  publishes otherwise. For a destination path containing `..`, either
+  reading counts as existing: the lexical one, as Spark resolves it, or the
+  one the operating system resolves, including through symlinks.
+  `'overwrite'` (the default) and `'append'` replace an
+  existing destination as before; `'append'` does not merge into it. Any
+  other `mode`, including `'default'` and `None` (which Spark reads as
+  errorifexists), raises `ValueError` before anything is checked or written,
+  as `write_df_to_parquet` and the CSV export do. The existence check runs
+  once, before the Spark job, so a destination that another writer creates
+  while the job runs is still replaced, as in 6.0.0 (#2037). A custom
+  writer that does not create its output directory now gets
+  `FileNotFoundError`; 6.0.0 created that directory before the write. Spark
+  creates it.
+  **Migration:** if you pre-create `staging_directory`, or build it with
+  `create_unique_staging_directory`, remove it yourself after the call, for
+  example with `os.rmdir(staging_directory)`. Callers that relied on the old
+  clearing to discard leftover files must delete those files explicitly.
+  Callers that passed `mode='error'` or `'errorifexists'` and relied on it
+  always raising must check for an existing destination themselves. Pass
+  `mode='errorifexists'` instead of `'default'` or `None`. A custom writer
+  must create the directory it is given.
+
 - The `SocialMediaReportGenerator` and `AnalyticsReportGenerator` report
   methods now write a PDF into the generator's output directory and return its
   `Path`. Through 6.0.0 they called `ReportGenerator` methods with a different
@@ -40,6 +118,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   name must read the returned path instead; build any PPTX separately with
   `PowerPointGenerator`.
 
+- `Collaborator.access_expires`, `Collaboration.end_date`,
+  `Credential.expires_at`, and `OAuthIntegration.expires_at` accept past
+  datetimes, so persisted models can reload after expiry; constructing one with
+  a past value used to raise a validation error and no longer does. Expired
+  items still load as expired: `is_expired`, `is_token_expired`,
+  `needs_refresh`, `is_access_expired` and `Collaboration.is_active` report
+  them, and `Person.get_valid_credentials` and `get_valid_oauth_integrations`
+  exclude them. These checks now accept timezone-aware values such as
+  `2026-01-01T00:00:00Z` or any UTC offset and compare the instant, where
+  6.0.0 and earlier releases raised `TypeError` (at construction, comparing an
+  aware value with a naive `datetime.now()`). Naive values keep their meaning:
+  local wall-clock time. A naive value within a day of `datetime.max` or
+  `datetime.min`, such as a `datetime.max` "never expires" value, cannot be
+  shifted by a UTC offset and is read at its nominal instant, so it still
+  compares as far future (or far past) in any local timezone. Stored values
+  are not converted. **Migration:** code that relied on that validation error
+  to reject an already-expired value must check the value itself, for example
+  by calling the model's expiry or active-state check after construction
+  (#1496).
+
 - A Dynamics `upsert_records` call that splits records into batches no longer
   loses completed batches when a later batch fails in transport or with a
   server error. The failed batch's records are reported as `UpsertError`
@@ -51,6 +149,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `upsert_records` call to detect a failed batch must check
   `result.failure_count` and `result.errors` instead; no exception is raised
   for that case now.
+
+- Place history reverse lineage uses `CrosswalkRecord.reverse_weight`, also
+  accepted by `DictCrosswalkProvider.add`, for step weights, cumulative target
+  shares, and `min_weight` pruning, so reverse-lineage steps and weights differ
+  from 6.0.0. Steps pair GEOIDs with their correct vintage years, and
+  `Lineage.terminal_weights` sums paths reaching the same terminal GEOID while
+  preserving `terminal_geoids`. If any retained reverse terminal path lacks a
+  reverse share, the entire `terminal_weights` dictionary is empty; ancestry and
+  the legacy forward allocation on those steps remain available. Forward
+  traversal now skips nonpositive and nonfinite record weights, and terminal
+  totals contain only finite, positive values. **Migration:** supply
+  `reverse_weight` on crosswalk records (and to `DictCrosswalkProvider.add`)
+  wherever reverse shares or `min_weight` pruning matter; treat an empty
+  `terminal_weights` as "reverse shares incomplete", not as zero weight, and
+  read `terminal_geoids` for ancestry; and re-check any code that read the step
+  years or terminal totals from the old output (#1434).
 
 - Connector diagnostics (exception messages, log lines, `UpsertError` text
   and `UpsertResult` repr) keep the value of a quoted JSON or mapping field
@@ -73,6 +187,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer hidden by the field name alone; configure it as the connector's
   credential so value-based redaction covers it, or rename the field.
 
+- Survey inference uses separate effective sample sizes and unweighted
+  respondent counts while retaining weighted display bases. Proportion tests
+  skip longitudinal deltas, top-N shares keep the full denominator, and
+  MEAN_SCALE uses weighted means and standard errors, so published
+  significance flags, shares, means and confidence intervals can differ from
+  6.0.0 for the same data. `chi_square_flag` tests the unweighted respondent
+  counts, so on a weighted table it reports the unweighted sample
+  association, not a design-corrected population test. `build_chain` now
+  raises `CrosstabInputError` for negative, missing or non-finite weights and
+  for a weight column that is not numeric (text, dates, durations, complex
+  numbers or categories); Decimal, Fraction, object-dtype, nullable and bool
+  weight columns, including Arrow-backed ones, are read as floats. Weighted
+  sums of a Decimal metric column are computed in floating point, so their
+  last digits can differ from exact Decimal arithmetic.
+  `column_proportion_test` now raises
+  `SignificanceError` on builder-produced metric-sum tables (a non-unit
+  `metric`), not only on manually constructed Views, and chi-square rejects
+  metric-sum tables. MEAN_SCALE `ci` is now `None` when the effective n is
+  below 2 (6.0.0 reported `0.0` at an effective n of 1 or less and a finite
+  interval between 1 and 2), and an effective n below 30 without SciPy raises
+  `SignificanceError`. **Migration:** re-run published survey crosstabs and
+  compare their significance flags and confidence intervals. Clean negative,
+  missing or non-finite weights before calling `build_chain`. Manually
+  constructed Views must provide `effective_n` for proportion tests and
+  `respondent_count` for chi-square. Do not run proportion or chi-square tests
+  on metric-sum tables. Treat `ci=None` as "not estimable", not zero width, and
+  install SciPy for small-sample Student's t intervals (#1478).
+
 - The Salesforce Bulk API CSV upload (used by `bulk_insert`, and by
   `upsert_records` above 2,000 records or with `force_bulk=True`) is no
   longer resent after an uncertain failure. A transport failure or server
@@ -85,6 +227,396 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   surfaces as `ConnectorError` instead of being retried. Check the job's state
   in Salesforce before running the bulk call again; the failed job is left
   open and is not closed.
+- Census catalog cache filenames percent-encode dataset ids, keeping slash-based
+  ids such as `eits/resconst` and `dec/pl` in the cache directory and visible to
+  cache clearing. Yearless keys use a distinct `none` suffix, and cache logging
+  accepts `year=None`, including write failures. Entries in the old nested
+  layout are no longer read or cleared: the next load fetches and caches a
+  fresh copy at the new key, and the old nested files can be deleted by hand.
+  `CatalogCache.clear(dataset, year)` removes only
+  that entry, including a yearless one with `year=None`; `clear()` still
+  removes every entry. Passing only a dataset or only a year now raises
+  `ValueError` instead of deleting the whole cache (#1405).
+  **Migration:** call `clear()` with no arguments to empty the whole cache,
+  or pass both `dataset` and `year` (`year=None` for a yearless entry) to
+  remove one entry; expect one refetch after upgrading for each dataset id
+  containing `/` or other percent-encoded characters and for each yearless
+  entry (formerly `_None.json`), and delete the old files by hand if disk
+  space matters.
+- PostGIS and DuckDB `upload_spatial_data` (and `upload_to_postgis` /
+  `upload_to_duckdb`) default to `if_exists='fail'` instead of `'replace'`, so
+  an upload no longer silently replaces an existing table. DuckDB also accepts
+  `'append'` and raises for any other value, and rejects an input column named
+  `geometry_wkt` (its storage column), which v6.0.0 silently overwrote.
+  **Migration:** pass `if_exists='replace'` where replacing an existing table
+  is intended, and rename any `geometry_wkt` column before uploading (#1818).
+- PostGIS and DuckDB `execute_spatial_query` return rows for every
+  row-returning statement, including CTEs (`WITH ...`) and
+  `INSERT`/`UPDATE`/`DELETE ... RETURNING`. In v6.0.0 only queries starting
+  with `SELECT` returned a GeoDataFrame, so a CTE or `RETURNING` write returned
+  a row count (PostGIS) or the first value of its result (DuckDB) and its rows
+  were lost. Fetched `RETURNING` rows are decoded
+  without replaying the write. Tabular results come back without an active
+  geometry; other statements still return the affected-row count, or -1
+  (#1414); a DuckDB `CHECKPOINT` currently returns an empty frame instead
+  (#2036). **Migration:** code that read a number from a CTE or `RETURNING`
+  query now receives a GeoDataFrame; use `len(result)` for the count or read
+  the returned rows.
+- PostGIS `execute_spatial_query` inside a caller's transaction no longer
+  rolls back that transaction on the caller's behalf, and commits it only for a
+  write. A failed statement rolls back to a savepoint and keeps the caller's
+  earlier work; in v6.0.0 the connector rolled back the whole transaction. The
+  connector still commits the caller's transaction after a statement whose
+  first word is not `SELECT` and that contains one of the write keywords
+  `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `CREATE`, `DROP`, `ALTER`, `TRUNCATE`,
+  `COPY`, `CALL`, `DO`, `GRANT` or `REVOKE`, as v6.0.0 did. Any other
+  statement does not commit: read-only statements such as `WITH ... SELECT`,
+  `EXPLAIN SELECT` or `SHOW`, and statements such as `REFRESH MATERIALIZED
+  VIEW`, `COMMENT ON` or `ANALYZE`, no longer commit the caller's pending
+  work; in v6.0.0 every statement not starting with `SELECT` committed. Leading comments and parentheses are
+  skipped when finding that first word, so a `SELECT ... FOR UPDATE` behind a
+  comment keeps the caller's transaction and row locks; v6.0.0 committed it.
+  A standalone transaction-control statement
+  such as `BEGIN`, `SAVEPOINT` or `RELEASE` runs as written, without the
+  connector committing it, and returns -1, so `BEGIN` now leaves a
+  transaction open (#1818). **Migration:** after a `SpatialQueryError` inside
+  your own transaction, call `connection.rollback()` if the earlier work
+  should be discarded; commit explicitly after read-only statements and after
+  statements without one of those write keywords; finish a
+  transaction opened with `BEGIN` with `COMMIT` or `ROLLBACK`.
+- PostGIS and DuckDB reads keep the source CRS when `crs` is omitted.
+  `download_spatial_data` and PostGIS `execute_spatial_query` previously
+  reprojected to the configured default CRS (EPSG:4326), and DuckDB labelled
+  every table EPSG:4326. Now a PostGIS result keeps its native SRID (for
+  example EPSG:3857), a PostGIS table without an SRID reads with CRS `None`,
+  and a DuckDB table read uses the CRS stored at upload. DuckDB tables written
+  before this release have no stored CRS and read with CRS `None`; asking such
+  a read to reproject with `crs=` raises `SpatialQueryError`. Tables written by
+  `convert_spatial_format(..., 'duckdb')` do not store a CRS yet either
+  (#2036). DuckDB stores the
+  CRS with `COMMENT ON TABLE`, so the `performance` and `all` extras now
+  require `duckdb>=0.10.0` (previously 0.7.0). An invalid `crs=`
+  passed to `execute_spatial_query` now raises before the query runs, and a
+  query batch that mixes a
+  transaction-control statement (`BEGIN`, `COMMIT`, `SAVEPOINT` and similar)
+  with other statements is rejected before anything executes. **Migration:**
+  pass `crs="EPSG:4326"` (or your target) to keep reprojected output; for a
+  DuckDB table written by an earlier version, pass `source_crs=` with the CRS
+  it was written in (EPSG:4326 if unsure, as before), or upload it again;
+  upgrade DuckDB to 0.10.0 or later; run transaction-control statements on
+  their own (#1818).
+
+- `databricks.dataframe_bridge.spark_to_geopandas` raises `ValueError` when the
+  CRS metadata column mixes null and non-null values, even when `crs=` is
+  supplied, where v4.0.0 let unknown-CRS rows inherit another row's CRS. When
+  the stored CRS is known and `crs=` names a different CRS, coordinates are
+  reprojected to `crs=` instead of being relabelled without transformation
+  (stored EPSG:4326 `POINT (1 1)` with `crs="EPSG:3857"` now has x ≈ 111319.49,
+  where v4.0.0 returned x = 1.0 labelled EPSG:3857). An
+  invalid stored CRS definition raises `pyproj.exceptions.CRSError` even when
+  `crs=` is supplied, where v4.0.0 hid it behind the requested CRS. When the
+  metadata column is absent or entirely null, `crs=` declares the input CRS
+  without transforming, and omitting it leaves the CRS unknown (#1413).
+  **Migration:** fill missing CRS metadata or split rows by CRS before
+  conversion; fix invalid stored CRS values; if you used `crs=` to relabel data
+  whose stored CRS was wrong, fix the stored CRS column instead.
+
+- `NCESLocaleClassifier.classify_points`, `classify_polygon` and
+  `classify_polygons` reproject GeoDataFrame/GeoSeries inputs that carry a CRS
+  to EPSG:4269 before reading coordinates; on v4.0.0 projected metres were read
+  as degrees, so a point classified 11 in EPSG:4269 classified 43 after
+  `to_crs(3857)`. `h3_spatial_join` and `s2_spatial_join` reproject polygon
+  frames to EPSG:4326 instead of joining on projected metres, and
+  `h3_index_polygon` and `s2_index_polygon` now accept GeoDataFrame/GeoSeries
+  polygon inputs (v4.0.0 raised `TypeError` for them) and reproject them the
+  same way. Inputs without a CRS, including bare Shapely or GeoJSON polygons,
+  whose coordinates exceed ±180 longitude or ±90 latitude now raise
+  `ValueError` naming the function, axis and value, where v4.0.0 passed them
+  on as degrees. Caller frames are not mutated; bulk locale results keep the
+  caller's original geometry, CRS, index and attributes. Valid geographic
+  inputs, with or without CRS metadata, behave as before; point columns passed
+  to the cell-based joins remain latitude/longitude degrees (#1451).
+  **Migration:** set the true source CRS on projected data (`gdf.set_crs(...)`)
+  before calling these functions; bare Shapely or GeoJSON geometries must be
+  longitude/latitude degrees; expect `ValueError` where v4.0.0 silently
+  returned codes, cells or join rows for out-of-range coordinates.
+- Git branch operations and workflows reject refs that 6.0.0 and earlier
+  releases accepted:
+  option-like refs, reserved revision aliases, bare filenames and bare worktree
+  path collisions are refused before git runs, a bare dotted name
+  such as `v1.2` or `hotfix-1.2.3` now raises, and a name equal to a top-level
+  file or directory in `repo_path` now raises, for remotes as well as branches.
+  Every base, target and generated branch name is validated, ref arguments are
+  passed after explicit option/path boundaries, and Git 2.23 or newer is
+  required because the helpers use `git switch`. `switch_branch` resolves exact
+  local and remote-tracking refs instead of substring matching, preventing
+  accidental path restoration. `push_branch`/`pull_branch` keep their
+  historical behaviour for a falsy `branch_name` (`None` or `""` pushes or
+  pulls the current branch); only a non-empty name is validated and used as an
+  exact `refs/heads/<name>`. **Migration:** upgrade Git to 2.23 or newer on any
+  host that runs these helpers; rename refs, branches and worktree paths that
+  are now rejected (for a dotted name use a slash namespace such as
+  `release/1.2`; avoid names that equal a file or directory in `repo_path`);
+  and pass an exact local branch or remote-tracking ref name to
+  `switch_branch`, because a partial or substring name no longer matches
+  (#1543).
+
+- Config exports with `exclude_sensitive=True` (`to_dict`, `to_yaml`,
+  `export_entities`) redact more fields and values than in 6.0.0: fields
+  whose Pydantic alias names a credential, credential names in bytes keys,
+  the whole value under any other non-string key except `int`, `float`,
+  `bool` or `None` (for example a `date`, `datetime`, `UUID`, plain `Enum`,
+  `Path` or tuple key), including wholly public subtrees, and every value in
+  a sensitive position other than `None` or an exact empty or zero builtin,
+  including falsey objects and secret subclasses (see Security).
+  **Migration:** read credentials from the live model or your secret store,
+  not from an `exclude_sensitive=True` export; such exports now carry
+  `***REDACTED***` in those positions, and `import_entities` rejects them
+  with `ValueError("Cannot import redacted ...")`. Use string keys for
+  metadata that must survive a redacted export. Export with
+  `exclude_sensitive=False` only to a trusted destination (#1460).
+
+- `ChartGenerator` chart wrappers and both `BaseChartEngine` dispatchers
+  (`generate_chart_from_dataframe` and the custom-chart dispatcher) forward
+  engine arguments by keyword, so titles, column mappings, geometry and
+  dimensions reach the intended engine parameters instead of shifting by
+  position (on v6.0.0 a scatter title arrived as the colour column and the
+  width as the title). The choropleth,
+  bivariate and DataFrame wrappers take a keyword-only `geo_data`, and
+  custom-chart configurations forward `geo_data` and their column selections.
+  The line wrapper accepts a single `y_column` string or a list. The basic
+  wrappers' `width`/`height` defaults change from `800`/`600` to `8.0`/`6.0`;
+  the engines already passed these values to matplotlib as `figsize` inches,
+  so the v6.0.0 "pixels" docstrings were wrong and are corrected. The
+  bivariate and geographic analytics
+  examples run offline with explicit sample geometry and current API
+  arguments (#1517). **Migration:** pass `width`/`height` in inches, and pass
+  them explicitly if you depended on the old defaults; pass `geo_data=` by keyword; check any
+  call that relied on the old positional shift.
+
+- Numpy Fisher-Jenks classification preserves the optimal partition with
+  `min(k, n_unique)` nonempty classes, including singleton outliers and tight
+  clusters far from the data minimum, whose segment SSE is now accumulated
+  per segment instead of from cancelling prefix sums. Both classification
+  backends use upper-inclusive bins and class maxima for natural-break edges,
+  and the no-mapclassify `create_choropleth` path colours a value on an
+  internal edge with its own (lower) class. NaN and positive/negative
+  infinity receive bin `-1` and are excluded from break calculations. When
+  the first class holds only the minimum, `breaks[0]` and `_break_low` are
+  the next float below the minimum, so that class is not merged away. On the
+  mapclassify backend, natural breaks keep every class instead of merging a
+  class that holds only the minimum, and fall back to the exact calculation
+  when mapclassify's result is not k strictly increasing edges. In 6.0.0 the
+  numpy backend of `classify_series` assigned a value exactly on an internal
+  break to the upper class (`searchsorted(..., side="right")`; the
+  mapclassify backend was already upper-inclusive), masked only NaN so
+  infinities were classified on both backends, and natural breaks on either
+  backend could differ for small, clustered or outlier data (for example
+  `[1, 2, 3]` with k=3 gave 2 classes). **Migration:** expect values on an
+  internal break to move down one class on the numpy backend, infinite
+  values to get bin `-1` on both backends, and natural breaks to change on
+  both backends; recompute stored classifications and natural breaks rather
+  than mixing them with 6.0.0 output (#1455).
+
+- Resolve configuration paths on first access so imports survive an unset
+  `HOME` and a uid without a passwd entry. Use a temporary per-uid home
+  substitute when lookup fails, and check environment overrides before
+  resolving defaults. Guard default downloads and defer Census catalog,
+  inventory, and PL cache paths too. Every path constant in
+  `siege_utilities.config.paths` (27 names, such as `LOG_DIR`, `DATA_DIR`
+  and `TEMP_DIR`), `SIEGE_UTILITIES_HOME`, `SIEGE_CACHE_DIR` and
+  `SIEGE_OUTPUT_DIR` in `siege_utilities.config.constants`, and
+  `pl_downloader.DEFAULT_CACHE_DIR` are now resolved when first read, not
+  when their module is imported. So an environment override set after
+  import but before the first read now takes effect (all 20 path variables,
+  for example `SIEGE_LOG_DIR`), a derived path first read after its parent
+  constant was reassigned follows the new parent, the names are absent
+  from `vars(module)` until first read, and `SIEGE_AUTO_INIT_DIRS=true`
+  now creates directories on first path access rather than at import.
+  **Migration:** code that relied on those directories existing
+  immediately after import must touch the path (for example through
+  `get_file_path`) or create the directory itself, and code that set a
+  path variable after import and expected it to be ignored must set it
+  before the first read (#1448).
+- AREA, POPULATION and HOUSING crosswalk transformations use `area_weight`,
+  `population_weight` and `housing_weight`, respectively, and raise `ValueError`
+  naming the source and target for a missing weight on a matched
+  source/target row. AREA no longer treats a missing `area_weight` as 1.0, which
+  silently counted the full value toward that target; fix or drop such
+  crosswalk rows before calling. The check applies to every AREA call,
+  including calls that name only `intensive_variables`. Sources absent from the
+  crosswalk still keep their values. POPULATION and HOUSING also raise for a
+  missing weight column. The Census crosswalk client currently supplies only
+  area weights. `aggregation_func='weighted_mean'` divides by the weight of the
+  rows with a non-missing value, so a missing value no longer lowers the mean;
+  a target whose values are all missing is NaN with coverage 0.0. Previously
+  every row's weight stayed in the denominator. EQUAL now divides each source
+  among its targets, so split outputs change and conserve totals. Extensive
+  totals (`aggregation_func='sum'`, the default) are NaN for a target with any
+  missing contributing value, meaning a matched row with a nonzero weight,
+  instead of the sum of the remaining values, and all-missing targets are NaN
+  instead of zero; areal interpolation already returned NaN in that case, so
+  both paths agree (#1945). Each transformed crosswalk
+  value column gains `<col>_coverage`: the share of target contribution weight
+  with non-missing values, using allocation weights for extensive columns and
+  overlap areas for intensive columns; all-missing targets and targets with no
+  contribution weight have coverage 0.0. An input column already named
+  `<col>_coverage` for a value column `<col>` raises `ValueError` in
+  `transform` and `LongitudinalAligner.align` instead of being overwritten.
+  `LongitudinalAligner` carries coverage from one step to the next instead of
+  summing it, and `transform`, `apply_crosswalk` and `normalize_to_year`
+  accept `carried_coverage` for chained calls. `normalize_to_year` now accepts
+  `weight_method` and `intensive_variables`, and `get_longitudinal_data`
+  accepts the same names as `intensive_columns` and warns when they are
+  omitted during boundary normalization. **Migration:** pass
+  `WeightMethod.AREA` explicitly when using the Census crosswalk client, or
+  supply an enriched crosswalk to `CrosswalkProcessor` for population/housing
+  weighting. String methods are converted through `WeightMethod(value)`; invalid
+  methods raise instead of falling back to AREA. Name rates, ratios, medians,
+  and densities in `intensive_variables` (or `intensive_columns`) when using
+  `transform`, `apply_crosswalk`, `normalize_to_year` or
+  `get_longitudinal_data`, so they are averaged and not summed. Fill or drop
+  missing source values before transforming where a total from the remaining
+  sources is wanted. When chaining calls, for example `transform` with your
+  own 2000 to 2010 crosswalk table and then `normalize_to_year` from 2010 to
+  2020, pass the first call's
+  `<col>_coverage` columns to the second as `carried_coverage`; do not rename
+  them, because a renamed coverage column is summed as a count. Rename only
+  your own data columns that are named `<col>_coverage` for a value column
+  `<col>`. Update downstream column selections and missing-value handling for
+  the new `<col>_coverage` outputs (#1409).
+
+- Crosswalk availability lists only transitions with a configured Census file
+  pattern: `SUPPORTED_CROSSWALK_YEARS` (in `geo/crosswalk/relationship_types`)
+  now contains only 2010->2020 for `tract`, `block_group` and `county`; the
+  6.0.0 `(2000, 2010)` entry and the `block` geography are removed.
+  `CrosswalkClient.get_crosswalk` and `normalize_to_year` already raised
+  `ValueError` for these requests in 6.0.0 ("No crosswalk file available ..."
+  / "Crosswalk not supported ..."); they now reject them before any cache
+  access, download or crosswalk lookup, with "not supported" messages, and
+  `normalize_to_year` raises "Backward normalization is not supported:
+  <from>-><to>" when `data_year > target_year`. Equal years still return a
+  copy. `LongitudinalAligner.align` raises `ValueError` ("No supported
+  crosswalk path from <from> to <to>: backward alignment is not supported")
+  before alignment for backward transitions (2020->2010, 2010->2000,
+  2020->2000), where 6.0.0 planned reverse crosswalk steps and fell back to
+  areal interpolation. Forward alignment is unchanged: a step with no
+  published crosswalk (2000->2010, and 2010->2020 for `block`, `place` and
+  other levels outside the table) still uses areal interpolation, reported as
+  `method="areal"` with a warning, and whether that fallback stays is left to
+  #1408. A cache file placed by hand for such a step is no longer read
+  (#1494). **Migration:** normalize and align forward only (older
+  vintage to newer); stop reading `(2000, 2010)` or `block` from
+  `SUPPORTED_CROSSWALK_YEARS`; update any code that matches the old error
+  messages.
+
+- Google Workspace writers: `create_report_from_arguments` removes the
+  existing content slides from the new presentation or template copy before
+  adding exactly one slide per argument (template masters and layouts are
+  kept), where v6.0.0 left the template's or default deck's slides after
+  the generated ones; if those slides cannot be read or deleted, the error
+  propagates and no argument slides are added. When the template's first
+  slide uses a master other than the presentation's first master, that slide
+  is kept until the argument slides have been added after it, so they use its
+  master, and is then removed after the last argument, including when
+  argument slides failed in ways collected into the aggregated error (before
+  that error is raised); an uncaught API error while the argument slides are
+  being added raises with that slide still in place, a failed last removal
+  propagates with the argument slides already in place, and if that master
+  has no BLANK layout the first argument slide is rejected with HTTP 400, as
+  on 6.0.0. Google Docs `insert_text` and
+  `insert_paragraph` compute text and heading style ranges in UTF-16 code
+  units, so ranges no longer fall short after non-BMP characters such as
+  emoji. `read_document_text` requests all tabs, visits child tabs and nested
+  tables/tables of contents, and includes headers, footers and footnotes,
+  reading each tab's body and then those segments in API response order with
+  text-run whitespace preserved; v6.0.0 read only `body.content` of the
+  document fetched without tab content (the first tab's body: top-level
+  paragraphs and tables) (#1495). **Migration:** add any template sample
+  slides you relied on explicitly after generation; handle the propagated API
+  error where a template's slides cannot be removed. The new presentation is
+  left in Drive when this happens and must be removed by the caller. If you
+  need body-only text, filter the `read_document_text` result or read the
+  document body yourself.
+
+- `crm_dedup_pipeline` no longer merges people by name alone, and
+  `canonical_id` now identifies an identifier-corroborated person or a single
+  source record, never a name. Records are linked when their normalized
+  names are equal and at least one strong identifier is equal: email
+  (stripped and lowercased), phone (`normalize_phone_v1`: extension dropped,
+  digits only, leading US `1` dropped, fewer than 7 digits ignored) or
+  address (`normalize_address_v1` over `address_street`, `address_city`,
+  `address_state` and `address_postal_code`; a street plus a postal code, or
+  a street plus a city and a state, is required, since a street line alone
+  names a place in many towns; unit designators are unified, so `Apt #2`
+  matches `Apt 2`, and ZIPs are zero-padded to five digits). Links chain
+  transitively, so an email match and a phone match can join three records.
+  Only two different emails refuse a link (logged, left for review); every
+  identifier column whose name contains `email`, compared case-insensitively
+  (`email`, `Email`, `email_address`), counts as an email column. A record
+  without an email that shares a phone or address with two people whose
+  emails conflict joins neither and keeps its own ID as a review candidate.
+  Phone and address link but never block, so an equal email still merges
+  despite a different phone or a partial address. Each group's ID comes from
+  its smallest member seed, independent of row order.
+  `match_confidence` is 1.0 for an identified record, 0.75 when a same-name
+  record stays in another group without an email conflict (a review
+  candidate), and 0.5 or 0.25 for name-only rows; groups kept apart by an
+  email conflict keep 1.0. **Residual risks:** same-name people with no
+  email who share a phone or address merge; one person with two emails is
+  split, the safe direction.
+  A record without a corroborating identifier gets a canonical ID seeded
+  from its own `source_system` and `source_id` (frame and row position when
+  either is null or blank). Name matches without identifier evidence appear
+  only in the new trailing, review-only `name_candidate_id` column.
+  Placeholder identifiers are not corroboration: the whole values `nan`,
+  `none`, `null`, `<na>`, `nat`, `n/a`, `na`, `n.a.`, `unknown`, `tbd`, `-`
+  and `--`, placeholder emails such as `none@none.com`, and phones made of
+  one repeated digit such as `000-000-0000`. Frames missing a required source
+  column are skipped whole, and null name parts no longer become text. New
+  parameters `identifier_columns`, `identifier_normalizers` (added to the default
+  `{"phone": normalize_phone_v1}`) and `address_columns`, and new
+  `siege_utilities.identifiers` `normalize_phone_v1` and
+  `normalize_address_v1` (#1416).
+  **Defaults:** the new `identifier_columns` defaults to
+  `["email", "phone"]`, and the new `address_columns` defaults to
+  `["address_street", "address_city", "address_state",
+  "address_postal_code"]`, so email, phone and address corroborate merges
+  by default. 6.0.0 had neither parameter.
+  **Migration:** all canonical IDs differ from 6.0.0, and an ID can change
+  when a later run adds a group member with a smaller seed, so regenerate
+  persisted merge tables rather than appending. `name_candidate_id` equals
+  the 6.0.0 name-only `canonical_id`, so it can join old tables during
+  migration; never merge on it without review. To corroborate on email
+  only, pass `identifier_columns=["email"], address_columns=[]`. Pass
+  `identifier_columns=[]` and `address_columns=[]` to disable identifier
+  merging, instead of the old name-only merging.
+
+- Batch geocoder normalization now restores leading zeros in numeric ZIPs,
+  preserves string ZIPs (including ZIP+4), converts the dictionary address
+  fields (street, city, state, ZIP) to strings, and treats NaN/None and pandas
+  NA/NaT as empty values, so the same input rows produce different query
+  strings and results than on v4.0.0. Caller IDs pass through unchanged.
+  Numeric ZIP+4 values are padded to nine digits; invalid numeric ZIPs
+  (negative, fractional, boolean, non-finite, or over nine digits) become empty
+  values. The public Census `geocode_batch` / `geocode_batch_chunked`
+  dictionary path uses the same normalization. Mixed address lists and
+  non-string `AddressInput.one_line` components no longer crash. Nominatim and
+  TAMU query construction failures now produce one unmatched row instead of
+  aborting the whole batch and causing the composite geocoder to silently drop
+  the backend. Per-row failures are reported in `BatchGeocodingResult.errors`
+  by caller ID and exception type, without address text; the composite
+  preserves backend errors and names the caller's IDs in them.
+  `concatenate_addresses` also skips missing components and restores leading
+  zeros in a numeric postal code only when the country is empty or the United
+  States ("US", "USA", "United States", any case); for other countries a
+  numeric postal code keeps its digits (Sydney's 2000 stays 2000). Directly
+  constructed `AddressInput` objects normalize their ZIP codes. **Migration:** re-key any
+  stored geocoding results that were keyed on a ZIP with its leading zero
+  dropped (for example `2101`, now `02101`); expect an empty ZIP, not a
+  guessed one, where a numeric ZIP is invalid; and read `errors` on the batch
+  result instead of relying on an exception or a silently missing backend to
+  detect a failed row (#1526).
 
 - `ChartGenerator.create_dashboard` validates one `labels`/`datasets` schema
   for bar, line, pie and scatter subplots and plots every dataset with a
@@ -160,6 +692,164 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `check_security.py`, which the CI bandit step replaces, moved to
   `scripts/archive/`.
 
+### Fixed
+
+- Report facade charts and sample tables, three follow-ups to the facade PDF
+  change of #1461:
+  - a NumPy complex chart value (`numpy.complex64`, `numpy.complex128`) now
+    raises the named non-numeric `ValueError`, as Python `complex` already did;
+    before, it was drawn with its imaginary part dropped;
+  - a finite `Decimal` written without a fractional part (`Decimal("88")`,
+    `Decimal("1E+3")`, `Decimal("0E+19")`) that fits a 64-bit integer reaches
+    the chart engine as an `int`, so the pie legend prints `88` rather than
+    `88.0`; `Decimal("88.0")` and larger whole-number values stay floats as
+    before, and one fractional value in a series makes the legend print that
+    series' whole values with `.0`;
+  - a chart series with an int outside the signed 64-bit range, or whose ints
+    total more than that range holds, is drawn from floats: a bar chart no
+    longer fails with `OverflowError` on an int of 2**63 or more, and a pie
+    chart no longer draws its wedges from a wrapped 64-bit total that
+    disagrees with its legend; an int too large even for a float raises the
+    named `ValueError`;
+  - the sample-data tables of `create_custom_analytics_report` for a DataFrame
+    with repeated labels on non-numeric columns now have rows with exactly as
+    many cells as headers; selecting columns by label had repeated every
+    column sharing a label (#1988).
+- Make the Databricks bridge notebook's schematic example project to a metric
+  CRS, buffer with a radius in meters, and transform back to EPSG:4326. Keep
+  the angular-degree caveat and document caller-side filtering and row bounds
+  before collection to driver memory. Remove the persistent-table overwrite
+  from the capped sample and document the bridge's CRS column parameters and
+  output (#1665).
+- PDF headers and footers from `BaseReportTemplate` (and so `ReportGenerator`)
+  now place `header.right_text`, `footer.right_text` and the page number flush
+  against the right margin. They were positioned from `Paragraph.wrapOn()`,
+  which returns the width it is given rather than the text width, so the
+  right-hand text was drawn at the left margin on top of the left-hand text
+  and the page number was drawn off the left edge of the page. Right-hand text
+  now sits in the right half of the page and wraps there when it is too long.
+  Header right text stays inside the top margin. Footer right text stays
+  between the page number and the body frame, moving up rather than over the
+  page number when it wraps. Text that still does not fit is cut and ends with
+  an ellipsis. The page number is kept on the page when the bottom margin is
+  small. The header, footer and page number are still drawn on the first page
+  only (#1998).
+- `ChartGenerator.create_pie_chart` sizes its legend table from the measured
+  width of its columns and keeps it inside the saved image for both
+  `legend_position="right"` and `"bottom"`; the pie is shrunk to make room.
+  Previously the right-hand table was a fixed box about 30% of the figure
+  wide, so the value and percent columns ran off the right edge and were
+  clipped, and long labels spilled out of their cells in either position.
+  When the table cannot fit at the 8 pt default, the font is reduced to no
+  less than 5 pt, then over-long labels are shortened with an ellipsis; a
+  legend with too many rows for the figure height uses a smaller font, which
+  can fall below 5 pt. When the legend is drawn, the title is placed across
+  the top of the figure, above both the pie and the table, and drawn smaller
+  (down to 7 pt) or wrapped if it is wider than the figure. A missing (`None`)
+  label shows as an empty cell (#1999).
+- PIL images passed to `ReportGenerator.add_chart_section` (and map sections)
+  are downsampled to the display box at 200 DPI before embedding, never
+  upsampled, with the aspect ratio kept. Bilevel (`1`) and palette (`P`, `PA`)
+  images are converted to greyscale or RGB(A) first, so downsampling keeps
+  thin lines. The format is chosen as follows: images with transparency, and
+  colour images whose original pixels have at most 256 colours (including
+  every bilevel and palette image), are stored as lossless PNG; any other
+  image, colour or greyscale, is stored as JPEG at quality 85 only if that
+  JPEG is at most one third of the size of the lossless PNG of the same
+  pixels, and as lossless PNG otherwise. In practice photographs become JPEG
+  while charts, diagrams and screenshots stay lossless. Through 6.0.0 every
+  PIL image was stored as full-resolution lossless PNG, so photo-heavy reports
+  were many times larger than their inputs: three 1600 x 1200 photos produced
+  a 20.9 MB PDF, now 0.78 MB. 16-bit greyscale (`I;16`) is scaled to 8 bits;
+  32-bit integer and float greyscale (`I`, `F`) are clipped to 0-255; CMYK,
+  YCbCr, LAB, HSV, RGBX and premultiplied modes are converted to RGB(A). These
+  modes were previously dropped from the report with a logged error, or, for
+  `I;16`, embedded as a blank image. An image with zero width or height is
+  skipped with a logged error and the rest of the report is built. Objects
+  that are not PIL images but provide `save()` and `mode` are embedded as
+  before, without downsampling (#2000).
+- **Packaging behavior change from 6.0.0 and earlier releases:**
+  `pip install 'siege-utilities[crm]'` now installs `msal>=1.27.0` and pandas
+  for the CRM connectors; `[all]` also includes MSAL. 6.0.0 and earlier
+  releases declared no MSAL dependency, so every extra left Dynamics
+  authentication unavailable without a separate install. The floor is 1.27.0
+  because Dynamics token renewal calls
+  `ConfidentialClientApplication.remove_tokens_for_client`, which MSAL Python
+  first ships in 1.27.0. Dynamics dependency errors now recommend `[crm]`, and
+  CI installs it so the Dynamics tests execute instead of skipping (#1449).
+- On a connection the connector opened, a spatial query's write commits only
+  after its result is decoded and rolls back on any error, so a failed
+  multi-statement DuckDB write leaves nothing behind. A PostGIS
+  `download_spatial_data` ends the read transaction it opened, so a following
+  `execute_spatial_query` on that connection still commits (#1818). Two
+  downloads on one connector no longer share a transaction; open one yourself
+  first when both must read the same snapshot.
+  **Migration:** a DuckDB batch that writes to two attached databases, or that
+  runs `INSERT ...; CHECKPOINT`, now raises and rolls back, because DuckDB
+  forbids both inside one transaction, where v6.0.0 ran it; run such statements
+  as separate calls.
+- PostGIS uploads now run their drop, create and inserts in one explicit
+  transaction regardless of the geopandas version. In v6.0.0 a failing
+  `if_exists='replace'` also kept the existing table, because geopandas already
+  wraps an engine write in one transaction; the PostGIS change is covered by
+  mock-based tests only. DuckDB uploads run in one transaction that rolls back
+  on failure, so a failed `if_exists='replace'` keeps the original table and
+  rows. DuckDB uploads store the active geometry column whatever its name, and
+  refuse an attribute column named `geometry` when the active geometry has
+  another name, because the download would overwrite it (#1818).
+- DuckDB tables keep their CRS. `upload_spatial_data` records the full CRS in
+  the table comment, including for empty tables, and `download_spatial_data`
+  restores it, also after reconnecting. Previously every DuckDB read was
+  labelled EPSG:4326, whatever CRS was uploaded. `if_exists='append'` adds
+  rows by column name and refuses data in a different CRS; an equal CRS whose
+  WKT is spelled differently is recorded once and reads back. Arbitrary SQL
+  through `execute_spatial_query` keeps the EPSG:4326 label (#1818).
+- S2 cell IDs are documented as uint64 values that can exceed signed
+  BIGINT. Add `s2_cell_id_to_int64` with an exact inverse through
+  `s2_cell_id_to_uint64`, and an opt-in `as_signed=True` (default `False`, so
+  existing results are unchanged) on point indexing, polygon indexing, region
+  covers, and range generation so signed SQL `BETWEEN` queries match the
+  unsigned cell ranges. Correct the PostGIS storage guidance. Invalid cell IDs
+  (outside the 64-bit range, or a bare pd.NA) now raise ValueError/TypeError
+  instead of returning unusable values (#1473).
+- A Census API data request (`CensusAPI`, `CensusAPIClient`,
+  `get_demographics`) that the API redirects to its missing-key or
+  invalid-key page now raises `CensusAPIKeyError` at once, with a message
+  saying the key is required or was rejected, instead of retrying five times
+  and failing with `Expecting value: line 1 column 1`. Any other response that
+  is not JSON raises `CensusAPIError` ("Invalid API response", with its content
+  type) without retrying; before, it was retried because `requests` raises
+  its JSON error as a request error. The no-key warning no longer says the API
+  "will still work": data requests, including ACS tables, now need a key
+  (#1996).
+- `get_crosswalk` no longer fails when no parquet engine is installed, as
+  with `pip install 'siege-utilities[geo]'`, which does not include pyarrow
+  or fastparquet. The parquet cache is optional: a cache write that pandas
+  cannot make is skipped with a warning and the computed crosswalk is
+  returned, and a cache file that cannot be read is treated as a cache miss
+  with a warning. Install pyarrow to use the cache (#1994).
+- `extract_parent_geoid(geoid, "block", "block_group")` returns the block's
+  12-digit block-group GEOID instead of raising `ValueError`. Block group
+  from any other child level still raises (#1995).
+
+### Security
+
+- **Documented behavior change from v6.0.0:** config exports with
+  `exclude_sensitive=True` redact fields whose internal name or any Pydantic
+  alias names a credential, including validation/serialization aliases,
+  `AliasChoices`, and string components of `AliasPath`. The field-marker CI
+  guard uses the same classification. Credential names in UTF-8 bytes or
+  bytearray dictionary keys are now recognized; undecodable bytes and other
+  non-string keys fail closed, except for `int`, `float`, `bool` and `None`
+  keys and their subclasses (such as `IntEnum` members); `Decimal`,
+  `Fraction` and `complex` keys are redacted. In a
+  sensitive position a value is kept only when it is `None`, an exact-type
+  empty `str`/`bytes`/`list`/`dict`/`tuple`/`set`/`frozenset`, an exact-type
+  zero `bool`/`int`/`float`, or an exact `SecretStr`/`SecretBytes` wrapping an
+  exact-type empty payload; subclasses and every other value are redacted, so
+  falsey containers and objects no longer leak. Key representations,
+  field-marker policies, and non-redacted exports are unchanged. (#1460)
+
 ### Documentation
 
 - Dynamics `get_objects` documents that the returned frame keeps each
@@ -180,6 +870,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   returns True afterwards. Handle `ConnectorAuthError`, as that note advises;
   `is_connected()` cannot detect a rejected token. The 5.0.0 entry is left as
   released (#1920).
+- Label the spatial/06 GeoDjango notebook's management command as a schematic
+  and remove the complete, copy-pasteable recipe claim. Document that
+  `spatial_05_unified` refers to the spatial/05 notebook, not an importable
+  module, and requires a real ingestion loader and Django project setup.
+  Add a regression test for the documentation contract and clarify that
+  notebook validation does not exercise the loader, ORM, or PostGIS. Track
+  markdown-only schematics separately from execution groups and require code
+  cells in every execution notebook. Align the notebook-system documentation
+  with the schematic execution scope (#1671).
 
 ## [6.0.0] - 2026-11-22
 

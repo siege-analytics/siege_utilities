@@ -52,7 +52,9 @@ def test_atomic_write_with_staging_moves_files_and_cleans_staging(tmp_path):
     assert ("format", "csv") in writer.calls
     assert ("option", "header", "false") in writer.calls
     assert ("option", "delimiter", "|") in writer.calls
-    assert ("save", str(staging_directory)) in writer.calls
+    # Spark writes into a unique child of the caller's staging path (#1840).
+    saves = [call[1] for call in writer.calls if call[0] == "save"]
+    assert len(saves) == 1 and Path(saves[0]).parent == staging_directory
 
 
 def test_export_prepared_df_as_csv_uses_prepared_frame_and_delimiter(
@@ -88,5 +90,6 @@ def test_export_prepared_df_as_csv_uses_prepared_frame_and_delimiter(
     writer.format.assert_called_once_with("csv")
     writer.option.assert_any_call("header", "true")
     writer.option.assert_any_call("delimiter", "\t")
-    writer.mode.assert_called_once_with("overwrite")
+    # Non-destructive default (#1839): an existing export is not replaced.
+    writer.mode.assert_called_once_with("errorifexists")
     writer.save.assert_called_once_with(str(output_path))

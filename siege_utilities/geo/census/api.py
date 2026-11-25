@@ -13,6 +13,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any
+from urllib.parse import urlsplit
 
 import pandas as pd
 import requests
@@ -23,6 +24,7 @@ from siege_utilities.config import (
     CENSUS_RETRY_ATTEMPTS,
 )
 from siege_utilities.config.user_config import get_user_config
+from siege_utilities.config._home import _home_directory
 from siege_utilities.core._http import redact_url_secrets
 from .variable_registry import (  # noqa: F401 -- the sentinel sets are re-exported here
     ACS_SENTINELS, ACS_SENTINEL_STRINGS, VariableRegistry, _mask_acs_sentinels,
@@ -79,6 +81,40 @@ def _is_census_variable_column(col: Any) -> bool:
     return _ANNOTATION_VARIABLE.fullmatch(name) is None
 
 
+# The Census API redirects a data request with no key, or a rejected key, to an
+# HTML page under /data/ instead of answering with JSON (#1996).
+_KEY_REDIRECT_MESSAGES = {
+    "missing_key": (
+        "Census API key required: the Census API redirected this request to "
+        "its missing-key page. Set the CENSUS_API_KEY environment variable or "
+        "configure a 'census' API key in your siege_utilities user profile."
+    ),
+    "invalid_key": (
+        "Census API key rejected: the Census API redirected this request to "
+        "its invalid-key page. Check the CENSUS_API_KEY value or the 'census' "
+        "API key in your siege_utilities user profile."
+    ),
+}
+
+
+def _key_redirect_message(response: requests.Response) -> Optional[str]:
+    """Return the key error for a response redirected to a key page, else None.
+
+    Looks at the path of the final URL and of each redirect's ``Location``
+    (only string values are considered). The query string is ignored, so a
+    request whose parameters mention a page name is not mistaken for one.
+    """
+    candidates = [getattr(response, "url", None)]
+    history = getattr(response, "history", None)
+    if isinstance(history, (list, tuple)):
+        candidates += [getattr(hop, "headers", {}).get("Location") for hop in history]
+    paths = [urlsplit(candidate).path for candidate in candidates if isinstance(candidate, str)]
+    for page, message in _KEY_REDIRECT_MESSAGES.items():
+        if any(path.endswith(f"/{page}.html") for path in paths):
+            return message
+    return None
+
+
 class CensusAPI:
     """
     HTTP transport layer for Census Bureau API.
@@ -98,9 +134,11 @@ class CensusAPI:
         self.api_key = self._resolve_api_key(api_key)
         if self.api_key is None:
             log.warning(
-                "No Census API key configured. The Census Bureau API will "
-                "still work but enforces much lower rate limits "
-                "(500 requests/day vs 50,000 with a key). "
+                "No Census API key configured. Census Bureau data requests, "
+                "including ACS tables, now need a key: without one the API "
+                "redirects them to a missing-key page and the request fails "
+                "with CensusAPIKeyError. A key's rate limit is 50,000 "
+                "requests a day. "
                 "Set the CENSUS_API_KEY environment variable or configure "
                 "a 'census' API key in your siege_utilities user profile."
             )
@@ -115,7 +153,7 @@ class CensusAPI:
             if cache_dir:
                 self.cache_dir = Path(cache_dir)
             else:
-                self.cache_dir = Path.home() / '.siege_utilities' / 'cache' / 'census_api'
+                self.cache_dir = _home_directory() / '.siege_utilities' / 'cache' / 'census_api'
             self.cache_dir.mkdir(parents=True, exist_ok=True)
         else:
             self.cache_dir = None
@@ -249,7 +287,7 @@ class CensusAPI:
     def _make_request_with_retry(self, url: str) -> pd.DataFrame:
         # Import here to avoid a cycle with the CensusAPIClient facade.
         from siege_utilities.geo.census_api_client import (
-            CensusRateLimitError, CensusAPIError, CensusServerError,
+            CensusRateLimitError, CensusAPIError, CensusServerError, CensusAPIKeyError,
         )
         last_exception = None
 
@@ -263,7 +301,30 @@ class CensusAPI:
 
                 response.raise_for_status()
 
-                data = response.json()
+                # A missing or rejected key is redirected to an HTML page;
+                # retrying cannot change that answer.
+                key_problem = _key_redirect_message(response)
+                if key_problem:
+                    # Only the URL without its query string: a malformed key
+                    # (quotes, spaces, a "Bearer " prefix) can slip past
+                    # redact_url_secrets, and the query is where the key is.
+                    raise CensusAPIKeyError(f"{key_problem} Request: {url.split('?', 1)[0]}")
+
+                # requests' JSONDecodeError is also a RequestException, so it
+                # would be retried; a body that is not JSON will not parse on
+                # another attempt. The error is raised after the except block so
+                # the unredacted parse error is not kept as its __context__.
+                parse_error = None
+                try:
+                    data = response.json()
+                except ValueError as e:
+                    content_type = response.headers.get("Content-Type", "unknown")
+                    log.error(redact_url_secrets(f"Failed to parse API response: {e}"))
+                    parse_error = redact_url_secrets(
+                        f"Invalid API response (content type {content_type!r}): {e}"
+                    )
+                if parse_error is not None:
+                    raise CensusAPIError(parse_error)
 
                 if not data or len(data) < 2:
                     raise CensusAPIError("Census API returned empty response (< 2 rows)")

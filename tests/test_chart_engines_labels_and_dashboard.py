@@ -195,8 +195,9 @@ def test_text_heatmap_retains_entirely_missing_rows_and_columns():
 def test_pie_legend_handles_zero_and_nan_totals(charts, values, expected):
     fig = charts.create_pie_chart({'label': ['A', 'B'], 'value': values}, 'label', 'value')
     ax = fig.axes[0]
-    assert len(ax.tables) == 1
-    table = ax.tables[0]
+    tables = [table for axes in fig.axes for table in axes.tables]
+    assert len(tables) == 1
+    table = tables[0]
     assert [table[(row, 3)].get_text().get_text() for row in [1, 2]] == [expected, expected]
     assert ax.texts  # An explicit notice explains why there are no wedges.
 

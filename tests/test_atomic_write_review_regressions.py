@@ -113,6 +113,7 @@ class ThreePartWriter:
         return self
 
     def save(self, destination):
+        Path(destination).mkdir(parents=True, exist_ok=True)
         for index in range(3):
             (Path(destination) / f"part-{index}.csv").write_text(f"id\n{index}\n")
 

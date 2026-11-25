@@ -4,6 +4,7 @@ import logging
 import math
 import numbers
 import re
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -24,27 +25,57 @@ def _is_missing(value: Any) -> bool:
     return value is None or (pd.api.types.is_scalar(value) and bool(pd.isna(value)))
 
 
+_INT64_MIN = -(2 ** 63)
+_INT64_MAX = 2 ** 63 - 1
+
+
 def _plain_number(value: numbers.Number) -> int | float:
     """Return a known chart value as a built-in int or float.
 
     The chart engine hands values to matplotlib, which (from 3.11) rejects a
     ``Decimal`` in a pie chart. Integral values stay ints so value labels keep
-    printing ``88`` rather than ``88.0``.
+    printing ``88`` rather than ``88.0``; that includes a finite ``Decimal``
+    written without a fractional part (``Decimal("88")``, ``Decimal("1E+3")``,
+    ``Decimal("0E+19")``) that fits a 64-bit integer, while ``Decimal("88.0")``
+    stays a float. A larger whole-number ``Decimal`` becomes a float; its size
+    is checked from the exponent before any int is built. Whether a whole
+    series can stay ints is decided by ``_fits_int64``.
     """
     if isinstance(value, numbers.Integral):
         return int(value)
+    if isinstance(value, Decimal) and value.is_finite() and value.as_tuple().exponent >= 0:
+        if value.is_zero():
+            return 0
+        if value.adjusted() < 19:
+            integral = int(value)
+            if _INT64_MIN <= integral <= _INT64_MAX:
+                return integral
     return float(value)
+
+
+def _fits_int64(values: list[Any]) -> bool:
+    """True when every int in a series, and their total, fits a signed 64-bit integer.
+
+    A bar chart cannot draw an int outside that range, and a pie chart sums
+    its values as 64-bit integers, so a larger total wraps and the wedges stop
+    matching the legend. Such a series is drawn from floats instead.
+    """
+    ints = [value for value in values if type(value) is int]
+    return (all(_INT64_MIN <= value <= _INT64_MAX for value in ints)
+            and _INT64_MIN <= sum(ints) <= _INT64_MAX)
 
 
 def _checked_series(kind: str, title: str, labels: list[Any], values: list[Any]) -> list[Any]:
     """Return one series after checking it against the chart labels.
 
     Known values come back as built-in ints or floats (``Decimal`` and NumPy
-    scalars included); missing values are returned unchanged.
+    scalars included); missing values are returned unchanged. When an int in
+    the series, or the total of its ints, falls outside the signed 64-bit
+    range, every int in the series is returned as a float.
 
     Raises:
-        ValueError: the series and the labels differ in length, or a known
-            value is not a real number.
+        ValueError: the series and the labels differ in length, a known
+            value is not a real number, or a value is too large to draw.
     """
     if len(values) != len(labels):
         raise ValueError(
@@ -59,10 +90,20 @@ def _checked_series(kind: str, title: str, labels: list[Any], values: list[Any])
         try:
             if not isinstance(value, numbers.Number):
                 raise TypeError(type(value).__name__)
+            # float() would drop the imaginary part of a NumPy complex.
+            if isinstance(value, numbers.Complex) and not isinstance(value, numbers.Real):
+                raise TypeError(f"{type(value).__name__} is not a real number")
             checked.append(_plain_number(value))
         except (TypeError, ValueError, OverflowError) as exc:
             raise ValueError(
                 f"Facade {kind} chart {title!r} has a non-numeric value: {value!r}"
+            ) from exc
+    if not _fits_int64(checked):
+        try:
+            checked = [float(value) if type(value) is int else value for value in checked]
+        except OverflowError as exc:
+            raise ValueError(
+                f"Facade {kind} chart {title!r} has a value too large to draw"
             ) from exc
     return checked
 
@@ -85,8 +126,9 @@ def _chart_images(config: dict[str, Any], generator: ReportGenerator) -> list[An
 
     Raises:
         ValueError: the chart type is not bar, line or pie; a series and the
-            labels differ in length; a known value is not a number; or the
-            known values of a pie chart total zero.
+            labels differ in length; a known value is not a real number or
+            is too large to draw; or the known values of a pie chart total
+            zero.
     """
     # Validate the type before the empty-labels shortcut so an unsupported
     # configuration is reported even when it has nothing to draw.
