@@ -173,8 +173,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without a name match can now be told apart from one whose name matching never
   ran by checking `name_matching_skipped`. VTD name candidates whose key is not
   an 11-character VTD GEOID (for example a GEOID that lost its leading zero in
-  an integer column) are never compared; a warning gives their count and
-  examples (#1433).
+  an integer column) are never compared; `PrecinctVTDReconciler.reconcile`
+  logs a warning giving their count and examples, while direct
+  `reconcile_names` calls do not (#1433).
 
 ### Changed
 

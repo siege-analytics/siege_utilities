@@ -2,6 +2,7 @@
 
 import logging
 
+import pandas as pd
 import pytest
 
 from siege_utilities.geo.precinct_vtd import (
@@ -443,7 +444,7 @@ def test_sub_threshold_sliver_does_not_block_name_confirmation():
     assert r.method_counts.get("combined") == 1
 
 
-@pytest.mark.parametrize("state", [None, 48, float("nan")])
+@pytest.mark.parametrize("state", [None, 48, float("nan"), pd.NA])
 def test_non_string_crosswalk_state_does_not_disable_name_matching(state):
     # One crosswalk row with a missing or non-string state must not cost the
     # other precincts their name matches.
@@ -461,7 +462,37 @@ def test_non_string_crosswalk_state_does_not_disable_name_matching(state):
     ]
 
 
-@pytest.mark.parametrize("vtd_key", ["6037000001", "V1", " 06037000001", 6037000001])
+def test_nullable_string_state_column_does_not_disable_name_matching():
+    # A crosswalk read into a pandas "string" column carries a missing state as
+    # pd.NA, which has no truth value; it must count as a missing state, like a
+    # blank one, and not cost the other precincts their name matches.
+    frame = pd.DataFrame({
+        "precinct": ["P1", "P3"],
+        "vtd": ["48201000001", "48201000003"],
+        "state": pd.array([None, ""], dtype="string"),
+        "county": ["201", "201"],
+    })
+    assert frame["state"].isna().tolist() == [True, False]
+    cw = [
+        OfficialCrosswalkEntry(row.precinct, row.vtd, state=row.state, county=row.county)
+        for row in frame.itertuples(index=False)
+    ]
+    nm = DictNameMatchProvider()
+    nm.add_precinct("P1", "Precinct 1")
+    nm.add_precinct("P2", "Precinct 2", county="48201")
+    nm.add_precinct("P3", "Precinct 3")
+    for suffix in ("1", "2", "3"):
+        nm.add_vtd(f"4820100000{suffix}", f"Precinct {suffix}")
+    r = PrecinctVTDReconciler(name_provider=nm, official_crosswalk=cw).reconcile(["P1", "P2", "P3"])
+    assert r.errors == []
+    assert sorted(((m.precinct_id, m.method) for m in r.mappings), key=lambda pair: pair[0]) == [
+        ("P1", ReconciliationMethod.OFFICIAL_CROSSWALK),
+        ("P2", ReconciliationMethod.NAME_MATCH),
+        ("P3", ReconciliationMethod.OFFICIAL_CROSSWALK),
+    ]
+
+
+@pytest.mark.parametrize("vtd_key",["6037000001", "V1", " 06037000001", 6037000001])
 def test_ignored_vtd_candidates_are_reported(vtd_key, caplog):
     # A VTD key that is not an 11-character GEOID is never compared; that must
     # not look like "no similar name".
@@ -475,3 +506,48 @@ def test_ignored_vtd_candidates_are_reported(vtd_key, caplog):
     ignored = [m for m in messages if "ignored 1 of 1 VTD name candidate" in m]
     assert ignored, messages
     assert repr(vtd_key) in ignored[0]
+
+
+def _ignored_vtd_messages(caplog):
+    return [r.getMessage() for r in caplog.records if "VTD name candidate" in r.getMessage()]
+
+
+def test_ignored_vtd_warning_counts_only_malformed_keys_and_caps_examples(caplog):
+    nm = DictNameMatchProvider()
+    nm.add_precinct("P1", "Precinct 1", county="06037")
+    nm.add_vtd("06037000001", "Precinct 1")
+    nm.add_vtd("06037000002", "Precinct 2")
+    for key in ("6037000001", "V1", " 06037000001", "060370000011"):
+        nm.add_vtd(key, "Precinct 1")
+    with caplog.at_level(logging.WARNING, logger="siege_utilities.geo.precinct_vtd"):
+        res = PrecinctVTDReconciler(name_provider=nm).reconcile(["P1"])
+    assert [m.vtd_geoid for m in res.mappings] == ["06037000001"]
+    messages = _ignored_vtd_messages(caplog)
+    assert len(messages) == 1, messages
+    assert "ignored 4 of 6 VTD name candidate" in messages[0]
+    for shown in ("'6037000001'", "'V1'", "' 06037000001'"):
+        assert shown in messages[0]
+    assert "'060370000011'" not in messages[0]  # the fourth malformed key: examples stop at three
+    assert "'06037000002'" not in messages[0]  # a valid key is never listed as ignored
+
+
+def test_no_ignored_vtd_warning_when_every_key_is_a_vtd_geoid(caplog):
+    nm = DictNameMatchProvider()
+    nm.add_precinct("P1", "Precinct 1", county="06037")
+    nm.add_vtd("06037000001", "Precinct 1")
+    nm.add_vtd("0603700A.-1", "Precinct 9")
+    with caplog.at_level(logging.WARNING, logger="siege_utilities.geo.precinct_vtd"):
+        res = PrecinctVTDReconciler(name_provider=nm).reconcile(["P1"])
+    assert [m.vtd_geoid for m in res.mappings] == ["06037000001"]
+    assert _ignored_vtd_messages(caplog) == []
+
+
+def test_county_only_provider_key_lists_the_precinct_as_skipped():
+    # A county-only provider key (no state digits) resolves no county, so the
+    # precinct must be listed as skipped rather than silently unmatched.
+    nm = DictNameMatchProvider()
+    nm.add_precinct("P1", "Precinct 1", county="201")
+    nm.add_vtd("48201000001", "Precinct 1")
+    res = PrecinctVTDReconciler(name_provider=nm).reconcile(["P1"])
+    assert res.mappings == []
+    assert res.name_matching_skipped == ["P1"]

@@ -309,7 +309,10 @@ def _county_candidates(
     for entry in crosswalk:
         # A missing state from a CSV arrives as None or NaN; it must not abort
         # name matching for every precinct in the call.
-        state = str(entry.state or "").strip().upper()
+        try:
+            state = str(entry.state or "").strip().upper()
+        except TypeError:  # pd.NA has no truth value
+            state = ""
         state_fips = _STATE_FIPS_CODES.get(state, state)
         if not re.fullmatch(r"[0-9]{2}", state_fips):
             state_fips = _vtd_county(entry.vtd_geoid)[:2]
