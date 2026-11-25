@@ -44,6 +44,13 @@ Develop was merged additively. The only conflict was `CHANGELOG.md`; every devel
 - **Coverage in the areal fallback.** `_apply_areal_interpolation` averages carried coverage columns by area like intensive columns instead of splitting them as counts. With complete data the fallback reports coverage 1.0 instead of 0.5.
 - **Tests.** `tests/test_crosswalk_weights_1409.py` gains nine tests, and its sum/weighted_mean test is renamed `test_extensive_missing_contributors_by_aggregation`: its `sum` case now expects NaN for the partially missing target, which is the #1945 decision. `tests/test_crosswalk_areal_missing_and_coverage.py` adds six tests through `LongitudinalAligner` and `interpolate_areal` on a three-vintage geography. Against the 34d7b1a1 library code these 16 new or changed tests give 12 failed and 4 passed; the four passes (a split of a missing source, a zero-weight missing row, intensive averaging, a coverage-named column without its base column) are guards. All pass at this head.
 
+## Carried coverage with weighted_mean and chained normalize_to_year (after 577cb10d)
+
+- **weighted_mean.** With `carried_coverage`, `weighted_mean` divided by the covered weight, which is the weight scaled by the carried coverage, so a value of 10 at coverage 0.5 came out as 20. Carried coverage says how complete a value is, not how much weight it has. The denominator is now the weight of the rows whose value is present, kept separate from the covered weight used for coverage.
+- **Chained normalize_to_year.** `normalize_to_year` supports 2000 to 2010 and 2010 to 2020, so 2000 to 2020 takes two calls. The second call received the first call's `<col>_coverage` columns, refused them as reserved names and had no way to accept them, where develop returned values. `normalize_to_year` now accepts `carried_coverage` and forwards it.
+- **Docs.** The CHANGELOG and the census data guide tell callers chaining their own calls to pass the coverage columns in `carried_coverage` rather than rename them, since a renamed coverage column is summed as a count; renaming is only for a caller's own data column with a reserved name.
+- **Tests.** `tests/test_crosswalk_carried_coverage_chains.py`, seven tests: 6 failed and 1 passed at 577cb10d, 7 passed with the fix, which is the reviewer's suggested patch applied unchanged.
+
 ## Ticket-fitness exemption
 
 Governing ticket: #1409 (the #1398 epic is context only and is not a governing ticket).
@@ -65,7 +72,11 @@ The latest round changes behavior on purpose, under the operator's #1945 decisio
 | F2 | P1 | The crosswalk path summed the remaining values of a target with a missing contributor, while the areal path returned NaN; the #1945 decision makes both NaN | fixed |
 | F3 | P2 | The #1409 CHANGELOG entry would have merged into the released 5.0.0 section; moved to `[Unreleased]` / `### BREAKING` and states the #1945 rule | fixed |
 | F4 | P3 | This artifact named 4.1.0, a cross-family reviewer, a DuckDB 2.0 CI baseline and no develop change to `geo/timeseries/`, which no longer hold | fixed |
+| F5 | P1 | `weighted_mean` with `carried_coverage` divided by weight times coverage, doubling a value carried at coverage 0.5 | fixed |
+| F6 | P1 | A chained `normalize_to_year` call refused the first call's coverage columns and could not accept them as `carried_coverage`, where develop returned values | fixed |
 
 ## Independent review
 
-Independent review of 34d7b1a1: FAIL on the `<col>_coverage` outputs (F1), with rulings asked on #1945 and on the release section. #1945 was decided by the operator (option A) and the entry is under `[Unreleased]`. This head addresses F1 to F4; a delta review of this head is pending, not a pass.
+Independent review of 34d7b1a1: FAIL on the `<col>_coverage` outputs (F1), with rulings asked on #1945 and on the release section. #1945 was decided by the operator (option A) and the entry is under `[Unreleased]`. 577cb10d addressed F1 to F4.
+
+Independent review of 577cb10d: changes requested on two items, F5 and F6; everything from the previous round was verified fixed. This head applies the reviewer's suggested patch and tests unchanged; a delta review of this head is pending, not a pass.

@@ -416,6 +416,10 @@ class CrosswalkProcessor:
         for col in extensive_cols:
             merged[f'{R}weighted_{col}'] = merged[col] * merged[c_weight]
             merged[f'{R}covered_{col}'] = merged[c_weight] * _coverage_factor(col)
+            # weighted_mean denominator: the weight of the rows whose value is
+            # present. Carried coverage says how complete a value is, not how
+            # much weight it has, so it stays out of the denominator.
+            merged[f'{R}present_{col}'] = merged[c_weight].where(merged[col].notna(), 0.0)
             merged[f'{R}missing_{col}'] = merged[col].isna() & merged[c_weight].ne(0)
 
         # Build the area-weighted numerator/denominator for intensive columns.
@@ -503,6 +507,7 @@ class CrosswalkProcessor:
         for col in extensive_cols:
             weighted_col = f'{R}weighted_{col}'
             agg_dict[f'{R}covered_{col}'] = (f'{R}covered_{col}', 'sum')
+            agg_dict[f'{R}present_{col}'] = (f'{R}present_{col}', 'sum')
             agg_dict[f'{R}missing_{col}'] = (f'{R}missing_{col}', 'any')
             if aggregation_func == 'sum':
                 agg_dict[col] = (weighted_col, lambda values: values.sum(min_count=1))
@@ -532,14 +537,15 @@ class CrosswalkProcessor:
         # Extensive weighted_mean normalization (intensive columns are never
         # touched here -- they are computed from their own numerator/denominator
         # below, so 'mean'/'weighted_mean' cannot double-divide a rate).
-        # The denominator is each column's own covered weight, so rows whose
-        # value is missing leave both the numerator and the denominator; a
-        # target with no non-missing value has a zero denominator and stays NaN.
+        # The denominator is the weight of the rows whose value is present, so
+        # rows whose value is missing leave both the numerator and the
+        # denominator; a target with no non-missing value has a zero
+        # denominator and stays NaN.
         if aggregation_func == 'weighted_mean':
             for col in extensive_cols:
                 if col in result.columns:
-                    covered_weight = result[f'{R}covered_{col}'].replace(0, np.nan)
-                    result[col] = result[col] / covered_weight
+                    present_weight = result[f'{R}present_{col}'].replace(0, np.nan)
+                    result[col] = result[col] / present_weight
 
         # Extensive totals: a target with any missing contributor is missing,
         # not the sum of the contributors that have data (#1945). This matches
@@ -555,7 +561,7 @@ class CrosswalkProcessor:
             result[f'{col}_coverage'] = (
                 result[covered] / result[c_total_weight].replace(0, np.nan)
             ).fillna(0.0)
-            drop_cols += [covered, f'{R}missing_{col}']
+            drop_cols += [covered, f'{R}present_{col}', f'{R}missing_{col}']
         for col in intensive_cols:
             # Intensive area-weighted mean: numerator / denominator.
             inum, iden, icov = f'{R}inum_{col}', f'{R}iden_{col}', f'{R}icov_{col}'
@@ -749,6 +755,7 @@ def normalize_to_year(
     value_columns: Optional[List[str]] = None,
     weight_method: Union[WeightMethod, str] = WeightMethod.AREA,
     intensive_variables: Optional[List[str]] = None,
+    carried_coverage: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     """
     Normalize data to a specific boundary year.
@@ -769,6 +776,9 @@ def normalize_to_year(
             POPULATION/HOUSING require the corresponding crosswalk weight column.
         intensive_variables: Rate/ratio columns to area-weight average instead
             of disaggregating and summing. Requires absolute areas on merges.
+        carried_coverage: <col>_coverage columns produced by an earlier call,
+            for chaining two calls such as 2000 to 2010 and 2010 to 2020
+            (see CrosswalkProcessor.transform).
 
     Returns:
         DataFrame normalized to target year boundaries, including <col>_coverage
@@ -798,6 +808,7 @@ def normalize_to_year(
         value_columns=value_columns,
         weight_method=weight_method,
         intensive_variables=intensive_variables,
+        carried_coverage=carried_coverage,
     )
 
 
